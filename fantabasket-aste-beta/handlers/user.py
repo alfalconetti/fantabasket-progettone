@@ -1,0 +1,606 @@
+"""
+Comandi utente non legati al flusso offerte:
+  /me, /watched, /lista_fa, watch_callback
+"""
+import logging
+
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
+
+import database as db
+import teams as tm
+import utils
+import settings
+import pg_client
+from handlers.helpers import teams_map
+from handlers.admin import autocap as _autocap_from_user, auto_slot as _auto_slot_from_user, cmd_team
+
+logger = logging.getLogger(__name__)
+
+
+# ── /me ──────────────────────────────────────────────────────────────────────
+
+async def cmd_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    team = tm.get_team_by_gm(user.id)
+    if team is None:
+        await update.effective_message.reply_text("⛔ Non sei registrato come GM.")
+        return
+
+    stagione       = utils.load_globals().get("stagione_corrente", "2025")
+    cap_tot, slot_tot = utils.cap_slot_display(team, stagione)
+    cap_virtuale   = db.get_cap_virtuale(team["id"])
+    slot_impegnati = db.get_slot_virtuali(team["id"])
+    cap_libero     = cap_tot - cap_virtuale
+    slot_liberi    = slot_tot - slot_impegnati
+    offerte_vince  = db.get_offerte_vincenti_team(team["id"])
+
+    fase = utils.load_globals().get("fase", "offseason")
+    cap_pen = team.get("cap_penalizzato", 0)
+    s = settings.get()
+    cap_impegnati_contratti  = s["cap_offseason"] - cap_tot
+    slot_impegnati_contratti = s.get("slot_massimo", 15) - slot_tot
+
+    righe = [
+        f"🏀 <b>{team['nome']}</b>",
+        "",
+        f"💰 <b>{cap_impegnati_contratti}M</b> impegnati in contratti",
+        f"💰 Cap disponibile (offseason): <b>{cap_tot}M</b>",
+        f"⏳ Cap virtualmente impegnato: <b>{cap_virtuale}M</b>",
+        f"✅ Cap effettivamente libero: <b>{cap_libero}M</b>",
+    ]
+
+    if fase == "offseason":
+        rfa_attive = db.get_rfa_proprietario(team["id"])
+        if rfa_attive:
+            cap_rfa = sum(r["vecchio_compenso"] or 0 for r in rfa_attive)
+            nomi_rfa = ", ".join(r["giocatore"] for r in rfa_attive)
+            righe.append(f"⚠️ Cap occupato da RFA: <b>{cap_rfa}M</b> ({nomi_rfa})")
+        delta = s["cap_offseason"] - s["cap_regular"] + cap_pen
+        cap_rs = cap_libero - delta
+        nota_pen = f", penalità {cap_pen}M" if cap_pen else ""
+        righe.append(f"📉 Cap libero in Regular Season: <b>{cap_rs}M</b> (-{delta}M{nota_pen})")
+
+    righe += [
+        "",
+        f"🪑 <b>{slot_impegnati_contratti}</b> slot impegnati in contratti",
+        f"🪑 Slot totali: <b>{slot_tot}</b>",
+        f"⏳ Slot virtualmente impegnati: <b>{slot_impegnati}</b>",
+        f"✅ Slot effettivamente liberi: <b>{slot_liberi}</b>",
+    ]
+
+    if offerte_vince:
+        righe.append("")
+        righe.append("<i>Offerte vincenti in corso:</i>")
+        for o in offerte_vince:
+            righe.append(
+                f"  • {o['giocatore']} — {o['offerta_corrente']}M "
+                f"(scade {utils.format_dt(o['scade_at'])})"
+            )
+
+    await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
+
+
+# ── /watched ─────────────────────────────────────────────────────────────────
+
+async def cmd_watched(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    team = tm.get_team_by_gm(user.id)
+    if team is None:
+        await update.effective_message.reply_text("⛔ Non sei registrato come GM.")
+        return
+
+    from database import get_conn
+    with get_conn() as conn:
+        rows = conn.execute(
+            """SELECT a.* FROM aste a
+               JOIN aste_watch w ON w.asta_id = a.id
+               WHERE w.gm_id=? AND a.stato IN ('APERTA','CHIUSA','PAREGGIO')
+               ORDER BY a.scade_at""",
+            (user.id,),
+        ).fetchall()
+
+    if not rows:
+        await update.effective_message.reply_text("Non stai seguendo nessuna asta al momento.")
+        return
+
+    bot_username = context.bot.username
+    tm_map = teams_map()
+    righe = ["<b>Aste che segui:</b>\n"]
+    for a in rows:
+        tipo = "🔴 RFA" if a["tipo"] == "RFA" else "🟢 FA"
+        vincitore = tm_map.get(a["offerente_team_id"], "—") if a["offerente_team_id"] else "nessuno"
+        stato_label = {"APERTA": "⏳", "CHIUSA": "🔒", "PAREGGIO": "⚖️"}.get(a["stato"], "")
+        if a["stato"] == "APERTA" and bot_username:
+            offri_url = f"https://t.me/{bot_username}?start=offri_{a['id']}"
+            link_offri = f' — <a href="{offri_url}">Offri</a>'
+        else:
+            link_offri = ""
+        righe.append(
+            f"{stato_label} {tipo} <b>{a['giocatore']}</b>{link_offri}\n"
+            f"  Offerta: {a['offerta_corrente']}M — {vincitore}\n"
+            f"  Scade: {utils.format_dt(a['scade_at'])}\n"
+            f"  ID: <code>{a['id']}</code>"
+        )
+    testo = "\n\n".join(righe)
+    if len(testo) <= 4096:
+        await update.effective_message.reply_text(
+            testo, parse_mode="HTML", disable_web_page_preview=True
+        )
+    else:
+        chunk = righe[0]  # intestazione
+        for riga in righe[1:]:
+            candidato = chunk + "\n\n" + riga
+            if len(candidato) > 4096:
+                await update.effective_message.reply_text(
+                    chunk, parse_mode="HTML", disable_web_page_preview=True
+                )
+                chunk = riga
+            else:
+                chunk = candidato
+        if chunk:
+            await update.effective_message.reply_text(
+                chunk, parse_mode="HTML", disable_web_page_preview=True
+            )
+
+
+# ── /watch ───────────────────────────────────────────────────────────────────
+
+async def cmd_watch(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /watch          → lista aste aperte con bottoni per seguire
+    /watch <asta_id> → aggiunge watch direttamente
+    """
+    user = update.effective_user
+    team = tm.get_team_by_gm(user.id)
+    if team is None:
+        await update.effective_message.reply_text("⛔ Non sei registrato come GM.")
+        return
+
+    if context.args:
+        try:
+            asta_id = int(context.args[0])
+        except ValueError:
+            await update.effective_message.reply_text("❌ ID asta non valido.")
+            return
+        asta = db.get_asta(asta_id)
+        if not asta or asta["stato"] not in ("APERTA", "CHIUSA", "PAREGGIO"):
+            await update.effective_message.reply_text("❌ Asta non trovata o già conclusa.")
+            return
+        if db.is_watching(asta_id, user.id):
+            await update.effective_message.reply_text(
+                f"🔔 Stai già seguendo <b>{asta['giocatore']}</b>.\nUsa /silenzia per smettere.",
+                parse_mode="HTML",
+            )
+            return
+        db.add_watch(asta_id, user.id)
+        tm_map = teams_map()
+        vincitore = tm_map.get(asta["offerente_team_id"], "—") if asta["offerente_team_id"] else "nessuno"
+        await update.effective_message.reply_text(
+            f"🔔 Ora segui <b>{asta['giocatore']}</b>\n"
+            f"Offerta attuale: <b>{asta['offerta_corrente']}M — {vincitore}</b>\n"
+            f"Scade: {utils.format_dt(asta['scade_at'])}",
+            parse_mode="HTML",
+        )
+        return
+
+    aste = db.get_aste_aperte()
+    if not aste:
+        await update.effective_message.reply_text("Nessuna asta aperta al momento.")
+        return
+    righe_kb = []
+    for a in aste:
+        already = db.is_watching(a["id"], user.id)
+        emoji = "✅" if already else "🔔"
+        label = f"{emoji} {'🔴' if a['tipo']=='RFA' else '🟢'} {a['giocatore']} — {a['offerta_corrente']}M"
+        righe_kb.append([InlineKeyboardButton(label, callback_data=f"watch:{a['id']}")])
+    await update.effective_message.reply_text(
+        "Scegli un'asta da seguire:", reply_markup=InlineKeyboardMarkup(righe_kb)
+    )
+
+
+# ── watch callback ────────────────────────────────────────────────────────────
+
+async def watch_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+
+    asta_id = int(query.data.split(":")[1])
+    gm_id = query.from_user.id
+
+    team = tm.get_team_by_gm(gm_id)
+    if team is None:
+        await query.answer("⛔ Non sei registrato come GM.", show_alert=True)
+        return
+
+    asta = db.get_asta(asta_id)
+    if db.is_watching(asta_id, gm_id):
+        await query.answer("🔔 Stai già seguendo questa asta.\nUsa /silenzia per smettere.", show_alert=True)
+    else:
+        db.add_watch(asta_id, gm_id)
+        if asta:
+            tm_map = teams_map()
+            vincitore = tm_map.get(asta["offerente_team_id"], "—") if asta["offerente_team_id"] else "nessuno"
+            testo_feedback = (
+                f"🔔 Ora segui <b>{asta['giocatore']}</b>\n"
+                f"Offerta attuale: <b>{asta['offerta_corrente']}M — {vincitore}</b>\n"
+                f"Scade: {utils.format_dt(asta['scade_at'])}"
+            )
+            try:
+                await context.bot.send_message(chat_id=gm_id, text=testo_feedback, parse_mode="HTML")
+            except Exception as e:
+                logger.warning("feedback watch privato fallito: %s", e)
+        await query.answer("🔔 Ora segui questa asta.", show_alert=True)
+
+
+# ── /lista_fa ─────────────────────────────────────────────────────────────────
+
+def _lista_fa_keyboard(rows: list[dict], aste_aperte_giocatori: set, page: int, bot_username: str = None) -> InlineKeyboardMarkup:
+    page_size = settings.paginazione_fa()
+    start = page * page_size
+    pagina = rows[start: start + page_size]
+    totale_pagine = max(1, -(-len(rows) // page_size))
+
+    righe_kb = []
+    for r in pagina:
+        pallino = "🟡 " if r["nome"] in aste_aperte_giocatori else ""
+        fm_val = r.get("fantamedia")
+        stagione_bref = r.get("stagione_bref")
+        if fm_val:
+            anno_nota = f" ({stagione_bref})" if stagione_bref else ""
+            fm = f" — FM: {fm_val}{anno_nota}"
+        else:
+            fm = ""
+        label = f"{pallino}{r['nome']}{fm}"
+        if bot_username:
+            # deep link: normalizza diacritici, spazi→_, punti→--, strip apostrofi (Telegram start: solo A-Za-z0-9_-)
+            nome_enc = utils.normalizza(r["nome"]).replace(" ", "_").replace(".", "--").replace("'", "")
+            url = f"https://t.me/{bot_username}?start=nuova_fa_{nome_enc}"
+            righe_kb.append([InlineKeyboardButton(label, url=url)])
+        else:
+            righe_kb.append([InlineKeyboardButton(label, callback_data=f"fa_avvia:{r['nome']}")])
+
+    nav = []
+    if page > 0:
+        nav.append(InlineKeyboardButton("◀ Prec", callback_data=f"fa_page:{page-1}"))
+    if page < totale_pagine - 1:
+        nav.append(InlineKeyboardButton("Succ ▶", callback_data=f"fa_page:{page+1}"))
+    if nav:
+        righe_kb.append(nav)
+
+    return InlineKeyboardMarkup(righe_kb)
+
+
+async def cmd_lista_fa(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    rows = [r for r in utils.get_fa_rows() if r["firmato"] == "0"]
+    if not rows:
+        await update.effective_message.reply_text("Nessun giocatore FA disponibile.")
+        return
+
+    # Arricchisci con fantamedia da bref_stats
+    if pg_client.pg_disponibile():
+        nomi = [r["nome"] for r in rows]
+        bref_map = pg_client.get_bref_fantamedie_bulk(nomi)
+        stagione_corrente = utils.load_globals().get("stagione_corrente", "2026")
+        anno_bref_corrente = str(int(stagione_corrente) + 1)
+        for r in rows:
+            fm_data = bref_map.get(r["nome"].lower())
+            if fm_data and fm_data[0] is not None:
+                fm, stagione_bref = fm_data
+                r["fantamedia"] = round(fm, 1)
+                # stagione_bref es. "2026" = NBA 2025-26 = nostro "2025"
+                if stagione_bref != anno_bref_corrente:
+                    r["stagione_bref"] = str(int(stagione_bref) - 1)
+                else:
+                    r["stagione_bref"] = None
+            else:
+                r["stagione_bref"] = None
+
+    # Ordina per fantamedia DESC (None in fondo)
+    rows.sort(key=lambda r: r.get("fantamedia") or -1, reverse=True)
+
+    aste_aperte_giocatori = {a["giocatore"] for a in db.get_aste_aperte()}
+    aste_aperte_giocatori |= {a["giocatore"] for a in db.get_aste_chiuse()}
+
+    bot_username = context.bot.username
+    kb = _lista_fa_keyboard(rows, aste_aperte_giocatori, 0, bot_username)
+    await update.effective_message.reply_text(
+        "🟢 <b>Giocatori FA disponibili</b>\n🟡 = asta in corso\nClicca per aprire subito l'asta:",
+        parse_mode="HTML",
+        reply_markup=kb,
+    )
+
+
+async def lista_fa_page_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    page = int(query.data.split(":")[1])
+    rows = [r for r in utils.get_fa_rows() if r["firmato"] == "0"]
+    if pg_client.pg_disponibile():
+        nomi = [r["nome"] for r in rows]
+        bref_map = pg_client.get_bref_fantamedie_bulk(nomi)
+        stagione_corrente = utils.load_globals().get("stagione_corrente", "2026")
+        anno_bref_corrente = str(int(stagione_corrente) + 1)
+        for r in rows:
+            fm_data = bref_map.get(r["nome"].lower())
+            if fm_data and fm_data[0] is not None:
+                fm, stagione_bref = fm_data
+                r["fantamedia"] = round(fm, 1)
+                # stagione_bref es. "2026" = NBA 2025-26 = nostro "2025"
+                if stagione_bref != anno_bref_corrente:
+                    r["stagione_bref"] = str(int(stagione_bref) - 1)
+                else:
+                    r["stagione_bref"] = None
+            else:
+                r["stagione_bref"] = None
+    aste_aperte_giocatori = {a["giocatore"] for a in db.get_aste_aperte()}
+    aste_aperte_giocatori |= {a["giocatore"] for a in db.get_aste_chiuse()}
+    bot_username = context.bot.username
+    kb = _lista_fa_keyboard(rows, aste_aperte_giocatori, page, bot_username)
+    await query.edit_message_reply_markup(reply_markup=kb)
+
+
+async def lista_fa_avvia_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    nome = query.data.split(":", 1)[1]
+    user = query.from_user
+    team = tm.get_team_by_gm(user.id)
+
+    if team is None:
+        await query.answer("⛔ Non sei registrato come GM.", show_alert=True)
+        return
+
+    if not utils.is_mercato_aperto():
+        await query.answer("🔒 Il mercato FA è attualmente chiuso.", show_alert=True)
+        return
+
+    if db.giocatore_gia_in_asta(nome):
+        await query.answer(f"❌ Esiste già un'asta aperta per {nome}.", show_alert=True)
+        return
+
+    # Deep link: normalizza diacritici + punti→-- + strip apostrofi (Telegram start: solo A-Za-z0-9_-)
+    nome_encoded = utils.normalizza(nome).replace(" ", "_").replace(".", "--").replace("'", "")
+    bot_username = context.bot.username
+    deep_link = f"https://t.me/{bot_username}?start=nuova_fa_{nome_encoded}"
+
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    kb = InlineKeyboardMarkup([[
+        InlineKeyboardButton(f"🏀 Apri asta per {nome}", url=deep_link)
+    ]])
+    await query.message.reply_text(
+        f"Clicca per aprire l'asta FA per <b>{nome}</b>:",
+        parse_mode="HTML",
+        reply_markup=kb,
+    )
+
+
+async def cmd_silenzia(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    team = tm.get_team_by_gm(user.id)
+    if team is None:
+        await update.effective_message.reply_text("⛔ Non sei registrato come GM.")
+        return
+    if not context.args:
+        await update.effective_message.reply_text("Uso: /silenzia <asta_id>")
+        return
+    try:
+        asta_id = int(context.args[0])
+    except ValueError:
+        await update.effective_message.reply_text("❌ ID non valido.")
+        return
+    if not db.is_watching(asta_id, user.id):
+        await update.effective_message.reply_text("Non stai seguendo questa asta.")
+        return
+    db.remove_watch(asta_id, user.id)
+    asta = db.get_asta(asta_id)
+    nome = asta["giocatore"] if asta else f"asta {asta_id}"
+    await update.effective_message.reply_text(f"🔕 Non riceverai più notifiche per <b>{nome}</b>.", parse_mode="HTML")
+
+
+async def cmd_guida(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Manda la guida GM in privata come documento .md."""
+    import os
+    path = os.path.join(os.path.dirname(__file__), "..", "docs", "guida_gm.md")
+    path = os.path.normpath(path)
+    try:
+        with open(path, "rb") as f:
+            await context.bot.send_document(
+                chat_id=update.effective_user.id,
+                document=f,
+                filename="guida_gm.md",
+                caption="📖 Guida per i GM",
+            )
+    except Exception as e:
+        await update.effective_message.reply_text(f"❌ Errore nell'invio della guida: {e}")
+
+
+async def cmd_offerta(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Offerta one-shot senza ConversationHandler.
+    Uso: /offerta asta <asta_id> <importo>
+    La parola 'asta' è necessaria per evitare ambiguità tra i due numeri.
+    Tutti i check vengono applicati (cap, slot, stato asta, ecc.).
+    Nessun retry — se l'offerta non è valida, messaggio di errore e fine.
+    Utile per programmare offerte con lo scheduling messaggi di Telegram.
+    """
+    team = tm.get_team_by_gm(update.effective_user.id)
+    if not team:
+        await update.effective_message.reply_text("⛔ Non sei registrato come GM.")
+        return
+
+    if len(context.args) != 3 or context.args[0].lower() != "asta":
+        await update.effective_message.reply_text(
+            "Uso: /offerta asta &lt;asta_id&gt; &lt;importo&gt;\n"
+            "Esempio: /offerta asta 42 25",
+            parse_mode="HTML",
+        )
+        return
+
+    try:
+        asta_id = int(context.args[1])
+        importo = int(context.args[2])
+    except ValueError:
+        await update.effective_message.reply_text(
+            "❌ Serve l'ID numerico dell'asta. Usa /aste per vedere gli ID in corso."
+        )
+        return
+
+    asta = db.get_asta(asta_id)
+    if not asta or asta["stato"] != "APERTA":
+        await update.effective_message.reply_text("❌ Asta non trovata o non aperta.")
+        return
+
+    from handlers.offerte import _esegui_offerta
+    errore = await _esegui_offerta(context, team, asta_id, importo, update.effective_user.id)
+    if errore:
+        await update.effective_message.reply_text(f"❌ {errore}", parse_mode="HTML")
+    else:
+        asta_upd = db.get_asta(asta_id)
+        await update.effective_message.reply_text(
+            f"✅ Offerta di <b>{importo}M</b> per <b>{asta['giocatore']}</b> registrata.\n"
+            f"Scade: {utils.format_dt(asta_upd['scade_at'])}",
+            parse_mode="HTML",
+        )
+
+
+# ── /team_detail ─────────────────────────────────────────────────────────────
+
+def _build_team_detail_testo(team: dict) -> str:
+    """Testo dettagli squadra (cap/slot + offerte vincenti). Analogo a /team."""
+    team_id = team["id"]
+    stagione       = utils.load_globals().get("stagione_corrente", "2025")
+    cap_tot, slot_tot = utils.cap_slot_display(team, stagione)
+    cap_virtuale   = db.get_cap_virtuale(team_id)
+    slot_impegnati = db.get_slot_virtuali(team_id)
+    cap_libero     = cap_tot - cap_virtuale
+    slot_liberi    = slot_tot - slot_impegnati
+    offerte_vince  = db.get_offerte_vincenti_team(team_id)
+
+    fase = utils.load_globals().get("fase", "offseason")
+    cap_pen = team.get("cap_penalizzato", 0)
+    s = settings.get()
+    cap_imp_contratti  = s["cap_offseason"] - cap_tot
+    slot_imp_contratti = s.get("slot_massimo", 15) - slot_tot
+
+    righe = [
+        f"🏀 <b>{team['nome']}</b>",
+        f"<i>ID: <code>{team_id}</code></i>",
+        "",
+        f"💰 <b>{cap_imp_contratti}M</b> impegnati in contratti",
+        f"💰 Cap disponibile (offseason): <b>{cap_tot}M</b>",
+        f"⏳ Cap virtualmente impegnato: <b>{cap_virtuale}M</b>",
+        f"✅ Cap effettivamente libero: <b>{cap_libero}M</b>",
+    ]
+
+    if fase == "offseason":
+        rfa_attive = db.get_rfa_proprietario(team_id)
+        if rfa_attive:
+            cap_rfa = sum(r["vecchio_compenso"] or 0 for r in rfa_attive)
+            nomi_rfa = ", ".join(r["giocatore"] for r in rfa_attive)
+            righe.append(f"⚠️ Cap occupato da RFA: <b>{cap_rfa}M</b> ({nomi_rfa})")
+        delta = s["cap_offseason"] - s["cap_regular"] + cap_pen
+        cap_rs = cap_libero - delta
+        nota_pen = f", penalità {cap_pen}M" if cap_pen else ""
+        righe.append(f"📉 Cap libero in Regular Season: <b>{cap_rs}M</b> (-{delta}M{nota_pen})")
+
+    righe += [
+        "",
+        f"🪑 <b>{slot_imp_contratti}</b> slot impegnati in contratti",
+        f"🪑 Slot totali: <b>{slot_tot}</b>",
+        f"⏳ Slot virtualmente impegnati: <b>{slot_impegnati}</b>",
+        f"✅ Slot effettivamente liberi: <b>{slot_liberi}</b>",
+    ]
+
+    if offerte_vince:
+        righe.append("")
+        righe.append("<i>Offerte vincenti in corso:</i>")
+        for o in offerte_vince:
+            righe.append(
+                f"  • {o['giocatore']} — {o['offerta_corrente']}M "
+                f"(scade {utils.format_dt(o['scade_at'])})"
+            )
+
+    # offerte ultime 24h
+    offerte_24h = db.get_offerte_team_24h(team["id"])
+    if offerte_24h:
+        righe.append("")
+        righe.append("📋 <i>Offerte ultime 24h:</i>")
+        for o in offerte_24h:
+            vincente = (o["offerente_team_id"] == team["id"]
+                        and o["importo"] == o["offerta_corrente"])
+            if vincente and o["stato"] == "APERTA":
+                stato_label = f"✅ vincente (scade {utils.format_dt(o['scade_at'])})"
+            elif vincente:
+                stato_label = "✅ vincente"
+            else:
+                stato_label = "❌ superata"
+            righe.append(
+                f"  • {o['giocatore']} ({o['tipo']}) — "
+                f"{o['importo']}M {stato_label} — {utils.format_dt_short(o['timestamp'])}"
+            )
+
+    return "\n".join(righe)
+
+
+async def cmd_team_detail(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Mostra keyboard con tutte le squadre. Accessibile a tutti."""
+    tutti = tm.get_all_teams()
+    bottoni = [
+        InlineKeyboardButton(f"{t['id']} — {t['nome']}", callback_data=f"td:{t['id']}")
+        for t in tutti
+    ]
+    # 2 per riga
+    righe_kb = [bottoni[i:i+2] for i in range(0, len(bottoni), 2)]
+    kb = InlineKeyboardMarkup(righe_kb)
+    await update.effective_message.reply_text("🏀 Scegli una squadra:", reply_markup=kb)
+
+
+async def team_detail_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    team_id = query.data.split(":", 1)[1]
+    team = tm.get_team_by_id(team_id)
+    if not team:
+        await query.edit_message_text("❌ Squadra non trovata.")
+        return
+
+    testo = _build_team_detail_testo(team)
+    kb = InlineKeyboardMarkup([[
+        InlineKeyboardButton("← Torna alla lista", callback_data="td_back")
+    ]])
+    await query.edit_message_text(testo, parse_mode="HTML", reply_markup=kb)
+
+
+async def team_detail_back_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    tutti = tm.get_all_teams()
+    bottoni = [
+        InlineKeyboardButton(f"{t['id']} — {t['nome']}", callback_data=f"td:{t['id']}")
+        for t in tutti
+    ]
+    righe_kb = [bottoni[i:i+2] for i in range(0, len(bottoni), 2)]
+    kb = InlineKeyboardMarkup(righe_kb)
+    await query.edit_message_text("🏀 Scegli una squadra:", reply_markup=kb)
+
+
+def get_handlers():
+    return [
+        CommandHandler("me",       cmd_me),
+        CommandHandler("guida",    cmd_guida),
+        CommandHandler("offerta",  cmd_offerta),
+        CommandHandler("team",     cmd_team),
+        CommandHandler("autocap",   _autocap_from_user),
+        CommandHandler("autoslot",   _auto_slot_from_user),
+        CommandHandler("silenzia",    cmd_silenzia),
+        CommandHandler("watched",  cmd_watched),
+        CommandHandler("watch",    cmd_watch),
+        CommandHandler("lista_fa", cmd_lista_fa),
+        CommandHandler("team_detail", cmd_team_detail),
+        CallbackQueryHandler(watch_callback,         pattern=r"^watch:\d+$"),
+        CallbackQueryHandler(lista_fa_page_callback, pattern=r"^fa_page:\d+$"),
+        CallbackQueryHandler(lista_fa_avvia_callback,pattern=r"^fa_avvia:.+$"),
+        CallbackQueryHandler(team_detail_cb,         pattern=r"^td:.+$"),
+        CallbackQueryHandler(team_detail_back_cb,    pattern=r"^td_back$"),
+    ]

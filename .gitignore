@@ -1,0 +1,12 @@
+secrets/
+config/
+fantabasket-main/config/globals.json
+fantabasket-main/config/settings.json
+backup_*.sql
+*.zip
+**/__pycache__/
+**/*.pyc
+**/*.db
+**/*.db-shm
+**/*.db-wal
+1

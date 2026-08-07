@@ -1,0 +1,76 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fantabasket
+      POSTGRES_USER: fantabasket
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_password
+    secrets:
+      - pg_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./fantabasket-main/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fantabasket"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bot-aste-beta:
+    build: ./fantabasket-aste-beta
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      BOT_TOKEN_FILE: /run/secrets/bot_token_aste_beta
+      GLOBALS_PATH: /config/globals.json
+      SETTINGS_PATH: /config/settings_aste.json
+      TEAMS_PATH: /config/teams.json
+      FA_CSV_PATH: /config/fa_players.csv
+      DB_PATH: /data/aste.db
+      PG_URL: postgresql://fantabasket@postgres/fantabasket
+      PG_PASSWORD_FILE: /run/secrets/pg_password
+    secrets:
+      - bot_token_aste_beta
+      - pg_password
+    volumes:
+      - ./config:/config:ro
+      - aste_beta_data:/data
+
+  bot-main:
+    build: ./fantabasket-main
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      BOT_TOKEN_FILE: /run/secrets/bot_token_main
+      GLOBALS_PATH: /config/globals.json
+      SETTINGS_PATH: /config/settings_main.json
+      TEAMS_PATH: /config/teams.json
+      DATABASE_URL: postgresql://fantabasket@postgres/fantabasket
+      PG_PASSWORD_FILE: /run/secrets/pg_password
+      LOGHI_DIR: /config/loghi
+      CONFIG_DIR: /config
+      ASTE_DB_PATH: /data_aste/aste.db
+    secrets:
+      - bot_token_main
+      - pg_password
+    volumes:
+      - ./config:/config
+      - aste_beta_data:/data_aste:ro
+
+secrets:
+  bot_token_aste_beta:
+    file: ./secrets/bot_token_aste_beta.txt
+  bot_token_main:
+    file: ./secrets/bot_token_main.txt
+  pg_password:
+    file: ./secrets/pg_password.txt
+
+volumes:
+  pgdata:
+  aste_beta_data:

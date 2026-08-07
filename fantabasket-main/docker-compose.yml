@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fantabasket
+      POSTGRES_USER: fantabasket
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_password
+    secrets:
+      - pg_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fantabasket"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bot:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      BOT_TOKEN_FILE: /run/secrets/bot_token
+      DATABASE_URL: postgresql://fantabasket@postgres/fantabasket?password_file=/run/secrets/pg_password
+      GLOBALS_PATH: /config/globals.json
+      SETTINGS_PATH: /config/settings.json
+      TEAMS_PATH: /config/teams.json
+    secrets:
+      - bot_token
+      - pg_password
+    volumes:
+      - ./config:/config:ro
+      - ./logs:/logs
+
+secrets:
+  bot_token:
+    file: ./secrets/bot_token.txt
+  pg_password:
+    file: ./secrets/pg_password.txt
+
+volumes:
+  pgdata:
