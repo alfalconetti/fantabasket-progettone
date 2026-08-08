@@ -133,3 +133,8 @@
 
 ### Miglioramenti
 - **Annulla trade da menu admin**: ora mostra lista delle ultime 15 trade approvate con bottoni, riepilogo e conferma prima del rollback.
+
+## v1.4.18 (2026-08-08)
+
+### Bug fix
+- **Set fase da menu admin**: fix — ora chiama `cmd_set_fase` direttamente invece di mostrare una keyboard i cui callback non venivano intercettati dopo `ConversationHandler.END`.

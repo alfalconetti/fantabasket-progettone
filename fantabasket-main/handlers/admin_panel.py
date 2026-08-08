@@ -173,9 +173,10 @@ async def cb_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
 
     elif azione == "set_fase":
-        # Rimanda al handler /set_fase esistente
-        from handlers.admin_panel import cmd_set_fase
-        await query.edit_message_text("🔁 Usa /set_fase per cambiare la fase.", parse_mode="HTML")
+        # Manda un nuovo messaggio — cmd_set_fase gestisce già tutto il flusso
+        # inclusi i callback set_fase:* per il cambio fase effettivo
+        await query.answer()
+        await cmd_set_fase(update, context)
         return ConversationHandler.END
 
     elif azione == "annulla_trade":
