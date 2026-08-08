@@ -119,7 +119,7 @@
 #block(width: 100%, fill: c_sezione)[
   #pad(x: 6pt, y: 5pt)[
     #grid(columns: (1fr, auto),
-      [#text(8pt, weight: "bold", fill: _ton_sez, weight: "bold")[SALARY CAP]],
+      [#text(8pt, weight: "bold", fill: _ton_sez)[SALARY CAP]],
       [#text(8pt, weight: "bold", fill: _ton_sez)[#salary_cap M]],
     )
     #if salary_detail != "" and salary_detail != salary_cap [
