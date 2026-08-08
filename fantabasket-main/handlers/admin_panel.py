@@ -670,6 +670,96 @@ async def _esegui_cambio_fase(query, fase_vecchia: str, nuova_fase: str):
         pass
 
 
+async def cb_adm_dpe_team(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin seleziona team per DPE → mostra roster."""
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(update.effective_user.id):
+        return
+    import database as db
+    import math
+    team_id  = query.data.split(":")[1]
+    team     = tm.get_team_by_id(team_id)
+    roster   = db.get_roster_team(team_id)
+    stagione = settings.stagione_corrente()
+    if not roster:
+        await query.edit_message_text(f"Roster di {team['nome']} vuoto.")
+        return
+    bottoni = []
+    for r in roster:
+        if db.get_dpe_attiva(r["giocatore_id"], stagione):
+            continue
+        importo_dpe = math.ceil(r["importo"] * 0.75)
+        risparmio   = r["importo"] - importo_dpe
+        label = f"{r['nome_common']} {r['importo']}M → {importo_dpe}M (-{risparmio}M)"
+        bottoni.append([InlineKeyboardButton(label, callback_data=f"adm_dpe_conf:{team_id}:{r['giocatore_id']}")])
+    if not bottoni:
+        await query.edit_message_text("Tutti i giocatori hanno già una DPE attiva questa stagione.")
+        return
+    bottoni.append([InlineKeyboardButton("← Menu", callback_data="adm:home")])
+    await query.edit_message_text(
+        f"🏥 <b>DPE admin — {team['nome']}</b>\nSeleziona giocatore:",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(bottoni),
+    )
+
+
+async def cb_adm_dpe_conferma(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin conferma DPE — scrittura diretta DB senza approvazione."""
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(update.effective_user.id):
+        return
+    import database as db
+    import math
+    parts        = query.data.split(":")
+    team_id      = parts[1]
+    giocatore_id = int(parts[2])
+    stagione     = settings.stagione_corrente()
+    fase         = settings.fase()
+    pre_deadline = (fase == "regular-season-fa")
+    team      = tm.get_team_by_id(team_id)
+    giocatore = db.get_giocatore(giocatore_id)
+    contratto = db.get_contratto_attivo(giocatore_id)
+    if not contratto:
+        await query.edit_message_text("❌ Contratto non trovato.")
+        return
+    if db.get_dpe_attiva(giocatore_id, stagione):
+        await query.edit_message_text("❌ DPE già attiva per questo giocatore.")
+        return
+    importo_orig = contratto["importo"]
+    importo_dpe  = math.ceil(importo_orig * 0.75)
+    risparmio    = importo_orig - importo_dpe
+    admin_user   = update.effective_user
+    admin_tag    = admin_user.first_name or str(admin_user.id)
+    if admin_user.username:
+        admin_tag += f" (@{admin_user.username})"
+    db.inserisci_dpe(
+        giocatore_id=giocatore_id, team_id=team_id, stagione=stagione,
+        importo_originale=importo_orig, importo_dpe=importo_dpe,
+        pre_deadline=pre_deadline, approvata_da=admin_tag,
+    )
+    if pre_deadline:
+        tm.set_slot(team_id, team["slot_disponibili"] + 1)
+    effetto = "✅ Slot roster liberato" if pre_deadline else "ℹ️ Nessuno slot liberato (post-deadline)"
+    await query.edit_message_text(
+        f"✅ DPE registrata — <b>{giocatore['nome_common']}</b>\n"
+        f"{importo_orig}M → {importo_dpe}M (stagione {stagione})\n{effetto}",
+        parse_mode="HTML",
+    )
+    main_channel = settings.load_globals().get("main_channel_id")
+    if main_channel:
+        testo = (
+            f"🏥 <b>{team['nome']}</b> — DPE <b>{giocatore['nome_common']}</b>\n"
+            f"Contratto {stagione}: {importo_orig}M → <b>{importo_dpe}M</b> (-{risparmio}M)\n"
+            f"{effetto}\n🔧 Ufficializzato da {admin_tag}"
+        )
+        try:
+            await context.bot.send_message(chat_id=main_channel, text=testo, parse_mode="HTML")
+        except Exception as e:
+            logger.warning("Annuncio canale DPE admin fallito: %s", e)
+
+
 def get_handlers() -> list:
     from handlers.trade import (
         TRADE_ASSET_MENU, TRADE_ASSET_GIOCATORI, TRADE_ASSET_PICK, TRADE_RIEPILOGO,
