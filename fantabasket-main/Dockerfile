@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y libpq-dev gcc curl xz-utils postgresql-client && \
+RUN apt-get update && apt-get install -y libpq-dev gcc curl xz-utils postgresql-client fonts-liberation && \
     rm -rf /var/lib/apt/lists/*
 
 # Typst — binario statico, nessuna dipendenza

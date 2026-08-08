@@ -10,6 +10,13 @@
 #let colore_sez    = sys.inputs.at("colore_sezione",default: "")
 #let colore_pick_h = sys.inputs.at("colore_pick",   default: "")
 #let colore_dir_h  = sys.inputs.at("colore_diritti",default: "")
+#let _ton_r1       = rgb(sys.inputs.at("text_on_riga1",        default: "#1a1a1a"))
+#let _ton_r2       = rgb(sys.inputs.at("text_on_riga2",        default: "#1a1a1a"))
+#let _ton_sez      = rgb(sys.inputs.at("text_on_sezione",      default: "#1a1a1a"))
+#let _ton_sez_m    = rgb(sys.inputs.at("text_on_sezione_muted",default: "#555555"))
+#let _ton_pick     = rgb(sys.inputs.at("text_on_pick",         default: "#1a1a1a"))
+#let _ton_pick_m   = rgb(sys.inputs.at("text_on_pick_muted",   default: "#555555"))
+#let _ton_dir      = rgb(sys.inputs.at("text_on_dir",          default: "#1a1a1a"))
 #let salary_cap    = sys.inputs.at("salary_cap",    default: "142")
 #let salary_detail = sys.inputs.at("salary_detail", default: "")
 #let eta_media     = sys.inputs.at("eta_media",     default: "26.8")
@@ -103,17 +110,18 @@
   [#text(7.5pt, weight: "bold", fill: white)[GIOCATORE]],
   [#align(center)[#text(7.5pt, weight: "bold", fill: white)[\$]]],
   [#align(center)[#text(7.5pt, weight: "bold", fill: white)[Y]]],
-  ..giocatori.map(g => {
+  ..giocatori.enumerate().map(((i, g)) => {
     let (fc, bold) = if g.flag == "R0"    { (c_r0,  true) }
                 else if g.flag == "R1"    { (c_r1,  true) }
                 else if g.flag == "R2"    { (c_r2,  true) }
                 else if g.flag == "R3"    { (c_r3,  true) }
                 else if g.flag == "A"     { (c_rfa, true) }
                 else                       { (black, false) }
+    let tc = if calc.odd(i) { _ton_r1 } else { _ton_r2 }
     (
       [#text(8pt, fill: fc, weight: if bold {"bold"} else {"regular"})[#g.nome]],
-      [#align(center)[#text(8pt, weight: "bold")[#g.importo]]],
-      [#align(center)[#text(8pt)[#g.anni]]],
+      [#align(center)[#text(8pt, fill: tc, weight: "bold")[#g.importo]]],
+      [#align(center)[#text(8pt, fill: tc)[#g.anni]]],
     )
   }).flatten(),
 )
@@ -124,11 +132,11 @@
 #if has_rookie or has_rfa {
   block(width: 100%, fill: c_sezione)[
     #pad(x: 6pt, y: 3pt)[
-      #if giocatori.any(g => g.flag == "R0") [#text(7pt, fill: c_r0,  weight: "bold")[■ Anno I ]  ]
-      #if giocatori.any(g => g.flag == "R1") [#text(7pt, fill: c_r1,  weight: "bold")[■ Anno II ]  ]
-      #if giocatori.any(g => g.flag == "R2") [#text(7pt, fill: c_r2,  weight: "bold")[■ Anno III ]  ]
-      #if giocatori.any(g => g.flag == "R3") [#text(7pt, fill: c_r3,  weight: "bold")[■ Anno IV ]  ]
-      #if has_rfa                             [#text(7pt, fill: c_rfa, weight: "bold")[■ RFA]]
+      #if giocatori.any(g => g.flag == "R0") [#text(7pt, fill: c_r0,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno I ]  ]
+      #if giocatori.any(g => g.flag == "R1") [#text(7pt, fill: c_r1,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno II ]  ]
+      #if giocatori.any(g => g.flag == "R2") [#text(7pt, fill: c_r2,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno III ]  ]
+      #if giocatori.any(g => g.flag == "R3") [#text(7pt, fill: c_r3,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno IV ]  ]
+      #if has_rfa                             [#text(7pt, fill: c_rfa, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[RFA]]
     ]
   ]
 }
@@ -137,7 +145,7 @@
 #if anni_pick.len() > 0 {
   block(width: 100%, fill: c_pick_bg)[
     #pad(x: 6pt, y: 6pt)[
-      #text(7.5pt, weight: "bold", fill: text_on(c_pick_bg))[PICK]
+      #text(7.5pt, weight: "bold", fill: _ton_pick)[PICK]
       #v(5pt)
       #grid(
         columns: (1fr, 1fr, 1fr),
@@ -151,20 +159,20 @@
             #v(2pt)
             #if anno_picks.len() == 0 {
               block(below: 0pt)[
-                #text(6.5pt, fill: text_on_muted(c_pick_bg))[—]
+                #text(6.5pt, fill: _ton_pick_m)[—]
               ]
             } else {
               for p in anno_picks {
                 let is_propria = p.by == "Propria" or p.by == ""
                 block(below: 3pt)[
                   #text(9pt,
-                    fill: text_on(c_pick_bg),
+                    fill: _ton_pick,
                     weight: if is_propria { "bold" } else { "regular" }
                   )[
                     #if is_propria [★] else [○] #p.round
                     #if not is_propria [
                       #linebreak()
-                      #h(8pt)#text(8pt, fill: text_on_muted(c_pick_bg))[#p.by]
+                      #h(8pt)#text(8pt, fill: _ton_pick_m)[#p.by]
                     ]
                   ]
                 ]
@@ -181,7 +189,7 @@
 #if diritti_raw != "" {
   block(width: 100%, fill: c_dir_bg)[
     #pad(x: 6pt, y: 5pt)[
-      #text(8pt, weight: "bold", fill: text_on(c_dir_bg))[DIRITTI ROOKIE]
+      #text(8pt, weight: "bold", fill: _ton_dir)[DIRITTI ROOKIE]
       #v(3pt)
       #text(8pt)[#diritti_raw]
     ]
@@ -192,25 +200,25 @@
 #block(width: 100%, fill: c_sezione)[
   #pad(x: 6pt, y: 5pt)[
     #grid(columns: (1fr, auto),
-      [#text(8pt, weight: "bold", fill: text_on(c_sezione))[SALARY CAP]],
-      [#text(8pt, weight: "bold", fill: text_on(c_sezione))[#salary_cap M]],
+      [#text(8pt, weight: "bold", fill: _ton_sez)[SALARY CAP]],
+      [#text(8pt, weight: "bold", fill: _ton_sez)[#salary_cap M]],
     )
     #if salary_detail != "" and salary_detail != salary_cap [
       #v(1pt)
       #let parts = salary_detail.split("+")
       #grid(columns: (1fr, auto),
-        [#text(6.5pt, fill: text_on_muted(c_sezione))[  contratti]],
-        [#text(6.5pt, fill: text_on_muted(c_sezione))[#parts.at(0, default: "")M]],
+        [#text(6.5pt, fill: _ton_sez_m)[  contratti]],
+        [#text(6.5pt, fill: _ton_sez_m)[#parts.at(0, default: "")M]],
       )
       #grid(columns: (1fr, auto),
-        [#text(6.5pt, fill: text_on_muted(c_sezione))[  impatto tagli]],
-        [#text(6.5pt, fill: text_on_muted(c_sezione))[#parts.at(1, default: "0")M]],
+        [#text(6.5pt, fill: _ton_sez_m)[  impatto tagli]],
+        [#text(6.5pt, fill: _ton_sez_m)[#parts.at(1, default: "0")M]],
       )
     ]
     #v(3pt)
     #grid(columns: (1fr, auto),
-      [#text(7.5pt, fill: text_on_muted(c_sezione))[ETA MEDIA]],
-      [#text(7.5pt, fill: text_on(c_sezione))[#eta_media]],
+      [#text(7.5pt, fill: _ton_sez_m)[ETA MEDIA]],
+      [#text(7.5pt, fill: _ton_sez)[#eta_media]],
     )
   ]
 ]
