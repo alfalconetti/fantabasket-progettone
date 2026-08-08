@@ -50,6 +50,24 @@ def init_db():
 def migrate_db():
     """Applica migrazioni incrementali al DB."""
     _q("""
+        CREATE TABLE IF NOT EXISTS cap_anticipato (
+            team_id      TEXT PRIMARY KEY,
+            importo      INTEGER NOT NULL CHECK (importo > 0),
+            richiesto_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            scade_at     TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '48 hours',
+            message_id   BIGINT
+        )
+    """)
+    _q("""
+        CREATE TABLE IF NOT EXISTS slot_anticipato (
+            team_id      TEXT PRIMARY KEY,
+            quantita     INTEGER NOT NULL CHECK (quantita > 0),
+            richiesto_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            scade_at     TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '48 hours',
+            message_id   BIGINT
+        )
+    """)
+    _q("""
         CREATE TABLE IF NOT EXISTS dpe (
             id               SERIAL PRIMARY KEY,
             giocatore_id     INTEGER NOT NULL REFERENCES giocatori(id),
@@ -344,6 +362,61 @@ def get_impatto_taglio_team(team_id: str, stagione: str) -> list:
         "WHERE cs.team_id = %s AND cs.stagione = %s",
         (team_id, stagione), many=True
     )
+
+
+# ── cap/slot anticipato ──────────────────────────────────────────────────────
+
+def get_cap_anticipato(team_id: str) -> int:
+    row = _q(
+        "SELECT importo FROM cap_anticipato WHERE team_id = %s AND scade_at > NOW()",
+        (team_id,), one=True
+    )
+    return row["importo"] if row else 0
+
+def set_cap_anticipato(team_id: str, importo: int, message_id: int = None) -> None:
+    _q(
+        """INSERT INTO cap_anticipato (team_id, importo, richiesto_at, scade_at, message_id)
+           VALUES (%s, %s, NOW(), NOW() + INTERVAL '48 hours', %s)
+           ON CONFLICT (team_id) DO UPDATE
+           SET importo=EXCLUDED.importo, richiesto_at=NOW(),
+               scade_at=NOW() + INTERVAL '48 hours', message_id=EXCLUDED.message_id""",
+        (team_id, importo, message_id)
+    )
+
+def reset_cap_anticipato(team_id: str) -> None:
+    _q("DELETE FROM cap_anticipato WHERE team_id = %s", (team_id,))
+
+def get_cap_anticipati_scaduti() -> list:
+    return _q(
+        "SELECT * FROM cap_anticipato WHERE scade_at <= NOW()",
+        many=True
+    ) or []
+
+def get_slot_anticipato(team_id: str) -> int:
+    row = _q(
+        "SELECT quantita FROM slot_anticipato WHERE team_id = %s AND scade_at > NOW()",
+        (team_id,), one=True
+    )
+    return row["quantita"] if row else 0
+
+def set_slot_anticipato(team_id: str, quantita: int, message_id: int = None) -> None:
+    _q(
+        """INSERT INTO slot_anticipato (team_id, quantita, richiesto_at, scade_at, message_id)
+           VALUES (%s, %s, NOW(), NOW() + INTERVAL '48 hours', %s)
+           ON CONFLICT (team_id) DO UPDATE
+           SET quantita=EXCLUDED.quantita, richiesto_at=NOW(),
+               scade_at=NOW() + INTERVAL '48 hours', message_id=EXCLUDED.message_id""",
+        (team_id, quantita, message_id)
+    )
+
+def reset_slot_anticipato(team_id: str) -> None:
+    _q("DELETE FROM slot_anticipato WHERE team_id = %s", (team_id,))
+
+def get_anticipati_scaduti() -> list:
+    """Restituisce cap e slot anticipati scaduti per notifica e pulizia."""
+    cap = _q("SELECT *, 'cap' as tipo FROM cap_anticipato WHERE scade_at <= NOW()", many=True) or []
+    slot = _q("SELECT *, 'slot' as tipo FROM slot_anticipato WHERE scade_at <= NOW()", many=True) or []
+    return cap + slot
 
 
 # ── dpe ──────────────────────────────────────────────────────────────────────
