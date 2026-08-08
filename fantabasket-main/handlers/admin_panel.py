@@ -138,8 +138,45 @@ async def cb_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
 
     elif azione == "cap":
-        # TODO: situazione cap tutte le squadre
-        await query.answer("Da implementare.", show_alert=True)
+        import database as db
+        stagione   = settings.stagione_corrente()
+        cap_limite = settings.cap_limite()
+        tutti      = tm.get_all_teams()
+
+        righe = [f"📊 <b>Riepilogo Cap — Stagione {stagione}</b>\n"]
+        for team in sorted(tutti, key=lambda t: t["nome"]):
+            tid        = team["id"]
+            contratti  = sum(c.get("importo", 0) for c in db.get_contratti_team(tid))
+            tagli      = sum(i.get("importo", 0) for i in db.get_impatto_taglio_team(tid, stagione))
+            penalita   = team.get("cap_penalizzato", 0)
+            dpe_rows   = db.get_dpe_team(tid, stagione)
+            dpe        = sum((r.get("importo_originale", 0) - r.get("importo_dpe", 0)) for r in dpe_rows)
+            totale     = contratti + tagli + penalita
+            # DPE riduce il cap occupato (importo_dpe < importo_originale)
+            totale_dpe = contratti - dpe + tagli + penalita
+            libero     = cap_limite - totale_dpe
+            stato      = "🔴" if totale_dpe > cap_limite else "✅"
+
+            riga = f"\n{stato} <b>{team['nome']}</b>\n  \U0001f4bc Contratti: {contratti}M"
+            if tagli:    riga += f"  \u2702\ufe0f Tagli: {tagli}M"
+            if penalita: riga += f"  \u2696\ufe0f Penalt\xe0: {penalita}M"
+            if dpe:      riga += f"  \U0001f3e5 DPE: -{dpe}M"
+            riga += f"\n  \U0001f4ca Totale: <b>{totale_dpe}M</b> / {cap_limite}M  (libero: {libero}M)"
+            righe.append(riga)
+
+        testo = "\n".join(righe)
+        # Telegram max 4096 chars — se troppo lungo manda in chunks
+        if len(testo) <= 4096:
+            await query.edit_message_text(
+                testo, parse_mode="HTML",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("← Menu", callback_data="adm:home")
+                ]])
+            )
+        else:
+            await query.edit_message_text("⏳ Riepilogo in arrivo...", parse_mode="HTML")
+            for chunk in [testo[i:i+4096] for i in range(0, len(testo), 4096)]:
+                await query.message.reply_text(chunk, parse_mode="HTML")
         return ConversationHandler.END
 
     return ConversationHandler.END
@@ -206,7 +243,6 @@ async def cb_adm_taglia_conferma(update: Update, context: ContextTypes.DEFAULT_T
     from database import _q
     _q("UPDATE contratti SET attivo = FALSE WHERE id = %s", (contratto["id"],))
 
-    rate = []
     if gratuito:
         db.registra_transazione(
             "cut", gid, team_id, None, stagione,
@@ -237,39 +273,6 @@ async def cb_adm_taglia_conferma(update: Update, context: ContextTypes.DEFAULT_T
             f"✅ <b>{giocatore['nome_common']}</b> tagliato.\n\nImpatto taglio:\n{righe}",
             parse_mode="HTML",
         )
-    # Annuncio canale principale
-    admin_user = update.effective_user
-    admin_tag = admin_user.first_name or str(admin_user.id)
-    if admin_user.username:
-        admin_tag += f" (@{admin_user.username})"
-    team = tm.get_team_by_id(team_id)
-    main_channel = settings.load_globals().get("main_channel_id")
-    if main_channel and team:
-        if gratuito:
-            usati_fin = db.get_tagli_gratuiti_usati(team_id, stagione)
-            rimanenti = MAX_TAGLI_GRATUITI - usati_fin
-            testo_canale = (
-                f"✂️ <b>{team['nome']}</b> taglia <b>{giocatore['nome_common']}</b>\n"
-                f"Contratto: {contratto['importo']}M × 1 anno — nessun impatto\n"
-                f"Tagli gratuiti rimasti: <b>{rimanenti}/{MAX_TAGLI_GRATUITI}</b>\n"
-                f"🔧 Ufficializzato da {admin_tag}"
-            )
-        else:
-            rate_str = " · ".join(f"{r['stagione']}: {r['importo']}M" for r in rate)
-            testo_canale = (
-                f"✂️ <b>{team['nome']}</b> taglia <b>{giocatore['nome_common']}</b>\n"
-                f"Contratto precedente: {contratto['importo']}M × {anni_res} "
-                f"{'anno' if anni_res == 1 else 'anni'}\n"
-                f"Impatto taglio: {rate_str}\n"
-                f"🔧 Ufficializzato da {admin_tag}"
-            )
-        try:
-            await context.bot.send_message(
-                chat_id=main_channel, text=testo_canale, parse_mode="HTML"
-            )
-        except Exception as e:
-            logger.warning("Annuncio canale taglio admin fallito: %s", e)
-
     logger.info("Taglio admin: team=%s giocatore=%d admin=%d",
                 team_id, gid, update.effective_user.id)
 

@@ -11,24 +11,42 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 
 import teams as tm
-from settings import solo_privato
+import settings
+from settings import solo_privato, FASI_TRADE_APERTE
 
 logger = logging.getLogger(__name__)
 
 
 # ── keyboards ─────────────────────────────────────────────────────────────────
 
-def _kb_menu_principale() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("🔄 Trade",   callback_data="menu:trade"),
-            InlineKeyboardButton("✂️ Tagli",   callback_data="menu:tagli"),
-        ],
-        [
-            InlineKeyboardButton("🏀 Rookie",  callback_data="menu:rookie"),
-            InlineKeyboardButton("📊 Roster",  callback_data="menu:roster"),
-        ],
+def _kb_menu_principale(fase: str) -> InlineKeyboardMarkup:
+    """Keyboard dinamica — mostra solo i bottoni disponibili nella fase corrente."""
+    trade_aperte = fase in FASI_TRADE_APERTE
+    dpe_aperta   = fase in ("regular-season-fa", "regular-season-deadline")
+
+    righe = []
+
+    riga1 = []
+    if trade_aperte:
+        riga1.append(InlineKeyboardButton("🔄 Trade",  callback_data="menu:trade"))
+        riga1.append(InlineKeyboardButton("✂️ Tagli",  callback_data="menu:tagli"))
+    if riga1:
+        righe.append(riga1)
+
+    riga2 = []
+    if trade_aperte:
+        riga2.append(InlineKeyboardButton("🏀 Rookie", callback_data="menu:rookie"))
+    if dpe_aperta:
+        riga2.append(InlineKeyboardButton("🏥 DPE",    callback_data="menu:dpe"))
+    if riga2:
+        righe.append(riga2)
+
+    righe.append([
+        InlineKeyboardButton("📊 Roster",  callback_data="menu:roster"),
+        InlineKeyboardButton("📋 Assets",  callback_data="menu:assets"),
     ])
+
+    return InlineKeyboardMarkup(righe)
 
 
 def _kb_menu_trade() -> InlineKeyboardMarkup:
@@ -56,8 +74,9 @@ async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not team:
         await update.effective_message.reply_text("⛔ Non sei registrato come GM.")
         return
+    fase = settings.fase()
     await update.effective_message.reply_text(
-        _TESTO_HOME, parse_mode="HTML", reply_markup=_kb_menu_principale()
+        _TESTO_HOME, parse_mode="HTML", reply_markup=_kb_menu_principale(fase)
     )
 
 
@@ -67,8 +86,9 @@ async def cb_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     azione = query.data.split(":")[1]
 
     if azione == "home":
+        fase = settings.fase()
         await query.edit_message_text(
-            _TESTO_HOME, parse_mode="HTML", reply_markup=_kb_menu_principale()
+            _TESTO_HOME, parse_mode="HTML", reply_markup=_kb_menu_principale(fase)
         )
 
     elif azione == "trade":
@@ -109,8 +129,12 @@ async def cb_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("🏀 <b>Rookie</b> — seleziona giocatore:", parse_mode="HTML")
         await cmd_attiva_diritti(update, context)
 
+    elif azione == "dpe":
+        from handlers.dpe import cmd_dpe
+        await query.edit_message_text("🏥 <b>DPE</b> — seleziona giocatore:", parse_mode="HTML")
+        await cmd_dpe(update, context)
+
     elif azione == "roster":
-        # Mostra subito le 24 squadre con bottoni
         tutti = tm.get_all_teams()
         bottoni = [
             InlineKeyboardButton(t["nome"], callback_data=f"roster_sq:{t['id']}")
@@ -120,6 +144,20 @@ async def cb_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         righe.append([InlineKeyboardButton("← Menu", callback_data="menu:home")])
         await query.edit_message_text(
             "📊 <b>Roster</b> — scegli una squadra:",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(righe),
+        )
+
+    elif azione == "assets":
+        tutti = tm.get_all_teams()
+        bottoni = [
+            InlineKeyboardButton(t["nome"], callback_data=f"assets_sq:{t['id']}")
+            for t in tutti
+        ]
+        righe = [bottoni[i:i+2] for i in range(0, len(bottoni), 2)]
+        righe.append([InlineKeyboardButton("← Menu", callback_data="menu:home")])
+        await query.edit_message_text(
+            "📋 <b>Assets</b> — scegli una squadra:",
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(righe),
         )
@@ -169,10 +207,38 @@ async def cb_roster_squadra(update: Update, context: ContextTypes.DEFAULT_TYPE):
             os.unlink(png_path)
 
 
+async def cb_assets_squadra(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Callback dai bottoni squadra nel menu Assets."""
+    query = update.callback_query
+    await query.answer()
+    team_id = query.data.split(":")[1]
+    team    = tm.get_team_by_id(team_id)
+    if not team:
+        await query.edit_message_text("❌ Squadra non trovata.")
+        return
+    await query.edit_message_text(f"⏳ Generazione assets <b>{team['nome']}</b>...", parse_mode="HTML")
+    from handlers.roster import _genera_assets_png
+    import os
+    import settings as _settings_r
+    png_path = None
+    try:
+        png_path = await _genera_assets_png(team, _settings_r.stagione_corrente())
+        with open(png_path, "rb") as f:
+            await update.effective_message.reply_photo(
+                photo=f, caption=f"📋 {team['nome']}"
+            )
+    except Exception as e:
+        await update.effective_message.reply_text(f"❌ Errore: {e}")
+    finally:
+        if png_path and os.path.exists(png_path):
+            os.unlink(png_path)
+
+
 def get_handlers() -> list:
     return [
         CommandHandler("menu",  cmd_menu),
         CommandHandler("start", cmd_menu),
-        CallbackQueryHandler(cb_menu,           pattern=r"^menu:.+$"),
-        CallbackQueryHandler(cb_roster_squadra, pattern=r"^roster_sq:.+$"),
+        CallbackQueryHandler(cb_menu,            pattern=r"^menu:.+$"),
+        CallbackQueryHandler(cb_roster_squadra,  pattern=r"^roster_sq:.+$"),
+        CallbackQueryHandler(cb_assets_squadra,  pattern=r"^assets_sq:.+$"),
     ]

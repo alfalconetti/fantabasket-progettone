@@ -93,3 +93,11 @@
 ### Bug fix / miglioramenti
 - **`/dpe`**: aggiunto ai `BotCommand` nello scope GM.
 - **`/annulla` globale**: nuovo handler con `group=-1` che pulisce `user_data` e termina qualsiasi conversazione attiva. Aggiunto a `cmd_gm` con descrizione "Esci da qualsiasi conversazione bloccata".
+
+## v1.4.12 (2026-08-08)
+
+### Nuove feature
+- **`/menu` dinamico per fase**: mostra solo i bottoni disponibili nella fase corrente — Trade/Tagli/Rookie solo in `FASI_TRADE_APERTE`, DPE solo in `regular-season-fa/deadline`, Roster/Assets sempre visibili.
+- **Assets via menu**: aggiunto bottone 📋 Assets nel menu principale con selezione squadra via bottoni (analogo a Roster).
+- **DPE via menu**: aggiunto bottone 🏥 DPE nel menu principale quando disponibile.
+- **Riepilogo cap admin**: il bottone "Cap" nel pannello admin mostra ora riepilogo completo per tutte le squadre — contratti, tagli, penalità, DPE, totale vs limite, stato ✅/🔴.
