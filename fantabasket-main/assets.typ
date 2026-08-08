@@ -137,7 +137,7 @@
 #if anni_pick.len() > 0 {
   block(width: 100%, fill: c_pick_bg)[
     #pad(x: 6pt, y: 6pt)[
-      #text(7.5pt, weight: "bold", fill: c_dark)[PICK]
+      #text(7.5pt, weight: "bold", fill: text_on(c_pick_bg))[PICK]
       #v(5pt)
       #grid(
         columns: (1fr, 1fr, 1fr),
@@ -151,20 +151,20 @@
             #v(2pt)
             #if anno_picks.len() == 0 {
               block(below: 0pt)[
-                #text(6.5pt, fill: luma(160))[—]
+                #text(6.5pt, fill: text_on_muted(c_pick_bg))[—]
               ]
             } else {
               for p in anno_picks {
                 let is_propria = p.by == "Propria" or p.by == ""
                 block(below: 3pt)[
                   #text(9pt,
-                    fill: if is_propria { c_dark } else { black },
+                    fill: text_on(c_pick_bg),
                     weight: if is_propria { "bold" } else { "regular" }
                   )[
                     #if is_propria [★] else [○] #p.round
                     #if not is_propria [
                       #linebreak()
-                      #h(8pt)#text(8pt, fill: luma(80))[#p.by]
+                      #h(8pt)#text(8pt, fill: text_on_muted(c_pick_bg))[#p.by]
                     ]
                   ]
                 ]
@@ -181,7 +181,7 @@
 #if diritti_raw != "" {
   block(width: 100%, fill: c_dir_bg)[
     #pad(x: 6pt, y: 5pt)[
-      #text(8pt, weight: "bold", fill: c_dark)[DIRITTI ROOKIE]
+      #text(8pt, weight: "bold", fill: text_on(c_dir_bg))[DIRITTI ROOKIE]
       #v(3pt)
       #text(8pt)[#diritti_raw]
     ]
@@ -189,28 +189,28 @@
 }
 
 // ── footer ────────────────────────────────────────────────────────────────────
-#block(width: 100%, fill: c_dark)[
+#block(width: 100%, fill: c_sezione)[
   #pad(x: 6pt, y: 5pt)[
     #grid(columns: (1fr, auto),
-      [#text(8pt, weight: "bold", fill: white)[SALARY CAP]],
-      [#text(8pt, weight: "bold", fill: white)[#salary_cap M]],
+      [#text(8pt, weight: "bold", fill: text_on(c_sezione))[SALARY CAP]],
+      [#text(8pt, weight: "bold", fill: text_on(c_sezione))[#salary_cap M]],
     )
     #if salary_detail != "" and salary_detail != salary_cap [
       #v(1pt)
       #let parts = salary_detail.split("+")
       #grid(columns: (1fr, auto),
-        [#text(6.5pt, fill: c_subhdr)[  contratti]],
-        [#text(6.5pt, fill: c_subhdr)[#parts.at(0, default: "")M]],
+        [#text(6.5pt, fill: text_on_muted(c_sezione))[  contratti]],
+        [#text(6.5pt, fill: text_on_muted(c_sezione))[#parts.at(0, default: "")M]],
       )
       #grid(columns: (1fr, auto),
-        [#text(6.5pt, fill: c_subhdr)[  impatto tagli]],
-        [#text(6.5pt, fill: c_subhdr)[#parts.at(1, default: "0")M]],
+        [#text(6.5pt, fill: text_on_muted(c_sezione))[  impatto tagli]],
+        [#text(6.5pt, fill: text_on_muted(c_sezione))[#parts.at(1, default: "0")M]],
       )
     ]
     #v(3pt)
     #grid(columns: (1fr, auto),
-      [#text(7.5pt, fill: c_subhdr)[ETA MEDIA]],
-      [#text(7.5pt, fill: white)[#eta_media]],
+      [#text(7.5pt, fill: text_on_muted(c_sezione))[ETA MEDIA]],
+      [#text(7.5pt, fill: text_on(c_sezione))[#eta_media]],
     )
   ]
 ]

@@ -51,6 +51,26 @@ DEFAULTS = {
 
 _HEX_RE = re.compile(r'^#[0-9A-Fa-f]{6}$')
 
+# Campi per cui un colore scuro è problematico (testo scuro sopra)
+_CAMPI_LEGGIBILITA = {"colore_riga1", "colore_riga2", "colore_sezione", "colore_pick", "colore_diritti"}
+_SOGLIA_LUMINANZA  = 0.15  # sotto questa soglia il colore è considerato troppo scuro
+
+
+def _luminanza(hex_color: str) -> float:
+    """Luminanza relativa WCAG (0=nero, 1=bianco)."""
+    hex_color = hex_color.lstrip("#")
+    r, g, b = (int(hex_color[i:i+2], 16) / 255 for i in (0, 2, 4))
+    def linearize(c):
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b)
+
+
+def _warning_colore(campo: str, hex_color: str) -> str:
+    """Restituisce warning se il colore è troppo scuro, stringa vuota altrimenti."""
+    if campo in _CAMPI_LEGGIBILITA and _luminanza(hex_color) < _SOGLIA_LUMINANZA:
+        return "\n⚠️ <b>Attenzione:</b> questo colore è molto scuro — il testo potrebbe essere illeggibile."
+    return ""
+
 
 def _get_palette(team: dict) -> dict:
     """Ritorna la palette corrente del team (con defaults)."""
@@ -137,6 +157,8 @@ async def msg_pal_hex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     campo = context.user_data["pal_campo_corrente"]
     context.user_data["pal_hex_candidato"] = testo
 
+    warning = _warning_colore(campo, testo)
+
     # Genera anteprima PNG con il nuovo colore
     team_id = context.user_data["pal_team_id"]
     team = tm.get_team_by_id(team_id)
@@ -151,7 +173,7 @@ async def msg_pal_hex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         with open(png_path, "rb") as f:
             await update.effective_message.reply_photo(
                 photo=f,
-                caption=f"👁 Anteprima con <b>{CAMPI_COLORE[campo]}</b> = <code>{testo}</code>",
+                caption=f"👁 Anteprima con <b>{CAMPI_COLORE[campo]}</b> = <code>{testo}</code>{warning}",
                 parse_mode="HTML",
                 reply_markup=_kb_conferma_campo(campo),
             )
@@ -163,6 +185,27 @@ async def msg_pal_hex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             os.unlink(png_path)
 
     return PAL_ANTEPRIMA
+
+
+async def cb_pal_riprova(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Riprova da PAL_ANTEPRIMA: manda nuovo messaggio (non può editare un messaggio foto)."""
+    query = update.callback_query
+    await query.answer()
+    campo = query.data.split(":")[1]
+    context.user_data["pal_campo_corrente"] = campo
+    label = CAMPI_COLORE.get(campo, campo)
+    team_id = context.user_data["pal_team_id"]
+    team = tm.get_team_by_id(team_id)
+    pendenti = context.user_data.get("pal_pendenti", {})
+    palette = _get_palette(team)
+    palette.update(pendenti)
+    attuale = palette[campo]
+    await query.message.reply_text(
+        f"🎨 <b>{label}</b>\n\nValore attuale: <code>{attuale}</code>\n\n"
+        "Invia il nuovo colore in formato hex (es. <code>#1A237E</code>):",
+        parse_mode="HTML",
+    )
+    return PAL_ATTENDI_HEX
 
 
 async def cb_pal_ok(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -269,9 +312,9 @@ def get_handlers() -> list:
                 CallbackQueryHandler(cb_pal_campo,    pattern=r"^pal_campo:.+$"),
             ],
             PAL_ANTEPRIMA: [
-                CallbackQueryHandler(cb_pal_ok,    pattern=r"^pal_ok:.+$"),
-                CallbackQueryHandler(cb_pal_campo, pattern=r"^pal_campo:.+$"),
-                CallbackQueryHandler(cb_pal_back,  pattern=r"^pal_back$"),
+                CallbackQueryHandler(cb_pal_ok,      pattern=r"^pal_ok:.+$"),
+                CallbackQueryHandler(cb_pal_riprova, pattern=r"^pal_campo:.+$"),
+                CallbackQueryHandler(cb_pal_back,    pattern=r"^pal_back$"),
             ],
         },
         fallbacks=[

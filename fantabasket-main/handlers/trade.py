@@ -783,7 +783,9 @@ async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     admin_user = update.effective_user
-    admin_nome = admin_user.first_name or admin_user.username or str(admin_user.id)
+    admin_nome = admin_user.first_name or str(admin_user.id)
+    if admin_user.username:
+        admin_nome += f" (@{admin_user.username})"
 
     # Genera trade_ref (MAX progressivo per evitare collisioni)
     trade    = db.get_trade(trade_id)
@@ -1013,6 +1015,8 @@ async def cmd_annulla_trade_admin(update: Update, context: ContextTypes.DEFAULT_
     await _rollback_trade(trade["id"])
 
     admin_nome = user.first_name or str(user.id)
+    if user.username:
+        admin_nome += f" (@{user.username})"
     from datetime import datetime
     ora = format_dt(datetime.now(ROME))
 

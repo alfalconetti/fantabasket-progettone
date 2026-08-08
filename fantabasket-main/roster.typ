@@ -31,6 +31,17 @@
 #let c_subhdr   = c_primary.lighten(50%)
 #let c_sezione  = if colore_sez != "" { color.rgb(colore_sez) } else { c_primary.lighten(85%) }
 
+// Colore testo adattivo: quasi-bianco su sfondo scuro, quasi-nero su sfondo chiaro
+// Soglia WCAG: luminanza relativa < 0.179 → testo chiaro
+#let lum(c) = {
+  let h = c.to-hex().slice(1)
+  let ch(s) = int(s, base: 16) / 255
+  let lin(v) = if v <= 0.04045 { v / 12.92 } else { calc.pow((v + 0.055) / 1.055, 2.4) }
+  0.2126 * lin(ch(h.slice(0,2))) + 0.7152 * lin(ch(h.slice(2,4))) + 0.0722 * lin(ch(h.slice(4,6)))
+}
+#let text_on(bg)       = if lum(bg) < 0.179 { rgb("#f0f0f0") } else { rgb("#1a1a1a") }
+#let text_on_muted(bg) = if lum(bg) < 0.179 { rgb("#bbbbbb") } else { rgb("#555555") }
+
 // Colori rookie scale (evitare rosso = DPE futuro)
 #let c_r0 = color.rgb("#1565C0")  // Anno I  — blu scuro
 #let c_r1 = color.rgb("#2E7D32")  // Anno II — verde scuro
@@ -79,17 +90,19 @@
   [#align(center)[#text(8pt, weight: "bold", fill: white)[\$]]],
   [#align(center)[#text(8pt, weight: "bold", fill: white)[Y]]],
   // giocatori
-  ..giocatori.map(g => {
+  ..giocatori.enumerate().map(((i, g)) => {
     let (fc, bold) = if g.flag == "R0"     { (c_r0,  true) }
                     else if g.flag == "R1"  { (c_r1,  true) }
                     else if g.flag == "R2"  { (c_r2,  true) }
                     else if g.flag == "R3"  { (c_r3,  true) }
                     else if g.flag == "A"   { (c_rfa, true) }
                     else                     { (black, false) }
+    let bg = if calc.odd(i) { c_row_odd } else { c_row_even }
+    let tc = text_on(bg)
     (
       [#text(8.5pt, fill: fc, weight: if bold {"bold"} else {"regular"})[#g.nome]],
-      [#align(center)[#text(8.5pt, weight: "bold")[#g.importo]]],
-      [#align(center)[#text(8.5pt)[#g.anni]]],
+      [#align(center)[#text(8.5pt, fill: tc, weight: "bold")[#g.importo]]],
+      [#align(center)[#text(8.5pt, fill: tc)[#g.anni]]],
     )
   }).flatten(),
 )
@@ -101,48 +114,48 @@
 #if has_rookie or has_rfa {
   block(width: 100%, fill: c_sezione)[
     #pad(x: 6pt, y: 4pt)[
-      #if giocatori.any(g => g.flag == "R0") [#text(7pt, fill: c_r0, weight: "bold")[■ Anno I]  ]
-      #if giocatori.any(g => g.flag == "R1") [#text(7pt, fill: c_r1, weight: "bold")[■ Anno II]  ]
-      #if giocatori.any(g => g.flag == "R2") [#text(7pt, fill: c_r2, weight: "bold")[■ Anno III]  ]
-      #if giocatori.any(g => g.flag == "R3") [#text(7pt, fill: c_r3, weight: "bold")[■ Anno IV]  ]
-      #if has_rfa                             [#text(7pt, fill: c_rfa, weight: "bold")[■ RFA]]
+      #if giocatori.any(g => g.flag == "R0") [#text(7pt, fill: c_r0, weight: "bold")[■ ]#text(7pt, fill: text_on(c_sezione), weight: "bold")[Anno I]  ]
+      #if giocatori.any(g => g.flag == "R1") [#text(7pt, fill: c_r1, weight: "bold")[■ ]#text(7pt, fill: text_on(c_sezione), weight: "bold")[Anno II]  ]
+      #if giocatori.any(g => g.flag == "R2") [#text(7pt, fill: c_r2, weight: "bold")[■ ]#text(7pt, fill: text_on(c_sezione), weight: "bold")[Anno III]  ]
+      #if giocatori.any(g => g.flag == "R3") [#text(7pt, fill: c_r3, weight: "bold")[■ ]#text(7pt, fill: text_on(c_sezione), weight: "bold")[Anno IV]  ]
+      #if has_rfa                             [#text(7pt, fill: c_rfa, weight: "bold")[■ ]#text(7pt, fill: text_on(c_sezione), weight: "bold")[RFA]]
     ]
   ]
 }
 
 // ── footer ────────────────────────────────────────────────────────────────────
-#block(width: 100%, fill: c_dark)[
+#block(width: 100%, fill: c_sezione)[
   #pad(x: 6pt, y: 5pt)[
     #grid(columns: (1fr, auto),
-      [#text(8pt, weight: "bold", fill: white)[SALARY CAP]],
-      [#text(8pt, weight: "bold", fill: white)[#salary_cap M]],
+      [#text(8pt, weight: "bold", fill: text_on(c_sezione))[SALARY CAP]],
+      [#text(8pt, weight: "bold", fill: text_on(c_sezione))[#salary_cap M]],
     )
     #if salary_detail != "" and salary_detail != salary_cap [
       #v(1pt)
       #let parts = salary_detail.split("+")
       #grid(columns: (1fr, auto),
-        [#text(6.5pt, fill: c_subhdr)[  contratti]],
-        [#text(6.5pt, fill: c_subhdr)[#parts.at(0, default: "")M]],
+        [#text(6.5pt, fill: text_on_muted(c_sezione))[  contratti]],
+        [#text(6.5pt, fill: text_on_muted(c_sezione))[#parts.at(0, default: "")M]],
       )
       #grid(columns: (1fr, auto),
-        [#text(6.5pt, fill: c_subhdr)[  impatto tagli]],
-        [#text(6.5pt, fill: c_subhdr)[#parts.at(1, default: "0")M]],
+        [#text(6.5pt, fill: text_on_muted(c_sezione))[  impatto tagli]],
+        [#text(6.5pt, fill: text_on_muted(c_sezione))[#parts.at(1, default: "0")M]],
       )
     ]
     #v(3pt)
     #grid(columns: (1fr, auto),
-      [#text(8pt, fill: c_subhdr)[ETÀ MEDIA]],
-      [#text(8pt, fill: white)[#eta_media]],
+      [#text(8pt, fill: text_on_muted(c_sezione))[ETÀ MEDIA]],
+      [#text(8pt, fill: text_on(c_sezione))[#eta_media]],
     )
     #v(3pt)
     #grid(columns: (1fr, auto),
-      [#text(7.5pt, fill: c_subhdr)[TAGLI SENZA IMPATTO USATI]],
-      [#text(7.5pt, fill: white)[#tagli_usati]],
+      [#text(7.5pt, fill: text_on_muted(c_sezione))[TAGLI SENZA IMPATTO USATI]],
+      [#text(7.5pt, fill: text_on(c_sezione))[#tagli_usati]],
     )
     #v(2pt)
     #grid(columns: (1fr, auto),
-      [#text(7.5pt, fill: c_subhdr)[CAMBI RUOLO USATI]],
-      [#text(7.5pt, fill: white)[#cambi_usati]],
+      [#text(7.5pt, fill: text_on_muted(c_sezione))[CAMBI RUOLO USATI]],
+      [#text(7.5pt, fill: text_on(c_sezione))[#cambi_usati]],
     )
   ]
 ]

@@ -25,6 +25,7 @@ from handlers.admin_panel import get_handlers as admin_panel_handlers
 from handlers.dev_player  import get_handlers as dev_player_handlers
 from handlers.dev         import get_handlers as dev_handlers
 from handlers.palette     import get_handlers as palette_handlers
+from handlers.dpe         import get_handlers as dpe_handlers
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -333,7 +334,8 @@ async def _ping_healthcheck(context) -> None:
 
 def main():
     db.init_db()
-    logger.info("DB inizializzato.")
+    db.migrate_db()
+    logger.info("DB inizializzato e migrato.")
 
     token = _read_secret("BOT_TOKEN_FILE")
     app   = ApplicationBuilder().token(token).post_stop(post_stop).post_init(post_init).post_shutdown(backup_shutdown).build()
@@ -357,6 +359,8 @@ def main():
     for h in dev_player_handlers():
         app.add_handler(h)
     for h in palette_handlers():
+        app.add_handler(h)
+    for h in dpe_handlers():
         app.add_handler(h)
 
     for h in dev_handlers():

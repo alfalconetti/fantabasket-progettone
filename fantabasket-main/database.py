@@ -47,6 +47,24 @@ def init_db():
     logger.info("Pool PostgreSQL inizializzato.")
 
 
+def migrate_db():
+    """Applica migrazioni incrementali al DB."""
+    _q("""
+        CREATE TABLE IF NOT EXISTS dpe (
+            id               SERIAL PRIMARY KEY,
+            giocatore_id     INTEGER NOT NULL REFERENCES giocatori(id),
+            team_id          TEXT NOT NULL,
+            stagione         TEXT NOT NULL,
+            importo_originale INTEGER NOT NULL,
+            importo_dpe      INTEGER NOT NULL,
+            pre_deadline     BOOLEAN NOT NULL DEFAULT TRUE,
+            approvata_da     TEXT,
+            timestamp        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE (giocatore_id, stagione)
+        )
+    """)
+
+
 @contextmanager
 def get_conn():
     conn = _pool.getconn()
@@ -122,10 +140,17 @@ def get_contratti_team(team_id: str) -> list:
     )
 
 def cap_occupato_team(team_id: str, stagione: str) -> int:
-    """Cap totale occupato = contratti attivi + impatto taglio della stagione."""
+    """Cap totale occupato = contratti attivi (con DPE) + impatto taglio della stagione."""
+    # Contratti attivi: se esiste DPE per questa stagione usa importo_dpe, altrimenti importo normale
     contratti = _qval(
-        "SELECT COALESCE(SUM(importo), 0) FROM contratti WHERE team_id = %s AND attivo = TRUE",
-        (team_id,)
+        """SELECT COALESCE(SUM(
+            COALESCE((SELECT d.importo_dpe FROM dpe d
+                      WHERE d.giocatore_id = c.giocatore_id
+                        AND d.team_id = c.team_id
+                        AND d.stagione = %s), c.importo)
+        ), 0)
+        FROM contratti c WHERE c.team_id = %s AND c.attivo = TRUE""",
+        (stagione, team_id)
     ) or 0
     spalmato = _qval(
         "SELECT COALESCE(SUM(importo), 0) FROM impatto_taglio WHERE team_id = %s AND stagione = %s",
@@ -318,6 +343,37 @@ def get_impatto_taglio_team(team_id: str, stagione: str) -> list:
         "JOIN giocatori g ON g.id = cs.giocatore_id "
         "WHERE cs.team_id = %s AND cs.stagione = %s",
         (team_id, stagione), many=True
+    )
+
+
+# ── dpe ──────────────────────────────────────────────────────────────────────
+
+def get_dpe_attiva(giocatore_id: int, stagione: str) -> dict | None:
+    """Restituisce la DPE attiva per un giocatore in questa stagione, se esiste."""
+    return _q(
+        "SELECT * FROM dpe WHERE giocatore_id = %s AND stagione = %s",
+        (giocatore_id, stagione), one=True
+    )
+
+def get_dpe_team(team_id: str, stagione: str) -> list:
+    """Lista DPE attive per un team in questa stagione."""
+    return _q(
+        "SELECT d.*, g.nome_common FROM dpe d "
+        "JOIN giocatori g ON g.id = d.giocatore_id "
+        "WHERE d.team_id = %s AND d.stagione = %s",
+        (team_id, stagione), many=True
+    ) or []
+
+def inserisci_dpe(giocatore_id: int, team_id: str, stagione: str,
+                  importo_originale: int, importo_dpe: int,
+                  pre_deadline: bool, approvata_da: str) -> int:
+    """Inserisce una DPE approvata. Restituisce l'id."""
+    return _qval(
+        "INSERT INTO dpe (giocatore_id, team_id, stagione, importo_originale, "
+        "importo_dpe, pre_deadline, approvata_da) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
+        (giocatore_id, team_id, stagione, importo_originale, importo_dpe,
+         pre_deadline, approvata_da)
     )
 
 

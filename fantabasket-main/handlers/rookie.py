@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 import database as db
 import settings
-from settings import solo_privato, richiede_fase
+from settings import solo_privato, richiede_fase, FASI_TRADE_APERTE
 import teams as tm
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ _ANNULLA_HINT = "\n<i>Per annullare: /annulla</i>"
 
 
 @solo_privato
-@richiede_fase("offseason-rinnovi", msg="❌ L'attivazione dei diritti rookie è disponibile solo durante i rinnovi.")
+@richiede_fase(*FASI_TRADE_APERTE, msg="❌ L'attivazione dei diritti rookie non è disponibile in questa fase.")
 async def cmd_attiva_diritti(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.effective_user
     team = tm.get_team_by_gm(user.id)
@@ -185,6 +185,25 @@ async def cb_conferma_firma_rookie(update: Update, context: ContextTypes.DEFAULT
         f"⚠️ Ricordati di comunicare il ruolo entro 48h.",
         parse_mode="HTML",
     )
+
+    # Annuncio canale principale
+    main_channel = settings.load_globals().get("main_channel_id")
+    if main_channel:
+        testo_canale = (
+            f"🏀 <b>{team.get('gm_nome', team['nome'])}</b> attiva i diritti di "
+            f"<b>{giocatore['nome_common']}</b>\n"
+            f"📋 {importo}M × {anni} {'anno' if anni == 1 else 'anni'} "
+            f"(#{rookie['pick_numero']} {rookie['anno_draft']})"
+        )
+        try:
+            await context.bot.send_message(
+                chat_id=main_channel,
+                text=testo_canale,
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.warning("Annuncio canale attiva_diritti fallito: %s", e)
+
     logger.info("Rookie firma: team=%s giocatore=%d importo=%d",
                 team["id"], rookie["giocatore_id"], importo)
     return ConversationHandler.END

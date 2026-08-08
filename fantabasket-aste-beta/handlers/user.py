@@ -44,7 +44,7 @@ async def cmd_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
     righe = [
         f"🏀 <b>{team['nome']}</b>",
         "",
-        f"💰 <b>{cap_impegnati_contratti}M</b> impegnati in contratti",
+        f"💰 <b>{cap_impegnati_contratti}M</b> impegnati (contratti + tagli)",
         f"💰 Cap disponibile (offseason): <b>{cap_tot}M</b>",
         f"⏳ Cap virtualmente impegnato: <b>{cap_virtuale}M</b>",
         f"✅ Cap effettivamente libero: <b>{cap_libero}M</b>",
@@ -487,7 +487,7 @@ def _build_team_detail_testo(team: dict) -> str:
         f"🏀 <b>{team['nome']}</b>",
         f"<i>ID: <code>{team_id}</code></i>",
         "",
-        f"💰 <b>{cap_imp_contratti}M</b> impegnati in contratti",
+        f"💰 <b>{cap_imp_contratti}M</b> impegnati (contratti + tagli)",
         f"💰 Cap disponibile (offseason): <b>{cap_tot}M</b>",
         f"⏳ Cap virtualmente impegnato: <b>{cap_virtuale}M</b>",
         f"✅ Cap effettivamente libero: <b>{cap_libero}M</b>",

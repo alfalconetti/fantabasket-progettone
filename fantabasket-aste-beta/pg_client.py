@@ -372,7 +372,7 @@ def get_cap_totale(team_id: str, stagione: str, cap_pen: int = 0) -> int:
     Cap lordo disponibile = cap_massimo - contratti_pg - spalmato_pg - cap_pen.
     Equivale a team["cap_disponibile"] nel vecchio sistema JSON.
     """
-    return _settings.cap_massimo() - get_cap_contratti(team_id) - get_impatto_taglio(team_id, stagione) - cap_pen
+    return _settings.cap_limite() - get_cap_contratti(team_id) - get_impatto_taglio(team_id, stagione) - cap_pen
 
 
 def get_slot_totale(team_id: str) -> int:

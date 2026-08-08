@@ -155,13 +155,11 @@ async def _mostra_anteprima_taglio(msg_or_query, team: dict, gid: int):
         rimanenti = MAX_TAGLI_GRATUITI - usati
         if rimanenti <= 0:
             testo = (
-                f"❌ <b>{giocatore['nome_common']}</b> — taglio senza impatto non disponibile.\n"
-                f"Hai già usato tutti i {MAX_TAGLI_GRATUITI} tagli gratuiti 1x1 questa stagione.\n\n"
-                f"Puoi comunque tagliarlo ma genererà impatto taglio sul cap."
+                f"❌ <b>{giocatore['nome_common']}</b> non può essere tagliato.\n"
+                f"Hai già usato tutti i {MAX_TAGLI_GRATUITI} tagli gratuiti 1x1 questa stagione."
             )
             kb = InlineKeyboardMarkup([[
-                InlineKeyboardButton("✂️ Taglia con impatto", callback_data=f"taglia_ok_forzato:{gid}"),
-                InlineKeyboardButton("❌ Annulla",              callback_data="taglia_no"),
+                InlineKeyboardButton("❌ Chiudi", callback_data="taglia_no"),
             ]])
         else:
             testo = (
@@ -198,9 +196,7 @@ async def _mostra_anteprima_taglio(msg_or_query, team: dict, gid: int):
 async def cb_conferma_taglio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    parts   = query.data.split(":")
-    forzato = parts[0] == "taglia_ok_forzato"
-    gid     = int(parts[1])
+    gid     = int(query.data.split(":")[1])
     user    = update.effective_user
     team    = tm.get_team_by_gm(user.id)
 
@@ -211,11 +207,13 @@ async def cb_conferma_taglio(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     stagione  = settings.stagione_corrente()
     anni_res  = _anni_residui(contratto, stagione)
-    gratuito  = _e_taglio_gratuito(contratto["importo"], anni_res) and not forzato
+    gratuito  = _e_taglio_gratuito(contratto["importo"], anni_res)
     giocatore = db.get_giocatore(gid)
 
     from database import _q
     _q("UPDATE contratti SET attivo = FALSE WHERE id = %s", (contratto["id"],))
+
+    main_channel = settings.load_globals().get("main_channel_id")
 
     if gratuito:
         db.registra_transazione(
@@ -224,11 +222,24 @@ async def cb_conferma_taglio(update: Update, context: ContextTypes.DEFAULT_TYPE)
             note=f"Taglio senza impatto 1x1 — {giocatore['nome_common']}"
         )
         usati = db.get_tagli_gratuiti_usati(team["id"], stagione)
+        rimanenti = MAX_TAGLI_GRATUITI - usati
         await query.edit_message_text(
             f"✅ <b>{giocatore['nome_common']}</b> tagliato gratuitamente.\n"
             f"Tagli gratuiti usati questa stagione: <b>{usati}/{MAX_TAGLI_GRATUITI}</b>",
             parse_mode="HTML",
         )
+        if main_channel:
+            testo_canale = (
+                f"✂️ <b>{team['gm_nome']}</b> taglia <b>{giocatore['nome_common']}</b>\n"
+                f"Contratto: {contratto['importo']}M × 1 anno — nessun impatto\n"
+                f"Tagli gratuiti rimasti: <b>{rimanenti}/{MAX_TAGLI_GRATUITI}</b>"
+            )
+            try:
+                await context.bot.send_message(
+                    chat_id=main_channel, text=testo_canale, parse_mode="HTML"
+                )
+            except Exception as e:
+                logger.warning("Annuncio canale taglio gratuito fallito: %s", e)
     else:
         rate = calcola_impatto_taglio(contratto["importo"], anni_res, stagione)
         trans_id = db.registra_transazione(
@@ -248,6 +259,20 @@ async def cb_conferma_taglio(update: Update, context: ContextTypes.DEFAULT_TYPE)
             f"✅ <b>{giocatore['nome_common']}</b> tagliato.\n\nImpatto taglio:\n{righe_imp}",
             parse_mode="HTML",
         )
+        if main_channel:
+            rate_str = " · ".join(f"{r['stagione']}: {r['importo']}M" for r in rate)
+            testo_canale = (
+                f"✂️ <b>{team['gm_nome']}</b> taglia <b>{giocatore['nome_common']}</b>\n"
+                f"Contratto precedente: {contratto['importo']}M × {anni_res} "
+                f"{'anno' if anni_res == 1 else 'anni'}\n"
+                f"Impatto taglio: {rate_str}"
+            )
+            try:
+                await context.bot.send_message(
+                    chat_id=main_channel, text=testo_canale, parse_mode="HTML"
+                )
+            except Exception as e:
+                logger.warning("Annuncio canale taglio fallito: %s", e)
     logger.info("Taglio: team=%s giocatore=%d gratuito=%s", team["id"], gid, gratuito)
 
 
@@ -261,6 +286,6 @@ def get_handlers() -> list:
     return [
         CommandHandler("taglia", cmd_taglia),
         CallbackQueryHandler(cb_seleziona_taglio,  pattern=r"^taglia_sel:\d+$"),
-        CallbackQueryHandler(cb_conferma_taglio,   pattern=r"^taglia_ok:\d+$|^taglia_ok_forzato:\d+$"),
+        CallbackQueryHandler(cb_conferma_taglio,   pattern=r"^taglia_ok:\d+$"),
         CallbackQueryHandler(cb_annulla_taglio,    pattern=r"^taglia_no$"),
     ]

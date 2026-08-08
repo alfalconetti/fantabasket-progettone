@@ -206,6 +206,7 @@ async def cb_adm_taglia_conferma(update: Update, context: ContextTypes.DEFAULT_T
     from database import _q
     _q("UPDATE contratti SET attivo = FALSE WHERE id = %s", (contratto["id"],))
 
+    rate = []
     if gratuito:
         db.registra_transazione(
             "cut", gid, team_id, None, stagione,
@@ -236,6 +237,39 @@ async def cb_adm_taglia_conferma(update: Update, context: ContextTypes.DEFAULT_T
             f"✅ <b>{giocatore['nome_common']}</b> tagliato.\n\nImpatto taglio:\n{righe}",
             parse_mode="HTML",
         )
+    # Annuncio canale principale
+    admin_user = update.effective_user
+    admin_tag = admin_user.first_name or str(admin_user.id)
+    if admin_user.username:
+        admin_tag += f" (@{admin_user.username})"
+    team = tm.get_team_by_id(team_id)
+    main_channel = settings.load_globals().get("main_channel_id")
+    if main_channel and team:
+        if gratuito:
+            usati_fin = db.get_tagli_gratuiti_usati(team_id, stagione)
+            rimanenti = MAX_TAGLI_GRATUITI - usati_fin
+            testo_canale = (
+                f"✂️ <b>{team['nome']}</b> taglia <b>{giocatore['nome_common']}</b>\n"
+                f"Contratto: {contratto['importo']}M × 1 anno — nessun impatto\n"
+                f"Tagli gratuiti rimasti: <b>{rimanenti}/{MAX_TAGLI_GRATUITI}</b>\n"
+                f"🔧 Ufficializzato da {admin_tag}"
+            )
+        else:
+            rate_str = " · ".join(f"{r['stagione']}: {r['importo']}M" for r in rate)
+            testo_canale = (
+                f"✂️ <b>{team['nome']}</b> taglia <b>{giocatore['nome_common']}</b>\n"
+                f"Contratto precedente: {contratto['importo']}M × {anni_res} "
+                f"{'anno' if anni_res == 1 else 'anni'}\n"
+                f"Impatto taglio: {rate_str}\n"
+                f"🔧 Ufficializzato da {admin_tag}"
+            )
+        try:
+            await context.bot.send_message(
+                chat_id=main_channel, text=testo_canale, parse_mode="HTML"
+            )
+        except Exception as e:
+            logger.warning("Annuncio canale taglio admin fallito: %s", e)
+
     logger.info("Taglio admin: team=%s giocatore=%d admin=%d",
                 team_id, gid, update.effective_user.id)
 

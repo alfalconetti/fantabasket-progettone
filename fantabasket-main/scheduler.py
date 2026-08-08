@@ -11,6 +11,7 @@ from datetime import datetime
 
 import settings
 from utils import ROME
+from handlers.helpers import log_job_error
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +95,7 @@ async def backup_giornaliero(context):
         if log_channel_id:
             await invia_backup(context, log_channel_id, "giornaliero", includi_aste_db=False)
     except Exception as e:
-        logger.error("backup_giornaliero fallito: %s", e)
+        await log_job_error(context, "backup_giornaliero", e)
 
 
 async def backup_settimanale(context):
@@ -105,7 +106,7 @@ async def backup_settimanale(context):
         if admin_group_id:
             await invia_backup(context, admin_group_id, "settimanale", includi_aste_db=True)
     except Exception as e:
-        logger.error("backup_settimanale fallito: %s", e)
+        await log_job_error(context, "backup_settimanale", e)
 
 
 async def backup_shutdown(application):
