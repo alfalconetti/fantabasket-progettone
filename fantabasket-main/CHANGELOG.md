@@ -106,3 +106,8 @@
 
 ### Bug fix
 - **Trade builder da menu**: i bottoni Build e Import nel menu trade ora usano callback_data dedicati (`menu_trade_build`, `menu_trade_import`) registrati come entry_point nei rispettivi ConversationHandler — evita il bypass di PTB che impediva l'avvio della conversazione.
+
+## v1.4.14 (2026-08-08)
+
+### Miglioramenti
+- **`/bozze_trade`**: riscritta con bottoni InlineKeyboard — ogni bozza mostra i GM coinvolti (`GM1 ↔ GM2`), cliccando si apre il riepilogo con i bottoni azione (Modifica/Elimina/Proponi). Stessa visualizzazione per trade in attesa di voto.

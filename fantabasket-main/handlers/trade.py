@@ -1065,18 +1065,65 @@ async def cmd_mie_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("Nessuna trade attiva.")
         return
 
-    righe = []
+    bottoni = []
+
     if bozze:
-        righe.append("<b>📝 Bozze:</b>")
         for t in bozze:
-            righe.append(f"  • #{t['bozza_num']} — {t['n_squadre']} squadre")
+            trade_id = t["id"]
+            squadre  = db.get_trade_squadre(trade_id)
+            gm_nomi  = [
+                (tm.get_team_by_id(sq["team_id"]) or {}).get("gm_nome", sq["team_id"])
+                for sq in squadre
+            ]
+            gm_str = " ↔ ".join(gm_nomi) if gm_nomi else f"{t['n_squadre']} squadre"
+            bottoni.append([InlineKeyboardButton(
+                f"📝 #{t['bozza_num']} — {gm_str}",
+                callback_data=f"bozza_apri:{trade_id}"
+            )])
 
     if pending:
-        righe.append("<b>⏳ In attesa del tuo voto:</b>")
         for t in pending:
-            righe.append(f"  • {t['trade_ref']} — /vedi_trade_{t['id']}")
+            trade_id = t["id"]
+            squadre  = db.get_trade_squadre(trade_id)
+            gm_nomi  = [
+                (tm.get_team_by_id(sq["team_id"]) or {}).get("gm_nome", sq["team_id"])
+                for sq in squadre
+            ]
+            gm_str = " ↔ ".join(gm_nomi) if gm_nomi else "?"
+            bottoni.append([InlineKeyboardButton(
+                f"⏳ {t['trade_ref']} — {gm_str}",
+                callback_data=f"bozza_apri:{trade_id}"
+            )])
 
-    await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
+    await update.effective_message.reply_text(
+        "📝 <b>Le tue trade</b> — seleziona per vedere il riepilogo:",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(bottoni),
+    )
+
+
+async def cb_bozza_apri(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Mostra il riepilogo di una bozza/trade con bottoni azione."""
+    query    = update.callback_query
+    await query.answer()
+    trade_id = int(query.data.split(":")[1])
+    trade    = db.get_trade(trade_id)
+    if not trade:
+        await query.edit_message_text("❌ Trade non trovata.")
+        return
+    testo = _testo_riepilogo(trade_id)
+    # Usa la keyboard appropriata in base allo stato
+    if trade.get("stato") == "bozza":
+        valida, errori = valida_trade(trade_id)
+        if not valida:
+            testo += "\n\n⚠️ " + "\n".join(errori)
+        kb = _kb_riepilogo(trade_id) if valida else _kb_riepilogo_non_valida(trade_id)
+    else:
+        kb = None
+    await query.edit_message_text(
+        testo, parse_mode="HTML",
+        reply_markup=kb,
+    )
 
 
 # ── /annulla_trade ─────────────────────────────────────────────────────────────
@@ -1489,6 +1536,7 @@ def get_handlers() -> list:
         conv_edit,
         CommandHandler("mie_trade",          cmd_mie_trade),
         CommandHandler("bozze_trade",         cmd_mie_trade),
+        CallbackQueryHandler(cb_bozza_apri,   pattern=r"^bozza_apri:\d+$"),
         CommandHandler("annulla_trade_admin", cmd_annulla_trade_admin),
         CallbackQueryHandler(cb_voto_gm,     pattern=r"^trade_voto:.+$"),
         CallbackQueryHandler(cb_admin_trade, pattern=r"^trade_admin:.+$"),
