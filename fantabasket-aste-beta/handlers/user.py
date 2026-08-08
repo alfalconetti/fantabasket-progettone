@@ -29,10 +29,12 @@ async def cmd_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     stagione       = utils.load_globals().get("stagione_corrente", "2025")
     cap_tot, slot_tot = utils.cap_slot_display(team, stagione)
-    cap_virtuale   = db.get_cap_virtuale(team["id"])
-    slot_impegnati = db.get_slot_virtuali(team["id"])
-    cap_libero     = cap_tot - cap_virtuale
-    slot_liberi    = slot_tot - slot_impegnati
+    cap_virtuale    = db.get_cap_virtuale(team["id"])
+    slot_impegnati  = db.get_slot_virtuali(team["id"])
+    cap_anticipato  = pg_client.get_cap_anticipato(team["id"]) if pg_client.pg_disponibile() else 0
+    slot_anticipato = pg_client.get_slot_anticipato(team["id"]) if pg_client.pg_disponibile() else 0
+    cap_libero      = cap_tot - cap_virtuale
+    slot_liberi     = slot_tot - slot_impegnati
     offerte_vince  = db.get_offerte_vincenti_team(team["id"])
 
     fase = utils.load_globals().get("fase", "offseason")
@@ -44,11 +46,13 @@ async def cmd_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
     righe = [
         f"🏀 <b>{team['nome']}</b>",
         "",
-        f"💰 <b>{cap_impegnati_contratti}M</b> impegnati (contratti + tagli)",
+        f"💰 <b>{cap_impegnati_contratti}M</b> impegnati in contratti",
         f"💰 Cap disponibile (offseason): <b>{cap_tot}M</b>",
         f"⏳ Cap virtualmente impegnato: <b>{cap_virtuale}M</b>",
         f"✅ Cap effettivamente libero: <b>{cap_libero}M</b>",
     ]
+    if cap_anticipato > 0:
+        righe.append(f"⚡ Cap anticipato attivo: <b>+{cap_anticipato}M</b> — scade tra 48h")
 
     if fase == "offseason":
         rfa_attive = db.get_rfa_proprietario(team["id"])
@@ -68,6 +72,8 @@ async def cmd_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"⏳ Slot virtualmente impegnati: <b>{slot_impegnati}</b>",
         f"✅ Slot effettivamente liberi: <b>{slot_liberi}</b>",
     ]
+    if slot_anticipato > 0:
+        righe.append(f"⚡ Slot anticipato attivo: <b>+{slot_anticipato}</b> — scade tra 48h")
 
     if offerte_vince:
         righe.append("")
@@ -487,11 +493,13 @@ def _build_team_detail_testo(team: dict) -> str:
         f"🏀 <b>{team['nome']}</b>",
         f"<i>ID: <code>{team_id}</code></i>",
         "",
-        f"💰 <b>{cap_imp_contratti}M</b> impegnati (contratti + tagli)",
+        f"💰 <b>{cap_imp_contratti}M</b> impegnati in contratti",
         f"💰 Cap disponibile (offseason): <b>{cap_tot}M</b>",
         f"⏳ Cap virtualmente impegnato: <b>{cap_virtuale}M</b>",
         f"✅ Cap effettivamente libero: <b>{cap_libero}M</b>",
     ]
+    if cap_anticipato > 0:
+        righe.append(f"⚡ Cap anticipato attivo: <b>+{cap_anticipato}M</b> — scade tra 48h")
 
     if fase == "offseason":
         rfa_attive = db.get_rfa_proprietario(team_id)
@@ -511,6 +519,8 @@ def _build_team_detail_testo(team: dict) -> str:
         f"⏳ Slot virtualmente impegnati: <b>{slot_impegnati}</b>",
         f"✅ Slot effettivamente liberi: <b>{slot_liberi}</b>",
     ]
+    if slot_anticipato > 0:
+        righe.append(f"⚡ Slot anticipato attivo: <b>+{slot_anticipato}</b> — scade tra 48h")
 
     if offerte_vince:
         righe.append("")

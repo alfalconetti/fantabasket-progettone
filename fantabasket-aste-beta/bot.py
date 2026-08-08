@@ -15,7 +15,7 @@ from handlers.offerte import get_handlers as offerte_handlers
 from handlers.firma   import get_handlers as firma_handlers
 from handlers.user    import get_handlers as user_handlers
 from handlers.dev     import get_handlers as dev_handlers
-from scheduler        import check_scadenze, ping_healthcheck, backup_giornaliero, backup_settimanale, check_cap_stagionale, backup_shutdown
+from scheduler        import check_scadenze, ping_healthcheck, backup_giornaliero, backup_settimanale, check_cap_stagionale, backup_shutdown, pulizia_anticipati_scaduti
 
 BOT_VERSION = "beta-1"
 
@@ -238,6 +238,7 @@ def main():
 
     # Check cap stagionale: ogni giorno alle 13:00
     app.job_queue.run_daily(check_cap_stagionale, time=dtime(13, 0, tzinfo=rome))
+    app.job_queue.run_daily(pulizia_anticipati_scaduti, time=dtime(3, 0, tzinfo=rome))
 
     # Validazione numero_teams vs teams.json all'avvio
     import teams as _tm_check

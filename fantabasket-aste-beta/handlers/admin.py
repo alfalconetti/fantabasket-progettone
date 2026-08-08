@@ -897,10 +897,11 @@ async def annulla_offerta(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def autocap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Permette a un GM di aggiungere cap autonomamente (es. dopo una trade notturna).
-    Il cap viene aggiunto immediatamente. Una notifica viene inviata al gruppo admin e al dev.
-    Se il GM ha mentito, l'admin interviene manualmente con penalità.
+    GM aggiunge cap anticipato temporaneo (48h) in caso di trade notturna non ancora ufficializzata.
+    Il cap anticipato viene sommato al cap libero reale per permettere offerte.
+    Notifica al gruppo admin con bottone Reset.
     """
+    import pg_client
     user = update.effective_user
     team = tm.get_team_by_gm(user.id)
     if team is None:
@@ -910,8 +911,9 @@ async def autocap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args or len(context.args) != 1:
         await update.effective_message.reply_text(
             "Uso: /autocap &lt;importo&gt;\nEsempio: /autocap 15\n\n"
-            "<i>⚠️ Usare solo in caso di necessità (es. trade appena avvenuta). "
-            "La richiesta viene segnalata agli admin per verifica. "
+            "<i>⚠️ Solo per emergenze notturne — trade appena avvenuta non ancora ufficializzata. "
+            "La richiesta viene segnalata agli admin. "
+            "Il cap anticipato scade automaticamente dopo 48h. "
             "In caso di dichiarazione falsa saranno applicate penalità.</i>",
             parse_mode="HTML",
         )
@@ -927,61 +929,150 @@ async def autocap(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("❌ L'importo deve essere positivo.")
         return
 
-    await update.effective_message.reply_text(
-        "⚠️ In modalità beta il cap è gestito da PostgreSQL.\n"
-        "Contatta un admin per correzioni manuali sul DB."
-    )
-    return
+    # Controlla che non superi cap_limite
+    stagione = utils.load_globals().get("stagione_corrente", "2025")
+    cap_pen  = team.get("cap_penalizzato", 0)
+    if pg_client.pg_disponibile():
+        cap_occ = pg_client.get_cap_contratti(team["id"]) + pg_client.get_impatto_taglio(team["id"], stagione) + cap_pen
+    else:
+        cap_occ = settings.cap_massimo() - team.get("cap_disponibile", 0)
+    cap_libero_reale = settings.cap_limite() - cap_occ
 
-    vecchio_cap = 0  # unreachable
-    nuovo_cap = vecchio_cap + importo
-    if nuovo_cap > settings.cap_limite():
-        pass
+    if importo > cap_libero_reale + importo:  # non può mai avere più di cap_limite totale
+        await update.effective_message.reply_text(
+            f"❌ Importo non valido. Il tuo cap libero reale è {cap_libero_reale}M."
+        )
         return
 
-    tm.set_cap(team["id"], nuovo_cap)
+    # Salva cap anticipato su PG (sostituisce eventuale precedente)
+    pg_client.set_cap_anticipato(team["id"], importo)
 
-    import utils as _utils
-    from datetime import datetime, timezone
-    ora = _utils.format_dt(datetime.now(timezone.utc).isoformat())
-
+    ora = utils.format_dt(utils.now_rome())
     await update.effective_message.reply_text(
-        f"✅ Cap aggiunto: <b>+{importo}M</b>\nIl tuo cap ora è <b>{nuovo_cap}M</b>.\n\n"
+        f"✅ Cap anticipato di <b>+{importo}M</b> aggiunto.\n"
+        f"Scade automaticamente tra 48h.\n\n"
         f"<i>La richiesta è stata segnalata agli admin.</i>",
         parse_mode="HTML",
     )
 
-    notifica = (
-        f"⚠️ <b>Autocap</b>\n"
-        f"👤 {user.first_name} (@{user.username or '?'}) — <b>{team['nome']}</b>\n"
-        f"💰 +{importo}M (da {vecchio_cap}M a {nuovo_cap}M)\n"
-        f"🕐 {ora}\n\n"
-        f"Verifica che la dichiarazione sia corretta."
-    )
-
-    # notifica gruppo admin
-    admin_group_id = _utils.get_admin_group_id()
+    # Notifica gruppo admin con bottone Reset
+    admin_group_id = utils.load_globals().get("admin_group_id")
     if admin_group_id:
+        gm_tag = f"@{user.username}" if user.username else user.first_name
+        notifica = (
+            f"⚡ <b>Cap anticipato richiesto</b>\n\n"
+            f"👤 {user.first_name} ({gm_tag}) — <b>{team['nome']}</b>\n"
+            f"💰 +{importo}M anticipati\n"
+            f"📊 Cap libero reale: {cap_libero_reale}M\n"
+            f"🕐 {ora} — scade tra 48h\n\n"
+            f"<i>Verifica che la trade sia in corso. "
+            f"Resetta dopo l'ufficializzazione o in caso di abuso (+ penalità).</i>"
+        )
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton(
+                "🔄 Reset cap anticipato",
+                callback_data=f"reset_cap_ant:{team['id']}"
+            )
+        ]])
         try:
-            await context.bot.send_message(chat_id=admin_group_id, text=notifica, parse_mode="HTML")
+            msg = await context.bot.send_message(
+                chat_id=admin_group_id, text=notifica,
+                parse_mode="HTML", reply_markup=kb
+            )
+            # Salva message_id per poter editare il messaggio al reset
+            pg_client.set_cap_anticipato(team["id"], importo, message_id=msg.message_id)
         except Exception as e:
             logger.warning("notifica autocap gruppo admin: %s", e)
 
-    # notifica dev
-    globals_data = _utils.load_globals()
-    dev_id = globals_data.get("dev_id")
-    if dev_id and dev_id != admin_group_id:
-        try:
-            await context.bot.send_message(chat_id=dev_id, text=notifica, parse_mode="HTML")
-        except Exception as e:
-            logger.warning("notifica autocap dev: %s", e)
-
     logger.info("autocap: team=%s importo=%d gm=%d", team["id"], importo, user.id)
+
+
+async def cb_reset_cap_anticipato(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin resetta il cap anticipato di un team — con check che non vada in negativo."""
+    import pg_client
+    query = update.callback_query
+    await query.answer()
+    team_id = query.data.split(":")[1]
+    team    = tm.get_team_by_id(team_id)
+
+    stagione   = utils.load_globals().get("stagione_corrente", "2025")
+    cap_pen    = team.get("cap_penalizzato", 0) if team else 0
+    cap_ant    = pg_client.get_cap_anticipato(team_id)
+    cap_virt   = 0  # cap virtuale dalle offerte in corso
+
+    # Importa db SQLite del bot aste per cap_virtuale
+    try:
+        import database as db_aste
+        cap_virt = db_aste.get_cap_virtuale(team_id)
+    except Exception:
+        pass
+
+    if pg_client.pg_disponibile():
+        cap_occ = pg_client.get_cap_contratti(team_id) + pg_client.get_impatto_taglio(team_id, stagione) + cap_pen
+    else:
+        cap_occ = settings.cap_massimo() - (team.get("cap_disponibile", 0) if team else 0)
+
+    cap_libero_reale = settings.cap_limite() - cap_occ - cap_virt
+
+    if cap_libero_reale < 0:
+        await query.edit_message_reply_markup(reply_markup=None)
+        await query.message.reply_text(
+            f"⚠️ <b>Reset impossibile</b>\n\n"
+            f"<b>{team['nome'] if team else team_id}</b> andrebbe in negativo di "
+            f"<b>{abs(cap_libero_reale)}M</b> senza il cap anticipato.\n"
+            f"La trade deve essere prima ufficializzata.",
+            parse_mode="HTML",
+        )
+        return
+
+    pg_client.reset_cap_anticipato(team_id)
+    await query.edit_message_text(
+        query.message.text + f"\n\n✅ <b>Cap anticipato resettato</b> da {query.from_user.first_name}.",
+        parse_mode="HTML",
+        reply_markup=None,
+    )
+    logger.info("reset_cap_anticipato: team=%s admin=%d", team_id, query.from_user.id)
+
+
+async def cb_reset_slot_anticipato(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin resetta lo slot anticipato di un team."""
+    import pg_client
+    query = update.callback_query
+    await query.answer()
+    team_id = query.data.split(":")[1]
+    team    = tm.get_team_by_id(team_id)
+
+    slot_ant  = pg_client.get_slot_anticipato(team_id)
+    try:
+        import database as db_aste
+        slot_virt = db_aste.get_slot_virtuali(team_id)
+    except Exception:
+        slot_virt = 0
+
+    slot_reale = pg_client.get_slot_totale(team_id)
+    if slot_reale < 0:
+        await query.edit_message_reply_markup(reply_markup=None)
+        await query.message.reply_text(
+            f"⚠️ <b>Reset impossibile</b>\n\n"
+            f"<b>{team['nome'] if team else team_id}</b> andrebbe sotto il minimo roster senza lo slot anticipato.",
+            parse_mode="HTML",
+        )
+        return
+
+    pg_client.reset_slot_anticipato(team_id)
+    await query.edit_message_text(
+        query.message.text + f"\n\n✅ <b>Slot anticipato resettato</b> da {query.from_user.first_name}.",
+        parse_mode="HTML",
+        reply_markup=None,
+    )
+    logger.info("reset_slot_anticipato: team=%s admin=%d", team_id, query.from_user.id)
 
 
 # ── /auto_slot ───────────────────────────────────────────────────────────────
 
 async def auto_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """GM aggiunge slot anticipato temporaneo (48h) — analogo ad autocap."""
+    import pg_client
     user = update.effective_user
     team = tm.get_team_by_gm(user.id)
     if team is None:
@@ -989,25 +1080,63 @@ async def auto_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if not context.args or len(context.args) != 1:
         await update.effective_message.reply_text(
-            "Uso: /autoslot &lt;importo&gt;\nEsempio: /autoslot 1\n\n"
-            "<i>⚠️ Usare solo in caso di necessità. La richiesta viene segnalata agli admin per verifica.</i>",
+            "Uso: /autoslot &lt;quantita&gt;\nEsempio: /autoslot 1\n\n"
+            "<i>⚠️ Solo per emergenze notturne. "
+            "Lo slot anticipato scade automaticamente dopo 48h.</i>",
             parse_mode="HTML",
         )
         return
     try:
-        importo = int(context.args[0])
+        quantita = int(context.args[0])
     except ValueError:
-        await update.effective_message.reply_text("❌ L'importo deve essere un numero intero.")
+        await update.effective_message.reply_text("❌ La quantità deve essere un numero intero.")
         return
-    if importo <= 0:
-        await update.effective_message.reply_text("❌ L'importo deve essere positivo.")
+    if quantita <= 0:
+        await update.effective_message.reply_text("❌ La quantità deve essere positiva.")
         return
 
+    slot_reale = pg_client.get_slot_totale(team["id"]) if pg_client.pg_disponibile() else team.get("slot_disponibili", 0)
+    if slot_reale + quantita > settings.slot_massimo():
+        await update.effective_message.reply_text(
+            f"❌ Non puoi anticipare {quantita} slot — supereresti il massimo roster ({settings.slot_massimo()})."
+        )
+        return
+
+    pg_client.set_slot_anticipato(team["id"], quantita)
+    ora = utils.format_dt(utils.now_rome())
     await update.effective_message.reply_text(
-        "⚠️ In modalità beta gli slot sono gestiti da PostgreSQL.\n"
-        "Contatta un admin per correzioni manuali sul DB."
+        f"✅ Slot anticipato di <b>+{quantita}</b> aggiunto.\n"
+        f"Scade automaticamente tra 48h.\n\n"
+        f"<i>La richiesta è stata segnalata agli admin.</i>",
+        parse_mode="HTML",
     )
-    return
+
+    admin_group_id = utils.load_globals().get("admin_group_id")
+    if admin_group_id:
+        gm_tag = f"@{user.username}" if user.username else user.first_name
+        notifica = (
+            f"⚡ <b>Slot anticipato richiesto</b>\n\n"
+            f"👤 {user.first_name} ({gm_tag}) — <b>{team['nome']}</b>\n"
+            f"🪑 +{quantita} slot anticipati\n"
+            f"🕐 {ora} — scade tra 48h\n\n"
+            f"<i>Verifica che la trade sia in corso. Resetta dopo l'ufficializzazione.</i>"
+        )
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton(
+                "🔄 Reset slot anticipato",
+                callback_data=f"reset_slot_ant:{team['id']}"
+            )
+        ]])
+        try:
+            msg = await context.bot.send_message(
+                chat_id=admin_group_id, text=notifica,
+                parse_mode="HTML", reply_markup=kb
+            )
+            pg_client.set_slot_anticipato(team["id"], quantita, message_id=msg.message_id)
+        except Exception as e:
+            logger.warning("notifica autoslot gruppo admin: %s", e)
+
+    logger.info("autoslot: team=%s quantita=%d gm=%d", team["id"], quantita, user.id)
 
     vecchio = 0  # unreachable
     nuovo = vecchio + importo
@@ -2191,5 +2320,7 @@ def get_handlers():
         CommandHandler("annulla_offerta",  annulla_offerta),
         CallbackQueryHandler(admin_chiudi_callback,  pattern=r"^admin_chiudi:\d+$"),
         CallbackQueryHandler(admin_annulla_callback, pattern=r"^admin_annulla:\d+$"),
-        CallbackQueryHandler(admin_noop_callback,    pattern=r"^admin_noop$"),
+        CallbackQueryHandler(admin_noop_callback,        pattern=r"^admin_noop$"),
+        CallbackQueryHandler(cb_reset_cap_anticipato,    pattern=r"^reset_cap_ant:.+$"),
+        CallbackQueryHandler(cb_reset_slot_anticipato,   pattern=r"^reset_slot_ant:.+$"),
     ]

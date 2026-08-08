@@ -143,3 +143,14 @@
 
 ### Miglioramenti
 - **Riepilogo cap admin**: header mostra esplicitamente il limite per squadra con nota "(offseason)" quando applicabile.
+
+## v1.5.0 (2026-08-08)
+
+### Nuove feature
+- **Autocap/Autoslot anticipato**: GM può richiedere cap/slot temporaneo (+48h) in caso di trade notturna non ancora ufficializzata. Il cap anticipato viene sommato al cap libero reale per permettere offerte. Notifica al gruppo admin con bottone Reset.
+- **Reset con check**: al Reset l'admin riceve avviso se il team andrebbe in negativo senza il cap anticipato (trade non ancora ufficializzata). Il reset è bloccato in quel caso.
+- **Pulizia automatica**: job alle 3:00 pulisce cap/slot anticipati scaduti e notifica admin. Se il team è in negativo dopo la pulizia, avviso urgente.
+- **Display cap anticipato**: `/me` e dettaglio team mostrano cap/slot anticipato attivo con nota scadenza.
+
+### Bug fix
+- **`_cap_libero`**: ora usa `cap_limite()` (165M offseason, 150M RS) invece di `cap_massimo()` fisso — un GM in offseason aveva 15M in meno di cap disponibile per le offerte.

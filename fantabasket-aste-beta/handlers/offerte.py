@@ -75,8 +75,8 @@ async def _canale_keyboard(context, asta_id: int) -> InlineKeyboardMarkup:
 
 def _cap_libero(team_id: str) -> int:
     """
-    Cap effettivamente libero.
-    v49: cap_massimo - contratti_pg - spalmato_pg - cap_penalizzato_json - cap_virtuale_sqlite.
+    Cap effettivamente libero per fare offerte.
+    = cap_limite() - contratti_pg - impatto_taglio - cap_pen + cap_anticipato_pg - cap_virtuale_sqlite
     In modalità isolata (PG non disponibile): usa cap_disponibile dal JSON.
     """
     import pg_client
@@ -85,10 +85,11 @@ def _cap_libero(team_id: str) -> int:
         return 0
     cap_pen = team.get("cap_penalizzato", 0)
     if pg_client.pg_disponibile():
-        stagione = utils.load_globals().get("stagione_corrente", "2025")
-        cap_contratti = pg_client.get_cap_contratti(team_id)
-        impatto_taglio  = pg_client.get_impatto_taglio(team_id, stagione)
-        cap_fisso     = settings.cap_massimo() - cap_contratti - impatto_taglio - cap_pen
+        stagione       = utils.load_globals().get("stagione_corrente", "2025")
+        cap_contratti  = pg_client.get_cap_contratti(team_id)
+        impatto_taglio = pg_client.get_impatto_taglio(team_id, stagione)
+        cap_anticipato = pg_client.get_cap_anticipato(team_id)
+        cap_fisso      = settings.cap_limite() - cap_contratti - impatto_taglio - cap_pen + cap_anticipato
     else:
         cap_fisso = team["cap_disponibile"]
     return cap_fisso - db.get_cap_virtuale(team_id)

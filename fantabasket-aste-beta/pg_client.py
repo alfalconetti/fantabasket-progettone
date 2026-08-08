@@ -372,7 +372,45 @@ def get_cap_totale(team_id: str, stagione: str, cap_pen: int = 0) -> int:
     Cap lordo disponibile = cap_massimo - contratti_pg - spalmato_pg - cap_pen.
     Equivale a team["cap_disponibile"] nel vecchio sistema JSON.
     """
-    return _settings.cap_limite() - get_cap_contratti(team_id) - get_impatto_taglio(team_id, stagione) - cap_pen
+    return _settings.cap_limite() - get_cap_contratti(team_id) - get_impatto_taglio(team_id, stagione) - cap_pen + get_cap_anticipato(team_id)
+
+
+def get_cap_anticipato(team_id: str) -> int:
+    """Cap anticipato attivo dal DB condiviso (tabella cap_anticipato)."""
+    conn = _conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT importo FROM cap_anticipato WHERE team_id = %s AND scade_at > NOW()",
+                (team_id,)
+            )
+            row = cur.fetchone()
+            return row[0] if row else 0
+    except Exception as e:
+        logger.error("get_cap_anticipato(%s): %s", team_id, e)
+        return 0
+    finally:
+        conn.rollback()
+        _putconn(conn)
+
+
+def get_slot_anticipato(team_id: str) -> int:
+    """Slot anticipato attivo dal DB condiviso."""
+    conn = _conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT quantita FROM slot_anticipato WHERE team_id = %s AND scade_at > NOW()",
+                (team_id,)
+            )
+            row = cur.fetchone()
+            return row[0] if row else 0
+    except Exception as e:
+        logger.error("get_slot_anticipato(%s): %s", team_id, e)
+        return 0
+    finally:
+        conn.rollback()
+        _putconn(conn)
 
 
 def get_slot_totale(team_id: str) -> int:
@@ -401,5 +439,135 @@ def get_bref_fantamedie_bulk(nomi: list[str]) -> dict[str, tuple[float | None, s
             """, ([n.lower() for n in nomi],))
             return {row[0]: (float(row[1]) if row[1] is not None else None, row[2])
                     for row in cur.fetchall()}
+    finally:
+        _putconn(conn)
+
+
+# ── cap/slot anticipato ───────────────────────────────────────────────────────
+
+def get_cap_anticipato(team_id: str) -> int:
+    """Cap anticipato attivo per un team (0 se non presente o scaduto)."""
+    if not pg_disponibile():
+        return 0
+    conn = _conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT importo FROM cap_anticipato WHERE team_id = %s AND scade_at > NOW()",
+                (team_id,)
+            )
+            row = cur.fetchone()
+            return row[0] if row else 0
+    except Exception as e:
+        logger.error("get_cap_anticipato(%s): %s", team_id, e)
+        return 0
+    finally:
+        conn.rollback()
+        _putconn(conn)
+
+def set_cap_anticipato(team_id: str, importo: int, message_id: int = None) -> None:
+    if not pg_disponibile():
+        return
+    conn = _conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO cap_anticipato (team_id, importo, richiesto_at, scade_at, message_id)
+                   VALUES (%s, %s, NOW(), NOW() + INTERVAL '48 hours', %s)
+                   ON CONFLICT (team_id) DO UPDATE
+                   SET importo=EXCLUDED.importo, richiesto_at=NOW(),
+                       scade_at=NOW() + INTERVAL '48 hours', message_id=EXCLUDED.message_id""",
+                (team_id, importo, message_id)
+            )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        logger.error("set_cap_anticipato(%s, %d): %s", team_id, importo, e)
+    finally:
+        _putconn(conn)
+
+def reset_cap_anticipato(team_id: str) -> None:
+    if not pg_disponibile():
+        return
+    conn = _conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM cap_anticipato WHERE team_id = %s", (team_id,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        logger.error("reset_cap_anticipato(%s): %s", team_id, e)
+    finally:
+        _putconn(conn)
+
+def get_anticipati_scaduti() -> list:
+    if not pg_disponibile():
+        return []
+    conn = _conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT *, 'cap' as tipo FROM cap_anticipato WHERE scade_at <= NOW()")
+            cap = cur.fetchall() or []
+            cur.execute("SELECT *, 'slot' as tipo FROM slot_anticipato WHERE scade_at <= NOW()")
+            slot = cur.fetchall() or []
+            return cap + slot
+    except Exception as e:
+        logger.error("get_anticipati_scaduti: %s", e)
+        return []
+    finally:
+        conn.rollback()
+        _putconn(conn)
+
+def get_slot_anticipato(team_id: str) -> int:
+    if not pg_disponibile():
+        return 0
+    conn = _conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT quantita FROM slot_anticipato WHERE team_id = %s AND scade_at > NOW()",
+                (team_id,)
+            )
+            row = cur.fetchone()
+            return row[0] if row else 0
+    except Exception as e:
+        logger.error("get_slot_anticipato(%s): %s", team_id, e)
+        return 0
+    finally:
+        conn.rollback()
+        _putconn(conn)
+
+def set_slot_anticipato(team_id: str, quantita: int, message_id: int = None) -> None:
+    if not pg_disponibile():
+        return
+    conn = _conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO slot_anticipato (team_id, quantita, richiesto_at, scade_at, message_id)
+                   VALUES (%s, %s, NOW(), NOW() + INTERVAL '48 hours', %s)
+                   ON CONFLICT (team_id) DO UPDATE
+                   SET quantita=EXCLUDED.quantita, richiesto_at=NOW(),
+                       scade_at=NOW() + INTERVAL '48 hours', message_id=EXCLUDED.message_id""",
+                (team_id, quantita, message_id)
+            )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        logger.error("set_slot_anticipato(%s, %d): %s", team_id, quantita, e)
+    finally:
+        _putconn(conn)
+
+def reset_slot_anticipato(team_id: str) -> None:
+    if not pg_disponibile():
+        return
+    conn = _conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM slot_anticipato WHERE team_id = %s", (team_id,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        logger.error("reset_slot_anticipato(%s): %s", team_id, e)
     finally:
         _putconn(conn)

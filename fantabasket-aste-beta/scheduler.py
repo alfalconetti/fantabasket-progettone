@@ -171,39 +171,40 @@ async def check_cap_stagionale(context):
 
         tutti_team = tm.get_all_teams()
 
-        cap_occupato_totale = 0
-        righe_sforanti = []
+        cap_liberi_totale = 0
+        cap_penalizzati_totale = 0
+        righe_team = []
 
+        from database import get_cap_virtuale as _get_cap_virt
         import pg_client as _pg
         stagione = utils.load_globals().get("stagione_corrente", "2025")
 
         for team in tutti_team:
-            cap_pen = team.get("cap_penalizzato", 0)
+            cap_virt = _get_cap_virt(team["id"])
+            cap_pen  = team.get("cap_penalizzato", 0)
             if _pg.pg_disponibile():
-                # cap_occupato = contratti + tagli + penalità
-                cap_occ = _pg.get_cap_contratti(team["id"]) + _pg.get_impatto_taglio(team["id"], stagione) + cap_pen
+                cap_lib = _pg.get_cap_totale(team["id"], stagione, cap_pen) - cap_virt
             else:
-                cap_occ = cap_offseason - team["cap_disponibile"]
-            cap_occupato_totale += cap_occ
-            if cap_occ > cap_regular:
-                righe_sforanti.append(f"  ⚠️ {team['nome']}: {cap_occ}M (sfora di {cap_occ - cap_regular}M)")
+                cap_lib = team["cap_disponibile"] - cap_virt
+            cap_liberi_totale      += cap_lib
+            cap_penalizzati_totale += cap_pen
+            righe_team.append(f"  {team['nome']}: {cap_lib}M libero, {cap_pen}M penalità")
 
-        limite_totale = n_teams * cap_regular
-        margine = limite_totale - cap_occupato_totale
+        soglia = n_teams * delta_per_team + cap_penalizzati_totale
+        margine = cap_liberi_totale - soglia
 
         emoji = "✅" if margine >= 0 else "⚠️"
         testo = (
             f"{emoji} <b>Check cap stagionale</b>\n\n"
-            f"Cap occupato totale: <b>{cap_occupato_totale}M</b>\n"
-            f"Limite RS totale: <b>{limite_totale}M</b> ({n_teams} × {cap_regular}M)\n"
-            f"Margine aggregato: <b>{margine:+d}M</b>\n"
+            f"Cap libero totale: <b>{cap_liberi_totale}M</b>\n"
+            f"Soglia minima (riduzione RS): <b>{soglia}M</b>\n"
+            f"  ({n_teams} squadre × {delta_per_team}M + {cap_penalizzati_totale}M penalità)\n"
+            f"Margine: <b>{margine:+d}M</b>\n"
         )
-        if righe_sforanti:
-            testo += "\n⚠️ <b>Team già oltre il limite RS:</b>\n" + "\n".join(righe_sforanti)
         if margine < 0:
             testo += (
-                f"\n\n🔴 <b>Attenzione</b>: il cap occupato totale supera il limite regular season "
-                f"di <b>{abs(margine)}M</b> — necessari tagli o trade prima dell'inizio RS."
+                f"\n⚠️ <b>Attenzione</b>: al passaggio in regular season mancherebbero "
+                f"<b>{abs(margine)}M</b> — alcuni team andrebbero in negativo."
             )
 
         log_channel_id = utils.get_log_channel_id()
@@ -214,3 +215,55 @@ async def check_cap_stagionale(context):
     except Exception as e:
         from handlers.helpers import log_job_error
         await log_job_error(context, "check_cap_stagionale", e)
+
+
+async def pulizia_anticipati_scaduti(context):
+    """
+    Job giornaliero — pulisce cap/slot anticipati scaduti e notifica gruppo admin.
+    Se il cap reale del team è negativo dopo la pulizia, avvisa urgentemente.
+    """
+    try:
+        from handlers.helpers import log_job_error as _lje
+        import pg_client
+        import teams as tm
+        import database as db_aste
+        if not pg_client.pg_disponibile():
+            return
+        scaduti = pg_client.get_anticipati_scaduti()
+        if not scaduti:
+            return
+        admin_group_id = utils.load_globals().get("admin_group_id")
+        stagione = utils.load_globals().get("stagione_corrente", "2025")
+        for row in scaduti:
+            team_id = row["team_id"]
+            tipo    = row.get("tipo", "cap")
+            importo = row.get("importo") or row.get("quantita", 0)
+            team    = tm.get_team_by_id(team_id)
+            nome    = team["nome"] if team else team_id
+            cap_pen = (team.get("cap_penalizzato", 0) if team else 0)
+            if tipo == "cap":
+                pg_client.reset_cap_anticipato(team_id)
+                cap_occ = (pg_client.get_cap_contratti(team_id)
+                           + pg_client.get_impatto_taglio(team_id, stagione)
+                           + cap_pen)
+                cap_virt = db_aste.get_cap_virtuale(team_id)
+                cap_libero_reale = settings.cap_limite() - cap_occ - cap_virt
+                ha_problema = cap_libero_reale < 0
+                emoji = "🚨" if ha_problema else "🔄"
+                testo = f"{emoji} <b>Cap anticipato scaduto</b>\nTeam: <b>{nome}</b> (+{importo}M)"
+                if ha_problema:
+                    testo += f"\n⚠️ Il team è ora in negativo di <b>{abs(cap_libero_reale)}M</b> — verifica immediatamente."
+            else:
+                pg_client.reset_slot_anticipato(team_id)
+                testo = f"🔄 <b>Slot anticipato scaduto</b>\nTeam: <b>{nome}</b> (+{importo} slot)"
+            if admin_group_id:
+                try:
+                    await context.bot.send_message(
+                        chat_id=admin_group_id, text=testo, parse_mode="HTML"
+                    )
+                except Exception as e:
+                    logger.warning("notifica scadenza anticipato: %s", e)
+        logger.info("pulizia_anticipati_scaduti: %d record rimossi", len(scaduti))
+    except Exception as e:
+        from handlers.helpers import log_job_error as _lje2
+        await _lje2(context, "pulizia_anticipati_scaduti", e)
