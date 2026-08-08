@@ -124,3 +124,12 @@
 
 ### Miglioramenti
 - **DPE admin**: dal menu admin la DPE viene applicata direttamente (admin già autorizza), senza passare per il gruppo admin. Flusso: seleziona team → seleziona giocatore con preview importo → conferma → DB + annuncio canale con tag admin.
+
+## v1.4.17 (2026-08-08)
+
+### Bug fix
+- **`admin_panel`**: fix `NameError cb_adm_dpe_team` — funzioni DPE admin mancanti inserite correttamente.
+- **`check_cap_stagionale`**: fix logica errata — ora confronta cap occupato totale vs `n_teams × cap_regular` invece di calcolare margine su delta offseason/RS. Mostra anche i singoli team già oltre il limite RS.
+
+### Miglioramenti
+- **Annulla trade da menu admin**: ora mostra lista delle ultime 15 trade approvate con bottoni, riepilogo e conferma prima del rollback.

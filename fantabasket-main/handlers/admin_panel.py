@@ -179,12 +179,26 @@ async def cb_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
 
     elif azione == "annulla_trade":
+        import database as db
+        trade_list = db.get_ultime_trade_approvate(15)
+        if not trade_list:
+            await query.edit_message_text(
+                "Nessuna trade approvata da annullare.",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("← Menu", callback_data="adm:home")]])
+            )
+            return ConversationHandler.END
+        bottoni = [
+            [InlineKeyboardButton(
+                f"↩️ {t['trade_ref']}",
+                callback_data=f"adm_annulla_conf:{t['id']}"
+            )]
+            for t in trade_list
+        ]
+        bottoni.append([InlineKeyboardButton("← Menu", callback_data="adm:home")])
         await query.edit_message_text(
-            "↩️ Usa /annulla_trade_admin TRADE-2026-XXX per annullare una trade.",
+            "↩️ <b>Annulla trade</b> — seleziona la trade da annullare:",
             parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("← Menu", callback_data="adm:home")
-            ]])
+            reply_markup=InlineKeyboardMarkup(bottoni),
         )
         return ConversationHandler.END
 
@@ -760,6 +774,89 @@ async def cb_adm_dpe_conferma(update: Update, context: ContextTypes.DEFAULT_TYPE
             logger.warning("Annuncio canale DPE admin fallito: %s", e)
 
 
+async def cb_adm_annulla_conf(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin seleziona trade → conferma annullamento."""
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(update.effective_user.id):
+        return
+    trade_id = int(query.data.split(":")[1])
+    import database as db
+    trade = db.get_trade(trade_id)
+    if not trade:
+        await query.edit_message_text("❌ Trade non trovata.")
+        return
+    if trade["stato"] != "approvata":
+        await query.edit_message_text(f"❌ Trade in stato '{trade['stato']}' — solo le approvate possono essere annullate.")
+        return
+    # Mostra riepilogo con bottone conferma
+    from handlers.trade import _testo_riepilogo
+    testo = _testo_riepilogo(trade_id)
+    await query.edit_message_text(
+        f"{testo}\n\n⚠️ Confermi l'annullamento?",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Sì, annulla", callback_data=f"adm_annulla_exec:{trade_id}")],
+            [InlineKeyboardButton("❌ No, indietro", callback_data="adm:annulla_trade")],
+        ])
+    )
+
+
+async def cb_adm_annulla_exec(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin esegue il rollback della trade."""
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(update.effective_user.id):
+        return
+    trade_id = int(query.data.split(":")[1])
+    import database as db
+    from handlers.trade import _valida_rollback, _rollback_trade, format_dt, ROME
+    from settings import load_globals
+    from datetime import datetime
+
+    trade = db.get_trade(trade_id)
+    if not trade:
+        await query.edit_message_text("❌ Trade non trovata.")
+        return
+
+    await query.edit_message_text("⏳ Verifica compatibilità...")
+    errori = await _valida_rollback(trade_id)
+    if errori:
+        testo = "❌ <b>Impossibile annullare</b>\n\n" + "\n".join(f"  • {e}" for e in errori)
+        await query.edit_message_text(testo, parse_mode="HTML")
+        return
+
+    await _rollback_trade(trade_id)
+
+    admin_user = update.effective_user
+    admin_tag  = admin_user.first_name or str(admin_user.id)
+    if admin_user.username:
+        admin_tag += f" (@{admin_user.username})"
+    ora = format_dt(datetime.now(ROME))
+    trade_ref = trade["trade_ref"]
+
+    main_channel = load_globals().get("main_channel_id")
+    if main_channel:
+        try:
+            await context.bot.send_message(
+                chat_id=main_channel,
+                text=(
+                    f"⚠️ <b>Trade annullata</b>\n\n"
+                    f"La trade <code>{trade_ref}</code> è stata annullata.\n"
+                    f"Tutti i giocatori e le pick sono stati ripristinati.\n\n"
+                    f"<i>Annullata da {admin_tag} alle {ora}</i>"
+                ),
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.warning("Annuncio annullamento canale fallito: %s", e)
+
+    await query.edit_message_text(
+        f"✅ <b>{trade_ref}</b> annullata. Roster e pick ripristinati.",
+        parse_mode="HTML",
+    )
+
+
 def get_handlers() -> list:
     from handlers.trade import (
         TRADE_ASSET_MENU, TRADE_ASSET_GIOCATORI, TRADE_ASSET_PICK, TRADE_RIEPILOGO,
@@ -810,7 +907,9 @@ def get_handlers() -> list:
     return [
         conv,
         CommandHandler("admin_menu", cmd_admin_menu),
-        CallbackQueryHandler(cb_adm_dpe_team,    pattern=r"^adm_dpe_team:.+$"),
+        CallbackQueryHandler(cb_adm_dpe_team,     pattern=r"^adm_dpe_team:.+$"),
+        CallbackQueryHandler(cb_adm_annulla_conf,  pattern=r"^adm_annulla_conf:\d+$"),
+        CallbackQueryHandler(cb_adm_annulla_exec,  pattern=r"^adm_annulla_exec:\d+$"),
         CallbackQueryHandler(cb_adm_dpe_conferma, pattern=r"^adm_dpe_conf:.+:\d+$"),
         CommandHandler("set_fase",   cmd_set_fase),
         CallbackQueryHandler(cb_ufficializza,        pattern=r"^adm_uff:\d+$"),

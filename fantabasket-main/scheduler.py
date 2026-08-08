@@ -59,6 +59,12 @@ def _crea_backup_zip(includi_aste_db: bool = False) -> bytes:
                 fpath = os.path.join(tabelle_dir, fname)
                 if os.path.isfile(fpath):
                     zf.write(fpath, f"config/tabelle/{fname}")
+        loghi_dir = os.path.join(config_dir, "loghi")
+        if os.path.isdir(loghi_dir):
+            for fname in os.listdir(loghi_dir):
+                fpath = os.path.join(loghi_dir, fname)
+                if os.path.isfile(fpath):
+                    zf.write(fpath, f"config/loghi/{fname}")
     return buf.getvalue()
 
 

@@ -171,40 +171,39 @@ async def check_cap_stagionale(context):
 
         tutti_team = tm.get_all_teams()
 
-        cap_liberi_totale = 0
-        cap_penalizzati_totale = 0
-        righe_team = []
+        cap_occupato_totale = 0
+        righe_sforanti = []
 
-        from database import get_cap_virtuale as _get_cap_virt
         import pg_client as _pg
         stagione = utils.load_globals().get("stagione_corrente", "2025")
 
         for team in tutti_team:
-            cap_virt = _get_cap_virt(team["id"])
-            cap_pen  = team.get("cap_penalizzato", 0)
+            cap_pen = team.get("cap_penalizzato", 0)
             if _pg.pg_disponibile():
-                cap_lib = _pg.get_cap_totale(team["id"], stagione, cap_pen) - cap_virt
+                # cap_occupato = contratti + tagli + penalità
+                cap_occ = _pg.get_cap_contratti(team["id"]) + _pg.get_impatto_taglio(team["id"], stagione) + cap_pen
             else:
-                cap_lib = team["cap_disponibile"] - cap_virt
-            cap_liberi_totale      += cap_lib
-            cap_penalizzati_totale += cap_pen
-            righe_team.append(f"  {team['nome']}: {cap_lib}M libero, {cap_pen}M penalità")
+                cap_occ = cap_offseason - team["cap_disponibile"]
+            cap_occupato_totale += cap_occ
+            if cap_occ > cap_regular:
+                righe_sforanti.append(f"  ⚠️ {team['nome']}: {cap_occ}M (sfora di {cap_occ - cap_regular}M)")
 
-        soglia = n_teams * delta_per_team + cap_penalizzati_totale
-        margine = cap_liberi_totale - soglia
+        limite_totale = n_teams * cap_regular
+        margine = limite_totale - cap_occupato_totale
 
         emoji = "✅" if margine >= 0 else "⚠️"
         testo = (
             f"{emoji} <b>Check cap stagionale</b>\n\n"
-            f"Cap libero totale: <b>{cap_liberi_totale}M</b>\n"
-            f"Soglia minima (riduzione RS): <b>{soglia}M</b>\n"
-            f"  ({n_teams} squadre × {delta_per_team}M + {cap_penalizzati_totale}M penalità)\n"
-            f"Margine: <b>{margine:+d}M</b>\n"
+            f"Cap occupato totale: <b>{cap_occupato_totale}M</b>\n"
+            f"Limite RS totale: <b>{limite_totale}M</b> ({n_teams} × {cap_regular}M)\n"
+            f"Margine aggregato: <b>{margine:+d}M</b>\n"
         )
+        if righe_sforanti:
+            testo += "\n⚠️ <b>Team già oltre il limite RS:</b>\n" + "\n".join(righe_sforanti)
         if margine < 0:
             testo += (
-                f"\n⚠️ <b>Attenzione</b>: al passaggio in regular season mancherebbero "
-                f"<b>{abs(margine)}M</b> — alcuni team andrebbero in negativo."
+                f"\n\n🔴 <b>Attenzione</b>: il cap occupato totale supera il limite regular season "
+                f"di <b>{abs(margine)}M</b> — necessari tagli o trade prima dell'inizio RS."
             )
 
         log_channel_id = utils.get_log_channel_id()
