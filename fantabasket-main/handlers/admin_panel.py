@@ -720,6 +720,8 @@ def get_handlers() -> list:
     return [
         conv,
         CommandHandler("admin_menu", cmd_admin_menu),
+        CallbackQueryHandler(cb_adm_dpe_team,    pattern=r"^adm_dpe_team:.+$"),
+        CallbackQueryHandler(cb_adm_dpe_conferma, pattern=r"^adm_dpe_conf:.+:\d+$"),
         CommandHandler("set_fase",   cmd_set_fase),
         CallbackQueryHandler(cb_ufficializza,        pattern=r"^adm_uff:\d+$"),
         CallbackQueryHandler(cb_adm_taglia_team,     pattern=r"^adm_taglia_team:.+$"),

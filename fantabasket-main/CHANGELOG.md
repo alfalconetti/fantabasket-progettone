@@ -119,3 +119,8 @@
 
 ### Miglioramenti
 - **Menu admin**: aggiunto bottoni DPE, Attiva diritti, Cambia fase, Annulla trade — non solo Trade/Tagli/Cap.
+
+## v1.4.16 (2026-08-08)
+
+### Miglioramenti
+- **DPE admin**: dal menu admin la DPE viene applicata direttamente (admin già autorizza), senza passare per il gruppo admin. Flusso: seleziona team → seleziona giocatore con preview importo → conferma → DB + annuncio canale con tag admin.
