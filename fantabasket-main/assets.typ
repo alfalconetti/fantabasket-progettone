@@ -14,6 +14,8 @@
 #let _ton_r2       = rgb(sys.inputs.at("text_on_riga2",        default: "#1a1a1a"))
 #let _ton_sez      = rgb(sys.inputs.at("text_on_sezione",      default: "#1a1a1a"))
 #let _ton_sez_m    = rgb(sys.inputs.at("text_on_sezione_muted",default: "#555555"))
+#let _ton_ftr      = rgb(sys.inputs.at("text_on_footer",        default: "#f0f0f0"))
+#let _ton_ftr_m    = rgb(sys.inputs.at("text_on_footer_muted",  default: "#bbbbbb"))
 #let _ton_pick     = rgb(sys.inputs.at("text_on_pick",         default: "#1a1a1a"))
 #let _ton_pick_m   = rgb(sys.inputs.at("text_on_pick_muted",   default: "#555555"))
 #let _ton_dir      = rgb(sys.inputs.at("text_on_dir",          default: "#1a1a1a"))
@@ -200,25 +202,25 @@
 #block(width: 100%, fill: if colore_sez != "" { c_sezione } else { c_dark })[
   #pad(x: 6pt, y: 5pt)[
     #grid(columns: (1fr, auto),
-      [#text(8pt, weight: "bold", fill: _ton_sez)[SALARY CAP]],
-      [#text(8pt, weight: "bold", fill: _ton_sez)[#salary_cap M]],
+      [#text(8pt, weight: "bold", fill: _ton_ftr)[SALARY CAP]],
+      [#text(8pt, weight: "bold", fill: _ton_ftr)[#salary_cap M]],
     )
     #if salary_detail != "" and salary_detail != salary_cap [
       #v(1pt)
       #let parts = salary_detail.split("+")
       #grid(columns: (1fr, auto),
-        [#text(6.5pt, fill: _ton_sez_m)[  contratti]],
-        [#text(6.5pt, fill: _ton_sez_m)[#parts.at(0, default: "")M]],
+        [#text(6.5pt, fill: _ton_ftr_m)[  contratti]],
+        [#text(6.5pt, fill: _ton_ftr_m)[#parts.at(0, default: "")M]],
       )
       #grid(columns: (1fr, auto),
-        [#text(6.5pt, fill: _ton_sez_m)[  impatto tagli]],
-        [#text(6.5pt, fill: _ton_sez_m)[#parts.at(1, default: "0")M]],
+        [#text(6.5pt, fill: _ton_ftr_m)[  impatto tagli]],
+        [#text(6.5pt, fill: _ton_ftr_m)[#parts.at(1, default: "0")M]],
       )
     ]
     #v(3pt)
     #grid(columns: (1fr, auto),
-      [#text(7.5pt, fill: _ton_sez_m)[ETA MEDIA]],
-      [#text(7.5pt, fill: _ton_sez)[#eta_media]],
+      [#text(7.5pt, fill: _ton_ftr_m)[ETA MEDIA]],
+      [#text(7.5pt, fill: _ton_ftr)[#eta_media]],
     )
   ]
 ]
