@@ -209,7 +209,9 @@ async def cb_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         cap_limite = settings.luxury_cap()
         tutti      = tm.get_all_teams()
 
-        righe = [f"📊 <b>Riepilogo Cap — Stagione {stagione}</b>\n"]
+        fase = settings.fase()
+        cap_label = f"{cap_limite}M (offseason)" if fase.startswith("offseason") else f"{cap_limite}M"
+        righe = [f"📊 <b>Riepilogo Cap — Stagione {stagione}</b>\nLimite per squadra: <b>{cap_label}</b>\n"]
         for team in sorted(tutti, key=lambda t: t["nome"]):
             tid        = team["id"]
             contratti  = sum(c.get("importo", 0) for c in db.get_contratti_team(tid))

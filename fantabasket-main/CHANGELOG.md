@@ -138,3 +138,8 @@
 
 ### Bug fix
 - **Set fase da menu admin**: fix — ora chiama `cmd_set_fase` direttamente invece di mostrare una keyboard i cui callback non venivano intercettati dopo `ConversationHandler.END`.
+
+## v1.4.19 (2026-08-08)
+
+### Miglioramenti
+- **Riepilogo cap admin**: header mostra esplicitamente il limite per squadra con nota "(offseason)" quando applicabile.
