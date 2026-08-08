@@ -947,7 +947,8 @@ async def autocap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Salva cap anticipato su PG (sostituisce eventuale precedente)
     pg_client.set_cap_anticipato(team["id"], importo)
 
-    ora = utils.format_dt(utils.now_rome())
+    from datetime import datetime, timezone
+    ora = utils.format_dt(datetime.now(timezone.utc).isoformat())
     await update.effective_message.reply_text(
         f"✅ Cap anticipato di <b>+{importo}M</b> aggiunto.\n"
         f"Scade automaticamente tra 48h.\n\n"
@@ -1103,7 +1104,8 @@ async def auto_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     pg_client.set_slot_anticipato(team["id"], quantita)
-    ora = utils.format_dt(utils.now_rome())
+    from datetime import datetime, timezone
+    ora = utils.format_dt(datetime.now(timezone.utc).isoformat())
     await update.effective_message.reply_text(
         f"✅ Slot anticipato di <b>+{quantita}</b> aggiunto.\n"
         f"Scade automaticamente tra 48h.\n\n"
