@@ -101,3 +101,8 @@
 - **Assets via menu**: aggiunto bottone 📋 Assets nel menu principale con selezione squadra via bottoni (analogo a Roster).
 - **DPE via menu**: aggiunto bottone 🏥 DPE nel menu principale quando disponibile.
 - **Riepilogo cap admin**: il bottone "Cap" nel pannello admin mostra ora riepilogo completo per tutte le squadre — contratti, tagli, penalità, DPE, totale vs limite, stato ✅/🔴.
+
+## v1.4.13 (2026-08-08)
+
+### Bug fix
+- **Trade builder da menu**: i bottoni Build e Import nel menu trade ora usano callback_data dedicati (`menu_trade_build`, `menu_trade_import`) registrati come entry_point nei rispettivi ConversationHandler — evita il bypass di PTB che impediva l'avvio della conversazione.

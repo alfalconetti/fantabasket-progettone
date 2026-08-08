@@ -52,9 +52,9 @@ def _kb_menu_principale(fase: str) -> InlineKeyboardMarkup:
 def _kb_menu_trade() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🔨 Build",   callback_data="menu:trade_build"),
+            InlineKeyboardButton("🔨 Build",   callback_data="menu_trade_build"),
             InlineKeyboardButton("📝 Bozze",   callback_data="menu:trade_bozze"),
-            InlineKeyboardButton("📥 Import",  callback_data="menu:trade_import"),
+            InlineKeyboardButton("📥 Import",  callback_data="menu_trade_import"),
         ],
         [InlineKeyboardButton("← Menu",       callback_data="menu:home")],
     ])
@@ -96,26 +96,11 @@ async def cb_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             _TESTO_TRADE, parse_mode="HTML", reply_markup=_kb_menu_trade()
         )
 
-    elif azione == "trade_build":
-        # Lancia il builder (come /trade)
-        from handlers.trade import cmd_trade
-        await query.edit_message_text("🔨 Avvio builder...", parse_mode="HTML")
-        await cmd_trade(update, context)
-
     elif azione == "trade_bozze":
         # Come /bozze
         from handlers.trade import cmd_mie_trade
         await query.edit_message_text("📝 Carico bozze...", parse_mode="HTML")
         await cmd_mie_trade(update, context)
-
-    elif azione == "trade_import":
-        await query.edit_message_text(
-            "📥 <b>Import trade</b>\n\n"
-            "Invia il testo della trade nel formato standard.\n"
-            "Usa /annulla_trade per uscire.",
-            parse_mode="HTML",
-        )
-        context.user_data["import_attivo"] = True
 
     elif azione == "tagli":
         # Mostra subito il roster con bottoni taglio

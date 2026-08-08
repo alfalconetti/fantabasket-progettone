@@ -783,9 +783,7 @@ async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     admin_user = update.effective_user
-    admin_nome = admin_user.first_name or str(admin_user.id)
-    if admin_user.username:
-        admin_nome += f" (@{admin_user.username})"
+    admin_nome = admin_user.first_name or admin_user.username or str(admin_user.id)
 
     # Genera trade_ref (MAX progressivo per evitare collisioni)
     trade    = db.get_trade(trade_id)
@@ -1015,8 +1013,6 @@ async def cmd_annulla_trade_admin(update: Update, context: ContextTypes.DEFAULT_
     await _rollback_trade(trade["id"])
 
     admin_nome = user.first_name or str(user.id)
-    if user.username:
-        admin_nome += f" (@{user.username})"
     from datetime import datetime
     ora = format_dt(datetime.now(ROME))
 
@@ -1387,7 +1383,10 @@ def get_handlers() -> list:
     from telegram.ext import MessageHandler, filters
 
     conv_build = ConversationHandler(
-        entry_points=[CommandHandler("build_trade", cmd_trade)],
+        entry_points=[
+            CommandHandler("build_trade", cmd_trade),
+            CallbackQueryHandler(cmd_trade, pattern=r"^menu_trade_build$"),
+        ],
         states={
             TRADE_N_SQUADRE: [
                 CallbackQueryHandler(cb_n_squadre, pattern=r"^trade_n:\d$"),
@@ -1440,7 +1439,10 @@ def get_handlers() -> list:
     )
 
     conv_import = ConversationHandler(
-        entry_points=[CommandHandler("import_trade", cmd_import)],
+        entry_points=[
+            CommandHandler("import_trade", cmd_import),
+            CallbackQueryHandler(cmd_import, pattern=r"^menu_trade_import$"),
+        ],
         states={
             IMPORT_ATTENDI_TESTO: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, import_ricevi_testo),
