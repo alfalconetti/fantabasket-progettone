@@ -111,3 +111,11 @@
 
 ### Miglioramenti
 - **`/bozze_trade`**: riscritta con bottoni InlineKeyboard — ogni bozza mostra i GM coinvolti (`GM1 ↔ GM2`), cliccando si apre il riepilogo con i bottoni azione (Modifica/Elimina/Proponi). Stessa visualizzazione per trade in attesa di voto.
+
+## v1.4.15 (2026-08-08)
+
+### Bug fix
+- **Admin panel — situazione cap**: fix `settings.cap_limite()` → `settings.luxury_cap()` (la funzione corretta nel bot main).
+
+### Miglioramenti
+- **Menu admin**: aggiunto bottoni DPE, Attiva diritti, Cambia fase, Annulla trade — non solo Trade/Tagli/Cap.

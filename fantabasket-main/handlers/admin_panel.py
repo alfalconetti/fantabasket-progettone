@@ -37,9 +37,13 @@ def is_admin(user_id: int) -> bool:
 
 def _kb_admin_home() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔄 Trade",          callback_data="adm:trade")],
-        [InlineKeyboardButton("✂️ Taglia giocatore", callback_data="adm:taglia")],
-        [InlineKeyboardButton("📊 Situazione cap", callback_data="adm:cap")],
+        [InlineKeyboardButton("🔄 Trade",              callback_data="adm:trade")],
+        [InlineKeyboardButton("✂️ Taglia giocatore",   callback_data="adm:taglia")],
+        [InlineKeyboardButton("🏥 DPE",                callback_data="adm:dpe")],
+        [InlineKeyboardButton("🏀 Attiva diritti",     callback_data="adm:rookie")],
+        [InlineKeyboardButton("📊 Situazione cap",     callback_data="adm:cap")],
+        [InlineKeyboardButton("🔁 Cambia fase",        callback_data="adm:set_fase")],
+        [InlineKeyboardButton("↩️ Annulla trade",      callback_data="adm:annulla_trade")],
     ])
 
 
@@ -137,10 +141,57 @@ async def cb_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
         return ConversationHandler.END
 
+    elif azione == "dpe":
+        # Rimanda al flusso DPE admin — mostra selezione team
+        tutti = tm.get_all_teams()
+        bottoni = [
+            InlineKeyboardButton(t["nome"], callback_data=f"adm_dpe_team:{t['id']}")
+            for t in tutti
+        ]
+        righe = [bottoni[i:i+2] for i in range(0, len(bottoni), 2)]
+        righe.append([InlineKeyboardButton("← Menu", callback_data="adm:home")])
+        await query.edit_message_text(
+            "🏥 <b>DPE admin</b> — seleziona squadra:",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(righe),
+        )
+        return ConversationHandler.END
+
+    elif azione == "rookie":
+        tutti = tm.get_all_teams()
+        bottoni = [
+            InlineKeyboardButton(t["nome"], callback_data=f"adm_rookie_team:{t['id']}")
+            for t in tutti
+        ]
+        righe = [bottoni[i:i+2] for i in range(0, len(bottoni), 2)]
+        righe.append([InlineKeyboardButton("← Menu", callback_data="adm:home")])
+        await query.edit_message_text(
+            "🏀 <b>Attiva diritti admin</b> — seleziona squadra:",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(righe),
+        )
+        return ConversationHandler.END
+
+    elif azione == "set_fase":
+        # Rimanda al handler /set_fase esistente
+        from handlers.admin_panel import cmd_set_fase
+        await query.edit_message_text("🔁 Usa /set_fase per cambiare la fase.", parse_mode="HTML")
+        return ConversationHandler.END
+
+    elif azione == "annulla_trade":
+        await query.edit_message_text(
+            "↩️ Usa /annulla_trade_admin TRADE-2026-XXX per annullare una trade.",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("← Menu", callback_data="adm:home")
+            ]])
+        )
+        return ConversationHandler.END
+
     elif azione == "cap":
         import database as db
         stagione   = settings.stagione_corrente()
-        cap_limite = settings.cap_limite()
+        cap_limite = settings.luxury_cap()
         tutti      = tm.get_all_teams()
 
         righe = [f"📊 <b>Riepilogo Cap — Stagione {stagione}</b>\n"]
