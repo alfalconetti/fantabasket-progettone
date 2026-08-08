@@ -188,7 +188,7 @@ async def msg_pal_hex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 
 async def cb_pal_riprova(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Riprova da PAL_ANTEPRIMA: manda nuovo messaggio (non può editare un messaggio foto)."""
+    """Riprova da PAL_ANTEPRIMA: manda nuovo messaggio e disabilita bottoni foto."""
     query = update.callback_query
     await query.answer()
     campo = query.data.split(":")[1]
@@ -200,6 +200,10 @@ async def cb_pal_riprova(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     palette = _get_palette(team)
     palette.update(pendenti)
     attuale = palette[campo]
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        pass
     await query.message.reply_text(
         f"🎨 <b>{label}</b>\n\nValore attuale: <code>{attuale}</code>\n\n"
         "Invia il nuovo colore in formato hex (es. <code>#1A237E</code>):",
@@ -219,6 +223,10 @@ async def cb_pal_ok(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     team = tm.get_team_by_id(team_id)
     pendenti = context.user_data["pal_pendenti"]
 
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        pass
     await query.message.reply_text(
         f"✅ <code>{campo}</code> → <code>{hex_val}</code> (non ancora salvato)\n\n"
         "Continua a modificare o premi 💾 Salva.",
@@ -234,8 +242,12 @@ async def cb_pal_back(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     team_id = context.user_data["pal_team_id"]
     team = tm.get_team_by_id(team_id)
     pendenti = context.user_data.get("pal_pendenti", {})
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        pass
     await query.message.reply_text(
-        "🎨 Torna al menu palette.",
+        "🎨 Menu palette:",
         reply_markup=_kb_palette(team, pendenti),
     )
     return PAL_MENU
@@ -290,6 +302,17 @@ async def cb_pal_salva(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     return ConversationHandler.END
 
 
+async def cmd_pal_annulla(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handler /annulla e timeout — termina la conversazione palette."""
+    context.user_data.pop("pal_team_id", None)
+    context.user_data.pop("pal_pendenti", None)
+    context.user_data.pop("pal_campo_corrente", None)
+    context.user_data.pop("pal_hex_candidato", None)
+    if update.effective_message:
+        await update.effective_message.reply_text("❌ Palette annullata, nessuna modifica salvata.")
+    return ConversationHandler.END
+
+
 async def cb_pal_annulla(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
@@ -318,8 +341,11 @@ def get_handlers() -> list:
             ],
         },
         fallbacks=[
-            CallbackQueryHandler(cb_pal_annulla, pattern=r"^pal_annulla$"),
+            CallbackQueryHandler(cb_pal_annulla,  pattern=r"^pal_annulla$"),
+            CommandHandler("annulla", cmd_pal_annulla),
+            MessageHandler(filters.ALL, cmd_pal_annulla),
         ],
+        allow_reentry=True,
         per_user=True,
         per_chat=True,
         per_message=False,

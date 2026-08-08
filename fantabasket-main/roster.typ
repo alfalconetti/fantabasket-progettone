@@ -116,7 +116,7 @@
 }
 
 // ── footer ────────────────────────────────────────────────────────────────────
-#block(width: 100%, fill: c_sezione)[
+#block(width: 100%, fill: if colore_sez != "" { c_sezione } else { c_dark })[
   #pad(x: 6pt, y: 5pt)[
     #grid(columns: (1fr, auto),
       [#text(8pt, weight: "bold", fill: _ton_sez)[SALARY CAP]],
