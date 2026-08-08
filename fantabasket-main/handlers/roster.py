@@ -21,9 +21,21 @@ def _luminanza(hex_color: str) -> float:
     return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
 
 
-def _text_on(hex_color: str) -> str:
-    """Colore testo leggibile su sfondo dato (WCAG, soglia 0.179)."""
+def _lighten(hex_color: str, pct: float) -> str:
+    """Simula lighten(pct%) di Typst: mescola con bianco."""
+    h = hex_color.lstrip("#")
+    r, g, b = (int(h[i:i+2], 16) for i in (0, 2, 4))
+    r2 = int(r + (255 - r) * pct)
+    g2 = int(g + (255 - g) * pct)
+    b2 = int(b + (255 - b) * pct)
+    return f"#{r2:02x}{g2:02x}{b2:02x}"
+
+
+def _text_on(hex_color: str, fallback_primary: str = "") -> str:
+    """Colore testo leggibile su sfondo dato (WCAG, soglia 0.179).
+    Se hex_color è vuoto, simula c_primary.lighten(85%) come fa Typst."""
     if not hex_color or not hex_color.startswith("#"):
+        # c_sezione default = c_primary.lighten(85%) → sempre chiaro → testo scuro
         return "#1a1a1a"
     try:
         return "#f0f0f0" if _luminanza(hex_color) < 0.179 else "#1a1a1a"
@@ -31,7 +43,7 @@ def _text_on(hex_color: str) -> str:
         return "#1a1a1a"
 
 
-def _text_on_muted(hex_color: str) -> str:
+def _text_on_muted(hex_color: str, fallback_primary: str = "") -> str:
     if not hex_color or not hex_color.startswith("#"):
         return "#555555"
     try:
@@ -172,10 +184,10 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
         "--input", f"colore_riga1={c_riga1}",
         "--input", f"colore_riga2={c_riga2}",
         "--input", f"colore_sezione={c_sezione}",
-        "--input", f"text_on_riga1={_text_on(c_riga1 or colore)}",
-        "--input", f"text_on_riga2={_text_on(c_riga2 or colore)}",
-        "--input", f"text_on_sezione={_text_on(c_sezione or colore)}",
-        "--input", f"text_on_sezione_muted={_text_on_muted(c_sezione or colore)}",
+        "--input", f"text_on_riga1={_text_on(c_riga1)}",
+        "--input", f"text_on_riga2={_text_on(c_riga2)}",
+        "--input", f"text_on_sezione={_text_on(c_sezione)}",
+        "--input", f"text_on_sezione_muted={_text_on_muted(c_sezione)}",
         "--input", f"salary_cap={salary}",
         "--input", f"salary_detail={salary_detail}",
         "--input", f"eta_media={eta_str}",
@@ -368,13 +380,13 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
         "--input", f"colore_sezione={team.get('colore_sezione', '')}",
         "--input", f"colore_pick={team.get('colore_pick', '')}",
         "--input", f"colore_diritti={team.get('colore_diritti', '')}",
-        "--input", f"text_on_riga1={_text_on(team.get('colore_riga1') or team.get('colore', '#1A237E'))}",
-        "--input", f"text_on_riga2={_text_on(team.get('colore_riga2') or team.get('colore', '#1A237E'))}",
-        "--input", f"text_on_sezione={_text_on(team.get('colore_sezione') or team.get('colore', '#1A237E'))}",
-        "--input", f"text_on_sezione_muted={_text_on_muted(team.get('colore_sezione') or team.get('colore', '#1A237E'))}",
-        "--input", f"text_on_pick={_text_on(team.get('colore_pick') or team.get('colore', '#1A237E'))}",
-        "--input", f"text_on_pick_muted={_text_on_muted(team.get('colore_pick') or team.get('colore', '#1A237E'))}",
-        "--input", f"text_on_dir={_text_on(team.get('colore_diritti') or team.get('colore', '#1A237E'))}",
+        "--input", f"text_on_riga1={_text_on(team.get('colore_riga1', ''))}",
+        "--input", f"text_on_riga2={_text_on(team.get('colore_riga2', ''))}",
+        "--input", f"text_on_sezione={_text_on(team.get('colore_sezione', ''))}",
+        "--input", f"text_on_sezione_muted={_text_on_muted(team.get('colore_sezione', ''))}",
+        "--input", f"text_on_pick={_text_on(team.get('colore_pick', ''))}",
+        "--input", f"text_on_pick_muted={_text_on_muted(team.get('colore_pick', ''))}",
+        "--input", f"text_on_dir={_text_on(team.get('colore_diritti', ''))}",
         "--input", f"salary_cap={cap_totale}",
         "--input", f"salary_detail={salary_detail}",
         "--input", f"eta_media={eta_str}",
