@@ -44,6 +44,15 @@ def _read_secret(env_var: str) -> str:
     raise RuntimeError(f"Secret non trovato: {env_var}")
 
 
+async def cmd_annulla_globale(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handler globale /annulla — pulisce user_data e notifica l'utente.
+    Funziona anche se nessuna conversazione è attiva."""
+    context.user_data.clear()
+    await update.effective_message.reply_text(
+        "✅ Conversazione terminata. Puoi ricominciare con un nuovo comando."
+    )
+
+
 async def post_stop(application):
     logger.info("Bot in arresto — esecuzione backup pre-stop.")
     await backup_shutdown(application)
@@ -71,10 +80,12 @@ async def post_init(application):
         BotCommand("import_trade",   "Importa trade da testo"),
         BotCommand("bozze_trade",    "Le tue bozze di trade"),
         BotCommand("taglia",         "Taglia un giocatore"),
+        BotCommand("dpe",            "Richiedi Disabled Player Exception"),
         BotCommand("attiva_diritti", "Attiva diritti 2nd pick"),
         BotCommand("my_team",        "Info e impostazioni del tuo team"),
         BotCommand("palette",        "Personalizza colori roster/assets"),
         BotCommand("team_diff",      "Variazioni roster [team_id] [da] [a]"),
+        BotCommand("annulla",          "Esci da qualsiasi conversazione bloccata"),
     ]
     cmd_admin = cmd_gm + [
         BotCommand("admin_menu",          "Pannello admin"),
@@ -339,6 +350,9 @@ def main():
 
     token = _read_secret("BOT_TOKEN_FILE")
     app   = ApplicationBuilder().token(token).post_stop(post_stop).post_init(post_init).post_shutdown(backup_shutdown).build()
+
+    # /annulla globale — group=-1 per intercettare prima di qualsiasi ConversationHandler
+    app.add_handler(CommandHandler("annulla", cmd_annulla_globale), group=-1)
 
     for h in menu_handlers():
         app.add_handler(h)

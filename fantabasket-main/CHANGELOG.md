@@ -47,3 +47,49 @@
 ### Aggiornamenti tecnici
 - `aiohttp` aggiunto ai requirements (necessario per healthcheck ping).
 - Scope comandi Telegram aggiornato con tutti i nuovi comandi dev.
+
+## v1.3 (2026-08-07)
+
+### Nuove feature
+- **`/palette`**: nuovo comando per personalizzare i colori del roster/assets PNG — `colore_header`, `colore_riga1`, `colore_riga2`, `colore_sezione`, `colore_pick`, `colore_diritti`. Anteprima live via Typst prima di salvare.
+- **`/set_fase`**: passaggio a `offseason-rinnovi` incrementa automaticamente `stagione_corrente`; `mercato_aperto` si aggiorna automaticamente in base alla fase.
+- **`richiede_fase` decorator**: blocca comandi fuori dalla fase corretta con messaggio configurabile.
+- **`FASI_TRADE_APERTE`**: costante in `settings.py` condivisa da trade, tagli, DPE e attiva_diritti.
+
+## v1.4 (2026-08-07)
+
+### Nuove feature
+- **`/attiva_diritti`** (`handlers/rookie.py`): attivazione diritti 2nd pick con selezione giocatore, scelta importo/anni, conferma. Annuncio sul canale principale al completamento.
+- **`/taglia`** (`handlers/tagli.py`): taglio giocatori con preview impatto cap, conferma, scrittura DB. Tagli 1x1 gratuiti (max 3/stagione); se esauriti il taglio è bloccato. Annuncio sul canale principale.
+- **`/dpe`** (`handlers/dpe.py`): Disabled Player Exception — flusso GM → approvazione admin (gruppo admin) → scrittura tabella `dpe` in PostgreSQL → annuncio canale. Pre-deadline libera slot; post-deadline nessuno slot liberato.
+- **`handlers/helpers.py`** (nuovo): `log_job_error` e `log_warn` per loggare eccezioni dei job schedulati su `log_channel_id_main` e in privato al dev.
+- **Migrazione DB automatica**: `migrate_db()` chiamata all'avvio — crea tabella `dpe` se non esiste.
+
+### Bug fix
+- **Bot aste beta — `/me`**: cap occupato ora calcolato correttamente in offseason (165M di riferimento invece di 150M fisso). Fix in `pg_client.get_cap_totale` — usa `cap_limite()` invece di `cap_massimo()`.
+- **Bot aste beta — `settings_aste.json`**: aggiunto `cap_offseason: 165` e `cap_massimo_offseason: 165`.
+- **`/attiva_diritti`**: aperto a tutte le `FASI_TRADE_APERTE` invece di solo `offseason-rinnovi`.
+- **Tagli 1x1**: rimossa opzione "taglia con impatto" quando i tagli gratuiti sono esauriti — il taglio è semplicemente bloccato.
+- **Scheduler job**: errori in `backup_giornaliero`, `backup_settimanale`, `_bref_scraper_job` ora loggati via `log_job_error` invece di sparire silenziosamente.
+- **Annunci canale trade**: nome admin nel formato "Nome (@tag)" per accountability.
+
+### Aggiornamenti tecnici
+- `cap_occupato_team` in `database.py` aggiornato per includere DPE nel calcolo del cap.
+
+## v1.4.10 (2026-08-08)
+
+### Bug fix
+- **`roster.typ` / `assets.typ`**: fix font Liberation Sans mancante nel container — aggiunto `fonts-liberation` al Dockerfile.
+- **Testo adattivo WCAG**: colori testo su sfondo personalizzabile ora calcolati in Python (`roster.py`) con luminanza WCAG (soglia 0.179) e passati a Typst come parametri. Eliminato calcolo in Typst che causava errori di tipo.
+- **Footer**: usa `c_dark` quando `colore_sezione` non è impostato; usa `c_sezione` se personalizzato. Testo footer calcolato sul colore effettivo del footer (non su `c_sezione` che potrebbe differire).
+- **`/palette` — Riprova**: fix crash su messaggio foto — usa `reply_text` + disabilita bottoni vecchio messaggio.
+- **`/palette` — Indietro**: disabilita bottoni messaggio precedente prima di mandare il menu.
+- **`/palette` — timeout**: `conversation_timeout=300` ora gestisce correttamente la scadenza via fallback.
+- **`/palette` — `/annulla`**: `CommandHandler("annulla")` aggiunto ai fallbacks del ConversationHandler.
+- **Annunci canale admin**: accountability in tutti i messaggi canale generati da azioni admin — formato "Nome (@tag)".
+
+## v1.4.11 (2026-08-08)
+
+### Bug fix / miglioramenti
+- **`/dpe`**: aggiunto ai `BotCommand` nello scope GM.
+- **`/annulla` globale**: nuovo handler con `group=-1` che pulisce `user_data` e termina qualsiasi conversazione attiva. Aggiunto a `cmd_gm` con descrizione "Esci da qualsiasi conversazione bloccata".
