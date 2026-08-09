@@ -13,7 +13,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./fantabasket-main/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fantabasket"] 
+      test: ["CMD-SHELL", "pg_isready -U fantabasket"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -72,14 +72,15 @@ services:
     build: ./gas-router
     restart: unless-stopped
     environment:
-      GAS_ROSTER_URL: https://script.google.com/macros/s/AKfycbxq0yE07aVrmW3W8otw6jMdh-j2dhHlkpKUPvbQZiDPn9nWmkNpIyV2ehb0YNqvle9xdg/exec
+      GAS_ROSTER_URL_FILE: /run/secrets/gas_roster_url
       GAS_TOKEN_FILE: /run/secrets/gas_token
       ROUTER_TOKEN_FILE: /run/secrets/gas_router_token
     secrets:
       - gas_token
       - gas_router_token
+      - gas_roster_url
     healthcheck:
-      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")' || exit 1"]
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -95,6 +96,8 @@ secrets:
     file: ./secrets/gas_token
   gas_router_token:
     file: ./secrets/gas_router_token
+  gas_roster_url:
+    file: ./secrets/gas_roster_url
 
 volumes:
   pgdata:

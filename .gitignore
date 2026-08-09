@@ -15,3 +15,5 @@ backup_*.sql
 gas/.clasp.json
 ~/.clasprc.json
 gas/*.js
+gas/globals.gs
+gas/globals.js

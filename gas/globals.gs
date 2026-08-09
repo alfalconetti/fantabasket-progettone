@@ -1,23 +1,22 @@
 // Fantabasket — configurazione globale condivisa tra tutti gli handler
+// ATTENZIONE: questo file è nel gitignore — contiene dati specifici della lega
 
 const CONFIG = {
+  SPREADSHEET_ID: "1w93dDLaSPjSjp0WPapD2DQLVrxuAjfxntzKMd03Tevo", // aggiornare con ID definitivo
   ROSTER_SHEET_NAME: "Roster",
   SCELTE_SHEET_NAME: "Scelte",
-  CONFERENCE_ROW_BASES: [3, 30],  // riga base per ogni conference (1-indexed)
-  OFFSET_PLAYERS_START: 3,        // riga 6 = base + 3
-  OFFSET_PLAYERS_END: 17,         // riga 20 = base + 17 (15 giocatori)
-  OFFSET_TAGLI: 20,               // riga 23 = base + 20
-  OFFSET_CAMBI_RUOLO: 21,         // riga 24 = base + 21
-  OFFSET_TAGLIATI_LABEL: 22,      // riga 25 = base + 22
-  OFFSET_IMPATTI: [23, 24],       // righe 26-27 = base + 23/24
-  COLS_PER_TEAM: 4,               // R, Nome, $, Y
+  CONFERENCE_ROW_BASES: [3, 30],
+  OFFSET_PLAYERS_START: 3,
+  OFFSET_PLAYERS_END: 17,
+  OFFSET_TAGLI: 20,
+  OFFSET_CAMBI_RUOLO: 21,
+  OFFSET_TAGLIATI_LABEL: 22,
+  OFFSET_IMPATTI: [23, 24],
+  COLS_PER_TEAM: 4,
 };
 
-// Mapping squadre — compilare con i team_id corretti
-// conference: 0 = prima conference, 1 = seconda conference
-// pos: posizione nella conference (0-11)
 const TEAM_MAP = {
-  // Conference 0
+  // Conference 0 — compilare con i team_id corretti
   "team06": { conference: 0, pos: 0 },
   "team08": { conference: 0, pos: 1 },
   "team14": { conference: 0, pos: 2 },
@@ -44,6 +43,10 @@ const TEAM_MAP = {
   "team23": { conference: 1, pos: 10 },
   "team05": { conference: 1, pos: 11 },
 };
+
+function getSpreadsheet() {
+  return SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+}
 
 function respond(data) {
   return ContentService

@@ -1,9 +1,8 @@
 // Fantabasket — handler aggiornamento foglio Roster
-// Usa CONFIG e TEAM_MAP da globals.gs
+// Usa CONFIG, TEAM_MAP e getSpreadsheet() da globals.gs
 
 function handleRoster(payload) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(CONFIG.ROSTER_SHEET_NAME);
+  const sheet = getSpreadsheet().getSheetByName(CONFIG.ROSTER_SHEET_NAME);
   if (!sheet) {
     return respond({ error: "Sheet not found: " + CONFIG.ROSTER_SHEET_NAME });
   }
@@ -26,7 +25,7 @@ function updateTeamRoster(sheet, team) {
   if (!mapping) return false;
 
   const rowBase = CONFIG.CONFERENCE_ROW_BASES[mapping.conference];
-  const colBase = mapping.pos * CONFIG.COLS_PER_TEAM + 1; // 1-indexed
+  const colBase = mapping.pos * CONFIG.COLS_PER_TEAM + 1;
 
   // Pulisci righe giocatori
   const playerRowStart = rowBase + CONFIG.OFFSET_PLAYERS_START;
@@ -72,12 +71,11 @@ function updateTeamRoster(sheet, team) {
   return true;
 }
 
-// Test eseguibile dall'editor GAS
 function testRoster() {
   const payload = {
     teams: [
       {
-        team_id: "TEAM_01",
+        team_id: "team06",
         tagli_gratuiti_usati: 1,
         cambi_ruolo_usati: 0,
         giocatori: [

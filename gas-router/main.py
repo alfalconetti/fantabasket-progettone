@@ -23,7 +23,7 @@ def _read_secret(env_var: str) -> str:
 
 
 # Config — caricata all'avvio
-GAS_ROSTER_URL = os.environ["GAS_ROSTER_URL"]
+GAS_ROSTER_URL = _read_secret("GAS_ROSTER_URL_FILE")
 GAS_TOKEN      = _read_secret("GAS_TOKEN_FILE")
 ROUTER_TOKEN   = _read_secret("ROUTER_TOKEN_FILE")
 
