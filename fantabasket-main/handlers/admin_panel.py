@@ -756,9 +756,7 @@ async def cb_adm_dpe_conferma(update: Update, context: ContextTypes.DEFAULT_TYPE
         importo_originale=importo_orig, importo_dpe=importo_dpe,
         pre_deadline=pre_deadline, approvata_da=admin_tag,
     )
-    if pre_deadline:
-        tm.set_slot(team_id, team["slot_disponibili"] + 1)
-    effetto = "✅ Slot roster liberato" if pre_deadline else "ℹ️ Nessuno slot liberato (post-deadline)"
+    effetto = "✅ Slot roster liberato"
     await query.edit_message_text(
         f"✅ DPE registrata — <b>{giocatore['nome_common']}</b>\n"
         f"{importo_orig}M → {importo_dpe}M (stagione {stagione})\n{effetto}",

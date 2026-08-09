@@ -76,18 +76,32 @@ def _putconn(conn):
 
 # ── cap ───────────────────────────────────────────────────────────────────────
 
-def get_cap_contratti(team_id: str) -> int:
-    """SUM dei contratti attivi in PostgreSQL per questa squadra."""
+def get_cap_contratti(team_id: str, stagione: str = None) -> int:
+    """SUM dei contratti attivi. Se stagione fornita, usa importo_dpe quando disponibile."""
     if not pg_disponibile():
         return 0
     conn = _conn()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT COALESCE(SUM(importo), 0) FROM contratti "
-                "WHERE team_id = %s AND attivo = TRUE",
-                (team_id,)
-            )
+            if stagione:
+                cur.execute(
+                    """SELECT COALESCE(SUM(
+                        COALESCE(
+                            (SELECT d.importo_dpe FROM dpe d
+                             WHERE d.giocatore_id = c.giocatore_id
+                               AND d.team_id = c.team_id
+                               AND d.stagione = %s),
+                            c.importo)
+                    ), 0)
+                    FROM contratti c WHERE c.team_id = %s AND c.attivo = TRUE""",
+                    (stagione, team_id)
+                )
+            else:
+                cur.execute(
+                    "SELECT COALESCE(SUM(importo), 0) FROM contratti "
+                    "WHERE team_id = %s AND attivo = TRUE",
+                    (team_id,)
+                )
             return cur.fetchone()[0]
     except Exception as e:
         logger.error("get_cap_contratti(%s): %s", team_id, e)
@@ -120,23 +134,39 @@ def get_impatto_taglio(team_id: str, stagione: str) -> int:
 
 # ── slot ──────────────────────────────────────────────────────────────────────
 
-def get_roster_count(team_id: str) -> int:
-    """Numero di giocatori nel roster attuale da PostgreSQL."""
+def get_roster_count(team_id: str, stagione: str = None) -> int:
+    """Numero di giocatori nel roster. Esclude giocatori con DPE attiva (slot liberato)."""
     if not pg_disponibile():
         return 0
     conn = _conn()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                """SELECT COUNT(*) FROM (
-                       SELECT DISTINCT ON (giocatore_id) team_id_a
-                       FROM transazioni
-                       WHERE team_id_a IS NOT NULL
-                       ORDER BY giocatore_id, timestamp DESC
-                   ) sub
-                   WHERE team_id_a = %s""",
-                (team_id,)
-            )
+            if stagione:
+                cur.execute(
+                    """SELECT COUNT(*) FROM (
+                           SELECT DISTINCT ON (giocatore_id) giocatore_id, team_id_a
+                           FROM transazioni
+                           WHERE team_id_a IS NOT NULL
+                           ORDER BY giocatore_id, timestamp DESC
+                       ) sub
+                       WHERE team_id_a = %s
+                         AND giocatore_id NOT IN (
+                             SELECT giocatore_id FROM dpe
+                             WHERE team_id = %s AND stagione = %s
+                         )""",
+                    (team_id, team_id, stagione)
+                )
+            else:
+                cur.execute(
+                    """SELECT COUNT(*) FROM (
+                           SELECT DISTINCT ON (giocatore_id) team_id_a
+                           FROM transazioni
+                           WHERE team_id_a IS NOT NULL
+                           ORDER BY giocatore_id, timestamp DESC
+                       ) sub
+                       WHERE team_id_a = %s""",
+                    (team_id,)
+                )
             return cur.fetchone()[0]
     except Exception as e:
         logger.error("get_roster_count(%s): %s", team_id, e)
@@ -372,7 +402,7 @@ def get_cap_totale(team_id: str, stagione: str, cap_pen: int = 0) -> int:
     Cap lordo disponibile = cap_massimo - contratti_pg - spalmato_pg - cap_pen.
     Equivale a team["cap_disponibile"] nel vecchio sistema JSON.
     """
-    return _settings.cap_limite() - get_cap_contratti(team_id) - get_impatto_taglio(team_id, stagione) - cap_pen + get_cap_anticipato(team_id)
+    return _settings.cap_limite() - get_cap_contratti(team_id, stagione) - get_impatto_taglio(team_id, stagione) - cap_pen + get_cap_anticipato(team_id)
 
 
 def get_cap_anticipato(team_id: str) -> int:
@@ -413,12 +443,12 @@ def get_slot_anticipato(team_id: str) -> int:
         _putconn(conn)
 
 
-def get_slot_totale(team_id: str) -> int:
+def get_slot_totale(team_id: str, stagione: str = None) -> int:
     """
     Slot totali disponibili = max_roster - roster_count_pg.
-    Equivale a team["slot_disponibili"] nel vecchio sistema JSON.
+    Se stagione fornita, esclude giocatori con DPE attiva (slot liberato).
     """
-    return _settings.slot_massimo() - get_roster_count(team_id)
+    return _settings.slot_massimo() - get_roster_count(team_id, stagione=stagione)
 
 
 def get_bref_fantamedie_bulk(nomi: list[str]) -> dict[str, tuple[float | None, str | None]]:

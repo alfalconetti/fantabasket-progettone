@@ -278,6 +278,6 @@ def cap_slot_display(team: dict, stagione: str) -> tuple[int, int]:
     if pg_client.pg_disponibile():
         return (
             pg_client.get_cap_totale(team["id"], stagione, cap_pen),
-            pg_client.get_slot_totale(team["id"]),
+            pg_client.get_slot_totale(team["id"], stagione=stagione),
         )
     return team["cap_disponibile"], team["slot_disponibili"]

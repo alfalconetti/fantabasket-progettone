@@ -102,7 +102,7 @@ async def cb_seleziona_dpe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     effetto = (
         "✅ Libera uno slot roster (pre-deadline)"
         if pre_deadline else
-        "ℹ️ Nessuno slot liberato — cambio ruolo aggiuntivo (post-deadline)"
+        "✅ Slot roster liberato"
     )
 
     testo = (
@@ -219,12 +219,9 @@ async def cb_approva_dpe(update: Update, context: ContextTypes.DEFAULT_TYPE):
         approvata_da=_admin_tag,
     )
 
-    # Se pre-deadline libera slot in teams.json
-    if pre_deadline:
-        tm.set_slot(team_id, team["slot_disponibili"] + 1)
-
+    # DPE libera sempre uno slot (lo slot viene escluso da get_roster_count via tabella dpe)
     risparmio = importo_orig - importo_new
-    effetto   = "✅ Slot roster liberato" if pre_deadline else "ℹ️ Nessuno slot liberato (post-deadline)"
+    effetto   = "✅ Slot roster liberato"
 
     await query.edit_message_text(
         f"✅ DPE approvata — <b>{giocatore['nome_common']}</b>\n"

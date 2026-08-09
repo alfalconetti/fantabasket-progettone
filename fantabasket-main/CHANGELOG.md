@@ -154,3 +154,10 @@
 
 ### Bug fix
 - **`_cap_libero`**: ora usa `cap_limite()` (165M offseason, 150M RS) invece di `cap_massimo()` fisso — un GM in offseason aveva 15M in meno di cap disponibile per le offerte.
+
+## v1.5.3 (2026-08-09)
+
+### Bug fix
+- **DPE — slot**: ora libera sempre uno slot indipendentemente dalla fase (pre/post deadline). Lo slot viene escluso da `get_roster_count` tramite la tabella `dpe`.
+- **DPE — cap**: `get_cap_contratti` ora usa `importo_dpe` quando disponibile per quella stagione, sia nel bot aste che nel calcolo cap.
+- **`get_slot_totale`**: accetta `stagione` per escludere giocatori con DPE attiva dal conteggio roster.
