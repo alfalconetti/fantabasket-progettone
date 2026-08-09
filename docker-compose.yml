@@ -13,7 +13,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./fantabasket-main/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fantabasket"]
+      test: ["CMD-SHELL", "pg_isready -U fantabasket"] 
       interval: 10s
       timeout: 5s
       retries: 5
@@ -46,6 +46,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      gas-router:
+        condition: service_healthy
     environment:
       BOT_TOKEN_FILE: /run/secrets/bot_token_main
       GLOBALS_PATH: /config/globals.json
@@ -56,12 +58,31 @@ services:
       LOGHI_DIR: /config/loghi
       CONFIG_DIR: /config
       ASTE_DB_PATH: /data_aste/aste.db
+      GAS_ROUTER_URL: http://gas-router:8000
+      GAS_ROUTER_TOKEN_FILE: /run/secrets/gas_router_token
     secrets:
       - bot_token_main
       - pg_password
+      - gas_router_token
     volumes:
       - ./config:/config
       - aste_beta_data:/data_aste:ro
+
+  gas-router:
+    build: ./gas-router
+    restart: unless-stopped
+    environment:
+      GAS_ROSTER_URL: https://script.google.com/macros/s/AKfycbxq0yE07aVrmW3W8otw6jMdh-j2dhHlkpKUPvbQZiDPn9nWmkNpIyV2ehb0YNqvle9xdg/exec
+      GAS_TOKEN_FILE: /run/secrets/gas_token
+      ROUTER_TOKEN_FILE: /run/secrets/gas_router_token
+    secrets:
+      - gas_token
+      - gas_router_token
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 secrets:
   bot_token_aste_beta:
@@ -70,6 +91,10 @@ secrets:
     file: ./secrets/bot_token_main.txt
   pg_password:
     file: ./secrets/pg_password.txt
+  gas_token:
+    file: ./secrets/gas_token
+  gas_router_token:
+    file: ./secrets/gas_router_token
 
 volumes:
   pgdata:

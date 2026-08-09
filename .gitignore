@@ -10,3 +10,8 @@ backup_*.sql
 **/*.db-shm
 **/*.db-wal
 1
+
+# GAS / clasp
+gas/.clasp.json
+~/.clasprc.json
+gas/*.js
