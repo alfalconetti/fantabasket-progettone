@@ -172,7 +172,6 @@ async def check_cap_stagionale(context):
         tutti_team = tm.get_all_teams()
 
         cap_occupato_totale = 0
-        righe_sforanti = []
 
         import pg_client as _pg
         stagione = utils.load_globals().get("stagione_corrente", "2025")
@@ -184,8 +183,6 @@ async def check_cap_stagionale(context):
             else:
                 cap_occ = cap_offseason - team.get("cap_disponibile", 0)
             cap_occupato_totale += cap_occ
-            if cap_occ > cap_regular:
-                righe_sforanti.append(f"  ⚠️ {team['nome']}: {cap_occ}M (sfora di {cap_occ - cap_regular}M)")
 
         limite_totale = n_teams * cap_regular
         margine = limite_totale - cap_occupato_totale
@@ -195,21 +192,19 @@ async def check_cap_stagionale(context):
             f"{emoji} <b>Check cap stagionale</b>\n\n"
             f"Cap occupato totale: <b>{cap_occupato_totale}M</b>\n"
             f"Limite RS totale: <b>{limite_totale}M</b> ({n_teams} × {cap_regular}M)\n"
-            f"Margine aggregato: <b>{margine:+d}M</b>\n"
+            f"Margine aggregato: <b>{margine:+d}M</b>"
         )
-        if righe_sforanti:
-            testo += "\n⚠️ <b>Team già oltre il limite RS:</b>\n" + "\n".join(righe_sforanti)
         if margine < 0:
             testo += (
-                f"\n\n🔴 <b>Attenzione</b>: il cap occupato totale supera il limite regular season "
-                f"di <b>{abs(margine)}M</b> — necessari tagli o trade prima dell'inizio RS."
+                f"\n\n⚠️ <b>Attenzione</b>: al passaggio in regular season mancherebbero "
+                f"<b>{abs(margine)}M</b> — alcuni team andrebbero in negativo."
             )
 
         log_channel_id = utils.get_log_channel_id()
         if log_channel_id:
             await context.bot.send_message(chat_id=log_channel_id, text=testo, parse_mode="HTML")
-        logger.info("check_cap_stagionale: cap_libero=%d soglia=%d margine=%d",
-                    cap_liberi_totale, soglia, margine)
+        logger.info("check_cap_stagionale: cap_occupato=%d limite=%d margine=%d",
+                    cap_occupato_totale, limite_totale, margine)
     except Exception as e:
         from handlers.helpers import log_job_error
         await log_job_error(context, "check_cap_stagionale", e)

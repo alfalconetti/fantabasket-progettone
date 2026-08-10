@@ -1051,15 +1051,6 @@ async def cmd_annulla_trade_admin(update: Update, context: ContextTypes.DEFAULT_
         f"✅ <b>{trade_ref}</b> annullata. Roster e pick ripristinati.",
         parse_mode="HTML",
     )
-    trade = db.get_trade(trade_id)
-    team  = tm.get_team_by_id(trade["proposta_da"])
-    if not team:
-        return
-    for gm_id in team.get("gm_ids", []):
-        try:
-            await context.bot.send_message(chat_id=gm_id, text=testo, parse_mode="HTML")
-        except Exception:
-            pass
 
 
 # ── /mie_trade ─────────────────────────────────────────────────────────────────
