@@ -158,7 +158,7 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
     eta_str  = f"{sum(eta_list)/len(eta_list):.1f}" if eta_list else "—"
 
     # Colori
-    colore  = team.get("colore",  "#1A237E")
+    colore  = team.get("colore_header") or team.get("colore", "#1A237E")
     colore2 = team.get("colore2", "")
     c_riga1   = team.get("colore_riga1",   "")
     c_riga2   = team.get("colore_riga2",   "")
@@ -375,7 +375,7 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
         "typst", "compile",
         "--input", f"team_nome={team['nome']}",
         "--input", f"team_gm={team.get('gm_nome', '')}",
-        "--input", f"colore={team.get('colore', '#1A237E')}",
+        "--input", f"colore={team.get('colore_header') or team.get('colore', '#1A237E')}",
         "--input", f"colore2={team.get('colore2', '')}",
         "--input", f"colore_riga1={team.get('colore_riga1', '')}",
         "--input", f"colore_riga2={team.get('colore_riga2', '')}",
