@@ -52,7 +52,7 @@ def _build_team_payload(team_id: str) -> dict:
             "ruolo":   "",  # da implementare con i ruoli
             "nome":    r["nome_common"],
             "importo": r["importo"],
-            "anni":    r["anni_originali"] - (int(stagione) - r["stagione_firma"]),
+            "anni":    r["anni_originali"] - (int(stagione) - int(r["stagione_firma"])),
             "flag":    _flag(r),
         }
         for r in giocatori
