@@ -2,8 +2,7 @@
 
 #let team_nome     = sys.inputs.at("team_nome",    default: "Baltimora Bats")
 #let team_gm       = sys.inputs.at("team_gm",      default: "Luca")
-#let colore_hex    = sys.inputs.at("colore",        default: "#2E7D32")
-#let colore2_hex   = sys.inputs.at("colore2",       default: "")
+#let colore_hex    = sys.inputs.at("colore_header", default: "#2E7D32")
 #let colore_riga1  = sys.inputs.at("colore_riga1",  default: "")
 #let colore_riga2  = sys.inputs.at("colore_riga2",  default: "")
 #let colore_sez    = sys.inputs.at("colore_sezione",default: "")
@@ -33,7 +32,7 @@
 #let c_primary  = color.rgb(colore_hex)
 #let c_dark     = c_primary.darken(20%)
 #let c_row_odd  = if colore_riga1 != "" { color.rgb(colore_riga1) } else { c_primary.lighten(75%) }
-#let c_row_even = if colore_riga2 != "" { color.rgb(colore_riga2) } else if colore2_hex != "" { color.rgb(colore2_hex).lighten(75%) } else { white }
+#let c_row_even = if colore_riga2 != "" { color.rgb(colore_riga2) } else { white }
 #let c_subhdr   = c_primary.lighten(50%)
 #let c_sezione  = if colore_sez != "" { color.rgb(colore_sez) } else { c_primary.lighten(85%) }
 

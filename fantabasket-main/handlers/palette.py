@@ -288,7 +288,8 @@ async def cb_pal_salva(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
     teams_path = os.environ.get("TEAMS_PATH", "/config/teams.json")
     teams_data = json.load(open(teams_path))
-    for t in teams_data:
+    teams_list = teams_data["teams"] if isinstance(teams_data, dict) else teams_data
+    for t in teams_list:
         if t["id"] == team_id:
             t.update(pendenti)
             break
