@@ -31,7 +31,8 @@ def _build_team_payload(team_id: str) -> dict:
     stagione  = settings.stagione_corrente()
     roster    = db.get_roster_team(team_id)
     contratti = {r["giocatore_id"]: r for r in roster}
-    impatti   = db.get_impatto_taglio_team(team_id, stagione)
+    # Per il foglio vogliamo tutte le rate future, non solo quella corrente
+    impatti   = db.get_impatti_taglio_team_futuri(team_id, stagione)
     tagli_usati = db.get_tagli_gratuiti_usati(team_id, stagione)
 
     # Giocatori ordinati per importo DESC poi cognome

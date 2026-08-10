@@ -364,6 +364,17 @@ def get_impatto_taglio_team(team_id: str, stagione: str) -> list:
     )
 
 
+def get_impatti_taglio_team_futuri(team_id: str, stagione: str) -> list:
+    """Tutte le rate di impatto taglio dalla stagione corrente in poi, ordinate per stagione."""
+    return _q(
+        "SELECT cs.*, g.nome_common FROM impatto_taglio cs "
+        "JOIN giocatori g ON g.id = cs.giocatore_id "
+        "WHERE cs.team_id = %s AND cs.stagione >= %s "
+        "ORDER BY cs.giocatore_id, cs.stagione",
+        (team_id, stagione), many=True
+    ) or []
+
+
 # ── cap/slot anticipato ──────────────────────────────────────────────────────
 
 def get_cap_anticipato(team_id: str) -> int:
