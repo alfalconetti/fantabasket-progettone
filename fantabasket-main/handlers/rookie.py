@@ -206,6 +206,13 @@ async def cb_conferma_firma_rookie(update: Update, context: ContextTypes.DEFAULT
 
     logger.info("Rookie firma: team=%s giocatore=%d importo=%d",
                 team["id"], rookie["giocatore_id"], importo)
+
+    # Sync GAS Sheets
+    try:
+        import gas_client
+        gas_client.sync_after_rookie(team["id"])
+    except Exception as e:
+        logger.warning("GAS sync rookie fallito: %s", e)
     return ConversationHandler.END
 
 

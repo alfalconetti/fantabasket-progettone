@@ -275,6 +275,13 @@ async def cb_conferma_taglio(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 logger.warning("Annuncio canale taglio fallito: %s", e)
     logger.info("Taglio: team=%s giocatore=%d gratuito=%s", team["id"], gid, gratuito)
 
+    # Sync GAS Sheets
+    try:
+        import gas_client
+        gas_client.sync_after_taglio(team["id"])
+    except Exception as e:
+        logger.warning("GAS sync taglio fallito: %s", e)
+
 
 async def cb_annulla_taglio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query

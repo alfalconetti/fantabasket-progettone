@@ -161,3 +161,9 @@
 - **DPE — slot**: ora libera sempre uno slot indipendentemente dalla fase (pre/post deadline). Lo slot viene escluso da `get_roster_count` tramite la tabella `dpe`.
 - **DPE — cap**: `get_cap_contratti` ora usa `importo_dpe` quando disponibile per quella stagione, sia nel bot aste che nel calcolo cap.
 - **`get_slot_totale`**: accetta `stagione` per escludere giocatori con DPE attiva dal conteggio roster.
+
+## v2.0.2 (2026-08-09)
+
+### Nuove feature
+- **GAS Client** (`gas_client.py`): modulo per inviare aggiornamenti roster al GAS Router dopo ogni transazione. Chiamate automatiche dopo trade, taglio, firma rookie, DPE.
+- **`/sync_sheets`**: comando dev per sincronizzazione manuale completa di tutti i 24 team su Google Sheets.

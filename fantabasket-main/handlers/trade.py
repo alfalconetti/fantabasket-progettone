@@ -855,6 +855,13 @@ async def _esegui_trade(context, trade_id: int):
     db.aggiorna_stato_trade(trade_id, "approvata")
     logger.info("Trade %s eseguita.", trade["trade_ref"])
 
+    # Sync GAS Sheets
+    try:
+        import gas_client
+        gas_client.sync_after_trade(trade_id)
+    except Exception as e:
+        logger.warning("GAS sync trade fallito: %s", e)
+
     # Notifica tutti i GM coinvolti
     squadre = [s["team_id"] for s in db.get_squadre_trade(trade_id)]
     for team_id in squadre:

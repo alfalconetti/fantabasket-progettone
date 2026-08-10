@@ -44,6 +44,24 @@ def _read_secret(env_var: str) -> str:
     raise RuntimeError(f"Secret non trovato: {env_var}")
 
 
+async def cmd_sync_sheets(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Sync manuale di tutti i roster su Google Sheets — solo dev."""
+    from settings import load_globals
+    g = load_globals()
+    if update.effective_user.id != g.get("dev_id"):
+        return
+    await update.effective_message.reply_text("⏳ Sync in corso...")
+    try:
+        import gas_client
+        ok = gas_client.sync_all()
+        if ok:
+            await update.effective_message.reply_text("✅ Sync completato.")
+        else:
+            await update.effective_message.reply_text("❌ Sync fallito — controlla i log.")
+    except Exception as e:
+        await update.effective_message.reply_text(f"❌ Errore: {e}")
+
+
 async def cmd_annulla_globale(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler globale /annulla — pulisce user_data e notifica l'utente.
     Funziona anche se nessuna conversazione è attiva."""
@@ -353,6 +371,7 @@ def main():
 
     # /annulla globale — group=-1 per intercettare prima di qualsiasi ConversationHandler
     app.add_handler(CommandHandler("annulla", cmd_annulla_globale), group=-1)
+    app.add_handler(CommandHandler("sync_sheets", cmd_sync_sheets))
 
     for h in menu_handlers():
         app.add_handler(h)

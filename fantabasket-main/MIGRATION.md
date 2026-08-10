@@ -246,8 +246,38 @@ git push origin main
 ---
 
 **Roadmap:**
-1. **Autocap/autoslot bot aste beta** — adattare per usare PG client invece di JSON
-2. **Ruoli giocatori** — struttura DB + gestione; prerequisito per cambi ruolo e DPE post-deadline
-3. **Cambi ruolo** — 2 a stagione, Erminio rule (gratuito 2 settimane), Saedro rule (10-day temporaneo), cambio ruolo forzato admin, DPE post-deadline aggiuntivo
-4. **Rinnovi** — solo `offseason-rinnovi`; distinguere rookie da non-rookie; logica +¼/+½ arrotondato per eccesso; Doncic Rule (soglia 20 e 25 di fantamedia); max 2 rinnovi standard per stagione
-5. **10-day contract** — una volta per squadra per stagione; non pesa su cap/slot; max 2 squadre per FA; solo se mancano disponibili nel ruolo; scade a fine turno se coincide
+
+**v1.5.x — bot main + aste (in corso)**
+- Colorazione rossa giocatori con DPE attiva in roster/assets PNG
+- Penalità: tabella, `/penalita` con motivazione, log canale; automatiche con Loucabot
+- RFA in offseason-rinnovi (selezione contratti x0) + aste offseason-rfa
+- Rinnovi: rookie vs non-rookie, +¼/+½ arrotondato per eccesso, Doncic Rule (soglie 20 e 25), max 2 standard per stagione
+- 10-day contract: una volta per squadra, non pesa su cap/slot, max 2 squadre per FA, scade a fine turno
+- Bref scraper: import automatico nuovi giocatori non in DB, check giornaliero alle 14 firmati senza nome_bref con suggerimento match, `/match_bref` dev, check alle 15 firmati senza data di nascita
+
+**v2.x — GAS Router**
+- Microservizio router nel Docker Compose
+- Integrazione Google Sheets: foglio roster (ruolo/nome/$/Y per squadra) e foglio scelte (pick e diritti)
+- Sync bulk dopo ogni transazione via POST a Web App GAS
+- Account Google dedicato con email recovery Henry
+
+**v3.x — Loucabot**
+- Calcolo punteggi partite (refactor da versione esistente artigianale)
+- Penalità automatiche: mancate panchine, giocatori fuori ruolo su Yahoo
+
+**v4.x — IPanchinariBot**
+- Gestione panchine giornaliere
+
+**v5.x — Ruoli (feature trasversale)**
+- Fase `offseason-ruoli` tra `offseason-fa` e `regular-season-fa`
+- Tabella ruoli con event sourcing (label: inizializzazione/cambio normale/10-day/post-DPE/post-trade)
+- In offseason-ruoli: dichiarazione iniziale in-place, nessuno storico
+- In RS: 2 cambi normali + casi speciali tracciati
+- Post-trade: notifica GM in privato per dichiarazione entro 48h, altrimenti ruolo casuale tra disponibili
+- Fetch Yahoo giornaliero nuovi ruoli + notifica canale + Erminio rule automatica
+- Cambio ruolo forzato admin (Vassell rule)
+- Saedro rule: cambio ruolo temporaneo 10-day
+- DPE post-deadline: cambio ruolo aggiuntivo gratuito
+
+**@qf_bot (vX.x — dipende da guest mode PTB)**
+- Bot pubblico per roster e info lega

@@ -266,6 +266,13 @@ async def cb_approva_dpe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("DPE approvata: team=%s giocatore=%d %dM→%dM pre_deadline=%s",
                 team_id, gid, importo_orig, importo_new, pre_deadline)
 
+    # Sync GAS Sheets
+    try:
+        import gas_client
+        gas_client.sync_after_dpe(team_id)
+    except Exception as e:
+        logger.warning("GAS sync DPE fallito: %s", e)
+
 
 async def cb_rifiuta_dpe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Admin rifiuta → notifica al GM."""
