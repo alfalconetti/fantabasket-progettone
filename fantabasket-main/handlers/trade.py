@@ -1019,6 +1019,13 @@ async def cmd_annulla_trade_admin(update: Update, context: ContextTypes.DEFAULT_
     await update.effective_message.reply_text("✅ Compatibilità OK, eseguo il rollback...")
     await _rollback_trade(trade["id"])
 
+    # Sync GAS Sheets
+    try:
+        import gas_client
+        gas_client.sync_after_trade(trade["id"])
+    except Exception as e:
+        logger.warning("GAS sync rollback trade fallito: %s", e)
+
     admin_nome = user.first_name or str(user.id)
     from datetime import datetime
     ora = format_dt(datetime.now(ROME))

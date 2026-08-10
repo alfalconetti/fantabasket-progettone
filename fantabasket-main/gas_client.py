@@ -131,7 +131,7 @@ def sync_teams(team_ids: list[str]) -> bool:
 def sync_after_trade(trade_id: int) -> None:
     """Sync tutti i team coinvolti in una trade."""
     try:
-        squadre = db.get_trade_squadre(trade_id)
+        squadre = db.get_squadre_trade(trade_id)
         team_ids = [sq["team_id"] for sq in squadre]
         if team_ids:
             sync_teams(team_ids)

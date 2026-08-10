@@ -829,6 +829,13 @@ async def cb_adm_annulla_exec(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     await _rollback_trade(trade_id)
 
+    # Sync GAS Sheets
+    try:
+        import gas_client
+        gas_client.sync_after_trade(trade_id)
+    except Exception as e:
+        logger.warning("GAS sync rollback trade admin fallito: %s", e)
+
     admin_user = update.effective_user
     admin_tag  = admin_user.first_name or str(admin_user.id)
     if admin_user.username:
