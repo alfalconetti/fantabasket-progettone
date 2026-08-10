@@ -22,10 +22,10 @@ def _read_secret(env_var: str) -> str:
     return os.environ.get(env_var.replace("_FILE", ""), "")
 
 
-# Config — caricata all'avvio
-GAS_ROSTER_URL = _read_secret("GAS_ROSTER_URL_FILE")
-GAS_TOKEN      = _read_secret("GAS_TOKEN_FILE")
-ROUTER_TOKEN   = _read_secret("ROUTER_TOKEN_FILE")
+# Token letti ad ogni richiesta per supportare aggiornamenti secrets senza rebuild
+def _get_gas_token():      return _read_secret("GAS_TOKEN_FILE")
+def _get_router_token():   return _read_secret("ROUTER_TOKEN_FILE")
+def _get_gas_roster_url(): return _read_secret("GAS_ROSTER_URL_FILE")
 
 
 class GASPayload(BaseModel):
@@ -37,15 +37,15 @@ class GASPayload(BaseModel):
 async def roster(payload: GASPayload, authorization: str = Header(...)):
     _check_auth(authorization)
     gas_payload = {
-        "token": GAS_TOKEN,
+        "token": _get_gas_token(),
         "action": payload.action,
         "teams": payload.teams or [],
     }
-    return await _forward(GAS_ROSTER_URL, gas_payload)
+    return await _forward(_get_gas_roster_url(), gas_payload)
 
 
 def _check_auth(authorization: str):
-    if authorization != f"Bearer {ROUTER_TOKEN}":
+    if authorization != f"Bearer {_get_router_token()}":
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
