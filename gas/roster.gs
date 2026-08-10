@@ -63,7 +63,7 @@ function updateTeamRoster(sheet, team) {
     team.impatti_tagli.forEach((imp, i) => {
       if (i < CONFIG.OFFSET_IMPATTI.length) {
         sheet.getRange(rowBase + CONFIG.OFFSET_IMPATTI[i], colBase, 1, CONFIG.COLS_PER_TEAM)
-          .setValue(`${imp.nome} ${imp.importo}x${imp.anni}`);
+          .setValue(`${imp.nome} ${imp.stringa}`);
       }
     });
   }

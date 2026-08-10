@@ -40,11 +40,8 @@ def _build_team_payload(team_id: str) -> dict:
     # Flag rookie/RFA
     def _flag(r):
         if r.get("tipo_contratto") == "rookie":
-            anni_scala = r.get("anni_scala", 0)
-            anni_firmati = int(stagione) - int(r.get("stagione_firma", stagione))
-            anno_scala = anni_firmati + 1
-            if 1 <= anno_scala <= 4:
-                return f"R{anno_scala - 1}"
+            scala = int(r.get("anni_scala") or 0)
+            return f"R{min(scala, 3)}"
         return ""
 
     giocatori_payload = [
@@ -52,21 +49,34 @@ def _build_team_payload(team_id: str) -> dict:
             "ruolo":   "",  # da implementare con i ruoli
             "nome":    r["nome_common"],
             "importo": r["importo"],
-            "anni":    r["anni_originali"] - (int(stagione) - int(r["stagione_firma"])),
+            "anni":    (2 if int(r.get("anni_scala") or 0) in (0, 2) else 1)
+                       if r.get("tipo_contratto") == "rookie"
+                       else max(1, r["anni_originali"] - (int(stagione) - int(r.get("stagione_firma") or stagione))),
             "flag":    _flag(r),
         }
         for r in giocatori
     ]
 
-    # Impatti tagli — max 2 righe nel foglio
-    impatti_payload = [
-        {
-            "nome":    imp["nome_common"],
-            "importo": imp["importo"],
-            "anni":    1,  # ogni rata è 1 anno
-        }
-        for imp in impatti[:2]
-    ]
+    # Impatti tagli — raggruppa per giocatore, max 2 righe nel foglio
+    # Formato: "importo x anni" se rate uguali, "imp1-imp2 x anni" se diverse
+    from collections import defaultdict
+    impatti_by_giocatore = defaultdict(list)
+    for imp in impatti:
+        impatti_by_giocatore[imp["nome_common"]].append(imp["importo"])
+
+    impatti_payload = []
+    for nome, rate in list(impatti_by_giocatore.items())[:2]:
+        n_anni = len(rate)
+        if len(set(rate)) == 1:
+            # tutte le rate uguali: "importo x anni"
+            stringa = f"{rate[0]}x{n_anni}"
+        else:
+            # rate diverse: "imp1-imp2 x anni"
+            stringa = "-".join(str(r) for r in rate) + f"x{n_anni}"
+        impatti_payload.append({
+            "nome":    nome,
+            "stringa": stringa,
+        })
 
     return {
         "team_id":             team_id,
