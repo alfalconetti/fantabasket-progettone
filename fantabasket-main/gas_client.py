@@ -41,7 +41,7 @@ def _build_team_payload(team_id: str) -> dict:
     def _flag(r):
         if r.get("tipo_contratto") == "rookie":
             anni_scala = r.get("anni_scala", 0)
-            anni_firmati = int(stagione) - r.get("stagione_firma", int(stagione))
+            anni_firmati = int(stagione) - int(r.get("stagione_firma", stagione))
             anno_scala = anni_firmati + 1
             if 1 <= anno_scala <= 4:
                 return f"R{anno_scala - 1}"
@@ -112,7 +112,8 @@ def sync_teams(team_ids: list[str]) -> bool:
     except urllib.error.URLError as e:
         logger.warning("GAS sync URL error: %s", e.reason)
     except Exception as e:
-        logger.warning("GAS sync error: %s", e)
+        import traceback
+        logger.warning("GAS sync error: %s\n%s", e, traceback.format_exc())
     return False
 
 
