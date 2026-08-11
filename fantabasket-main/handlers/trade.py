@@ -1077,7 +1077,7 @@ async def cmd_mie_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if bozze:
         for t in bozze:
             trade_id = t["id"]
-            squadre  = db.get_trade_squadre(trade_id)
+            squadre  = db.get_squadre_trade(trade_id)
             gm_nomi  = [
                 (tm.get_team_by_id(sq["team_id"]) or {}).get("gm_nome", sq["team_id"])
                 for sq in squadre
@@ -1091,7 +1091,7 @@ async def cmd_mie_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if pending:
         for t in pending:
             trade_id = t["id"]
-            squadre  = db.get_trade_squadre(trade_id)
+            squadre  = db.get_squadre_trade(trade_id)
             gm_nomi  = [
                 (tm.get_team_by_id(sq["team_id"]) or {}).get("gm_nome", sq["team_id"])
                 for sq in squadre
