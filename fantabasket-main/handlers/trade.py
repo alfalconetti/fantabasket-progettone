@@ -244,7 +244,8 @@ async def cb_asset_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         for r in roster:
             gid   = r["giocatore_id"]
             check = "✅ " if gid in items_gi else ""
-            label = f"{check}{r['nome_common']} ({r['importo']}M)"
+            _anni = (2 if int(r.get('anni_scala') or 0) in (0,2) else 1) if r.get('tipo_contratto') == 'rookie' else max(1, r['anni_originali'] - (int(settings.stagione_corrente()) - int(r.get('stagione_firma') or settings.stagione_corrente())))
+            label = f"{check}{r['nome_common']} {r['importo']}x{_anni}"
             bottoni.append([InlineKeyboardButton(label, callback_data=f"trade_gi:{trade_id}:{team_id}:{gid}")])
         bottoni.append([InlineKeyboardButton("← Indietro", callback_data=f"trade_am:back:{trade_id}:{team_id}")])
         await query.answer()
@@ -347,7 +348,8 @@ async def _ricarica_lista_giocatori(query, trade_id: int, team_id: str) -> int:
     for r in roster:
         gid   = r["giocatore_id"]
         check = "✅ " if gid in items_gi else ""
-        label = f"{check}{r['nome_common']} ({r['importo']}M)"
+        _anni = (2 if int(r.get('anni_scala') or 0) in (0,2) else 1) if r.get('tipo_contratto') == 'rookie' else max(1, r['anni_originali'] - (int(settings.stagione_corrente()) - int(r.get('stagione_firma') or settings.stagione_corrente())))
+        label = f"{check}{r['nome_common']} {r['importo']}x{_anni}"
         bottoni.append([InlineKeyboardButton(label, callback_data=f"trade_gi:{trade_id}:{team_id}:{gid}")])
     bottoni.append([InlineKeyboardButton("← Indietro", callback_data=f"trade_am:back:{trade_id}:{team_id}")])
     await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(bottoni))
@@ -1264,7 +1266,8 @@ async def cb_edit_tipo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         for r in roster:
             if r["giocatore_id"] in items_gi:
                 continue
-            label = f"{r['nome_common']} ({r['importo']}M)"
+            _anni = (2 if int(r.get('anni_scala') or 0) in (0,2) else 1) if r.get('tipo_contratto') == 'rookie' else max(1, r['anni_originali'] - (int(settings.stagione_corrente()) - int(r.get('stagione_firma') or settings.stagione_corrente())))
+            label = f"{r['nome_common']} {r['importo']}x{_anni}"
             bottoni.append([InlineKeyboardButton(label, callback_data=f"edit_item:g:{trade_id}:{team_id}:{team_a}:{r['giocatore_id']}")])
     elif tipo == "p":
         picks = db.get_pick_team(team_id)
