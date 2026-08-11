@@ -28,19 +28,19 @@ Ecosistema Fantabasket su M910q Ubuntu (alfalconetti@ubuntum910q). Bot aste v48 
 
 ---
 
-**globals.json attuale:**
+**globals.json — campi principali:**
 ```json
 {
-  "admin_ids": [ID_ADMIN,ID_ADMIN,ID_ADMIN,ID_ADMIN,ID_ADMIN],
-  "channel_id": -ID_CANALE,
+  "admin_ids": [ID_ADMIN_1, ID_ADMIN_2, ...],
+  "channel_id": ID_CANALE_ASTE,
   "mercato_aperto": true,
   "fase": "offseason-fa",
-  "admin_group_id": -ID_CANALE,
-  "log_channel_id": -ID_CANALE,
-  "log_channel_id_main": -100XXXXXXXXXX,
+  "admin_group_id": ID_GRUPPO_ADMIN,
+  "log_channel_id": ID_CANALE_LOG_ASTE,
+  "log_channel_id_main": ID_CANALE_LOG_MAIN,
   "stagione_corrente": "2026",
-  "dev_id": ID_ADMIN,
-  "main_channel_id": -ID_CANALE
+  "dev_id": ID_DEV,
+  "main_channel_id": ID_CANALE_PRINCIPALE
 }
 ```
 
@@ -247,6 +247,27 @@ git push origin main
 
 **Roadmap:**
 
+**v2.0.x — GAS Router + Google Sheets (in corso)**
+- GAS Router microservizio FastAPI nel Docker Compose (`gas-router/`)
+- Autenticazione doppia: `gas_router_token` (bot→router) e `gas_token` (router→GAS)
+- URL webapp GAS in secret `gas_roster_url` — aggiornare ad ogni nuovo deploy GAS
+- GAS legge secrets ad ogni richiesta (non all'avvio) per supportare cambio URL senza rebuild
+- `gas_client.py` nel bot main: sync automatico dopo trade, taglio, firma rookie, DPE, rollback trade
+- `/sync_sheets` comando dev per sincronizzazione manuale completa di tutti i 24 team
+- Payload roster: `{action, teams: [{team_id, tagli_gratuiti_usati, cambi_ruolo_usati, giocatori, impatti_tagli}]}`
+- Impatti tagli formato: `"1x2"` se rate uguali, `"2-1x2"` se rate diverse
+- Giocatori ordinati per importo DESC poi cognome — uguale a `/roster`
+- GAS: `globals.gs` in gitignore (contiene SPREADSHEET_ID e TEAM_MAP); solo `clasp push` per aggiornare codice, no `clasp deploy`
+- Deploy GAS: `clasp push && clasp deploy --deploymentId ID` (il deploy aggiorna la versione mantenendo URL e accesso)
+- `globals.gs` contiene: CONFIG (offset righe/colonne), TEAM_MAP (team_id → conference+pos), `getSpreadsheet()`, `respond()`
+
+**Palette colori:**
+- Campi in `teams.json`: `colore_header`, `colore_riga1`, `colore_riga2`, `colore_sezione`, `colore_pick`, `colore_diritti`
+- NON esiste campo `colore` generico — ogni sezione ha il suo campo dedicato
+- `colore_header` è il colore primario da cui derivano i default di tutto il resto in Typst
+- Campi vuoti = default calcolati da `colore_header`
+- `/palette` con anteprima live, warning leggibilità WCAG, `/annulla` per uscire
+
 **v1.5.x — bot main + aste (in corso)**
 - Colorazione rossa giocatori con DPE attiva in roster/assets PNG
 - Penalità: tabella, `/penalita` con motivazione, log canale; automatiche con Loucabot
@@ -255,11 +276,11 @@ git push origin main
 - 10-day contract: una volta per squadra, non pesa su cap/slot, max 2 squadre per FA, scade a fine turno
 - Bref scraper: import automatico nuovi giocatori non in DB, check giornaliero alle 14 firmati senza nome_bref con suggerimento match, `/match_bref` dev, check alle 15 firmati senza data di nascita
 
-**v2.x — GAS Router**
-- Microservizio router nel Docker Compose
-- Integrazione Google Sheets: foglio roster (ruolo/nome/$/Y per squadra) e foglio scelte (pick e diritti)
-- Sync bulk dopo ogni transazione via POST a Web App GAS
-- Account Google dedicato con email recovery Henry
+**v2.x — GAS Router** ✅ completato
+- Microservizio router nel Docker Compose ✅
+- Integrazione Google Sheets: foglio roster ✅ — foglio scelte (pick e diritti) ❌ da fare
+- Sync automatico dopo ogni transazione ✅
+- Account Google dedicato con email recovery Henry ✅
 
 **v3.x — Loucabot**
 - Calcolo punteggi partite (refactor da versione esistente artigianale)
