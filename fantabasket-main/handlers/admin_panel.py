@@ -44,6 +44,7 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("📊 Situazione cap",     callback_data="adm:cap")],
         [InlineKeyboardButton("🔁 Cambia fase",        callback_data="adm:set_fase")],
         [InlineKeyboardButton("↩️ Annulla trade",      callback_data="adm:annulla_trade")],
+        [InlineKeyboardButton("📋 Decadimento",        callback_data="adm:decadimento")],
     ])
 
 
@@ -177,6 +178,21 @@ async def cb_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         # inclusi i callback set_fase:* per il cambio fase effettivo
         await query.answer()
         await cmd_set_fase(update, context)
+        return ConversationHandler.END
+
+    elif azione == "decadimento":
+        tutti = tm.get_all_teams()
+        bottoni = [
+            InlineKeyboardButton(t["nome"], callback_data=f"adm_dec_team:{t['id']}")
+            for t in tutti
+        ]
+        righe = [bottoni[i:i+2] for i in range(0, len(bottoni), 2)]
+        righe.append([InlineKeyboardButton("← Menu", callback_data="adm:home")])
+        await query.edit_message_text(
+            "📋 <b>Decadimento admin</b> — seleziona squadra:",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(righe),
+        )
         return ConversationHandler.END
 
     elif azione == "annulla_trade":
@@ -865,6 +881,88 @@ async def cb_adm_annulla_exec(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
 
 
+async def cb_adm_dec_team(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin seleziona team per decadimento → mostra roster."""
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(update.effective_user.id):
+        return
+    import database as db
+    team_id  = query.data.split(":")[1]
+    team     = tm.get_team_by_id(team_id)
+    roster   = db.get_roster_team(team_id)
+    stagione = settings.stagione_corrente()
+    if not roster:
+        await query.edit_message_text(f"Roster di {team['nome']} vuoto.")
+        return
+    from handlers.decadimento import _anni_residui
+    bottoni = []
+    for r in sorted(roster, key=lambda x: -x["importo"]):
+        anni  = _anni_residui(r, stagione)
+        label = f"{r['nome_common']} {r['importo']}x{anni}"
+        bottoni.append([InlineKeyboardButton(label, callback_data=f"adm_dec_conf:{team_id}:{r['giocatore_id']}")])
+    bottoni.append([InlineKeyboardButton("← Menu", callback_data="adm:home")])
+    await query.edit_message_text(
+        f"📋 <b>Decadimento admin — {team['nome']}</b>\nSeleziona giocatore:",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(bottoni),
+    )
+
+
+async def cb_adm_dec_conf(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin esegue decadimento direttamente."""
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(update.effective_user.id):
+        return
+    import database as db
+    parts    = query.data.split(":")
+    team_id  = parts[1]
+    gid      = int(parts[2])
+    stagione = settings.stagione_corrente()
+    team     = tm.get_team_by_id(team_id)
+    giocatore = db.get_giocatore(gid)
+    contratto = db.get_contratto_attivo(gid)
+    if not contratto or contratto.get("team_id") != team_id:
+        await query.edit_message_text("❌ Contratto non trovato o già scaduto.")
+        return
+    admin_user = update.effective_user
+    admin_tag  = admin_user.first_name or str(admin_user.id)
+    if admin_user.username:
+        admin_tag += f" (@{admin_user.username})"
+    db.registra_decadimento(
+        giocatore_id=gid, team_id=team_id, stagione=stagione,
+        contratto_id=contratto["id"], note="Decadimento admin diretto",
+    )
+    await query.edit_message_text(
+        f"✅ Contratto di <b>{giocatore['nome_common']}</b> decaduto.\nSlot roster liberato.",
+        parse_mode="HTML",
+    )
+    main_channel = settings.load_globals().get("main_channel_id")
+    if main_channel:
+        from utils import format_dt, ROME
+        from datetime import datetime
+        ora = format_dt(datetime.now(ROME))
+        try:
+            await context.bot.send_message(
+                chat_id=main_channel,
+                text=(
+                    f"📋 <b>{team['nome']}</b> — Decadimento contratto\n\n"
+                    f"Il contratto di <b>{giocatore['nome_common']}</b> è decaduto.\n"
+                    f"Lo slot roster è stato liberato.\n\n"
+                    f"<i>Ufficializzato da {admin_tag} — {ora}</i>"
+                ),
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.warning("Annuncio canale decadimento admin: %s", e)
+    try:
+        import gas_client
+        gas_client.sync_after_taglio(team_id)
+    except Exception as e:
+        logger.warning("GAS sync decadimento admin: %s", e)
+
+
 def get_handlers() -> list:
     from handlers.trade import (
         TRADE_ASSET_MENU, TRADE_ASSET_GIOCATORI, TRADE_ASSET_PICK, TRADE_RIEPILOGO,
@@ -916,6 +1014,8 @@ def get_handlers() -> list:
         conv,
         CommandHandler("admin_menu", cmd_admin_menu),
         CallbackQueryHandler(cb_adm_dpe_team,     pattern=r"^adm_dpe_team:.+$"),
+        CallbackQueryHandler(cb_adm_dec_team,     pattern=r"^adm_dec_team:.+$"),
+        CallbackQueryHandler(cb_adm_dec_conf,     pattern=r"^adm_dec_conf:.+:\d+$"),
         CallbackQueryHandler(cb_adm_annulla_conf,  pattern=r"^adm_annulla_conf:\d+$"),
         CallbackQueryHandler(cb_adm_annulla_exec,  pattern=r"^adm_annulla_exec:\d+$"),
         CallbackQueryHandler(cb_adm_dpe_conferma, pattern=r"^adm_dpe_conf:.+:\d+$"),

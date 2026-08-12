@@ -26,6 +26,7 @@ from handlers.dev_player  import get_handlers as dev_player_handlers
 from handlers.dev         import get_handlers as dev_handlers
 from handlers.palette     import get_handlers as palette_handlers
 from handlers.dpe         import get_handlers as dpe_handlers
+from handlers.decadimento import get_handlers as decadimento_handlers
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -104,6 +105,7 @@ async def post_init(application):
         BotCommand("palette",        "Personalizza colori roster/assets"),
         BotCommand("team_diff",      "Variazioni roster [team_id] [da] [a]"),
         BotCommand("annulla",          "Esci da qualsiasi conversazione bloccata"),
+        BotCommand("decadimento",      "Segnala contratto decaduto (ritiro, altra lega)"),
     ]
     cmd_admin = cmd_gm + [
         BotCommand("admin_menu",          "Pannello admin"),
@@ -394,6 +396,8 @@ def main():
     for h in palette_handlers():
         app.add_handler(h)
     for h in dpe_handlers():
+        app.add_handler(h)
+    for h in decadimento_handlers():
         app.add_handler(h)
 
     for h in dev_handlers():

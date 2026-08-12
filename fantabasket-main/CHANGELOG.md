@@ -167,3 +167,9 @@
 ### Nuove feature
 - **GAS Client** (`gas_client.py`): modulo per inviare aggiornamenti roster al GAS Router dopo ogni transazione. Chiamate automatiche dopo trade, taglio, firma rookie, DPE.
 - **`/sync_sheets`**: comando dev per sincronizzazione manuale completa di tutti i 24 team su Google Sheets.
+
+## v2.0.12 (2026-08-11)
+
+### Nuove feature
+- **Decadimento contratti**: nuovo comando `/decadimento` per segnalare contratti decaduti (ritiro, firma in altra lega, ecc.). Flusso GM → approvazione admin → DB + annuncio canale. Contratto disattivato, impatti tagli futuri cancellati, slot roster liberato. Disponibile anche da menu admin (diretto senza approvazione).
+- `registra_decadimento()` in `database.py`: inserisce transazione `tipo='decadimento'` con `team_id_a=NULL` per l'event sourcing, disattiva contratto, cancella impatti tagli futuri.

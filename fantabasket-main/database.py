@@ -486,6 +486,36 @@ def registra_transazione(tipo: str, giocatore_id: int, team_id_da: str | None,
     )
 
 
+def registra_decadimento(giocatore_id: int, team_id: str, stagione: str,
+                          contratto_id: int | None = None, note: str | None = None) -> None:
+    """
+    Registra il decadimento di un contratto (ritiro, altra lega, ecc.).
+    - Inserisce transazione tipo 'decadimento' con team_id_a = NULL
+    - Disattiva il contratto
+    - Elimina tutti gli impatti taglio futuri per quel giocatore in quel team
+    """
+    # Transazione event sourcing
+    registra_transazione(
+        tipo="decadimento",
+        giocatore_id=giocatore_id,
+        team_id_da=team_id,
+        team_id_a=None,
+        stagione=stagione,
+        contratto_id=contratto_id,
+        note=note,
+    )
+    # Disattiva contratto
+    _q(
+        "UPDATE contratti SET attivo = FALSE WHERE giocatore_id = %s AND team_id = %s AND attivo = TRUE",
+        (giocatore_id, team_id)
+    )
+    # Elimina impatti taglio futuri
+    _q(
+        "DELETE FROM impatto_taglio WHERE giocatore_id = %s AND team_id = %s AND stagione >= %s",
+        (giocatore_id, team_id, stagione)
+    )
+
+
 def get_prima_transazione() -> str | None:
     """Timestamp della prima transazione presente nel DB (ISO format)."""
     return _qval("SELECT MIN(timestamp) FROM transazioni WHERE giocatore_id IS NOT NULL")
