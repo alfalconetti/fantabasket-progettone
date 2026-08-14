@@ -146,7 +146,7 @@ def get_roster_count(team_id: str, stagione: str = None) -> int:
                     """SELECT COUNT(*) FROM (
                            SELECT DISTINCT ON (giocatore_id) giocatore_id, team_id_a
                            FROM transazioni
-                           WHERE team_id_a IS NOT NULL
+                           WHERE giocatore_id IS NOT NULL
                            ORDER BY giocatore_id, timestamp DESC
                        ) sub
                        WHERE team_id_a = %s
@@ -161,7 +161,7 @@ def get_roster_count(team_id: str, stagione: str = None) -> int:
                     """SELECT COUNT(*) FROM (
                            SELECT DISTINCT ON (giocatore_id) team_id_a
                            FROM transazioni
-                           WHERE team_id_a IS NOT NULL
+                           WHERE giocatore_id IS NOT NULL
                            ORDER BY giocatore_id, timestamp DESC
                        ) sub
                        WHERE team_id_a = %s""",

@@ -477,11 +477,13 @@ def _build_team_detail_testo(team: dict) -> str:
     team_id = team["id"]
     stagione       = utils.load_globals().get("stagione_corrente", "2025")
     cap_tot, slot_tot = utils.cap_slot_display(team, stagione)
-    cap_virtuale   = db.get_cap_virtuale(team_id)
-    slot_impegnati = db.get_slot_virtuali(team_id)
-    cap_libero     = cap_tot - cap_virtuale
-    slot_liberi    = slot_tot - slot_impegnati
-    offerte_vince  = db.get_offerte_vincenti_team(team_id)
+    cap_virtuale    = db.get_cap_virtuale(team_id)
+    slot_impegnati  = db.get_slot_virtuali(team_id)
+    cap_anticipato  = pg_client.get_cap_anticipato(team_id) if pg_client.pg_disponibile() else 0
+    slot_anticipato = pg_client.get_slot_anticipato(team_id) if pg_client.pg_disponibile() else 0
+    cap_libero      = cap_tot - cap_virtuale
+    slot_liberi     = slot_tot - slot_impegnati
+    offerte_vince   = db.get_offerte_vincenti_team(team_id)
 
     fase = utils.load_globals().get("fase", "offseason")
     cap_pen = team.get("cap_penalizzato", 0)
