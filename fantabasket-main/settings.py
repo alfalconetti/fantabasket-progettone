@@ -17,33 +17,91 @@ def save_globals(data: dict):
     with open(GLOBALS_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-# ── shortcuts ──────────────────────────────────────────────────────────────────
+# ── cap ────────────────────────────────────────────────────────────────────────
 
-def cap_massimo()           -> int:  return get()["cap_massimo"]
-def salary_floor()          -> int:  return get()["salary_floor"]
+def cap_massimo() -> int:
+    """Cap regular season (150M). Alias per compatibilità."""
+    return get()["cap_regular"]
+
 def luxury_cap() -> int:
-    """165M durante offseason, 150M (o valore settings) in regular/playoff."""
+    """Cap dinamico: offseason=165M, regular=150M."""
     f = fase()
     if f.startswith("offseason"):
-        return get().get("luxury_cap_offseason", 165)
-    return get()["luxury_cap"]
-def max_roster()            -> int:  return get()["max_roster"]
-def min_roster()            -> int:  return get()["min_roster"]
-def min_guardie()           -> int:  return get()["min_guardie"]
-def min_ali()               -> int:  return get()["min_ali"]
-def min_centri()            -> int:  return get()["min_centri"]
-def max_rinnovi_standard()  -> int:  return get()["max_rinnovi_standard"]
-def stepien_anni()          -> int:  return get()["stepien_anni"]
-def soglia_anni_2()         -> int:  return get()["soglia_anni_2"]
-def soglia_anni_3()         -> int:  return get()["soglia_anni_3"]
-def ore_comunicazione_ruolo() -> int: return get()["ore_comunicazione_ruolo"]
+        return get()["cap_offseason"]
+    return get()["cap_regular"]
 
-def fase()             -> str:  return load_globals()["fase"]
-def stagione_corrente() -> str: return load_globals()["stagione_corrente"]
-def admin_ids()        -> list: return load_globals().get("admin_ids", [])
-def dev_id()           -> int | None: return load_globals().get("dev_id")
-def admin_group_id()   -> int | None: return load_globals().get("admin_group_id")
-def log_channel_id()   -> int | None: return load_globals().get("log_channel_id")
+def cap_limite() -> int:
+    """Alias di luxury_cap() — nome più chiaro."""
+    return luxury_cap()
+
+def salary_floor() -> int:
+    return get()["salary_floor"]
+
+# ── roster ─────────────────────────────────────────────────────────────────────
+
+def max_roster() -> int:
+    return get()["roster_max"]
+
+def min_roster() -> int:
+    return get()["roster_min_regular"]
+
+def min_guardie() -> int:
+    return get()["roster_min_guardie"]
+
+def min_ali() -> int:
+    return get()["roster_min_ali"]
+
+def min_centri() -> int:
+    return get()["roster_min_centri"]
+
+def slot_massimo() -> int:
+    """Alias di max_roster()."""
+    return max_roster()
+
+# ── contratti ──────────────────────────────────────────────────────────────────
+
+def max_rinnovi_standard() -> int:
+    return get()["max_rinnovi_standard"]
+
+def stepien_anni() -> int:
+    return get()["stepien_anni"]
+
+def soglia_anni_2() -> int:
+    return get()["soglia_anni_2"]
+
+def soglia_anni_3() -> int:
+    return get()["soglia_anni_3"]
+
+def ore_comunicazione_ruolo() -> int:
+    return get()["ore_comunicazione_ruolo"]
+
+def doncic_soglia_1() -> int:
+    return get()["doncic_soglia_1"]
+
+def doncic_soglia_2() -> int:
+    return get()["doncic_soglia_2"]
+
+# ── globals ────────────────────────────────────────────────────────────────────
+
+def fase() -> str:
+    return load_globals()["fase"]
+
+def stagione_corrente() -> str:
+    return load_globals()["stagione_corrente"]
+
+def admin_ids() -> list:
+    return load_globals().get("admin_ids", [])
+
+def dev_id() -> int | None:
+    return load_globals().get("dev_id")
+
+def admin_group_id() -> int | None:
+    return load_globals().get("admin_group_id")
+
+def log_channel_id() -> int | None:
+    return load_globals().get("log_channel_id")
+
+# ── business logic ─────────────────────────────────────────────────────────────
 
 def anni_minimi_contratto(importo: int) -> int:
     """Anni minimi obbligatori per importo (20M→2, 35M→3)."""
@@ -60,6 +118,8 @@ def minimo_contratto_per_media(fantamedia: float) -> int:
             return fascia["minimo"]
     return 1
 
+
+# ── decorators ─────────────────────────────────────────────────────────────────
 
 def solo_privato(func):
     """Decorator: ignora silenziosamente il comando se non siamo in chat privata."""
@@ -104,7 +164,6 @@ def fa_aperta() -> bool:
 def richiede_fase(*fasi_ok: str, msg: str | None = None):
     """
     Decorator: blocca il comando se la fase corrente non è tra quelle consentite.
-    Risponde con un messaggio di errore e ritorna silenziosamente.
     """
     import functools
     from telegram import Update

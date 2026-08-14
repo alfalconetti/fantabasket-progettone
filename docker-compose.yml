@@ -27,7 +27,7 @@ services:
     environment:
       BOT_TOKEN_FILE: /run/secrets/bot_token_aste_beta
       GLOBALS_PATH: /config/globals.json
-      SETTINGS_PATH: /config/settings_aste.json
+      SETTINGS_PATH: /config/settings.json
       TEAMS_PATH: /config/teams.json
       FA_CSV_PATH: /config/fa_players.csv
       DB_PATH: /data/aste.db
@@ -51,7 +51,7 @@ services:
     environment:
       BOT_TOKEN_FILE: /run/secrets/bot_token_main
       GLOBALS_PATH: /config/globals.json
-      SETTINGS_PATH: /config/settings_main.json
+      SETTINGS_PATH: /config/settings.json
       TEAMS_PATH: /config/teams.json
       DATABASE_URL: postgresql://fantabasket@postgres/fantabasket
       PG_PASSWORD_FILE: /run/secrets/pg_password
