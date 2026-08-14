@@ -13,7 +13,7 @@ import database as db
 import settings
 import log_buffer as _log_buffer_mod
 from utils import ROME
-from scheduler import backup_giornaliero, backup_settimanale, backup_shutdown
+from scheduler import backup_giornaliero, backup_settimanale, backup_shutdown, check_scadenza_diritti
 from handlers.trade       import get_handlers as trade_handlers
 from handlers.tagli       import get_handlers as tagli_handlers
 from handlers.rookie      import get_handlers as rookie_handlers
@@ -428,6 +428,11 @@ def main():
     app.job_queue.run_daily(
         _bref_scraper_job,
         time=dtime(10, 0, tzinfo=ROME),
+    )
+    # Check scadenza diritti ogni mattina alle 9:00
+    app.job_queue.run_daily(
+        check_scadenza_diritti,
+        time=dtime(9, 0, tzinfo=ROME),
     )
 
     app.add_handler(TypeHandler(Update, _guest_handler), group=99)

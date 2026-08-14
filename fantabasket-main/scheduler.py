@@ -127,3 +127,51 @@ async def backup_shutdown(application):
             await invia_backup(_Ctx(), log_channel_id, "shutdown", includi_aste_db=True)
     except Exception as e:
         logger.warning("backup_shutdown fallito: %s", e)
+
+
+async def check_scadenza_diritti(context):
+    """
+    Job giornaliero alle 9:00 — controlla se la trade_deadline è tra 10 giorni.
+    Se sì manda alert al gruppo admin con bottone di conferma scadenza diritti.
+    """
+    try:
+        import database as db
+        from settings import load_globals
+        info = db.get_diritti_scadenza_imminente(giorni=10)
+        if not info:
+            return
+        g = load_globals()
+        admin_group_id = g.get("admin_group_id")
+        if not admin_group_id:
+            return
+        from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+        anno = info["anno_draft"]
+        deadline = info["deadline"].strftime("%d/%m/%Y")
+        giorni = info["giorni_mancanti"]
+        # Evita di mandare più volte lo stesso alert oggi
+        import datetime
+        oggi = datetime.date.today().isoformat()
+        cache_key = f"diritti_alert_{anno}_{oggi}"
+        if context.bot_data.get(cache_key):
+            return
+        context.bot_data[cache_key] = True
+        testo = (
+            f"⚠️ <b>Scadenza diritti 2nd round {anno}</b>\n\n"
+            f"La trade deadline è il <b>{deadline}</b> — mancano <b>{giorni} giorni</b>.\n\n"
+            f"I diritti 2nd round del draft <b>{anno}</b> scadranno alla deadline.\n"
+            f"Conferma per marcarli come scaduti e farli entrare in lista FA."
+        )
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton(
+                f"✅ Conferma scadenza diritti {anno}",
+                callback_data=f"scadi_diritti:{anno}"
+            )
+        ]])
+        await context.bot.send_message(
+            chat_id=admin_group_id, text=testo,
+            parse_mode="HTML", reply_markup=kb
+        )
+        logger.info("check_scadenza_diritti: alert per anno=%d deadline=%s", anno, deadline)
+    except Exception as e:
+        from handlers.helpers import log_job_error
+        await log_job_error(context, "check_scadenza_diritti", e)

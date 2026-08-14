@@ -963,6 +963,82 @@ async def cb_adm_dec_conf(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.warning("GAS sync decadimento admin: %s", e)
 
 
+async def cb_scadi_diritti(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin conferma scadenza diritti 2nd round."""
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(update.effective_user.id):
+        return
+    anno_draft = int(query.data.split(":")[1])
+    import database as db
+    db.scadi_diritti_anno(anno_draft)
+    admin_user = update.effective_user
+    admin_tag  = admin_user.first_name or str(admin_user.id)
+    if admin_user.username:
+        admin_tag += f" (@{admin_user.username})"
+    await query.edit_message_text(
+        query.message.text + f"\n\n✅ <b>Diritti {anno_draft} scaduti</b> — confermato da {admin_tag}.",
+        parse_mode="HTML",
+        reply_markup=None,
+    )
+    main_channel = settings.load_globals().get("main_channel_id")
+    if main_channel:
+        try:
+            await context.bot.send_message(
+                chat_id=main_channel,
+                text=(
+                    f"📋 <b>Diritti 2nd round {anno_draft} scaduti</b>\n\n"
+                    f"I diritti del draft {anno_draft} non esercitati sono scaduti.\n"
+                    f"I giocatori interessati sono ora in lista FA.\n\n"
+                    f"<i>Confermato da {admin_tag}</i>"
+                ),
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.warning("Annuncio scadenza diritti canale: %s", e)
+    logger.info("scadi_diritti: anno=%d admin=%s", anno_draft, admin_tag)
+
+
+async def cb_scadi_diritti(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin conferma scadenza diritti 2nd round per un anno specifico."""
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(update.effective_user.id):
+        return
+    anno = int(query.data.split(":")[1])
+    import database as db
+    db.scadi_diritti_anno(anno)
+
+    admin_user = update.effective_user
+    admin_tag  = admin_user.first_name or str(admin_user.id)
+    if admin_user.username:
+        admin_tag += f" (@{admin_user.username})"
+
+    await query.edit_message_text(
+        query.message.text + f"\n\n✅ <b>Diritti {anno} scaduti</b> — confermato da {admin_tag}",
+        parse_mode="HTML",
+        reply_markup=None,
+    )
+
+    main_channel = settings.load_globals().get("main_channel_id")
+    if main_channel:
+        try:
+            await context.bot.send_message(
+                chat_id=main_channel,
+                text=(
+                    f"📋 <b>Diritti 2nd round {anno} scaduti</b>\n\n"
+                    f"I diritti del draft <b>{anno}</b> sono ufficialmente scaduti.\n"
+                    f"I giocatori interessati sono ora free agent.\n\n"
+                    f"<i>Confermato da {admin_tag}</i>"
+                ),
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.warning("Annuncio canale scadenza diritti: %s", e)
+
+    logger.info("scadi_diritti: anno=%d admin=%s", anno, admin_tag)
+
+
 def get_handlers() -> list:
     from handlers.trade import (
         TRADE_ASSET_MENU, TRADE_ASSET_GIOCATORI, TRADE_ASSET_PICK, TRADE_RIEPILOGO,
@@ -1015,6 +1091,8 @@ def get_handlers() -> list:
         CommandHandler("admin_menu", cmd_admin_menu),
         CallbackQueryHandler(cb_adm_dpe_team,     pattern=r"^adm_dpe_team:.+$"),
         CallbackQueryHandler(cb_adm_dec_team,     pattern=r"^adm_dec_team:.+$"),
+        CallbackQueryHandler(cb_scadi_diritti,    pattern=r"^scadi_diritti:\d+$"),
+        CallbackQueryHandler(cb_scadi_diritti,    pattern=r"^scadi_diritti:\d+$"),
         CallbackQueryHandler(cb_adm_dec_conf,     pattern=r"^adm_dec_conf:.+:\d+$"),
         CallbackQueryHandler(cb_adm_annulla_conf,  pattern=r"^adm_annulla_conf:\d+$"),
         CallbackQueryHandler(cb_adm_annulla_exec,  pattern=r"^adm_annulla_exec:\d+$"),

@@ -341,6 +341,37 @@ def get_pick(pick_id: int) -> dict | None:
 
 # ── rookie ────────────────────────────────────────────────────────────────────
 
+def scadi_diritti_anno(anno_draft: int) -> None:
+    """Marca come scaduti tutti i diritti 2nd del draft anno specificato."""
+    _q(
+        """UPDATE rookie SET diritti_scaduti = TRUE
+           WHERE round = 2 AND anno_draft = %s AND firmato = FALSE AND diritti_scaduti = FALSE""",
+        (anno_draft,)
+    )
+
+
+def get_diritti_scadenza_imminente(giorni: int = 10) -> dict | None:
+    """Controlla se la trade_deadline è tra 'giorni' giorni.
+    Ritorna {'anno_draft': int, 'deadline': date} se sì, None altrimenti."""
+    from settings import load_globals
+    from datetime import date, timedelta
+    g = load_globals()
+    deadline_str = g.get("trade_deadline")
+    if not deadline_str:
+        return None
+    try:
+        deadline = date.fromisoformat(deadline_str)
+        oggi = date.today()
+        delta = (deadline - oggi).days
+        if 0 <= delta <= giorni:
+            # Anno diritti da far scadere = stagione_corrente - 2
+            anno_draft = int(g.get("stagione_corrente", "2026")) - 2
+            return {"anno_draft": anno_draft, "deadline": deadline, "giorni_mancanti": delta}
+    except Exception:
+        pass
+    return None
+
+
 def get_diritti_2nd_team(team_id: str) -> list:
     return _q(
         "SELECT r.*, g.nome_common FROM rookie r JOIN giocatori g ON g.id = r.giocatore_id "
