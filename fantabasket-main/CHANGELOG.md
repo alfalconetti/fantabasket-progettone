@@ -173,3 +173,11 @@
 ### Nuove feature
 - **Decadimento contratti**: nuovo comando `/decadimento` per segnalare contratti decaduti (ritiro, firma in altra lega, ecc.). Flusso GM → approvazione admin → DB + annuncio canale. Contratto disattivato, impatti tagli futuri cancellati, slot roster liberato. Disponibile anche da menu admin (diretto senza approvazione).
 - `registra_decadimento()` in `database.py`: inserisce transazione `tipo='decadimento'` con `team_id_a=NULL` per l'event sourcing, disattiva contratto, cancella impatti tagli futuri.
+
+## v2.0.15 (2026-08-15)
+
+### Nuove feature
+- **Settings unificato**: `settings_main.json` e `settings_aste.json` sostituiti da un unico `settings.json` con nomi chiari e senza duplicazioni. Chiavi rinominate: `luxury_cap`→`cap_offseason`, `cap_massimo`→`cap_regular`, `max_roster`→`roster_max`, `min_roster`→`roster_min_regular`, ecc.
+- **`/settings`**: comando admin per visualizzare e modificare le settings dal bot. Log automatico su canale log. Uso: `/settings` per visualizzare, `/settings chiave valore` per modificare.
+- **BotCommand bot aste**: comandi registrati su Telegram con scope corretto (GM e admin).
+- **Scadenza diritti 2nd round**: job giornaliero che avvisa 10 giorni prima della trade deadline + bottone conferma admin. Parametro `trade_deadline` in `globals.json`.

@@ -45,6 +45,90 @@ def _read_secret(env_var: str) -> str:
     raise RuntimeError(f"Secret non trovato: {env_var}")
 
 
+async def cmd_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Mostra e modifica le settings — solo admin. Uso: /settings [chiave] [valore]"""
+    from settings import load_globals, get as get_settings
+    g = load_globals()
+    if update.effective_user.id not in [int(a) for a in g.get("admin_ids", [])]:
+        return
+
+    args = context.args or []
+
+    if len(args) == 0:
+        # Mostra tutte le settings
+        s = get_settings()
+        righe = ["⚙️ <b>Settings attuali</b>\n"]
+        for k, v in s.items():
+            if isinstance(v, (list, dict)):
+                righe.append(f"<code>{k}</code>: <i>[complesso]</i>")
+            else:
+                righe.append(f"<code>{k}</code>: <b>{v}</b>")
+        await update.effective_message.reply_text(
+    "\n".join(righe), parse_mode="HTML"
+        )
+        return
+
+    if len(args) < 2:
+        await update.effective_message.reply_text(
+            "Uso: /settings [chiave] [valore]\nEs: /settings cap_regular 150"
+        )
+        return
+
+    chiave = args[0]
+    valore_str = args[1]
+    import json, os
+    settings_path = os.environ.get("SETTINGS_PATH", "/config/settings.json")
+    s = get_settings()
+
+    if chiave not in s:
+        await update.effective_message.reply_text(f"❌ Chiave <code>{chiave}</code> non trovata.", parse_mode="HTML")
+        return
+
+    # Converti al tipo corretto
+    old_val = s[chiave]
+    try:
+        if isinstance(old_val, bool):
+            new_val = valore_str.lower() in ("true", "1", "yes")
+        elif isinstance(old_val, int):
+            new_val = int(valore_str)
+        elif isinstance(old_val, float):
+            new_val = float(valore_str)
+        elif isinstance(old_val, (list, dict)):
+            await update.effective_message.reply_text("❌ Modifica di liste/dizionari non supportata da qui.")
+            return
+        else:
+            new_val = valore_str
+    except ValueError:
+        await update.effective_message.reply_text(f"❌ Valore non valido per <code>{chiave}</code>.", parse_mode="HTML")
+        return
+
+    s[chiave] = new_val
+    with open(settings_path, "w", encoding="utf-8") as f:
+        json.dump(s, f, ensure_ascii=False, indent=2)
+
+    # Log su canale log
+    admin_user = update.effective_user
+    admin_tag  = admin_user.first_name or str(admin_user.id)
+    if admin_user.username:
+        admin_tag += f" (@{admin_user.username})"
+
+    log_channel = g.get("log_channel_id_main")
+    if log_channel:
+        try:
+            await context.bot.send_message(
+                chat_id=log_channel,
+                text=f"⚙️ Settings modificato da {admin_tag}\n<code>{chiave}</code>: {old_val} → <b>{new_val}</b>",
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+
+    await update.effective_message.reply_text(
+        f"✅ <code>{chiave}</code>: {old_val} → <b>{new_val}</b>",
+        parse_mode="HTML",
+    )
+
+
 async def cmd_sync_sheets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sync manuale di tutti i roster su Google Sheets — solo dev."""
     from settings import load_globals
@@ -112,6 +196,7 @@ async def post_init(application):
         BotCommand("set_fase",            "Cambia fase della stagione"),
         BotCommand("approva_trade",       "Approva una trade in attesa"),
         BotCommand("annulla_trade_admin", "Annulla una trade"),
+        BotCommand("settings",            "Modifica settings [chiave] [valore]"),
     ]
     cmd_dev = cmd_admin + [
         BotCommand("dev",          "Lista comandi dev"),
@@ -374,6 +459,7 @@ def main():
     # /annulla globale — group=-1 per intercettare prima di qualsiasi ConversationHandler
     app.add_handler(CommandHandler("annulla", cmd_annulla_globale), group=-1)
     app.add_handler(CommandHandler("sync_sheets", cmd_sync_sheets))
+    app.add_handler(CommandHandler("settings",   cmd_settings))
 
     for h in menu_handlers():
         app.add_handler(h)

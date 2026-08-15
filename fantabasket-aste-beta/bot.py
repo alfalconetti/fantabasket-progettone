@@ -15,7 +15,7 @@ from handlers.offerte import get_handlers as offerte_handlers
 from handlers.firma   import get_handlers as firma_handlers
 from handlers.user    import get_handlers as user_handlers
 from handlers.dev     import get_handlers as dev_handlers
-from scheduler        import check_scadenze, ping_healthcheck, backup_giornaliero, backup_settimanale, check_cap_stagionale, backup_shutdown, pulizia_anticipati_scaduti
+from scheduler        import check_scadenze, ping_healthcheck, backup_giornaliero, backup_settimanale, check_cap_stagionale, backup_shutdown
 
 BOT_VERSION = "beta-1"
 
@@ -238,7 +238,6 @@ def main():
 
     # Check cap stagionale: ogni giorno alle 13:00
     app.job_queue.run_daily(check_cap_stagionale, time=dtime(13, 0, tzinfo=rome))
-    app.job_queue.run_daily(pulizia_anticipati_scaduti, time=dtime(3, 0, tzinfo=rome))
 
     # Validazione numero_teams vs teams.json all'avvio
     import teams as _tm_check
@@ -249,6 +248,48 @@ def main():
             "⚠️ numero_teams in settings.json (%d) non corrisponde a teams.json (%d)",
             n_teams_settings, n_teams_reali
         )
+
+    # Registra comandi Telegram
+    async def _register_commands(app):
+        from telegram import BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeChat
+        g = utils.load_globals()
+        admin_ids = g.get("admin_ids", [])
+        dev_id    = g.get("dev_id")
+
+        cmd_gm = [
+            BotCommand("aste",       "Lista aste in corso"),
+            BotCommand("fa",         "Lista free agent disponibili"),
+            BotCommand("me",         "Il tuo cap e roster"),
+            BotCommand("team",       "Dettaglio di un team"),
+            BotCommand("autocap",    "Cap anticipato emergenza notturna"),
+            BotCommand("autoslot",   "Slot anticipato emergenza notturna"),
+            BotCommand("reboot",     "Riavvia il bot (solo dev)"),
+        ]
+        cmd_admin = cmd_gm + [
+            BotCommand("nuovaasta",  "Crea nuova asta"),
+            BotCommand("chiudiasta", "Chiudi un'asta manualmente"),
+            BotCommand("resetrfa",   "Reset stato RFA"),
+            BotCommand("setcap",     "Imposta cap manualmente"),
+            BotCommand("setslot",    "Imposta slot manualmente"),
+        ]
+
+        try:
+            await app.bot.set_my_commands(cmd_gm,   scope=BotCommandScopeAllPrivateChats())
+            for aid in admin_ids:
+                try:
+                    await app.bot.set_my_commands(cmd_admin, scope=BotCommandScopeChat(chat_id=aid))
+                except Exception:
+                    pass
+            if dev_id:
+                try:
+                    await app.bot.set_my_commands(cmd_admin, scope=BotCommandScopeChat(chat_id=dev_id))
+                except Exception:
+                    pass
+            logger.info("Comandi bot aste registrati.")
+        except Exception as e:
+            logger.warning("Registrazione comandi aste fallita: %s", e)
+
+    app.post_init = _register_commands
 
     logger.info("Bot avviato.")
     app.run_polling(drop_pending_updates=True)
