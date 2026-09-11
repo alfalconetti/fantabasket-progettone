@@ -246,6 +246,65 @@ async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ── handlers ──────────────────────────────────────────────────────────────────
 
+async def cmd_nuovo_giocatore(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /nuovo_giocatore <nome_common> | <nome_bref> [data_nascita YYYY-MM-DD]
+    Es: /nuovo_giocatore Ben Simmons | simmonbe01 1996-07-20
+    Solo dev.
+    """
+    if not _is_dev(update.effective_user.id):
+        return
+    if not context.args:
+        await update.effective_message.reply_text(
+            "Uso: /nuovo_giocatore <nome_common> | <nome_bref> [YYYY-MM-DD]\n"
+            "Es: /nuovo_giocatore Ben Simmons | simmonbe01 1996-07-20"
+        )
+        return
+
+    testo = " ".join(context.args)
+    parti = testo.split("|")
+    if len(parti) < 2:
+        await update.effective_message.reply_text("❌ Separatore | mancante tra nome e nome_bref.")
+        return
+
+    nome_common = parti[0].strip()
+    resto       = parti[1].strip().split()
+    nome_bref   = resto[0] if resto else nome_common.lower().replace(" ", "")
+    data_nascita = resto[1] if len(resto) > 1 else None
+    nome_norm   = nome_common.lower()
+
+    # Controlla se esiste già
+    esistenti = db.cerca_giocatori(nome_norm)
+    if esistenti:
+        nomi = ", ".join(g["nome_common"] for g in esistenti[:5])
+        await update.effective_message.reply_text(
+            f"⚠️ Trovati giocatori simili: {nomi}\nContinuo comunque con l'inserimento."
+        )
+
+    try:
+        if data_nascita:
+            db._q(
+                "INSERT INTO giocatori (nome_bref, nome_yahoo, nome_common, nome_norm, data_nascita) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (nome_bref, nome_common, nome_common, nome_norm, data_nascita)
+            )
+        else:
+            db._q(
+                "INSERT INTO giocatori (nome_bref, nome_yahoo, nome_common, nome_norm) "
+                "VALUES (%s, %s, %s, %s)",
+                (nome_bref, nome_common, nome_common, nome_norm)
+            )
+        await update.effective_message.reply_text(
+            f"✅ Giocatore inserito:\n"
+            f"Nome: <b>{nome_common}</b>\n"
+            f"Bref: <code>{nome_bref}</code>\n"
+            f"Nascita: {data_nascita or 'non specificata'}",
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        await update.effective_message.reply_text(f"❌ Errore: {e}")
+
+
 def get_handlers() -> list:
     return [
         CommandHandler("dev",          cmd_dev),
@@ -255,5 +314,6 @@ def get_handlers() -> list:
         CommandHandler("dev_pg",       cmd_dev_pg),
         CommandHandler("dev_roster",   cmd_dev_roster),
         CommandHandler("job_status",   cmd_job_status),
-        CommandHandler("broadcast",    cmd_broadcast),
+        CommandHandler("broadcast",        cmd_broadcast),
+        CommandHandler("nuovo_giocatore",  cmd_nuovo_giocatore),
     ]

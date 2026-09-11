@@ -37,14 +37,9 @@ def is_admin(user_id: int) -> bool:
 
 def _kb_admin_home() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔄 Trade",              callback_data="adm:trade")],
-        [InlineKeyboardButton("✂️ Taglia giocatore",   callback_data="adm:taglia")],
-        [InlineKeyboardButton("🏥 DPE",                callback_data="adm:dpe")],
-        [InlineKeyboardButton("🏀 Attiva diritti",     callback_data="adm:rookie")],
-        [InlineKeyboardButton("📊 Situazione cap",     callback_data="adm:cap")],
-        [InlineKeyboardButton("🔁 Cambia fase",        callback_data="adm:set_fase")],
-        [InlineKeyboardButton("↩️ Annulla trade",      callback_data="adm:annulla_trade")],
-        [InlineKeyboardButton("📋 Decadimento",        callback_data="adm:decadimento")],
+        [InlineKeyboardButton("🔄 Trade",          callback_data="adm:trade")],
+        [InlineKeyboardButton("✂️ Taglia giocatore", callback_data="adm:taglia")],
+        [InlineKeyboardButton("📊 Situazione cap", callback_data="adm:cap")],
     ])
 
 
@@ -142,125 +137,9 @@ async def cb_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
         return ConversationHandler.END
 
-    elif azione == "dpe":
-        # Rimanda al flusso DPE admin — mostra selezione team
-        tutti = tm.get_all_teams()
-        bottoni = [
-            InlineKeyboardButton(t["nome"], callback_data=f"adm_dpe_team:{t['id']}")
-            for t in tutti
-        ]
-        righe = [bottoni[i:i+2] for i in range(0, len(bottoni), 2)]
-        righe.append([InlineKeyboardButton("← Menu", callback_data="adm:home")])
-        await query.edit_message_text(
-            "🏥 <b>DPE admin</b> — seleziona squadra:",
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(righe),
-        )
-        return ConversationHandler.END
-
-    elif azione == "rookie":
-        tutti = tm.get_all_teams()
-        bottoni = [
-            InlineKeyboardButton(t["nome"], callback_data=f"adm_rookie_team:{t['id']}")
-            for t in tutti
-        ]
-        righe = [bottoni[i:i+2] for i in range(0, len(bottoni), 2)]
-        righe.append([InlineKeyboardButton("← Menu", callback_data="adm:home")])
-        await query.edit_message_text(
-            "🏀 <b>Attiva diritti admin</b> — seleziona squadra:",
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(righe),
-        )
-        return ConversationHandler.END
-
-    elif azione == "set_fase":
-        # Manda un nuovo messaggio — cmd_set_fase gestisce già tutto il flusso
-        # inclusi i callback set_fase:* per il cambio fase effettivo
-        await query.answer()
-        await cmd_set_fase(update, context)
-        return ConversationHandler.END
-
-    elif azione == "decadimento":
-        tutti = tm.get_all_teams()
-        bottoni = [
-            InlineKeyboardButton(t["nome"], callback_data=f"adm_dec_team:{t['id']}")
-            for t in tutti
-        ]
-        righe = [bottoni[i:i+2] for i in range(0, len(bottoni), 2)]
-        righe.append([InlineKeyboardButton("← Menu", callback_data="adm:home")])
-        await query.edit_message_text(
-            "📋 <b>Decadimento admin</b> — seleziona squadra:",
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(righe),
-        )
-        return ConversationHandler.END
-
-    elif azione == "annulla_trade":
-        import database as db
-        trade_list = db.get_ultime_trade_approvate(15)
-        if not trade_list:
-            await query.edit_message_text(
-                "Nessuna trade approvata da annullare.",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("← Menu", callback_data="adm:home")]])
-            )
-            return ConversationHandler.END
-        bottoni = [
-            [InlineKeyboardButton(
-                f"↩️ {t['trade_ref']}",
-                callback_data=f"adm_annulla_conf:{t['id']}"
-            )]
-            for t in trade_list
-        ]
-        bottoni.append([InlineKeyboardButton("← Menu", callback_data="adm:home")])
-        await query.edit_message_text(
-            "↩️ <b>Annulla trade</b> — seleziona la trade da annullare:",
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(bottoni),
-        )
-        return ConversationHandler.END
-
     elif azione == "cap":
-        import database as db
-        stagione   = settings.stagione_corrente()
-        cap_limite = settings.luxury_cap()
-        tutti      = tm.get_all_teams()
-
-        fase = settings.fase()
-        cap_label = f"{cap_limite}M (offseason)" if fase.startswith("offseason") else f"{cap_limite}M"
-        righe = [f"📊 <b>Riepilogo Cap — Stagione {stagione}</b>\nLimite per squadra: <b>{cap_label}</b>\n"]
-        for team in sorted(tutti, key=lambda t: t["nome"]):
-            tid        = team["id"]
-            contratti  = sum(c.get("importo", 0) for c in db.get_contratti_team(tid))
-            tagli      = sum(i.get("importo", 0) for i in db.get_impatto_taglio_team(tid, stagione))
-            penalita   = team.get("cap_penalizzato", 0)
-            dpe_rows   = db.get_dpe_team(tid, stagione)
-            dpe        = sum((r.get("importo_originale", 0) - r.get("importo_dpe", 0)) for r in dpe_rows)
-            totale     = contratti + tagli + penalita
-            # DPE riduce il cap occupato (importo_dpe < importo_originale)
-            totale_dpe = contratti - dpe + tagli + penalita
-            libero     = cap_limite - totale_dpe
-            stato      = "🔴" if totale_dpe > cap_limite else "✅"
-
-            riga = f"\n{stato} <b>{team['nome']}</b>\n  \U0001f4bc Contratti: {contratti}M"
-            if tagli:    riga += f"  \u2702\ufe0f Tagli: {tagli}M"
-            if penalita: riga += f"  \u2696\ufe0f Penalt\xe0: {penalita}M"
-            if dpe:      riga += f"  \U0001f3e5 DPE: -{dpe}M"
-            riga += f"\n  \U0001f4ca Totale: <b>{totale_dpe}M</b> / {cap_limite}M  (libero: {libero}M)"
-            righe.append(riga)
-
-        testo = "\n".join(righe)
-        # Telegram max 4096 chars — se troppo lungo manda in chunks
-        if len(testo) <= 4096:
-            await query.edit_message_text(
-                testo, parse_mode="HTML",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("← Menu", callback_data="adm:home")
-                ]])
-            )
-        else:
-            await query.edit_message_text("⏳ Riepilogo in arrivo...", parse_mode="HTML")
-            for chunk in [testo[i:i+4096] for i in range(0, len(testo), 4096)]:
-                await query.message.reply_text(chunk, parse_mode="HTML")
+        # TODO: situazione cap tutte le squadre
+        await query.answer("Da implementare.", show_alert=True)
         return ConversationHandler.END
 
     return ConversationHandler.END
@@ -703,340 +582,143 @@ async def _esegui_cambio_fase(query, fase_vecchia: str, nuova_fase: str):
         pass
 
 
-async def cb_adm_dpe_team(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin seleziona team per DPE → mostra roster."""
-    query = update.callback_query
-    await query.answer()
+async def cmd_registra_firma(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /registra_firma <team_id> <importo> <anni> <nome giocatore>
+    Es: /registra_firma team19 1 3 Al Horford
+    Solo admin. Registra firma avvenuta fuori dal bot + sync GAS.
+    """
     if not is_admin(update.effective_user.id):
         return
-    import database as db
-    import math
-    team_id  = query.data.split(":")[1]
-    team     = tm.get_team_by_id(team_id)
-    roster   = db.get_roster_team(team_id)
-    stagione = settings.stagione_corrente()
-    if not roster:
-        await query.edit_message_text(f"Roster di {team['nome']} vuoto.")
-        return
-    bottoni = []
-    for r in roster:
-        if db.get_dpe_attiva(r["giocatore_id"], stagione):
-            continue
-        importo_dpe = math.ceil(r["importo"] * 0.75)
-        risparmio   = r["importo"] - importo_dpe
-        label = f"{r['nome_common']} {r['importo']}M → {importo_dpe}M (-{risparmio}M)"
-        bottoni.append([InlineKeyboardButton(label, callback_data=f"adm_dpe_conf:{team_id}:{r['giocatore_id']}")])
-    if not bottoni:
-        await query.edit_message_text("Tutti i giocatori hanno già una DPE attiva questa stagione.")
-        return
-    bottoni.append([InlineKeyboardButton("← Menu", callback_data="adm:home")])
-    await query.edit_message_text(
-        f"🏥 <b>DPE admin — {team['nome']}</b>\nSeleziona giocatore:",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(bottoni),
-    )
-
-
-async def cb_adm_dpe_conferma(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin conferma DPE — scrittura diretta DB senza approvazione."""
-    query = update.callback_query
-    await query.answer()
-    if not is_admin(update.effective_user.id):
-        return
-    import database as db
-    import math
-    parts        = query.data.split(":")
-    team_id      = parts[1]
-    giocatore_id = int(parts[2])
-    stagione     = settings.stagione_corrente()
-    fase         = settings.fase()
-    pre_deadline = (fase == "regular-season-fa")
-    team      = tm.get_team_by_id(team_id)
-    giocatore = db.get_giocatore(giocatore_id)
-    contratto = db.get_contratto_attivo(giocatore_id)
-    if not contratto:
-        await query.edit_message_text("❌ Contratto non trovato.")
-        return
-    if db.get_dpe_attiva(giocatore_id, stagione):
-        await query.edit_message_text("❌ DPE già attiva per questo giocatore.")
-        return
-    importo_orig = contratto["importo"]
-    importo_dpe  = math.ceil(importo_orig * 0.75)
-    risparmio    = importo_orig - importo_dpe
-    admin_user   = update.effective_user
-    admin_tag    = admin_user.first_name or str(admin_user.id)
-    if admin_user.username:
-        admin_tag += f" (@{admin_user.username})"
-    db.inserisci_dpe(
-        giocatore_id=giocatore_id, team_id=team_id, stagione=stagione,
-        importo_originale=importo_orig, importo_dpe=importo_dpe,
-        pre_deadline=pre_deadline, approvata_da=admin_tag,
-    )
-    effetto = "✅ Slot roster liberato"
-    await query.edit_message_text(
-        f"✅ DPE registrata — <b>{giocatore['nome_common']}</b>\n"
-        f"{importo_orig}M → {importo_dpe}M (stagione {stagione})\n{effetto}",
-        parse_mode="HTML",
-    )
-    main_channel = settings.load_globals().get("main_channel_id")
-    if main_channel:
-        testo = (
-            f"🏥 <b>{team['nome']}</b> — DPE <b>{giocatore['nome_common']}</b>\n"
-            f"Contratto {stagione}: {importo_orig}M → <b>{importo_dpe}M</b> (-{risparmio}M)\n"
-            f"{effetto}\n🔧 Ufficializzato da {admin_tag}"
+    if not context.args or len(context.args) < 4:
+        await update.effective_message.reply_text(
+            "Uso: /registra_firma <team_id> <importo> <anni> <nome giocatore>\n"
+            "Es: /registra_firma team19 1 3 Al Horford"
         )
-        try:
-            await context.bot.send_message(chat_id=main_channel, text=testo, parse_mode="HTML")
-        except Exception as e:
-            logger.warning("Annuncio canale DPE admin fallito: %s", e)
-
-
-async def cb_adm_annulla_conf(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin seleziona trade → conferma annullamento."""
-    query = update.callback_query
-    await query.answer()
-    if not is_admin(update.effective_user.id):
-        return
-    trade_id = int(query.data.split(":")[1])
-    import database as db
-    trade = db.get_trade(trade_id)
-    if not trade:
-        await query.edit_message_text("❌ Trade non trovata.")
-        return
-    if trade["stato"] != "approvata":
-        await query.edit_message_text(f"❌ Trade in stato '{trade['stato']}' — solo le approvate possono essere annullate.")
-        return
-    # Mostra riepilogo con bottone conferma
-    from handlers.trade import _testo_riepilogo
-    testo = _testo_riepilogo(trade_id)
-    await query.edit_message_text(
-        f"{testo}\n\n⚠️ Confermi l'annullamento?",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Sì, annulla", callback_data=f"adm_annulla_exec:{trade_id}")],
-            [InlineKeyboardButton("❌ No, indietro", callback_data="adm:annulla_trade")],
-        ])
-    )
-
-
-async def cb_adm_annulla_exec(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin esegue il rollback della trade."""
-    query = update.callback_query
-    await query.answer()
-    if not is_admin(update.effective_user.id):
-        return
-    trade_id = int(query.data.split(":")[1])
-    import database as db
-    from handlers.trade import _valida_rollback, _rollback_trade, format_dt, ROME
-    from settings import load_globals
-    from datetime import datetime
-
-    trade = db.get_trade(trade_id)
-    if not trade:
-        await query.edit_message_text("❌ Trade non trovata.")
         return
 
-    await query.edit_message_text("⏳ Verifica compatibilità...")
-    errori = await _valida_rollback(trade_id)
-    if errori:
-        testo = "❌ <b>Impossibile annullare</b>\n\n" + "\n".join(f"  • {e}" for e in errori)
-        await query.edit_message_text(testo, parse_mode="HTML")
-        return
-
-    await _rollback_trade(trade_id)
-
-    # Sync GAS Sheets
+    team_id = context.args[0]
     try:
-        import gas_client
-        gas_client.sync_after_trade(trade_id)
-    except Exception as e:
-        logger.warning("GAS sync rollback trade admin fallito: %s", e)
+        importo = int(context.args[1])
+        anni    = int(context.args[2])
+    except ValueError:
+        await update.effective_message.reply_text("❌ Importo e anni devono essere numeri interi.")
+        return
 
-    admin_user = update.effective_user
-    admin_tag  = admin_user.first_name or str(admin_user.id)
-    if admin_user.username:
-        admin_tag += f" (@{admin_user.username})"
-    ora = format_dt(datetime.now(ROME))
-    trade_ref = trade["trade_ref"]
+    nome_cerca = " ".join(context.args[3:])
+    nome_norm  = nome_cerca.lower()
 
-    main_channel = load_globals().get("main_channel_id")
-    if main_channel:
-        try:
-            await context.bot.send_message(
-                chat_id=main_channel,
-                text=(
-                    f"⚠️ <b>Trade annullata</b>\n\n"
-                    f"La trade <code>{trade_ref}</code> è stata annullata.\n"
-                    f"Tutti i giocatori e le pick sono stati ripristinati.\n\n"
-                    f"<i>Annullata da {admin_tag} alle {ora}</i>"
-                ),
-                parse_mode="HTML",
+    team = tm.get_team_by_id(team_id)
+    if not team:
+        await update.effective_message.reply_text(f"❌ Team <code>{team_id}</code> non trovato.", parse_mode="HTML")
+        return
+
+    risultati = db.cerca_giocatori(nome_norm)
+    if not risultati:
+        await update.effective_message.reply_text(f"❌ Nessun giocatore trovato per '{nome_cerca}'.")
+        return
+
+    if len(risultati) == 1:
+        g = risultati[0]
+        contratto = db.get_contratto_attivo(g["id"])
+        if contratto:
+            await update.effective_message.reply_text(
+                f"❌ <b>{g['nome_common']}</b> ha già un contratto attivo con {contratto['team_id']}.",
+                parse_mode="HTML"
             )
-        except Exception as e:
-            logger.warning("Annuncio annullamento canale fallito: %s", e)
+            return
+        await _esegui_registra_firma(update, context, g, team_id, team, importo, anni)
+    else:
+        bottoni = [
+            [InlineKeyboardButton(g["nome_common"], callback_data=f"rfirma:{g['id']}:{team_id}:{importo}:{anni}")]
+            for g in risultati[:5]
+        ]
+        nomi = "\n".join(f"• {g['nome_common']}" for g in risultati[:5])
+        await update.effective_message.reply_text(
+            f"Trovati più giocatori:\n{nomi}\n\nSeleziona:",
+            reply_markup=InlineKeyboardMarkup(bottoni)
+        )
 
-    await query.edit_message_text(
-        f"✅ <b>{trade_ref}</b> annullata. Roster e pick ripristinati.",
-        parse_mode="HTML",
-    )
 
-
-async def cb_adm_dec_team(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin seleziona team per decadimento → mostra roster."""
+async def cb_registra_firma_sel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     if not is_admin(update.effective_user.id):
         return
-    import database as db
-    team_id  = query.data.split(":")[1]
-    team     = tm.get_team_by_id(team_id)
-    roster   = db.get_roster_team(team_id)
-    stagione = settings.stagione_corrente()
-    if not roster:
-        await query.edit_message_text(f"Roster di {team['nome']} vuoto.")
-        return
-    from handlers.decadimento import _anni_residui
-    bottoni = []
-    for r in sorted(roster, key=lambda x: -x["importo"]):
-        anni  = _anni_residui(r, stagione)
-        label = f"{r['nome_common']} {r['importo']}x{anni}"
-        bottoni.append([InlineKeyboardButton(label, callback_data=f"adm_dec_conf:{team_id}:{r['giocatore_id']}")])
-    bottoni.append([InlineKeyboardButton("← Menu", callback_data="adm:home")])
-    await query.edit_message_text(
-        f"📋 <b>Decadimento admin — {team['nome']}</b>\nSeleziona giocatore:",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(bottoni),
-    )
-
-
-async def cb_adm_dec_conf(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin esegue decadimento direttamente."""
-    query = update.callback_query
-    await query.answer()
-    if not is_admin(update.effective_user.id):
-        return
-    import database as db
-    parts    = query.data.split(":")
-    team_id  = parts[1]
-    gid      = int(parts[2])
-    stagione = settings.stagione_corrente()
-    team     = tm.get_team_by_id(team_id)
-    giocatore = db.get_giocatore(gid)
+    parts   = query.data.split(":")
+    gid     = int(parts[1])
+    team_id = parts[2]
+    importo = int(parts[3])
+    anni    = int(parts[4])
+    g    = db.get_giocatore(gid)
+    team = tm.get_team_by_id(team_id)
     contratto = db.get_contratto_attivo(gid)
-    if not contratto or contratto.get("team_id") != team_id:
-        await query.edit_message_text("❌ Contratto non trovato o già scaduto.")
+    if contratto:
+        await query.edit_message_text(
+            f"❌ <b>{g['nome_common']}</b> ha già un contratto attivo con {contratto['team_id']}.",
+            parse_mode="HTML"
+        )
         return
-    admin_user = update.effective_user
-    admin_tag  = admin_user.first_name or str(admin_user.id)
-    if admin_user.username:
-        admin_tag += f" (@{admin_user.username})"
-    db.registra_decadimento(
-        giocatore_id=gid, team_id=team_id, stagione=stagione,
-        contratto_id=contratto["id"], note="Decadimento admin diretto",
-    )
-    await query.edit_message_text(
-        f"✅ Contratto di <b>{giocatore['nome_common']}</b> decaduto.\nSlot roster liberato.",
-        parse_mode="HTML",
-    )
-    main_channel = settings.load_globals().get("main_channel_id")
-    if main_channel:
-        from utils import format_dt, ROME
-        from datetime import datetime
-        ora = format_dt(datetime.now(ROME))
-        try:
-            await context.bot.send_message(
-                chat_id=main_channel,
-                text=(
-                    f"📋 <b>{team['nome']}</b> — Decadimento contratto\n\n"
-                    f"Il contratto di <b>{giocatore['nome_common']}</b> è decaduto.\n"
-                    f"Lo slot roster è stato liberato.\n\n"
-                    f"<i>Ufficializzato da {admin_tag} — {ora}</i>"
-                ),
-                parse_mode="HTML",
-            )
-        except Exception as e:
-            logger.warning("Annuncio canale decadimento admin: %s", e)
+    await _esegui_registra_firma(query, context, g, team_id, team, importo, anni, is_callback=True)
+
+
+async def _esegui_registra_firma(update_or_query, context, giocatore, team_id, team, importo, anni, is_callback=False):
+    stagione = settings.stagione_corrente()
+    try:
+        db._q(
+            "INSERT INTO contratti (giocatore_id, team_id, importo, anni_originali, stagione_firma, tipo) "
+            "VALUES (%s, %s, %s, %s, %s, 'normale')",
+            (giocatore["id"], team_id, importo, anni, stagione)
+        )
+        db._q(
+            "INSERT INTO transazioni (tipo, giocatore_id, team_id_da, team_id_a, stagione) "
+            "VALUES ('firma', %s, NULL, %s, %s)",
+            (giocatore["id"], team_id, stagione)
+        )
+    except Exception as e:
+        testo = f"❌ Errore DB: {e}"
+        if is_callback:
+            await update_or_query.edit_message_text(testo)
+        else:
+            await update_or_query.effective_message.reply_text(testo)
+        return
+
     try:
         import gas_client
-        gas_client.sync_after_taglio(team_id)
+        gas_client.sync_after_firma(team_id)
     except Exception as e:
-        logger.warning("GAS sync decadimento admin: %s", e)
+        logger.warning("GAS sync registra_firma: %s", e)
 
-
-async def cb_scadi_diritti(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin conferma scadenza diritti 2nd round."""
-    query = update.callback_query
-    await query.answer()
-    if not is_admin(update.effective_user.id):
-        return
-    anno_draft = int(query.data.split(":")[1])
-    import database as db
-    db.scadi_diritti_anno(anno_draft)
-    admin_user = update.effective_user
-    admin_tag  = admin_user.first_name or str(admin_user.id)
-    if admin_user.username:
-        admin_tag += f" (@{admin_user.username})"
-    await query.edit_message_text(
-        query.message.text + f"\n\n✅ <b>Diritti {anno_draft} scaduti</b> — confermato da {admin_tag}.",
-        parse_mode="HTML",
-        reply_markup=None,
-    )
-    main_channel = settings.load_globals().get("main_channel_id")
-    if main_channel:
-        try:
-            await context.bot.send_message(
-                chat_id=main_channel,
-                text=(
-                    f"📋 <b>Diritti 2nd round {anno_draft} scaduti</b>\n\n"
-                    f"I diritti del draft {anno_draft} non esercitati sono scaduti.\n"
-                    f"I giocatori interessati sono ora in lista FA.\n\n"
-                    f"<i>Confermato da {admin_tag}</i>"
-                ),
-                parse_mode="HTML",
-            )
-        except Exception as e:
-            logger.warning("Annuncio scadenza diritti canale: %s", e)
-    logger.info("scadi_diritti: anno=%d admin=%s", anno_draft, admin_tag)
-
-
-async def cb_scadi_diritti(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin conferma scadenza diritti 2nd round per un anno specifico."""
-    query = update.callback_query
-    await query.answer()
-    if not is_admin(update.effective_user.id):
-        return
-    anno = int(query.data.split(":")[1])
-    import database as db
-    db.scadi_diritti_anno(anno)
-
-    admin_user = update.effective_user
+    admin_user = update_or_query.from_user if is_callback else update_or_query.effective_user
     admin_tag  = admin_user.first_name or str(admin_user.id)
     if admin_user.username:
         admin_tag += f" (@{admin_user.username})"
 
-    await query.edit_message_text(
-        query.message.text + f"\n\n✅ <b>Diritti {anno} scaduti</b> — confermato da {admin_tag}",
-        parse_mode="HTML",
-        reply_markup=None,
-    )
-
-    main_channel = settings.load_globals().get("main_channel_id")
-    if main_channel:
+    g_log = settings.load_globals()
+    log_ch = g_log.get("log_channel_id_main")
+    if log_ch:
         try:
             await context.bot.send_message(
-                chat_id=main_channel,
+                chat_id=log_ch,
                 text=(
-                    f"📋 <b>Diritti 2nd round {anno} scaduti</b>\n\n"
-                    f"I diritti del draft <b>{anno}</b> sono ufficialmente scaduti.\n"
-                    f"I giocatori interessati sono ora free agent.\n\n"
-                    f"<i>Confermato da {admin_tag}</i>"
+                    f"✍️ Firma registrata manualmente da {admin_tag}\n"
+                    f"<b>{giocatore['nome_common']}</b> → <b>{team['nome']}</b>\n"
+                    f"{importo}M × {anni} anni"
                 ),
-                parse_mode="HTML",
+                parse_mode="HTML"
             )
-        except Exception as e:
-            logger.warning("Annuncio canale scadenza diritti: %s", e)
+        except Exception:
+            pass
 
-    logger.info("scadi_diritti: anno=%d admin=%s", anno, admin_tag)
+    testo = (
+        f"✅ Firma registrata:\n"
+        f"<b>{giocatore['nome_common']}</b> → <b>{team['nome']}</b>\n"
+        f"{importo}M × {anni} anni"
+    )
+    if is_callback:
+        await update_or_query.edit_message_text(testo, parse_mode="HTML")
+    else:
+        await update_or_query.effective_message.reply_text(testo, parse_mode="HTML")
 
 
 def get_handlers() -> list:
@@ -1088,15 +770,9 @@ def get_handlers() -> list:
 
     return [
         conv,
+        CommandHandler("registra_firma",     cmd_registra_firma),
+        CallbackQueryHandler(cb_registra_firma_sel, pattern=r"^rfirma:\d+:.+:\d+:\d+$"),
         CommandHandler("admin_menu", cmd_admin_menu),
-        CallbackQueryHandler(cb_adm_dpe_team,     pattern=r"^adm_dpe_team:.+$"),
-        CallbackQueryHandler(cb_adm_dec_team,     pattern=r"^adm_dec_team:.+$"),
-        CallbackQueryHandler(cb_scadi_diritti,    pattern=r"^scadi_diritti:\d+$"),
-        CallbackQueryHandler(cb_scadi_diritti,    pattern=r"^scadi_diritti:\d+$"),
-        CallbackQueryHandler(cb_adm_dec_conf,     pattern=r"^adm_dec_conf:.+:\d+$"),
-        CallbackQueryHandler(cb_adm_annulla_conf,  pattern=r"^adm_annulla_conf:\d+$"),
-        CallbackQueryHandler(cb_adm_annulla_exec,  pattern=r"^adm_annulla_exec:\d+$"),
-        CallbackQueryHandler(cb_adm_dpe_conferma, pattern=r"^adm_dpe_conf:.+:\d+$"),
         CommandHandler("set_fase",   cmd_set_fase),
         CallbackQueryHandler(cb_ufficializza,        pattern=r"^adm_uff:\d+$"),
         CallbackQueryHandler(cb_adm_taglia_team,     pattern=r"^adm_taglia_team:.+$"),
