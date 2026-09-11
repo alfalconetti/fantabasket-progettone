@@ -18,11 +18,7 @@ Manda `/start` al bot in privato — obbligatorio almeno una volta per ricevere 
 ### Info
 `/lista_fa` — lista giocatori FA disponibili. Clicca su un giocatore per aprire direttamente il flusso di offerta in chat privata col bot, senza dover scrivere nulla. 🟡 indica che c'è già un'asta aperta per quel giocatore.
 
-`/aste` — tutte le aste in corso con offerta attuale, scadenza e ID.
-
-`/listteams` — lista tutte le squadre con cap impegnato dai contratti, cap disponibile e cap libero (al netto delle aste in corso). Stessa logica per gli slot.
-
-`/team <team_id>` — situazione dettagliata di una squadra specifica: cap, slot e offerte vincenti in corso. Usa /listteams per trovare il team_id.
+`/team <team_id>` — situazione dettagliata di una squadra specifica: cap, slot e offerte vincenti in corso.
 
 `/watched` — aste che stai seguendo con stato attuale e offerta corrente. Per le aste ancora aperte compare un link **Offri** inline per offrire direttamente senza passare da `/offri`.
 
