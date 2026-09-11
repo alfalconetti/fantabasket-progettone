@@ -714,7 +714,7 @@ async def _proponi_ai_gm(query, context, trade_id: int):
                 logger.warning("Impossibile notificare GM %d: %s", gm_id, e)
 
     await query.edit_message_text(
-        f"✅ Trade <b>{trade['trade_ref']}</b> proposta alle altre squadre.\nAttendo le risposte.",
+        f"✅ Trade <b>{_trade_label(trade)}</b> proposta alle altre squadre.\nAttendo le risposte.",
         parse_mode="HTML",
     )
 
@@ -740,15 +740,25 @@ async def cb_voto_gm(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                 note=f"Rifiutata da {team['nome'] if team else team_id}")
         # Notifica il proponente
         await _notifica_proponente(context, trade_id,
-                                   f"❌ <b>{team['nome']}</b> ha rifiutato la trade <b>{trade['trade_ref']}</b>.")
-        await query.edit_message_text(f"❌ Hai rifiutato la trade {trade['trade_ref']}.")
+                                   f"❌ <b>{team['nome']}</b> ha rifiutato la trade <b>{_trade_label(trade)}</b>.")
+        await query.edit_message_text(f"❌ Hai rifiutato la trade {_trade_label(trade)}.")
         return
 
-    await query.edit_message_text(f"✅ Hai accettato la trade {trade['trade_ref']}. Attendo gli altri.")
+    await query.edit_message_text(f"✅ Hai accettato la trade {_trade_label(trade)}. Attendo gli altri.")
 
     if db.tutti_hanno_votato(trade_id):
         db.aggiorna_stato_trade(trade_id, "in_approvazione")
         await _invia_ad_admin_dopo_voti(context, trade_id)
+
+
+def _trade_label(trade: dict) -> str:
+    """Label leggibile per una trade, anche prima che abbia un trade_ref."""
+    if trade.get("trade_ref"):
+        return trade["trade_ref"]
+    team = tm.get_team_by_id(trade.get("proposta_da", ""))
+    team_short = team["nome"].split()[0].upper()[:3] if team else "???"
+    bozza = trade.get("bozza_num", trade.get("id", "?"))
+    return f"{team_short}-B{bozza}"
 
 
 async def _notifica_proponente(context, trade_id: int, testo: str) -> None:
@@ -782,7 +792,7 @@ async def _invia_ad_admin_dopo_voti(context, trade_id: int):
     ]])
     await context.bot.send_message(
         chat_id=admin_gid,
-        text=f"✅ <b>Tutti i GM hanno accettato — {trade['trade_ref']}</b>\n\n{testo}",
+        text=f"✅ <b>Tutti i GM hanno accettato — {_trade_label(trade)}</b>\n\n{testo}",
         parse_mode="HTML",
         reply_markup=kb,
     )
