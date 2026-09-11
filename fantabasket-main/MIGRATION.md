@@ -15,8 +15,7 @@ Ecosistema Fantabasket su M910q Ubuntu (alfalconetti@ubuntum910q). Bot aste v48 
     ├── config/                ← NON incluso nello zip, gestito sul server
     │   ├── globals.json
     │   ├── teams.json
-    │   ├── settings_main.json
-    │   ├── settings_aste.json
+    │   ├── settings.json
     │   ├── tabelle/
     │   └── loghi/
     ├── secrets/
@@ -44,16 +43,19 @@ Ecosistema Fantabasket su M910q Ubuntu (alfalconetti@ubuntum910q). Bot aste v48 
 }
 ```
 
-**settings_aste.json — valori critici:**
+**settings.json — valori critici:**
 ```json
 {
   "cap_offseason": 165,
-  "cap_massimo_offseason": 165,
-  "cap_regular": 150,
+  "cap_regular":   150,
+  "salary_floor":  115,
+  "roster_max":    15,
+  "roster_min_regular": 10,
   ...
 }
 ```
-⚠️ `cap_offseason` e `cap_massimo_offseason` devono essere 165, non 150.
+⚠️ `cap_offseason` deve essere 165, `cap_regular` 150. File unico condiviso tra entrambi i bot.
+⚠️ `settings_main.json` e `settings_aste.json` non esistono più — sostituiti da `settings.json`.
 
 ---
 
@@ -75,7 +77,7 @@ Cambio fase via `/set_fase` (solo admin). Passaggio a `offseason-rinnovi` increm
 
 ---
 
-**Bot aste beta** — v48 + pg_client.py. Cap/slot da PostgreSQL. FA list da PostgreSQL (esclude diritti 2nd non firmati, ordinata per fantamedia bref desc). `BOT_VERSION = "beta-1"`. Config montata `:ro`. `cap_massimo()` sempre 150M (fisso per calcoli interni), `cap_limite()` dinamico 165M in offseason.
+**Bot aste beta** — v48 + pg_client.py. Cap/slot da PostgreSQL. FA list da PostgreSQL (esclude diritti 2nd non firmati, ordinata per fantamedia bref desc). `BOT_VERSION = "beta-1"`. Config montata `:ro`. `cap_massimo()` alias di `cap_regular` (150M fisso), `cap_limite()` dinamico (165M offseason, 150M RS).
 
 `cap_slot_display()` in `utils.py` è PG-first — se PG non disponibile cade su fallback JSON (non dovrebbe mai succedere in produzione).
 
@@ -122,7 +124,7 @@ Cambio fase via `/set_fase` (solo admin). Passaggio a `offseason-rinnovi` increm
 - `bref_scraper.py` — scraping basketball-reference, append su `bref_stats`; gira solo in `regular-season-fa`, `regular-season-deadline`, `playoff`
 - `utils.py` — ROME, format_dt, normalizza, cognome
 - `log_buffer.py` — buffer in memoria per `/dev_log`
-- `settings.py` — get(), load_globals(), fase(), `luxury_cap()` (165M offseason, 150M altrimenti), `cap_massimo()`, richiede_fase(), solo_privato, FASI_TRADE_APERTE
+- `settings.py` — get(), load_globals(), fase(), `luxury_cap()` alias di `cap_limite()` (165M offseason, 150M RS), `cap_massimo()` alias di `cap_regular()` (sempre 150M), richiede_fase(), solo_privato, FASI_TRADE_APERTE
 - `database.py` — tutte le query PG; `migrate_db()` crea tabella `dpe` se non esiste; `get_dpe_team()`, `get_dpe_attiva()`, `inserisci_dpe()`; `cap_occupato_team()` include DPE
 - `teams.py` — get_team_by_id, get_team_by_gm, get_all_teams
 - `assets.typ` / `roster.typ` — template Typst; colori testo adattivi via parametri `--input` (`text_on_riga1/2`, `text_on_sezione`, `text_on_footer`, `text_on_pick`, `text_on_dir`); footer usa `c_dark` se `colore_sezione` non impostato, `c_sezione` se personalizzato; leggenda: bullet colorato + label con `text_on(c_sezione)`
@@ -189,7 +191,7 @@ Entry points aggiuntivi: `CallbackQueryHandler(cmd_trade, pattern=r"^menu_trade_
 - Annulla trade (lista ultime 15 approvate con bottoni+conferma+rollback)
 
 **Validatori trade:**
-- Cap post-trade vs `luxury_cap()` (dinamico: 165M offseason, 150M regular)
+- Cap post-trade vs `luxury_cap()` = `cap_limite()` (dinamico: 165M offseason, 150M regular)
 - Roster size: max 15 sempre, min 10 SOLO in regular season
 - Stepien: `ANNO_STORICO_LIMITE = 2026` hardcoded
 - Ownership giocatori: contratto attivo deve appartenere al team cedente
@@ -247,7 +249,7 @@ git push origin main
 
 **Roadmap:**
 
-**v2.0.x — GAS Router + Google Sheets (in corso)**
+**v2.0.x — GAS Router + Google Sheets (stato: v2.0.16)**
 - GAS Router microservizio FastAPI nel Docker Compose (`gas-router/`)
 - Autenticazione doppia: `gas_router_token` (bot→router) e `gas_token` (router→GAS)
 - URL webapp GAS in secret `gas_roster_url` — aggiornare ad ogni nuovo deploy GAS
@@ -275,6 +277,19 @@ git push origin main
 - Rinnovi: rookie vs non-rookie, +¼/+½ arrotondato per eccesso, Doncic Rule (soglie 20 e 25), max 2 standard per stagione
 - 10-day contract: una volta per squadra, non pesa su cap/slot, max 2 squadre per FA, scade a fine turno
 - Bref scraper: import automatico nuovi giocatori non in DB, check giornaliero alle 14 firmati senza nome_bref con suggerimento match, `/match_bref` dev, check alle 15 firmati senza data di nascita
+
+**Stato attuale: v2.0.16**
+
+Novità recenti:
+- Settings unificato in `config/settings.json` (prima `settings_main.json` + `settings_aste.json`)
+- Nomi chiavi rinominati: `luxury_cap`→`cap_offseason`, `cap_massimo`→`cap_regular`, `max_roster`→`roster_max`, `min_roster`→`roster_min_regular`
+- `/settings [chiave] [valore]` comando admin con log su canale
+- BotCommand bot aste con scope GM/admin/dev
+- Decadimento contratti: `/decadimento` + flusso admin
+- Scadenza diritti 2nd round: job + alert admin + bottone conferma (`trade_deadline` in `globals.json`)
+- Anni residui nel trade builder (`impxanni`)
+- `registra_decadimento()` con event sourcing (`tipo='decadimento'`, `team_id_a=NULL`)
+- Constraint transazioni: `signed`, `traded`, `firma`, `taglio`, `cut`, `trade`, `rookie`, `dpe`, `decadimento`
 
 **v2.x — GAS Router** ✅ completato
 - Microservizio router nel Docker Compose ✅
