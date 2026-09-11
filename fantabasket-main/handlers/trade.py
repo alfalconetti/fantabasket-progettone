@@ -244,8 +244,7 @@ async def cb_asset_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         for r in roster:
             gid   = r["giocatore_id"]
             check = "✅ " if gid in items_gi else ""
-            _anni = (2 if int(r.get('anni_scala') or 0) in (0,2) else 1) if r.get('tipo_contratto') == 'rookie' else max(1, r['anni_originali'] - (int(settings.stagione_corrente()) - int(r.get('stagione_firma') or settings.stagione_corrente())))
-            label = f"{check}{r['nome_common']} {r['importo']}x{_anni}"
+            label = f"{check}{r['nome_common']} ({r['importo']}M)"
             bottoni.append([InlineKeyboardButton(label, callback_data=f"trade_gi:{trade_id}:{team_id}:{gid}")])
         bottoni.append([InlineKeyboardButton("← Indietro", callback_data=f"trade_am:back:{trade_id}:{team_id}")])
         await query.answer()
@@ -348,8 +347,7 @@ async def _ricarica_lista_giocatori(query, trade_id: int, team_id: str) -> int:
     for r in roster:
         gid   = r["giocatore_id"]
         check = "✅ " if gid in items_gi else ""
-        _anni = (2 if int(r.get('anni_scala') or 0) in (0,2) else 1) if r.get('tipo_contratto') == 'rookie' else max(1, r['anni_originali'] - (int(settings.stagione_corrente()) - int(r.get('stagione_firma') or settings.stagione_corrente())))
-        label = f"{check}{r['nome_common']} {r['importo']}x{_anni}"
+        label = f"{check}{r['nome_common']} ({r['importo']}M)"
         bottoni.append([InlineKeyboardButton(label, callback_data=f"trade_gi:{trade_id}:{team_id}:{gid}")])
     bottoni.append([InlineKeyboardButton("← Indietro", callback_data=f"trade_am:back:{trade_id}:{team_id}")])
     await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(bottoni))
@@ -753,6 +751,25 @@ async def cb_voto_gm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _invia_ad_admin_dopo_voti(context, trade_id)
 
 
+async def _notifica_proponente(context, trade_id: int, testo: str) -> None:
+    """Manda un messaggio privato a tutti i GM del team che ha proposto la trade."""
+    trade = db.get_trade(trade_id)
+    if not trade:
+        return
+    team = tm.get_team_by_id(trade["proposta_da"])
+    if not team:
+        return
+    for gm_id in team.get("gm_ids", []):
+        try:
+            await context.bot.send_message(
+                chat_id=gm_id,
+                text=testo,
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.warning("_notifica_proponente GM %d: %s", gm_id, e)
+
+
 async def _invia_ad_admin_dopo_voti(context, trade_id: int):
     admin_gid = settings.admin_group_id()
     if not admin_gid:
@@ -856,13 +873,6 @@ async def _esegui_trade(context, trade_id: int):
 
     db.aggiorna_stato_trade(trade_id, "approvata")
     logger.info("Trade %s eseguita.", trade["trade_ref"])
-
-    # Sync GAS Sheets
-    try:
-        import gas_client
-        gas_client.sync_after_trade(trade_id)
-    except Exception as e:
-        logger.warning("GAS sync trade fallito: %s", e)
 
     # Notifica tutti i GM coinvolti
     squadre = [s["team_id"] for s in db.get_squadre_trade(trade_id)]
@@ -1021,13 +1031,6 @@ async def cmd_annulla_trade_admin(update: Update, context: ContextTypes.DEFAULT_
     await update.effective_message.reply_text("✅ Compatibilità OK, eseguo il rollback...")
     await _rollback_trade(trade["id"])
 
-    # Sync GAS Sheets
-    try:
-        import gas_client
-        gas_client.sync_after_trade(trade["id"])
-    except Exception as e:
-        logger.warning("GAS sync rollback trade fallito: %s", e)
-
     admin_nome = user.first_name or str(user.id)
     from datetime import datetime
     ora = format_dt(datetime.now(ROME))
@@ -1053,6 +1056,15 @@ async def cmd_annulla_trade_admin(update: Update, context: ContextTypes.DEFAULT_
         f"✅ <b>{trade_ref}</b> annullata. Roster e pick ripristinati.",
         parse_mode="HTML",
     )
+    trade = db.get_trade(trade_id)
+    team  = tm.get_team_by_id(trade["proposta_da"])
+    if not team:
+        return
+    for gm_id in team.get("gm_ids", []):
+        try:
+            await context.bot.send_message(chat_id=gm_id, text=testo, parse_mode="HTML")
+        except Exception:
+            pass
 
 
 # ── /mie_trade ─────────────────────────────────────────────────────────────────
@@ -1072,65 +1084,18 @@ async def cmd_mie_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("Nessuna trade attiva.")
         return
 
-    bottoni = []
-
+    righe = []
     if bozze:
+        righe.append("<b>📝 Bozze:</b>")
         for t in bozze:
-            trade_id = t["id"]
-            squadre  = db.get_squadre_trade(trade_id)
-            gm_nomi  = [
-                (tm.get_team_by_id(sq["team_id"]) or {}).get("gm_nome", sq["team_id"])
-                for sq in squadre
-            ]
-            gm_str = " ↔ ".join(gm_nomi) if gm_nomi else f"{t['n_squadre']} squadre"
-            bottoni.append([InlineKeyboardButton(
-                f"📝 #{t['bozza_num']} — {gm_str}",
-                callback_data=f"bozza_apri:{trade_id}"
-            )])
+            righe.append(f"  • #{t['bozza_num']} — {t['n_squadre']} squadre")
 
     if pending:
+        righe.append("<b>⏳ In attesa del tuo voto:</b>")
         for t in pending:
-            trade_id = t["id"]
-            squadre  = db.get_squadre_trade(trade_id)
-            gm_nomi  = [
-                (tm.get_team_by_id(sq["team_id"]) or {}).get("gm_nome", sq["team_id"])
-                for sq in squadre
-            ]
-            gm_str = " ↔ ".join(gm_nomi) if gm_nomi else "?"
-            bottoni.append([InlineKeyboardButton(
-                f"⏳ {t['trade_ref']} — {gm_str}",
-                callback_data=f"bozza_apri:{trade_id}"
-            )])
+            righe.append(f"  • {t['trade_ref']} — /vedi_trade_{t['id']}")
 
-    await update.effective_message.reply_text(
-        "📝 <b>Le tue trade</b> — seleziona per vedere il riepilogo:",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(bottoni),
-    )
-
-
-async def cb_bozza_apri(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Mostra il riepilogo di una bozza/trade con bottoni azione."""
-    query    = update.callback_query
-    await query.answer()
-    trade_id = int(query.data.split(":")[1])
-    trade    = db.get_trade(trade_id)
-    if not trade:
-        await query.edit_message_text("❌ Trade non trovata.")
-        return
-    testo = _testo_riepilogo(trade_id)
-    # Usa la keyboard appropriata in base allo stato
-    if trade.get("stato") == "bozza":
-        valida, errori = valida_trade(trade_id)
-        if not valida:
-            testo += "\n\n⚠️ " + "\n".join(errori)
-        kb = _kb_riepilogo(trade_id) if valida else _kb_riepilogo_non_valida(trade_id)
-    else:
-        kb = None
-    await query.edit_message_text(
-        testo, parse_mode="HTML",
-        reply_markup=kb,
-    )
+    await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
 
 
 # ── /annulla_trade ─────────────────────────────────────────────────────────────
@@ -1266,8 +1231,7 @@ async def cb_edit_tipo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         for r in roster:
             if r["giocatore_id"] in items_gi:
                 continue
-            _anni = (2 if int(r.get('anni_scala') or 0) in (0,2) else 1) if r.get('tipo_contratto') == 'rookie' else max(1, r['anni_originali'] - (int(settings.stagione_corrente()) - int(r.get('stagione_firma') or settings.stagione_corrente())))
-            label = f"{r['nome_common']} {r['importo']}x{_anni}"
+            label = f"{r['nome_common']} ({r['importo']}M)"
             bottoni.append([InlineKeyboardButton(label, callback_data=f"edit_item:g:{trade_id}:{team_id}:{team_a}:{r['giocatore_id']}")])
     elif tipo == "p":
         picks = db.get_pick_team(team_id)
@@ -1438,10 +1402,7 @@ def get_handlers() -> list:
     from telegram.ext import MessageHandler, filters
 
     conv_build = ConversationHandler(
-        entry_points=[
-            CommandHandler("build_trade", cmd_trade),
-            CallbackQueryHandler(cmd_trade, pattern=r"^menu_trade_build$"),
-        ],
+        entry_points=[CommandHandler("build_trade", cmd_trade)],
         states={
             TRADE_N_SQUADRE: [
                 CallbackQueryHandler(cb_n_squadre, pattern=r"^trade_n:\d$"),
@@ -1494,10 +1455,7 @@ def get_handlers() -> list:
     )
 
     conv_import = ConversationHandler(
-        entry_points=[
-            CommandHandler("import_trade", cmd_import),
-            CallbackQueryHandler(cmd_import, pattern=r"^menu_trade_import$"),
-        ],
+        entry_points=[CommandHandler("import_trade", cmd_import)],
         states={
             IMPORT_ATTENDI_TESTO: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, import_ricevi_testo),
@@ -1544,7 +1502,6 @@ def get_handlers() -> list:
         conv_edit,
         CommandHandler("mie_trade",          cmd_mie_trade),
         CommandHandler("bozze_trade",         cmd_mie_trade),
-        CallbackQueryHandler(cb_bozza_apri,   pattern=r"^bozza_apri:\d+$"),
         CommandHandler("annulla_trade_admin", cmd_annulla_trade_admin),
         CallbackQueryHandler(cb_voto_gm,     pattern=r"^trade_voto:.+$"),
         CallbackQueryHandler(cb_admin_trade, pattern=r"^trade_admin:.+$"),

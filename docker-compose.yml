@@ -60,6 +60,7 @@ services:
       ASTE_DB_PATH: /data_aste/aste.db
       GAS_ROUTER_URL: http://gas-router:8000
       GAS_ROUTER_TOKEN_FILE: /run/secrets/gas_router_token
+      HEALTHCHECK_URL: https://hc-ping.com/2c5c61b2-c09c-4c52-8c36-77b2c4ebb6b1
     secrets:
       - bot_token_main
       - pg_password
