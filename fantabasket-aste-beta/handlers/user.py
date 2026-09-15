@@ -338,6 +338,7 @@ async def lista_fa_page_callback(update: Update, context: ContextTypes.DEFAULT_T
                     r["stagione_bref"] = None
             else:
                 r["stagione_bref"] = None
+    rows.sort(key=lambda r: r.get("fantamedia") or -1, reverse=True)
     aste_aperte_giocatori = {a["giocatore"] for a in db.get_aste_aperte()}
     aste_aperte_giocatori |= {a["giocatore"] for a in db.get_aste_chiuse()}
     bot_username = context.bot.username
