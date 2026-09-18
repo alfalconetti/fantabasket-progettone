@@ -96,6 +96,11 @@ async def cb_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             _TESTO_TRADE, parse_mode="HTML", reply_markup=_kb_menu_trade()
         )
 
+    elif azione == "trade_import":
+        from handlers.trade import cmd_import
+        await cmd_import(update, context)
+        return
+
     elif azione == "trade_bozze":
         # Come /bozze
         from handlers.trade import cmd_mie_trade
@@ -224,6 +229,7 @@ def get_handlers() -> list:
         CommandHandler("menu",  cmd_menu),
         CommandHandler("start", cmd_menu),
         CallbackQueryHandler(cb_menu,            pattern=r"^menu:.+$"),
+        CallbackQueryHandler(cb_menu,            pattern=r"^menu_trade_import$"),
         CallbackQueryHandler(cb_roster_squadra,  pattern=r"^roster_sq:.+$"),
         CallbackQueryHandler(cb_assets_squadra,  pattern=r"^assets_sq:.+$"),
     ]

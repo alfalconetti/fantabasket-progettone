@@ -1412,7 +1412,10 @@ def get_handlers() -> list:
     from telegram.ext import MessageHandler, filters
 
     conv_build = ConversationHandler(
-        entry_points=[CommandHandler("build_trade", cmd_trade)],
+        entry_points=[
+            CommandHandler("build_trade", cmd_trade),
+            CallbackQueryHandler(cmd_trade, pattern=r"^menu_trade_build$"),
+        ],
         states={
             TRADE_N_SQUADRE: [
                 CallbackQueryHandler(cb_n_squadre, pattern=r"^trade_n:\d$"),
@@ -1458,7 +1461,10 @@ def get_handlers() -> list:
                 CallbackQueryHandler(cb_edit_tipo, pattern=r"^edit_tipo:[gp]:\d+:.+$"),
             ],
         },
-        fallbacks=[CommandHandler("annulla_trade", cmd_annulla_trade)],
+        fallbacks=[
+            CommandHandler("annulla_trade", cmd_annulla_trade),
+            CommandHandler("annulla",       cmd_annulla_trade),
+        ],
         per_user=True,
         per_chat=True,
         conversation_timeout=300,
@@ -1471,7 +1477,10 @@ def get_handlers() -> list:
                 MessageHandler(filters.TEXT & ~filters.COMMAND, import_ricevi_testo),
             ],
         },
-        fallbacks=[CommandHandler("annulla_trade", cmd_annulla_trade)],
+        fallbacks=[
+            CommandHandler("annulla_trade", cmd_annulla_trade),
+            CommandHandler("annulla",       cmd_annulla_trade),
+        ],
         per_user=True,
         per_chat=True,
         conversation_timeout=300,
@@ -1517,4 +1526,5 @@ def get_handlers() -> list:
         CallbackQueryHandler(cb_admin_trade, pattern=r"^trade_admin:.+$"),
         CallbackQueryHandler(cb_edit_back,   pattern=r"^edit_back:\d+$"),
         CallbackQueryHandler(cb_trade_del,   pattern=r"^trade_del:\d+$"),  # fallback fuori conv
+        CallbackQueryHandler(cb_send_trade,   pattern=r"^trade_send:.+$"),  # fallback fuori conv
     ]

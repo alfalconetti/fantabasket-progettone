@@ -188,6 +188,7 @@ async def post_init(application):
         BotCommand("my_team",        "Info e impostazioni del tuo team"),
         BotCommand("palette",        "Personalizza colori roster/assets"),
         BotCommand("team_diff",      "Variazioni roster [team_id] [da] [a]"),
+        BotCommand("annulla_trade",   "Annulla la trade in corso"),
         BotCommand("annulla",          "Esci da qualsiasi conversazione bloccata"),
         BotCommand("decadimento",      "Segnala contratto decaduto (ritiro, altra lega)"),
     ]
