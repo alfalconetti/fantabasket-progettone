@@ -718,6 +718,21 @@ async def _invia_ad_admin(query, context, trade_id: int):
     )
 
 
+async def cb_salva_bozza(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Salva la bozza e termina la conversazione senza inviare."""
+    query = update.callback_query
+    await query.answer()
+    _, trade_id_s = query.data.split(":")
+    trade_id = int(trade_id_s)
+    trade = db.get_trade(trade_id)
+    label = _trade_label(trade) if trade else f"#{trade_id}"
+    await query.edit_message_text(
+        f"💾 Bozza <b>{label}</b> salvata. Puoi riprenderla con /bozze_trade.",
+        parse_mode="HTML",
+    )
+    return ConversationHandler.END
+
+
 async def _auto_invia_nota(context) -> None:
     """Job: invia la trade automaticamente senza nota dopo 60s di inattività."""
     data       = context.job.data
