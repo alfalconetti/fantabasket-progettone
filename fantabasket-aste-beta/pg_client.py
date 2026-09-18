@@ -218,6 +218,7 @@ def get_fa_rows_pg() -> list[dict]:
     """
     Giocatori senza contratto attivo = free agent.
     Esclude chi ha diritti 2nd pick non firmati (rookie.firmato=FALSE).
+    Include fantamedia e stagione dall'ultima riga bref_stats disponibile.
     """
     if not pg_disponibile():
         return []
@@ -225,8 +226,17 @@ def get_fa_rows_pg() -> list[dict]:
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT g.nome_common
+                SELECT g.nome_common,
+                       bs.fantamedia,
+                       bs.stagione AS stagione_bref
                 FROM giocatori g
+                LEFT JOIN LATERAL (
+                    SELECT fantamedia, stagione
+                    FROM bref_stats
+                    WHERE nome_bref = g.nome_bref
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                ) bs ON TRUE
                 WHERE NOT EXISTS (
                     SELECT 1 FROM contratti c
                     WHERE c.giocatore_id = g.id AND c.attivo = TRUE
@@ -237,10 +247,15 @@ def get_fa_rows_pg() -> list[dict]:
                       AND r.firmato = FALSE
                       AND r.diritti_scaduti = FALSE
                 )
-                ORDER BY g.nome_norm
+                ORDER BY bs.fantamedia DESC NULLS LAST, g.nome_norm
             """)
             return [
-                {"nome": row[0], "fantamedia": None, "firmato": "0"}
+                {
+                    "nome":          row[0],
+                    "fantamedia":    float(row[1]) if row[1] is not None else None,
+                    "stagione_bref": row[2],
+                    "firmato":       "0",
+                }
                 for row in cur.fetchall()
             ]
     except Exception as e:
