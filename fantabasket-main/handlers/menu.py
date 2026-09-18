@@ -83,6 +83,11 @@ async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cb_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+    # Gestisci callback senza ":" (es. menu_trade_import)
+    if query.data == "menu_trade_import":
+        from handlers.trade import cmd_import
+        await cmd_import(update, context)
+        return
     azione = query.data.split(":")[1]
 
     if azione == "home":
@@ -95,11 +100,6 @@ async def cb_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             _TESTO_TRADE, parse_mode="HTML", reply_markup=_kb_menu_trade()
         )
-
-    elif azione == "trade_import":
-        from handlers.trade import cmd_import
-        await cmd_import(update, context)
-        return
 
     elif azione == "trade_bozze":
         # Come /bozze
