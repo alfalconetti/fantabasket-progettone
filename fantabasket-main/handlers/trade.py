@@ -648,15 +648,28 @@ async def cb_send_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     trade_id = int(trade_id_s)
     trade    = db.get_trade(trade_id)
 
-    if not trade or trade["validazione_ok"] is False:
+    # Rileggi trade fresca dal DB per avere validazione_ok aggiornata
+    trade = db.get_trade(trade_id)
+    if not trade:
+        await query.answer("❌ Trade non trovata.", show_alert=True)
+        return ConversationHandler.END
+    if trade["validazione_ok"] is False:
         await query.answer()
-        testo = _testo_riepilogo(trade_id)
-        await query.edit_message_text(
-            f"⚠️ <b>Risolvi i problemi prima di inviare.</b>\n\n{testo}",
-            parse_mode="HTML",
-            reply_markup=_kb_riepilogo(trade_id),
-        )
-        return TRADE_RIEPILOGO
+        # Rivalida prima di mostrare l'errore — potrebbe essere già ok
+        ok, errori = valida_trade(trade_id)
+        db.aggiorna_stato_trade(trade_id, "bozza", validazione_ok=ok,
+                                validazione_note="\n".join(errori) if errori else None)
+        if ok:
+            # Era già ok, procedi
+            pass
+        else:
+            testo = _testo_riepilogo(trade_id)
+            testo += "\n\n⚠️ <b>Problemi rilevati:</b>\n" + "\n".join(errori)
+            await query.edit_message_text(
+                testo, parse_mode="HTML",
+                reply_markup=_kb_riepilogo(trade_id),
+            )
+            return TRADE_RIEPILOGO
 
     if destinatario == "admin":
         context.user_data["nota_trade_id"]   = trade_id
