@@ -34,7 +34,8 @@ logger = logging.getLogger(__name__)
     EDIT_AGGIUNGI_TIPO,
     EDIT_AGGIUNGI_ITEM,
 ) = range(11)
-TRADE_NOTA = 11
+TRADE_NOTA       = 11
+TRADE_RIFIUTO_NOTA = 12
 
 IMPORT_ATTENDI_TESTO = 20
 
@@ -792,11 +793,15 @@ async def _proponi_ai_gm(query, context, trade_id: int):
             InlineKeyboardButton("❌ Rifiuto", callback_data=f"trade_voto:no:{trade_id}:{team_id}"),
         ]])
         bozza_label = f"Bozza #{trade['bozza_num']}" if trade.get('bozza_num') else f"Trade #{trade_id}"
+        nota_gm = trade.get("nota_gm", "") or ""
+        proponente = tm.get_team_by_id(trade["proposta_da"])
+        proponente_nome = proponente["gm_nome"] if proponente else "GM"
+        testo_nota = f"\n\n💬 <b>Messaggio da {proponente_nome}:</b> <i>{nota_gm}</i>" if nota_gm else ""
         for gm_id in team.get("gm_ids", []):
             try:
                 await context.bot.send_message(
                     chat_id=gm_id,
-                    text=f"📨 <b>Proposta di trade ({bozza_label})</b>\n\n{testo}\n\n"
+                    text=f"📨 <b>Proposta di trade ({bozza_label})</b>\n\n{testo}{testo_nota}\n\n"
                          f"<i>Accetti questa trade?</i>",
                     parse_mode="HTML",
                     reply_markup=kb,
@@ -827,12 +832,19 @@ async def cb_voto_gm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     team = tm.get_team_by_id(team_id)
 
     if voto == "rifiutato":
-        db.aggiorna_stato_trade(trade_id, "rifiutata_gm",
-                                note=f"Rifiutata da {team['nome'] if team else team_id}")
-        # Notifica il proponente
-        await _notifica_proponente(context, trade_id,
-                                   f"❌ <b>{team['nome']}</b> ha rifiutato la trade <b>{_trade_label(trade)}</b>.")
-        await query.edit_message_text(f"❌ Hai rifiutato la trade {_trade_label(trade)}.")
+        # Chiedi se vuole aggiungere una nota al rifiuto
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton("❌ Rifiuto secco",   callback_data=f"trade_rifiuta_conf:{trade_id}:{team_id}:no"),
+            InlineKeyboardButton("📝 Rifiuto con nota", callback_data=f"trade_rifiuta_conf:{trade_id}:{team_id}:si"),
+        ]])
+        await query.edit_message_text(
+            f"Stai per rifiutare la trade <b>{_trade_label(trade)}</b>.\n\n"
+            "Vuoi allegare una spiegazione?",
+            parse_mode="HTML",
+            reply_markup=kb,
+        )
+        # Annulla il voto registrato — verrà confermato dopo
+        db._q("DELETE FROM trade_voti WHERE trade_id = %s AND team_id = %s", (trade_id, team_id))
         return
 
     await query.edit_message_text(f"✅ Hai accettato la trade {_trade_label(trade)}. Attendo gli altri.")
@@ -850,6 +862,79 @@ def _trade_label(trade: dict) -> str:
     team_short = team["nome"].split()[0].upper()[:3] if team else "???"
     bozza = trade.get("bozza_num", trade.get("id", "?"))
     return f"{team_short}-B{bozza}"
+
+
+async def cb_rifiuta_conf(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Gestisce la conferma del rifiuto — secco o con nota."""
+    query = update.callback_query
+    await query.answer()
+    _, trade_id_s, team_id, con_nota = query.data.split(":")
+    trade_id = int(trade_id_s)
+    trade    = db.get_trade(trade_id)
+
+    if not trade or trade["stato"] != "proposta":
+        await query.edit_message_text("⚠️ Questa trade non è più in votazione.")
+        return ConversationHandler.END
+
+    if con_nota == "no":
+        # Rifiuto secco — esegui subito
+        await _esegui_rifiuto(query, context, trade_id, team_id, nota=None)
+        return ConversationHandler.END
+    else:
+        # Con nota — chiedi testo
+        context.user_data["rifiuto_trade_id"] = trade_id
+        context.user_data["rifiuto_team_id"]  = team_id
+        await query.edit_message_text(
+            "📝 Scrivi la motivazione del rifiuto (max 300 caratteri).\n"
+            "<i>/salta per rifiutare senza nota.</i>",
+            parse_mode="HTML",
+        )
+        return TRADE_RIFIUTO_NOTA
+
+
+async def cb_rifiuto_nota_ricevi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Riceve la nota del rifiuto e completa il rifiuto."""
+    trade_id = context.user_data.pop("rifiuto_trade_id", None)
+    team_id  = context.user_data.pop("rifiuto_team_id", None)
+    if not trade_id or not team_id:
+        return ConversationHandler.END
+
+    nota = None
+    if not update.message.text.startswith("/salta"):
+        nota = update.message.text[:300]
+
+    # FakeQuery per compatibilità con _esegui_rifiuto
+    class FakeQuery:
+        def __init__(self, msg): self.message = msg
+        async def answer(self): pass
+        async def edit_message_text(self, text=None, **kw):
+            kw.pop("reply_markup", None)
+            await self.message.reply_text(text, **kw)
+
+    fq = FakeQuery(update.message)
+    await _esegui_rifiuto(fq, context, trade_id, team_id, nota=nota)
+    return ConversationHandler.END
+
+
+async def _esegui_rifiuto(query, context, trade_id: int, team_id: str, nota: str | None) -> None:
+    """Esegue il rifiuto della trade con nota opzionale."""
+    trade = db.get_trade(trade_id)
+    team  = tm.get_team_by_id(team_id)
+    db.registra_voto(trade_id, team_id, "rifiutato")
+    note_db = f"Rifiutata da {team['nome'] if team else team_id}"
+    if nota:
+        note_db += f": {nota}"
+    db.aggiorna_stato_trade(trade_id, "rifiutata_gm", note=note_db)
+
+    testo_proponente = f"❌ <b>{team['nome']}</b> ha rifiutato la trade <b>{_trade_label(trade)}</b>."
+    if nota:
+        testo_proponente += f"\n\n📝 Motivazione: <i>{nota}</i>"
+    await _notifica_proponente(context, trade_id, testo_proponente)
+
+    testo_gm = f"❌ Hai rifiutato la trade {_trade_label(trade)}."
+    if nota:
+        testo_gm += f"\n📝 Nota: <i>{nota}</i>"
+    await query.edit_message_text(testo_gm, parse_mode="HTML")
 
 
 async def _notifica_proponente(context, trade_id: int, testo: str) -> None:
@@ -1496,7 +1581,7 @@ async def import_ricevi_testo(update: Update, context: ContextTypes.DEFAULT_TYPE
         parse_mode="HTML",
         reply_markup=_kb_riepilogo(trade_id) if ok else _kb_riepilogo_non_valida(trade_id),
     )
-    return ConversationHandler.END
+    return TRADE_RIEPILOGO
 
 
 def get_handlers() -> list:
@@ -1569,10 +1654,25 @@ def get_handlers() -> list:
     )
 
     conv_import = ConversationHandler(
-        entry_points=[CommandHandler("import_trade", cmd_import)],
+        entry_points=[
+            CommandHandler("import_trade", cmd_import),
+            CallbackQueryHandler(cmd_import, pattern=r"^menu_trade_import$"),
+        ],
         states={
             IMPORT_ATTENDI_TESTO: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, import_ricevi_testo),
+            ],
+            TRADE_RIEPILOGO: [
+                CallbackQueryHandler(cb_send_trade,            pattern=r"^trade_send:.+$"),
+                CallbackQueryHandler(cb_nota_apri,             pattern=r"^trade_nota:\d+$"),
+                CallbackQueryHandler(cb_salva_bozza,           pattern=r"^trade_salva:\d+$"),
+                CallbackQueryHandler(cb_trade_del,             pattern=r"^trade_del:\d+$"),
+                CallbackQueryHandler(cb_modifica_da_riepilogo, pattern=r"^edit_back:\d+$"),
+            ],
+            TRADE_NOTA: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cb_nota_ricevi),
+                CommandHandler("salta", cb_nota_ricevi),
+                CommandHandler("annulla", cmd_annulla_trade),
             ],
         },
         fallbacks=[
@@ -1613,8 +1713,28 @@ def get_handlers() -> list:
         conversation_timeout=300,
     )
 
+    conv_rifiuto = ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(cb_rifiuta_conf, pattern=r"^trade_rifiuta_conf:.+$"),
+        ],
+        states={
+            TRADE_RIFIUTO_NOTA: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cb_rifiuto_nota_ricevi),
+                CommandHandler("salta", cb_rifiuto_nota_ricevi),
+                CommandHandler("annulla", cmd_annulla_trade),
+            ],
+        },
+        fallbacks=[
+            CommandHandler("annulla", cmd_annulla_trade),
+        ],
+        per_user=True,
+        per_chat=True,
+        conversation_timeout=120,
+    )
+
     return [
         conv_build,
+        conv_rifiuto,
         conv_import,
         conv_edit,
         CommandHandler("mie_trade",          cmd_mie_trade),

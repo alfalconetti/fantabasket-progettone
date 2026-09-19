@@ -84,10 +84,6 @@ async def cb_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     # Gestisci callback senza ":" (es. menu_trade_import)
-    if query.data == "menu_trade_import":
-        from handlers.trade import cmd_import
-        await cmd_import(update, context)
-        return
     azione = query.data.split(":")[1]
 
     if azione == "home":
