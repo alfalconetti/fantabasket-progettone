@@ -748,7 +748,7 @@ async def cb_nota_ricevi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if nota:
             testo += f"\n📝 Nota: <i>{nota}</i>"
     else:
-        note_val = trade.get("validazione_note", "")
+        note_val = trade.get("validazione_note") or ""
         testo += "\n\n⚠️ <b>Problemi rilevati:</b>\n" + note_val
 
     await update.message.reply_text(

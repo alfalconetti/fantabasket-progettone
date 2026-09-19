@@ -225,7 +225,6 @@ def get_handlers() -> list:
         CommandHandler("menu",  cmd_menu),
         CommandHandler("start", cmd_menu),
         CallbackQueryHandler(cb_menu,            pattern=r"^menu:.+$"),
-        CallbackQueryHandler(cb_menu,            pattern=r"^menu_trade_import$"),
         CallbackQueryHandler(cb_roster_squadra,  pattern=r"^roster_sq:.+$"),
         CallbackQueryHandler(cb_assets_squadra,  pattern=r"^assets_sq:.+$"),
     ]
