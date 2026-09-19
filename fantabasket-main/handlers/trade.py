@@ -763,8 +763,9 @@ async def _auto_invia_nota(context) -> None:
     class FakeQuery:
         def __init__(self): self.message = FakeMsg()
         async def answer(self): pass
-        async def edit_message_text(self, *a, **kw):
-            await context.bot.send_message(chat_id=chat_id, *a, **kw)
+        async def edit_message_text(self, text=None, **kw):
+            kw.pop("chat_id", None)
+            await context.bot.send_message(chat_id=chat_id, text=text, **kw)
 
     fq = FakeQuery()
     if destinatario == "admin":
@@ -795,12 +796,20 @@ async def cb_nota_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     # Salva la nota nel DB se presente
     if nota:
         db._q("UPDATE trade SET nota_gm = %s WHERE id = %s", (nota, trade_id))
+        await update.message.reply_text(
+            f"✅ Nota allegata: <i>{nota}</i>\n\nInvio in corso...",
+            parse_mode="HTML"
+        )
+    else:
+        await update.message.reply_text("⏳ Invio in corso...")
 
     # Crea un oggetto finto per _proponi_ai_gm / _invia_ad_admin
     class FakeQuery:
         def __init__(self, msg): self.message = msg
         async def answer(self): pass
-        async def edit_message_text(self, *a, **kw): await self.message.reply_text(*a, **kw)
+        async def edit_message_text(self, text=None, **kw):
+            kw.pop("reply_markup", None)
+            await self.message.reply_text(text, **kw)
 
     fq = FakeQuery(update.message)
 
