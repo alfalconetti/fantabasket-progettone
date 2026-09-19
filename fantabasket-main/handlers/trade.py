@@ -34,8 +34,7 @@ logger = logging.getLogger(__name__)
     EDIT_AGGIUNGI_TIPO,
     EDIT_AGGIUNGI_ITEM,
 ) = range(11)
-TRADE_NOTA_GM    = 11
-TRADE_NOTA_ADMIN = 12
+TRADE_NOTA = 11
 
 IMPORT_ATTENDI_TESTO = 20
 
@@ -120,10 +119,12 @@ def _label_item(item: dict) -> str:
     return "?"
 
 
-def _kb_riepilogo(trade_id: int) -> InlineKeyboardMarkup:
+def _kb_riepilogo(trade_id: int, ha_nota: bool = False) -> InlineKeyboardMarkup:
+    nota_label = "📝 Modifica nota" if ha_nota else "📝 Aggiungi nota"
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("✅ Proponi ai GM",   callback_data=f"trade_send:gm:{trade_id}")],
         [InlineKeyboardButton("📨 Manda ad admin",  callback_data=f"trade_send:admin:{trade_id}")],
+        [InlineKeyboardButton(nota_label,           callback_data=f"trade_nota:{trade_id}")],
         [InlineKeyboardButton("💾 Salva bozza",     callback_data=f"trade_salva:{trade_id}")],
         [InlineKeyboardButton("✏️ Modifica",        callback_data=f"edit_back:{trade_id}")],
         [InlineKeyboardButton("🗑️ Elimina bozza",   callback_data=f"trade_del:{trade_id}")],
@@ -672,37 +673,10 @@ async def cb_send_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             return TRADE_RIEPILOGO
 
     if destinatario == "admin":
-        context.user_data["nota_trade_id"]   = trade_id
-        context.user_data["nota_destinatario"] = "admin"
-        await query.edit_message_text(
-            "📝 Vuoi allegare un messaggio per gli admin? (max 300 caratteri)\n"
-            "<i>Scrivi il messaggio oppure /salta per inviare senza nota.</i>\n\n"
-            "<i>⏱ Hai 60 secondi, poi la trade viene inviata automaticamente senza nota.</i>",
-            parse_mode="HTML",
-        )
-        context.job_queue.run_once(
-            _auto_invia_nota, 60,
-            data={"chat_id": query.message.chat_id, "user_id": query.from_user.id,
-                  "trade_id": trade_id, "destinatario": "admin"},
-            name=f"nota_timeout_{query.from_user.id}",
-        )
-        return TRADE_NOTA_ADMIN
+        await _invia_ad_admin(query, context, trade_id)
     else:
-        context.user_data["nota_trade_id"]   = trade_id
-        context.user_data["nota_destinatario"] = "gm"
-        await query.edit_message_text(
-            "📝 Vuoi allegare un messaggio ai GM coinvolti? (max 300 caratteri)\n"
-            "<i>Scrivi il messaggio oppure /salta per inviare senza nota.</i>\n\n"
-            "<i>⏱ Hai 60 secondi, poi la trade viene proposta automaticamente senza nota.</i>",
-            parse_mode="HTML",
-        )
-        context.job_queue.run_once(
-            _auto_invia_nota, 60,
-            data={"chat_id": query.message.chat_id, "user_id": query.from_user.id,
-                  "trade_id": trade_id, "destinatario": "gm"},
-            name=f"nota_timeout_{query.from_user.id}",
-        )
-        return TRADE_NOTA_GM
+        await _proponi_ai_gm(query, context, trade_id)
+    return ConversationHandler.END
 
 
 async def _invia_ad_admin(query, context, trade_id: int):
@@ -731,6 +705,59 @@ async def _invia_ad_admin(query, context, trade_id: int):
     )
 
 
+async def cb_nota_apri(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Apre il flusso per aggiungere/modificare la nota alla trade."""
+    query = update.callback_query
+    await query.answer()
+    _, trade_id_s = query.data.split(":")
+    trade_id = int(trade_id_s)
+    trade = db.get_trade(trade_id)
+    nota_attuale = trade.get("nota_gm", "") if trade else ""
+    context.user_data["nota_trade_id"] = trade_id
+
+    testo = ("📝 <b>Nota alla trade</b>\n\n"
+            "Scrivi il messaggio da allegare (max 300 caratteri).\n")
+    if nota_attuale:
+        testo += f"\nNota attuale: <i>{nota_attuale}</i>\n"
+    testo += "\n<i>Invia /salta per rimuovere la nota.</i>"
+
+    await query.edit_message_text(testo, parse_mode="HTML")
+    return TRADE_NOTA
+
+
+async def cb_nota_ricevi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Riceve il testo della nota e torna al riepilogo."""
+    trade_id = context.user_data.pop("nota_trade_id", None)
+    if not trade_id:
+        return ConversationHandler.END
+
+    if update.message.text.startswith("/salta"):
+        nota = None
+    else:
+        nota = update.message.text[:300]
+
+    db._q("UPDATE trade SET nota_gm = %s WHERE id = %s", (nota, trade_id))
+
+    trade = db.get_trade(trade_id)
+    ha_nota = bool(nota)
+    testo = _testo_riepilogo(trade_id)
+    ok = trade.get("validazione_ok")
+    if ok:
+        testo += "\n\n✅ <b>Validazione OK</b>"
+        if nota:
+            testo += f"\n📝 Nota: <i>{nota}</i>"
+    else:
+        note_val = trade.get("validazione_note", "")
+        testo += "\n\n⚠️ <b>Problemi rilevati:</b>\n" + note_val
+
+    await update.message.reply_text(
+        testo,
+        parse_mode="HTML",
+        reply_markup=_kb_riepilogo(trade_id, ha_nota=ha_nota),
+    )
+    return TRADE_RIEPILOGO
+
+
 async def cb_salva_bozza(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Salva la bozza e termina la conversazione senza inviare."""
     query = update.callback_query
@@ -743,81 +770,6 @@ async def cb_salva_bozza(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         f"💾 Bozza <b>{label}</b> salvata. Puoi riprenderla con /bozze_trade.",
         parse_mode="HTML",
     )
-    return ConversationHandler.END
-
-
-async def _auto_invia_nota(context) -> None:
-    """Job: invia la trade automaticamente senza nota dopo 60s di inattività."""
-    data       = context.job.data
-    trade_id   = data["trade_id"]
-    destinatario = data["destinatario"]
-    chat_id    = data["chat_id"]
-    trade      = db.get_trade(trade_id)
-    if not trade or trade["stato"] != "bozza":
-        return  # già inviata o annullata
-
-    class FakeMsg:
-        async def reply_text(self, *a, **kw):
-            await context.bot.send_message(chat_id=chat_id, *a, **kw)
-
-    class FakeQuery:
-        def __init__(self): self.message = FakeMsg()
-        async def answer(self): pass
-        async def edit_message_text(self, text=None, **kw):
-            kw.pop("chat_id", None)
-            await context.bot.send_message(chat_id=chat_id, text=text, **kw)
-
-    fq = FakeQuery()
-    if destinatario == "admin":
-        await _invia_ad_admin(fq, context, trade_id)
-    else:
-        await _proponi_ai_gm(fq, context, trade_id)
-
-
-async def cb_nota_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Riceve la nota opzionale e invia la trade."""
-    user = update.effective_user
-    nota = None
-    if update.message and update.message.text and not update.message.text.startswith("/salta"):
-        nota = update.message.text[:300]
-
-    trade_id   = context.user_data.get("nota_trade_id")
-    destinatario = context.user_data.get("nota_destinatario")
-    context.user_data.pop("nota_trade_id",    None)
-    context.user_data.pop("nota_destinatario", None)
-
-    # Cancella job timeout se esiste
-    for job in context.job_queue.get_jobs_by_name(f"nota_timeout_{update.effective_user.id}"):
-        job.schedule_removal()
-
-    if not trade_id:
-        return ConversationHandler.END
-
-    # Salva la nota nel DB se presente
-    if nota:
-        db._q("UPDATE trade SET nota_gm = %s WHERE id = %s", (nota, trade_id))
-        await update.message.reply_text(
-            f"✅ Nota allegata: <i>{nota}</i>\n\nInvio in corso...",
-            parse_mode="HTML"
-        )
-    else:
-        await update.message.reply_text("⏳ Invio in corso...")
-
-    # Crea un oggetto finto per _proponi_ai_gm / _invia_ad_admin
-    class FakeQuery:
-        def __init__(self, msg): self.message = msg
-        async def answer(self): pass
-        async def edit_message_text(self, text=None, **kw):
-            kw.pop("reply_markup", None)
-            await self.message.reply_text(text, **kw)
-
-    fq = FakeQuery(update.message)
-
-    if destinatario == "admin":
-        await _invia_ad_admin(fq, context, trade_id)
-    else:
-        await _proponi_ai_gm(fq, context, trade_id)
-
     return ConversationHandler.END
 
 
@@ -1580,18 +1532,14 @@ def get_handlers() -> list:
             TRADE_ASSEGNA_DEST: [
                 CallbackQueryHandler(cb_assegna_dest, pattern=r"^trade_dest:\d+:.+$"),
             ],
-            TRADE_NOTA_GM: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cb_nota_trade),
-                CommandHandler("salta", cb_nota_trade),
-                CommandHandler("annulla", cmd_annulla_trade),
-            ],
-            TRADE_NOTA_ADMIN: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, cb_nota_trade),
-                CommandHandler("salta", cb_nota_trade),
+            TRADE_NOTA: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cb_nota_ricevi),
+                CommandHandler("salta", cb_nota_ricevi),
                 CommandHandler("annulla", cmd_annulla_trade),
             ],
             TRADE_RIEPILOGO: [
                 CallbackQueryHandler(cb_send_trade,           pattern=r"^trade_send:.+$"),
+                CallbackQueryHandler(cb_nota_apri,            pattern=r"^trade_nota:\d+$"),
                 CallbackQueryHandler(cb_salva_bozza,          pattern=r"^trade_salva:\d+$"),
                 CallbackQueryHandler(cb_trade_del,            pattern=r"^trade_del:\d+$"),
                 CallbackQueryHandler(cb_modifica_da_riepilogo,pattern=r"^edit_back:\d+$"),
@@ -1676,6 +1624,6 @@ def get_handlers() -> list:
         CallbackQueryHandler(cb_admin_trade, pattern=r"^trade_admin:.+$"),
         CallbackQueryHandler(cb_edit_back,   pattern=r"^edit_back:\d+$"),
         CallbackQueryHandler(cb_trade_del,   pattern=r"^trade_del:\d+$"),  # fallback fuori conv
-        CallbackQueryHandler(cb_send_trade,   pattern=r"^trade_send:.+$"),  # fallback fuori conv
         CallbackQueryHandler(cb_salva_bozza,  pattern=r"^trade_salva:\d+$"),  # fallback fuori conv
+        CallbackQueryHandler(cb_send_trade,   pattern=r"^trade_send:.+$"),  # fallback fuori conv
     ]
