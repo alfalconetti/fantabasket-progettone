@@ -129,6 +129,16 @@ async def backup_shutdown(application):
         logger.warning("backup_shutdown fallito: %s", e)
 
 
+async def sync_sheets_periodico(context) -> None:
+    """Job ogni 2 ore — sync completo roster su Google Sheets come recovery."""
+    try:
+        import gas_client
+        gas_client.sync_all(sincrono=False)  # fire and forget
+        logger.info("sync_sheets_periodico: avviato")
+    except Exception as e:
+        logger.warning("sync_sheets_periodico: %s", e)
+
+
 async def check_scadenza_diritti(context):
     """
     Job giornaliero alle 9:00 — controlla se la trade_deadline è tra 10 giorni.

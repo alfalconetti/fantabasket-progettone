@@ -13,7 +13,7 @@ import database as db
 import settings
 import log_buffer as _log_buffer_mod
 from utils import ROME
-from scheduler import backup_giornaliero, backup_settimanale, backup_shutdown, check_scadenza_diritti
+from scheduler import backup_giornaliero, backup_settimanale, backup_shutdown, check_scadenza_diritti, sync_sheets_periodico
 from handlers.trade       import get_handlers as trade_handlers
 from handlers.tagli       import get_handlers as tagli_handlers
 from handlers.rookie      import get_handlers as rookie_handlers
@@ -497,6 +497,7 @@ def main():
     # Healthcheck ogni 5 minuti
     if os.environ.get("HEALTHCHECK_URL"):
         app.job_queue.run_repeating(_ping_healthcheck, interval=300, first=30)
+        app.job_queue.run_repeating(sync_sheets_periodico, interval=7200, first=600)
 
     # Backup giornaliero ogni 12 ore
     from datetime import time as dtime
