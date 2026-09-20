@@ -88,10 +88,37 @@ def _build_team_payload(team_id: str) -> dict:
     }
 
 
+def _do_sync(router_url: str, router_token: str, payload: dict, attempt: int = 1) -> None:
+    """Esegue il sync in background. Riprova una volta se fallisce."""
+    try:
+        data = json.dumps(payload).encode()
+        req  = urllib.request.Request(
+            f"{router_url}/gas/roster",
+            data=data,
+            headers={
+                "Content-Type":  "application/json",
+                "Authorization": f"Bearer {router_token}",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read().decode())
+            logger.info("GAS sync OK: %s", result)
+    except Exception as e:
+        if attempt == 1:
+            import time, threading
+            logger.warning("GAS sync fallito (tentativo 1): %s — riprovo tra 30s", e)
+            timer = threading.Timer(30, _do_sync, args=[router_url, router_token, payload, 2])
+            timer.daemon = True
+            timer.start()
+        else:
+            logger.warning("GAS sync fallito definitivamente: %s", e)
+
+
 def sync_teams(team_ids: list[str]) -> bool:
     """
     Invia aggiornamento roster per i team indicati al GAS Router.
-    Ritorna True se la chiamata ha avuto successo, False altrimenti.
+    Fire and forget — non blocca il bot, riprova una volta dopo 30s se fallisce.
     """
     router_url, router_token = _get_config()
     if not router_url or not router_token:
@@ -104,28 +131,13 @@ def sync_teams(team_ids: list[str]) -> bool:
             "action": "roster",
             "teams":  teams_payload,
         }
-        data = json.dumps(payload).encode()
-        req  = urllib.request.Request(
-            f"{router_url}/gas/roster",
-            data=data,
-            headers={
-                "Content-Type":  "application/json",
-                "Authorization": f"Bearer {router_token}",
-            },
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            result = json.loads(resp.read().decode())
-            logger.info("GAS sync OK: %s", result)
-            return True
-    except urllib.error.HTTPError as e:
-        logger.warning("GAS sync HTTP error %d: %s", e.code, e.reason)
-    except urllib.error.URLError as e:
-        logger.warning("GAS sync URL error: %s", e.reason)
+        import threading
+        t = threading.Thread(target=_do_sync, args=[router_url, router_token, payload], daemon=True)
+        t.start()
+        return True
     except Exception as e:
-        import traceback
-        logger.warning("GAS sync error: %s\n%s", e, traceback.format_exc())
-    return False
+        logger.warning("GAS sync build payload error: %s", e)
+        return False
 
 
 def sync_after_trade(trade_id: int) -> None:
