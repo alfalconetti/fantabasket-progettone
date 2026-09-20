@@ -138,7 +138,7 @@ async def cmd_sync_sheets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text("⏳ Sync in corso...")
     try:
         import gas_client
-        ok = gas_client.sync_all()
+        ok = gas_client.sync_all(sincrono=True)
         if ok:
             await update.effective_message.reply_text("✅ Sync completato.")
         else:

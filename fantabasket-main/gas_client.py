@@ -112,6 +112,8 @@ def _do_sync(router_url: str, router_token: str, payload: dict, attempt: int = 1
             timer.daemon = True
             timer.start()
         else:
+            if attempt == 99:
+                raise
             logger.warning("GAS sync fallito definitivamente: %s", e)
 
 
@@ -137,6 +139,21 @@ def sync_teams(team_ids: list[str]) -> bool:
         return True
     except Exception as e:
         logger.warning("GAS sync build payload error: %s", e)
+        return False
+
+
+def sync_teams_sync(team_ids: list[str]) -> bool:
+    """Sync sincrono — per comandi manuali come /sync_sheets. Timeout 60s."""
+    router_url, router_token = _get_config()
+    if not router_url or not router_token:
+        return False
+    try:
+        teams_payload = [_build_team_payload(tid) for tid in team_ids]
+        payload = {"action": "roster", "teams": teams_payload}
+        _do_sync(router_url, router_token, payload, attempt=99)  # no retry
+        return True
+    except Exception as e:
+        logger.warning("GAS sync_sync error: %s", e)
         return False
 
 
@@ -183,12 +200,15 @@ def sync_after_rookie(team_id: str) -> None:
         logger.warning("sync_after_rookie(%s): %s", team_id, e)
 
 
-def sync_all() -> bool:
-    """Sync completo di tutti i team — per inizializzazione o recovery."""
+def sync_all(sincrono: bool = False) -> bool:
+    """Sync completo di tutti i team — per inizializzazione o recovery.
+    sincrono=True per /sync_sheets (aspetta risposta), False per sync automatico."""
     try:
         import teams as tm
         all_teams = tm.get_all_teams()
         team_ids  = [t["id"] for t in all_teams]
+        if sincrono:
+            return sync_teams_sync(team_ids)
         return sync_teams(team_ids)
     except Exception as e:
         logger.warning("sync_all: %s", e)
