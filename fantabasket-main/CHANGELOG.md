@@ -181,3 +181,112 @@
 - **`/settings`**: comando admin per visualizzare e modificare le settings dal bot. Log automatico su canale log. Uso: `/settings` per visualizzare, `/settings chiave valore` per modificare.
 - **BotCommand bot aste**: comandi registrati su Telegram con scope corretto (GM e admin).
 - **Scadenza diritti 2nd round**: job giornaliero che avvisa 10 giorni prima della trade deadline + bottone conferma admin. Parametro `trade_deadline` in `globals.json`.
+
+## v2.0.16 (2026-09-18)
+
+### Nuove feature
+- **`/settings [chiave] [valore]`**: comando admin per visualizzare e modificare le settings dal bot. Log automatico su canale log.
+- **BotCommand bot aste con scope**: comandi registrati su Telegram con scope corretto — GM, admin, dev.
+- **`/annulla_trade`** aggiunto ai comandi GM nel bot main.
+
+### Bug fix
+- **BotCommand bot aste**: corretti nomi comandi reali (rimosso `fa`, aggiunto `lista_fa`, `offri`, `nuova_fa`).
+- **`guida_gm.md` bot aste**: rimosso `/aste` e `/listteams` dai comandi GM (sono admin-only).
+
+## v2.0.17 (2026-09-18)
+
+### Nuove feature
+- **BotCommand bot aste**: scope corretti verificati dal codice reale — `offri` e `nuova_fa` aggiunto ai GM, `aste` spostato in admin.
+
+### Fix
+- **`guida_gm.md` bot aste**: aggiornata con comandi corretti.
+
+## v2.0.18 (2026-09-18)
+
+### Fix
+- **BotCommand bot aste**: rimosso `fa` (non esiste), aggiunto `lista_fa` verificato dal codice.
+
+## v2.0.19 (2026-09-18)
+
+### Bug fix
+- **`_notifica_proponente`**: funzione non definita in `trade.py` — aggiunta.
+- **`trade_ref` None nel flusso voto GM**: aggiunta funzione `_trade_label()` che usa label `{AAA}-B{N}` (prime 3 lettere nome team + numero bozza) quando `trade_ref` è NULL.
+
+## v2.0.20 (2026-09-18)
+
+### Bug fix
+- **Label trade pre-approvazione**: formato `{AAA}-B{N}` — prime 3 lettere del nome del team proponente + numero bozza.
+
+## v2.0.21 (2026-09-18)
+
+### Nuove feature
+- **`/registra_firma`** (admin): registra firma avvenuta fuori dal bot. Parametri: `team_id importo anni nome giocatore`. Ricerca fuzzy, selezione con bottoni se più risultati, check contratto attivo, sync GAS automatico, log su canale.
+- **`/nuovo_giocatore`** (dev): inserisce anagrafica giocatore nel DB. Formato: `nome_common | nome_bref [YYYY-MM-DD]`.
+
+## v2.0.22 (2026-09-19)
+
+### Bug fix
+- **Lista FA bot aste — paginazione**: `lista_fa_page_callback` non ordinava per fantamedia — aggiunto `rows.sort()` dopo il fetch.
+- **`get_fa_rows_pg()`**: aggiunto JOIN con `bref_stats` (LATERAL, ultima riga per timestamp) — la fantamedia arriva già dal DB invece di essere fetchata separatamente. Ordine `fantamedia DESC NULLS LAST` direttamente in SQL.
+
+## v2.0.23 (2026-09-19)
+
+### Bug fix
+- **Trade builder dal menu**: bottone "🔨 Build" ora avvia correttamente il ConversationHandler (aggiunto come entry_point).
+- **`/annulla` nella trade**: aggiunto ai fallback del ConversationHandler — prima solo `/annulla_trade` funzionava.
+- **Bottoni riepilogo post-errore**: `cb_send_trade` registrato come handler globale fuori dalla conversazione.
+- **Import dal menu**: `menu_trade_import` gestito prima del `split(":")` in `cb_menu` per evitare IndexError.
+
+## v2.0.24 (2026-09-19)
+
+### Nuove feature
+- **Bottone "💾 Salva bozza"**: aggiunto al riepilogo trade — salva e termina la conversazione senza inviare.
+- **Re-validazione su invio**: `cb_send_trade` rivalida la trade al momento dell'invio invece di fidarsi del valore `validazione_ok` nel DB (poteva essere obsoleto dopo modifiche).
+
+### Bug fix
+- **`cb_salva_bozza`**: definizione mancante aggiunta.
+- **Fix menu import IndexError**: rimosso pattern `menu_trade_import` dal `CallbackQueryHandler` di `cb_menu`.
+
+## v2.0.25 (2026-09-20)
+
+### Nuove feature
+- **Nota trade**: bottone "📝 Aggiungi nota" / "📝 Modifica nota" nel riepilogo. Apre stato `TRADE_NOTA` — GM scrive testo (max 300 caratteri), `/salta` rimuove nota. Nota salvata in colonna `nota_gm` della tabella `trade`.
+
+⚠️ **Operazione manuale richiesta:**
+```sql
+ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
+```
+
+## v2.0.26 (2026-09-20)
+
+### Nuove feature
+- **Nota ai riceventi**: nota trade mostrata ai GM riceventi come "💬 Messaggio da {GM proponente}" nel messaggio di proposta.
+- **Nota rifiuto**: quando GM rifiuta, chiede conferma con bottoni "❌ Rifiuto secco" / "📝 Rifiuto con nota". Nota mostrata al proponente sotto il messaggio di rifiuto.
+- **`conv_rifiuto`**: nuovo ConversationHandler separato per il flusso rifiuto con nota (timeout 120s).
+
+### Bug fix
+- **Import dal menu** (`menu_trade_import`): aggiunto come entry_point di `conv_import` — prima non avviava il ConversationHandler.
+- **Import**: dopo il parsing rimane in `TRADE_RIEPILOGO` con bottoni funzionanti (nota, proponi, salva bozza).
+
+## v2.0.27 (2026-09-20)
+
+### Bug fix
+- **`menu_trade_import` IndexError**: gestito prima del `split(":")` in `cb_menu`.
+- **None concatenation in `cb_nota_ricevi`**: `validazione_note` può essere `None` — fix con `or ""`.
+
+## v2.0.28 (2026-09-20)
+
+### Bug fix
+- **`menu_trade_import` IndexError** (ripetuto): rimosso pattern `^menu_trade_import$` dal `CallbackQueryHandler` di `cb_menu` — ora gestito esclusivamente da `conv_import`.
+- **`cb_nota_ricevi`**: `validazione_note` ora gestito con `or ""` per evitare `TypeError`.
+
+## v2.0.29 (2026-09-21)
+
+### Nuove feature e fix
+- **GAS sync fire and forget**: `sync_teams()` ora lancia il sync in un thread daemon — non blocca il bot. Retry automatico dopo 30s se fallisce.
+- **`/sync_sheets` sincrono**: usa `sync_teams_sync()` con timeout 60s e feedback reale.
+
+## v2.0.30 (2026-09-28)
+
+### Nuove feature
+- **Sync periodico GAS**: job `sync_sheets_periodico` ogni 2 ore (first=600s) — recovery automatico in caso di sync persi. Fire and forget, nessun feedback all'utente.

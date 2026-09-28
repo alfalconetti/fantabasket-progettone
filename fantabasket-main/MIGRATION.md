@@ -1,8 +1,8 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v1.4.17)
+# Messaggio di migrazione — Fantabasket Progettone (stato v2.0.30)
 
 ---
 
-Ecosistema Fantabasket su M910q Ubuntu (alfalconetti@ubuntum910q). Bot aste v48 in produzione standalone, mai toccare. Progettone in testing attivo su Docker Compose separato.
+Ecosistema Fantabasket su M910q Ubuntu (alfalconetti@ubuntum910q). Bot aste v48 standalone SPENTO — bot-aste-beta del progettone è ora in produzione con token reale. Tutto gira su Docker Compose unificato.
 
 **Stack:** Python 3.12 + python-telegram-bot 22.8 [job-queue] + PostgreSQL 16 + SQLite (bot aste beta) + Typst + aiohttp + pandas + lxml + html5lib
 
@@ -132,14 +132,20 @@ Cambio fase via `/set_fase` (solo admin). Passaggio a `offseason-rinnovi` increm
 
 **Trade — architettura:**
 
-Stati ConversationHandler (range 11):
-`TRADE_N_SQUADRE, TRADE_SELEZIONA_SQUADRE, TRADE_ASSET_MENU, TRADE_ASSET_GIOCATORI, TRADE_ASSET_PICK, TRADE_ASSET_DIRITTI, TRADE_ASSEGNA_DEST, TRADE_RIEPILOGO, EDIT_MENU, EDIT_AGGIUNGI_TIPO, EDIT_AGGIUNGI_ITEM`
+Stati ConversationHandler:
+`TRADE_N_SQUADRE, TRADE_SELEZIONA_SQUADRE, TRADE_ASSET_MENU, TRADE_ASSET_GIOCATORI, TRADE_ASSET_PICK, TRADE_ASSET_DIRITTI, TRADE_ASSEGNA_DEST, TRADE_RIEPILOGO, EDIT_MENU, EDIT_AGGIUNGI_TIPO, EDIT_AGGIUNGI_ITEM = range(11)`
+`TRADE_NOTA = 11` — step nota opzionale nel riepilogo
+`TRADE_RIFIUTO_NOTA = 12` — step nota rifiuto (conv_rifiuto separato)
 `IMPORT_ATTENDI_TESTO = 20`
 `PAL_MENU, PAL_ATTENDI_HEX, PAL_ANTEPRIMA = range(30, 33)`
 
 Entry points aggiuntivi: `CallbackQueryHandler(cmd_trade, pattern=r"^menu_trade_build$")` e `CallbackQueryHandler(cmd_import, pattern=r"^menu_trade_import$")`
 
 - `trade_ref` (TRADE-2026-001) assegnato SOLO all'approvazione admin, mai prima
+- Label pre-approvazione: `{AAA}-B{N}` — prime 3 lettere nome team proponente + numero bozza (es. `CHE-B3`)
+- `nota_gm TEXT` — colonna in tabella `trade`, aggiunta manualmente: `ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;`
+- Nota mostrata ai riceventi come "💬 Messaggio da {GM proponente}"
+- Rifiuto con nota: conv_rifiuto separato (timeout 120s), nota mostrata al proponente
 - Trade 2 squadre: assegnazione automatica destinatari
 - Trade 3+ squadre: flusso item per item `TRADE_ASSEGNA_DEST`
 - Elimina/Modifica bozza funzionanti incluso post-modifica (flag `edit_from_riepilogo`)
@@ -278,23 +284,36 @@ git push origin main
 - 10-day contract: una volta per squadra, non pesa su cap/slot, max 2 squadre per FA, scade a fine turno
 - Bref scraper: import automatico nuovi giocatori non in DB, check giornaliero alle 14 firmati senza nome_bref con suggerimento match, `/match_bref` dev, check alle 15 firmati senza data di nascita
 
-**Stato attuale: v2.0.16**
+**Stato attuale: v2.0.30**
 
-Novità recenti:
-- Settings unificato in `config/settings.json` (prima `settings_main.json` + `settings_aste.json`)
-- Nomi chiavi rinominati: `luxury_cap`→`cap_offseason`, `cap_massimo`→`cap_regular`, `max_roster`→`roster_max`, `min_roster`→`roster_min_regular`
-- `/settings [chiave] [valore]` comando admin con log su canale
-- BotCommand bot aste con scope GM/admin/dev
-- Decadimento contratti: `/decadimento` + flusso admin
-- Scadenza diritti 2nd round: job + alert admin + bottone conferma (`trade_deadline` in `globals.json`)
-- Anni residui nel trade builder (`impxanni`)
-- `registra_decadimento()` con event sourcing (`tipo='decadimento'`, `team_id_a=NULL`)
-- Constraint transazioni: `signed`, `traded`, `firma`, `taglio`, `cut`, `trade`, `rookie`, `dpe`, `decadimento`
+Novità recenti (v2.0.17–v2.0.30):
+- Bot aste beta ora in produzione (token reale, bot v48 spento)
+- BotCommand bot aste con scope GM/admin/dev verificati dal codice
+- `/registra_firma` admin: registra firme avvenute fuori dal bot (ricerca fuzzy, check contratto attivo, sync GAS)
+- `/nuovo_giocatore` dev: inserisce anagrafica giocatore nel DB
+- Lista FA bot aste: ordine per fantamedia corretto su tutte le pagine; `get_fa_rows_pg()` con JOIN bref_stats
+- Trade builder dal menu: bottone "🔨 Build" funzionante come entry_point ConversationHandler
+- `/annulla` aggiunto ai fallback del ConversationHandler trade
+- Bottone "💾 Salva bozza" nel riepilogo trade
+- Nota trade: bottone "📝 Aggiungi nota" nel riepilogo — salva in `nota_gm`, mostrata ai riceventi
+- Nota rifiuto: "Rifiuto secco" / "Rifiuto con nota" con conv separato (timeout 120s)
+- Import dal menu (`menu_trade_import`) funzionante come entry_point di `conv_import`
+- Re-validazione trade al momento dell'invio (non si fida del valore nel DB)
+- GAS sync fire and forget per transazioni automatiche, sincrono per `/sync_sheets`
+- Sync periodico GAS ogni 2h (`sync_sheets_periodico` in scheduler.py)
+
+**Operazioni manuali sul DB:**
+```sql
+-- nota trade (v2.0.25)
+ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
+```
 
 **v2.x — GAS Router** ✅ completato
 - Microservizio router nel Docker Compose ✅
 - Integrazione Google Sheets: foglio roster ✅ — foglio scelte (pick e diritti) ❌ da fare
-- Sync automatico dopo ogni transazione ✅
+- Sync automatico dopo ogni transazione (fire and forget, retry 30s) ✅
+- Sync periodico ogni 2h come recovery ✅
+- `/sync_sheets` sincrono con timeout 60s ✅
 - Account Google dedicato con email recovery Henry ✅
 
 **v3.x — Loucabot**
