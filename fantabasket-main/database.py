@@ -342,6 +342,13 @@ def get_pick_team(team_id: str) -> list:
         (team_id,), many=True
     )
 
+def get_pick_by_orig_anno_round(proprietario_orig: str, anno: str, round: int) -> dict | None:
+    """Cerca una pick per proprietario originale, anno e round — usata dal trade parser."""
+    return _q(
+        "SELECT * FROM pick WHERE proprietario_orig = %s AND anno = %s AND round = %s AND scattata = FALSE",
+        (proprietario_orig, anno, round), one=True
+    )
+
 def get_pick(pick_id: int) -> dict | None:
     return _q("SELECT * FROM pick WHERE id = %s", (pick_id,), one=True)
 

@@ -30,6 +30,14 @@
   })
 }
 
+// Padding a 15 righe — aggiunge slot vuoti se il roster è incompleto
+#let roster_max = 15
+#let giocatori = if giocatori.len() >= roster_max { giocatori } else {
+  giocatori + range(roster_max - giocatori.len()).map(_ =>
+    (nome: "", importo: "", anni: "", flag: "VUOTO", importo_orig: "")
+  )
+}
+
 #let c_primary  = color.rgb(colore_hex)
 #let c_dark     = c_primary.darken(20%)
 #let c_row_odd  = if colore_riga1 != "" { color.rgb(colore_riga1) } else { c_primary.lighten(75%) }
@@ -87,6 +95,7 @@
   [#align(center)[#text(8pt, weight: "bold", fill: white)[Y]]],
   // giocatori
   ..giocatori.enumerate().map(((i, g)) => {
+    let is_vuoto = g.flag == "VUOTO"
     let (fc, bold) = if g.flag == "R0"     { (c_r0,  true) }
                     else if g.flag == "R1"  { (c_r1,  true) }
                     else if g.flag == "R2"  { (c_r2,  true) }
@@ -96,7 +105,9 @@
     let ha_dpe = g.importo_orig != ""
     let fc_nome = if ha_dpe { c_dpe } else { fc }
     let tc = if calc.odd(i) { _ton_r1 } else { _ton_r2 }
-    let cella_importo = if ha_dpe {
+    let cella_importo = if is_vuoto {
+      [#align(center)[]]
+    } else if ha_dpe {
       [#align(center)[
         #text(7pt, fill: c_dpe, weight: "bold", overhang: false)[#strike[#g.importo_orig]#sym.space#g.importo]
       ]]
@@ -104,17 +115,17 @@
       [#align(center)[#text(8.5pt, fill: tc, weight: "bold")[#g.importo]]]
     }
     (
-      [#text(8.5pt, fill: fc_nome, weight: if bold or ha_dpe {"bold"} else {"regular"})[#g.nome]],
+      if is_vuoto { [] } else { [#text(8.5pt, fill: fc_nome, weight: if bold or ha_dpe {"bold"} else {"regular"})[#g.nome]] },
       cella_importo,
-      [#align(center)[#text(8.5pt, fill: tc)[#g.anni]]],
+      if is_vuoto { [] } else { [#align(center)[#text(8.5pt, fill: tc)[#g.anni]]] },
     )
   }).flatten(),
 )
 
 // ── leggenda ─────────────────────────────────────────────────────────────────
-#let has_rookie = giocatori.any(g => g.flag.starts-with("R"))
+#let has_rookie = giocatori.any(g => g.flag != "VUOTO" and g.flag.starts-with("R"))
 #let has_rfa    = giocatori.any(g => g.flag == "A")
-#let has_dpe    = giocatori.any(g => g.importo_orig != "")
+#let has_dpe    = giocatori.any(g => g.flag != "VUOTO" and g.importo_orig != "")
 
 #if has_rookie or has_rfa or has_dpe {
   block(width: 100%, fill: c_sezione)[
