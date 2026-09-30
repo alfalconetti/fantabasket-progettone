@@ -7,9 +7,9 @@ Flusso:
   se approvata: scrittura DB + annuncio canale principale
 
 Effetti per fase:
-  regular-season-fa       → pre-deadline: decurtazione 25% + libera slot
-  regular-season-deadline → post-deadline: decurtazione 25%, nessuno slot liberato
-                            (cambio ruolo aggiuntivo — da implementare con i ruoli)
+  offseason-rinnovi … regular-season-fa → libera slot roster
+  regular-season-deadline               → nessuno slot liberato
+                                          (cambio ruolo aggiuntivo — da implementare con i ruoli)
 
 Decurtazione: ceil(importo * 0.75), il contratto torna normale alla stagione successiva
               (la riga dpe è legata alla stagione corrente, non tocca la tabella contratti)
@@ -27,7 +27,10 @@ import teams as tm
 
 logger = logging.getLogger(__name__)
 
-FASI_DPE = ("regular-season-fa", "regular-season-deadline")
+FASI_DPE = (
+    "offseason-rinnovi", "offseason-draft", "offseason-rfa", "offseason-fa",
+    "regular-season-fa", "regular-season-deadline",
+)
 
 
 def _importo_dpe(importo: int) -> int:
@@ -93,16 +96,16 @@ async def cb_seleziona_dpe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     giocatore = db.get_giocatore(gid)
     stagione  = settings.stagione_corrente()
     fase      = settings.fase()
-    pre_deadline = (fase == "regular-season-fa")
+    pre_deadline = (fase != "regular-season-deadline")
 
     importo_orig = contratto["importo"]
     importo_new  = _importo_dpe(importo_orig)
     risparmio    = importo_orig - importo_new
 
     effetto = (
-        "✅ Libera uno slot roster (pre-deadline)"
+        "✅ Libera uno slot roster"
         if pre_deadline else
-        "✅ Slot roster liberato"
+        "ℹ️ Nessuno slot liberato (post-deadline)"
     )
 
     testo = (
@@ -136,7 +139,7 @@ async def cb_invia_richiesta_dpe(update: Update, context: ContextTypes.DEFAULT_T
     giocatore    = db.get_giocatore(gid)
     stagione     = settings.stagione_corrente()
     fase         = settings.fase()
-    pre_deadline = (fase == "regular-season-fa")
+    pre_deadline = (fase != "regular-season-deadline")
     importo_orig = contratto["importo"]
     importo_new  = _importo_dpe(importo_orig)
 

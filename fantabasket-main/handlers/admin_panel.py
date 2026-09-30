@@ -37,9 +37,10 @@ def is_admin(user_id: int) -> bool:
 
 def _kb_admin_home() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔄 Trade",          callback_data="adm:trade")],
+        [InlineKeyboardButton("🔄 Trade",           callback_data="adm:trade")],
         [InlineKeyboardButton("✂️ Taglia giocatore", callback_data="adm:taglia")],
-        [InlineKeyboardButton("📊 Situazione cap", callback_data="adm:cap")],
+        [InlineKeyboardButton("🏥 DPE",             callback_data="adm:dpe")],
+        [InlineKeyboardButton("📊 Situazione cap",  callback_data="adm:cap")],
     ])
 
 
@@ -132,6 +133,26 @@ async def cb_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         righe.append([InlineKeyboardButton("← Menu", callback_data="adm:home")])
         await query.edit_message_text(
             "✂️ <b>Taglio admin</b> — seleziona squadra:",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(righe),
+        )
+        return ConversationHandler.END
+
+    elif azione == "dpe":
+        from handlers.dpe import FASI_DPE
+        fase = settings.fase()
+        if fase not in FASI_DPE:
+            await query.answer("❌ DPE non disponibile in questa fase.", show_alert=True)
+            return ConversationHandler.END
+        tutti = tm.get_all_teams()
+        bottoni = [
+            InlineKeyboardButton(t["nome"], callback_data=f"adm_dpe_team:{t['id']}")
+            for t in tutti
+        ]
+        righe = [bottoni[i:i+2] for i in range(0, len(bottoni), 2)]
+        righe.append([InlineKeyboardButton("← Menu", callback_data="adm:home")])
+        await query.edit_message_text(
+            "🏥 <b>DPE admin</b> — seleziona squadra:",
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(righe),
         )
@@ -238,6 +259,183 @@ async def cb_adm_taglia_conferma(update: Update, context: ContextTypes.DEFAULT_T
         )
     logger.info("Taglio admin: team=%s giocatore=%d admin=%d",
                 team_id, gid, update.effective_user.id)
+
+
+# ── Admin DPE diretta ────────────────────────────────────────────────────────
+
+async def cb_adm_dpe_team(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin seleziona squadra per DPE → mostra roster eleggibile."""
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(update.effective_user.id):
+        return
+    import database as db
+    import math
+
+    team_id  = query.data.split(":")[1]
+    team     = tm.get_team_by_id(team_id)
+    stagione = settings.stagione_corrente()
+    roster   = db.get_roster_team(team_id)
+
+    eligibili = [
+        r for r in roster
+        if not db.get_dpe_attiva(r["giocatore_id"], stagione)
+    ]
+    if not eligibili:
+        await query.edit_message_text(
+            f"❌ Tutti i giocatori di <b>{team['nome']}</b> hanno già una DPE attiva.",
+            parse_mode="HTML",
+        )
+        return
+
+    bottoni = [
+        [InlineKeyboardButton(
+            f"{r['nome_common']} ({r['importo']}M → {math.ceil(r['importo'] * 0.75)}M)",
+            callback_data=f"adm_dpe_gi:{r['giocatore_id']}:{team_id}"
+        )]
+        for r in eligibili
+    ]
+    bottoni.append([InlineKeyboardButton("← Indietro", callback_data="adm:dpe")])
+    await query.edit_message_text(
+        f"🏥 <b>DPE admin — {team['nome']}</b>\\nSeleziona giocatore:",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(bottoni),
+    )
+
+
+async def cb_adm_dpe_giocatore(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin seleziona giocatore → mostra preview e chiede conferma."""
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(update.effective_user.id):
+        return
+    import database as db
+    import math
+
+    _, gid_s, team_id = query.data.split(":")
+    gid = int(gid_s)
+
+    contratto = db.get_contratto_attivo(gid)
+    if not contratto or contratto["team_id"] != team_id:
+        await query.edit_message_text("❌ Giocatore non trovato nel roster.")
+        return
+
+    giocatore    = db.get_giocatore(gid)
+    stagione     = settings.stagione_corrente()
+    fase         = settings.fase()
+    pre_deadline = (fase != "regular-season-deadline")
+    importo_orig = contratto["importo"]
+    importo_new  = math.ceil(importo_orig * 0.75)
+    risparmio    = importo_orig - importo_new
+    effetto      = "✅ Libera uno slot roster" if pre_deadline else "ℹ️ Nessuno slot liberato (post-deadline)"
+
+    testo = (
+        f"🏥 <b>DPE admin — {giocatore['nome_common']}</b>\\n\\n"
+        f"Contratto attuale: <b>{importo_orig}M</b>\\n"
+        f"Contratto DPE (stagione {stagione}): <b>{importo_new}M</b> (-{risparmio}M)\\n"
+        f"Il contratto torna normale dalla stagione successiva.\\n\\n"
+        f"{effetto}\\n\\n"
+        f"<i>Operazione diretta — nessuna approvazione richiesta.</i>"
+    )
+    kb = InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ Conferma", callback_data=f"adm_dpe_ok:{gid}:{team_id}:{importo_orig}:{importo_new}:{1 if pre_deadline else 0}"),
+        InlineKeyboardButton("❌ Annulla",  callback_data=f"adm_dpe_team:{team_id}"),
+    ]])
+    await query.edit_message_text(testo, parse_mode="HTML", reply_markup=kb)
+
+
+async def cb_adm_dpe_conferma(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin conferma DPE diretta → scrittura DB + annuncio canale."""
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(update.effective_user.id):
+        return
+    import database as db
+
+    parts        = query.data.split(":")
+    gid          = int(parts[1])
+    team_id      = parts[2]
+    importo_orig = int(parts[3])
+    importo_new  = int(parts[4])
+    pre_deadline = parts[5] == "1"
+
+    giocatore = db.get_giocatore(gid)
+    team      = tm.get_team_by_id(team_id)
+    stagione  = settings.stagione_corrente()
+    admin     = update.effective_user
+
+    if db.get_dpe_attiva(gid, stagione):
+        await query.edit_message_text(
+            f"⚠️ DPE per <b>{giocatore['nome_common']}</b> già registrata questa stagione.",
+            parse_mode="HTML",
+        )
+        return
+
+    admin_tag = admin.first_name or str(admin.id)
+    if admin.username:
+        admin_tag += f" (@{admin.username})"
+
+    db.inserisci_dpe(
+        giocatore_id=gid,
+        team_id=team_id,
+        stagione=stagione,
+        importo_originale=importo_orig,
+        importo_dpe=importo_new,
+        pre_deadline=pre_deadline,
+        approvata_da=admin_tag,
+    )
+
+    risparmio = importo_orig - importo_new
+    effetto   = "✅ Slot roster liberato" if pre_deadline else "ℹ️ Nessuno slot liberato (post-deadline)"
+
+    await query.edit_message_text(
+        f"✅ DPE registrata — <b>{giocatore['nome_common']}</b>\\n"
+        f"{importo_orig}M → {importo_new}M (stagione {stagione})\\n"
+        f"{effetto}",
+        parse_mode="HTML",
+    )
+
+    # Notifica al GM
+    try:
+        gm_ids   = team.get("gm_ids", [])
+        testo_gm = (
+            f"🏥 <b>DPE attivata</b> per <b>{giocatore['nome_common']}</b>.\\n"
+            f"Contratto per questa stagione: <b>{importo_new}M</b> (-{risparmio}M)\\n"
+            f"{effetto}\\n\\n"
+            f"<i>Operazione effettuata dall'admin {admin_tag}</i>"
+        )
+        for gm_id in gm_ids:
+            try:
+                await query.bot.send_message(chat_id=gm_id, text=testo_gm, parse_mode="HTML")
+            except Exception:
+                pass
+    except Exception as e:
+        logger.warning("Notifica GM DPE admin fallita: %s", e)
+
+    # Annuncio canale principale
+    main_channel = settings.load_globals().get("main_channel_id")
+    if main_channel:
+        testo_canale = (
+            f"🏥 <b>{team['gm_nome']}</b> attiva la DPE per <b>{giocatore['nome_common']}</b>\\n"
+            f"Contratto {stagione}: {importo_orig}M → <b>{importo_new}M</b> (-{risparmio}M)\\n"
+            f"{effetto}"
+        )
+        try:
+            await query.bot.send_message(
+                chat_id=main_channel, text=testo_canale, parse_mode="HTML"
+            )
+        except Exception as e:
+            logger.warning("Annuncio canale DPE admin fallito: %s", e)
+
+    logger.info("DPE admin: team=%s giocatore=%d %dM→%dM pre_deadline=%s admin=%s",
+                team_id, gid, importo_orig, importo_new, pre_deadline, admin_tag)
+
+    # Sync GAS Sheets
+    try:
+        import gas_client
+        gas_client.sync_after_dpe(team_id)
+    except Exception as e:
+        logger.warning("GAS sync DPE admin fallito: %s", e)
 
 
 # ── Admin build trade ─────────────────────────────────────────────────────────
@@ -777,6 +975,9 @@ def get_handlers() -> list:
         CallbackQueryHandler(cb_ufficializza,        pattern=r"^adm_uff:\d+$"),
         CallbackQueryHandler(cb_adm_taglia_team,     pattern=r"^adm_taglia_team:.+$"),
         CallbackQueryHandler(cb_adm_taglia_conferma, pattern=r"^adm_taglia_ok:\d+:.+$"),
+        CallbackQueryHandler(cb_adm_dpe_team,        pattern=r"^adm_dpe_team:.+$"),
+        CallbackQueryHandler(cb_adm_dpe_giocatore,   pattern=r"^adm_dpe_gi:\d+:.+$"),
+        CallbackQueryHandler(cb_adm_dpe_conferma,    pattern=r"^adm_dpe_ok:\d+:.+:\d+:\d+:[01]$"),
         CallbackQueryHandler(cb_fase_set,            pattern=r"^fase_set:.+:.+$"),
         CallbackQueryHandler(cb_fase_conferma,       pattern=r"^fase_conferma:.+$"),
         CallbackQueryHandler(cb_fase_salta_menu,     pattern=r"^fase_salta_menu$"),
