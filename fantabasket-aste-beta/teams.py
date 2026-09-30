@@ -50,13 +50,15 @@ def get_team_by_gm(gm_telegram_id: int) -> dict | None:
 def check_slot_virtuale(team_id: str, slot_impegnati: int) -> bool:
     """
     Controlla se ci sono slot liberi.
-    Se PG disponibile: max_roster - roster_pg - slot_virtuale_sqlite > 0.
+    Se PG disponibile: max_roster - roster_pg (con DPE) - slot_virtuale_sqlite > 0.
     Se PG non disponibile (modalità isolata): usa slot_disponibili dal JSON.
     """
     import pg_client
     import settings as _settings
+    from utils import load_globals
     if pg_client.pg_disponibile():
-        roster_count = pg_client.get_roster_count(team_id)
+        stagione = load_globals().get("stagione_corrente")
+        roster_count = pg_client.get_roster_count(team_id, stagione=stagione)
         return (_settings.slot_massimo() - roster_count - slot_impegnati) > 0
     # Modalità isolata
     team = get_team_by_id(team_id)
