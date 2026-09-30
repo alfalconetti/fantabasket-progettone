@@ -246,8 +246,8 @@ async def cmd_roster(update: Update, context: ContextTypes.DEFAULT_TYPE):
             continue
         except ValueError:
             pass
-        # Altrimenti è un team_id
-        team = tm.get_team_by_id(arg)
+        # Altrimenti è un team_id o nome squadra/GM
+        team = tm.get_team_by_query(arg)
         if not team:
             await update.effective_message.reply_text(f"❌ Team '{arg}' non trovato.")
             return

@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v2.0.30)
+# Messaggio di migrazione — Fantabasket Progettone (stato v2.0.38)
 
 ---
 
@@ -70,16 +70,20 @@ Cambio fase via `/set_fase` (solo admin). Passaggio a `offseason-rinnovi` increm
 **Comportamento per fase:**
 - Trade aperte: `regular-season-fa`, `offseason-rinnovi`, `offseason-draft`, `offseason-rfa`, `offseason-fa`
 - FA aperta: `regular-season-fa`, `offseason-fa`
-- DPE disponibile: `regular-season-fa`, `regular-season-deadline`
+- DPE disponibile: `offseason-rinnovi`, `offseason-draft`, `offseason-rfa`, `offseason-fa`, `regular-season-fa`, `regular-season-deadline`
+- DPE libera slot: tutte le fasi tranne `regular-season-deadline`
 - Bref scraper: `regular-season-fa`, `regular-season-deadline`, `playoff`
 - Check cap stagionale bot aste: solo fasi `offseason-*`
 - Cap massimo consentito: 165M in `offseason-*`, 150M altrimenti (`luxury_cap()` in settings main, `cap_limite()` in settings aste)
+- Notifica ruoli post-trade: solo `regular-season-fa` (in futuro anche `offseason-ruoli`)
 
 ---
 
 **Bot aste beta** — v48 + pg_client.py. Cap/slot da PostgreSQL. FA list da PostgreSQL (esclude diritti 2nd non firmati, ordinata per fantamedia bref desc). `BOT_VERSION = "beta-1"`. Config montata `:ro`. `cap_massimo()` alias di `cap_regular` (150M fisso), `cap_limite()` dinamico (165M offseason, 150M RS).
 
 `cap_slot_display()` in `utils.py` è PG-first — se PG non disponibile cade su fallback JSON (non dovrebbe mai succedere in produzione).
+
+`check_slot_virtuale()` in `teams.py` passa sempre `stagione` a `get_roster_count()` per escludere giocatori con DPE attiva dal conteggio slot.
 
 ---
 
@@ -99,152 +103,83 @@ Cambio fase via `/set_fase` (solo admin). Passaggio a `offseason-rinnovi` increm
 - Syntax check `ast.parse` prima di ogni zip
 - Versioning: patch con suffisso incrementale (v1.4.17, v1.4.18...), feature bump minor (v1.5.0), nuovo servizio bump major (v2.0.0)
 - Ogni zip include comando deploy + git commit + git push origin main
-- Zip sempre cumulativi con tutti i file modificati dall'inizio sessione
 - `/annulla` globale con `group=-1` pulisce `user_data` e termina qualsiasi ConversationHandler
 
 **Handlers bot-main:**
 - `menu.py` — `/menu` dinamico per fase con InlineKeyboard; Trade/Tagli/Rookie/DPE solo nelle fasi corrette; Assets sempre visibile; entry point `menu_trade_build` e `menu_trade_import` registrati nei ConversationHandler del trade
-- `trade.py` — builder (2-4 squadre), import, bozze con bottoni (GM ↔ GM), edit, annulla, rollback; `/bozze_trade` mostra InlineKeyboard con GM coinvolti
-- `trade_parser.py` — parser deterministico testo trade
-- `tagli.py` — taglio con preview impatto, conferma, scrittura DB, annuncio canale; tagli 1x1 gratuiti bloccati quando esauriti (no forzato)
+- `trade.py` — builder (2-4 squadre), import, bozze con bottoni inline, edit, annulla, rollback; `/bozze_trade` mostra InlineKeyboard con bottoni diretti all'edit per bozze e al riepilogo-voto per pending; label bozze: `BUF03-3` (prime 3 lettere nome + num team + bozza_num) o `ADM-4` per admin; `trade_ref` (`TRADE-2026-001`) assegnato prima di `_esegui_trade` per evitare NULL nelle transazioni; notifica GM post-trade include "comunica i ruoli" solo in `regular-season-fa`
+- `trade_parser.py` — parser deterministico testo trade; lookup pick per `proprietario_orig` (non per detentore attuale) via `get_pick_by_orig_anno_round()`
+- `tagli.py` — taglio con preview impatto, conferma, scrittura DB, annuncio canale; tagli 1x1 gratuiti bloccati quando esauriti
 - `rookie.py` — attivazione diritti 2nd pick, aperto a tutte `FASI_TRADE_APERTE`, annuncio canale
-- `roster.py` — PNG via Typst subprocess per `/roster` e `/assets`; colori testo calcolati in Python (WCAG luminanza) e passati come `--input`; `_footer_color()` simula `darken(20%)` quando `colore_sezione` non impostato
-- `palette.py` — `/palette` con anteprima PNG live; `cb_pal_riprova` e `cb_pal_back` disabilitano bottoni vecchio messaggio; `/annulla` e timeout gestiti; warning colori scuri WCAG
+- `roster.py` — PNG via Typst subprocess per `/roster` e `/assets`; fuzzy match team via `get_team_by_query()`; roster sempre 15 righe (padding con righe vuote); giocatori con DPE mostrano importo barrato in rosso
+- `palette.py` — `/palette` con anteprima PNG live
 - `myteam.py` — modifica nome/colori team
-- `team_diff.py` — variazioni roster tra date
-- `admin_panel.py` — pannello admin con `/set_fase` keyboard fasi inline; controllo cap con riepilogo per team; DPE admin diretta (team→giocatore→conferma→DB+canale); annulla trade con lista bottoni+conferma; accountability admin "Nome (@tag)" su tutti i messaggi canale
-- `dpe.py` — `/dpe` GM: flusso richiesta→approvazione admin gruppo→DB+canale; `pre_deadline` libera slot; DPE legata alla stagione corrente (torna normale alla successiva)
-- `dev_player.py` — `/dev_player <nome>` con edit bottoni
-- `dev.py` — `/dev`, `/dev_version`, `/dev_log`, `/dev_trade`, `/dev_pg`, `/dev_roster`, `/job_status`, `/broadcast`
-- `helpers.py` — `log_job_error(context, job_name, exc)` logga eccezioni job su `log_channel_id_main` + dev; `log_warn()` per warning espliciti
+- `team_diff.py` — variazioni roster tra date; fuzzy match team via `get_team_by_query()`
+- `admin_panel.py` — pannello admin; DPE admin diretta (team→giocatore→conferma→DB+canale); annuncio canale usa `_formatta_annuncio_canale()` (non `_testo_riepilogo`)
+- `dpe.py` — `/dpe` GM: flusso richiesta→approvazione admin gruppo→DB+canale; `pre_deadline = (fase != "regular-season-deadline")`; DPE legata alla stagione corrente
+- `dev_player.py`, `dev.py`, `helpers.py` — invariati
 
 **File principali bot-main:**
-- `bot.py` — entry point, `post_stop`, `post_init`, `post_shutdown` (backup), job queue; `migrate_db()` chiamata all'avvio; `/annulla` globale con `group=-1`; Healthcheck via `HEALTHCHECK_URL` env var (ping ogni 5 min)
-- `scheduler.py` — backup pg_dump+SQLite giornaliero/settimanale/shutdown, bref scraper job; errori wrappati con `log_job_error`
-- `bref_scraper.py` — scraping basketball-reference, append su `bref_stats`; gira solo in `regular-season-fa`, `regular-season-deadline`, `playoff`
-- `utils.py` — ROME, format_dt, normalizza, cognome
-- `log_buffer.py` — buffer in memoria per `/dev_log`
-- `settings.py` — get(), load_globals(), fase(), `luxury_cap()` alias di `cap_limite()` (165M offseason, 150M RS), `cap_massimo()` alias di `cap_regular()` (sempre 150M), richiede_fase(), solo_privato, FASI_TRADE_APERTE
-- `database.py` — tutte le query PG; `migrate_db()` crea tabella `dpe` se non esiste; `get_dpe_team()`, `get_dpe_attiva()`, `inserisci_dpe()`; `cap_occupato_team()` include DPE
-- `teams.py` — get_team_by_id, get_team_by_gm, get_all_teams
-- `assets.typ` / `roster.typ` — template Typst; colori testo adattivi via parametri `--input` (`text_on_riga1/2`, `text_on_sezione`, `text_on_footer`, `text_on_pick`, `text_on_dir`); footer usa `c_dark` se `colore_sezione` non impostato, `c_sezione` se personalizzato; leggenda: bullet colorato + label con `text_on(c_sezione)`
-- `Dockerfile` — include `fonts-liberation` per Liberation Sans
+- `bot.py` — entry point; comandi GM: `build_trade`, `import_trade`, `bozze_trade`, `edit_trade`, `taglia`, `dpe`, `attiva_diritti`, `decadimento`, `my_team`, `palette`, `team_diff`, `annulla_trade`, `annulla`; comandi admin aggiuntivi: `admin_menu`, `set_fase`, `approva_trade`, `annulla_trade_admin`, `registra_firma`, `annulla_admin`, `settings`; comandi dev aggiuntivi: `dev*`, `job_status`, `broadcast`, `sync_sheets`, `backup`, `reboot`
+- `teams.py` — `get_team_by_id`, `get_team_by_gm`, `get_all_teams`, `get_team_by_query` (fuzzy match su team_id → nome esatto → gm_nome esatto → prefix → difflib 0.6)
+- `database.py` — `get_pick_by_orig_anno_round(proprietario_orig, anno, round)` per lookup pick nel trade parser; `get_roster_team()` joina tabella `dpe` e restituisce `importo` (DPE-adjusted), `importo_originale`, `ha_dpe`
+- `scheduler.py`, `bref_scraper.py`, `utils.py`, `log_buffer.py`, `settings.py` — invariati
+- `assets.typ` / `roster.typ` — 15 righe fisse con padding vuoto; flag `VUOTO` per righe empty; DPE: nome in rosso scuro (`#C62828`), cella importo `~~orig~~ nuovo`; leggenda include `■ DPE` se presente
 
 **Trade — architettura:**
 
 Stati ConversationHandler:
 `TRADE_N_SQUADRE, TRADE_SELEZIONA_SQUADRE, TRADE_ASSET_MENU, TRADE_ASSET_GIOCATORI, TRADE_ASSET_PICK, TRADE_ASSET_DIRITTI, TRADE_ASSEGNA_DEST, TRADE_RIEPILOGO, EDIT_MENU, EDIT_AGGIUNGI_TIPO, EDIT_AGGIUNGI_ITEM = range(11)`
-`TRADE_NOTA = 11` — step nota opzionale nel riepilogo
-`TRADE_RIFIUTO_NOTA = 12` — step nota rifiuto (conv_rifiuto separato)
-`IMPORT_ATTENDI_TESTO = 20`
-`PAL_MENU, PAL_ATTENDI_HEX, PAL_ANTEPRIMA = range(30, 33)`
+`TRADE_NOTA = 11`, `TRADE_RIFIUTO_NOTA = 12`, `IMPORT_ATTENDI_TESTO = 20`
 
-Entry points aggiuntivi: `CallbackQueryHandler(cmd_trade, pattern=r"^menu_trade_build$")` e `CallbackQueryHandler(cmd_import, pattern=r"^menu_trade_import$")`
-
-- `trade_ref` (TRADE-2026-001) assegnato SOLO all'approvazione admin, mai prima
-- Label pre-approvazione: `{AAA}-B{N}` — prime 3 lettere nome team proponente + numero bozza (es. `CHE-B3`)
-- `nota_gm TEXT` — colonna in tabella `trade`, aggiunta manualmente: `ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;`
-- Nota mostrata ai riceventi come "💬 Messaggio da {GM proponente}"
-- Rifiuto con nota: conv_rifiuto separato (timeout 120s), nota mostrata al proponente
-- Trade 2 squadre: assegnazione automatica destinatari
-- Trade 3+ squadre: flusso item per item `TRADE_ASSEGNA_DEST`
-- Elimina/Modifica bozza funzionanti incluso post-modifica (flag `edit_from_riepilogo`)
-- Admin può importare qualsiasi trade (check "non ti coinvolge" saltato per admin)
-- `get_trade_count_approvate` usa MAX(SPLIT_PART) per evitare UniqueViolation
-- Annuncio canale: 2 squadre solo "cede", 3+ squadre "cede" + "riceve"; accountability "Nome (@tag)"
-- `/annulla_trade_admin TRADE-2026-XXX` con validazione compatibilità roster prima del rollback
-- `/bozze_trade` mostra InlineKeyboard con label "GM1 ↔ GM2", click apre riepilogo con bottoni azione
-- Keyboard trade non valida mostra solo "Modifica" ed "Elimina" — mai "Proponi/Ufficializza"
-
-**Tagli:**
-- Impatto taglio: tabella fissa ≤5M, percentuali sopra cappate a max 3 anni
-- Tagli 1Mx1 gratuiti: max 3/stagione, `gratuito=TRUE` in transazioni; se esauriti taglio bloccato (nessuna opzione forzato)
-- Annuncio canale: con impatto mostra rate per stagione; gratuito mostra rimasti/3
-- Admin può tagliare da menu admin con accountability
+- `trade_ref` (`TRADE-2026-001`) assegnato PRIMA di chiamare `_esegui_trade()` — evita NULL nelle transazioni e notifiche GM
+- Label bozze: `BUF03-3` = prime 3 lettere prima parola nome team + numero team zero-padded + bozza_num; `ADM-4` per bozze admin
+- `/edit_trade N` — N è il bozza_num del GM (relativo al proprio team), non l'ID PG
+- `/bozze_trade` — bottoni `✏️ BUF03-3` → edit diretto, `👀 TRADE-2026-022` → riepilogo con voto
+- Annuncio canale: sempre via `_formatta_annuncio_canale()` (formato TRADE + importi), mai `_testo_riepilogo()` (formato bozza con bullet)
+- Pick nel parser: lookup per `proprietario_orig` non per `proprietario_att`
 
 **DPE:**
-- Fasi disponibili: `regular-season-fa` (pre-deadline), `regular-season-deadline` (post-deadline)
-- Pre-deadline: decurtazione 25% arrotondato per eccesso + libera slot roster
-- Post-deadline: decurtazione 25% + nessuno slot liberato (cambio ruolo aggiuntivo — da implementare con i ruoli)
+- Fasi disponibili: `offseason-rinnovi` → `regular-season-deadline` (tutte e 6)
+- `pre_deadline = (fase != "regular-season-deadline")` — libera slot in tutte le fasi tranne post-deadline
+- Post-deadline: decurtazione 25% + nessuno slot liberato (cambio ruolo aggiuntivo — da implementare con i ruoli v5.x)
+- `get_roster_count()` nel bot aste riceve sempre `stagione` per escludere giocatori con DPE dal conteggio slot
 - Tabella `dpe`: `(id, giocatore_id, team_id, stagione, importo_originale, importo_dpe, pre_deadline, approvata_da, timestamp)`
-- La DPE è legata alla stagione corrente — alla stagione successiva il contratto torna all'importo originale automaticamente (la riga dpe non esiste per la nuova stagione)
-- Flusso GM: richiesta → notifica gruppo admin → Approva/Rifiuta → DB + notifica GM + annuncio canale
-- Flusso admin da menu: diretto senza approvazione (team→giocatore→conferma→DB+canale)
 
 **Roster/Assets PNG (Typst):**
-- Flag: `N`=normale, `A`=RFA, `R0-R3`=rookie anno I-IV
-- Cap = contratti attivi + rate impatto taglio stagione corrente + DPE (riduce importo contratto)
-- Età media su anni interi compiuti, un decimale
-- `/roster [team_id] [DD-MM-YY o DD-MM-YYYY]` — storico via event sourcing
-- `/assets [team_id]` — roster + pick per anno (★ proprie, ○ altrui) + diritti con #pick e anno draft
-- Palette colori personalizzabile via `/palette`: `colore_header`, `colore_riga1`, `colore_riga2`, `colore_sezione`, `colore_pick`, `colore_diritti`
-- Campi palette in `teams.json`, stringa vuota = default calcolato da `colore` principale
-- Testo adattivo: colori calcolati in Python con luminanza WCAG (soglia 0.179), passati a Typst come `--input`; footer usa `c_dark` di default
-- Warning colori scuri in `/palette` per campi sfondo
+- Flag: `N`=normale, `A`=RFA, `R0-R3`=rookie anno I-IV, `VUOTO`=riga padding
+- Sempre 15 righe: padding con flag `VUOTO` per slot vuoti
+- DPE: nome in rosso scuro, cella importo con originale barrato e nuovo importo
+- Leggenda: rookie, RFA, DPE (mostrate solo se presenti)
+- `/roster` e `/assets` accettano nome GM o nome squadra (fuzzy) oltre a team_id
 
-**Menu principale `/menu`:**
-- Dinamico per fase: Trade/Tagli/Rookie mostrati solo in `FASI_TRADE_APERTE`, DPE solo in `regular-season-fa/deadline`, Roster/Assets sempre
-- Assets con selezione squadra via bottoni (analogo a Roster)
-- Trade builder avviato via `menu_trade_build` callback (entry point ConversationHandler)
-
-**Menu admin `/admin_menu`:**
-- Trade (con approvazione/rifiuto/rollback)
-- Taglia giocatore (con selezione team+giocatore)
-- DPE (diretta, con selezione team+giocatore+conferma)
-- Attiva diritti (con selezione team)
-- Situazione cap (riepilogo per team: contratti+tagli+penalità+DPE, stato ✅/🔴)
-- Cambia fase (keyboard fasi inline)
-- Annulla trade (lista ultime 15 approvate con bottoni+conferma+rollback)
-
-**Validatori trade:**
-- Cap post-trade vs `luxury_cap()` = `cap_limite()` (dinamico: 165M offseason, 150M regular)
-- Roster size: max 15 sempre, min 10 SOLO in regular season
-- Stepien: `ANNO_STORICO_LIMITE = 2026` hardcoded
-- Ownership giocatori: contratto attivo deve appartenere al team cedente
-- Corrispondenza importo/anni contratto vs DB (warning se divergono)
-
-**PostgreSQL schema:**
-Tabelle: `giocatori`, `contratti`, `transazioni` (con `gratuito BOOLEAN`), `trade/trade_items/trade_squadre/trade_voti`, `pick`, `rookie`, `impatto_taglio`, `cambi_ruolo`, `penalita`, `bref_stats`, `dpe`
-
-**dpe:**
+**PostgreSQL schema — novità:**
 ```sql
-(id SERIAL PRIMARY KEY,
- giocatore_id INTEGER REFERENCES giocatori(id),
- team_id TEXT, stagione TEXT,
- importo_originale INTEGER, importo_dpe INTEGER,
- pre_deadline BOOLEAN DEFAULT TRUE,
- approvata_da TEXT,
- timestamp TIMESTAMPTZ DEFAULT NOW(),
- UNIQUE (giocatore_id, stagione))
+-- pick lookup per proprietario originale (v2.0.33)
+-- get_pick_by_orig_anno_round(proprietario_orig, anno, round) in database.py
+
+-- tagli gratuiti fittizi pre-bot (inserimento manuale):
+INSERT INTO transazioni (tipo, giocatore_id, team_id_da, stagione, gratuito, note)
+SELECT 'cut', MIN(id), 'teamXX', '2026', TRUE, 'Taglio gratuito registrato manualmente — avvenuto pre-bot'
+FROM giocatori;
+-- giocatore_id NOT NULL — usare MIN(id) come placeholder
 ```
 
-**bref_stats:**
+**Operazioni manuali sul DB:**
 ```sql
-(id, timestamp, stagione, nome_bref, team, g, mp,
- fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct,
- orb, drb, trb, ast, stl, blk, tov, pf, pts,
- fantamedia NUMERIC GENERATED ALWAYS AS (...) STORED)
+-- nota trade (v2.0.25)
+ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 ```
-Stagione bref = stagione_corrente + 1 (es. stagione 2026 → bref 2027).
-Scraper gira ogni mattina alle 10 solo in `regular-season-fa`, `regular-season-deadline`, `playoff`.
-
-**Backup:**
-- Giornaliero 00:00 e 12:00 → `log_channel_id_main` (solo PG)
-- Settimanale domenica 00:30 → `admin_group_id` (PG + SQLite aste beta)
-- On stop e shutdown → `log_channel_id_main` (PG + SQLite aste beta)
-- `/backup` manuale → dev only, canale log
-
-**Healthcheck:**
-- Variabile env `HEALTHCHECK_URL` nel `docker-compose.yml` del bot main
-- Ping ogni 5 minuti su healthchecks.io
-- Job registrato solo se `HEALTHCHECK_URL` è presente
 
 **deploy:**
 ```bash
-cd ~/bots && unzip -o fantabasket-progettone-vX.Y.Z-completo.zip && \
-cd fantabasket-progettone && docker compose up --build -d && \
-git add -A && git commit -m "vX.Y.Z: descrizione" && \
-git push origin main
+# File in handlers/:
+unzip -p fantabasket-progettone-vX.Y.Z.zip NOMEFILE.py > ~/bots/fantabasket-progettone/fantabasket-main/handlers/NOMEFILE.py
+# File in fantabasket-main/:
+unzip -p fantabasket-progettone-vX.Y.Z.zip NOMEFILE.py > ~/bots/fantabasket-progettone/fantabasket-main/NOMEFILE.py
+# Poi:
+cd ~/bots/fantabasket-progettone && docker compose up --build -d bot-main && \
+git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 ```
 
 **Bug noti aperti:**
@@ -255,84 +190,36 @@ git push origin main
 
 **Roadmap:**
 
-**v2.0.x — GAS Router + Google Sheets (stato: v2.0.16)**
-- GAS Router microservizio FastAPI nel Docker Compose (`gas-router/`)
-- Autenticazione doppia: `gas_router_token` (bot→router) e `gas_token` (router→GAS)
-- URL webapp GAS in secret `gas_roster_url` — aggiornare ad ogni nuovo deploy GAS
-- GAS legge secrets ad ogni richiesta (non all'avvio) per supportare cambio URL senza rebuild
-- `gas_client.py` nel bot main: sync automatico dopo trade, taglio, firma rookie, DPE, rollback trade
-- `/sync_sheets` comando dev per sincronizzazione manuale completa di tutti i 24 team
-- Payload roster: `{action, teams: [{team_id, tagli_gratuiti_usati, cambi_ruolo_usati, giocatori, impatti_tagli}]}`
-- Impatti tagli formato: `"1x2"` se rate uguali, `"2-1x2"` se rate diverse
-- Giocatori ordinati per importo DESC poi cognome — uguale a `/roster`
-- GAS: `globals.gs` in gitignore (contiene SPREADSHEET_ID e TEAM_MAP); solo `clasp push` per aggiornare codice, no `clasp deploy`
-- Deploy GAS: `clasp push && clasp deploy --deploymentId ID` (il deploy aggiorna la versione mantenendo URL e accesso)
-- `globals.gs` contiene: CONFIG (offset righe/colonne), TEAM_MAP (team_id → conference+pos), `getSpreadsheet()`, `respond()`
-
-**Palette colori:**
-- Campi in `teams.json`: `colore_header`, `colore_riga1`, `colore_riga2`, `colore_sezione`, `colore_pick`, `colore_diritti`
-- NON esiste campo `colore` generico — ogni sezione ha il suo campo dedicato
-- `colore_header` è il colore primario da cui derivano i default di tutto il resto in Typst
-- Campi vuoti = default calcolati da `colore_header`
-- `/palette` con anteprima live, warning leggibilità WCAG, `/annulla` per uscire
-
-**v1.5.x — bot main + aste (in corso)**
-- Colorazione rossa giocatori con DPE attiva in roster/assets PNG
-- Penalità: tabella, `/penalita` con motivazione, log canale; automatiche con Loucabot
-- RFA in offseason-rinnovi (selezione contratti x0) + aste offseason-rfa
-- Rinnovi: rookie vs non-rookie, +¼/+½ arrotondato per eccesso, Doncic Rule (soglie 20 e 25), max 2 standard per stagione
-- 10-day contract: una volta per squadra, non pesa su cap/slot, max 2 squadre per FA, scade a fine turno
-- Bref scraper: import automatico nuovi giocatori non in DB, check giornaliero alle 14 firmati senza nome_bref con suggerimento match, `/match_bref` dev, check alle 15 firmati senza data di nascita
-
-**Stato attuale: v2.0.30**
-
-Novità recenti (v2.0.17–v2.0.30):
-- Bot aste beta ora in produzione (token reale, bot v48 spento)
-- BotCommand bot aste con scope GM/admin/dev verificati dal codice
-- `/registra_firma` admin: registra firme avvenute fuori dal bot (ricerca fuzzy, check contratto attivo, sync GAS)
-- `/nuovo_giocatore` dev: inserisce anagrafica giocatore nel DB
-- Lista FA bot aste: ordine per fantamedia corretto su tutte le pagine; `get_fa_rows_pg()` con JOIN bref_stats
-- Trade builder dal menu: bottone "🔨 Build" funzionante come entry_point ConversationHandler
-- `/annulla` aggiunto ai fallback del ConversationHandler trade
-- Bottone "💾 Salva bozza" nel riepilogo trade
-- Nota trade: bottone "📝 Aggiungi nota" nel riepilogo — salva in `nota_gm`, mostrata ai riceventi
-- Nota rifiuto: "Rifiuto secco" / "Rifiuto con nota" con conv separato (timeout 120s)
-- Import dal menu (`menu_trade_import`) funzionante come entry_point di `conv_import`
-- Re-validazione trade al momento dell'invio (non si fida del valore nel DB)
-- GAS sync fire and forget per transazioni automatiche, sincrono per `/sync_sheets`
-- Sync periodico GAS ogni 2h (`sync_sheets_periodico` in scheduler.py)
-
-**Operazioni manuali sul DB:**
-```sql
--- nota trade (v2.0.25)
-ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
-```
-
-**v2.x — GAS Router** ✅ completato
-- Microservizio router nel Docker Compose ✅
-- Integrazione Google Sheets: foglio roster ✅ — foglio scelte (pick e diritti) ❌ da fare
-- Sync automatico dopo ogni transazione (fire and forget, retry 30s) ✅
-- Sync periodico ogni 2h come recovery ✅
-- `/sync_sheets` sincrono con timeout 60s ✅
-- Account Google dedicato con email recovery Henry ✅
+**v2.x — GAS Router + Google Sheets**
+- GAS Router microservizio FastAPI ✅
+- Foglio roster ✅ — foglio scelte (pick e diritti) ❌ da fare
+- Sync automatico + periodico ogni 2h ✅
+- `/sync_sheets` sincrono ✅
 
 **v3.x — Loucabot**
-- Calcolo punteggi partite (refactor da versione esistente artigianale)
-- Penalità automatiche: mancate panchine, giocatori fuori ruolo su Yahoo
+- Calcolo punteggi partite + penalità automatiche
 
 **v4.x — IPanchinariBot**
-- Gestione panchine giornaliere
 
 **v5.x — Ruoli (feature trasversale)**
 - Fase `offseason-ruoli` tra `offseason-fa` e `regular-season-fa`
-- Tabella ruoli con event sourcing (label: inizializzazione/cambio normale/10-day/post-DPE/post-trade)
-- In offseason-ruoli: dichiarazione iniziale in-place, nessuno storico
-- In RS: 2 cambi normali + casi speciali tracciati
-- Post-trade: notifica GM in privato per dichiarazione entro 48h, altrimenti ruolo casuale tra disponibili
-- Fetch Yahoo giornaliero nuovi ruoli + notifica canale + Erminio rule automatica
-- Cambio ruolo forzato admin (Vassell rule)
-- Saedro rule: cambio ruolo temporaneo 10-day
+- Post-trade: notifica GM per dichiarazione ruoli entro 48h
 - DPE post-deadline: cambio ruolo aggiuntivo gratuito
+- Fetch Yahoo giornaliero
 
 **@qf_bot (vX.x — dipende da guest mode PTB)**
 - Bot pubblico per roster e info lega
+
+---
+
+**Stato attuale: v2.0.38**
+
+Novità v2.0.31–v2.0.38:
+- **v2.0.31** — DPE disponibile in tutte e 6 le fasi (da offseason-rinnovi a regular-season-deadline); admin menu DPE diretta; `pre_deadline = (fase != "regular-season-deadline")`
+- **v2.0.32** — annuncio canale DPE con effetto corretto; `get_roster_team()` joina tabella dpe; roster/assets PNG con importo DPE barrato in rosso; `_build_giocatori_str` aggiunge 5° campo `importo_orig`
+- **v2.0.33** — roster/assets: sempre 15 righe fisse con padding; fix lookup pick per `proprietario_orig` in trade_parser; `get_pick_by_orig_anno_round()` in database.py
+- **v2.0.34** — bot aste: `check_slot_virtuale()` passa `stagione` a `get_roster_count()` — fix DPE slot
+- **v2.0.35** — fix annuncio canale import trade: usa `_formatta_annuncio_canale()` invece di `_testo_riepilogo()`
+- **v2.0.36** — label bozza unificata `BUF03-3`/`ADM-4`; rimossi ID interni visibili all'utente; `proposta_da` mostra nome squadra
+- **v2.0.37** — `trade_ref` passato a `_esegui_trade()` (fix NULL in transazioni/notifiche); `/bozze_trade` con bottoni inline edit+voto; notifica ruoli post-trade solo in `regular-season-fa`; comandi bot completi (`edit_trade`, `registra_firma`, `annulla_admin`, `sync_sheets`)
+- **v2.0.38** — `get_team_by_query()` in teams.py (fuzzy match su team_id/nome/gm_nome); `/roster`, `/assets`, `/team_diff` accettano nome GM o squadra
