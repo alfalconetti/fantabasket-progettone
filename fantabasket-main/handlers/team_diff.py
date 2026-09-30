@@ -99,7 +99,7 @@ async def cmd_team_diff(update: Update, context: ContextTypes.DEFAULT_TYPE):
             continue
         except ValueError:
             pass
-        t = tm.get_team_by_id(arg)
+        t = tm.get_team_by_query(arg)
         if t:
             team = t
         else:

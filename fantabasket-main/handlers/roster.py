@@ -102,15 +102,19 @@ def _eta(data_nascita) -> int | None:
 def _build_giocatori_str(roster: list, contratti: list) -> str:
     """
     Costruisce la stringa giocatori per Typst:
-    "Nome|importo|anni_res|flag;..."
-    Ordinamento: importo DESC, cognome ASC.
+    "Nome|importo|anni_res|flag[|importo_orig];..."
+    Il 5° campo importo_orig è presente solo se ha_dpe — Typst mostra
+    l'importo originale barrato seguito dall'importo DPE.
+    Ordinamento: importo_originale DESC (per non alterare l'ordine con DPE), cognome ASC.
     Flag: N=normale, A=RFA, R0-R3=rookie anno I-IV scale
     """
     stagione_int = int(settings.stagione_corrente())
     righe = []
-    for r in sorted(roster, key=lambda x: (-( x.get("importo") or 0), _cognome(x["nome_common"]))):
-        importo = r.get("importo", 0)
-        tipo    = r.get("tipo_contratto", "normale")
+    for r in sorted(roster, key=lambda x: (-(x.get("importo_originale") or x.get("importo") or 0), _cognome(x["nome_common"]))):
+        importo      = r.get("importo", 0)
+        importo_orig = r.get("importo_originale", importo)
+        ha_dpe       = r.get("ha_dpe", False)
+        tipo         = r.get("tipo_contratto", "normale")
 
         if tipo == "rookie":
             scala    = int(r.get("anni_scala") or 0)
@@ -123,7 +127,10 @@ def _build_giocatori_str(roster: list, contratti: list) -> str:
             flag      = "N"
 
         nome = r["nome_common"].replace("|", " ").replace(";", " ")
-        righe.append(f"{nome}|{importo}|{anni_res}|{flag}")
+        if ha_dpe:
+            righe.append(f"{nome}|{importo}|{anni_res}|{flag}|{importo_orig}")
+        else:
+            righe.append(f"{nome}|{importo}|{anni_res}|{flag}")
     return ";".join(righe)
 
 
@@ -230,6 +237,8 @@ async def cmd_roster(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Prova a parsare come data DD-MM-YYYY o DD-MM-YY
         try:
             from datetime import datetime, timezone
+            if not arg[0].isdigit():
+                raise ValueError  # non è una data, prova come team
             fmt = "%d-%m-%Y" if len(arg) == 10 else "%d-%m-%y"
             as_of = datetime.strptime(arg, fmt).replace(
                 hour=23, minute=59, tzinfo=timezone.utc
@@ -419,7 +428,7 @@ async def cmd_assets(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     team = None
     for arg in args:
-        team = tm.get_team_by_id(arg)
+        team = tm.get_team_by_query(arg)
         if not team:
             await update.effective_message.reply_text(f"❌ Team '{arg}' non trovato.")
             return
