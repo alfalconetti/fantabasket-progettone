@@ -815,6 +815,28 @@ async def _proponi_ai_gm(query, context, trade_id: int):
     )
 
 
+async def cb_trade_vedi(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Mostra il riepilogo di una trade in votazione con bottoni voto."""
+    query = update.callback_query
+    await query.answer()
+    trade_id = int(query.data.split(":")[1])
+    trade    = db.get_trade(trade_id)
+    if not trade:
+        await query.edit_message_text("❌ Trade non trovata.")
+        return
+    user = update.effective_user
+    team = tm.get_team_by_gm(user.id)
+    if not team:
+        await query.edit_message_text("⛔ Non sei registrato come GM.")
+        return
+    testo = _testo_riepilogo(trade_id)
+    kb = InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ Accetto", callback_data=f"trade_voto:si:{trade_id}:{team['id']}"),
+        InlineKeyboardButton("❌ Rifiuto", callback_data=f"trade_voto:no:{trade_id}:{team['id']}"),
+    ]])
+    await query.edit_message_text(testo, parse_mode="HTML", reply_markup=kb)
+
+
 async def cb_voto_gm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Callback quando un GM accetta o rifiuta una trade proposta."""
     query = update.callback_query
@@ -1013,8 +1035,8 @@ async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     # Esegui la trade e registra
-    await _esegui_trade(context, trade_id)
     db.approva_trade(trade_id, trade_ref, admin_nome)
+    await _esegui_trade(context, trade_id, trade_ref)
 
     # Annuncio sul canale principale
     main_channel = settings.load_globals().get("main_channel_id")
@@ -1040,25 +1062,27 @@ async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def _esegui_trade(context, trade_id: int):
-    """Esegue materialmente la trade: aggiorna contratti e inserisce transazioni."""
-    trade   = db.get_trade(trade_id)
-    items   = db.get_items_trade(trade_id)
+async def _esegui_trade(context, trade_id: int, trade_ref: str):
+    """Esegue materialmente la trade: aggiorna contratti e inserisce transazioni.
+    trade_ref viene passato dal chiamante (è già stato calcolato prima di scrivere sul DB).
+    """
+    trade    = db.get_trade(trade_id)
+    items    = db.get_items_trade(trade_id)
     stagione = trade["stagione"]
+    fase_corrente = settings.fase()
+    FASI_RUOLI = {"regular-season-fa"}  # in futuro: aggiungere offseason-ruoli
 
     for item in items:
         if item["tipo"] == "giocatore":
             gid = item["giocatore_id"]
             contratto = db.get_contratto_attivo(gid)
-            # Aggiorna team_id nel contratto
             from database import _q
             _q("UPDATE contratti SET team_id = %s WHERE id = %s",
                (item["team_id_a"], contratto["id"]))
-            # Registra transazione
             db.registra_transazione(
                 "traded", gid, item["team_id_da"], item["team_id_a"],
                 stagione, contratto_id=contratto["id"], trade_id=trade_id,
-                note=trade["trade_ref"]
+                note=trade_ref
             )
         elif item["tipo"] == "pick":
             from database import _q
@@ -1066,7 +1090,7 @@ async def _esegui_trade(context, trade_id: int):
                (item["team_id_a"], item["pick_id"]))
 
     db.aggiorna_stato_trade(trade_id, "approvata")
-    logger.info("Trade %s eseguita.", trade["trade_ref"])
+    logger.info("Trade %s eseguita.", trade_ref)
 
     # Notifica tutti i GM coinvolti
     squadre = [s["team_id"] for s in db.get_squadre_trade(trade_id)]
@@ -1074,13 +1098,13 @@ async def _esegui_trade(context, trade_id: int):
         team = tm.get_team_by_id(team_id)
         if not team:
             continue
+        testo = f"✅ <b>Trade {trade_ref} eseguita!</b>"
+        if fase_corrente in FASI_RUOLI:
+            testo += "\nRicordati di comunicare i ruoli entro 48h."
         for gm_id in team.get("gm_ids", []):
             try:
                 await context.bot.send_message(
-                    chat_id=gm_id,
-                    text=f"✅ <b>Trade {trade['trade_ref']} eseguita!</b>\n"
-                         f"Ricordati di comunicare i ruoli entro 48h.",
-                    parse_mode="HTML",
+                    chat_id=gm_id, text=testo, parse_mode="HTML",
                 )
             except Exception as e:
                 logger.warning("Notifica GM %d fallita: %s", gm_id, e)
@@ -1279,17 +1303,30 @@ async def cmd_mie_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     righe = []
+    bottoni = []
+
     if bozze:
         righe.append("<b>📝 Bozze:</b>")
         for t in bozze:
-            righe.append(f"  • {_label_bozza(t)} — {t['n_squadre']} squadre")
+            label = _label_bozza(t)
+            righe.append(f"  • {label} — {t['n_squadre']} squadre")
+            bottoni.append([InlineKeyboardButton(
+                f"✏️ {label}", callback_data=f"edit_back:{t['id']}"
+            )])
 
     if pending:
+        righe.append("")
         righe.append("<b>⏳ In attesa del tuo voto:</b>")
         for t in pending:
-            righe.append(f"  • {t['trade_ref']} — /vedi_trade_{t['id']}")
+            righe.append(f"  • {t['trade_ref']}")
+            bottoni.append([InlineKeyboardButton(
+                f"👀 {t['trade_ref']}", callback_data=f"trade_vedi:{t['id']}"
+            )])
 
-    await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
+    kb = InlineKeyboardMarkup(bottoni) if bottoni else None
+    await update.effective_message.reply_text(
+        "\n".join(righe), parse_mode="HTML", reply_markup=kb
+    )
 
 
 # ── /annulla_trade ─────────────────────────────────────────────────────────────
@@ -1749,6 +1786,7 @@ def get_handlers() -> list:
         CommandHandler("mie_trade",          cmd_mie_trade),
         CommandHandler("bozze_trade",         cmd_mie_trade),
         CommandHandler("annulla_trade_admin", cmd_annulla_trade_admin),
+        CallbackQueryHandler(cb_trade_vedi,  pattern=r"^trade_vedi:\d+$"),
         CallbackQueryHandler(cb_voto_gm,     pattern=r"^trade_voto:.+$"),
         CallbackQueryHandler(cb_admin_trade, pattern=r"^trade_admin:.+$"),
         CallbackQueryHandler(cb_edit_back,   pattern=r"^edit_back:\d+$"),

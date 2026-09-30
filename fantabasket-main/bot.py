@@ -182,21 +182,24 @@ async def post_init(application):
         BotCommand("build_trade",    "Costruisci una trade"),
         BotCommand("import_trade",   "Importa trade da testo"),
         BotCommand("bozze_trade",    "Le tue bozze di trade"),
+        BotCommand("edit_trade",     "Modifica una bozza [numero]"),
         BotCommand("taglia",         "Taglia un giocatore"),
         BotCommand("dpe",            "Richiedi Disabled Player Exception"),
         BotCommand("attiva_diritti", "Attiva diritti 2nd pick"),
+        BotCommand("decadimento",    "Segnala contratto decaduto (ritiro, altra lega)"),
         BotCommand("my_team",        "Info e impostazioni del tuo team"),
         BotCommand("palette",        "Personalizza colori roster/assets"),
         BotCommand("team_diff",      "Variazioni roster [team_id] [da] [a]"),
-        BotCommand("annulla_trade",   "Annulla la trade in corso"),
-        BotCommand("annulla",          "Esci da qualsiasi conversazione bloccata"),
-        BotCommand("decadimento",      "Segnala contratto decaduto (ritiro, altra lega)"),
+        BotCommand("annulla_trade",  "Annulla la trade in corso"),
+        BotCommand("annulla",        "Esci da qualsiasi conversazione bloccata"),
     ]
     cmd_admin = cmd_gm + [
         BotCommand("admin_menu",          "Pannello admin"),
         BotCommand("set_fase",            "Cambia fase della stagione"),
         BotCommand("approva_trade",       "Approva una trade in attesa"),
-        BotCommand("annulla_trade_admin", "Annulla una trade"),
+        BotCommand("annulla_trade_admin", "Annulla una trade approvata"),
+        BotCommand("registra_firma",      "Registra firma manuale [team] [giocatore] [importo] [anni]"),
+        BotCommand("annulla_admin",       "Esci da operazione admin bloccata"),
         BotCommand("settings",            "Modifica settings [chiave] [valore]"),
     ]
     cmd_dev = cmd_admin + [
@@ -209,6 +212,7 @@ async def post_init(application):
         BotCommand("dev_player",   "Anagrafica giocatore [nome]"),
         BotCommand("job_status",   "Job attivi nella JobQueue"),
         BotCommand("broadcast",    "Messaggio a tutti i GM"),
+        BotCommand("sync_sheets",  "Sync manuale roster su Google Sheets"),
         BotCommand("backup",       "Backup manuale al canale log"),
         BotCommand("reboot",       "Riavvia il bot"),
     ]

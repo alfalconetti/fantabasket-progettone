@@ -555,7 +555,7 @@ async def cb_ufficializza(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     trade_id = int(query.data.split(":")[1])
     # Delega al callback admin già esistente in trade.py
-    from handlers.trade import _esegui_trade, _formatta_annuncio_canale
+    from handlers.trade import _esegui_trade, _formatta_annuncio_canale, _label_bozza
     import database as db
     from datetime import datetime
 
@@ -567,6 +567,7 @@ async def cb_ufficializza(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin_nome = update.effective_user.first_name or str(update.effective_user.id)
     await _esegui_trade(context, trade_id)
     db.approva_trade(trade_id, trade_ref, admin_nome)
+    await _esegui_trade(context, trade_id, trade_ref)
 
     main_channel = settings.load_globals().get("main_channel_id")
     if main_channel:
