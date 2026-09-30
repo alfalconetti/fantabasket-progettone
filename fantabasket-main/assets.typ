@@ -33,7 +33,8 @@
   giocatori_raw.split(";").map(r => {
     let p = r.split("|")
     (nome: p.at(0, default: ""), importo: p.at(1, default: "0"),
-     anni: p.at(2, default: "1"), flag: p.at(3, default: "N"))
+     anni: p.at(2, default: "1"), flag: p.at(3, default: "N"),
+     importo_orig: p.at(4, default: ""))
   })
 }
 
@@ -71,6 +72,7 @@
 #let c_r2  = color.rgb("#F57F17")
 #let c_r3  = color.rgb("#6A1B9A")
 #let c_rfa = color.rgb("#E65100")
+#let c_dpe = color.rgb("#C62828") // DPE — rosso scuro
 
 #set page(width: 420pt, height: auto, margin: 0pt, fill: white)
 #set text(font: "Liberation Sans", size: 9pt)
@@ -118,10 +120,19 @@
                 else if g.flag == "R3"    { (c_r3,  true) }
                 else if g.flag == "A"     { (c_rfa, true) }
                 else                       { (black, false) }
+    let ha_dpe = g.importo_orig != ""
+    let fc_nome = if ha_dpe { c_dpe } else { fc }
     let tc = if calc.odd(i) { _ton_r1 } else { _ton_r2 }
+    let cella_importo = if ha_dpe {
+      [#align(center)[
+        #text(7pt, fill: c_dpe, weight: "bold", overhang: false)[#strike[#g.importo_orig]#sym.space#g.importo]
+      ]]
+    } else {
+      [#align(center)[#text(8pt, fill: tc, weight: "bold")[#g.importo]]]
+    }
     (
-      [#text(8pt, fill: fc, weight: if bold {"bold"} else {"regular"})[#g.nome]],
-      [#align(center)[#text(8pt, fill: tc, weight: "bold")[#g.importo]]],
+      [#text(8pt, fill: fc_nome, weight: if bold or ha_dpe {"bold"} else {"regular"})[#g.nome]],
+      cella_importo,
       [#align(center)[#text(8pt, fill: tc)[#g.anni]]],
     )
   }).flatten(),
@@ -130,14 +141,16 @@
 // ── leggenda rookie ───────────────────────────────────────────────────────────
 #let has_rookie = giocatori.any(g => g.flag.starts-with("R"))
 #let has_rfa    = giocatori.any(g => g.flag == "A")
-#if has_rookie or has_rfa {
+#let has_dpe    = giocatori.any(g => g.importo_orig != "")
+#if has_rookie or has_rfa or has_dpe {
   block(width: 100%, fill: c_sezione)[
     #pad(x: 6pt, y: 3pt)[
       #if giocatori.any(g => g.flag == "R0") [#text(7pt, fill: c_r0,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno I ]  ]
       #if giocatori.any(g => g.flag == "R1") [#text(7pt, fill: c_r1,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno II ]  ]
       #if giocatori.any(g => g.flag == "R2") [#text(7pt, fill: c_r2,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno III ]  ]
       #if giocatori.any(g => g.flag == "R3") [#text(7pt, fill: c_r3,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno IV ]  ]
-      #if has_rfa                             [#text(7pt, fill: c_rfa, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[RFA]]
+      #if has_rfa                             [#text(7pt, fill: c_rfa, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[RFA]  ]
+      #if has_dpe                             [#text(7pt, fill: c_dpe, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[DPE]]
     ]
   ]
 }

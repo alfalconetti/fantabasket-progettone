@@ -129,16 +129,23 @@ def cerca_giocatori(nome_norm: str) -> list:
     )
 
 def get_roster_team(team_id: str) -> list:
-    """Roster attuale con data_nascita e anni_scala per il PNG roster."""
+    """Roster attuale con data_nascita e anni_scala per il PNG roster.
+    L'importo tiene conto della DPE attiva per la stagione corrente."""
+    from settings import stagione_corrente
+    stagione = stagione_corrente()
     return _q(
         """SELECT g.id AS giocatore_id, g.nome_common, g.nome_norm, g.data_nascita,
-                  c.importo, c.anni_originali, c.stagione_firma, c.tipo AS tipo_contratto,
-                  COALESCE(r.anni_scala, 0) AS anni_scala
+                  COALESCE(d.importo_dpe, c.importo) AS importo,
+                  c.importo AS importo_originale,
+                  c.anni_originali, c.stagione_firma, c.tipo AS tipo_contratto,
+                  COALESCE(r.anni_scala, 0) AS anni_scala,
+                  (d.id IS NOT NULL) AS ha_dpe
            FROM contratti c
            JOIN giocatori g ON g.id = c.giocatore_id
            LEFT JOIN rookie r ON r.giocatore_id = g.id AND r.firmato = TRUE
+           LEFT JOIN dpe d ON d.giocatore_id = g.id AND d.team_id = c.team_id AND d.stagione = %s
            WHERE c.team_id = %s AND c.attivo = TRUE""",
-        (team_id,), many=True
+        (stagione, team_id), many=True
     ) or []
 
 
