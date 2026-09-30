@@ -525,7 +525,9 @@ async def admin_import_ricevi_testo(update: Update, context: ContextTypes.DEFAUL
     trade_id = crea_trade_da_parse(squadre, stagione, "admin")
     ok, errori_val = valida_trade(trade_id)
 
-    risposta = [f"📋 <b>Trade #{trade_id}</b>\n", formatta_trade(squadre)]
+    trade_obj = db.get_trade(trade_id)
+    from handlers.trade import _label_bozza
+    risposta = [f"📋 <b>Bozza {_label_bozza(trade_obj)}</b>\n", formatta_trade(squadre)]
     if ok:
         risposta.append("\n✅ <b>Validazione OK</b>")
     else:

@@ -78,8 +78,8 @@ def _testo_riepilogo(trade_id: int) -> str:
     items  = db.get_items_trade(trade_id)
     squadre = db.get_squadre_trade(trade_id)
 
-    num = trade["bozza_num"] if trade and trade.get("bozza_num") else trade_id
-    righe = [f"📋 <b>Bozza trade #{num}</b>\n"]
+    label = _label_bozza(trade) if trade else f"#{trade_id}"
+    righe = [f"📋 <b>Bozza {label}</b>\n"]
 
     for sq in squadre:
         tid = sq["team_id"]
@@ -555,10 +555,10 @@ async def cb_trade_del(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     query    = update.callback_query
     trade_id = int(query.data.split(":")[1])
     trade    = db.get_trade(trade_id)
-    num      = trade["bozza_num"] if trade else trade_id
+    label    = _label_bozza(trade) if trade else f"#{trade_id}"
     db.elimina_trade(trade_id)
     await query.answer()
-    await query.edit_message_text(f"🗑️ Bozza #{num} eliminata.")
+    await query.edit_message_text(f"🗑️ Bozza {label} eliminata.")
     return ConversationHandler.END
 
 
@@ -570,7 +570,7 @@ async def cb_modifica_da_riepilogo(update: Update, context: ContextTypes.DEFAULT
     context.user_data["edit_from_riepilogo"] = True
     await query.answer()
     await query.edit_message_text(
-        f"✏️ <b>Modifica Bozza #{trade['bozza_num']}</b>\n\n"
+        f"✏️ <b>Modifica bozza {_label_bozza(trade)}</b>\n\n"
         f"{_testo_riepilogo(trade_id)}\n\n"
         f"Premi ❌ per rimuovere, ➕ per aggiungere." + _ANNULLA_HINT,
         parse_mode="HTML",
@@ -691,10 +691,10 @@ async def _invia_ad_admin(query, context, trade_id: int):
     ]])
 
     if admin_gid:
-        bozza_label = f"Bozza #{trade['bozza_num']}" if trade.get('bozza_num') else f"Trade #{trade_id}"
+        bozza_label = _label_bozza(trade)
         await context.bot.send_message(
             chat_id=admin_gid,
-            text=f"📨 <b>{bozza_label} proposta da {trade['proposta_da']}</b>\n\n{testo}",
+            text=f"📨 <b>{bozza_label}</b> proposta da <b>{tm.get_team_by_id(trade['proposta_da'])['nome'] if tm.get_team_by_id(trade['proposta_da']) else trade['proposta_da']}</b>\n\n{testo}",
             parse_mode="HTML",
             reply_markup=kb,
         )
@@ -792,7 +792,7 @@ async def _proponi_ai_gm(query, context, trade_id: int):
             InlineKeyboardButton("✅ Accetto", callback_data=f"trade_voto:si:{trade_id}:{team_id}"),
             InlineKeyboardButton("❌ Rifiuto", callback_data=f"trade_voto:no:{trade_id}:{team_id}"),
         ]])
-        bozza_label = f"Bozza #{trade['bozza_num']}" if trade.get('bozza_num') else f"Trade #{trade_id}"
+        bozza_label = _label_bozza(trade)
         nota_gm = trade.get("nota_gm", "") or ""
         proponente = tm.get_team_by_id(trade["proposta_da"])
         proponente_nome = proponente["gm_nome"] if proponente else "GM"
@@ -854,14 +854,22 @@ async def cb_voto_gm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _invia_ad_admin_dopo_voti(context, trade_id)
 
 
+def _label_bozza(trade: dict) -> str:
+    """Genera la label di una bozza: 'BUF03-3' per GM, 'ADM-4' per admin."""
+    num = trade.get("bozza_num", "?")
+    proposta_da = trade.get("proposta_da", "")
+    if proposta_da == "admin":
+        return f"ADM-{num}"
+    team_num = proposta_da.replace("team", "").zfill(2) if proposta_da.startswith("team") else "??"
+    team = tm.get_team_by_id(proposta_da)
+    team_short = team["nome"].split()[0].upper()[:3] if team else "???"
+    return f"{team_short}{team_num}-{num}"
+
 def _trade_label(trade: dict) -> str:
     """Label leggibile per una trade, anche prima che abbia un trade_ref."""
     if trade.get("trade_ref"):
         return trade["trade_ref"]
-    team = tm.get_team_by_id(trade.get("proposta_da", ""))
-    team_short = team["nome"].split()[0].upper()[:3] if team else "???"
-    bozza = trade.get("bozza_num", trade.get("id", "?"))
-    return f"{team_short}-B{bozza}"
+    return _label_bozza(trade)
 
 
 async def cb_rifiuta_conf(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -1274,7 +1282,7 @@ async def cmd_mie_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if bozze:
         righe.append("<b>📝 Bozze:</b>")
         for t in bozze:
-            righe.append(f"  • #{t['bozza_num']} — {t['n_squadre']} squadre")
+            righe.append(f"  • {_label_bozza(t)} — {t['n_squadre']} squadre")
 
     if pending:
         righe.append("<b>⏳ In attesa del tuo voto:</b>")
@@ -1347,7 +1355,7 @@ async def cmd_edit_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ConversationHandler.END
 
     context.user_data["edit_trade_id"] = bozza["id"]
-    testo = f"✏️ <b>Modifica Bozza #{bozza_num}</b>\n\n{_testo_riepilogo(bozza['id'])}\n\nPremi ❌ per rimuovere un asset, ➕ per aggiungerne uno." + _ANNULLA_HINT
+    testo = f"✏️ <b>Modifica bozza {_label_bozza(bozza)}</b>\n\n{_testo_riepilogo(bozza['id'])}\n\nPremi ❌ per rimuovere un asset, ➕ per aggiungerne uno." + _ANNULLA_HINT
     await update.effective_message.reply_text(
         testo, parse_mode="HTML", reply_markup=_kb_edit_menu(bozza["id"])
     )
@@ -1364,7 +1372,7 @@ async def cb_edit_rm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     db.rimuovi_item_trade(item_id)
 
     trade = db.get_trade(trade_id)
-    testo = f"✏️ <b>Modifica Bozza #{trade['bozza_num']}</b>\n\n{_testo_riepilogo(trade_id)}" + _ANNULLA_HINT
+    testo = f"✏️ <b>Modifica bozza {_label_bozza(trade)}</b>\n\n{_testo_riepilogo(trade_id)}" + _ANNULLA_HINT
     await query.edit_message_text(testo, parse_mode="HTML", reply_markup=_kb_edit_menu(trade_id))
     return EDIT_MENU
 
@@ -1460,7 +1468,7 @@ async def cb_edit_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         db.aggiungi_item_trade(trade_id, "pick", team_da, team_a, pick_id=item_ref)
 
     trade = db.get_trade(trade_id)
-    testo = f"✏️ <b>Modifica Bozza #{trade['bozza_num']}</b>\n\n{_testo_riepilogo(trade_id)}" + _ANNULLA_HINT
+    testo = f"✏️ <b>Modifica bozza {_label_bozza(trade)}</b>\n\n{_testo_riepilogo(trade_id)}" + _ANNULLA_HINT
     await query.edit_message_text(testo, parse_mode="HTML", reply_markup=_kb_edit_menu(trade_id))
     return EDIT_MENU
 
@@ -1498,7 +1506,7 @@ async def cb_edit_back(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     await query.answer()
     trade_id = int(query.data.split(":")[1])
     trade    = db.get_trade(trade_id)
-    testo    = f"✏️ <b>Modifica Bozza #{trade['bozza_num']}</b>\n\n{_testo_riepilogo(trade_id)}" + _ANNULLA_HINT
+    testo    = f"✏️ <b>Modifica bozza {_label_bozza(trade)}</b>\n\n{_testo_riepilogo(trade_id)}" + _ANNULLA_HINT
     await query.edit_message_text(testo, parse_mode="HTML", reply_markup=_kb_edit_menu(trade_id))
     return EDIT_MENU
 
@@ -1566,7 +1574,8 @@ async def import_ricevi_testo(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Validazione trade (cap, roster, Stepien)
     ok, errori_val = valida_trade(trade_id)
 
-    risposta = [f"📋 <b>Trade #{trade_id} — bozza creata</b>\n"]
+    trade_obj = db.get_trade(trade_id)
+    risposta = [f"📋 <b>Bozza {_label_bozza(trade_obj)} creata</b>\n"]
     risposta.append(formatta_trade(squadre))
 
     if ok:
