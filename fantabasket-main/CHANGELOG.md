@@ -290,3 +290,67 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 
 ### Nuove feature
 - **Sync periodico GAS**: job `sync_sheets_periodico` ogni 2 ore (first=600s) — recovery automatico in caso di sync persi. Fire and forget, nessun feedback all'utente.
+
+## v2.0.31 (2026-10-01)
+
+### Nuove feature
+- **DPE: fasi estese**: disponibile in tutte e 6 le fasi (`offseason-rinnovi` → `regular-season-deadline`), non solo in regular season. `FASI_DPE` aggiornata.
+- **`pre_deadline`**: logica aggiornata — `fase != "regular-season-deadline"` (libera slot in tutte le fasi tranne post-deadline).
+- **DPE admin diretta**: aggiunta voce "🏥 DPE" nel pannello admin (`/admin_menu`). Flusso: team → giocatore (con preview importo) → conferma → DB + notifica GM + annuncio canale + GAS sync. Senza approvazione.
+
+## v2.0.32 (2026-10-01)
+
+### Nuove feature
+- **Roster/Assets PNG — DPE barrato**: giocatori con DPE attiva mostrano nome in rosso scuro (`#C62828`) e importo come `~~originale~~ nuovo`. Leggenda con `■ DPE` se presente.
+- **Roster sempre 15 righe**: padding con righe vuote (`flag=VUOTO`) per slot non occupati.
+
+### Bug fix
+- **`get_roster_team()`**: joina tabella `dpe` per la stagione corrente — restituisce `importo` DPE-adjusted, `importo_originale`, `ha_dpe`.
+- **Annuncio canale DPE**: testo `effetto` in `cb_approva_dpe` ora usa `pre_deadline` invece di essere hardcoded.
+
+## v2.0.33 (2026-10-01)
+
+### Bug fix
+- **Import trade — pick**: lookup per `proprietario_orig` invece di `proprietario_att` — trovava solo le pick ancora in mano al proprietario originale. Aggiunta `get_pick_by_orig_anno_round()` in `database.py`.
+- **Roster 15 righe**: `has_rookie`, `has_rfa`, `has_dpe` escludono le righe `VUOTO` dal check leggenda.
+
+## v2.0.34 (2026-10-01)
+
+### Bug fix
+- **Bot aste — slot DPE**: `check_slot_virtuale()` in `teams.py` passava `get_roster_count()` senza `stagione` — giocatori con DPE venivano contati nel roster e lo slot risultava 0.
+
+## v2.0.35 (2026-10-01)
+
+### Bug fix
+- **Annuncio canale import trade**: `cb_ufficializza` in `admin_panel.py` usava `_testo_riepilogo()` (formato bozza con bullet) invece di `_formatta_annuncio_canale()` (formato standard con importi).
+
+## v2.0.36 (2026-10-01)
+
+### Nuove feature
+- **Label bozze unificate**: nuova funzione `_label_bozza(trade)` — formato `BUF03-3` (prime 3 lettere prima parola nome team + numero team zero-padded + bozza_num) o `ADM-4` per bozze admin.
+- **Rimossi ID interni**: eliminati tutti i punti dove `trade_id` PK PostgreSQL o `proposta_da` grezzo apparivano all'utente.
+- **Invio gruppo admin**: mostra nome squadra invece di `team_id` grezzo.
+
+## v2.0.37 (2026-10-01)
+
+### Nuove feature
+- **`/bozze_trade` con bottoni inline**: bottone `✏️ BUF03-3` apre l'editor direttamente; bottone `👀 TRADE-2026-022` apre riepilogo con voto per le trade pending. Nuovo handler `cb_trade_vedi`.
+- **Notifica ruoli post-trade condizionale**: messaggio "comunica i ruoli entro 48h" inviato ai GM solo in `regular-season-fa` (pronto per `offseason-ruoli`).
+- **Comandi bot aggiornati**: aggiunti `edit_trade` (GM), `registra_firma`, `annulla_admin` (admin), `sync_sheets` (dev).
+
+### Bug fix
+- **`trade_ref` NULL in transazioni e notifiche GM**: `_esegui_trade()` ora riceve `trade_ref` come parametro — `db.approva_trade()` viene chiamata prima di `_esegui_trade()`. Prima le transazioni venivano registrate con `trade_ref = NULL`.
+
+## v2.0.38 (2026-10-01)
+
+### Nuove feature
+- **Fuzzy match team**: aggiunta `get_team_by_query()` in `teams.py` — match su team_id (esatto), nome squadra (esatto → prefix → fuzzy difflib 0.6), gm_nome. `/roster`, `/assets`, `/team_diff` accettano nome GM o nome squadra oltre a team_id.
+
+## v2.0.39 (2026-10-01)
+
+### Bug fix
+- **Palette assets**: `_genera_assets_png()` usava `team.get('colore', '#1A237E')` (campo obsoleto) per il calcolo del colore testo footer — sostituito con `team.get('colore_header', '#1A237E')`. Il footer di `/assets` ignorava la palette e usava sempre il colore di default.
+
+### Documentazione
+- Aggiornate `guida_gm.md` e `guida_admin.md` con tutte le novità v2.0.31–v2.0.39.
+- Aggiornato `MIGRATION.md` a v2.0.39.
