@@ -553,7 +553,7 @@ async def cb_ufficializza(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     trade_id = int(query.data.split(":")[1])
     # Delega al callback admin già esistente in trade.py
-    from handlers.trade import _esegui_trade, _testo_riepilogo
+    from handlers.trade import _esegui_trade, _formatta_annuncio_canale
     import database as db
     from datetime import datetime
 
@@ -573,8 +573,7 @@ async def cb_ufficializza(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(
                 chat_id=main_channel,
                 text=(
-                    f"🔄 <b>Trade ufficializzata</b>\n\n"
-                    f"{_testo_riepilogo(trade_id)}\n\n"
+                    f"{_formatta_annuncio_canale(trade_id)}\n\n"
                     f"<i>Approvata da {admin_nome} alle {ora}\n"
                     f"ID: <code>{trade_ref}</code></i>"
                 ),
