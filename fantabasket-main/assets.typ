@@ -3,7 +3,7 @@
 
 #let team_nome     = sys.inputs.at("team_nome",    default: "Baltimora Bats")
 #let team_gm       = sys.inputs.at("team_gm",      default: "Luca")
-#let colore_hex    = sys.inputs.at("colore",        default: "#1A237E")
+#let colore_hex    = sys.inputs.at("colore_header", default: "#1A237E")
 #let colore_riga1  = sys.inputs.at("colore_riga1",  default: "")
 #let colore_riga2  = sys.inputs.at("colore_riga2",  default: "")
 #let colore_sez    = sys.inputs.at("colore_sezione",default: "")
@@ -136,13 +136,13 @@
       [#align(center)[]]
     } else if ha_dpe {
       [#align(center)[
-        #text(7pt, fill: c_dpe, weight: "bold", overhang: false)[#strike[#g.importo_orig]#sym.space#g.importo]
+        #text(7pt, fill: c_dpe, weight: "bold", overhang: false, stroke: (paint: white, thickness: 0.6pt, join: "round"))[#strike[#g.importo_orig]#sym.space#g.importo]
       ]]
     } else {
       [#align(center)[#text(8pt, fill: tc, weight: "bold")[#g.importo]]]
     }
     (
-      if is_vuoto { [] } else { [#text(8pt, fill: fc_nome, weight: if bold or ha_dpe {"bold"} else {"regular"})[#g.nome]] },
+      if is_vuoto { [] } else { [#text(8pt, fill: fc_nome, weight: if bold or ha_dpe {"bold"} else {"regular"}, stroke: (paint: white, thickness: 0.6pt, join: "round"))[#g.nome]] },
       cella_importo,
       if is_vuoto { [] } else { [#align(center)[#text(8pt, fill: tc)[#g.anni]]] },
     )
@@ -156,12 +156,12 @@
 #if has_rookie or has_rfa or has_dpe {
   block(width: 100%, fill: c_sezione)[
     #pad(x: 6pt, y: 3pt)[
-      #if giocatori.any(g => g.flag == "R0") [#text(7pt, fill: c_r0,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno I ]  ]
-      #if giocatori.any(g => g.flag == "R1") [#text(7pt, fill: c_r1,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno II ]  ]
-      #if giocatori.any(g => g.flag == "R2") [#text(7pt, fill: c_r2,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno III ]  ]
-      #if giocatori.any(g => g.flag == "R3") [#text(7pt, fill: c_r3,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno IV ]  ]
-      #if has_rfa                             [#text(7pt, fill: c_rfa, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[RFA]  ]
-      #if has_dpe                             [#text(7pt, fill: c_dpe, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[DPE]]
+      #if giocatori.any(g => g.flag == "R0") [#text(7pt, fill: c_r0,  weight: "bold", stroke: (paint: white, thickness: 0.6pt, join: "round"))[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno I ]  ]
+      #if giocatori.any(g => g.flag == "R1") [#text(7pt, fill: c_r1,  weight: "bold", stroke: (paint: white, thickness: 0.6pt, join: "round"))[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno II ]  ]
+      #if giocatori.any(g => g.flag == "R2") [#text(7pt, fill: c_r2,  weight: "bold", stroke: (paint: white, thickness: 0.6pt, join: "round"))[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno III ]  ]
+      #if giocatori.any(g => g.flag == "R3") [#text(7pt, fill: c_r3,  weight: "bold", stroke: (paint: white, thickness: 0.6pt, join: "round"))[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno IV ]  ]
+      #if has_rfa                             [#text(7pt, fill: c_rfa, weight: "bold", stroke: (paint: white, thickness: 0.6pt, join: "round"))[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[RFA]  ]
+      #if has_dpe                             [#text(7pt, fill: c_dpe, weight: "bold", stroke: (paint: white, thickness: 0.6pt, join: "round"))[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[DPE]]
     ]
   ]
 }
@@ -194,11 +194,7 @@
                     fill: _ton_pick,
                     weight: if is_propria { "bold" } else { "regular" }
                   )[
-                    #if is_propria [★] else [○] #p.round
-                    #if not is_propria [
-                      #linebreak()
-                      #h(8pt)#text(8pt, fill: _ton_pick_m)[#p.by]
-                    ]
+                    #if is_propria [★] else [○] #p.round#if not is_propria [ #text(8pt, fill: _ton_pick_m)[(#p.by)]]
                   ]
                 ]
               }

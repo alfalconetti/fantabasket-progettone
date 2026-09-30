@@ -109,13 +109,13 @@
       [#align(center)[]]
     } else if ha_dpe {
       [#align(center)[
-        #text(7pt, fill: c_dpe, weight: "bold", overhang: false)[#strike[#g.importo_orig]#sym.space#g.importo]
+        #text(7pt, fill: c_dpe, weight: "bold", overhang: false, stroke: (paint: white, thickness: 0.6pt, join: "round"))[#strike[#g.importo_orig]#sym.space#g.importo]
       ]]
     } else {
       [#align(center)[#text(8.5pt, fill: tc, weight: "bold")[#g.importo]]]
     }
     (
-      if is_vuoto { [] } else { [#text(8.5pt, fill: fc_nome, weight: if bold or ha_dpe {"bold"} else {"regular"})[#g.nome]] },
+      if is_vuoto { [] } else { [#text(8.5pt, fill: fc_nome, weight: if bold or ha_dpe {"bold"} else {"regular"}, stroke: (paint: white, thickness: 0.6pt, join: "round"))[#g.nome]] },
       cella_importo,
       if is_vuoto { [] } else { [#align(center)[#text(8.5pt, fill: tc)[#g.anni]]] },
     )
@@ -130,12 +130,12 @@
 #if has_rookie or has_rfa or has_dpe {
   block(width: 100%, fill: c_sezione)[
     #pad(x: 6pt, y: 4pt)[
-      #if giocatori.any(g => g.flag == "R0") [#text(7pt, fill: c_r0, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno I]  ]
-      #if giocatori.any(g => g.flag == "R1") [#text(7pt, fill: c_r1, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno II]  ]
-      #if giocatori.any(g => g.flag == "R2") [#text(7pt, fill: c_r2, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno III]  ]
-      #if giocatori.any(g => g.flag == "R3") [#text(7pt, fill: c_r3, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno IV]  ]
-      #if has_rfa                             [#text(7pt, fill: c_rfa, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[RFA]  ]
-      #if has_dpe                             [#text(7pt, fill: c_dpe, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[DPE]]
+      #if giocatori.any(g => g.flag == "R0") [#text(7pt, fill: c_r0, weight: "bold", stroke: (paint: white, thickness: 0.6pt, join: "round"))[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno I]  ]
+      #if giocatori.any(g => g.flag == "R1") [#text(7pt, fill: c_r1, weight: "bold", stroke: (paint: white, thickness: 0.6pt, join: "round"))[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno II]  ]
+      #if giocatori.any(g => g.flag == "R2") [#text(7pt, fill: c_r2, weight: "bold", stroke: (paint: white, thickness: 0.6pt, join: "round"))[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno III]  ]
+      #if giocatori.any(g => g.flag == "R3") [#text(7pt, fill: c_r3, weight: "bold", stroke: (paint: white, thickness: 0.6pt, join: "round"))[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno IV]  ]
+      #if has_rfa                             [#text(7pt, fill: c_rfa, weight: "bold", stroke: (paint: white, thickness: 0.6pt, join: "round"))[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[RFA]  ]
+      #if has_dpe                             [#text(7pt, fill: c_dpe, weight: "bold", stroke: (paint: white, thickness: 0.6pt, join: "round"))[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[DPE]]
     ]
   ]
 }
