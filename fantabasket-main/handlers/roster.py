@@ -33,10 +33,23 @@ def _text_on(hex_color: str) -> str:
 
 
 def _text_on_muted(hex_color: str) -> str:
+    """Colore testo muted leggibile su sfondo dato — garantisce ratio >= 2.5."""
     if not hex_color or not hex_color.startswith("#"):
         return "#555555"
     try:
-        return "#bbbbbb" if _luminanza(hex_color) < 0.179 else "#555555"
+        lum = _luminanza(hex_color)
+        if lum < 0.179:
+            # Sfondo scuro — partiamo da grigio chiaro e schiarimo se necessario
+            for candidate in ("#bbbbbb", "#cccccc", "#dddddd", "#eeeeee", "#f0f0f0"):
+                if _contrasto(candidate, hex_color) >= 2.5:
+                    return candidate
+            return "#f0f0f0"
+        else:
+            # Sfondo chiaro — partiamo da grigio scuro e scuriamo se necessario
+            for candidate in ("#555555", "#444444", "#333333", "#222222", "#1a1a1a"):
+                if _contrasto(candidate, hex_color) >= 2.5:
+                    return candidate
+            return "#1a1a1a"
     except Exception:
         return "#555555"
 
