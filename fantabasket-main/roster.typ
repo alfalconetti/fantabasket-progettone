@@ -26,7 +26,7 @@
     let p = r.split("|")
     (nome: p.at(0, default: ""), importo: p.at(1, default: "0"),
      anni: p.at(2, default: "1"), flag: p.at(3, default: "N"),
-     importo_orig: p.at(4, default: ""))
+     importo_orig: p.at(4, default: ""), badge: p.at(5, default: ""))
   })
 }
 
@@ -115,7 +115,12 @@
       [#align(center)[#text(8.5pt, fill: tc, weight: "bold")[#g.importo]]]
     }
     (
-      if is_vuoto { [] } else { [#text(8.5pt, fill: fc_nome, weight: if bold or ha_dpe {"bold"} else {"regular"})[#g.nome]] },
+      if is_vuoto { [] } else {
+        [#{
+          let t = text(8.5pt, fill: fc_nome, weight: if bold or ha_dpe {"bold"} else {"regular"})[#g.nome]
+          if g.badge == "badge" { box(fill: white.transparentize(25%), radius: 2pt, inset: (x: 2pt, y: 1pt), t) } else { t }
+        }]
+      },
       cella_importo,
       if is_vuoto { [] } else { [#align(center)[#text(8.5pt, fill: tc)[#g.anni]]] },
     )

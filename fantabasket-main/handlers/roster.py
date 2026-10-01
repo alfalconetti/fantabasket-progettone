@@ -99,13 +99,46 @@ def _eta(data_nascita) -> int | None:
         return None
 
 
-def _build_giocatori_str(roster: list, contratti: list) -> str:
+# Colori fissi per tipo giocatore — devono corrispondere a quelli in roster.typ/assets.typ
+_COLORI_TIPO = {
+    "R0": "#1565C0",
+    "R1": "#2E7D32",
+    "R2": "#F57F17",
+    "R3": "#6A1B9A",
+    "A":  "#E65100",
+    "N":  None,
+}
+_BADGE_SOGLIA = 2.5  # ratio WCAG minimo; sotto questo → badge bianco
+
+def _lum(hex_color: str) -> float:
+    """Luminanza relativa WCAG di un colore hex."""
+    if not hex_color or not hex_color.startswith("#") or len(hex_color) < 7:
+        return 0.0
+    h = hex_color.lstrip("#")
+    r, g, b = (int(h[i:i+2], 16) / 255 for i in (0, 2, 4))
+    def lin(c): return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+
+def _contrasto(c1: str, c2: str) -> float:
+    """Contrasto WCAG tra due colori hex."""
+    l1, l2 = _lum(c1), _lum(c2)
+    lighter, darker = max(l1, l2), min(l1, l2)
+    return (lighter + 0.05) / (darker + 0.05)
+
+def _needs_badge(flag: str, colore_riga: str) -> bool:
+    """True se il testo colorato ha contrasto insufficiente con lo sfondo riga."""
+    colore_testo = _COLORI_TIPO.get(flag)
+    if not colore_testo or not colore_riga:
+        return False
+    return _contrasto(colore_testo, colore_riga) < _BADGE_SOGLIA
+
+def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None) -> str:
     """
     Costruisce la stringa giocatori per Typst:
-    "Nome|importo|anni_res|flag[|importo_orig];..."
-    Il 5° campo importo_orig è presente solo se ha_dpe — Typst mostra
-    l'importo originale barrato seguito dall'importo DPE.
-    Ordinamento: importo_originale DESC (per non alterare l'ordine con DPE), cognome ASC.
+    "Nome|importo|anni_res|flag[|importo_orig][|badge];..."
+    - 5° campo importo_orig: presente se ha_dpe
+    - 6° campo badge: 'badge' se il contrasto testo-sfondo è insufficiente
+    Ordinamento: importo_originale DESC, cognome ASC.
     Flag: N=normale, A=RFA, R0-R3=rookie anno I-IV scale
     """
     stagione_int = int(settings.stagione_corrente())
@@ -127,10 +160,14 @@ def _build_giocatori_str(roster: list, contratti: list) -> str:
             flag      = "N"
 
         nome = r["nome_common"].replace("|", " ").replace(";", " ")
+        # Badge: serve se il contrasto testo-sfondo è insufficiente su almeno una delle due righe
+        c_r1 = team_colori.get("colore_riga1", "#FFFFFF") if team_colori else "#FFFFFF"
+        c_r2 = team_colori.get("colore_riga2", "#FFFFFF") if team_colori else "#FFFFFF"
+        badge = "badge" if (_needs_badge(flag, c_r1) or _needs_badge(flag, c_r2)) else ""
         if ha_dpe:
-            righe.append(f"{nome}|{importo}|{anni_res}|{flag}|{importo_orig}")
+            righe.append(f"{nome}|{importo}|{anni_res}|{flag}|{importo_orig}|{badge}")
         else:
-            righe.append(f"{nome}|{importo}|{anni_res}|{flag}")
+            righe.append(f"{nome}|{importo}|{anni_res}|{flag}||{badge}")
     return ";".join(righe)
 
 
@@ -149,7 +186,7 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
         roster    = db.get_roster_team(team_id)
         contratti = db.get_contratti_team(team_id)
 
-    giocatori_str = _build_giocatori_str(roster, contratti)
+    giocatori_str = _build_giocatori_str(roster, contratti, team_colori=team)
 
     # Salary cap
     cap_contratti = sum(r.get("importo", 0) for r in roster)
@@ -360,7 +397,7 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
     picks    = db.get_pick_team(team_id)
     diritti  = db.get_diritti_2nd_team(team_id)
 
-    giocatori_str = _build_giocatori_str(roster, contratti)
+    giocatori_str = _build_giocatori_str(roster, contratti, team_colori=team)
     picks_str     = _build_picks_str(picks, team_id)
     diritti_str   = _build_diritti_str(diritti)
 
