@@ -92,8 +92,9 @@ def _do_sync(router_url: str, router_token: str, payload: dict, attempt: int = 1
     """Esegue il sync in background. Riprova una volta se fallisce."""
     try:
         data = json.dumps(payload).encode()
+        path = "/gas/scelte" if payload.get("action") == "scelte" else "/gas/roster"
         req  = urllib.request.Request(
-            f"{router_url}/gas/roster",
+            f"{router_url}{path}",
             data=data,
             headers={
                 "Content-Type":  "application/json",
@@ -200,16 +201,155 @@ def sync_after_rookie(team_id: str) -> None:
         logger.warning("sync_after_rookie(%s): %s", team_id, e)
 
 
+
+
+# ── Divisioni per foglio Scelte ───────────────────────────────────────────────
+
+_TEAM_DIV = {
+    "team06": "A", "team08": "A", "team14": "A", "team15": "A",
+    "team01": "B", "team07": "B", "team09": "B", "team21": "B",
+    "team04": "C", "team13": "C", "team19": "C", "team24": "C",
+    "team03": "D", "team10": "D", "team16": "D", "team17": "D",
+    "team02": "E", "team11": "E", "team12": "E", "team22": "E",
+    "team05": "F", "team18": "F", "team20": "F", "team23": "F",
+}
+
+_TEAM_ORDER = [
+    "team06","team08","team14","team15",  # divA
+    "team01","team07","team09","team21",  # divB
+    "team04","team13","team19","team24",  # divC
+    "team03","team10","team16","team17",  # divD
+    "team02","team11","team12","team22",  # divE
+    "team05","team18","team20","team23",  # divF
+]
+
+
+def _build_scelte_payload() -> dict:
+    """Costruisce il payload per il foglio Scelte (pick + diritti)."""
+    import teams as tm
+    stagione_int = int(settings.stagione_corrente())
+    anni = list(range(stagione_int + 1, stagione_int + 7))  # 6 anni scambiabili
+
+    teams_payload = []
+    for team_id in _TEAM_ORDER:
+        team      = tm.get_team_by_id(team_id)
+        picks     = db.get_pick_team(team_id)          # pick detenute attualmente
+        all_picks = db.get_all_picks_by_orig(team_id)  # pick con orig=questo team
+        diritti   = db.get_diritti_2nd_team(team_id)
+
+        # Diritti 2nd pick
+        diritti_labels = [
+            f"{d['nome_common']} (#{d['pick_numero']} {d['anno_draft']})"
+            for d in diritti
+        ]
+
+        # Numeri draft corrente detenuti
+        draft_anno = stagione_int + 1
+        draft_nums = sorted([
+            p["numero_draft"]
+            for p in picks
+            if str(p.get("anno")) == str(draft_anno) and p.get("numero_draft")
+        ])
+
+        # Pick proprie (proprietario_orig == questo team)
+        # [STEPIEN] = pick 1st che non può essere ceduta senza violare la Stepien Rule
+        n_stepien    = db.get_stepien_anni()   # N anni della finestra
+        max_anno     = db.get_max_pick_anno()
+        # Set anni in cui il team ha ancora la propria 1st (non ceduta)
+        proprie_1st_anni = {
+            int(p["anno"]) for p in all_picks
+            if p["round"] == 1 and p.get("proprietario_att") == team_id
+        }
+
+        picks_proprie = []
+        for p in all_picks:
+            anno = int(p["anno"])
+            if anno not in anni:
+                continue
+            stepien_flag = False
+            if p["round"] == 1 and p.get("proprietario_att") == team_id:
+                # Simula cessione: rimuovi questo anno e controlla finestre
+                senza = proprie_1st_anni - {anno}
+                STORICO_LIMITE = int(settings.stagione_corrente())
+                for start in range(STORICO_LIMITE + 1, max_anno - n_stepien + 2):
+                    finestra = set(range(start, start + n_stepien))
+                    if not (senza & finestra):
+                        stepien_flag = True
+                        break
+            label = f"{team['gm_nome']} {'1st' if p['round']==1 else '2nd'} {anno}"
+            if stepien_flag:
+                label += " [STEPIEN]"
+            picks_proprie.append({
+                "anno":  anno,
+                "round": p["round"],
+                "label": label,
+            })
+
+        # Pick altrui detenute (orig != questo team)
+        # [STEPIEN] = pick 1st di un altro team che ha ceduto tutta la propria 1st di quell'anno
+        picks_altrui = {anno: [] for anno in anni}
+        for p in picks:
+            anno = int(p["anno"])
+            if anno not in anni:
+                continue
+            if p.get("proprietario_orig") == team_id:
+                continue
+            orig_team = tm.get_team_by_id(p.get("proprietario_orig", ""))
+            orig_nome = orig_team["gm_nome"] if orig_team else p.get("proprietario_orig", "?")
+            label = f"{orig_nome} {'1st' if p['round']==1 else '2nd'} {anno}"
+            picks_altrui[anno].append(label)
+
+        teams_payload.append({
+            "team_id":       team_id,
+            "nome":          team["nome"],
+            "gm":            team.get("gm_nome", ""),
+            "div":           _TEAM_DIV[team_id],
+            "diritti":       diritti_labels,
+            "draft_nums":    draft_nums,
+            "picks_proprie": picks_proprie,
+            "picks_altrui":  picks_altrui,
+        })
+
+    return {
+        "action": "scelte",
+        "anni":   anni,
+        "teams":  teams_payload,
+    }
+
+
+def sync_scelte(sincrono: bool = False) -> bool:
+    """Sync foglio Scelte — fire-and-forget o sincrono."""
+    router_url, router_token = _get_config()
+    if not router_url or not router_token:
+        logger.debug("GAS Router non configurato — skip sync scelte")
+        return False
+    try:
+        payload = _build_scelte_payload()
+        if sincrono:
+            _do_sync(router_url, router_token, payload, attempt=99)
+            return True
+        import threading
+        t = threading.Thread(
+            target=_do_sync,
+            args=[router_url, router_token, payload],
+            daemon=True
+        )
+        t.start()
+        return True
+    except Exception as e:
+        logger.warning("sync_scelte error: %s", e)
+        return False
+
 def sync_all(sincrono: bool = False) -> bool:
-    """Sync completo di tutti i team — per inizializzazione o recovery.
+    """Sync completo di tutti i team (roster + scelte) — per /sync_sheets o recovery.
     sincrono=True per /sync_sheets (aspetta risposta), False per sync automatico."""
     try:
         import teams as tm
         all_teams = tm.get_all_teams()
         team_ids  = [t["id"] for t in all_teams]
-        if sincrono:
-            return sync_teams_sync(team_ids)
-        return sync_teams(team_ids)
+        ok_roster = sync_teams_sync(team_ids) if sincrono else sync_teams(team_ids)
+        ok_scelte = sync_scelte(sincrono=sincrono)
+        return ok_roster and ok_scelte
     except Exception as e:
         logger.warning("sync_all: %s", e)
         return False

@@ -342,6 +342,18 @@ def get_pick_team(team_id: str) -> list:
         (team_id,), many=True
     )
 
+def get_stepien_anni() -> int:
+    """Legge il parametro N della Stepien Rule da settings."""
+    import settings
+    return settings.stepien_anni()
+
+def get_all_picks_by_orig(team_id: str) -> list:
+    """Tutte le pick con proprietario_orig == team_id (ovunque siano ora), non scattate."""
+    return _q(
+        "SELECT * FROM pick WHERE proprietario_orig = %s AND scattata = FALSE ORDER BY anno, round",
+        (team_id,), many=True
+    ) or []
+
 def get_pick_by_orig_anno_round(proprietario_orig: str, anno: str, round: int) -> dict | None:
     """Cerca una pick per proprietario originale, anno e round — usata dal trade parser."""
     return _q(

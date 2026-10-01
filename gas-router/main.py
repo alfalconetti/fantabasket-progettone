@@ -31,17 +31,33 @@ def _get_gas_roster_url(): return _read_secret("GAS_ROSTER_URL_FILE")
 class GASPayload(BaseModel):
     action: str
     teams: Optional[list[Any]] = None
+    anni:  Optional[list[int]] = None
+
+
+def _get_gas_scelte_url(): return _read_secret("GAS_SCELTE_URL_FILE")
 
 
 @app.post("/gas/roster")
 async def roster(payload: GASPayload, authorization: str = Header(...)):
     _check_auth(authorization)
     gas_payload = {
-        "token": _get_gas_token(),
+        "token":  _get_gas_token(),
         "action": payload.action,
-        "teams": payload.teams or [],
+        "teams":  payload.teams or [],
     }
     return await _forward(_get_gas_roster_url(), gas_payload)
+
+
+@app.post("/gas/scelte")
+async def scelte(payload: GASPayload, authorization: str = Header(...)):
+    _check_auth(authorization)
+    gas_payload = {
+        "token":  _get_gas_token(),
+        "action": "scelte",
+        "anni":   payload.anni or [],
+        "teams":  payload.teams or [],
+    }
+    return await _forward(_get_gas_scelte_url(), gas_payload)
 
 
 def _check_auth(authorization: str):
