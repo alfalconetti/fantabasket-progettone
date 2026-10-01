@@ -165,7 +165,8 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
         idx = len(righe)
         c_r1 = team_colori.get("colore_riga1", "#FFFFFF") if team_colori else "#FFFFFF"
         c_r2 = team_colori.get("colore_riga2", "#FFFFFF") if team_colori else "#FFFFFF"
-        sfondo_riga = c_r1 if idx % 2 == 0 else c_r2
+        # Typst usa calc.odd(i): i dispari → _ton_r1/colore_riga1, i pari → colore_riga2
+        sfondo_riga = c_r2 if idx % 2 == 0 else c_r1
         badge = "badge" if _needs_badge(flag, sfondo_riga) else ""
         if ha_dpe:
             righe.append(f"{nome}|{importo}|{anni_res}|{flag}|{importo_orig}|{badge}")
