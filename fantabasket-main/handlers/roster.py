@@ -160,10 +160,13 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
             flag      = "N"
 
         nome = r["nome_common"].replace("|", " ").replace(";", " ")
-        # Badge: serve se il contrasto testo-sfondo è insufficiente su almeno una delle due righe
+        # Badge: calcolato sulla riga specifica dove finisce il giocatore
+        # indice pari (0,2,4...) → colore_riga1, dispari → colore_riga2
+        idx = len(righe)
         c_r1 = team_colori.get("colore_riga1", "#FFFFFF") if team_colori else "#FFFFFF"
         c_r2 = team_colori.get("colore_riga2", "#FFFFFF") if team_colori else "#FFFFFF"
-        badge = "badge" if (_needs_badge(flag, c_r1) or _needs_badge(flag, c_r2)) else ""
+        sfondo_riga = c_r1 if idx % 2 == 0 else c_r2
+        badge = "badge" if _needs_badge(flag, sfondo_riga) else ""
         if ha_dpe:
             righe.append(f"{nome}|{importo}|{anni_res}|{flag}|{importo_orig}|{badge}")
         else:
