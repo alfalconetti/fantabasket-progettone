@@ -228,8 +228,11 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
     logo = _logo_path(team_id)
 
     # Tagli e cambi ruolo — placeholder, da collegare a DB quando implementato
-    tagli_usati  = team.get("tagli_usati",  "0/3")
-    cambi_usati  = team.get("cambi_usati",  "0/2")
+    stagione_str = settings.stagione_corrente()
+    from handlers.tagli import MAX_TAGLI_GRATUITI
+    _tagli_used  = db.get_tagli_gratuiti_usati(team["id"], stagione_str)
+    tagli_usati  = f"{_tagli_used}/{MAX_TAGLI_GRATUITI}"
+    cambi_usati  = team.get("cambi_usati", "0/2")  # non ancora tracciato nel DB
 
     # Genera in file temporaneo
     tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
@@ -428,6 +431,11 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
     eta_list = [e for e in eta_list if e is not None]
     eta_str  = f"{sum(eta_list)/len(eta_list):.1f}" if eta_list else "—"
 
+    from handlers.tagli import MAX_TAGLI_GRATUITI
+    _tagli_used = db.get_tagli_gratuiti_usati(team_id, stagione)
+    tagli_usati = f"{_tagli_used}/{MAX_TAGLI_GRATUITI}"
+    cambi_usati = team.get("cambi_usati", "0/2")  # non ancora tracciato nel DB
+
     logo = _logo_path(team_id)
 
     tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
@@ -456,6 +464,8 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
         "--input", f"salary_cap={cap_totale}",
         "--input", f"salary_detail={salary_detail}",
         "--input", f"eta_media={eta_str}",
+        "--input", f"tagli_usati={tagli_usati}",
+        "--input", f"cambi_usati={cambi_usati}",
         "--input", f"logo_path={logo}",
         "--input", f"giocatori={giocatori_str}",
         "--input", f"picks={picks_str}",
