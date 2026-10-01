@@ -49,32 +49,7 @@ const DIV_COLORS = {
 // ── Ordine team nel foglio Scelte ─────────────────────────────────────────────
 // Ordine fisso: divA → divB → divC → divD → divE → divF
 
-const TEAM_ORDER = [
-  { id: "team06", gm: "Flavio",             nome: "A.O. Pelicancer",        div: "A" },
-  { id: "team08", gm: "Mathias",            nome: "RSM Money Launderers",   div: "A" },
-  { id: "team14", gm: "Lorenzo",            nome: "Montecelio Redskins",    div: "A" },
-  { id: "team15", gm: "Gevanni",            nome: "La Pasadena Pupils",     div: "A" },
-  { id: "team01", gm: "Luca",              nome: "Baltimora Bats",         div: "B" },
-  { id: "team07", gm: "Leo",               nome: "Sex Pistons",            div: "B" },
-  { id: "team09", gm: "Andrea",            nome: "Varese Konige",          div: "B" },
-  { id: "team21", gm: "Cristian",          nome: "NMMFSIV",                div: "B" },
-  { id: "team04", gm: "Matteo",            nome: "Ntilikinerz",            div: "C" },
-  { id: "team13", gm: "Diego",             nome: "Lords of Torture",       div: "C" },
-  { id: "team19", gm: "Alessandro Delfino",nome: "Champapon Newborns",     div: "C" },
-  { id: "team24", gm: "Marco Calamo",      nome: "Tibur Eagles",           div: "C" },
-  { id: "team03", gm: "Fabio Brownie",     nome: "Buffalo Brownies",       div: "D" },
-  { id: "team10", gm: "Alan",              nome: "Polisportiva Calitri",   div: "D" },
-  { id: "team16", gm: "Antonio",           nome: "Ohio Raptors",           div: "D" },
-  { id: "team17", gm: "Alex Birra",        nome: "WestSide Hammers",       div: "D" },
-  { id: "team02", gm: "Kolera",            nome: "No Trade Knicks",        div: "E" },
-  { id: "team11", gm: "Pedro",             nome: "ZZ Killers",             div: "E" },
-  { id: "team12", gm: "Gobkor",            nome: "LongNosed Milfhunter",   div: "E" },
-  { id: "team22", gm: "È BOOKER-T",        nome: "BOOKER-T",               div: "E" },
-  { id: "team05", gm: "Henry",             nome: "DREAMCHASERS",           div: "F" },
-  { id: "team18", gm: "Erminio",           nome: "Guston Rockets",         div: "F" },
-  { id: "team20", gm: "MarcG",             nome: "Seattle 206ers",         div: "F" },
-  { id: "team23", gm: "Enzo",              nome: "Bologna Boricuas",       div: "F" },
-];
+// TEAM_ORDER non serve in GAS — nomi e ordine arrivano dal payload Python.
 
 // ── Roster TEAM_MAP (usato da roster.gs) ─────────────────────────────────────
 

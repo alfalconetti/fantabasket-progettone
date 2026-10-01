@@ -204,24 +204,14 @@ def sync_after_rookie(team_id: str) -> None:
 
 
 # ── Divisioni per foglio Scelte ───────────────────────────────────────────────
+# Caricate da config/divisions.json (non nel repo)
 
-_TEAM_DIV = {
-    "team06": "A", "team08": "A", "team14": "A", "team15": "A",
-    "team01": "B", "team07": "B", "team09": "B", "team21": "B",
-    "team04": "C", "team13": "C", "team19": "C", "team24": "C",
-    "team03": "D", "team10": "D", "team16": "D", "team17": "D",
-    "team02": "E", "team11": "E", "team12": "E", "team22": "E",
-    "team05": "F", "team18": "F", "team20": "F", "team23": "F",
-}
-
-_TEAM_ORDER = [
-    "team06","team08","team14","team15",  # divA
-    "team01","team07","team09","team21",  # divB
-    "team04","team13","team19","team24",  # divC
-    "team03","team10","team16","team17",  # divD
-    "team02","team11","team12","team22",  # divE
-    "team05","team18","team20","team23",  # divF
-]
+def _load_divisions() -> tuple[dict, list]:
+    import json, os
+    path = os.path.join(os.environ.get("CONFIG_DIR", "/config"), "divisions.json")
+    with open(path) as f:
+        data = json.load(f)
+    return data["team_div"], data["team_order"]
 
 
 def _build_scelte_payload() -> dict:
@@ -230,6 +220,7 @@ def _build_scelte_payload() -> dict:
     stagione_int = int(settings.stagione_corrente())
     anni = list(range(stagione_int + 1, stagione_int + 7))  # 6 anni scambiabili
 
+    _TEAM_DIV, _TEAM_ORDER = _load_divisions()
     teams_payload = []
     for team_id in _TEAM_ORDER:
         team      = tm.get_team_by_id(team_id)
