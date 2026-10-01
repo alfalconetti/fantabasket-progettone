@@ -74,12 +74,14 @@ services:
     restart: unless-stopped
     environment:
       GAS_ROSTER_URL_FILE: /run/secrets/gas_roster_url
+      GAS_SCELTE_URL_FILE: /run/secrets/gas_scelte_url
       GAS_TOKEN_FILE: /run/secrets/gas_token
       ROUTER_TOKEN_FILE: /run/secrets/gas_router_token
     secrets:
       - gas_token
       - gas_router_token
       - gas_roster_url
+      - gas_scelte_url
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -99,6 +101,8 @@ secrets:
     file: ./secrets/gas_router_token
   gas_roster_url:
     file: ./secrets/gas_roster_url
+  gas_scelte_url:
+    file: ./secrets/gas_scelte_url
 
 volumes:
   pgdata:
