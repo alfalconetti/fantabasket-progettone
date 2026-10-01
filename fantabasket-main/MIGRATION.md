@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v2.0.39)
+# Messaggio di migrazione — Fantabasket Progettone (stato v2.0.42)
 
 ---
 
@@ -212,7 +212,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 
 ---
 
-**Stato attuale: v2.0.39**
+**Stato attuale: v2.0.42**
 
 Novità v2.0.31–v2.0.38:
 - **v2.0.31** — DPE disponibile in tutte e 6 le fasi (da offseason-rinnovi a regular-season-deadline); admin menu DPE diretta; `pre_deadline = (fase != "regular-season-deadline")`
@@ -224,3 +224,7 @@ Novità v2.0.31–v2.0.38:
 - **v2.0.37** — `trade_ref` passato a `_esegui_trade()` (fix NULL in transazioni/notifiche); `/bozze_trade` con bottoni inline edit+voto; notifica ruoli post-trade solo in `regular-season-fa`; comandi bot completi (`edit_trade`, `registra_firma`, `annulla_admin`, `sync_sheets`)
 - **v2.0.38** — `get_team_by_query()` in teams.py (fuzzy match su team_id/nome/gm_nome); `/roster`, `/assets`, `/team_diff` accettano nome GM o squadra
 - **v2.0.39** — fix palette assets: `_genera_assets_png` usava `colore` (campo obsoleto) invece di `colore_header` per il calcolo del footer color
+- **v2.0.40** — pick assets inline (squadra originaria sulla stessa riga); fix definitivo palette assets; rimosso stroke (illeggibile in Typst)
+- **v2.0.41** — badge bianco selettivo su rookie/RFA/DPE con contrasto WCAG insufficiente; calcolo per riga specifica del giocatore
+- **v2.0.41a** — `_text_on_muted()` con scala di grigi garantendo ratio ≥ 2.5
+- **v2.0.42** — `tagli_usati` da DB in tempo reale; `tagli_usati`/`cambi_usati` passati ad assets; rimossi default hardcodati da `sys.inputs` in Typst

@@ -354,3 +354,31 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 ### Documentazione
 - Aggiornate `guida_gm.md` e `guida_admin.md` con tutte le novità v2.0.31–v2.0.39.
 - Aggiornato `MIGRATION.md` a v2.0.39.
+
+## v2.0.40 (2026-10-01)
+
+### Bug fix
+- **Pick assets inline**: squadra originaria della pick ora mostrata sulla stessa riga (`○ 1st (Buffalo Brownies)`) invece di a capo.
+- **Palette assets**: `assets.typ` leggeva `colore` (campo obsoleto) invece di `colore_header` per il colore principale — fix definitivo con allineamento completo campi Python ↔ Typst.
+- **Stroke rimosso**: rimosso stroke su testi colorati (rookie/RFA/DPE) — in Typst lo stroke va sopra il fill, rendendo il testo illeggibile.
+
+## v2.0.41 (2026-10-01)
+
+### Nuove feature
+- **Badge bianco selettivo**: per rookie/RFA/DPE con contrasto insufficiente contro lo sfondo riga, il nome viene wrappato in un `box(fill: white.transparentize(25%))`. Il badge viene calcolato giocatore per giocatore, confrontando il colore speciale del tipo con lo sfondo della riga esatta su cui finisce il giocatore (alternanza Python allineata a `calc.odd(i)` di Typst).
+- **`_lum()`, `_contrasto()`, `_needs_badge()`**: funzioni WCAG in `roster.py` per calcolo contrasto runtime.
+
+### Bug fix
+- **Alternanza riga badge**: Python usava `idx % 2 == 0 → riga1` mentre Typst usa `calc.odd(i) → riga1` per i dispari — fix inversione.
+
+## v2.0.41a (2026-10-01)
+
+### Bug fix
+- **`_text_on_muted()`**: ora scorre una scala di grigi garantendo ratio WCAG ≥ 2.5 contro lo sfondo invece di usare `#bbbbbb`/`#555555` fissi.
+
+## v2.0.42 (2026-10-01)
+
+### Bug fix
+- **`tagli_usati` da DB**: roster e assets calcolano i tagli gratuiti usati in tempo reale da PostgreSQL (`get_tagli_gratuiti_usati()`) invece di leggerlo da `teams.json`. `cambi_usati` resta da `teams.json` finché non viene tracciato nel DB.
+- **`tagli_usati`/`cambi_usati` passati ad assets**: mancavano nel cmd Typst di `_genera_assets_png`.
+- **Default rimossi da `sys.inputs`**: `roster.typ` e `assets.typ` non hanno più valori hardcodati nei `default:` di `sys.inputs.at()` — se un campo non arriva da Python, Typst fallisce esplicitamente invece di usare valori fasulli.
