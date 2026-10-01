@@ -206,12 +206,12 @@ def sync_after_rookie(team_id: str) -> None:
 # ── Divisioni per foglio Scelte ───────────────────────────────────────────────
 # Caricate da config/divisions.json (non nel repo)
 
-def _load_divisions() -> tuple[dict, list]:
+def _load_divisions() -> tuple[dict, list, dict]:
     import json, os
     path = os.path.join(os.environ.get("CONFIG_DIR", "/config"), "divisions.json")
     with open(path) as f:
         data = json.load(f)
-    return data["team_div"], data["team_order"]
+    return data["team_div"], data["team_order"], data["team_pick_nome"]
 
 
 def _build_scelte_payload() -> dict:
@@ -220,7 +220,7 @@ def _build_scelte_payload() -> dict:
     stagione_int = int(settings.stagione_corrente())
     anni = list(range(stagione_int + 1, stagione_int + 7))  # 6 anni scambiabili
 
-    _TEAM_DIV, _TEAM_ORDER = _load_divisions()
+    _TEAM_DIV, _TEAM_ORDER, _PICK_NOME = _load_divisions()
     teams_payload = []
     for team_id in _TEAM_ORDER:
         team      = tm.get_team_by_id(team_id)
@@ -275,7 +275,8 @@ def _build_scelte_payload() -> dict:
                     if not (senza & finestra):
                         stepien_flag = True
                         break
-            label = f"{team['gm_nome']} {'1st' if p['round']==1 else '2nd'} {anno}"
+            pick_nome = _PICK_NOME.get(team_id, team['gm_nome'])
+            label = f"{pick_nome} {'1st' if p['round']==1 else '2nd'} {anno}"
             if stepien_flag:
                 label += " [STEPIEN]"
             picks_proprie.append({
@@ -293,8 +294,11 @@ def _build_scelte_payload() -> dict:
                 continue
             if p.get("proprietario_orig") == team_id:
                 continue
-            orig_team = tm.get_team_by_id(p.get("proprietario_orig", ""))
-            orig_nome = orig_team["gm_nome"] if orig_team else p.get("proprietario_orig", "?")
+            orig_id   = p.get("proprietario_orig", "")
+            orig_nome = _PICK_NOME.get(orig_id)
+            if not orig_nome:
+                orig_team = tm.get_team_by_id(orig_id)
+                orig_nome = orig_team["gm_nome"] if orig_team else orig_id
             label = f"{orig_nome} {'1st' if p['round']==1 else '2nd'} {anno}"
             picks_altrui[anno].append(label)
 
