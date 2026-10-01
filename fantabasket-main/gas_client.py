@@ -236,17 +236,23 @@ def _build_scelte_payload() -> dict:
 
         # Numeri draft corrente detenuti
         draft_anno = stagione_int + 1
+        def _ordinal(n):
+            n = int(n)
+            if 11 <= (n % 100) <= 13:
+                return f"{n}th"
+            return f"{n}{'st' if n%10==1 else 'nd' if n%10==2 else 'rd' if n%10==3 else 'th'}"
+
         draft_nums = sorted([
-            p["numero_draft"]
+            _ordinal(p["numero_draft"])
             for p in picks
             if str(p.get("anno")) == str(draft_anno) and p.get("numero_draft")
         ])
 
-        # Pick proprie (proprietario_orig == questo team)
+        # Pick proprie ancora in possesso del team (proprietario_orig == proprietario_att == team_id)
         # [STEPIEN] = pick 1st che non può essere ceduta senza violare la Stepien Rule
-        n_stepien    = db.get_stepien_anni()   # N anni della finestra
+        n_stepien    = db.get_stepien_anni()
         max_anno     = db.get_max_pick_anno()
-        # Set anni in cui il team ha ancora la propria 1st (non ceduta)
+        # Set anni 1st ancora in possesso
         proprie_1st_anni = {
             int(p["anno"]) for p in all_picks
             if p["round"] == 1 and p.get("proprietario_att") == team_id
@@ -257,9 +263,11 @@ def _build_scelte_payload() -> dict:
             anno = int(p["anno"])
             if anno not in anni:
                 continue
+            # Solo pick ancora in possesso del team
+            if p.get("proprietario_att") != team_id:
+                continue
             stepien_flag = False
-            if p["round"] == 1 and p.get("proprietario_att") == team_id:
-                # Simula cessione: rimuovi questo anno e controlla finestre
+            if p["round"] == 1:
                 senza = proprie_1st_anni - {anno}
                 STORICO_LIMITE = int(settings.stagione_corrente())
                 for start in range(STORICO_LIMITE + 1, max_anno - n_stepien + 2):
