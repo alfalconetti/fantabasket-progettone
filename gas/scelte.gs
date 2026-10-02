@@ -96,7 +96,7 @@ function writeTeamBlock(sheet, team, anni, colors, startRow) {
     const r = startRow + 2 + ri;
 
     // Colonna nome
-    _setCell(sheet, r, colNome, ri === 0 ? "Altre pick" : "", colors.light, false, "#000000", "center");
+    _setCell(sheet, r, colNome, ri === 0 ? "Altre pick" : "", colors.light, ri === 0, "#000000", "center");
 
     // Colonna diritti (dalla 3a in poi)
     const dIdx = ri + 2;

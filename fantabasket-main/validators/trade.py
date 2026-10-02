@@ -82,12 +82,16 @@ def valida_trade(trade_id: int) -> tuple[bool, list[str]]:
 
         # ── 2. Roster size ────────────────────────────────────────────────
         roster = db.get_roster_team(team_id)
-        roster_post = len(roster) - len(out_g) + len(in_g)
+        fase = settings.fase()
+        pre_deadline = (fase != "regular-season-deadline")
+        # Giocatori con DPE in fase pre-deadline non occupano slot
+        slot_dpe_liberati = sum(1 for r in roster if r.get("ha_dpe") and pre_deadline)
+        roster_count = len(roster) - slot_dpe_liberati
+        roster_post = roster_count - len(out_g) + len(in_g)
         if roster_post > settings.max_roster():
             errori.append(
                 f"❌ {nome}: roster post-trade {roster_post} supera il massimo {settings.max_roster()}"
             )
-        fase = settings.fase()
         if "regular" in fase and roster_post < settings.min_roster():
             errori.append(
                 f"❌ {nome}: roster post-trade {roster_post} sotto il minimo {settings.min_roster()} (regular season)"
