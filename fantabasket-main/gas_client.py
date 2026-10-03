@@ -159,44 +159,49 @@ def sync_teams_sync(team_ids: list[str]) -> bool:
 
 
 def sync_after_trade(trade_id: int) -> None:
-    """Sync tutti i team coinvolti in una trade."""
+    """Sync tutti i team coinvolti in una trade + foglio Scelte."""
     try:
         squadre = db.get_squadre_trade(trade_id)
         team_ids = [sq["team_id"] for sq in squadre]
         if team_ids:
             sync_teams(team_ids)
+        sync_scelte()
     except Exception as e:
         logger.warning("sync_after_trade(%d): %s", trade_id, e)
 
 
 def sync_after_taglio(team_id: str) -> None:
-    """Sync team dopo un taglio."""
+    """Sync team dopo un taglio + foglio Scelte."""
     try:
         sync_teams([team_id])
+        sync_scelte()
     except Exception as e:
         logger.warning("sync_after_taglio(%s): %s", team_id, e)
 
 
 def sync_after_firma(team_id: str) -> None:
-    """Sync team dopo una firma FA/RFA."""
+    """Sync team dopo una firma FA/RFA + foglio Scelte."""
     try:
         sync_teams([team_id])
+        sync_scelte()
     except Exception as e:
         logger.warning("sync_after_firma(%s): %s", team_id, e)
 
 
 def sync_after_dpe(team_id: str) -> None:
-    """Sync team dopo una DPE."""
+    """Sync team dopo una DPE + foglio Scelte."""
     try:
         sync_teams([team_id])
+        sync_scelte()
     except Exception as e:
         logger.warning("sync_after_dpe(%s): %s", team_id, e)
 
 
 def sync_after_rookie(team_id: str) -> None:
-    """Sync team dopo attivazione diritti rookie."""
+    """Sync team dopo attivazione diritti rookie + foglio Scelte."""
     try:
         sync_teams([team_id])
+        sync_scelte()
     except Exception as e:
         logger.warning("sync_after_rookie(%s): %s", team_id, e)
 
