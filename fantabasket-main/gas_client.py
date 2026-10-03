@@ -56,6 +56,7 @@ def _build_team_payload(team_id: str) -> dict:
             "flag":    _flag(r),
         }
         for r in giocatori
+        if not r.get("ha_dpe")  # giocatori con DPE vanno nella sezione DIS. separata
     ]
 
     # Impatti tagli — raggruppa per giocatore, max 2 righe nel foglio
