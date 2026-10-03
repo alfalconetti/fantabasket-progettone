@@ -305,7 +305,7 @@ def _build_scelte_payload() -> dict:
         teams_payload.append({
             "team_id":       team_id,
             "nome":          team["nome"],
-            "gm":            team.get("gm_nome", ""),
+            "gm":            _PICK_NOME.get(team_id, team.get("gm_nome", "")),
             "div":           _TEAM_DIV[team_id],
             "diritti":       diritti_labels,
             "draft_nums":    draft_nums,
