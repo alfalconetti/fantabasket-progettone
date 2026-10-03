@@ -19,7 +19,7 @@ function handleScelte(payload) {
       CONFIG.SCELTE_DATA_ROW_START, 1,
       lastRow - CONFIG.SCELTE_DATA_ROW_START + 1,
       sheet.getLastColumn()
-    ).clearContent().clearFormat();
+    ).clearContent().clearFormat().setHorizontalAlignment("left").setFontColor("#000000");
   }
 
   // ── 2. Scrivi i dati team per team ──────────────────────────────────────
