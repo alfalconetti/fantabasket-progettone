@@ -86,9 +86,12 @@ LOGHI_DIR       = os.environ.get("LOGHI_DIR", "/config/loghi")
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _logo_path(team_id: str) -> str:
-    """Restituisce il path del logo se esiste, stringa vuota altrimenti."""
-    path = os.path.join(LOGHI_DIR, f"{team_id}_logo.png")
-    return path if os.path.exists(path) else ""
+    """Restituisce il path del logo se esiste (png o jpg), stringa vuota altrimenti."""
+    for ext in ("png", "jpg", "jpeg", "webp"):
+        path = os.path.join(LOGHI_DIR, f"{team_id}_logo.{ext}")
+        if os.path.exists(path):
+            return path
+    return ""
 
 
 def _flag(r: dict) -> str:
@@ -260,6 +263,7 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
         "--input", f"cambi_usati={cambi_usati}",
         "--input", f"logo_path={logo}",
         "--input", f"giocatori={giocatori_str}",
+        "--root", "/",
         os.path.abspath(TYPST_TEMPLATE),
         tmp.name,
     ]
@@ -470,6 +474,7 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
         "--input", f"giocatori={giocatori_str}",
         "--input", f"picks={picks_str}",
         "--input", f"diritti={diritti_str}",
+        "--root", "/",
         os.path.abspath(ASSETS_TEMPLATE),
         tmp.name,
     ]
