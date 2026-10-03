@@ -103,12 +103,11 @@ def _build_team_payload(team_id: str) -> dict:
     # Colonna 0: anno%4==2, Colonna 1: anno%4==3, Colonna 2: anno%4==0, Colonna 3: anno%4==1
     col_map = {2: 0, 3: 1, 0: 2, 1: 3}
 
-    # Calcola quali anni sono nelle 4 colonne (anni recenti che hanno giocatori nel DB)
+    # Le 4 colonne sono gli ultimi 4 anni di draft completati (stagione-1 e i 3 precedenti)
     anni_colonne = [None, None, None, None]
-    for y in range(stagione_int - 5, stagione_int + 2):
+    for y in range(stagione_int - 3, stagione_int + 1):  # es. 2023,2024,2025,2026 se stagione=2026
         col = col_map[y % 4]
-        if anni_colonne[col] is None or y > anni_colonne[col]:
-            anni_colonne[col] = y
+        anni_colonne[col] = y
 
     rookie_scale = _q_rookie_scale(anni_colonne)
 
