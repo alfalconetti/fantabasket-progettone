@@ -79,12 +79,28 @@ def _build_team_payload(team_id: str) -> dict:
             "stringa": stringa,
         })
 
+    cap_penalizzato = team.get("cap_penalizzato", 0) or 0
+
+    # DPE attive per questo team
+    dpe_attive = db.get_dpe_attive_team(team_id, stagione)
+    dpe_payload = [
+        {
+            "nome":          d["nome_common"],
+            "importo_orig":  d["importo_originale"],
+            "importo_dpe":   d["importo_dpe"],
+            "anni":          max(1, d.get("anni_originali", 1) - (int(stagione) - int(d.get("stagione_firma") or stagione))),
+        }
+        for d in dpe_attive
+    ]
+
     return {
-        "team_id":             team_id,
+        "team_id":              team_id,
         "tagli_gratuiti_usati": tagli_usati,
-        "cambi_ruolo_usati":   0,  # da implementare con i ruoli
-        "giocatori":           giocatori_payload,
-        "impatti_tagli":       impatti_payload,
+        "cambi_ruolo_usati":    0,  # da implementare con i ruoli
+        "cap_penalizzato":      cap_penalizzato,
+        "giocatori":            giocatori_payload,
+        "impatti_tagli":        impatti_payload,
+        "dpe":                  dpe_payload,
     }
 
 

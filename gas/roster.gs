@@ -42,6 +42,14 @@ function updateTeamRoster(sheet, team) {
     sheet.getRange(row, colBase + 3).setValue(g.anni);
   });
 
+  // Salary cap label con eventuale penalità
+  const capPen = team.cap_penalizzato || 0;
+  const capLabel = capPen !== 0 ? `SALARY CAP [${capPen > 0 ? "+" : ""}${capPen}]` : "SALARY CAP";
+  // La riga SALARY CAP è OFFSET_PLAYERS_END + 1 = rowBase + CONFIG.OFFSET_PLAYERS_END + 1
+  // Non la tocchiamo se è formula — scriviamo solo il label nella prima cella del blocco
+  const capRow = rowBase + CONFIG.OFFSET_PLAYERS_END + 1;
+  sheet.getRange(capRow, colBase).setValue(capLabel);
+
   // Tagli gratuiti usati
   sheet.getRange(rowBase + CONFIG.OFFSET_TAGLI, colBase, 1, CONFIG.COLS_PER_TEAM)
     .setValue(`TAGLI GRATUITI USATI: ${team.tagli_gratuiti_usati || 0}/3`);
@@ -65,6 +73,23 @@ function updateTeamRoster(sheet, team) {
         sheet.getRange(rowBase + CONFIG.OFFSET_IMPATTI[i], colBase, 1, CONFIG.COLS_PER_TEAM)
           .setValue(`${imp.nome} ${imp.stringa}`);
       }
+    });
+  }
+
+  // DPE attive — sotto i tagliati, prima riga libera
+  const dpeList = team.dpe || [];
+  if (dpeList.length > 0) {
+    // Trova prima riga libera dopo i tagliati
+    let dpeStartRow = rowBase + CONFIG.OFFSET_TAGLIATI_LABEL + 1;
+    if (team.impatti_tagli && team.impatti_tagli.length > 0) {
+      dpeStartRow += team.impatti_tagli.length;
+    }
+    dpeList.forEach((d, i) => {
+      const row = dpeStartRow + i;
+      const label = `DIS. ${d.nome} ${d.importo_orig}x${d.anni}   ${d.importo_dpe}x${d.anni}`;
+      const cell = sheet.getRange(row, colBase, 1, CONFIG.COLS_PER_TEAM);
+      cell.setValue(label);
+      cell.setFontColor("#C62828");
     });
   }
 

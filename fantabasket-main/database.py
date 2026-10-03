@@ -342,6 +342,17 @@ def get_pick_team(team_id: str) -> list:
         (team_id,), many=True
     )
 
+def get_dpe_attive_team(team_id: str, stagione: str) -> list:
+    """Ritorna tutte le DPE attive per un team in una stagione, con dati contratto."""
+    return _q(
+        """SELECT d.*, g.nome_common, c.anni_originali, c.stagione_firma
+           FROM dpe d
+           JOIN giocatori g ON g.id = d.giocatore_id
+           JOIN contratti c ON c.giocatore_id = d.giocatore_id AND c.team_id = d.team_id AND c.attivo = TRUE
+           WHERE d.team_id = %s AND d.stagione = %s""",
+        (team_id, stagione), many=True
+    ) or []
+
 def get_stepien_anni() -> int:
     """Legge il parametro N della Stepien Rule da settings."""
     import settings
