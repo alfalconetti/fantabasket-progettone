@@ -17,3 +17,4 @@ gas/.clasp.json
 gas/*.js
 gas/globals.gs
 gas/globals.js
+test_sync_scelte.sh
