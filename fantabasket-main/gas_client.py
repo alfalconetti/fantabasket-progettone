@@ -26,6 +26,17 @@ def _get_config():
     return router_url, router_token
 
 
+def _q_rookie_scale(anni_colonne: list) -> list:
+    """Costruisce i dati delle 4 colonne rookie scale."""
+    result = []
+    for anno in anni_colonne:
+        if anno is None:
+            result.append({"anno": None, "picks": [None]*24, "diritti": []})
+        else:
+            result.append(db.get_rookie_scale_per_anno(anno))
+    return result
+
+
 def _build_team_payload(team_id: str) -> dict:
     """Costruisce il payload JSON per un team da inviare al GAS."""
     stagione  = settings.stagione_corrente()
@@ -84,6 +95,23 @@ def _build_team_payload(team_id: str) -> dict:
     team = tm.get_team_by_id(team_id)
     cap_penalizzato = team.get("cap_penalizzato", 0) or 0 if team else 0
 
+    # Rookie scale — 4 colonne per anno di draft (ring buffer modulo 4)
+    # col_idx = anno_draft % 4, con mapping: 2→0, 3→1, 0→2, 1→3
+    stagione_int = int(stagione)
+    anni_draft = [stagione_int - 1 + i for i in range(-2, 2)]  # 4 anni: -3,-2,-1,0 dalla stagione
+    # Gli anni attivi nelle 4 colonne sono quelli il cui (anno % 4) corrisponde alla posizione
+    # Colonna 0: anno%4==2, Colonna 1: anno%4==3, Colonna 2: anno%4==0, Colonna 3: anno%4==1
+    col_map = {2: 0, 3: 1, 0: 2, 1: 3}
+
+    # Calcola quali anni sono nelle 4 colonne (anni recenti che hanno giocatori nel DB)
+    anni_colonne = [None, None, None, None]
+    for y in range(stagione_int - 5, stagione_int + 2):
+        col = col_map[y % 4]
+        if anni_colonne[col] is None or y > anni_colonne[col]:
+            anni_colonne[col] = y
+
+    rookie_scale = _q_rookie_scale(anni_colonne)
+
     # DPE attive per questo team
     dpe_attive = db.get_dpe_attive_team(team_id, stagione)
     dpe_payload = [
@@ -104,6 +132,8 @@ def _build_team_payload(team_id: str) -> dict:
         "giocatori":            giocatori_payload,
         "impatti_tagli":        impatti_payload,
         "dpe":                  dpe_payload,
+        "rookie_scale":         rookie_scale,
+        "anni_colonne":         anni_colonne,
     }
 
 

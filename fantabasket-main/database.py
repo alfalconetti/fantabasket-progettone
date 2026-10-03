@@ -342,6 +342,53 @@ def get_pick_team(team_id: str) -> list:
         (team_id,), many=True
     )
 
+def get_rookie_scale_per_anno(anno_draft: int) -> dict:
+    """
+    Ritorna i dati per una colonna della rookie scale:
+    - picks: lista di 24 slot (None se vuoto) con nome e flag # se non più in scala
+    - diritti: lista di giocatori con diritti 2nd attivati (firmato=TRUE) in quell'anno
+    """
+    # Pick round 1 — ordinate per pick_numero, max 24
+    picks_raw = _q(
+        """SELECT r.pick_numero, g.nome_common,
+                  (r.firmato = TRUE AND c.tipo != 'rookie') AS fuori_scala
+           FROM rookie r
+           JOIN giocatori g ON g.id = r.giocatore_id
+           LEFT JOIN contratti c ON c.giocatore_id = r.giocatore_id AND c.attivo = TRUE
+           WHERE r.round = 1 AND r.anno_draft = %s
+           ORDER BY r.pick_numero""",
+        (str(anno_draft),), many=True
+    ) or []
+
+    # Costruisci lista di 24 slot con gap
+    picks_by_num = {p["pick_numero"]: p for p in picks_raw}
+    picks = []
+    for n in range(1, 25):
+        p = picks_by_num.get(n)
+        if p:
+            nome = p["nome_common"]
+            if p["fuori_scala"]:
+                nome = f"#{nome}"
+            picks.append(nome)
+        else:
+            picks.append(None)
+
+    # Diritti 2nd attivati in quell'anno (firmato=TRUE, anno_firma=anno_draft)
+    diritti_raw = _q(
+        """SELECT g.nome_common
+           FROM rookie r
+           JOIN giocatori g ON g.id = r.giocatore_id
+           WHERE r.round = 2 AND r.firmato = TRUE AND r.anno_firma = %s
+           ORDER BY g.nome_common""",
+        (str(anno_draft),), many=True
+    ) or []
+
+    return {
+        "anno":    anno_draft,
+        "picks":   picks,
+        "diritti": [d["nome_common"] for d in diritti_raw],
+    }
+
 def get_dpe_attive_team(team_id: str, stagione: str) -> list:
     """Ritorna tutte le DPE attive per un team in una stagione, con dati contratto."""
     return _q(

@@ -86,12 +86,62 @@ function updateTeamRoster(sheet, team) {
     }
     dpeList.forEach((d, i) => {
       const row = dpeStartRow + i;
-      const label = `DIS. ${d.nome} ${d.importo_orig}x${d.anni}   ${d.importo_dpe}x${d.anni}`;
       const cell = sheet.getRange(row, colBase, 1, CONFIG.COLS_PER_TEAM);
-      cell.setValue(label);
       cell.setFontColor("#C62828");
+
+      // Testo con importo originale barrato via RichTextValue
+      const prefix   = `DIS. ${d.nome} `;
+      const barrato  = `${d.importo_orig}x${d.anni}`;
+      const suffisso = `  ${d.importo_dpe}x${d.anni}`;
+      const rtv = SpreadsheetApp.newRichTextValue()
+        .setText(prefix + barrato + suffisso)
+        .setTextStyle(
+          prefix.length,
+          prefix.length + barrato.length,
+          SpreadsheetApp.newTextStyle().setStrikethrough(true).setForegroundColor("#C62828").build()
+        )
+        .setTextStyle(
+          0,
+          prefix.length,
+          SpreadsheetApp.newTextStyle().setForegroundColor("#C62828").build()
+        )
+        .setTextStyle(
+          prefix.length + barrato.length,
+          prefix.length + barrato.length + suffisso.length,
+          SpreadsheetApp.newTextStyle().setForegroundColor("#C62828").build()
+        )
+        .build();
+      sheet.getRange(row, colBase).setRichTextValue(rtv);
     });
   }
+
+  // ── Rookie scale — colonne AX-BA (50-53) ─────────────────────────────────
+  const rookieCols = [50, 51, 52, 53];  // AX, AY, AZ, BA
+  const rookieData = team.rookie_scale || [];
+  const anniColonne = team.anni_colonne || [null, null, null, null];
+
+  rookieData.forEach((colData, ci) => {
+    const col = rookieCols[ci];
+    const anno = anniColonne[ci];
+
+    // Riga 1: anno di draft
+    sheet.getRange(1, col).setValue(anno || "");
+
+    // Righe 2-25: pick (24 slot, None = vuoto)
+    const picks = colData.picks || [];
+    for (let pi = 0; pi < 24; pi++) {
+      sheet.getRange(2 + pi, col).setValue(picks[pi] || "");
+    }
+
+    // Riga 26: vuota
+    sheet.getRange(26, col).setValue("");
+
+    // Righe 27+: diritti 2nd attivati
+    const diritti = colData.diritti || [];
+    diritti.forEach((nome, di) => {
+      sheet.getRange(27 + di, col).setValue(nome);
+    });
+  });
 
   return true;
 }
