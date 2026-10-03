@@ -230,7 +230,7 @@ def _build_scelte_payload() -> dict:
 
         # Diritti 2nd pick
         diritti_labels = [
-            f"{d['nome_common']} (#{d['pick_numero']} {d['anno_draft']})"
+            f"{d['nome_common']} ({_ordinal(d['pick_numero'])} {d['anno_draft']})"
             for d in diritti
         ]
 
