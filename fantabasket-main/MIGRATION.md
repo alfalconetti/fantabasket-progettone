@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v2.0.42)
+# Messaggio di migrazione — Fantabasket Progettone (stato v2.1.10)
 
 ---
 
@@ -212,7 +212,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 
 ---
 
-**Stato attuale: v2.0.42**
+**Stato attuale: v2.1.10**
 
 Novità v2.0.31–v2.0.38:
 - **v2.0.31** — DPE disponibile in tutte e 6 le fasi (da offseason-rinnovi a regular-season-deadline); admin menu DPE diretta; `pre_deadline = (fase != "regular-season-deadline")`
@@ -228,3 +228,13 @@ Novità v2.0.31–v2.0.38:
 - **v2.0.41** — badge bianco selettivo su rookie/RFA/DPE con contrasto WCAG insufficiente; calcolo per riga specifica del giocatore
 - **v2.0.41a** — `_text_on_muted()` con scala di grigi garantendo ratio ≥ 2.5
 - **v2.0.42** — `tagli_usati` da DB in tempo reale; `tagli_usati`/`cambi_usati` passati ad assets; rimossi default hardcodati da `sys.inputs` in Typst
+- **v2.1.0** — foglio Scelte GAS: pick + diritti + Stepien + colori division; `globals.gs`; `divisions.json` in config/; endpoint `/gas/scelte`
+- **v2.1.1** — `docker-compose.yml` con `gas_scelte_url`; nomi sensibili fuori da GAS
+- **v2.1.2** — fix picks proprie, ordinale diritti, stile celle Scelte, minimo 4 righe per team
+- **v2.1.3** — fix DPE in trade validator: slot e cap entrambi corretti
+- **v2.1.4** — fix `NameError: trade_id` in `cmd_annulla_trade_admin`
+- **v2.1.5** — fix reset alignment dopo clearFormat in scelte.gs
+- **v2.1.6** — fix nomi GM colonna B e formato ordinale diritti
+- **v2.1.7** — `sync_scelte()` in tutti i `sync_after_*`, sync dopo rollback trade
+- **v2.1.8** — fix sync mancante dopo esecuzione trade (`_esegui_trade`)
+- **v2.1.10** — SALARY CAP con penalità in roster GAS, DPE in rosso sotto tagliati, `get_dpe_attive_team()`

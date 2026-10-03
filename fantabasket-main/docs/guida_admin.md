@@ -75,4 +75,16 @@ Condiviso tra bot main e bot aste. Modifiche impattano entrambi al prossimo riav
 
 `/annulla_admin` — esce da qualsiasi operazione admin bloccata.
 
-`/sync_sheets` (solo dev) — sincronizzazione manuale completa di tutti i roster su Google Sheets.
+`/sync_sheets` (solo dev) — sincronizzazione manuale completa di tutti i roster e del foglio Scelte su Google Sheets.
+
+---
+
+## Google Sheets — struttura auto-aggiornata
+
+Il bot aggiorna automaticamente i fogli dopo ogni operazione (trade, taglio, DPE, firma, rookie, rollback).
+
+**Foglio Roster**: 15 righe giocatori + SALARY CAP (con `[-N]` se penalità) + età media (formula) + tagli gratuiti usati + cambi ruolo usati (0/2, da implementare) + tagliati con impatto cap + righe DPE in rosso (`DIS. Nome 9x1   7x1`).
+
+**Foglio Scelte**: pick proprie (1st riga 1, 2nd riga 2) + pick altrui per anno + diritti 2nd pick + numeri draft corrente. `[STEPIEN]` indica pick non cedibile senza violare la Stepien Rule. Colori per division. Minimo 4 righe per team.
+
+**Secrets richiesti** (in `secrets/`): `gas_token`, `gas_roster_url`, `gas_scelte_url` (stesso URL del roster).

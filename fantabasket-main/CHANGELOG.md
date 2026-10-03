@@ -382,3 +382,83 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 - **`tagli_usati` da DB**: roster e assets calcolano i tagli gratuiti usati in tempo reale da PostgreSQL (`get_tagli_gratuiti_usati()`) invece di leggerlo da `teams.json`. `cambi_usati` resta da `teams.json` finché non viene tracciato nel DB.
 - **`tagli_usati`/`cambi_usati` passati ad assets**: mancavano nel cmd Typst di `_genera_assets_png`.
 - **Default rimossi da `sys.inputs`**: `roster.typ` e `assets.typ` non hanno più valori hardcodati nei `default:` di `sys.inputs.at()` — se un campo non arriva da Python, Typst fallisce esplicitamente invece di usare valori fasulli.
+
+## v2.1.0 (2026-10-03)
+
+### Nuove feature
+- **Foglio Scelte GAS**: ricostruzione completa ad ogni sync — pick proprie (1st in riga 1, 2nd in riga 2), pick altrui per anno, diritti 2nd pick, numeri draft corrente con suffisso ordinale (25th, 2nd...), flag `[STEPIEN]` sulle pick proprie la cui cessione violerebbe la Stepien Rule
+- **`globals.gs`**: CONFIG, DIV_COLORS, TEAM_MAP centralizzati
+- **`divisions.json`**: mapping team_id → division e ordine fisso, in `config/` (non nel repo)
+- **`gas-router`**: endpoint `POST /gas/scelte`, secret `GAS_SCELTE_URL_FILE`
+- **`database.py`**: `get_all_picks_by_orig()`, `get_stepien_anni()`
+- **`sync_scelte()`** in `gas_client.py`: fire-and-forget, incluso in `sync_all()`
+
+## v2.1.1 (2026-10-03)
+
+### Fix
+- `globals.gs` rimosso da `.gitignore` → pushato via clasp; nomi sensibili rimossi da GAS, spostati in `divisions.json`
+- `docker-compose.yml`: aggiunto secret `gas_scelte_url`
+
+## v2.1.2 (2026-10-03)
+
+### Fix
+- Pick proprie: mostrate solo se ancora in possesso del team (`proprietario_att == team_id`)
+- Nomi GM in colonna B e label pick usano mapping `team_pick_nome` da `divisions.json`
+- Suffisso ordinale corretto (1st, 2nd, 3rd, 25th...) per numeri draft e diritti
+- Stile celle: nome squadra bold nero centrato, GM normale centrato, "Altre pick" bold centrato
+- Minimo 4 righe per team (2 righe "Altre pick" sempre presenti)
+- Reset esplicito alignment/fontColor dopo `clearFormat()`
+
+## v2.1.3 (2026-10-03)
+
+### Fix
+- **Trade validator — slot**: giocatori con DPE pre-deadline esclusi dal conteggio roster
+- **Trade validator — cap**: `cap_out`/`cap_in` usano `importo_dpe` se attiva, altrimenti importo contratto
+
+## v2.1.4 (2026-10-03)
+
+### Fix
+- `cmd_annulla_trade_admin`: `NameError: trade_id not defined` — sostituito con `trade["id"]` già disponibile
+
+## v2.1.5 (2026-10-03)
+
+### Fix
+- `scelte.gs`: reset esplicito `setHorizontalAlignment("left")` e `setFontColor` dopo `clearFormat()` per evitare che formattazione residua sovrascriva quella nuova
+
+## v2.1.6 (2026-10-03)
+
+### Fix
+- Diritti 2nd pick: formato ordinale (25th 2026) invece di (#25 2026)
+- Nomi GM colonna B usano `team_pick_nome` (Klra, Hanry, Delfino...) invece di `gm_nome` da teams.json
+
+## v2.1.7 (2026-10-03)
+
+### Nuove feature
+- `sync_scelte()` aggiunto in tutte le funzioni `sync_after_*` (taglio, firma, dpe, rookie)
+- Sync GAS roster + scelte dopo rollback trade
+
+### Fix
+- `cmd_annulla_trade_admin`: `NameError: trade_id` → usa `trade["id"]`
+
+## v2.1.8 (2026-10-03)
+
+### Fix
+- `_esegui_trade`: aggiunto `sync_after_trade()` — mancava completamente, nessun sync avveniva dopo l'esecuzione di una trade
+
+## v2.1.9 (2026-10-03)
+
+### Fix
+- Versione rinominata 2.1.10
+
+## v2.1.10 (2026-10-03)
+
+### Nuove feature
+- **Foglio Roster GAS — SALARY CAP**: label aggiornata con penalità cap se presente (`SALARY CAP [-1]`)
+- **Foglio Roster GAS — DPE**: riga rossa sotto i tagliati con formato `DIS. Nome 9x1   7x1`
+- **`gas_client.py`**: `cap_penalizzato` e `dpe` aggiunti al payload roster
+- **`database.py`**: aggiunta `get_dpe_attive_team(team_id, stagione)`
+- **`trade.py`**: sync GAS (roster + scelte) alla fine di `_esegui_trade`
+
+### Da fare (roadmap)
+- Cambi ruolo: tracciamento nel DB (attualmente sempre 0/2 — v5.x)
+- `offseason-ruoli`: fase tra `offseason-fa` e `regular-season-fa`, dichiarazione ruoli post-trade entro 48h
