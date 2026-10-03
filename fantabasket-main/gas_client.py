@@ -79,7 +79,8 @@ def _build_team_payload(team_id: str) -> dict:
             "stringa": stringa,
         })
 
-    cap_penalizzato = team.get("cap_penalizzato", 0) or 0
+    team = tm.get_team_by_id(team_id)
+    cap_penalizzato = team.get("cap_penalizzato", 0) or 0 if team else 0
 
     # DPE attive per questo team
     dpe_attive = db.get_dpe_attive_team(team_id, stagione)
