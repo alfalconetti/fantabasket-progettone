@@ -48,7 +48,7 @@ function updateTeamRoster(sheet, team) {
   // La riga SALARY CAP è OFFSET_PLAYERS_END + 1 = rowBase + CONFIG.OFFSET_PLAYERS_END + 1
   // Non la tocchiamo se è formula — scriviamo solo il label nella prima cella del blocco
   const capRow = rowBase + CONFIG.OFFSET_PLAYERS_END + 1;
-  sheet.getRange(capRow, colBase).setValue(capLabel);
+  sheet.getRange(capRow, colBase).setValue(capLabel);  // rowBase+18
 
   // Tagli gratuiti usati
   sheet.getRange(rowBase + CONFIG.OFFSET_TAGLI, colBase, 1, CONFIG.COLS_PER_TEAM)

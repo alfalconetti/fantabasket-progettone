@@ -1,41 +1,57 @@
-// Fantabasket — Configurazione globale GAS
-// Contiene CONFIG, colori division, TEAM_ORDER e helper getSpreadsheet()
-
-// ── Spreadsheet ───────────────────────────────────────────────────────────────
-
-function getSpreadsheet() {
-  const id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
-  return SpreadsheetApp.openById(id);
-}
-
-// ── Nomi fogli ────────────────────────────────────────────────────────────────
+// Fantabasket — configurazione globale condivisa tra tutti gli handler
+// ATTENZIONE: questo file è nel gitignore — contiene dati specifici della lega
 
 const CONFIG = {
+  SPREADSHEET_ID: "1w93dDLaSPjSjp0WPapD2DQLVrxuAjfxntzKMd03Tevo",
   ROSTER_SHEET_NAME: "Roster",
   SCELTE_SHEET_NAME: "Scelte",
-
-  // Roster: offset righe per team nel foglio Roster
-  CONFERENCE_ROW_BASES: {},  // popolato da TEAM_MAP
+  CONFERENCE_ROW_BASES: [3, 30],
+  OFFSET_PLAYERS_START: 3,
+  OFFSET_PLAYERS_END:   17,
+  OFFSET_TAGLI:         20,
+  OFFSET_CAMBI_RUOLO:   21,
+  OFFSET_TAGLIATI_LABEL: 22,
+  OFFSET_IMPATTI:       [23, 24],
   COLS_PER_TEAM: 4,
-  OFFSET_PLAYERS_START: 2,
-  OFFSET_PLAYERS_END:   16,
-  OFFSET_TAGLI:         17,
-  OFFSET_CAMBI_RUOLO:   18,
-  OFFSET_TAGLIATI_LABEL: 19,
-  OFFSET_IMPATTI:       [20, 21],
 
-  // Scelte: prima riga dati (sotto intestazioni fisse)
-  SCELTE_DATA_ROW_START: 4,   // riga 1=vuota, 2=header anni, 3=TUTTO OK formule
-  SCELTE_COL_NOME:    2,      // colonna B — nome squadra / GM / "Altre pick"
-  SCELTE_COL_DIRITTI: 4,      // colonna D — diritti 2nd pick
-  SCELTE_COL_DRAFT:   6,      // colonna F — numeri pick draft corrente
-  SCELTE_COL_ANNI_START: 8,   // colonna H — primo anno (stagione+1)
-  SCELTE_ANNI_COUNT:  6,      // 6 anni scambiabili
-  SCELTE_COLS_PER_ANNO: 2,    // colonna anno + colonna separatore (vuota)
+  // Scelte
+  SCELTE_DATA_ROW_START: 4,
+  SCELTE_COL_NOME:       2,
+  SCELTE_COL_DIRITTI:    4,
+  SCELTE_COL_DRAFT:      6,
+  SCELTE_COL_ANNI_START: 8,
+  SCELTE_ANNI_COUNT:     6,
+  SCELTE_COLS_PER_ANNO:  2,
 };
 
-// ── Colori division ───────────────────────────────────────────────────────────
-// Per ogni division: [colore_nome_riga, colore_pick_propria, colore_altre]
+const TEAM_MAP = {
+  // Conference 0
+  "team06": { conference: 0, pos: 0 },
+  "team08": { conference: 0, pos: 1 },
+  "team14": { conference: 0, pos: 2 },
+  "team15": { conference: 0, pos: 3 },
+  "team07": { conference: 0, pos: 4 },
+  "team21": { conference: 0, pos: 5 },
+  "team09": { conference: 0, pos: 6 },
+  "team01": { conference: 0, pos: 7 },
+  "team24": { conference: 0, pos: 8 },
+  "team13": { conference: 0, pos: 9 },
+  "team19": { conference: 0, pos: 10 },
+  "team04": { conference: 0, pos: 11 },
+  // Conference 1
+  "team17": { conference: 1, pos: 0 },
+  "team16": { conference: 1, pos: 1 },
+  "team03": { conference: 1, pos: 2 },
+  "team10": { conference: 1, pos: 3 },
+  "team12": { conference: 1, pos: 4 },
+  "team22": { conference: 1, pos: 5 },
+  "team11": { conference: 1, pos: 6 },
+  "team02": { conference: 1, pos: 7 },
+  "team20": { conference: 1, pos: 8 },
+  "team18": { conference: 1, pos: 9 },
+  "team23": { conference: 1, pos: 10 },
+  "team05": { conference: 1, pos: 11 },
+};
 
 const DIV_COLORS = {
   A: { dark: "#f2900e", mid: "#ffc000", light: "#ffe699" },
@@ -46,36 +62,12 @@ const DIV_COLORS = {
   F: { dark: "#8037b7", mid: "#a06bdb", light: "#deb4e4" },
 };
 
-// ── Ordine team nel foglio Scelte ─────────────────────────────────────────────
-// Ordine fisso: divA → divB → divC → divD → divE → divF
+function getSpreadsheet() {
+  return SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+}
 
-// TEAM_ORDER non serve in GAS — nomi e ordine arrivano dal payload Python.
-
-// ── Roster TEAM_MAP (usato da roster.gs) ─────────────────────────────────────
-
-const TEAM_MAP = {
-  "team01": { conference: "East", pos: 0 },
-  "team02": { conference: "East", pos: 1 },
-  "team03": { conference: "East", pos: 2 },
-  "team04": { conference: "East", pos: 3 },
-  "team05": { conference: "East", pos: 4 },
-  "team06": { conference: "East", pos: 5 },
-  "team07": { conference: "East", pos: 6 },
-  "team08": { conference: "East", pos: 7 },
-  "team09": { conference: "East", pos: 8 },
-  "team10": { conference: "East", pos: 9 },
-  "team11": { conference: "East", pos: 10 },
-  "team12": { conference: "East", pos: 11 },
-  "team13": { conference: "West", pos: 0 },
-  "team14": { conference: "West", pos: 1 },
-  "team15": { conference: "West", pos: 2 },
-  "team16": { conference: "West", pos: 3 },
-  "team17": { conference: "West", pos: 4 },
-  "team18": { conference: "West", pos: 5 },
-  "team19": { conference: "West", pos: 6 },
-  "team20": { conference: "West", pos: 7 },
-  "team21": { conference: "West", pos: 8 },
-  "team22": { conference: "West", pos: 9 },
-  "team23": { conference: "West", pos: 10 },
-  "team24": { conference: "West", pos: 11 },
-};
+function respond(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
