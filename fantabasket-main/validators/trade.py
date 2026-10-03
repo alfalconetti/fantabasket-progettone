@@ -65,14 +65,17 @@ def valida_trade(trade_id: int) -> tuple[bool, list[str]]:
                     f"⚠️ {nome}: {nome_g} — anni trade {anni_item} ≠ DB {anni_db}"
                 )
         cap_attuale = db.cap_occupato_team(team_id, stagione)
-        cap_out = sum(
-            (db.get_contratto_attivo(i["giocatore_id"]) or {}).get("importo", 0)
-            for i in out_g
-        )
-        cap_in = sum(
-            (db.get_contratto_attivo(i["giocatore_id"]) or {}).get("importo", 0)
-            for i in in_g
-        )
+
+        def _importo_effettivo(giocatore_id):
+            """Usa importo_dpe se attiva, altrimenti importo contratto."""
+            dpe = db.get_dpe_attiva(giocatore_id, stagione)
+            if dpe:
+                return dpe["importo_dpe"]
+            contratto = db.get_contratto_attivo(giocatore_id) or {}
+            return contratto.get("importo", 0)
+
+        cap_out = sum(_importo_effettivo(i["giocatore_id"]) for i in out_g)
+        cap_in  = sum(_importo_effettivo(i["giocatore_id"]) for i in in_g)
         cap_post = cap_attuale - cap_out + cap_in
 
         if cap_post > settings.luxury_cap():
