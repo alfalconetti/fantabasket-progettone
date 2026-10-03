@@ -1109,6 +1109,13 @@ async def _esegui_trade(context, trade_id: int, trade_ref: str):
             except Exception as e:
                 logger.warning("Notifica GM %d fallita: %s", gm_id, e)
 
+    # Sync GAS — roster e scelte
+    try:
+        import gas_client
+        gas_client.sync_after_trade(trade_id)
+    except Exception as e:
+        logger.warning("sync GAS dopo trade fallito: %s", e)
+
 
 async def _rollback_trade(trade_id: int):
     """
