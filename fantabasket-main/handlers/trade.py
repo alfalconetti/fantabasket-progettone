@@ -1144,6 +1144,16 @@ async def _rollback_trade(trade_id: int):
     db.aggiorna_stato_trade(trade_id, "annullata")
     logger.info("Trade %s annullata e rollback eseguito.", trade["trade_ref"])
 
+    # Sync GAS — roster e scelte
+    try:
+        import gas_client
+        squadre = db.get_squadre_trade(trade_id)
+        team_ids = [s["team_id"] for s in squadre]
+        gas_client.sync_teams(team_ids)
+        gas_client.sync_scelte()
+    except Exception as e:
+        logger.warning("sync GAS dopo rollback trade fallito: %s", e)
+
 
 async def _valida_rollback(trade_id: int) -> list[str]:
     """
@@ -1274,7 +1284,6 @@ async def cmd_annulla_trade_admin(update: Update, context: ContextTypes.DEFAULT_
         f"✅ <b>{trade_ref}</b> annullata. Roster e pick ripristinati.",
         parse_mode="HTML",
     )
-    trade = db.get_trade(trade_id)
     team  = tm.get_team_by_id(trade["proposta_da"])
     if not team:
         return
