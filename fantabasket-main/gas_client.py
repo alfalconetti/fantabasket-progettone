@@ -79,6 +79,7 @@ def _build_team_payload(team_id: str) -> dict:
             "stringa": stringa,
         })
 
+    import teams as tm
     team = tm.get_team_by_id(team_id)
     cap_penalizzato = team.get("cap_penalizzato", 0) or 0 if team else 0
 
