@@ -192,6 +192,7 @@ async def post_init(application):
         BotCommand("team_diff",      "Variazioni roster [team_id] [da] [a]"),
         BotCommand("annulla_trade",  "Annulla la trade in corso"),
         BotCommand("annulla",        "Esci da qualsiasi conversazione bloccata"),
+        BotCommand("guida",          "Guida completa per i GM"),
     ]
     cmd_admin = cmd_gm + [
         BotCommand("admin_menu",          "Pannello admin"),
@@ -200,6 +201,7 @@ async def post_init(application):
         BotCommand("annulla_trade_admin", "Annulla una trade approvata"),
         BotCommand("registra_firma",      "Registra firma manuale [team] [giocatore] [importo] [anni]"),
         BotCommand("annulla_admin",       "Esci da operazione admin bloccata"),
+        BotCommand("guida_admin",         "Guida completa per gli admin"),
         BotCommand("settings",            "Modifica settings [chiave] [valore]"),
     ]
     cmd_dev = cmd_admin + [

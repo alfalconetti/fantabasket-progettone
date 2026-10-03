@@ -220,10 +220,48 @@ async def cb_assets_squadra(update: Update, context: ContextTypes.DEFAULT_TYPE):
             os.unlink(png_path)
 
 
+@solo_privato
+async def cmd_guida(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Invia la guida GM in privato."""
+    import os
+    path = os.path.join(os.path.dirname(__file__), "..", "docs", "guida_gm.md")
+    try:
+        with open(path, "rb") as f:
+            await update.effective_message.reply_document(
+                document=f,
+                filename="guida_gm.md",
+                caption="📖 Guida GM — Fantabasket",
+            )
+    except Exception as e:
+        await update.effective_message.reply_text(f"❌ Errore: {e}")
+
+
+@solo_privato
+async def cmd_guida_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Invia la guida admin in privato — solo admin."""
+    import os
+    from settings import load_globals
+    if update.effective_user.id not in [int(a) for a in load_globals().get("admin_ids", [])]:
+        await update.effective_message.reply_text("⛔ Non sei admin.")
+        return
+    path = os.path.join(os.path.dirname(__file__), "..", "docs", "guida_admin.md")
+    try:
+        with open(path, "rb") as f:
+            await update.effective_message.reply_document(
+                document=f,
+                filename="guida_admin.md",
+                caption="📖 Guida Admin — Fantabasket",
+            )
+    except Exception as e:
+        await update.effective_message.reply_text(f"❌ Errore: {e}")
+
+
 def get_handlers() -> list:
     return [
-        CommandHandler("menu",  cmd_menu),
-        CommandHandler("start", cmd_menu),
+        CommandHandler("menu",        cmd_menu),
+        CommandHandler("start",       cmd_menu),
+        CommandHandler("guida",       cmd_guida),
+        CommandHandler("guida_admin", cmd_guida_admin),
         CallbackQueryHandler(cb_menu,            pattern=r"^menu:.+$"),
         CallbackQueryHandler(cb_roster_squadra,  pattern=r"^roster_sq:.+$"),
         CallbackQueryHandler(cb_assets_squadra,  pattern=r"^assets_sq:.+$"),
