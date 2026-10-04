@@ -88,6 +88,27 @@ services:
       timeout: 5s
       retries: 3
 
+  yahoo-router:
+    build: ./yahoo-router
+    restart: unless-stopped
+    environment:
+      YAHOO_CLIENT_ID_FILE: /run/secrets/yahoo_client_id
+      YAHOO_CLIENT_SECRET_FILE: /run/secrets/yahoo_client_secret
+      ROUTER_TOKEN_FILE: /run/secrets/yahoo_router_token
+      YAHOO_TOKEN_PATH: /data/yahoo_token.json
+      YAHOO_LEAGUE_IDS: "YAHOO_LEAGUE_ID_A,YAHOO_LEAGUE_ID_B"
+    secrets:
+      - yahoo_client_id
+      - yahoo_client_secret
+      - yahoo_router_token
+    volumes:
+      - yahoo_data:/data
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
 secrets:
   bot_token_aste_beta:
     file: ./secrets/bot_token_aste_beta.txt
@@ -103,7 +124,14 @@ secrets:
     file: ./secrets/gas_roster_url
   gas_scelte_url:
     file: ./secrets/gas_scelte_url
+  yahoo_client_id:
+    file: ./secrets/yahoo_client_id
+  yahoo_client_secret:
+    file: ./secrets/yahoo_client_secret
+  yahoo_router_token:
+    file: ./secrets/yahoo_router_token
 
 volumes:
   pgdata:
   aste_beta_data:
+  yahoo_data:
