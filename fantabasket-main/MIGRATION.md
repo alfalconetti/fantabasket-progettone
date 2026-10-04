@@ -246,3 +246,26 @@ Novità v2.0.31–v2.0.38:
 - **v2.1.16** — `--root /` in Typst per accesso loghi
 - **v2.1.17** — fix notifica decadimento al gruppo admin; SALARY CAP penalità sempre negativa
 - **v2.1.18** — coda `gas_sync_queue` PG: bot aste accoda firme, bot main sincronizza fogli ogni 60s
+
+---
+
+## Esportazione per nuova sessione
+
+```bash
+cd ~/bots/fantabasket-progettone && \
+zip -r ~/fantabasket-progettone-export-$(date +%Y%m%d).zip \
+  fantabasket-main/ \
+  fantabasket-aste-beta/ \
+  gas/ \
+  gas-router/ \
+  docker-compose.yml \
+  --exclude "**/__pycache__/*" \
+  --exclude "**/*.pyc" \
+  --exclude "**/*.db" \
+  --exclude "secrets/*" \
+  --exclude "config/*" \
+  --exclude "gas/globals.gs" \
+  --exclude "gas/.clasp.json" \
+  --exclude "fantabasket-main/config/*" \
+  --exclude "fantabasket-aste-beta/config/*"
+```
