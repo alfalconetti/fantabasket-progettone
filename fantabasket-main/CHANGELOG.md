@@ -462,3 +462,55 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 ### Da fare (roadmap)
 - Cambi ruolo: tracciamento nel DB (attualmente sempre 0/2 — v5.x)
 - `offseason-ruoli`: fase tra `offseason-fa` e `regular-season-fa`, dichiarazione ruoli post-trade entro 48h
+
+## v2.1.11 (2026-10-04)
+
+### Nuove feature
+- `/guida` (tutti i GM) — invia `guida_gm.md` in privato
+- `/guida_admin` (solo admin) — invia `guida_admin.md` in privato
+- Comandi suggeriti con scope corretto in `bot.py`
+
+## v2.1.12 (2026-10-04)
+
+### Bug fix
+- `NameError: name 'tm' is not defined` in `_build_team_payload` — aggiunto `import teams as tm`
+- `NameError: name 'team' is not defined` — aggiunto `team = tm.get_team_by_id(team_id)`
+
+## v2.1.13 (2026-10-04)
+
+### Bug fix
+- `globals.gs` riscritto con struttura corretta (`CONFERENCE_ROW_BASES: [3, 30]`, `conference: 0/1`, `SPREADSHEET_ID` inline)
+- Giocatori con DPE esclusi dalle 15 righe nel payload roster GAS
+
+## v2.1.14 (2026-10-04)
+
+### Nuove feature
+- **Rookie scale colonne AX-BA** nel foglio Roster GAS: 4 colonne (ring buffer modulo 4), 24 pick con gap, `#` se fuori scala, riga 26 vuota, righe 27+ diritti 2nd attivati per quell'anno
+- `get_rookie_scale_per_anno()` in `database.py`
+- `_q_rookie_scale()` in `gas_client.py`
+
+## v2.1.15 (2026-10-04)
+
+### Bug fix
+- Anni rookie scale: `range(stagione_int - 3, stagione_int + 1)` — usa stagione corrente inclusa
+
+## v2.1.16 (2026-10-04)
+
+### Bug fix
+- `--root /` aggiunto al comando Typst per `roster.py` e `assets.py` — i loghi in `/config/loghi/` erano inaccessibili
+
+## v2.1.17 (2026-10-04)
+
+### Bug fix
+- `decadimento.py`: `query.message.bot` → `context.bot` per notifica al gruppo admin
+- `roster.gs`: SALARY CAP con penalità sempre negativo (`[-1]` non `[+1]`)
+
+## v2.1.18 (2026-10-04)
+
+### Nuove feature
+- **Coda `gas_sync_queue`** su PostgreSQL: il bot aste accoda una riga dopo ogni firma FA/RFA
+- `migrate_db()` crea la tabella automaticamente all'avvio del bot main
+- `gas_queue_max_id()` e `gas_queue_svuota_fino()` in `database.py`
+- Job `processa_coda_gas` ogni 60s in `scheduler.py`: se la coda non è vuota lancia `sync_all` e svuota fino all'id letto
+- `accoda_sync_gas()` in `fantabasket-aste-beta/pg_client.py`
+- Chiamata in `handlers/firma.py` del bot aste dopo firma finale

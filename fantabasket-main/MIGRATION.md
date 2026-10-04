@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v2.1.10)
+# Messaggio di migrazione — Fantabasket Progettone (stato v2.1.18)
 
 ---
 
@@ -212,7 +212,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 
 ---
 
-**Stato attuale: v2.1.10**
+**Stato attuale: v2.1.18**
 
 Novità v2.0.31–v2.0.38:
 - **v2.0.31** — DPE disponibile in tutte e 6 le fasi (da offseason-rinnovi a regular-season-deadline); admin menu DPE diretta; `pre_deadline = (fase != "regular-season-deadline")`
@@ -238,3 +238,11 @@ Novità v2.0.31–v2.0.38:
 - **v2.1.7** — `sync_scelte()` in tutti i `sync_after_*`, sync dopo rollback trade
 - **v2.1.8** — fix sync mancante dopo esecuzione trade (`_esegui_trade`)
 - **v2.1.10** — SALARY CAP con penalità in roster GAS, DPE in rosso sotto tagliati, `get_dpe_attive_team()`
+- **v2.1.11** — `/guida` e `/guida_admin`, comandi suggeriti con scope corretto
+- **v2.1.12** — fix `NameError tm/team` in `_build_team_payload`
+- **v2.1.13** — fix `globals.gs` struttura corretta; DPE escluse dalle 15 righe GAS
+- **v2.1.14** — rookie scale colonne AX-BA in foglio Roster GAS
+- **v2.1.15** — fix anni rookie scale usa stagione corrente
+- **v2.1.16** — `--root /` in Typst per accesso loghi
+- **v2.1.17** — fix notifica decadimento al gruppo admin; SALARY CAP penalità sempre negativa
+- **v2.1.18** — coda `gas_sync_queue` PG: bot aste accoda firme, bot main sincronizza fogli ogni 60s
