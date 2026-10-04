@@ -1523,6 +1523,13 @@ async def _registra_firma_finale(
     logger.info("Firma finale: asta_id=%d team=%s anni=%d importo=%d",
                 asta_id, team_id, anni, importo)
 
+    # Segnala al bot main di risincronizzare i fogli Google
+    try:
+        import pg_client
+        pg_client.accoda_sync_gas(f"firma {asta['giocatore']} → {team_id}")
+    except Exception as e:
+        logger.warning("Accodamento sync GAS fallito: %s", e)
+
 
 # ── validazione anni ──────────────────────────────────────────────────────────
 

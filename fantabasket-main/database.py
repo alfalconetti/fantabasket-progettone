@@ -81,6 +81,13 @@ def migrate_db():
             UNIQUE (giocatore_id, stagione)
         )
     """)
+    _q("""
+        CREATE TABLE IF NOT EXISTS gas_sync_queue (
+            id         SERIAL PRIMARY KEY,
+            motivo     TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    """)
 
 
 @contextmanager
@@ -388,6 +395,14 @@ def get_rookie_scale_per_anno(anno_draft: int) -> dict:
         "picks":   picks,
         "diritti": [d["nome_common"] for d in diritti_raw],
     }
+
+def gas_queue_max_id() -> int | None:
+    """ID massimo in coda sync GAS, None se vuota."""
+    return _qval("SELECT MAX(id) FROM gas_sync_queue")
+
+def gas_queue_svuota_fino(max_id: int) -> None:
+    """Cancella le richieste di sync fino a max_id (incluso)."""
+    _q("DELETE FROM gas_sync_queue WHERE id <= %s", (max_id,))
 
 def get_dpe_attive_team(team_id: str, stagione: str) -> list:
     """Ritorna tutte le DPE attive per un team in una stagione, con dati contratto."""

@@ -616,3 +616,22 @@ def reset_slot_anticipato(team_id: str) -> None:
         logger.error("reset_slot_anticipato(%s): %s", team_id, e)
     finally:
         _putconn(conn)
+
+
+# ── coda sync GAS ─────────────────────────────────────────────────────────────
+
+def accoda_sync_gas(motivo: str = "") -> None:
+    """Segnala al bot main che i fogli vanno risincronizzati.
+    Il bot main processa la coda ogni 60s e aggiorna roster + scelte."""
+    if not pg_disponibile():
+        return
+    conn = _conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("INSERT INTO gas_sync_queue (motivo) VALUES (%s)", (motivo,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        logger.warning("accoda_sync_gas: %s", e)
+    finally:
+        _putconn(conn)

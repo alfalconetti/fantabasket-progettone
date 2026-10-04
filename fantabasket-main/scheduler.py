@@ -139,6 +139,26 @@ async def sync_sheets_periodico(context) -> None:
         logger.warning("sync_sheets_periodico: %s", e)
 
 
+async def processa_coda_gas(context) -> None:
+    """Job ogni 60s — se il bot aste ha accodato richieste di sync, aggiorna tutti i fogli."""
+    try:
+        import asyncio
+        import database as db
+        import gas_client
+        max_id = db.gas_queue_max_id()
+        if not max_id:
+            return
+        loop = asyncio.get_running_loop()
+        ok = await loop.run_in_executor(None, gas_client.sync_all, True)
+        if ok:
+            db.gas_queue_svuota_fino(max_id)
+            logger.info("processa_coda_gas: sync completo eseguito (coda fino a id=%d)", max_id)
+        else:
+            logger.warning("processa_coda_gas: sync fallito, riprovo al prossimo giro")
+    except Exception as e:
+        logger.warning("processa_coda_gas: %s", e)
+
+
 async def check_scadenza_diritti(context):
     """
     Job giornaliero alle 9:00 — controlla se la trade_deadline è tra 10 giorni.
