@@ -44,7 +44,7 @@ function updateTeamRoster(sheet, team) {
 
   // Salary cap label con eventuale penalità
   const capPen = team.cap_penalizzato || 0;
-  const capLabel = capPen !== 0 ? `SALARY CAP [${capPen > 0 ? "+" : ""}${capPen}]` : "SALARY CAP";
+  const capLabel = capPen !== 0 ? `SALARY CAP [${capPen}]` : "SALARY CAP";
   // La riga SALARY CAP è OFFSET_PLAYERS_END + 1 = rowBase + CONFIG.OFFSET_PLAYERS_END + 1
   // Non la tocchiamo se è formula — scriviamo solo il label nella prima cella del blocco
   const capRow = rowBase + CONFIG.OFFSET_PLAYERS_END + 1;

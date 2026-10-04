@@ -123,7 +123,7 @@ async def cb_dec_motivo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             InlineKeyboardButton("❌ Rifiuta", callback_data=f"dec_rifiuta:{team_id}:{gid}"),
         ]])
         try:
-            await query.message.bot.send_message(
+            await context.bot.send_message(
                 chat_id=admin_group_id, text=testo,
                 parse_mode="HTML", reply_markup=kb
             )
