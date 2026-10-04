@@ -1,6 +1,9 @@
 """
 Attivazione diritti 2nd pick:
-  /attiva_diritti → lista diritti 2nd disponibili → seleziona → conferma importo e anni → firma
+  /attiva_diritti → lista diritti 2nd disponibili → seleziona → conferma contratto scale → firma
+
+Il contratto (importo e anni) è predefinito dalla rookie scale in settings.json.
+Non viene chiesto importo libero — solo conferma o annulla.
 """
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -50,6 +53,7 @@ async def cmd_attiva_diritti(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def cb_scegli_rookie(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Seleziona rookie → mostra direttamente il contratto da scala e chiede conferma."""
     query = update.callback_query
     await query.answer()
     rookie_id = int(query.data.split(":")[1])
@@ -61,9 +65,9 @@ async def cb_scegli_rookie(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     context.user_data["att_rookie_id"] = rookie_id
     giocatore = db.get_giocatore(rookie["giocatore_id"])
 
-    # Contratto rookie scale da settings
+    # Contratto predefinito dalla rookie scale
     s   = settings.get()
-    rs  = s["rookie_scale"]
+    rs  = s.get("rookie_scale", {})
     pic = rookie["pick_numero"]
     slot = None
     for fascia, valori in rs.items():
@@ -71,29 +75,47 @@ async def cb_scegli_rookie(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         lo = int(limiti[0])
         hi = int(limiti[-1])
         if lo <= pic <= hi:
-            anno_idx = rookie["anni_scala"]  # 0=primo anno, 1=secondo...
+            # Attivazione diritti: sempre anno I della scala (idx 0)
+            anno_idx = 0
             slot = valori[anno_idx] if anno_idx < len(valori) else None
             break
 
-    if slot:
-        imp_base = slot["imp"]
-        anni_base = slot["anni"]
-        context.user_data["att_imp_base"]  = imp_base
-        context.user_data["att_anni_base"] = anni_base
-        suggerimento = f"\n<i>Rookie scale: {imp_base}M × {anni_base} anni</i>"
-    else:
-        suggerimento = ""
+    if not slot:
+        # Fascia non trovata: fallback a input manuale (non dovrebbe succedere)
+        await query.edit_message_text(
+            f"🏀 <b>{giocatore['nome_common']}</b>\n"
+            f"Pick #{pic} — Draft {rookie['anno_draft']}\n\n"
+            f"⚠️ Contratto non trovato nella scala. Inserisci l'importo manualmente (minimo 1M):"
+            + _ANNULLA_HINT,
+            parse_mode="HTML",
+        )
+        return INSERISCI_IMPORTO_R
 
+    importo = slot["imp"]
+    anni    = slot["anni"]
+    context.user_data["att_importo"]   = importo
+    context.user_data["att_anni"]      = anni
+    context.user_data["att_imp_base"]  = importo
+    context.user_data["att_anni_base"] = anni
+
+    anni_str = "anno" if anni == 1 else "anni"
     await query.edit_message_text(
         f"🏀 <b>{giocatore['nome_common']}</b>\n"
-        f"Pick #{pic} — Draft {rookie['anno_draft']}\n{suggerimento}\n\n"
-        f"Inserisci l'importo del contratto (minimo 1M):" + _ANNULLA_HINT,
+        f"Pick #{pic} — Draft {rookie['anno_draft']}\n\n"
+        f"📋 Contratto dalla rookie scale:\n"
+        f"<b>{importo}M × {anni} {anni_str}</b>\n\n"
+        f"Confermi la firma?" + _ANNULLA_HINT,
         parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("✅ Conferma", callback_data="att_r_ok"),
+            InlineKeyboardButton("❌ Annulla",  callback_data="att_r_no"),
+        ]]),
     )
-    return INSERISCI_IMPORTO_R
+    return CONFERMA_R
 
 
 async def inserisci_importo_r(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Fallback: input manuale importo (solo se slot non trovato nella scala)."""
     testo = update.effective_message.text.strip()
     if not testo.isdigit():
         await update.effective_message.reply_text(
@@ -106,32 +128,17 @@ async def inserisci_importo_r(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.effective_message.reply_text("❌ Minimo 1M." + _ANNULLA_HINT, parse_mode="HTML")
         return INSERISCI_IMPORTO_R
 
-    user = update.effective_user
-    team = tm.get_team_by_gm(user.id)
-    cap_occ = db.cap_occupato_team(team["id"], settings.stagione_corrente())
-    cap_lib = settings.cap_massimo() - cap_occ
-    if cap_lib < importo:
-        await update.effective_message.reply_text(
-            f"❌ Cap insufficiente. Libero: {cap_lib}M." + _ANNULLA_HINT, parse_mode="HTML"
-        )
-        return INSERISCI_IMPORTO_R
-
     context.user_data["att_importo"] = importo
-    anni_min = settings.anni_minimi_contratto(importo)
-
-    # Per i rookie firmati tramite diritti: obbligatoriamente x1
-    anni     = 1
+    anni = 1  # diritti 2nd sempre x1 se fuori scala
     context.user_data["att_anni"] = anni
 
-    # Conferma
-    rookie   = db.get_rookie(context.user_data["att_rookie_id"])
+    rookie    = db.get_rookie(context.user_data["att_rookie_id"])
     giocatore = db.get_giocatore(rookie["giocatore_id"])
 
     await update.effective_message.reply_text(
         f"🏀 Confermi firma?\n\n"
         f"Giocatore: <b>{giocatore['nome_common']}</b>\n"
-        f"Contratto: <b>{importo}M × {anni} anno</b>\n"
-        f"<i>(I rookie via diritti 2nd vengono firmati x1)</i>",
+        f"Contratto: <b>{importo}M × {anni} anno</b>",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton("✅ Conferma", callback_data="att_r_ok"),
@@ -153,9 +160,23 @@ async def cb_conferma_firma_rookie(update: Update, context: ContextTypes.DEFAULT
     context.user_data.pop("att_imp_base", None)
     context.user_data.pop("att_anni_base", None)
 
+    if rookie_id is None or importo is None:
+        await query.edit_message_text("❌ Sessione scaduta. Riprova con /attiva_diritti.")
+        return ConversationHandler.END
+
+    # Check cap (qui, non al momento dell'input)
+    stagione = settings.stagione_corrente()
+    cap_occ  = db.cap_occupato_team(team["id"], stagione)
+    cap_lib  = settings.cap_massimo() - cap_occ
+    if cap_lib < importo:
+        await query.edit_message_text(
+            f"❌ Cap insufficiente. Libero: {cap_lib}M — contratto scale: {importo}M.\n"
+            f"Contatta un admin se ritieni ci sia un errore."
+        )
+        return ConversationHandler.END
+
     rookie    = db.get_rookie(rookie_id)
     giocatore = db.get_giocatore(rookie["giocatore_id"])
-    stagione  = settings.stagione_corrente()
     now       = datetime.now(timezone.utc)
 
     # Crea contratto
@@ -179,9 +200,10 @@ async def cb_conferma_firma_rookie(update: Update, context: ContextTypes.DEFAULT
         note=f"Attivazione diritti 2nd — pick #{rookie['pick_numero']} {rookie['anno_draft']}"
     )
 
+    anni_str = "anno" if anni == 1 else "anni"
     await query.edit_message_text(
         f"✅ <b>{giocatore['nome_common']}</b> firmato!\n"
-        f"Contratto: <b>{importo}M × {anni} anno</b>\n\n"
+        f"Contratto: <b>{importo}M × {anni} {anni_str}</b> (rookie scale)\n\n"
         f"⚠️ Ricordati di comunicare il ruolo entro 48h.",
         parse_mode="HTML",
     )
@@ -192,7 +214,7 @@ async def cb_conferma_firma_rookie(update: Update, context: ContextTypes.DEFAULT
         testo_canale = (
             f"🏀 <b>{team.get('gm_nome', team['nome'])}</b> attiva i diritti di "
             f"<b>{giocatore['nome_common']}</b>\n"
-            f"📋 {importo}M × {anni} {'anno' if anni == 1 else 'anni'} "
+            f"📋 {importo}M × {anni} {anni_str} "
             f"(#{rookie['pick_numero']} {rookie['anno_draft']})"
         )
         try:
@@ -213,6 +235,7 @@ async def cb_conferma_firma_rookie(update: Update, context: ContextTypes.DEFAULT
         gas_client.sync_after_rookie(team["id"])
     except Exception as e:
         logger.warning("GAS sync rookie fallito: %s", e)
+
     return ConversationHandler.END
 
 
@@ -238,6 +261,7 @@ def get_handlers() -> list:
                 CallbackQueryHandler(cb_scegli_rookie, pattern=r"^att_r:\d+$"),
             ],
             INSERISCI_IMPORTO_R: [
+                # Fallback manuale (solo se slot non trovato nella scala)
                 MessageHandler(filters.TEXT & ~filters.COMMAND, inserisci_importo_r),
             ],
             CONFERMA_R: [
@@ -248,6 +272,7 @@ def get_handlers() -> list:
         fallbacks=[CommandHandler("annulla", cmd_annulla)],
         per_user=True,
         per_chat=True,
+        per_message=False,
         conversation_timeout=300,
     )
     return [conv]
