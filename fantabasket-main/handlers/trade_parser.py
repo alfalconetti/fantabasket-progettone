@@ -20,7 +20,7 @@ Formato supportato:
 
 Regole di parsing:
 - Giocatore: riga con suffisso NxM (es. "Julius Randle 29x1")
-- Pick: "1st/2nd round pick ANNO by GMNOME"
+- Pick: "1st/2nd round pick ANNO [by] GMNOME" ("by" facoltativo)
 - Pick corrente: "16th pick" (anno corrente dal DB)
 - Diritti: "Diritti di NOME"
 """
@@ -52,6 +52,15 @@ def _trova_team(nome_raw: str, tutti_team: list) -> dict | None:
     # Exact
     if nome_n in candidati:
         return candidati[nome_n]
+    # Singola parola di gm_nome o nome squadra (es. "Birra" → "Alex Birra"),
+    # accettata solo se corrisponde a una sola squadra
+    per_parola = {
+        t["id"]: t for t in tutti_team
+        if any(nome_n in _norm(campo).split()
+               for campo in (t.get("gm_nome", ""), t.get("nome", "")) if campo)
+    }
+    if len(nome_n) >= 3 and len(per_parola) == 1:
+        return next(iter(per_parola.values()))
     # Fuzzy
     match = difflib.get_close_matches(nome_n, candidati.keys(), n=1, cutoff=0.7)
     return candidati[match[0]] if match else None
@@ -99,12 +108,13 @@ class ParsedItem:
     by_raw: str    = ""
     by_team_id: str = ""
     pick_id: int | None = None
+    pick_proprietario_att: str = ""
     # errori
     errori: list   = field(default_factory=list)
 
 
 _RE_GIOCATORE = re.compile(r'^(.+?)\s+(\d+)x(\d+)\s*$', re.IGNORECASE)
-_RE_PICK      = re.compile(r'^(1st|2nd)\s+round\s+pick\s+(\d{4})\s+by\s+(.+)$', re.IGNORECASE)
+_RE_PICK      = re.compile(r'^(1st|2nd)\s+round\s+pick\s+(\d{4})\s+(?:by\s+)?(.+)$', re.IGNORECASE)
 _RE_PICK_N    = re.compile(r'^(\d+)(?:st|nd|rd|th)\s+pick\s*$', re.IGNORECASE)
 _RE_DIRITTI   = re.compile(r'^diritti\s+di\s+(.+)$', re.IGNORECASE)
 
@@ -150,13 +160,12 @@ def _parse_riga(riga: str, tutti_team: list, stagione: str) -> ParsedItem | None
             item.errori.append(f"GM/squadra non trovato: '{by_raw}'")
             return item
         item.by_team_id = team_by["id"]
-        # Cerca la pick nel DB
-        picks = _db.get_pick_team(team_by["id"])
-        match_pick = next(
-            (p for p in picks if str(p["anno"]) == anno and p["round"] == rnd), None
-        )
+        # "by" = proprietario originale: la pick va cercata per proprietario_orig,
+        # indipendentemente da chi la detiene ora (il possesso si verifica in parsa_trade)
+        match_pick = _db.get_pick_by_orig_anno_round(team_by["id"], anno, rnd)
         if match_pick:
             item.pick_id = match_pick["id"]
+            item.pick_proprietario_att = match_pick["proprietario_att"]
         else:
             item.errori.append(
                 f"Pick non trovata nel DB: {rnd}° giro {anno} di {team_by['nome']}"
@@ -262,11 +271,28 @@ def parsa_trade(testo: str, stagione: str, tutti_team: list) -> tuple[list[Sezio
                     f"{sq.team_nome}: trade a più squadre richiede sezioni 'riceve' esplicite"
                 )
 
-    # Raccogli errori item
+    # Una pick ceduta deve essere posseduta oggi da chi la cede
+    nomi = {t["id"]: t["nome"] for t in tutti_team}
     for sq in squadre:
-        for item in sq.cede + sq.riceve:
-            for e in item.errori:
-                errori.append(f"[{sq.team_nome}] {e}")
+        for item in sq.cede:
+            if (item.tipo == "pick" and item.pick_id
+                    and item.pick_proprietario_att != sq.team_id):
+                detentore = nomi.get(item.pick_proprietario_att, item.pick_proprietario_att)
+                item.errori.append(
+                    f"'{item.raw}' è detenuta da {detentore}, non da {sq.team_nome}"
+                )
+
+    # Raccogli errori item: nelle trade a 2 squadre gli stessi item compaiono sia
+    # in "cede" che in "riceve", quindi ogni item viene riportato una volta sola,
+    # attribuito preferibilmente alla squadra che lo cede
+    visti = set()
+    for sq, item in ([(sq, i) for sq in squadre for i in sq.cede] +
+                     [(sq, i) for sq in squadre for i in sq.riceve]):
+        if id(item) in visti:
+            continue
+        visti.add(id(item))
+        for e in item.errori:
+            errori.append(f"[{sq.team_nome}] {e}")
 
     return squadre, errori
 
