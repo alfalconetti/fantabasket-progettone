@@ -109,6 +109,8 @@ class ParsedItem:
     by_team_id: str = ""
     pick_id: int | None = None
     pick_proprietario_att: str = ""
+    # diritti
+    diritti_detentore: str = ""
     # errori
     errori: list   = field(default_factory=list)
 
@@ -136,6 +138,17 @@ def _parse_riga(riga: str, tutti_team: list, stagione: str) -> ParsedItem | None
                           giocatore_id=gid, nome_resolved=nome_res or nome_r)
         if not gid:
             item.errori.append(f"Giocatore non trovato: '{nome_r}'")
+            return item
+        attivi = _db._q(
+            "SELECT team_id FROM rookie WHERE giocatore_id = %s "
+            "AND firmato = FALSE AND diritti_scaduti = FALSE "
+            "ORDER BY anno_draft DESC LIMIT 1",
+            (gid,), one=True,
+        )
+        if not attivi:
+            item.errori.append(f"Nessun diritto attivo su {nome_res or nome_r}")
+        else:
+            item.diritti_detentore = attivi["team_id"]
         return item
 
     # Pick Nth (draft corrente)
@@ -271,15 +284,20 @@ def parsa_trade(testo: str, stagione: str, tutti_team: list) -> tuple[list[Sezio
                     f"{sq.team_nome}: trade a più squadre richiede sezioni 'riceve' esplicite"
                 )
 
-    # Una pick ceduta deve essere posseduta oggi da chi la cede
+    # Pick e diritti ceduti devono essere posseduti oggi da chi li cede
     nomi = {t["id"]: t["nome"] for t in tutti_team}
     for sq in squadre:
         for item in sq.cede:
-            if (item.tipo == "pick" and item.pick_id
-                    and item.pick_proprietario_att != sq.team_id):
-                detentore = nomi.get(item.pick_proprietario_att, item.pick_proprietario_att)
+            if item.tipo == "pick" and item.pick_id:
+                detentore_id = item.pick_proprietario_att
+            elif item.tipo == "diritti" and item.diritti_detentore:
+                detentore_id = item.diritti_detentore
+            else:
+                continue
+            if detentore_id != sq.team_id:
+                detentore = nomi.get(detentore_id, detentore_id)
                 item.errori.append(
-                    f"'{item.raw}' è detenuta da {detentore}, non da {sq.team_nome}"
+                    f"'{item.raw}': detenuti da {detentore}, non da {sq.team_nome}"
                 )
 
     # Raccogli errori item: nelle trade a 2 squadre gli stessi item compaiono sia

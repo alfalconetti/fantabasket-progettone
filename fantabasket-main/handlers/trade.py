@@ -1088,6 +1088,12 @@ async def _esegui_trade(context, trade_id: int, trade_ref: str):
             from database import _q
             _q("UPDATE pick SET proprietario_att = %s WHERE id = %s",
                (item["team_id_a"], item["pick_id"]))
+        elif item["tipo"] == "diritti":
+            from database import _q
+            _q("UPDATE rookie SET team_id = %s "
+               "WHERE giocatore_id = %s AND team_id = %s "
+               "AND firmato = FALSE AND diritti_scaduti = FALSE",
+               (item["team_id_a"], item["giocatore_id"], item["team_id_da"]))
 
     db.aggiorna_stato_trade(trade_id, "approvata")
     logger.info("Trade %s eseguita.", trade_ref)
@@ -1145,8 +1151,10 @@ async def _rollback_trade(trade_id: int):
             _q("UPDATE pick SET proprietario_att = %s WHERE id = %s",
                (item["team_id_da"], item["pick_id"]))
         elif item["tipo"] == "diritti":
-            _q("UPDATE rookie SET team_id = %s WHERE id = %s",
-               (item["team_id_da"], item["giocatore_id"]))
+            _q("UPDATE rookie SET team_id = %s "
+               "WHERE giocatore_id = %s AND team_id = %s "
+               "AND firmato = FALSE AND diritti_scaduti = FALSE",
+               (item["team_id_da"], item["giocatore_id"], item["team_id_a"]))
 
     db.aggiorna_stato_trade(trade_id, "annullata")
     logger.info("Trade %s annullata e rollback eseguito.", trade["trade_ref"])
