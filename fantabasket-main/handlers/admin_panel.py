@@ -567,7 +567,6 @@ async def cb_ufficializza(update: Update, context: ContextTypes.DEFAULT_TYPE):
     trade_ref = f"TRADE-{stagione}-{n_trade + 1:03d}"
 
     admin_nome = update.effective_user.first_name or str(update.effective_user.id)
-    await _esegui_trade(context, trade_id)
     db.approva_trade(trade_id, trade_ref, admin_nome)
     await _esegui_trade(context, trade_id, trade_ref)
 
