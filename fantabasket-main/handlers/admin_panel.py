@@ -15,6 +15,7 @@ from telegram.ext import (
 
 import settings
 import teams as tm
+import database as db
 from utils import ROME, format_dt
 
 logger = logging.getLogger(__name__)
@@ -206,7 +207,8 @@ async def cb_adm_taglia_conferma(update: Update, context: ContextTypes.DEFAULT_T
 
     import database as db
     from handlers.tagli import (
-        _anni_residui, _e_taglio_gratuito, calcola_spalmate, MAX_TAGLI_GRATUITI
+        _anni_residui, _e_taglio_gratuito, calcola_spalmate, MAX_TAGLI_GRATUITI,
+        calcola_impatto_taglio,
     )
     import settings
 

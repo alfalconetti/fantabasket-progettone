@@ -267,6 +267,13 @@ def _load_divisions() -> tuple[dict, list, dict]:
     return data["team_div"], data["team_order"], data["team_pick_nome"]
 
 
+def _ordinal(n) -> str:
+    n = int(n)
+    if 11 <= (n % 100) <= 13:
+        return f"{n}th"
+    return f"{n}{'st' if n%10==1 else 'nd' if n%10==2 else 'rd' if n%10==3 else 'th'}"
+
+
 def _build_scelte_payload() -> dict:
     """Costruisce il payload per il foglio Scelte (pick + diritti)."""
     import teams as tm
@@ -289,12 +296,6 @@ def _build_scelte_payload() -> dict:
 
         # Numeri draft corrente detenuti
         draft_anno = stagione_int + 1
-        def _ordinal(n):
-            n = int(n)
-            if 11 <= (n % 100) <= 13:
-                return f"{n}th"
-            return f"{n}{'st' if n%10==1 else 'nd' if n%10==2 else 'rd' if n%10==3 else 'th'}"
-
         draft_nums = sorted([
             _ordinal(p["numero_draft"])
             for p in picks
