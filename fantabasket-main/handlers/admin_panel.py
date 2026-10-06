@@ -16,6 +16,7 @@ from telegram.ext import (
 import settings
 import teams as tm
 import database as db
+from handlers.dpe import _importo_dpe
 from utils import ROME, format_dt
 
 logger = logging.getLogger(__name__)
@@ -292,7 +293,7 @@ async def cb_adm_dpe_team(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     bottoni = [
         [InlineKeyboardButton(
-            f"{r['nome_common']} ({r['importo']}M → {math.ceil(r['importo'] * 0.75)}M)",
+            f"{r['nome_common']} ({r['importo']}M → {_importo_dpe(r['importo'])}M)",
             callback_data=f"adm_dpe_gi:{r['giocatore_id']}:{team_id}"
         )]
         for r in eligibili
@@ -327,7 +328,7 @@ async def cb_adm_dpe_giocatore(update: Update, context: ContextTypes.DEFAULT_TYP
     fase         = settings.fase()
     pre_deadline = (fase != "regular-season-deadline")
     importo_orig = contratto["importo"]
-    importo_new  = math.ceil(importo_orig * 0.75)
+    importo_new  = _importo_dpe(importo_orig)
     risparmio    = importo_orig - importo_new
     effetto      = "✅ Libera uno slot roster" if pre_deadline else "ℹ️ Nessuno slot liberato (post-deadline)"
 

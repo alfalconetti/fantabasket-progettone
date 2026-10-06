@@ -11,7 +11,7 @@ Effetti per fase:
   regular-season-deadline               → nessuno slot liberato
                                           (cambio ruolo aggiuntivo — da implementare con i ruoli)
 
-Decurtazione: ceil(importo * 0.75), il contratto torna normale alla stagione successiva
+Decurtazione: importo - ceil(importo * 0.25), il contratto torna normale alla stagione successiva
               (la riga dpe è legata alla stagione corrente, non tocca la tabella contratti)
 """
 import logging
@@ -34,8 +34,9 @@ FASI_DPE = (
 
 
 def _importo_dpe(importo: int) -> int:
-    """Decurtazione 25% arrotondata per eccesso: ceil(importo * 0.75)."""
-    return math.ceil(importo * 0.75)
+    """Contratto ridotto del 25%, con la riduzione arrotondata per eccesso
+    (regolamento: Klay 5 → 3, cioè 5 − ceil(1,25))."""
+    return importo - math.ceil(importo * 0.25)
 
 
 # ── /dpe ─────────────────────────────────────────────────────────────────────
