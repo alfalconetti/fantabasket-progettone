@@ -606,3 +606,9 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 
 ### Dati
 - Corretti i nomi di tre rookie in base a Yahoo: Cameron Boozer, Dailyn Swain, Jayden Quaintance
+
+## v3.1.1 (2026-10-07)
+
+### Bug fix
+- `/import_posizioni`: i nomi accorciati della lista giocatori Yahoo ("K. Caldwell-Pope") non vengono più salvati in `giocatori.nome_yahoo`; si mantiene il nome già salvato o il nome comune
+- Dati: `nome_yahoo` dei 6 giocatori importati in forma accorciata riportato al nome completo

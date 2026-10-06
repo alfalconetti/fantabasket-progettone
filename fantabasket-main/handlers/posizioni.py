@@ -65,6 +65,11 @@ def _senza_suffisso(k: str) -> str:
     return " ".join(t)
 
 
+def nome_abbreviato(nome: str) -> bool:
+    """'K. Caldwell-Pope': forma accorciata della lista giocatori Yahoo, non il nome vero."""
+    return bool(re.match(r"^[A-Z]\. ", nome or ""))
+
+
 def leggi_csv(contenuto: str) -> tuple[list, list]:
     """Ritorna (righe valide, errori)."""
     righe, errori = [], []
@@ -138,10 +143,14 @@ def pianifica_import(righe: list, giocatori: list, attuali: dict, sotto_contratt
 
         vecchie = attuali.get(gid)
         stato = "nuovo" if vecchie is None else ("invariato" if vecchie == r["posizioni"] else "cambiato")
+        # Il nome accorciato della lista Yahoo non va in nome_yahoo: si tiene
+        # quello già salvato o, se manca, il nome comune
+        nome_yahoo = (nome_y.get(gid) or nome_c[gid]) if nome_abbreviato(r["nome"]) else r["nome"]
         piano["aggiornamenti"].append({
             "giocatore_id": gid, "nome": nome_c[gid], "riga": r, "metodo": metodo,
             "vecchie": vecchie, "nuove": r["posizioni"], "stato": stato,
-            "set_yahoo": yid_di.get(gid) != r["yahoo_id"] or nome_y.get(gid) != r["nome"],
+            "nome_yahoo": nome_yahoo,
+            "set_yahoo": yid_di.get(gid) != r["yahoo_id"] or nome_y.get(gid) != nome_yahoo,
         })
 
     piano["sotto_contratto_mancanti"] = sorted(
@@ -202,7 +211,7 @@ def applica_import(piano: dict, fonte: str = "import") -> tuple[int, int]:
             for a in piano["aggiornamenti"]:
                 if a["set_yahoo"]:
                     cur.execute("UPDATE giocatori SET yahoo_id = %s, nome_yahoo = %s WHERE id = %s",
-                                (a["riga"]["yahoo_id"], a["riga"]["nome"], a["giocatore_id"]))
+                                (a["riga"]["yahoo_id"], a["nome_yahoo"], a["giocatore_id"]))
                     aggiornati += 1
                 if a["stato"] != "invariato":
                     cur.execute("INSERT INTO posizioni_eleggibili (giocatore_id, posizioni, fonte) "
