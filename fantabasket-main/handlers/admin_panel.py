@@ -628,6 +628,71 @@ FASI_LABEL = {
 }
 
 
+# Indicazioni specifiche per fase (le righe su trade/FA/DPE sono calcolate dalle
+# stesse costanti usate dai comandi, così l'annuncio non può contraddire il bot)
+FASI_INDICAZIONI = {
+    "regular-season-fa": [
+        "Dopo una trade o una firma, comunica il ruolo dei nuovi giocatori entro 48h",
+        "Cambi ruolo: massimo 2 a stagione",
+        "10-day contract: uno a stagione per squadra, valutato dagli admin",
+        "I diritti delle 2nd al secondo anno scadono 10 giorni prima della deadline",
+        "Cap massimo 150M (meno eventuali penalità)",
+    ],
+    "regular-season-deadline": [
+        "Mercato chiuso fino alla prossima stagione: niente trade né free agency",
+        "La DPE dopo la deadline non libera slot, ma dà un cambio ruolo aggiuntivo",
+    ],
+    "playoff": [
+        "Nelle partite di playoff il bonus casa è di 5 punti",
+    ],
+    "offseason-break": [
+        "Pausa di fine stagione: a breve la riunione di lega per proporre e votare modifiche al regolamento",
+    ],
+    "offseason-rinnovi": [
+        "Nuova stagione: la durata di tutti i contratti scala di un anno",
+        "Rinnovi: fino a 2 giocatori all'ultimo anno (+1/4 il primo, +1/2 il secondo, con i minimi da tabella)",
+        "Rinnovi rookie e indicazione di massimo 1 RFA",
+        "In offseason il cap può arrivare a 165M, ma va riportato in regola entro l'inizio della regular season",
+    ],
+    "offseason-draft": [
+        "Le prime scelte vanno firmate obbligatoriamente",
+        "I diritti delle seconde si possono tenere per due anni: per firmarle /attiva_diritti",
+    ],
+    "offseason-rfa": [
+        "Aste RFA: chi ha indicato il giocatore come RFA ha 24h dalla fine dell'asta per pareggiare",
+    ],
+    "offseason-fa": [
+        "Aste di free agency: si chiudono 18 ore dopo l'ultimo rilancio",
+    ],
+    "offseason-ruoli": [
+        "Dichiara il ruolo di tutti i tuoi giocatori con /dichiarazione_ruoli (o 🎽 nel /menu), entro {deadline}",
+        "Le scelte diventano ufficiali solo quando premi Conferma",
+    ],
+}
+
+
+def testo_annuncio_fase(fase: str) -> str:
+    from handlers.dpe import FASI_DPE
+    righe = [f"📣 <b>Nuova fase: {FASI_LABEL.get(fase, fase)}</b>", ""]
+    righe.append("🔄 Trade: <b>" + ("aperte" if fase in settings.FASI_TRADE_APERTE else "chiuse") + "</b>")
+    righe.append("💸 Free agency: <b>" + ("aperta" if fase in settings.FASI_FA_APERTA else "chiusa") + "</b>")
+    righe.append("🏥 DPE: <b>" + ("richiedibile con /dpe" if fase in FASI_DPE else "non disponibile") + "</b>")
+    indicazioni = FASI_INDICAZIONI.get(fase, [])
+    if indicazioni:
+        deadline = "la deadline"
+        if fase == "offseason-ruoli":
+            try:
+                from handlers.ruoli import get_deadline
+                d = get_deadline()
+                deadline = d.strftime("il %d/%m alle %H:%M") if d else "la deadline che verrà comunicata"
+            except Exception:
+                pass
+        righe.append("")
+        righe += [f"• {r.format(deadline=deadline)}" for r in indicazioni]
+    righe += ["", "Comandi disponibili: /menu · Guida: /guida"]
+    return "\n".join(righe)
+
+
 def _prossima_fase(fase_corrente: str) -> str:
     try:
         idx = FASI_ORDINE.index(fase_corrente)
@@ -785,6 +850,15 @@ async def _esegui_cambio_fase(query, fase_vecchia: str, nuova_fase: str):
             )
     except Exception:
         pass
+
+    # Annuncio sul canale principale con le indicazioni della nuova fase
+    try:
+        main_ch = settings.load_globals().get("main_channel_id")
+        if main_ch and nuova_fase != fase_vecchia:
+            await query.bot.send_message(chat_id=main_ch, text=testo_annuncio_fase(nuova_fase),
+                                         parse_mode="HTML")
+    except Exception as e:
+        logger.warning("Annuncio cambio fase sul canale: %s", e)
 
     # Fine fase dichiarazione ruoli: elenco dei giocatori senza ruolo agli admin
     if fase_vecchia == "offseason-ruoli" and nuova_fase != "offseason-ruoli":

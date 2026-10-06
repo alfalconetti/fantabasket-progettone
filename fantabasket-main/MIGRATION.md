@@ -80,6 +80,7 @@ Cambio fase via `/set_fase` (solo admin). Passaggio a `offseason-rinnovi` increm
 - Cap massimo consentito: 165M in `offseason-*` per tutti, 150M − `cap_penalizzato` altrimenti (`luxury_cap()` in settings main, `cap_limite()` + `penalita_cap()` in settings aste)
 - Notifica ruoli post-trade: `regular-season-fa` (entro 48h) e `offseason-ruoli` (invito a /dichiarazione_ruoli)
 - `offseason-ruoli`: dichiarazione ruoli aperta ai GM fino a `deadline_ruoli` (globals, impostata con /deadline_ruoli)
+- A ogni cambio fase: annuncio sul canale principale (`testo_annuncio_fase()` in `admin_panel.py`); i testi specifici sono in `FASI_INDICAZIONI`, da tenere allineati al regolamento
 
 ---
 
@@ -201,6 +202,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 ```
 - Nuove cartelle/servizi: `unzip -o ~/bots/zip -d ~/bots/fantabasket-progettone/`
 - Bot aste: rebuild `bot-aste-beta`; entrambi: `docker compose up --build -d bot-main bot-aste-beta`
+- Variabili sensibili non-secret (URL, ID) in `secrets/*.env` via `env_file`: `yahoo_router.env` (ID leghe), `bot_main.env` (HEALTHCHECK_URL). Mai valori sensibili nel compose o nei .md
 - Secrets modificati: `docker compose up -d --force-recreate <servizio>` (i secrets sono bind-mount per file: editor come vi creano un file nuovo e il container continua a vedere il vecchio)
 - Script Python nel container: chiamare `db.init_db()` prima di usare il DB (il pool non è inizializzato fuori dal bot)
 - psql: `docker compose exec postgres psql -U fantabasket -d fantabasket -c "..."`

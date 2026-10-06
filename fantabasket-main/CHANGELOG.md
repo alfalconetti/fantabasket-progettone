@@ -625,3 +625,12 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 - **`/set_posizioni_eleggibili <nome> <PG,SG>`** (admin): correzione puntuale delle posizioni (event log, fonte `manuale`), con scelta tra candidati se il nome non è univoco
 - `/import_posizioni` rinominato **`/import_posizioni_eleggibili`**
 - Notifica post-trade in `offseason-ruoli`: invito a dichiarare i ruoli dei nuovi giocatori
+
+## v3.2.1 (2026-10-07)
+
+### Nuove feature
+- **Annuncio di fase sul canale principale**: a ogni cambio fase il bot pubblica cosa si può fare (trade, FA e DPE calcolati dalle stesse costanti dei comandi, più indicazioni specifiche della fase in `FASI_INDICAZIONI` di `admin_panel.py`)
+
+### Sicurezza / bug fix
+- `HEALTHCHECK_URL` tolto dal `docker-compose.yml`: ora in `secrets/bot_main.env` (`env_file`, fuori da git); URL di ping rigenerato su healthchecks.io
+- Sync periodico del foglio (2h) e coda di sync GAS avviati sempre: prima partivano solo se `HEALTHCHECK_URL` era impostato

@@ -521,11 +521,12 @@ def main():
     app.add_handler(CommandHandler("reboot", cmd_reboot))
     app.add_error_handler(error_handler)
 
-    # Healthcheck ogni 5 minuti
+    # Healthcheck ogni 5 minuti (solo se configurato)
     if os.environ.get("HEALTHCHECK_URL"):
         app.job_queue.run_repeating(_ping_healthcheck, interval=300, first=30)
-        app.job_queue.run_repeating(sync_sheets_periodico, interval=7200, first=600)
-        app.job_queue.run_repeating(processa_coda_gas, interval=60, first=45)
+    # Sync GAS: periodico ogni 2h + coda post-firma, sempre attivi
+    app.job_queue.run_repeating(sync_sheets_periodico, interval=7200, first=600)
+    app.job_queue.run_repeating(processa_coda_gas, interval=60, first=45)
 
     # Backup giornaliero ogni 12 ore
     from datetime import time as dtime
