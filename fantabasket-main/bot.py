@@ -28,6 +28,7 @@ from handlers.palette     import get_handlers as palette_handlers
 from handlers.dpe         import get_handlers as dpe_handlers
 from handlers.decadimento import get_handlers as decadimento_handlers
 from handlers.posizioni   import get_handlers as posizioni_handlers
+from handlers.ruoli       import get_handlers as ruoli_handlers
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -198,6 +199,7 @@ async def post_init(application):
         BotCommand("taglia",         "Taglia un giocatore"),
         BotCommand("dpe",            "Richiedi Disabled Player Exception"),
         BotCommand("attiva_diritti", "Attiva diritti 2nd pick"),
+        BotCommand("dichiarazione_ruoli", "Dichiara i ruoli (fase dichiarazione ruoli)"),
         BotCommand("decadimento",    "Segnala contratto decaduto (ritiro, altra lega)"),
         BotCommand("my_team",        "Info e impostazioni del tuo team"),
         BotCommand("palette",        "Personalizza colori roster/assets"),
@@ -215,7 +217,9 @@ async def post_init(application):
         BotCommand("annulla_admin",       "Esci da operazione admin bloccata"),
         BotCommand("guida_admin",         "Guida completa per gli admin"),
         BotCommand("settings",            "Modifica settings [chiave] [valore]"),
-        BotCommand("import_posizioni",    "Importa posizioni eleggibili Yahoo (CSV)"),
+        BotCommand("import_posizioni_eleggibili", "Importa posizioni eleggibili Yahoo (CSV)"),
+        BotCommand("set_posizioni_eleggibili",    "Correggi posizioni di un giocatore [nome] [PG,SG]"),
+        BotCommand("deadline_ruoli",              "Deadline dichiarazione ruoli [AAAA-MM-GG] [HH:MM]"),
     ]
     cmd_dev = cmd_admin + [
         BotCommand("dev",          "Lista comandi dev"),
@@ -507,6 +511,8 @@ def main():
         app.add_handler(h)
     for h in posizioni_handlers():
         app.add_handler(h)
+    for h in ruoli_handlers():
+        app.add_handler(h)
 
     for h in dev_handlers():
         app.add_handler(h)
@@ -528,6 +534,10 @@ def main():
             backup_giornaliero,
             time=dtime(ora, 0, tzinfo=ROME),
         )
+    # Dichiarazione ruoli: promemoria deadline (10:00) e report sul canale log (17:00)
+    from handlers.ruoli import job_promemoria_deadline, job_report_giornaliero
+    app.job_queue.run_daily(job_promemoria_deadline, time=dtime(10, 0, tzinfo=ROME))
+    app.job_queue.run_daily(job_report_giornaliero,  time=dtime(17, 0, tzinfo=ROME))
     # Backup settimanale domenica alle 00:30
     app.job_queue.run_daily(
         backup_settimanale,

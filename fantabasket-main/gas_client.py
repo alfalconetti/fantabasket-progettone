@@ -46,6 +46,11 @@ def _build_team_payload(team_id: str) -> dict:
     impatti   = db.get_impatti_taglio_team_futuri(team_id, stagione)
     tagli_usati = db.get_tagli_gratuiti_usati(team_id, stagione)
 
+    # Ruoli ufficiali della stagione (event log cambi_ruolo → vista ruolo_attuale)
+    ruoli = {r["giocatore_id"]: r["ruolo"] for r in db._q(
+        "SELECT giocatore_id, ruolo FROM ruolo_attuale WHERE stagione = %s AND team_id = %s",
+        (stagione, team_id), many=True) or []}
+
     # Giocatori ordinati per importo DESC poi cognome
     giocatori = sorted(roster, key=lambda r: (-r["importo"], r["nome_common"].split()[-1]))
 
@@ -58,7 +63,7 @@ def _build_team_payload(team_id: str) -> dict:
 
     giocatori_payload = [
         {
-            "ruolo":   "",  # da implementare con i ruoli
+            "ruolo":   ruoli.get(r["giocatore_id"], ""),
             "nome":    r["nome_common"],
             "importo": r["importo"],
             "anni":    (2 if int(r.get("anni_scala") or 0) in (0, 2) else 1)

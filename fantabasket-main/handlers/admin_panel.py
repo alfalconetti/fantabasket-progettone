@@ -43,6 +43,7 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("✂️ Taglia giocatore", callback_data="adm:taglia")],
         [InlineKeyboardButton("🏥 DPE",             callback_data="adm:dpe")],
         [InlineKeyboardButton("📊 Situazione cap",  callback_data="adm:cap")],
+        [InlineKeyboardButton("🎽 Ruoli squadre",   callback_data="rladm:list")],
     ])
 
 
@@ -611,6 +612,7 @@ FASI_ORDINE = [
     "offseason-draft",
     "offseason-rfa",
     "offseason-fa",
+    "offseason-ruoli",
 ]
 
 FASI_LABEL = {
@@ -622,6 +624,7 @@ FASI_LABEL = {
     "offseason-draft":         "🎯 Offseason — Draft",
     "offseason-rfa":           "⚖️ Offseason — RFA",
     "offseason-fa":            "💸 Offseason — Free Agency",
+    "offseason-ruoli":         "🎽 Offseason — Dichiarazione ruoli",
 }
 
 
@@ -751,7 +754,7 @@ async def _esegui_cambio_fase(query, fase_vecchia: str, nuova_fase: str):
     globals_path = os.environ.get("GLOBALS_PATH", "/config/globals.json")
     g = json.load(open(globals_path))
     g["fase"] = nuova_fase
-    g["mercato_aperto"] = nuova_fase in ("regular-season-fa", "offseason-fa")
+    g["mercato_aperto"] = nuova_fase in settings.FASI_MERCATO_APERTO
 
     # Incrementa stagione_corrente quando si entra in offseason-rinnovi
     nota_stagione = ""
@@ -782,6 +785,14 @@ async def _esegui_cambio_fase(query, fase_vecchia: str, nuova_fase: str):
             )
     except Exception:
         pass
+
+    # Fine fase dichiarazione ruoli: elenco dei giocatori senza ruolo agli admin
+    if fase_vecchia == "offseason-ruoli" and nuova_fase != "offseason-ruoli":
+        try:
+            from handlers.ruoli import report_fine_fase
+            await report_fine_fase(query.bot)
+        except Exception as e:
+            logger.warning("report_fine_fase ruoli: %s", e)
 
 
 async def cmd_registra_firma(update: Update, context: ContextTypes.DEFAULT_TYPE):

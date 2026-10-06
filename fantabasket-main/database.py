@@ -111,6 +111,18 @@ def migrate_db():
         ORDER BY giocatore_id, timestamp DESC, id DESC
     """)
 
+    # v3.2.0 — dichiarazione ruoli: bozze persistenti (sopravvivono ai riavvii)
+    _q("""
+        CREATE TABLE IF NOT EXISTS ruoli_bozze (
+            team_id       TEXT NOT NULL,
+            stagione      TEXT NOT NULL,
+            giocatore_id  INT  NOT NULL REFERENCES giocatori(id),
+            ruolo         TEXT NOT NULL CHECK (ruolo IN ('PG','SG','SF','PF','C')),
+            aggiornato    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (team_id, stagione, giocatore_id)
+        )
+    """)
+
 
 @contextmanager
 def get_conn():

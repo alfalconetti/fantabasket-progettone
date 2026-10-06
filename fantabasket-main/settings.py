@@ -141,16 +141,19 @@ FASI_TRADE_APERTE = {
     "offseason-draft",
     "offseason-rfa",
     "offseason-fa",
+    "offseason-ruoli",
 }
 
 FASI_FA_APERTA = {
     "regular-season-fa",
     "offseason-fa",
+    "offseason-ruoli",
 }
 
 FASI_MERCATO_APERTO = {
     "regular-season-fa",
     "offseason-fa",
+    "offseason-ruoli",
 }
 
 

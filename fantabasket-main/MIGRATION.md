@@ -66,19 +66,20 @@ Ecosistema Fantabasket su M910q Ubuntu (alfalconetti@ubuntum910q). Bot aste v48 
 ```
 regular-season-fa → regular-season-deadline → playoff →
 offseason-break → offseason-rinnovi → offseason-draft →
-offseason-rfa → offseason-fa → (ricomincia)
+offseason-rfa → offseason-fa → offseason-ruoli → (ricomincia)
 ```
 Cambio fase via `/set_fase` (solo admin). Passaggio a `offseason-rinnovi` incrementa automaticamente `stagione_corrente`. `mercato_aperto` si aggiorna automaticamente al cambio fase.
 
 **Comportamento per fase:**
-- Trade aperte: `regular-season-fa`, `offseason-rinnovi`, `offseason-draft`, `offseason-rfa`, `offseason-fa`
-- FA aperta: `regular-season-fa`, `offseason-fa`
-- DPE disponibile: `offseason-rinnovi`, `offseason-draft`, `offseason-rfa`, `offseason-fa`, `regular-season-fa`, `regular-season-deadline`
+- Trade aperte: `regular-season-fa`, `offseason-rinnovi`, `offseason-draft`, `offseason-rfa`, `offseason-fa`, `offseason-ruoli`
+- FA aperta: `regular-season-fa`, `offseason-fa`, `offseason-ruoli`
+- DPE disponibile: `offseason-rinnovi`, `offseason-draft`, `offseason-rfa`, `offseason-fa`, `offseason-ruoli`, `regular-season-fa`, `regular-season-deadline`
 - DPE libera slot: tutte le fasi tranne `regular-season-deadline`
 - Bref scraper: `regular-season-fa`, `regular-season-deadline`, `playoff`
 - Check cap stagionale bot aste: solo fasi `offseason-*`
 - Cap massimo consentito: 165M in `offseason-*` per tutti, 150M − `cap_penalizzato` altrimenti (`luxury_cap()` in settings main, `cap_limite()` + `penalita_cap()` in settings aste)
-- Notifica ruoli post-trade: solo `regular-season-fa` (in futuro anche `offseason-ruoli`)
+- Notifica ruoli post-trade: `regular-season-fa` (entro 48h) e `offseason-ruoli` (invito a /dichiarazione_ruoli)
+- `offseason-ruoli`: dichiarazione ruoli aperta ai GM fino a `deadline_ruoli` (globals, impostata con /deadline_ruoli)
 
 ---
 
@@ -246,13 +247,14 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 
 **Pending fuori roadmap:**
 - Rinnovo rookie (offseason, flusso separato dall'attivazione diritti)
-- **Fase di dichiarazione ruoli** prima dell'inizio della regular season: da implementare (prossimo passo dopo l'import posizioni)
 
 **Posizioni e ruoli (v3.1.0):**
 - `posizioni_eleggibili` = event log delle posizioni Yahoo (set completo, es. `PG,SG`), nuova riga solo se il set cambia → vista `posizioni_attuali`. Le aggiunte segnalate nell'anteprima servono per la Erminio rule (2 settimane dalla data della riga)
 - `cambi_ruolo` + vista `ruolo_attuale` = event log dei ruoli dichiarati (già nello schema)
-- Import: script in console del browser sulle pagine giocatori Yahoo (accumula in localStorage, export CSV con `copy()`), poi `/import_posizioni`. Primo import: 713 righe, 628 abbinate, tutti i sotto contratto coperti
-- `giocatori.yahoo_id` + `nome_yahoo` salvati dall'import: dai successivi l'abbinamento è per ID
+- Import: script in console del browser sulle pagine giocatori Yahoo (accumula in localStorage, export CSV con `copy()`), poi `/import_posizioni_eleggibili`; correzioni puntuali con `/set_posizioni_eleggibili` (fonte `manuale`). Primo import: 713 righe, 628 abbinate, tutti i sotto contratto coperti
+- `giocatori.yahoo_id` + `nome_yahoo` salvati dall'import: dai successivi l'abbinamento è per ID (i nomi accorciati della lista Yahoo, "K. Caldwell-Pope", non vengono salvati)
+- **Dichiarazione ruoli (v3.2.0, `handlers/ruoli.py`)**: ogni stagione da capo, solo PG/SG/SF/PF/C tra le eleggibili; bozze in `ruoli_bozze`, ufficiali con Conferma → `cambi_ruolo` (`iniziale` / `forzato_admin`). Conferma parziale permessa. Vincoli 4G/4F/2C: avviso in offseason, BLOCCO previsto per i cambi ruolo in regular season (da implementare). Import da testo con match sul proprio roster. Admin: /admin_menu → Ruoli squadre. Job 10:00 promemoria deadline, 17:00 report canale log, report mancanti al gruppo admin a fine fase
+- Prossimi passi ruoli: cambi ruolo in RS (2/stagione, con blocchi sui vincoli), dichiarazione post-trade/post-firma entro 48h, Saedro, Erminio, regola 60 giorni, ruoli nelle immagini roster
 
 **@qf_bot (vX.x — dipende da guest mode PTB)**
 - Bot pubblico per roster e info lega

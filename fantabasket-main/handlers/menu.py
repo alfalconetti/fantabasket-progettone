@@ -41,6 +41,9 @@ def _kb_menu_principale(fase: str) -> InlineKeyboardMarkup:
     if riga2:
         righe.append(riga2)
 
+    if fase == "offseason-ruoli":
+        righe.append([InlineKeyboardButton("🎽 Dichiara ruoli", callback_data="rl:home")])
+
     righe.append([
         InlineKeyboardButton("📊 Roster",  callback_data="menu:roster"),
         InlineKeyboardButton("📋 Assets",  callback_data="menu:assets"),

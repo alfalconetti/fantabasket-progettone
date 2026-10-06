@@ -1,7 +1,8 @@
 """
 Posizioni eleggibili (Yahoo) — import da CSV.
 
-  /import_posizioni (admin, privato) → invio file CSV → anteprima → conferma
+  /import_posizioni_eleggibili (admin, privato) → invio file CSV → anteprima → conferma
+  /set_posizioni_eleggibili <nome> <PG,SG> (admin) → correzione puntuale (fonte 'manuale')
 
 CSV (prodotto dallo script in console del browser sulle pagine giocatori Yahoo):
     yahoo_id;nome;team;posizioni
@@ -302,9 +303,87 @@ async def cmd_annulla(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     return ConversationHandler.END
 
 
+# ── /set_posizioni_eleggibili ────────────────────────────────────────────────
+
+def _cerca_giocatori(nome: str) -> tuple[list, bool]:
+    """(candidati, esatto). Esatto/senza suffisso su tutti i nomi, altrimenti i 5 più simili."""
+    import difflib
+    giocatori = db._q("SELECT id, nome_common, nome_bref, nome_yahoo FROM giocatori", many=True) or []
+    k = _senza_suffisso(_chiave(nome))
+    esatti = [g for g in giocatori
+              if any(_senza_suffisso(_chiave(g[c])) == k for c in ("nome_common", "nome_bref", "nome_yahoo") if g.get(c))]
+    if esatti:
+        return esatti, True
+    simili = sorted(giocatori, key=lambda g: -difflib.SequenceMatcher(None, k, _chiave(g["nome_common"])).ratio())
+    return simili[:5], False
+
+
+def imposta_posizioni_manuali(gid: int, posizioni: str) -> tuple[str | None, bool]:
+    """Aggiunge una riga all'event log se il set cambia. Ritorna (vecchie, cambiate)."""
+    r = db._q("SELECT posizioni FROM posizioni_attuali WHERE giocatore_id = %s", (gid,), one=True)
+    vecchie = r["posizioni"] if r else None
+    if vecchie == posizioni:
+        return vecchie, False
+    db._q("INSERT INTO posizioni_eleggibili (giocatore_id, posizioni, fonte) VALUES (%s, %s, 'manuale')",
+          (gid, posizioni))
+    return vecchie, True
+
+
+@solo_privato
+async def cmd_set_posizioni(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ Comando riservato agli admin.")
+        return
+    pos = posizioni_canoniche(context.args[-1]) if len(context.args or []) >= 2 else None
+    if not pos:
+        await update.effective_message.reply_text(
+            "Uso: /set_posizioni_eleggibili <nome giocatore> <posizioni>\n"
+            "Es: /set_posizioni_eleggibili Giannis Antetokounmpo PF,C")
+        return
+    nome = " ".join(context.args[:-1])
+    candidati, esatto = _cerca_giocatori(nome)
+    if esatto and len(candidati) == 1:
+        await _applica_set_posizioni(update.effective_message.reply_text, candidati[0], pos)
+        return
+    if not candidati:
+        await update.effective_message.reply_text(f"Nessun giocatore trovato per «{nome}».")
+        return
+    titolo = "Più giocatori con questo nome" if esatto else f"Nessun match esatto per «{nome}». Intendevi"
+    kb = [[InlineKeyboardButton(f"{g['nome_common']} [id {g['id']}]", callback_data=f"spe:{g['id']}:{pos}")]
+          for g in candidati]
+    kb.append([InlineKeyboardButton("❌ Annulla", callback_data="spe:no")])
+    await update.effective_message.reply_text(f"{titolo}:", reply_markup=InlineKeyboardMarkup(kb))
+
+
+async def _applica_set_posizioni(rispondi, g: dict, pos: str):
+    vecchie, cambiate = imposta_posizioni_manuali(g["id"], pos)
+    if cambiate:
+        await rispondi(f"✅ {g['nome_common']}: {vecchie or 'nessuna'} → <b>{pos}</b>", parse_mode="HTML")
+    else:
+        await rispondi(f"ℹ️ {g['nome_common']} ha già le posizioni {pos}, nessuna modifica.")
+
+
+async def cb_set_posizioni(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    if not _is_admin(query.from_user.id):
+        await query.answer("⛔ Solo admin.", show_alert=True)
+        return
+    await query.answer()
+    if query.data == "spe:no":
+        await query.edit_message_text("Annullato.")
+        return
+    _, gid, pos = query.data.split(":")
+    g = db._q("SELECT id, nome_common FROM giocatori WHERE id = %s", (int(gid),), one=True)
+    if g and posizioni_canoniche(pos):
+        await _applica_set_posizioni(query.edit_message_text, g, posizioni_canoniche(pos))
+
+
 def get_handlers() -> list:
-    return [ConversationHandler(
-        entry_points=[CommandHandler("import_posizioni", cmd_import_posizioni)],
+    return [
+        CommandHandler("set_posizioni_eleggibili", cmd_set_posizioni),
+        CallbackQueryHandler(cb_set_posizioni, pattern=r"^spe:(no|\d+:[A-Z,]+)$"),
+        ConversationHandler(
+        entry_points=[CommandHandler("import_posizioni_eleggibili", cmd_import_posizioni)],
         states={
             ATTENDI_FILE: [MessageHandler(filters.Document.ALL, ricevi_file)],
             CONFERMA:     [CallbackQueryHandler(cb_conferma, pattern=r"^pos_imp_(ok|no)$")],
@@ -312,4 +391,5 @@ def get_handlers() -> list:
         fallbacks=[CommandHandler("annulla", cmd_annulla)],
         per_user=True, per_chat=True, per_message=False,
         conversation_timeout=600,
-    )]
+    ),
+    ]

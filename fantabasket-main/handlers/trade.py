@@ -1070,7 +1070,7 @@ async def _esegui_trade(context, trade_id: int, trade_ref: str):
     items    = db.get_items_trade(trade_id)
     stagione = trade["stagione"]
     fase_corrente = settings.fase()
-    FASI_RUOLI = {"regular-season-fa"}  # in futuro: aggiungere offseason-ruoli
+    FASI_RUOLI = {"regular-season-fa"}
 
     for item in items:
         if item["tipo"] == "giocatore":
@@ -1107,6 +1107,8 @@ async def _esegui_trade(context, trade_id: int, trade_ref: str):
         testo = f"✅ <b>Trade {trade_ref} eseguita!</b>"
         if fase_corrente in FASI_RUOLI:
             testo += "\nRicordati di comunicare i ruoli entro 48h."
+        elif fase_corrente == "offseason-ruoli":
+            testo += "\nRicordati di dichiarare i ruoli dei nuovi giocatori con /dichiarazione_ruoli."
         for gm_id in team.get("gm_ids", []):
             try:
                 await context.bot.send_message(

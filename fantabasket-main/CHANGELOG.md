@@ -612,3 +612,16 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 ### Bug fix
 - `/import_posizioni`: i nomi accorciati della lista giocatori Yahoo ("K. Caldwell-Pope") non vengono più salvati in `giocatori.nome_yahoo`; si mantiene il nome già salvato o il nome comune
 - Dati: `nome_yahoo` dei 6 giocatori importati in forma accorciata riportato al nome completo
+
+## v3.2.0 (2026-10-07)
+
+### Nuove feature
+- **Fase `offseason-ruoli`** ("🎽 Offseason — Dichiarazione ruoli") tra `offseason-fa` e `regular-season-fa`: mercato aperto (trade, FA, DPE), `mercato_aperto` calcolato da `FASI_MERCATO_APERTO`
+- **Dichiarazione ruoli** (`handlers/ruoli.py`): `/dichiarazione_ruoli` e bottone "🎽 Dichiara ruoli" nel `/menu` (solo in fase). Un bottone per giocatore con le posizioni eleggibili; giocatori con una sola posizione già impostati; scelte in bozza (tabella `ruoli_bozze`, persistente) e ufficiali solo con Conferma (eventi `cambi_ruolo`, tipo `iniziale`; `forzato_admin` se un admin cambia un ruolo già ufficiale). Conferma anche parziale, segnalata; vincoli 4G/4F/2C solo come avviso
+- **Import ruoli da testo**: righe "Nome RUOLO", match solo sul proprio roster (esatto → parole del nome → fuzzy con conferma Sì/No), controllo eleggibilità, segnalazione di ambigui, errori e giocatori non indicati
+- **Admin**: "🎽 Ruoli squadre" nel `/admin_menu` (stato di tutte le squadre, impostazione per qualsiasi squadra in qualsiasi fase); `/deadline_ruoli AAAA-MM-GG [HH:MM]`; dopo la deadline i GM non possono più confermare
+- **Job**: promemoria privato ai GM incompleti il giorno prima della deadline (10:00); report giornaliero sul canale log alle 17:00 durante la fase; elenco dei giocatori senza ruolo al gruppo admin all'uscita dalla fase
+- **Foglio Google**: colonna ruolo del roster riempita coi ruoli ufficiali della stagione
+- **`/set_posizioni_eleggibili <nome> <PG,SG>`** (admin): correzione puntuale delle posizioni (event log, fonte `manuale`), con scelta tra candidati se il nome non è univoco
+- `/import_posizioni` rinominato **`/import_posizioni_eleggibili`**
+- Notifica post-trade in `offseason-ruoli`: invito a dichiarare i ruoli dei nuovi giocatori

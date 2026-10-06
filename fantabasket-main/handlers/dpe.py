@@ -28,7 +28,7 @@ import teams as tm
 logger = logging.getLogger(__name__)
 
 FASI_DPE = (
-    "offseason-rinnovi", "offseason-draft", "offseason-rfa", "offseason-fa",
+    "offseason-rinnovi", "offseason-draft", "offseason-rfa", "offseason-fa", "offseason-ruoli",
     "regular-season-fa", "regular-season-deadline",
 )
 
