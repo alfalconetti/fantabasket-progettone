@@ -148,18 +148,50 @@ def _needs_badge(flag: str, colore_riga: str) -> bool:
         return False
     return _contrasto(colore_testo, colore_riga) < _BADGE_SOGLIA
 
-def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None) -> str:
+_ORDINE_RUOLI = {"PG": 0, "SG": 1, "SF": 2, "PF": 3, "C": 4}
+
+
+def _ruoli_e_posizioni(team_id: str, stagione: str, as_of=None) -> tuple[dict, dict]:
+    """(ruoli ufficiali {gid: 'PG'}, posizioni eleggibili {gid: 'PG,SG'}),
+    eventualmente alla data as_of (event log cambi_ruolo / posizioni_eleggibili)."""
+    filtro, params = ("AND timestamp <= %s", (as_of.isoformat(),)) if as_of else ("", ())
+    try:
+        ruoli = {r["giocatore_id"]: r["ruolo_a"] for r in db._q(
+            f"""SELECT DISTINCT ON (giocatore_id) giocatore_id, ruolo_a FROM cambi_ruolo
+                WHERE team_id = %s AND stagione = %s {filtro}
+                ORDER BY giocatore_id, timestamp DESC, id DESC""",
+            (team_id, stagione) + params, many=True) or []}
+        posizioni = {r["giocatore_id"]: r["posizioni"] for r in db._q(
+            f"""SELECT DISTINCT ON (giocatore_id) giocatore_id, posizioni FROM posizioni_eleggibili
+                WHERE TRUE {filtro}
+                ORDER BY giocatore_id, timestamp DESC, id DESC""",
+            params, many=True) or []}
+    except Exception as e:
+        logger.warning("Ruoli/posizioni per il roster non disponibili: %s", e)
+        return {}, {}
+    return ruoli, posizioni
+
+
+def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None,
+                         ruoli: dict = None, posizioni: dict = None) -> str:
     """
     Costruisce la stringa giocatori per Typst:
-    "Nome|importo|anni_res|flag[|importo_orig][|badge];..."
+    "Nome|importo|anni_res|flag|importo_orig|badge|ruolo|eleggibili;..."
     - 5° campo importo_orig: presente se ha_dpe
     - 6° campo badge: 'badge' se il contrasto testo-sfondo è insufficiente
-    Ordinamento: importo_originale DESC, cognome ASC.
+    - 7° campo ruolo ufficiale, 8° posizioni eleggibili ("SF/PF")
+    Ordinamento: importo_originale DESC, cognome ASC; quando TUTTI i giocatori
+    hanno un ruolo ufficiale: ruolo (PG, SG, SF, PF, C), poi importo, poi cognome.
     Flag: N=normale, A=RFA, R0-R3=rookie anno I-IV scale
     """
+    ruoli, posizioni = ruoli or {}, posizioni or {}
     stagione_int = int(settings.stagione_corrente())
     righe = []
-    for r in sorted(roster, key=lambda x: (-(x.get("importo_originale") or x.get("importo") or 0), _cognome(x["nome_common"]))):
+    per_importo = lambda x: (-(x.get("importo_originale") or x.get("importo") or 0), _cognome(x["nome_common"]))
+    tutti_dichiarati = bool(roster) and all(ruoli.get(x["giocatore_id"]) for x in roster)
+    chiave = (lambda x: (_ORDINE_RUOLI.get(ruoli.get(x["giocatore_id"]), 9),) + per_importo(x)) \
+        if tutti_dichiarati else per_importo
+    for r in sorted(roster, key=chiave):
         importo      = r.get("importo", 0)
         importo_orig = r.get("importo_originale", importo)
         ha_dpe       = r.get("ha_dpe", False)
@@ -184,10 +216,10 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
         # Typst usa calc.odd(i): i dispari → _ton_r1/colore_riga1, i pari → colore_riga2
         sfondo_riga = c_r2 if idx % 2 == 0 else c_r1
         badge = "badge" if _needs_badge(flag, sfondo_riga) else ""
-        if ha_dpe:
-            righe.append(f"{nome}|{importo}|{anni_res}|{flag}|{importo_orig}|{badge}")
-        else:
-            righe.append(f"{nome}|{importo}|{anni_res}|{flag}||{badge}")
+        ruolo = ruoli.get(r["giocatore_id"], "")
+        eleg  = (posizioni.get(r["giocatore_id"]) or "").replace(",", "/")
+        dpe   = importo_orig if ha_dpe else ""
+        righe.append(f"{nome}|{importo}|{anni_res}|{flag}|{dpe}|{badge}|{ruolo}|{eleg}")
     return ";".join(righe)
 
 
@@ -206,7 +238,9 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
         roster    = db.get_roster_team(team_id)
         contratti = db.get_contratti_team(team_id)
 
-    giocatori_str = _build_giocatori_str(roster, contratti, team_colori=team)
+    ruoli, posizioni = _ruoli_e_posizioni(team_id, stagione, as_of)
+    giocatori_str = _build_giocatori_str(roster, contratti, team_colori=team,
+                                         ruoli=ruoli, posizioni=posizioni)
 
     # Salary cap
     cap_contratti = sum(r.get("importo", 0) for r in roster)
@@ -427,7 +461,9 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
     picks    = db.get_pick_team(team_id)
     diritti  = db.get_diritti_2nd_team(team_id)
 
-    giocatori_str = _build_giocatori_str(roster, contratti, team_colori=team)
+    ruoli, posizioni = _ruoli_e_posizioni(team_id, stagione)
+    giocatori_str = _build_giocatori_str(roster, contratti, team_colori=team,
+                                         ruoli=ruoli, posizioni=posizioni)
     picks_str     = _build_picks_str(picks, team_id)
     diritti_str   = _build_diritti_str(diritti)
 

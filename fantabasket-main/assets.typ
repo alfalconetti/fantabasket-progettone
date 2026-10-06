@@ -34,7 +34,8 @@
     let p = r.split("|")
     (nome: p.at(0, default: ""), importo: p.at(1, default: "0"),
      anni: p.at(2, default: "1"), flag: p.at(3, default: "N"),
-     importo_orig: p.at(4, default: ""), badge: p.at(5, default: ""))
+     importo_orig: p.at(4, default: ""), badge: p.at(5, default: ""),
+     ruolo: p.at(6, default: ""), eleg: p.at(7, default: ""))
   })
 }
 
@@ -64,7 +65,7 @@
 #let roster_max = 15
 #let giocatori = if giocatori.len() >= roster_max { giocatori } else {
   giocatori + range(roster_max - giocatori.len()).map(_ =>
-    (nome: "", importo: "", anni: "", flag: "VUOTO", importo_orig: "")
+    (nome: "", importo: "", anni: "", flag: "VUOTO", importo_orig: "", badge: "", ruolo: "", eleg: "")
   )
 }
 
@@ -107,7 +108,7 @@
 
 // ── roster ────────────────────────────────────────────────────────────────────
 #table(
-  columns:  (1fr, 26pt, 20pt),
+  columns:  (30pt, 1fr, 26pt, 20pt),
   rows:     17pt,
   inset:    (x: 6pt, y: 0pt),
   align:    horizon + left,
@@ -119,6 +120,7 @@
     if g == none { return white }
     if calc.odd(i) { c_row_odd } else { c_row_even }
   },
+  [#align(center)[#text(6.5pt, weight: "bold", fill: white)[RUOLO]]],
   [#text(7.5pt, weight: "bold", fill: white)[GIOCATORE]],
   [#align(center)[#text(7.5pt, weight: "bold", fill: white)[\$]]],
   [#align(center)[#text(7.5pt, weight: "bold", fill: white)[Y]]],
@@ -143,6 +145,7 @@
       [#align(center)[#text(8pt, fill: tc, weight: "bold")[#g.importo]]]
     }
     (
+      if is_vuoto { [] } else { [#align(center)[#text(7.5pt, fill: tc, weight: "bold")[#g.ruolo]]] },
       if is_vuoto { [] } else {
         [#{
           let t = text(8pt, fill: fc_nome, weight: if bold or ha_dpe {"bold"} else {"regular"})[#g.nome]

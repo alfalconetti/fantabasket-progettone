@@ -634,3 +634,9 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 ### Sicurezza / bug fix
 - `HEALTHCHECK_URL` tolto dal `docker-compose.yml`: ora in `secrets/bot_main.env` (`env_file`, fuori da git); URL di ping rigenerato su healthchecks.io
 - Sync periodico del foglio (2h) e coda di sync GAS avviati sempre: prima partivano solo se `HEALTHCHECK_URL` era impostato
+
+## v3.2.2 (2026-10-07)
+
+### Nuove feature
+- **Ruoli nelle immagini**: colonna RUOLO a sinistra del giocatore in `/roster` e `/assets`; in `/roster` le posizioni eleggibili in corsivo accanto al nome. Per il roster a una data passata, ruoli e posizioni sono quelli in vigore a quella data (event log)
+- **Ordinamento per ruolo**: quando tutti i giocatori hanno un ruolo ufficiale, roster ordinato per ruolo (PG, SG, SF, PF, C), poi contratto; altrimenti per contratto come prima
