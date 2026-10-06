@@ -96,7 +96,8 @@ services:
       YAHOO_CLIENT_SECRET_FILE: /run/secrets/yahoo_client_secret
       ROUTER_TOKEN_FILE: /run/secrets/yahoo_router_token
       YAHOO_TOKEN_PATH: /data/yahoo_token.json
-      YAHOO_LEAGUE_IDS: "YAHOO_LEAGUE_ID_A,YAHOO_LEAGUE_ID_B"
+    env_file:
+      - ./secrets/yahoo_router.env   # YAHOO_LEAGUE_IDS=... (fuori da git)
     secrets:
       - yahoo_client_id
       - yahoo_client_secret
