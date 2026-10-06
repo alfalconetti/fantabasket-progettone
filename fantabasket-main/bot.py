@@ -35,7 +35,18 @@ logging.basicConfig(
 _log_buffer_mod.install()
 logger = logging.getLogger(__name__)
 
-BOT_VERSION = "v1"
+def _leggi_versione() -> str:
+    """Versione = ultima voce '## vX.Y.Z' del CHANGELOG.md (copiato nell'immagine)."""
+    import re
+    try:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "CHANGELOG.md")
+        versioni = re.findall(r"^## (v[0-9][0-9A-Za-z.\-]*)", open(path, encoding="utf-8").read(), re.M)
+        return versioni[-1] if versioni else "sconosciuta"
+    except Exception:
+        return "sconosciuta"
+
+
+BOT_VERSION = _leggi_versione()
 
 
 def _read_secret(env_var: str) -> str:

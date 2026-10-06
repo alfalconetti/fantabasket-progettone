@@ -124,25 +124,18 @@ def valida_trade(trade_id: int) -> tuple[bool, list[str]]:
     return ok, errori
 
 
-def _valida_stepien(team_id: str, trade_id: int, out_picks: list, in_picks: list,
-                     stagione: str) -> str | None:
-    """
-    Stepien Rule: in ogni finestra di N anni contigui (settings.stepien_anni)
-    la squadra deve avere almeno una delle PROPRIE 1st pick.
-    Un anno è coperto se la propria 1st di quell'anno:
-    - per draft già svolti (scattata): è stata usata dalla squadra stessa;
-    - per draft futuri: è posseduta oggi, applicando la trade in corso
-      (le pick cedute escono, le proprie 1st riacquistate rientrano).
-    Le pick protette cedute contano come cedute.
-    """
-    n = settings.stepien_anni()
+# ── Stepien Rule (logica unica: trade, foglio scelte, /assets) ───────────────
 
-    # Il DB ha pick solo dal 2027 in poi: gli anni <= 2026 sono considerati coperti.
-    ANNO_STORICO_LIMITE = 2026
+# Il DB ha pick solo dal 2027 in poi: gli anni <= 2026 sono considerati coperti.
+STEPIEN_ANNO_STORICO_LIMITE = 2026
 
-    out_ids = {i["pick_id"] for i in out_picks if i.get("pick_id") is not None}
-    in_ids  = {i["pick_id"] for i in in_picks if i.get("pick_id") is not None}
 
+def anni_coperti_stepien(team_id: str, out_ids=(), in_ids=()) -> set:
+    """Anni in cui la squadra ha una PROPRIA 1st pick:
+    - draft già svolti (scattata): usata dalla squadra stessa;
+    - draft futuri: posseduta oggi, applicando eventuali pick in uscita/entrata
+      (le pick protette cedute contano come cedute)."""
+    out_ids, in_ids = set(out_ids), set(in_ids)
     coperti = set()
     for p in db.get_proprie_1st_pick_storico(team_id):
         if p["scattata"]:
@@ -156,14 +149,41 @@ def _valida_stepien(team_id: str, trade_id: int, out_picks: list, in_picks: list
             detentore = team_id
         if detentore == team_id:
             coperti.add(int(p["anno"]))
+    return coperti
 
+
+def finestra_scoperta(coperti: set) -> tuple[int, int] | None:
+    """Prima finestra di N anni contigui senza alcun anno coperto, o None."""
+    n = settings.stepien_anni()
     max_pick_anno = db.get_max_pick_anno()
-    for anno_start in range(ANNO_STORICO_LIMITE + 1, max_pick_anno - n + 2):
-        finestra = range(anno_start, anno_start + n)
-        if not any(a in coperti for a in finestra):
-            return (
-                f"viola la Stepien Rule: nessuna propria 1st pick "
-                f"nella finestra {anno_start}–{anno_start + n - 1}"
-            )
+    for anno_start in range(STEPIEN_ANNO_STORICO_LIMITE + 1, max_pick_anno - n + 2):
+        if not any(a in coperti for a in range(anno_start, anno_start + n)):
+            return anno_start, anno_start + n - 1
+    return None
 
+
+def anni_1st_bloccate_stepien(team_id: str) -> set:
+    """Anni delle proprie 1st (possedute, non scattate) che NON si possono cedere
+    senza violare la Stepien Rule → tag [STEPIEN] su foglio e /assets."""
+    coperti = anni_coperti_stepien(team_id)
+    bloccate = set()
+    for p in db.get_proprie_1st_pick_storico(team_id):
+        if p["scattata"] or p["proprietario_att"] != team_id:
+            continue
+        anno = int(p["anno"])
+        if finestra_scoperta(coperti - {anno}):
+            bloccate.add(anno)
+    return bloccate
+
+
+def _valida_stepien(team_id: str, trade_id: int, out_picks: list, in_picks: list,
+                     stagione: str) -> str | None:
+    """Stepien Rule: in ogni finestra di N anni contigui (settings.stepien_anni)
+    la squadra deve avere almeno una delle PROPRIE 1st pick (vedi anni_coperti_stepien)."""
+    out_ids = {i["pick_id"] for i in out_picks if i.get("pick_id") is not None}
+    in_ids  = {i["pick_id"] for i in in_picks if i.get("pick_id") is not None}
+    finestra = finestra_scoperta(anni_coperti_stepien(team_id, out_ids, in_ids))
+    if finestra:
+        return (f"viola la Stepien Rule: nessuna propria 1st pick "
+                f"nella finestra {finestra[0]}–{finestra[1]}")
     return None

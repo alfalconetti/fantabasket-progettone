@@ -372,7 +372,8 @@ async def cmd_roster(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def _build_picks_str(picks: list, team_id: str) -> str:
-    """Costruisce la stringa pick per Typst: 'anno|round|by;...'
+    """Costruisce la stringa pick per Typst: 'anno|round|by|S;...'
+    (S = propria 1st bloccata dalla Stepien Rule).
     Include tutti gli anni da stagione+1 a max_pick_anno anche se vuoti.
     """
     stagione_int = int(settings.stagione_corrente())
@@ -384,6 +385,9 @@ def _build_picks_str(picks: list, team_id: str) -> str:
         anno = int(p["anno"])
         if anno in picks_per_anno:
             picks_per_anno[anno].append(p)
+
+    from validators.trade import anni_1st_bloccate_stepien
+    bloccate_stepien = anni_1st_bloccate_stepien(team_id)
 
     righe = []
     for anno in sorted(picks_per_anno):
@@ -398,7 +402,9 @@ def _build_picks_str(picks: list, team_id: str) -> str:
                 else:
                     t = tm.get_team_by_id(p.get("proprietario_orig", ""))
                     by = t["nome"] if t else p.get("proprietario_orig", "")
-                righe.append(f"{anno}|{rnd}|{by}")
+                stepien = "S" if (p["round"] == 1 and by == "Propria"
+                                  and anno in bloccate_stepien) else ""
+                righe.append(f"{anno}|{rnd}|{by}|{stepien}")
     return ";".join(righe)
 
 

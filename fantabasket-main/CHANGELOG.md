@@ -583,3 +583,17 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 - Rimosse copie morte in radice: `trade_parser.py`, `admin_panel.py`, `dpe.py`
 - README: Yahoo resta la piattaforma usata dai GM per i quintetti; nome servizio `bot-aste-beta`
 
+## v3.0.8 (2026-10-06)
+
+### Sicurezza
+- ID delle leghe Yahoo tolti dal `docker-compose.yml`: lo yahoo-router li legge da `secrets/yahoo_router.env` (`env_file`, fuori da git). Cronologia git ripulita con `git filter-repo` + force push
+
+## v3.0.9 (2026-10-06)
+
+### Miglioramenti
+- **Versione automatica**: `BOT_VERSION` letta dall'ultima voce `## vX.Y.Z` di questo CHANGELOG (era fissa a "v1" nel messaggio di avvio). Ogni patch deve aggiornare il CHANGELOG
+- **Stepien unificata**: una sola logica in `validators/trade.py` (`anni_coperti_stepien`, `finestra_scoperta`, `anni_1st_bloccate_stepien`) usata da validazione trade, foglio Scelte e `/assets`. Il foglio prima ignorava le pick già usate al draft e partiva da `stagione + 1`: dal prossimo draft avrebbe dato risultati diversi dal validatore
+- **`/assets`**: tag STEPIEN (rosso) sulle proprie 1st che non si possono cedere
+
+### Pulizia
+- Rimosso `fantabasket-main/roster.py` (copia morta di `handlers/roster.py`, ultimo doppione in radice)

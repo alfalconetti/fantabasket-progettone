@@ -304,13 +304,9 @@ def _build_scelte_payload() -> dict:
 
         # Pick proprie ancora in possesso del team (proprietario_orig == proprietario_att == team_id)
         # [STEPIEN] = pick 1st che non può essere ceduta senza violare la Stepien Rule
-        n_stepien    = db.get_stepien_anni()
-        max_anno     = db.get_max_pick_anno()
-        # Set anni 1st ancora in possesso
-        proprie_1st_anni = {
-            int(p["anno"]) for p in all_picks
-            if p["round"] == 1 and p.get("proprietario_att") == team_id
-        }
+        # (stessa funzione usata dal validatore trade e da /assets)
+        from validators.trade import anni_1st_bloccate_stepien
+        bloccate_stepien = anni_1st_bloccate_stepien(team_id)
 
         picks_proprie = []
         for p in all_picks:
@@ -320,15 +316,7 @@ def _build_scelte_payload() -> dict:
             # Solo pick ancora in possesso del team
             if p.get("proprietario_att") != team_id:
                 continue
-            stepien_flag = False
-            if p["round"] == 1:
-                senza = proprie_1st_anni - {anno}
-                STORICO_LIMITE = int(settings.stagione_corrente())
-                for start in range(STORICO_LIMITE + 1, max_anno - n_stepien + 2):
-                    finestra = set(range(start, start + n_stepien))
-                    if not (senza & finestra):
-                        stepien_flag = True
-                        break
+            stepien_flag = p["round"] == 1 and anno in bloccate_stepien
             pick_nome = _PICK_NOME.get(team_id, team['gm_nome'])
             label = f"{pick_nome} {'1st' if p['round']==1 else '2nd'} {anno}"
             if stepien_flag:
@@ -340,7 +328,6 @@ def _build_scelte_payload() -> dict:
             })
 
         # Pick altrui detenute (orig != questo team)
-        # [STEPIEN] = pick 1st di un altro team che ha ceduto tutta la propria 1st di quell'anno
         picks_altrui = {anno: [] for anno in anni}
         for p in picks:
             anno = int(p["anno"])

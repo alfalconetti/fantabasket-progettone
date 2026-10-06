@@ -23,7 +23,7 @@
 #let eta_media     = sys.inputs.at("eta_media")
 #let logo_path     = sys.inputs.at("logo_path")
 #let giocatori_raw = sys.inputs.at("giocatori")
-// picks: "2027|1st|Propria;2027|2nd|Propria;2028||;2029|1st|Propria;..."
+// picks: "2027|1st|Propria|S;2027|2nd|Propria|;2028||;2029|1st|Propria|;..."  (S = bloccata Stepien)
 // anno vuoto = anno senza pick → mostra cella vuota
 #let picks_raw     = sys.inputs.at("picks")
 #let diritti_raw   = sys.inputs.at("diritti")
@@ -47,10 +47,11 @@
     let anno = p.at(0, default: "")
     let rnd  = p.at(1, default: "")
     let by   = p.at(2, default: "")
+    let stp  = p.at(3, default: "") == "S"
     if anno != "" {
       if anno not in acc { acc.insert(anno, ()) }
       if rnd != "" {
-        acc.at(anno).push((round: rnd, by: by))
+        acc.at(anno).push((round: rnd, by: by, stepien: stp))
       }
     }
   }
@@ -199,7 +200,7 @@
                     fill: _ton_pick,
                     weight: if is_propria { "bold" } else { "regular" }
                   )[
-                    #if is_propria [★] else [○] #p.round#if not is_propria [ #text(8pt, fill: _ton_pick_m)[(#p.by)]]
+                    #if is_propria [★] else [○] #p.round#if not is_propria [ #text(8pt, fill: _ton_pick_m)[(#p.by)]]#if p.stepien [ #text(6.5pt, weight: "bold", fill: c_dpe)[STEPIEN]]
                   ]
                 ]
               }
