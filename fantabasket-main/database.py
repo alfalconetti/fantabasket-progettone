@@ -440,18 +440,32 @@ def get_pick(pick_id: int) -> dict | None:
 
 # ── rookie ────────────────────────────────────────────────────────────────────
 
-def scadi_diritti_anno(anno_draft: int) -> None:
-    """Marca come scaduti tutti i diritti 2nd del draft anno specificato."""
-    _q(
-        """UPDATE rookie SET diritti_scaduti = TRUE
-           WHERE round = 2 AND anno_draft = %s AND firmato = FALSE AND diritti_scaduti = FALSE""",
+def scadi_diritti_anno(anno_draft: int) -> list:
+    """Marca come scaduti tutti i diritti 2nd non firmati del draft indicato.
+    Restituisce le righe scadute (giocatore_id, team_id, nome_common)."""
+    return _q(
+        """UPDATE rookie r SET diritti_scaduti = TRUE
+           FROM giocatori g
+           WHERE g.id = r.giocatore_id
+             AND r.round = 2 AND r.anno_draft = %s
+             AND r.firmato = FALSE AND r.diritti_scaduti = FALSE
+           RETURNING r.giocatore_id, r.team_id, g.nome_common""",
+        (anno_draft,), many=True
+    ) or []
+
+
+def conta_diritti_attivi_anno(anno_draft: int) -> int:
+    return _qval(
+        "SELECT count(*) FROM rookie WHERE round = 2 AND anno_draft = %s "
+        "AND firmato = FALSE AND diritti_scaduti = FALSE",
         (anno_draft,)
-    )
+    ) or 0
 
 
-def get_diritti_scadenza_imminente(giorni: int = 10) -> dict | None:
-    """Controlla se la trade_deadline è tra 'giorni' giorni.
-    Ritorna {'anno_draft': int, 'deadline': date} se sì, None altrimenti."""
+def info_scadenza_diritti() -> dict | None:
+    """Scadenza dei diritti 2nd al secondo anno (regolamento: 10 giorni prima
+    della trade deadline). L'anno di draft che scade è stagione_corrente - 1.
+    Ritorna None se manca la deadline in globals."""
     from settings import load_globals
     from datetime import date, timedelta
     g = load_globals()
@@ -460,15 +474,27 @@ def get_diritti_scadenza_imminente(giorni: int = 10) -> dict | None:
         return None
     try:
         deadline = date.fromisoformat(deadline_str)
-        oggi = date.today()
-        delta = (deadline - oggi).days
-        if 0 <= delta <= giorni:
-            # Anno diritti da far scadere = stagione_corrente - 2
-            anno_draft = int(g.get("stagione_corrente", "2026")) - 2
-            return {"anno_draft": anno_draft, "deadline": deadline, "giorni_mancanti": delta}
-    except Exception:
-        pass
-    return None
+    except ValueError:
+        return None
+    scadenza = deadline - timedelta(days=10)
+    return {
+        "anno_draft":      int(g.get("stagione_corrente", "2026")) - 1,
+        "deadline":        deadline,
+        "scadenza":        scadenza,
+        "giorni_mancanti": (scadenza - date.today()).days,
+    }
+
+
+def get_diritti_scadenza_imminente(giorni: int = 3) -> dict | None:
+    """Info scadenza se mancano al massimo 'giorni' giorni alla scadenza dei
+    diritti (o se è già passata) e ci sono ancora diritti attivi da far scadere."""
+    info = info_scadenza_diritti()
+    if not info or info["giorni_mancanti"] > giorni:
+        return None
+    n = conta_diritti_attivi_anno(info["anno_draft"])
+    if not n:
+        return None
+    return {**info, "n_diritti": n}
 
 
 def get_diritti_2nd_team(team_id: str) -> list:
@@ -760,7 +786,7 @@ def get_proprie_1st_pick_storico(team_id: str) -> list:
     Usata solo per la verifica Stepien Rule.
     """
     return _q(
-        "SELECT anno, scattata FROM pick "
+        "SELECT id, anno, scattata, proprietario_att FROM pick "
         "WHERE proprietario_orig = %s AND round = 1 "
         "ORDER BY anno",
         (team_id,), many=True

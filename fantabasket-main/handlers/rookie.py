@@ -253,6 +253,75 @@ async def cmd_annulla(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     return ConversationHandler.END
 
 
+# ── Scadenza diritti 2nd (bottone dal job check_scadenza_diritti) ─────────────
+
+async def cb_scadi_diritti(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Conferma admin: marca come scaduti i diritti 2nd al secondo anno,
+    poi annuncia nel gruppo admin e sul canale principale."""
+    query = update.callback_query
+    user  = query.from_user
+    if user.id not in [int(a) for a in settings.admin_ids()]:
+        await query.answer("⛔ Solo gli admin possono confermare.", show_alert=True)
+        return
+
+    anno = int(query.data.split(":")[1])
+    info = db.info_scadenza_diritti()
+    if not info or anno != info["anno_draft"]:
+        await query.answer("❌ Anno non valido per la scadenza di questa stagione.", show_alert=True)
+        return
+    if info["giorni_mancanti"] > 0:
+        await query.answer(
+            f"⏳ I diritti {anno} scadono il {info['scadenza'].strftime('%d/%m/%Y')}: "
+            f"non ancora confermabile.", show_alert=True)
+        return
+
+    await query.answer()
+    scaduti = db.scadi_diritti_anno(anno)
+    admin_nome = user.first_name or user.username or str(user.id)
+
+    if not scaduti:
+        await query.edit_message_text(
+            f"ℹ️ Nessun diritto 2nd {anno} da far scadere (già confermato?)."
+        )
+        return
+
+    # Elenco per squadra
+    per_team: dict[str, list[str]] = {}
+    for r in scaduti:
+        per_team.setdefault(r["team_id"], []).append(r["nome_common"])
+    righe = []
+    for team_id, nomi in sorted(per_team.items()):
+        t = tm.get_team_by_id(team_id)
+        righe.append(f"• <b>{t['nome'] if t else team_id}</b>: {', '.join(sorted(nomi))}")
+    elenco = "\n".join(righe)
+
+    await query.edit_message_text(
+        f"✅ <b>Diritti 2nd {anno} scaduti</b> — confermato da {admin_nome}.\n"
+        f"{len(scaduti)} giocatori tornano free agent:\n\n{elenco}",
+        parse_mode="HTML",
+    )
+
+    main_channel = settings.load_globals().get("main_channel_id")
+    if main_channel:
+        try:
+            await context.bot.send_message(
+                chat_id=main_channel,
+                text=(f"⌛ <b>Scadenza diritti 2nd round {anno}</b>\n\n"
+                      f"I seguenti giocatori non firmati diventano free agent:\n\n{elenco}"),
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.warning("Annuncio canale scadenza diritti fallito: %s", e)
+
+    logger.info("Diritti 2nd %d scaduti (%d) da %s", anno, len(scaduti), admin_nome)
+
+    try:
+        import gas_client
+        gas_client.sync_scelte()
+    except Exception as e:
+        logger.warning("GAS sync scelte dopo scadenza diritti fallito: %s", e)
+
+
 def get_handlers() -> list:
     conv = ConversationHandler(
         entry_points=[CommandHandler("attiva_diritti", cmd_attiva_diritti)],
@@ -275,4 +344,4 @@ def get_handlers() -> list:
         per_message=False,
         conversation_timeout=300,
     )
-    return [conv]
+    return [conv, CallbackQueryHandler(cb_scadi_diritti, pattern=r"^scadi_diritti:\d+$")]

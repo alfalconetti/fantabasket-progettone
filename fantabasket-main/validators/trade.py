@@ -112,45 +112,40 @@ def valida_trade(trade_id: int) -> tuple[bool, list[str]]:
 def _valida_stepien(team_id: str, trade_id: int, out_picks: list, in_picks: list,
                      stagione: str) -> str | None:
     """
-    Stepien Rule: in qualsiasi finestra di N anni contigui deve esserci
-    almeno un anno in cui il team aveva la propria 1st pick.
-    - Anni futuri: pick propria ancora in possesso (non scattata)
-    - Anni passati: pick propria già scattata (l'ha usata al draft)
+    Stepien Rule: in ogni finestra di N anni contigui (settings.stepien_anni)
+    la squadra deve avere almeno una delle PROPRIE 1st pick.
+    Un anno è coperto se la propria 1st di quell'anno:
+    - per draft già svolti (scattata): è stata usata dalla squadra stessa;
+    - per draft futuri: è posseduta oggi, applicando la trade in corso
+      (le pick cedute escono, le proprie 1st riacquistate rientrano).
+    Le pick protette cedute contano come cedute.
     """
     n = settings.stepien_anni()
-    anno_base = int(stagione)
 
-    # Tutte le 1st pick originali del team (scattate e non)
-    storico = db.get_proprie_1st_pick_storico(team_id)
-
-    # Il DB ha pick solo dal 2027 in poi — la 2026 1st non è in tabella pick.
-    # Anni <= 2026 sono considerati automaticamente coperti (dati non disponibili).
+    # Il DB ha pick solo dal 2027 in poi: gli anni <= 2026 sono considerati coperti.
     ANNO_STORICO_LIMITE = 2026
 
-    proprie_1st = set()
-    for p in storico:
-        if not p["scattata"] and int(p["anno"]) > anno_base:
-            proprie_1st.add(str(p["anno"]))
+    out_ids = {i["pick_id"] for i in out_picks if i.get("pick_id") is not None}
+    in_ids  = {i["pick_id"] for i in in_picks if i.get("pick_id") is not None}
 
-    # Rimuovi quelle cedute in questa trade
-    for item in out_picks:
-        pick = db.get_pick(item["pick_id"])
-        if pick and pick["round"] == 1 and pick["proprietario_orig"] == team_id:
-            proprie_1st.discard(str(pick["anno"]))
+    coperti = set()
+    for p in db.get_proprie_1st_pick_storico(team_id):
+        if p["scattata"]:
+            if p["proprietario_att"] == team_id:
+                coperti.add(int(p["anno"]))
+            continue
+        detentore = p["proprietario_att"]
+        if p["id"] in out_ids:
+            detentore = None
+        if p["id"] in in_ids:
+            detentore = team_id
+        if detentore == team_id:
+            coperti.add(int(p["anno"]))
 
-    # Controlla finestre fino al max anno di pick presenti nel DB.
-    # Es: max_pick=2032, n=4 → ultima finestra valida 2029-2032 (start=2029)
     max_pick_anno = db.get_max_pick_anno()
-    ultimo_start  = max_pick_anno - n + 1
-
-    for anno_start in range(ANNO_STORICO_LIMITE + 1, ultimo_start + 1):
-        finestra = {str(a) for a in range(anno_start, anno_start + n)}
-        anni_storici = {a for a in finestra if int(a) <= ANNO_STORICO_LIMITE}
-
-        if anni_storici:
-            continue  # finestra parzialmente storica → coperta automaticamente
-
-        if not (proprie_1st & finestra):
+    for anno_start in range(ANNO_STORICO_LIMITE + 1, max_pick_anno - n + 2):
+        finestra = range(anno_start, anno_start + n)
+        if not any(a in coperti for a in finestra):
             return (
                 f"viola la Stepien Rule: nessuna propria 1st pick "
                 f"nella finestra {anno_start}–{anno_start + n - 1}"
