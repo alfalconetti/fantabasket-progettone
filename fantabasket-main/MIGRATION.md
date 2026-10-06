@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v2.1.18)
+# Messaggio di migrazione — Fantabasket Progettone (stato v3.0.7)
 
 ---
 
@@ -18,9 +18,12 @@ Ecosistema Fantabasket su M910q Ubuntu (alfalconetti@ubuntum910q). Bot aste v48 
     │   ├── settings.json
     │   ├── tabelle/
     │   └── loghi/
-    ├── secrets/
+    ├── secrets/               ← anche yahoo_client_id, yahoo_client_secret, yahoo_router_token
+    ├── README.md              ← in inglese, linkato nella richiesta di accesso a Yahoo
     ├── fantabasket-aste-beta/
-    └── fantabasket-main/
+    ├── fantabasket-main/
+    ├── gas-router/
+    └── yahoo-router/          ← v3.0.0, OAuth2 Yahoo (in attesa di abilitazione)
 ```
 
 **Regola assoluta:** zip mai include `config/`, `fantabasket-main/config/`, `.db`, `.db-shm`, `.db-wal`, `.env`. Gestiti solo sul server.
@@ -74,7 +77,7 @@ Cambio fase via `/set_fase` (solo admin). Passaggio a `offseason-rinnovi` increm
 - DPE libera slot: tutte le fasi tranne `regular-season-deadline`
 - Bref scraper: `regular-season-fa`, `regular-season-deadline`, `playoff`
 - Check cap stagionale bot aste: solo fasi `offseason-*`
-- Cap massimo consentito: 165M in `offseason-*`, 150M altrimenti (`luxury_cap()` in settings main, `cap_limite()` in settings aste)
+- Cap massimo consentito: 165M in `offseason-*` per tutti, 150M − `cap_penalizzato` altrimenti (`luxury_cap()` in settings main, `cap_limite()` + `penalita_cap()` in settings aste)
 - Notifica ruoli post-trade: solo `regular-season-fa` (in futuro anche `offseason-ruoli`)
 
 ---
@@ -101,22 +104,26 @@ Cambio fase via `/set_fase` (solo admin). Passaggio a `offseason-rinnovi` increm
 - Fasi sempre con trattini
 - Zip sempre senza config/ e file sensibili
 - Syntax check `ast.parse` prima di ogni zip
-- Versioning: patch con suffisso incrementale (v1.4.17, v1.4.18...), feature bump minor (v1.5.0), nuovo servizio bump major (v2.0.0)
-- Ogni zip include comando deploy + git commit + git push origin main
+- Versioning: patch con suffisso incrementale (v1.4.17, v1.4.18...), feature bump minor (v1.5.0), nuovo servizio bump major (v2.0.0); `vX.Y.Za` per docs/hotfix della stessa patch
+- Ogni zip include comando deploy + git commit + git push origin main (vedi sezione deploy: si parte SEMPRE da `cd ~/bots`)
+- Prima di ogni zip: `ast.parse` + `pyflakes` (cerca "undefined name"): i bug v3.0.2/v3.0.3 erano tutti nomi non definiti in rami poco usati
+- Un solo file per modulo: niente copie con lo stesso nome in radice e in `handlers/` (in passato fix finiti sulla copia morta, v3.0.1). Gli import usano sempre `handlers.xxx`
+- Prima di discutere → poi codice → poi zip: niente deploy di patch non discusse
 - `/annulla` globale con `group=-1` pulisce `user_data` e termina qualsiasi ConversationHandler
 
 **Handlers bot-main:**
 - `menu.py` — `/menu` dinamico per fase con InlineKeyboard; Trade/Tagli/Rookie/DPE solo nelle fasi corrette; Assets sempre visibile; entry point `menu_trade_build` e `menu_trade_import` registrati nei ConversationHandler del trade
 - `trade.py` — builder (2-4 squadre), import, bozze con bottoni inline, edit, annulla, rollback; `/bozze_trade` mostra InlineKeyboard con bottoni diretti all'edit per bozze e al riepilogo-voto per pending; label bozze: `BUF03-3` (prime 3 lettere nome + num team + bozza_num) o `ADM-4` per admin; `trade_ref` (`TRADE-2026-001`) assegnato prima di `_esegui_trade` per evitare NULL nelle transazioni; notifica GM post-trade include "comunica i ruoli" solo in `regular-season-fa`
-- `trade_parser.py` — parser deterministico testo trade; lookup pick per `proprietario_orig` (non per detentore attuale) via `get_pick_by_orig_anno_round()`
+- `trade_parser.py` — parser deterministico testo trade; lookup pick per `proprietario_orig` via `get_pick_by_orig_anno_round()` (davvero attivo solo da v3.0.1: prima il fix era sulla copia morta in radice); `by` facoltativo (`1st round pick 2028 Birra`); GM trovati anche per singola parola di `gm_nome`/nome squadra se univoca; verifica che pick e diritti ceduti siano posseduti OGGI dal cedente; errori non duplicati nelle trade a 2
 - `tagli.py` — taglio con preview impatto, conferma, scrittura DB, annuncio canale; tagli 1x1 gratuiti bloccati quando esauriti
-- `rookie.py` — attivazione diritti 2nd pick, aperto a tutte `FASI_TRADE_APERTE`, annuncio canale
+- `rookie.py` — attivazione diritti 2nd pick, aperto a tutte `FASI_TRADE_APERTE`, annuncio canale; contratto SEMPRE dalla colonna "I anno" della rookie scale (`anno_idx = 0`: la scala parte dall'anno di firma, non di draft), solo conferma; bottone `scadi_diritti:<anno>` per la scadenza diritti (v3.0.6)
 - `roster.py` — PNG via Typst subprocess per `/roster` e `/assets`; fuzzy match team via `get_team_by_query()`; roster sempre 15 righe (padding con righe vuote); giocatori con DPE mostrano importo barrato in rosso
 - `palette.py` — `/palette` con anteprima PNG live
 - `myteam.py` — modifica nome/colori team
 - `team_diff.py` — variazioni roster tra date; fuzzy match team via `get_team_by_query()`
 - `admin_panel.py` — pannello admin; DPE admin diretta (team→giocatore→conferma→DB+canale); annuncio canale usa `_formatta_annuncio_canale()` (non `_testo_riepilogo`)
-- `dpe.py` — `/dpe` GM: flusso richiesta→approvazione admin gruppo→DB+canale; `pre_deadline = (fase != "regular-season-deadline")`; DPE legata alla stagione corrente
+- `dpe.py` — `/dpe` GM: flusso richiesta→approvazione admin gruppo→DB+canale; `pre_deadline = (fase != "regular-season-deadline")`; DPE legata alla stagione corrente; `_importo_dpe()` unica funzione usata anche da `admin_panel.py`
+- `tagli.py` — spalmatura >5M: rate per eccesso, eccedenza tolta dal fondo senza scendere sotto 1 (7x1 → 4-2-1)
 - `dev_player.py`, `dev.py`, `helpers.py` — invariati
 
 **File principali bot-main:**
@@ -138,6 +145,9 @@ Stati ConversationHandler:
 - `/bozze_trade` — bottoni `✏️ BUF03-3` → edit diretto, `👀 TRADE-2026-022` → riepilogo con voto
 - Annuncio canale: sempre via `_formatta_annuncio_canale()` (formato TRADE + importi), mai `_testo_riepilogo()` (formato bozza con bullet)
 - Pick nel parser: lookup per `proprietario_orig` non per `proprietario_att`
+- `_esegui_trade` e `_rollback_trade` gestiscono giocatori, pick E diritti (diritti fino a v3.0.4 non si spostavano). I diritti si spostano solo se attivi e posseduti dal cedente
+- `_valida_rollback` controlla anche i diritti: se non sono nella squadra che li ha ricevuti, l'annullamento è bloccato
+- ⚠️ Esecuzione e rollback NON sono atomici (un commit per operazione): da portare in un'unica transazione
 
 **DPE:**
 - Fasi disponibili: `offseason-rinnovi` → `regular-season-deadline` (tutte e 6)
@@ -152,6 +162,14 @@ Stati ConversationHandler:
 - DPE: nome in rosso scuro, cella importo con originale barrato e nuovo importo
 - Leggenda: rookie, RFA, DPE (mostrate solo se presenti)
 - `/roster` e `/assets` accettano nome GM o nome squadra (fuzzy) oltre a team_id
+
+**Regole del regolamento verificate/decise (v3.0.x):**
+- DPE: contratto − ceil(25%) → 5→3, 9→6, 10→7 (esempio Klay del regolamento). Fino a v3.0.4 era ceil(75%); Mark Williams corretto a mano (9→6)
+- Stepien: finestre di **4** anni (`stepien_anni`, modifica votata). Anno coperto se la propria 1st di quell'anno è posseduta oggi o, se già scattata, usata dalla squadra stessa. Pick protette cedute = cedute. Anni ≤2026 coperti d'ufficio (nessun dato). Al deploy v3.0.6 tutte le 24 squadre erano in regola
+- Cap: offseason 165 per TUTTI (penalità ignorata); regular season 150 − `cap_penalizzato`. Bot aste: `settings.penalita_cap(team)` vale 0 in offseason. `check_cap_stagionale` invece conta la penalità (proietta la RS)
+- Salary floor 115: in stagione le trade non possono portare sotto il floor (o farci scendere ancora)
+- Diritti 2nd: scadono quelli del draft `stagione_corrente − 1` il giorno `trade_deadline − 10`. Avviso informativo 3 giorni prima, poi avviso con bottone ogni giorno fino a conferma admin; conferma → `diritti_scaduti`, annuncio gruppo admin + canale main, sync scelte
+- `stagione_corrente = "2026"` = stagione 2026-27; `anno_draft` = anno del draft (giugno)
 
 **PostgreSQL schema — novità:**
 ```sql
@@ -171,48 +189,81 @@ FROM giocatori;
 ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 ```
 
-**deploy:**
+**deploy:** gli zip vengono scaricati in `~/bots/`; il comando parte SEMPRE da `cd ~/bots`. Nello zip i file stanno alla radice; nomi ambigui con prefisso (`validators_trade.py`, `aste_admin.py`, ...)
 ```bash
-# File in handlers/:
-unzip -p fantabasket-progettone-vX.Y.Z.zip NOMEFILE.py > ~/bots/fantabasket-progettone/fantabasket-main/handlers/NOMEFILE.py
-# File in fantabasket-main/:
-unzip -p fantabasket-progettone-vX.Y.Z.zip NOMEFILE.py > ~/bots/fantabasket-progettone/fantabasket-main/NOMEFILE.py
-# Poi:
+cd ~/bots && \
+unzip -p ~/bots/fantabasket-progettone-vX.Y.Z.zip NOMEFILE.py > ~/bots/fantabasket-progettone/fantabasket-main/handlers/NOMEFILE.py && \
+unzip -p ~/bots/fantabasket-progettone-vX.Y.Z.zip ALTRO.py > ~/bots/fantabasket-progettone/fantabasket-main/ALTRO.py && \
 cd ~/bots/fantabasket-progettone && docker compose up --build -d bot-main && \
 git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 ```
+- Nuove cartelle/servizi: `unzip -o ~/bots/zip -d ~/bots/fantabasket-progettone/`
+- Bot aste: rebuild `bot-aste-beta`; entrambi: `docker compose up --build -d bot-main bot-aste-beta`
+- Secrets modificati: `docker compose up -d --force-recreate <servizio>` (i secrets sono bind-mount per file: editor come vi creano un file nuovo e il container continua a vedere il vecchio)
+- Script Python nel container: chiamare `db.init_db()` prima di usare il DB (il pool non è inizializzato fuori dal bot)
+- psql: `docker compose exec postgres psql -U fantabasket -d fantabasket -c "..."`
 
 **Bug noti aperti:**
 - Votazione GM non testata end-to-end
 - Guest mode in attesa supporto completo ptb per `InputRichMessageContent`
+- Esecuzione/rollback trade non atomici (vedi sezione Trade)
+- `_valida_rollback` usa `get_rookie_by_giocatore` (ultima riga, anche firmata/scaduta): da restringere ai diritti attivi
+
+---
+
+**Yahoo Fantasy API (stato al 06/10/2026):**
+- Da luglio 2026 Yahoo richiede un'approvazione separata (contratto DocuSign) per la Fantasy API: senza, ogni chiamata dà 403 "This application is not authorized to perform this action", anche con app e token validi
+- `yahoo-router` (v3.0.0) pronto: FastAPI interno, OAuth2 flusso `oob`, refresh automatico, token in volume `yahoo_data:/data`, leghe in `YAHOO_LEAGUE_IDS` (24 squadre su due leghe, la seconda contiene anche account admin da escludere nel mapping)
+- `docker compose exec -it yahoo-router python3 cli.py auth` → bootstrap OAuth; `cli.py teams` → collaudo + elenco squadre per il mapping `teamXX ↔ lega/team Yahoo`
+- Sul portale developer ci sono due app: in uso quella NUOVA (creata il 05/10/2026), la vecchia va tenuta (non cancellare). Credenziali solo in `secrets/`
+- Richiesta di accesso inviata su sports.yahoo.com/developer/access/ (Client ID della nuova app, README linkato). Tempi riportati: da 1 settimana a 2 mesi. Le email non sono affidabili: verificare con `cli.py teams`. Prima di firmare il contratto leggere le clausole su conservazione/visualizzazione dati
+- NBA.com (cdn.nba.com) bloccato da Akamai sulla rete di casa (403 anche da browser)
+
+**Fonti dati senza Yahoo (piano B):**
+- Statistiche di giornata (Loucabot): box score Basketball-Reference `/boxscores/YYYYMMDD0HOME.html`, tabella `box-<TEAM>-game-basic` (titolari/riserve, DNP). Testato dal server. Niente live
+- Posizioni eleggibili (ruoli): import manuale da testo copiato dalle pagine Yahoo (lista giocatori `status=T`, pagine da 25 con `count=` offset)
+- Titolari: oggi solo su Yahoo → proposta da portare in riunione di lega (dichiararli anche su Telegram)
+- Status infortuni: Yahoo fa fede; eventuale supporto dal report infortuni NBA
 
 ---
 
 **Roadmap:**
 
-**v2.x — GAS Router + Google Sheets**
-- GAS Router microservizio FastAPI ✅
-- Foglio roster ✅ — foglio scelte (pick e diritti) ❌ da fare
-- Sync automatico + periodico ogni 2h ✅
-- `/sync_sheets` sincrono ✅
+**v2.x — GAS Router + Google Sheets** ✅ completata (foglio scelte in v2.1.0)
 
-**v3.x — Loucabot**
-- Calcolo punteggi partite + penalità automatiche
+**v3.x — Yahoo router + Ruoli (anticipati rispetto a Loucabot)**
+- `yahoo-router` ✅ (v3.0.0, in attesa di abilitazione Yahoo)
+- Colonna `posizioni` su `giocatori` + import manuale `/import_posizioni` da testo Yahoo (poi fetch giornaliero se Yahoo si sblocca)
+- Tabella `cambi_ruolo` e vista `ruolo_attuale` già presenti nello schema
+- Dichiarazione ruoli post-trade/post-firma entro 48h (GM dichiara, admin approva), cambi ordinari 2/stagione, Saedro, forzati admin, Erminio, regola 60 giorni, minimi 4G/4F/2C
+- Fase `offseason-ruoli`; DPE post-deadline: cambio ruolo aggiuntivo gratuito
 
-**v4.x — IPanchinariBot**
+**v4.x — Loucabot**
+- Calcolo punteggi partite + penalità automatiche (fonte: Yahoo se abilitato, altrimenti Basketball-Reference)
 
-**v5.x — Ruoli (feature trasversale)**
-- Fase `offseason-ruoli` tra `offseason-fa` e `regular-season-fa`
-- Post-trade: notifica GM per dichiarazione ruoli entro 48h
-- DPE post-deadline: cambio ruolo aggiuntivo gratuito
-- Fetch Yahoo giornaliero
+**v5.x — IPanchinariBot**
+
+**Pending fuori roadmap:**
+- Rinnovo rookie (offseason, flusso separato dall'attivazione diritti)
 
 **@qf_bot (vX.x — dipende da guest mode PTB)**
 - Bot pubblico per roster e info lega
 
 ---
 
-**Stato attuale: v2.1.18**
+**Stato attuale: v3.0.7**
+
+Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
+- **v2.1.19** — `/attiva_diritti` propone il contratto della rookie scale (anno I) e chiede solo conferma
+- **v3.0.0** — nuovo servizio `yahoo-router` (OAuth2, `/yahoo/teams`)
+- **v3.0.0a** — README del repo (in inglese, per la richiesta di accesso Yahoo)
+- **v3.0.1** — trade parser: pick per proprietario originale (davvero), `by` facoltativo, GM per singola parola, controllo possesso pick
+- **v3.0.2** — fix nomi non definiti: `db` in admin_panel (import trade, `/registra_firma`), `calcola_impatto_taglio`, `_ordinal` in gas_client
+- **v3.0.3** — rimossa chiamata doppia/errata a `_esegui_trade` in `cb_ufficializza`
+- **v3.0.4** — i diritti si scambiano davvero; fix rollback diritti (confrontava `rookie.id` con `giocatore_id`); controllo possesso diritti nel parser. Dati corretti a mano: TRADE-2026-019 (Mitchell) e 029 (Powell/Miller)
+- **v3.0.5** — DPE = contratto − ceil(25%), calcolo centralizzato
+- **v3.0.6** — Stepien riscritta; scadenza diritti 2nd funzionante (`stagione − 1`, deadline − 10, bottone con handler)
+- **v3.0.7** — penalità cap solo in RS (165 per tutti in offseason) in entrambi i bot; salary floor nelle trade; spalmatura 7x1; `/autoslot` senza crash; riga "Cap libero in RS" del bot aste; rimosse copie morte `trade_parser.py`/`admin_panel.py`/`dpe.py` in radice; README aggiornato
 
 Novità v2.0.31–v2.0.38:
 - **v2.0.31** — DPE disponibile in tutte e 6 le fasi (da offseason-rinnovi a regular-season-deadline); admin menu DPE diretta; `pre_deadline = (fase != "regular-season-deadline")`
@@ -258,7 +309,9 @@ zip -r ~/fantabasket-progettone-export-$(date +%Y%m%d).zip \
   fantabasket-aste-beta/ \
   gas/ \
   gas-router/ \
+  yahoo-router/ \
   docker-compose.yml \
+  README.md \
   --exclude "**/__pycache__/*" \
   --exclude "**/*.pyc" \
   --exclude "**/*.db" \

@@ -514,3 +514,72 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 - Job `processa_coda_gas` ogni 60s in `scheduler.py`: se la coda non è vuota lancia `sync_all` e svuota fino all'id letto
 - `accoda_sync_gas()` in `fantabasket-aste-beta/pg_client.py`
 - Chiamata in `handlers/firma.py` del bot aste dopo firma finale
+
+## v2.1.19 (2026-10-04)
+
+### Bug fix
+- `/attiva_diritti`: il contratto viene preso dalla rookie scale (colonna "I anno", `anno_idx = 0`) e si chiede solo conferma, invece di un importo libero; check cap spostato alla conferma; fallback a importo manuale solo se la pick non rientra in nessuna fascia
+
+## v3.0.0 (2026-10-04)
+
+### Nuove feature
+- **`yahoo-router`**: nuovo microservizio FastAPI per le Yahoo Fantasy API — OAuth2 flusso `oob`, refresh automatico con lock, retry su 401, `game_key` risolto da `/game/nba`; endpoint `/health`, `/yahoo/game`, `/yahoo/teams`; CLI `cli.py auth|teams`; token in volume `yahoo_data`, credenziali in Docker secrets
+- ⚠️ Le API rispondono 403 finché Yahoo non approva l'accesso (nuova policy da luglio 2026)
+
+## v3.0.0a (2026-10-05)
+- README del repository (in inglese): progetto hobbistico, architettura, uso dei dati Yahoo, contenuto del foglio Google
+
+## v3.0.1 (2026-10-05)
+
+### Bug fix
+- **Trade parser** (`handlers/trade_parser.py`): le pick ora si cercano per proprietario originale. Il fix di v2.0.33 era finito sulla copia in radice, mai importata
+- Controllo che la pick ceduta sia posseduta oggi dal cedente, con errore esplicito
+- `by` facoltativo nelle righe pick
+- GM riconosciuto anche da una singola parola di `gm_nome`/nome squadra, solo se univoca ("Birra" → "Alex Birra")
+- Errori non più duplicati nelle trade a 2 squadre
+
+## v3.0.2 (2026-10-05)
+
+### Bug fix
+- `admin_panel.py`: `db` non importato in 4 funzioni (import trade, `/registra_firma`) → `import database as db` a livello di modulo
+- `admin_panel.py`: `calcola_impatto_taglio` non importata (taglio admin con impatto)
+- `gas_client.py`: `_ordinal` definita dentro il ciclo dopo il primo uso → spostata a livello di modulo
+
+## v3.0.3 (2026-10-05)
+
+### Bug fix
+- `cb_ufficializza`: rimossa una chiamata residua a `_esegui_trade` senza `trade_ref` (crashava; con i parametri giusti avrebbe eseguito la trade due volte)
+
+## v3.0.4 (2026-10-05)
+
+### Bug fix
+- **Diritti nelle trade**: `_esegui_trade` non spostava gli item `diritti`; ora li assegna al destinatario (solo diritti attivi posseduti dal cedente)
+- `_rollback_trade`: i diritti venivano riassegnati confrontando `rookie.id` con `giocatore_id` (riga sbagliata); corretto
+- Parser: verifica che i diritti ceduti siano attivi e posseduti dal cedente
+- Dati corretti a mano: TRADE-2026-019 (Dillon Mitchell → team10), TRADE-2026-029 (Drake Powell → team04, Baba Miller → team18)
+
+## v3.0.5 (2026-10-06)
+
+### Bug fix
+- **DPE**: importo = contratto − ceil(25%) (5→3 come da regolamento), era ceil(75%) (5→4). Funzione unica `_importo_dpe()` usata anche dall'admin panel
+- Dati: DPE di Mark Williams corretta da 7 a 6
+
+## v3.0.6 (2026-10-06)
+
+### Bug fix
+- **Stepien Rule**: contava anche le 1st già cedute in trade precedenti. Ora un anno è coperto se la propria 1st è posseduta oggi o, se già scattata, usata dalla squadra; considera pick in entrata e in uscita della trade
+- **Scadenza diritti 2nd**: il bottone di conferma non aveva handler (i diritti non scadevano mai) → nuovo `cb_scadi_diritti` in `handlers/rookie.py` (solo admin, non prima della data), annuncio in gruppo admin e canale main, sync scelte
+- Scadenza calcolata su `stagione − 1` (era `− 2`) e alla data `deadline − 10 giorni` (era alla deadline)
+- Avvisi: informativo nei 3 giorni prima, con bottone dal giorno della scadenza fino a conferma
+- `scadi_diritti_anno()` restituisce i diritti scaduti; nuove `info_scadenza_diritti()` e `conta_diritti_attivi_anno()`
+
+## v3.0.7 (2026-10-06)
+
+### Bug fix
+- **Cap**: in offseason tetto 165M per tutti, la penalità vale solo in regular season (150 − penalità). Validatore trade e bot aste (`settings.penalita_cap()`, usata in offerte, admin, scheduler, utils)
+- Validatore trade: in stagione blocca le trade che portano sotto il salary floor (o fanno scendere ancora)
+- Tagli: spalmatura 7x1 → 4-2-1 (era 4-3); unico importo che cambiava
+- Bot aste: `/autoslot` andava sempre in errore per codice morto in fondo (che avrebbe anche raddoppiato slot e notifiche); riga "Cap libero in Regular Season" mostrata in tutte le fasi `offseason-*` (confronto con `== "offseason"` mai vero)
+- Rimosse copie morte in radice: `trade_parser.py`, `admin_panel.py`, `dpe.py`
+- README: Yahoo resta la piattaforma usata dai GM per i quintetti; nome servizio `bot-aste-beta`
+
