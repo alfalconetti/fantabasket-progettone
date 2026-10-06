@@ -233,7 +233,7 @@ async def pulizia_anticipati_scaduti(context):
             importo = row.get("importo") or row.get("quantita", 0)
             team    = tm.get_team_by_id(team_id)
             nome    = team["nome"] if team else team_id
-            cap_pen = (team.get("cap_penalizzato", 0) if team else 0)
+            cap_pen = settings.penalita_cap(team)  # 0 in offseason: tetto 165 per tutti
             if tipo == "cap":
                 pg_client.reset_cap_anticipato(team_id)
                 cap_occ = (pg_client.get_cap_contratti(team_id)

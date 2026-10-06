@@ -78,9 +78,24 @@ def valida_trade(trade_id: int) -> tuple[bool, list[str]]:
         cap_in  = sum(_importo_effettivo(i["giocatore_id"]) for i in in_g)
         cap_post = cap_attuale - cap_out + cap_in
 
-        if cap_post > settings.luxury_cap():
+        # Tetto: in offseason 165M per tutti; in regular season 150M meno
+        # l'eventuale penalità della squadra.
+        offseason = settings.fase().startswith("offseason")
+        cap_pen   = 0 if offseason else int((team or {}).get("cap_penalizzato") or 0)
+        limite    = settings.luxury_cap() if offseason else settings.cap_massimo() - cap_pen
+        if cap_post > limite:
+            tipo = "luxury" if offseason else "cap"
+            nota = f" (penalità {cap_pen}M)" if cap_pen else ""
             errori.append(
-                f"❌ {nome}: cap post-trade {cap_post}M supera luxury cap {settings.luxury_cap()}M"
+                f"❌ {nome}: cap post-trade {cap_post}M supera il limite {tipo} di {limite}M{nota}"
+            )
+
+        # Salary floor: in stagione una trade non può portare (o lasciare
+        # scendere ulteriormente) una squadra sotto il floor.
+        floor = settings.salary_floor()
+        if not offseason and cap_post < floor and cap_post < cap_attuale:
+            errori.append(
+                f"❌ {nome}: cap post-trade {cap_post}M sotto il salary floor di {floor}M"
             )
 
         # ── 2. Roster size ────────────────────────────────────────────────

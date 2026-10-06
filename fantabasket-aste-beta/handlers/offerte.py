@@ -76,14 +76,14 @@ async def _canale_keyboard(context, asta_id: int) -> InlineKeyboardMarkup:
 def _cap_libero(team_id: str) -> int:
     """
     Cap effettivamente libero per fare offerte.
-    = cap_limite() - contratti_pg - impatto_taglio - cap_pen + cap_anticipato_pg - cap_virtuale_sqlite
+    = cap_limite() - contratti_pg - impatto_taglio - penalità (solo in RS) + cap_anticipato_pg - cap_virtuale_sqlite
     In modalità isolata (PG non disponibile): usa cap_disponibile dal JSON.
     """
     import pg_client
     team = tm.get_team_by_id(team_id)
     if not team:
         return 0
-    cap_pen = team.get("cap_penalizzato", 0)
+    cap_pen = settings.penalita_cap(team)  # 0 in offseason: tetto 165 per tutti
     if pg_client.pg_disponibile():
         stagione       = utils.load_globals().get("stagione_corrente", "2025")
         cap_contratti  = pg_client.get_cap_contratti(team_id)
@@ -99,9 +99,11 @@ def _cap_info_lines(team: dict, cap_libero: int) -> str:
     """Righe cap da mostrare all'apertura di una nuova asta FA."""
     righe = [f"💰 Cap libero: <b>{cap_libero}M</b>"]
     fase = utils.load_globals().get("fase", "offseason")
-    if fase == "offseason":
+    if fase.startswith("offseason"):
         s = settings.get()
         cap_pen = team.get("cap_penalizzato", 0)
+        # In offseason il tetto è 165 per tutti; in RS si perde il margine
+        # di luxury (165 → 150) e si applica l'eventuale penalità
         delta = s["cap_offseason"] - s["cap_regular"] + cap_pen
         cap_rs = cap_libero - delta
         nota_pen = f", penalità {cap_pen}M" if cap_pen else ""

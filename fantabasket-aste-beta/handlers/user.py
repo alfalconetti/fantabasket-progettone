@@ -54,12 +54,14 @@ async def cmd_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if cap_anticipato > 0:
         righe.append(f"⚡ Cap anticipato attivo: <b>+{cap_anticipato}M</b> — scade tra 48h")
 
-    if fase == "offseason":
+    if fase.startswith("offseason"):
         rfa_attive = db.get_rfa_proprietario(team["id"])
         if rfa_attive:
             cap_rfa = sum(r["vecchio_compenso"] or 0 for r in rfa_attive)
             nomi_rfa = ", ".join(r["giocatore"] for r in rfa_attive)
             righe.append(f"⚠️ Cap occupato da RFA: <b>{cap_rfa}M</b> ({nomi_rfa})")
+        # In offseason il tetto è 165 per tutti; in RS si perde il margine
+        # di luxury (165 → 150) e si applica l'eventuale penalità
         delta = s["cap_offseason"] - s["cap_regular"] + cap_pen
         cap_rs = cap_libero - delta
         nota_pen = f", penalità {cap_pen}M" if cap_pen else ""
@@ -504,12 +506,14 @@ def _build_team_detail_testo(team: dict) -> str:
     if cap_anticipato > 0:
         righe.append(f"⚡ Cap anticipato attivo: <b>+{cap_anticipato}M</b> — scade tra 48h")
 
-    if fase == "offseason":
+    if fase.startswith("offseason"):
         rfa_attive = db.get_rfa_proprietario(team_id)
         if rfa_attive:
             cap_rfa = sum(r["vecchio_compenso"] or 0 for r in rfa_attive)
             nomi_rfa = ", ".join(r["giocatore"] for r in rfa_attive)
             righe.append(f"⚠️ Cap occupato da RFA: <b>{cap_rfa}M</b> ({nomi_rfa})")
+        # In offseason il tetto è 165 per tutti; in RS si perde il margine
+        # di luxury (165 → 150) e si applica l'eventuale penalità
         delta = s["cap_offseason"] - s["cap_regular"] + cap_pen
         cap_rs = cap_libero - delta
         nota_pen = f", penalità {cap_pen}M" if cap_pen else ""

@@ -8,11 +8,16 @@ This is a non-commercial hobby project. It has no public users, no website and n
 app store presence: the only people who interact with it are the members of our
 league.
 
+**Yahoo remains the platform where the league is actually played.** Every team
+manager actively uses Yahoo Fantasy to set their starting lineup for each matchday.
+These bots do not replace that: they only handle the "dynasty" layer that Yahoo
+does not support natively (multi-year contracts, salary cap, auctions, trades with
+draft picks, rookie contracts).
+
 ## What it does
 
-Our league uses a "dynasty" ruleset that goes well beyond what Yahoo handles
-natively, so for years it has been run by hand on a shared spreadsheet. These bots
-automate that bookkeeping:
+That dynasty layer has been run by hand on a shared spreadsheet for years. These
+bots automate the bookkeeping:
 
 - **Contracts and salary cap**: multi-year contracts, cap and salary floor checks,
   dead money from releases.
@@ -31,7 +36,7 @@ Everything runs with Docker Compose on a small home server.
 
 ```
                 ┌──────────────┐     ┌──────────────┐
- Telegram ◄────►│   bot-main   │     │   bot-aste   │◄────► Telegram
+ Telegram ◄────►│   bot-main   │     │bot-aste-beta │◄────► Telegram
                 └──────┬───────┘     └──────┬───────┘
                        │                    │
           ┌────────────┼──────────┬─────────┘
@@ -47,7 +52,7 @@ Everything runs with Docker Compose on a small home server.
 | Service        | Role                                                            |
 |----------------|-----------------------------------------------------------------|
 | `bot-main`     | League management bot (contracts, trades, draft, rosters)       |
-| `bot-aste`     | Free agency / RFA auction bot                                   |
+| `bot-aste-beta` | Free agency / RFA auction bot                                 |
 | `gas-router`   | Internal proxy to the Google Apps Script web app                |
 | `yahoo-router` | Internal proxy to the Yahoo Fantasy API (OAuth2, token refresh) |
 | `postgres`     | League database                                                 |

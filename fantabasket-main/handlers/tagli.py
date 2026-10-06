@@ -64,7 +64,14 @@ def calcola_impatto_taglio(importo: int, anni_residui: int, stagione_taglio: str
     rate   = [math.ceil(importo * p) for p in perc]
     target = anni_residui * importo   # usa anni_residui originale per il totale
     diff   = sum(rate) - target
-    rate[-1] = max(0, rate[-1] - diff)
+    # Toglie l'eccedenza dovuta agli arrotondamenti partendo dall'ultima rata,
+    # senza mai portarne una sotto 1 (es. 7x1: 4-3-2 → 4-2-1, non 4-3)
+    for i in range(len(rate) - 1, -1, -1):
+        if diff <= 0:
+            break
+        togli = min(diff, rate[i] - 1)
+        rate[i] -= togli
+        diff    -= togli
 
     return [
         {"stagione": str(anno_base + i), "importo": r}

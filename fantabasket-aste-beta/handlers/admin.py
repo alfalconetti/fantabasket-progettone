@@ -931,7 +931,7 @@ async def autocap(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Controlla che non superi cap_limite
     stagione = utils.load_globals().get("stagione_corrente", "2025")
-    cap_pen  = team.get("cap_penalizzato", 0)
+    cap_pen  = settings.penalita_cap(team)  # 0 in offseason: tetto 165 per tutti
     if pg_client.pg_disponibile():
         cap_occ = pg_client.get_cap_contratti(team["id"]) + pg_client.get_impatto_taglio(team["id"], stagione) + cap_pen
     else:
@@ -997,7 +997,7 @@ async def cb_reset_cap_anticipato(update: Update, context: ContextTypes.DEFAULT_
     team    = tm.get_team_by_id(team_id)
 
     stagione   = utils.load_globals().get("stagione_corrente", "2025")
-    cap_pen    = team.get("cap_penalizzato", 0) if team else 0
+    cap_pen    = settings.penalita_cap(team)  # 0 in offseason: tetto 165 per tutti
     cap_ant    = pg_client.get_cap_anticipato(team_id)
     cap_virt   = 0  # cap virtuale dalle offerte in corso
 
@@ -1140,46 +1140,6 @@ async def auto_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     logger.info("autoslot: team=%s quantita=%d gm=%d", team["id"], quantita, user.id)
 
-    vecchio = 0  # unreachable
-    nuovo = vecchio + importo
-    if nuovo > settings.slot_massimo():
-        pass
-        return
-
-    tm.set_slot(team["id"], nuovo)
-
-    import utils as _utils
-    from datetime import datetime, timezone
-    ora = _utils.format_dt(datetime.now(timezone.utc).isoformat())
-
-    await update.effective_message.reply_text(
-        f"✅ Slot aggiunti: <b>+{importo}</b>\nI tuoi slot ora sono <b>{nuovo}</b>.\n\n"
-        f"<i>La richiesta è stata segnalata agli admin.</i>",
-        parse_mode="HTML",
-    )
-
-    notifica = (
-        f"⚠️ <b>Autoslot</b>\n"
-        f"👤 {user.first_name} (@{user.username or '?'}) — <b>{team['nome']}</b>\n"
-        f"🪑 +{importo} slot (da {vecchio} a {nuovo})\n"
-        f"🕐 {ora}\n\n"
-        f"Verifica che la dichiarazione sia corretta."
-    )
-    admin_group_id = _utils.get_admin_group_id()
-    if admin_group_id:
-        try:
-            await context.bot.send_message(chat_id=admin_group_id, text=notifica, parse_mode="HTML")
-        except Exception as e:
-            logger.warning("notifica auto_slot gruppo admin: %s", e)
-    globals_data = _utils.load_globals()
-    dev_id = globals_data.get("dev_id")
-    if dev_id and dev_id != admin_group_id:
-        try:
-            await context.bot.send_message(chat_id=dev_id, text=notifica, parse_mode="HTML")
-        except Exception as e:
-            logger.warning("notifica auto_slot dev: %s", e)
-    logger.info("auto_slot: team=%s importo=%d gm=%d", team["id"], importo, user.id)
-
 
 # ── /team ─────────────────────────────────────────────────────────────────────
 
@@ -1230,12 +1190,14 @@ async def cmd_team(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"✅ Cap effettivamente libero: <b>{cap_libero}M</b>",
     ]
 
-    if fase == "offseason":
+    if fase.startswith("offseason"):
         rfa_attive = db.get_rfa_proprietario(team_id)
         if rfa_attive:
             cap_rfa = sum(r["vecchio_compenso"] or 0 for r in rfa_attive)
             nomi_rfa = ", ".join(r["giocatore"] for r in rfa_attive)
             righe.append(f"⚠️ Cap occupato da RFA: <b>{cap_rfa}M</b> ({nomi_rfa})")
+        # In offseason il tetto è 165 per tutti; in RS si perde il margine
+        # di luxury (165 → 150) e si applica l'eventuale penalità
         delta = s["cap_offseason"] - s["cap_regular"] + cap_pen
         cap_rs = cap_libero - delta
         nota_pen = f", penalità {cap_pen}M" if cap_pen else ""

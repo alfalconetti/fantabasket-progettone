@@ -274,7 +274,8 @@ def cap_slot_display(team: dict, stagione: str) -> tuple[int, int]:
     PG-first, fallback JSON in modalità isolata.
     """
     import pg_client
-    cap_pen = team.get("cap_penalizzato", 0)
+    import settings as _settings
+    cap_pen = _settings.penalita_cap(team)  # 0 in offseason: tetto 165 per tutti
     if pg_client.pg_disponibile():
         return (
             pg_client.get_cap_totale(team["id"], stagione, cap_pen),

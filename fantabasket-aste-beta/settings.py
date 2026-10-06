@@ -68,6 +68,14 @@ def cap_limite() -> int:
         return get()["cap_offseason"]
     return get()["cap_regular"]
 
+def penalita_cap(team: dict | None) -> int:
+    """Penalità cap effettiva: riduce il cap solo in regular season.
+    In offseason il tetto è cap_offseason (165M) per tutti, penalizzati compresi."""
+    import utils as _utils
+    if _utils.load_globals().get("fase", "").startswith("offseason"):
+        return 0
+    return int((team or {}).get("cap_penalizzato") or 0)
+
 def slot_massimo() -> int:
     return get()["roster_max"]
 
