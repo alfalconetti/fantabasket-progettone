@@ -89,6 +89,28 @@ def migrate_db():
         )
     """)
 
+    # v3.1.0 — posizioni eleggibili Yahoo (event log) + yahoo_id sui giocatori
+    _q("ALTER TABLE giocatori ADD COLUMN IF NOT EXISTS yahoo_id INTEGER")
+    _q("CREATE UNIQUE INDEX IF NOT EXISTS idx_giocatori_yahoo_id "
+       "ON giocatori (yahoo_id) WHERE yahoo_id IS NOT NULL")
+    _q("""
+        CREATE TABLE IF NOT EXISTS posizioni_eleggibili (
+            id            SERIAL PRIMARY KEY,
+            giocatore_id  INT NOT NULL REFERENCES giocatori(id),
+            posizioni     TEXT NOT NULL,
+            fonte         TEXT NOT NULL,
+            timestamp     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    """)
+    _q("CREATE INDEX IF NOT EXISTS idx_posizioni_giocatore "
+       "ON posizioni_eleggibili (giocatore_id, timestamp DESC)")
+    _q("""
+        CREATE OR REPLACE VIEW posizioni_attuali AS
+        SELECT DISTINCT ON (giocatore_id) giocatore_id, posizioni, fonte, timestamp
+        FROM posizioni_eleggibili
+        ORDER BY giocatore_id, timestamp DESC, id DESC
+    """)
+
 
 @contextmanager
 def get_conn():

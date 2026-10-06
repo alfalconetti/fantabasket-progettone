@@ -27,6 +27,7 @@ from handlers.dev         import get_handlers as dev_handlers
 from handlers.palette     import get_handlers as palette_handlers
 from handlers.dpe         import get_handlers as dpe_handlers
 from handlers.decadimento import get_handlers as decadimento_handlers
+from handlers.posizioni   import get_handlers as posizioni_handlers
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -214,6 +215,7 @@ async def post_init(application):
         BotCommand("annulla_admin",       "Esci da operazione admin bloccata"),
         BotCommand("guida_admin",         "Guida completa per gli admin"),
         BotCommand("settings",            "Modifica settings [chiave] [valore]"),
+        BotCommand("import_posizioni",    "Importa posizioni eleggibili Yahoo (CSV)"),
     ]
     cmd_dev = cmd_admin + [
         BotCommand("dev",          "Lista comandi dev"),
@@ -502,6 +504,8 @@ def main():
     for h in dpe_handlers():
         app.add_handler(h)
     for h in decadimento_handlers():
+        app.add_handler(h)
+    for h in posizioni_handlers():
         app.add_handler(h)
 
     for h in dev_handlers():

@@ -106,6 +106,7 @@ Cambio fase via `/set_fase` (solo admin). Passaggio a `offseason-rinnovi` increm
 - Syntax check `ast.parse` prima di ogni zip
 - Versioning: patch con suffisso incrementale (v1.4.17, v1.4.18...), feature bump minor (v1.5.0), nuovo servizio bump major (v2.0.0); `vX.Y.Za` per docs/hotfix della stessa patch
 - Ogni zip include comando deploy + git commit + git push origin main (vedi sezione deploy: si parte SEMPRE da `cd ~/bots`)
+- **Ogni zip aggiorna SEMPRE `fantabasket-main/CHANGELOG.md`** con la voce `## vX.Y.Z (data)`: la versione mostrata dal bot all'avvio e in `/dev_version` è letta dall'ultima voce del CHANGELOG (v3.0.9). Senza voce nuova il bot mostra la versione precedente
 - Prima di ogni zip: `ast.parse` + `pyflakes` (cerca "undefined name"): i bug v3.0.2/v3.0.3 erano tutti nomi non definiti in rami poco usati
 - Un solo file per modulo: niente copie con lo stesso nome in radice e in `handlers/` (in passato fix finiti sulla copia morta, v3.0.1). Gli import usano sempre `handlers.xxx`
 - Prima di discutere → poi codice → poi zip: niente deploy di patch non discusse
@@ -245,6 +246,13 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 
 **Pending fuori roadmap:**
 - Rinnovo rookie (offseason, flusso separato dall'attivazione diritti)
+- **Fase di dichiarazione ruoli** prima dell'inizio della regular season: da implementare (prossimo passo dopo l'import posizioni)
+
+**Posizioni e ruoli (v3.1.0):**
+- `posizioni_eleggibili` = event log delle posizioni Yahoo (set completo, es. `PG,SG`), nuova riga solo se il set cambia → vista `posizioni_attuali`. Le aggiunte segnalate nell'anteprima servono per la Erminio rule (2 settimane dalla data della riga)
+- `cambi_ruolo` + vista `ruolo_attuale` = event log dei ruoli dichiarati (già nello schema)
+- Import: script in console del browser sulle pagine giocatori Yahoo (accumula in localStorage, export CSV con `copy()`), poi `/import_posizioni`. Primo import: 713 righe, 628 abbinate, tutti i sotto contratto coperti
+- `giocatori.yahoo_id` + `nome_yahoo` salvati dall'import: dai successivi l'abbinamento è per ID
 
 **@qf_bot (vX.x — dipende da guest mode PTB)**
 - Bot pubblico per roster e info lega

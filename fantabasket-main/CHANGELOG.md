@@ -597,3 +597,12 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 
 ### Pulizia
 - Rimosso `fantabasket-main/roster.py` (copia morta di `handlers/roster.py`, ultimo doppione in radice)
+
+## v3.1.0 (2026-10-07)
+
+### Nuove feature
+- **Posizioni eleggibili** (base per i ruoli): tabella `posizioni_eleggibili` come event log (nuova riga solo quando il set di posizioni di un giocatore cambia), vista `posizioni_attuali`; colonna `giocatori.yahoo_id` (indice unico)
+- **`/import_posizioni`** (admin, privato): import da CSV `yahoo_id;nome;team;posizioni` generato da uno script in console sulle pagine giocatori Yahoo. Abbinamento per yahoo_id → nome → nome senza suffisso → iniziale+cognome (solo se univoco). Anteprima con posizioni cambiate (Erminio rule), sotto contratto senza posizioni, ambigui, conflitti, righe scartate e file dei non abbinati; salvataggio solo dopo conferma, in un'unica transazione. Salva anche `yahoo_id` e `nome_yahoo`
+
+### Dati
+- Corretti i nomi di tre rookie in base a Yahoo: Cameron Boozer, Dailyn Swain, Jayden Quaintance
