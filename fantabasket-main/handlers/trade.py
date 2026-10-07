@@ -1429,7 +1429,7 @@ async def cmd_edit_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if not context.args:
         await update.effective_message.reply_text(
-            "Uso: /edit_trade <numero_bozza>\nEs. /edit_trade 3" + _ANNULLA_HINT,
+            "Uso: /edit_trade &lt;numero_bozza&gt;\nEs. /edit_trade 3" + _ANNULLA_HINT,
             parse_mode="HTML",
         )
         return ConversationHandler.END

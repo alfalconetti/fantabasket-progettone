@@ -586,7 +586,7 @@ async def reset_rfa(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         stagione_corrente = utils.get_stagione_corrente()
         await update.effective_message.reply_text(
-            f"Uso: /reset_rfa <nuova_stagione>\n"
+            f"Uso: /reset_rfa &lt;nuova_stagione&gt;\n"
             f"Esempio: /reset_rfa 2025-26\n\n"
             f"Stagione corrente: <b>{stagione_corrente}</b>",
             parse_mode="HTML",

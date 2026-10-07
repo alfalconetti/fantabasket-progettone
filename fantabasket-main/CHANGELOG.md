@@ -736,3 +736,8 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 - Protezione dal doppio clic: una trade già approvata non viene rieseguita
 - Il messaggio nel gruppo admin non dice più "approvata" prima che l'esecuzione sia riuscita
 - `_valida_rollback`: controlla solo i diritti attivi (prima guardava anche diritti già firmati o scaduti)
+
+## v3.4.3 (2026-10-07)
+
+### Bug fix
+- `/edit_trade` senza argomenti: il messaggio d'uso conteneva `<numero_bozza>` in un testo HTML e Telegram lo rifiutava ("Can't parse entities"); ora `&lt;numero_bozza&gt;`. Stesso problema corretto in `/reset_rfa` del bot aste

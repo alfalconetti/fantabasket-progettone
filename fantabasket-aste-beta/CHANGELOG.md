@@ -513,3 +513,6 @@ Comandi riservati al solo `dev_id` (non visibili in /admin), per osservare lo st
 - `pg_client.q()`: query generica usata dal modulo condiviso
 - RFA e fasi di offseason invariate
 
+## v47 — Fix messaggio d'uso /reset_rfa
+
+- Il segnaposto `<nuova_stagione>` in un messaggio HTML veniva rifiutato da Telegram; ora `&lt;nuova_stagione&gt;`
