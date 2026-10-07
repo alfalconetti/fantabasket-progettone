@@ -1070,7 +1070,6 @@ async def _esegui_trade(context, trade_id: int, trade_ref: str):
     items    = db.get_items_trade(trade_id)
     stagione = trade["stagione"]
     fase_corrente = settings.fase()
-    FASI_RUOLI = {"regular-season-fa"}
 
     for item in items:
         if item["tipo"] == "giocatore":
@@ -1105,8 +1104,8 @@ async def _esegui_trade(context, trade_id: int, trade_ref: str):
         if not team:
             continue
         testo = f"✅ <b>Trade {trade_ref} eseguita!</b>"
-        if fase_corrente in FASI_RUOLI:
-            testo += "\nRicordati di comunicare i ruoli entro 48h."
+        if fase_corrente in settings.FASI_RUOLI_RS:
+            testo += "\nTi mando qui sotto i ruoli da dichiarare per i nuovi giocatori (48h)."
         elif fase_corrente == "offseason-ruoli":
             testo += "\nRicordati di dichiarare i ruoli dei nuovi giocatori con /dichiarazione_ruoli."
         for gm_id in team.get("gm_ids", []):
@@ -1123,6 +1122,16 @@ async def _esegui_trade(context, trade_id: int, trade_ref: str):
         gas_client.sync_after_trade(trade_id)
     except Exception as e:
         logger.warning("sync GAS dopo trade fallito: %s", e)
+
+    # Ruoli in regular season: dichiarazioni in sospeso per i giocatori ricevuti
+    try:
+        from handlers.ruoli_rs import apri_pendenti
+        for team_id in squadre:
+            ricevuti = [i["giocatore_id"] for i in items
+                        if i["tipo"] == "giocatore" and i["team_id_a"] == team_id]
+            await apri_pendenti(context.bot, team_id, ricevuti, "trade", trade_ref)
+    except Exception as e:
+        logger.warning("Apertura dichiarazioni ruolo post-trade: %s", e)
 
 
 async def _rollback_trade(trade_id: int):

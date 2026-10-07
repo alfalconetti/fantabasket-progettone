@@ -150,6 +150,13 @@ FASI_FA_APERTA = {
     "offseason-ruoli",
 }
 
+# Fasi con ruoli "attivi": dichiarazioni post-trade/firma e cambi ruolo
+FASI_RUOLI_RS = {
+    "regular-season-fa",
+    "regular-season-deadline",
+    "playoff",
+}
+
 FASI_MERCATO_APERTO = {
     "regular-season-fa",
     "offseason-fa",

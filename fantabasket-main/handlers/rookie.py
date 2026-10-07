@@ -234,6 +234,13 @@ async def cb_conferma_firma_rookie(update: Update, context: ContextTypes.DEFAULT
     logger.info("Rookie firma: team=%s giocatore=%d importo=%d",
                 team["id"], rookie["giocatore_id"], importo)
 
+    try:
+        from handlers.ruoli_rs import apri_pendenti
+        await apri_pendenti(context.bot, team["id"], [rookie["giocatore_id"]], "rookie",
+                            f"#{rookie['pick_numero']} {rookie['anno_draft']}")
+    except Exception as e:
+        logger.warning("Dichiarazione ruolo dopo attiva_diritti: %s", e)
+
     # Sync GAS Sheets
     try:
         import gas_client

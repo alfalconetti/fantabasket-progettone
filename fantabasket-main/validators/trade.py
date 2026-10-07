@@ -98,6 +98,22 @@ def valida_trade(trade_id: int) -> tuple[bool, list[str]]:
                 f"❌ {nome}: cap post-trade {cap_post}M sotto il salary floor di {floor}M"
             )
 
+        # ── 1b. Vincoli di ruolo (solo regular season) ────────────────────
+        # Deve esistere un'assegnazione dei ruoli eleggibili ai nuovi arrivati che
+        # rispetti 4 G / 4 F / 2 C; se la squadra è già fuori regola, la trade non
+        # deve peggiorare la situazione.
+        if settings.fase() in settings.FASI_RUOLI_RS:
+            from validators.ruoli import deficit_team
+            prima = deficit_team(team_id, stagione)
+            dopo  = deficit_team(team_id, stagione,
+                                 togli=[i["giocatore_id"] for i in out_g],
+                                 aggiungi=[i["giocatore_id"] for i in in_g])
+            if dopo > 0 and dopo > prima:
+                errori.append(
+                    f"❌ {nome}: dopo la trade il roster non può rispettare i ruoli minimi "
+                    f"(4 G, 4 F, 2 C) con le posizioni eleggibili dei giocatori"
+                )
+
         # ── 2. Roster size ────────────────────────────────────────────────
         roster = db.get_roster_team(team_id)
         fase = settings.fase()

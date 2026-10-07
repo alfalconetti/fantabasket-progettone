@@ -667,3 +667,16 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 
 ### Miglioramenti
 - Dopo la conferma dei ruoli il foglio Google aggiorna il roster di tutte le squadre (prima solo quella confermata), in un'unica chiamata; foglio Scelte escluso
+
+## v3.3.0 (2026-10-07)
+
+### Nuove feature — ruoli in regular season (fasi `FASI_RUOLI_RS`: regular-season-fa, regular-season-deadline, playoff)
+- **Dichiarazioni post-trade / post-firma** (`handlers/ruoli_rs.py`, tabella `ruoli_pendenti`): per ogni giocatore ricevuto con una trade, con l'attivazione dei diritti o con `/registra_firma` si apre una dichiarazione con scadenza 48h. Il GM riceve in privato un bottone per ogni ruolo eleggibile (solo conferma se ce n'è uno); nel `/menu` compare "🎽 Ruoli da dichiarare (N)". Gli admin possono dichiarare al posto del GM da `/admin_menu` → "⏳ Ruoli in sospeso"
+- Scelte che renderebbero impossibili i minimi 4G/4F/2C vengono rifiutate
+- **Estrazione casuale** dopo 48h tra le eleggibili (preferendo quelle compatibili coi vincoli), job ogni 15 minuti; senza posizioni registrate → avviso agli admin
+- **Regola dei 60 giorni**: giocatore riacquistato entro 60 giorni → vecchio ruolo assegnato subito
+- Annunci sul canale principale per dichiarazioni, estrazioni e ruoli imposti; sync dei roster sul foglio
+- **Trade in regular season**: il validatore verifica che esista un'assegnazione dei ruoli eleggibili che rispetti 4G/4F/2C (`validators/ruoli.py`); se la squadra è già fuori regola, la trade non deve peggiorare la situazione
+
+### Bug fix
+- `/registra_firma`: la transazione era registrata con tipo `'firma'`, non ammesso dalla tabella → il contratto veniva creato ma la transazione falliva ("Errore DB"). Ora tipo `'signed'`, con contratto e transazione in un'unica transazione DB

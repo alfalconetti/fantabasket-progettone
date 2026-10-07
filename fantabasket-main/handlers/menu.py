@@ -48,10 +48,19 @@ AZIONI_SEMPRE = [
 ]
 
 
-def _kb_menu_principale(fase: str) -> InlineKeyboardMarkup:
+def _kb_menu_principale(fase: str, team_id: str | None = None) -> InlineKeyboardMarkup:
     """Keyboard dinamica — solo le azioni disponibili nella fase corrente (2 per riga)."""
-    bottoni = [InlineKeyboardButton(label, callback_data=cb)
-               for label, cb, fasi in AZIONI_FASE if fase in fasi()]
+    bottoni = []
+    if team_id and fase in settings.FASI_RUOLI_RS:
+        try:
+            from handlers.ruoli_rs import pendenti_aperti
+            n = len(pendenti_aperti(team_id))
+            if n:
+                bottoni.append(InlineKeyboardButton(f"🎽 Ruoli da dichiarare ({n})", callback_data="rp:list"))
+        except Exception as e:
+            logger.warning("Conteggio ruoli da dichiarare: %s", e)
+    bottoni += [InlineKeyboardButton(label, callback_data=cb)
+                for label, cb, fasi in AZIONI_FASE if fase in fasi()]
     righe = [bottoni[i:i + 2] for i in range(0, len(bottoni), 2)]
     righe.append([InlineKeyboardButton(label, callback_data=cb) for label, cb in AZIONI_SEMPRE])
     return InlineKeyboardMarkup(righe)
@@ -92,7 +101,7 @@ async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     fase = settings.fase()
     await update.effective_message.reply_text(
-        _testo_home(fase), parse_mode="HTML", reply_markup=_kb_menu_principale(fase)
+        _testo_home(fase), parse_mode="HTML", reply_markup=_kb_menu_principale(fase, team["id"])
     )
 
 
@@ -104,8 +113,10 @@ async def cb_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if azione == "home":
         fase = settings.fase()
+        t = tm.get_team_by_gm(query.from_user.id)
         await query.edit_message_text(
-            _testo_home(fase), parse_mode="HTML", reply_markup=_kb_menu_principale(fase)
+            _testo_home(fase), parse_mode="HTML",
+            reply_markup=_kb_menu_principale(fase, t["id"] if t else None)
         )
 
     elif azione == "trade":

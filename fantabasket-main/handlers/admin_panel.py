@@ -43,7 +43,8 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("✂️ Taglia giocatore", callback_data="adm:taglia")],
         [InlineKeyboardButton("🏥 DPE",             callback_data="adm:dpe")],
         [InlineKeyboardButton("📊 Situazione cap",  callback_data="adm:cap")],
-        [InlineKeyboardButton("🎽 Ruoli squadre",   callback_data="rladm:list")],
+        [InlineKeyboardButton("🎽 Ruoli squadre",   callback_data="rladm:list"),
+         InlineKeyboardButton("⏳ Ruoli in sospeso", callback_data="rpadm:list")],
     ])
 
 
@@ -952,16 +953,19 @@ async def cb_registra_firma_sel(update: Update, context: ContextTypes.DEFAULT_TY
 async def _esegui_registra_firma(update_or_query, context, giocatore, team_id, team, importo, anni, is_callback=False):
     stagione = settings.stagione_corrente()
     try:
-        db._q(
-            "INSERT INTO contratti (giocatore_id, team_id, importo, anni_originali, stagione_firma, tipo) "
-            "VALUES (%s, %s, %s, %s, %s, 'normale')",
-            (giocatore["id"], team_id, importo, anni, stagione)
-        )
-        db._q(
-            "INSERT INTO transazioni (tipo, giocatore_id, team_id_da, team_id_a, stagione) "
-            "VALUES ('firma', %s, NULL, %s, %s)",
-            (giocatore["id"], team_id, stagione)
-        )
+        # contratto + transazione in un'unica transazione DB (prima: tipo 'firma' non
+        # ammesso dal CHECK → contratto creato e transazione fallita)
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO contratti (giocatore_id, team_id, importo, anni_originali, stagione_firma, tipo) "
+                    "VALUES (%s, %s, %s, %s, %s, 'normale') RETURNING id",
+                    (giocatore["id"], team_id, importo, anni, stagione))
+                contratto_id = cur.fetchone()[0]
+                cur.execute(
+                    "INSERT INTO transazioni (tipo, giocatore_id, team_id_da, team_id_a, stagione, contratto_id) "
+                    "VALUES ('signed', %s, NULL, %s, %s, %s)",
+                    (giocatore["id"], team_id, stagione, contratto_id))
     except Exception as e:
         testo = f"❌ Errore DB: {e}"
         if is_callback:
@@ -975,6 +979,12 @@ async def _esegui_registra_firma(update_or_query, context, giocatore, team_id, t
         gas_client.sync_after_firma(team_id)
     except Exception as e:
         logger.warning("GAS sync registra_firma: %s", e)
+
+    try:
+        from handlers.ruoli_rs import apri_pendenti
+        await apri_pendenti(context.bot, team_id, [giocatore["id"]], "firma")
+    except Exception as e:
+        logger.warning("Dichiarazione ruolo dopo registra_firma: %s", e)
 
     admin_user = update_or_query.from_user if is_callback else update_or_query.effective_user
     admin_tag  = admin_user.first_name or str(admin_user.id)

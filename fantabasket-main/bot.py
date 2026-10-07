@@ -29,6 +29,7 @@ from handlers.dpe         import get_handlers as dpe_handlers
 from handlers.decadimento import get_handlers as decadimento_handlers
 from handlers.posizioni   import get_handlers as posizioni_handlers
 from handlers.ruoli       import get_handlers as ruoli_handlers
+from handlers.ruoli_rs    import get_handlers as ruoli_rs_handlers
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -513,6 +514,8 @@ def main():
         app.add_handler(h)
     for h in ruoli_handlers():
         app.add_handler(h)
+    for h in ruoli_rs_handlers():
+        app.add_handler(h)
 
     for h in dev_handlers():
         app.add_handler(h)
@@ -539,6 +542,9 @@ def main():
     from handlers.ruoli import job_promemoria_deadline, job_report_giornaliero
     app.job_queue.run_daily(job_promemoria_deadline, time=dtime(10, 0, tzinfo=ROME))
     app.job_queue.run_daily(job_report_giornaliero,  time=dtime(17, 0, tzinfo=ROME))
+    # Ruoli in regular season: estrazione per le dichiarazioni scadute (48h)
+    from handlers.ruoli_rs import job_scadenze
+    app.job_queue.run_repeating(job_scadenze, interval=900, first=120)
     # Backup settimanale domenica alle 00:30
     app.job_queue.run_daily(
         backup_settimanale,

@@ -111,6 +111,23 @@ def migrate_db():
         ORDER BY giocatore_id, timestamp DESC, id DESC
     """)
 
+    # v3.3.0 — dichiarazioni di ruolo in sospeso in regular season (48h, poi estrazione)
+    _q("""
+        CREATE TABLE IF NOT EXISTS ruoli_pendenti (
+            id            SERIAL PRIMARY KEY,
+            giocatore_id  INT  NOT NULL REFERENCES giocatori(id),
+            team_id       TEXT NOT NULL,
+            origine       TEXT NOT NULL,          -- trade | firma | rookie
+            riferimento   TEXT,                   -- es. TRADE-2026-031
+            creato        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            scadenza      TIMESTAMPTZ NOT NULL,
+            stato         TEXT NOT NULL DEFAULT 'aperta',  -- aperta | dichiarata | estratta | annullata | senza_posizioni
+            ruolo         TEXT,
+            chiuso        TIMESTAMPTZ
+        )
+    """)
+    _q("CREATE INDEX IF NOT EXISTS idx_ruoli_pendenti_aperti ON ruoli_pendenti (team_id) WHERE stato = 'aperta'")
+
     # v3.2.0 — dichiarazione ruoli: bozze persistenti (sopravvivono ai riavvii)
     _q("""
         CREATE TABLE IF NOT EXISTS ruoli_bozze (
