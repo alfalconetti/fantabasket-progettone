@@ -1,90 +1,84 @@
 # Guida Admin — Fantabasket Main Bot
 
-## Pannello admin
-
-`/admin_menu` — apre il pannello con tutte le operazioni disponibili.
+`/admin_menu` apre il pannello. Gli admin possono fare **qualsiasi operazione al posto di un GM**: firme, tagli, DPE, trade, ruoli.
 
 ---
 
-## Approvazione trade
+## Fasi
 
-Quando una trade raggiunge l'approvazione (GM hanno accettato, o il proponente l'ha mandata direttamente), ricevi un messaggio nel gruppo admin con riepilogo e bottoni:
+`/set_fase` (o pannello → Cambia fase) avanza alla fase successiva:
 
-- **✅ Approva** — esegue la trade, aggiorna DB, pubblica annuncio nel canale con `TRADE-2026-001`, tuo nome e ora
-- **❌ Rifiuta** — annulla e notifica il proponente
-
-### Import e ufficializzazione diretta
-
-Dal pannello admin → **Trade → Import**: importa una trade dal testo nel formato standard. Dopo la validazione puoi ufficializzarla direttamente senza voto GM.
-
-L'annuncio sul canale usa sempre il formato standard con importi e anni contratto.
-
-### Annullamento trade
-
-`/annulla_trade_admin TRADE-2026-XXX` — annulla una trade già eseguita. Il bot verifica la compatibilità del roster prima del rollback.
-
----
-
-## DPE admin
-
-Dal pannello → **DPE**: attiva direttamente la DPE per un giocatore senza aspettare la richiesta del GM. Selezione team → giocatore → conferma. Operazione immediata con notifica al GM e annuncio canale.
-
----
-
-## Taglio admin
-
-Dal pannello → **Taglia giocatore**: taglia un giocatore per conto di un team.
-
----
-
-## Registra firma
-
-`/registra_firma` — registra una firma avvenuta fuori dal bot (ricerca fuzzy giocatore, check contratto attivo, sync GAS automatico).
-
----
-
-## Cambio fase
-
-Dal pannello → **Cambia fase** oppure `/set_fase`. Il passaggio a `offseason-rinnovi` incrementa automaticamente la stagione corrente.
-
-Fasi disponibili:
 ```
 regular-season-fa → regular-season-deadline → playoff →
 offseason-break → offseason-rinnovi → offseason-draft →
-offseason-rfa → offseason-fa
+offseason-rfa → offseason-fa → offseason-ruoli → (ricomincia)
 ```
 
----
-
-## Loghi squadre
-
-Carica i loghi in `config/loghi/{team_id}_logo.png`. Vengono inclusi automaticamente in `/roster` e `/assets`.
-
----
-
-## teams.json
-
-Condiviso tra bot main e bot aste. Modifiche impattano entrambi al prossimo riavvio. Campi rilevanti per bot main:
-- `gm_nome` — nome del GM (usato negli annunci e nel fuzzy match di `/roster`, `/assets`, `/team_diff`)
-- `colore_header` — colore primario per roster/assets PNG
-- `colore_riga1`, `colore_riga2`, `colore_sezione`, `colore_pick`, `colore_diritti` — palette personalizzata (i GM la impostano via `/palette`)
+- Il passaggio a `offseason-rinnovi` incrementa la stagione.
+- A ogni cambio il bot pubblica sul **canale principale** un annuncio con cosa si può fare nella nuova fase (trade/FA/DPE calcolati dalle regole del bot + indicazioni specifiche, in `FASI_INDICAZIONI` di `admin_panel.py`).
+- Mercato aperto (trade e FA): `regular-season-fa`, `offseason-fa`, `offseason-ruoli`; trade anche in `offseason-rinnovi`, `offseason-draft`, `offseason-rfa`.
+- Cap: in offseason fino a 165M per tutti; in regular season 150M meno le eventuali penalità della squadra. Salary floor 115M controllato sulle trade in stagione.
 
 ---
 
-## Comandi utili
+## Trade
 
-`/annulla_admin` — esce da qualsiasi operazione admin bloccata.
-
-`/sync_sheets` (solo dev) — sincronizzazione manuale completa di tutti i roster e del foglio Scelte su Google Sheets.
+- Le trade proposte dai GM arrivano nel gruppo admin con ✅ Approva / ❌ Rifiuta; l'approvazione esegue, assegna `TRADE-AAAA-NNN` e annuncia sul canale.
+- Pannello → **Trade → Import**: importa dal testo e ufficializza direttamente.
+- `/annulla_trade_admin TRADE-AAAA-NNN`: rollback di una trade eseguita (giocatori, pick e diritti), dopo aver verificato che il roster sia compatibile.
+- La validazione controlla cap, roster, Stepien Rule (finestre di 4 anni, solo 1st proprie possedute) e in regular season i ruoli minimi.
 
 ---
 
-## Google Sheets — struttura auto-aggiornata
+## DPE, tagli, firme, decadimento
 
-Il bot aggiorna automaticamente i fogli dopo ogni operazione (trade, taglio, DPE, firma, rookie, rollback).
+- Pannello → **DPE**: attivazione diretta (contratto − 25% arrotondato per eccesso), con notifica al GM e annuncio.
+- Pannello → **Taglia giocatore**: taglio per conto di una squadra.
+- `/registra_firma`: firma avvenuta fuori dal bot. In regular season apre anche la dichiarazione del ruolo per il GM.
+- Le richieste di decadimento dei GM arrivano nel gruppo admin da approvare.
 
-**Foglio Roster**: 15 righe giocatori + SALARY CAP (con `[-N]` se penalità) + età media (formula) + tagli gratuiti usati + cambi ruolo usati (0/2, da implementare) + tagliati con impatto cap + righe DPE in rosso (`DIS. Nome 9x1   7x1`).
+---
 
-**Foglio Scelte**: pick proprie (1st riga 1, 2nd riga 2) + pick altrui per anno + diritti 2nd pick + numeri draft corrente. `[STEPIEN]` indica pick non cedibile senza violare la Stepien Rule. Colori per division. Minimo 4 righe per team.
+## Diritti 2nd round
 
-**Secrets richiesti** (in `secrets/`): `gas_token`, `gas_roster_url`, `gas_scelte_url` (stesso URL del roster).
+I diritti al secondo anno scadono 10 giorni prima della `trade_deadline` (in `globals.json`). Nei 3 giorni precedenti arriva un avviso nel gruppo admin; dal giorno della scadenza arriva il bottone **Conferma scadenza**, che segna i diritti scaduti e annuncia nel gruppo e sul canale chi torna free agent.
+
+---
+
+## Ruoli
+
+### Posizioni eleggibili
+
+- `/import_posizioni_eleggibili` — import da CSV `yahoo_id;nome;team;posizioni` esportato dalle pagine giocatori Yahoo. Mostra un'anteprima (abbinati, posizioni cambiate, ambigui, conflitti, sotto contratto senza posizioni) e salva solo con conferma.
+- `/set_posizioni_eleggibili <nome> <PG,SG>` — correzione puntuale.
+- `/data_erminio <nome> <AAAA-MM-GG>` — data in cui Yahoo ha aggiunto l'ultima posizione: la finestra Erminio di 14 giorni parte da lì (altrimenti dalla data dell'import).
+
+### Dichiarazione a inizio stagione
+
+- Prima di entrare nella fase: `/deadline_ruoli AAAA-MM-GG [HH:MM]`, così l'annuncio esce con la data.
+- Pannello → **🎽 Ruoli squadre**: stato di tutte le squadre (✅ completa, 🟡 parziale, ❌ nessuna) e dichiarazione per conto di qualsiasi squadra, anche fuori fase.
+- Durante la fase: report ogni giorno alle 17 sul canale log; promemoria privato ai GM incompleti il giorno prima della deadline; all'uscita dalla fase, elenco dei giocatori senza ruolo nel gruppo admin (regolamento: ruolo casuale tra quelli disponibili).
+
+### Regular season
+
+- Pannello → **⏳ Ruoli in sospeso**: dichiarazioni post-trade/firma ancora aperte, dichiarabili al posto del GM. Dopo 48h il bot estrae il ruolo da solo.
+- Pannello → **🔁 Cambi ruolo** → squadra: cambio **ordinario** per conto del GM (conta nel contatore), **Erminio**, **Saedro** diretta, **forzato** (non conta; i vincoli dei ruoli sono solo un avviso).
+- Le richieste di **Saedro** dei GM arrivano nel gruppo con l'elenco dei giocatori della squadra in quel ruolo: da approvare se nessuno è disponibile (OUT o fuori rotazione).
+- Il caso "schierato titolare su Yahoo senza aver comunicato il ruolo" va corretto a mano con un cambio forzato.
+
+---
+
+## Google Sheets
+
+Il bot aggiorna i fogli dopo ogni operazione; dopo dichiarazioni e cambi ruolo aggiorna i roster di **tutte** le squadre. `/sync_sheets` forza una sincronizzazione completa.
+
+- **Roster**: ruolo di ogni giocatore (ordinati per ruolo quando la squadra li ha dichiarati tutti), cap con penalità, tagli gratuiti usati, cambi ruolo usati, tagli con impatto, righe DPE.
+- **Scelte**: pick proprie e altrui, diritti 2nd, tag `[STEPIEN]` sulle 1st non cedibili.
+
+---
+
+## Configurazione
+
+- `teams.json` (condiviso con il bot aste): `gm_nome`, `gm_ids`, colori; modifiche attive al riavvio.
+- Loghi in `config/loghi/{team_id}_logo.png`.
+- `/annulla_admin` esce da un'operazione admin bloccata.

@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v3.0.7)
+# Messaggio di migrazione — Fantabasket Progettone (stato v3.3.4)
 
 ---
 
@@ -127,6 +127,12 @@ Cambio fase via `/set_fase` (solo admin). Passaggio a `offseason-rinnovi` increm
 - `admin_panel.py` — pannello admin; DPE admin diretta (team→giocatore→conferma→DB+canale); annuncio canale usa `_formatta_annuncio_canale()` (non `_testo_riepilogo`)
 - `dpe.py` — `/dpe` GM: flusso richiesta→approvazione admin gruppo→DB+canale; `pre_deadline = (fase != "regular-season-deadline")`; DPE legata alla stagione corrente; `_importo_dpe()` unica funzione usata anche da `admin_panel.py`
 - `tagli.py` — spalmatura >5M: rate per eccesso, eccedenza tolta dal fondo senza scendere sotto 1 (7x1 → 4-2-1)
+- `posizioni.py` — posizioni eleggibili: `/import_posizioni_eleggibili` (CSV, anteprima, transazione unica), `/set_posizioni_eleggibili`, `/data_erminio`
+- `ruoli.py` — dichiarazione ruoli in `offseason-ruoli` (bozze `ruoli_bozze`, import da testo, admin per altre squadre, `/deadline_ruoli`, job 10:00 e 17:00, report a fine fase)
+- `ruoli_rs.py` — dichiarazioni post-trade/firma in RS (`ruoli_pendenti`, 48h, estrazione, regola 60 giorni)
+- `cambi_ruolo.py` — `/cambio_ruolo`: ordinario (2/stagione), Erminio, Saedro (richiesta → gruppo admin, `job_fine_saedro`), forzato admin
+- `menu.py` — menu per fase: `AZIONI_FASE` (etichetta, callback, fasi) + `AZIONI_SEMPRE`
+- `validators/ruoli.py` — vincoli 4G/4F/2C: `deficit_minimo`, `deficit_team`
 - `dev_player.py`, `dev.py`, `helpers.py` — invariati
 
 **File principali bot-main:**
@@ -265,7 +271,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 
 ---
 
-**Stato attuale: v3.0.7**
+**Stato attuale: v3.3.4**
 
 Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v2.1.19** — `/attiva_diritti` propone il contratto della rookie scale (anno I) e chiede solo conferma
@@ -278,6 +284,18 @@ Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v3.0.5** — DPE = contratto − ceil(25%), calcolo centralizzato
 - **v3.0.6** — Stepien riscritta; scadenza diritti 2nd funzionante (`stagione − 1`, deadline − 10, bottone con handler)
 - **v3.0.7** — penalità cap solo in RS (165 per tutti in offseason) in entrambi i bot; salary floor nelle trade; spalmatura 7x1; `/autoslot` senza crash; riga "Cap libero in RS" del bot aste; rimosse copie morte `trade_parser.py`/`admin_panel.py`/`dpe.py` in radice; README aggiornato
+- **v3.0.8** — ID leghe Yahoo fuori dal compose (`secrets/yahoo_router.env`), cronologia git ripulita
+- **v3.0.9** — versione letta dal CHANGELOG; Stepien unificata (trade, foglio, /assets con tag STEPIEN); rimosso `roster.py` doppio
+- **v3.1.0–v3.1.1** — posizioni eleggibili (event log `posizioni_eleggibili`, `giocatori.yahoo_id`), import da CSV
+- **v3.2.0** — fase `offseason-ruoli`, dichiarazione ruoli (bozze, import da testo, admin, deadline, report), `/set_posizioni_eleggibili`
+- **v3.2.1** — annuncio di fase sul canale principale; healthcheck in `secrets/bot_main.env`; job GAS sempre attivi
+- **v3.2.2** — ruoli e posizioni in /roster e /assets, ordinamento per ruolo
+- **v3.2.3–v3.2.4** — menu dinamico per fase (`AZIONI_FASE`), foglio ordinato per ruolo, decadimento nel menu, fix bottone Rookie
+- **v3.2.5** — `query.get_bot()` (annunci di fase, log, DPE admin non partivano); a capo nei messaggi DPE admin
+- **v3.2.6** — sync di tutti i roster dopo la conferma ruoli
+- **v3.3.0** — ruoli in RS: dichiarazioni post-trade/firma (48h, estrazione, regola 60 giorni), vincoli ruoli nelle trade; fix `/registra_firma`
+- **v3.3.1–v3.3.3** — cambi ruolo (ordinari con contatore, Erminio, Saedro, forzati admin), `/data_erminio`; Erminio esclusivo, conferma per l'ordinario
+- **v3.3.4** — guide GM e admin riscritte; indicazioni di fase aggiornate
 
 Novità v2.0.31–v2.0.38:
 - **v2.0.31** — DPE disponibile in tutte e 6 le fasi (da offseason-rinnovi a regular-season-deadline); admin menu DPE diretta; `pre_deadline = (fase != "regular-season-deadline")`

@@ -703,3 +703,10 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 
 ### Miglioramenti
 - Cambio ruolo: etichette "Erminio (ruolo aggiunto)" e "Saedro (10 day)" in bottoni, riepiloghi e annunci
+
+## v3.3.4 (2026-10-07)
+
+### Documentazione
+- `docs/guida_gm.md` e `docs/guida_admin.md` riscritte (menu per fase, ruoli, posizioni, cambi ruolo, Stepien, DPE, parser trade, fasi)
+- Indicazioni dell'annuncio di fase aggiornate: dichiarazioni post-trade e cambi ruolo in regular season, deadline e playoff; dichiarazione ruoli con import da testo e possibilità di passare da un admin
+- MIGRATION aggiornato allo stato v3.3.4

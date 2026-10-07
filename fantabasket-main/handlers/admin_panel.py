@@ -634,18 +634,21 @@ FASI_LABEL = {
 # stesse costanti usate dai comandi, così l'annuncio non può contraddire il bot)
 FASI_INDICAZIONI = {
     "regular-season-fa": [
-        "Dopo una trade o una firma, comunica il ruolo dei nuovi giocatori entro 48h",
-        "Cambi ruolo: massimo 2 a stagione",
+        "Dopo una trade, una firma o l'attivazione dei diritti il bot vi manda in privato i bottoni per dichiarare il ruolo dei nuovi giocatori: avete 48h, poi il ruolo viene estratto a caso tra quelli eleggibili",
+        "Cambi ruolo con /cambio_ruolo (o 🔁 nel /menu): massimo 2 ordinari a stagione; gratuiti l'Erminio (ruolo aggiunto da Yahoo negli ultimi 14 giorni) e la Saedro (10 day, una volta a stagione, su approvazione admin)",
+        "Le trade devono lasciare i roster in regola coi ruoli minimi (4 guardie, 4 ali, 2 centri)",
         "10-day contract: uno a stagione per squadra, valutato dagli admin",
         "I diritti delle 2nd al secondo anno scadono 10 giorni prima della deadline",
         "Cap massimo 150M (meno eventuali penalità)",
     ],
     "regular-season-deadline": [
         "Mercato chiuso fino alla prossima stagione: niente trade né free agency",
+        "Cambi ruolo ancora disponibili con /cambio_ruolo (stesso contatore della stagione)",
         "La DPE dopo la deadline non libera slot, ma dà un cambio ruolo aggiuntivo",
     ],
     "playoff": [
         "Nelle partite di playoff il bonus casa è di 5 punti",
+        "Cambi ruolo ancora disponibili con /cambio_ruolo (stesso contatore della stagione)",
     ],
     "offseason-break": [
         "Pausa di fine stagione: a breve la riunione di lega per proporre e votare modifiche al regolamento",
@@ -658,7 +661,7 @@ FASI_INDICAZIONI = {
     ],
     "offseason-draft": [
         "Le prime scelte vanno firmate obbligatoriamente",
-        "I diritti delle seconde si possono tenere per due anni: per firmarle /attiva_diritti",
+        "I diritti delle seconde si possono tenere per due anni: per firmarle /attiva_diritti (contratto dalla rookie scale)",
     ],
     "offseason-rfa": [
         "Aste RFA: chi ha indicato il giocatore come RFA ha 24h dalla fine dell'asta per pareggiare",
@@ -667,8 +670,10 @@ FASI_INDICAZIONI = {
         "Aste di free agency: si chiudono 18 ore dopo l'ultimo rilancio",
     ],
     "offseason-ruoli": [
-        "Dichiara il ruolo di tutti i tuoi giocatori con /dichiarazione_ruoli (o 🎽 nel /menu), entro {deadline}",
-        "Le scelte diventano ufficiali solo quando premi Conferma",
+        "Dichiarate il ruolo di tutti i vostri giocatori con /dichiarazione_ruoli (o 🎽 nel /menu), entro {deadline}",
+        "Potete scegliere giocatore per giocatore o importare un messaggio con una riga per giocatore (es. «LeBron SF»)",
+        "Le scelte diventano ufficiali solo quando premete Conferma; si può confermare anche una parte e completare dopo",
+        "In alternativa potete mandare i ruoli a un admin, che li inserirà per voi",
     ],
 }
 
