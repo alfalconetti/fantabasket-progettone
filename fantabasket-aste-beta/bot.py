@@ -17,7 +17,18 @@ from handlers.user    import get_handlers as user_handlers
 from handlers.dev     import get_handlers as dev_handlers
 from scheduler        import check_scadenze, ping_healthcheck, backup_giornaliero, backup_settimanale, check_cap_stagionale, backup_shutdown
 
-BOT_VERSION = "beta-1"
+def _leggi_versione() -> str:
+    """Versione = ultima voce '## vNN' del CHANGELOG.md del bot aste."""
+    import re
+    try:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "CHANGELOG.md")
+        versioni = re.findall(r"^## (v[0-9][0-9A-Za-z.\-]*)", open(path, encoding="utf-8").read(), re.M)
+        return versioni[-1] if versioni else "sconosciuta"
+    except Exception:
+        return "sconosciuta"
+
+
+BOT_VERSION = _leggi_versione()
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",

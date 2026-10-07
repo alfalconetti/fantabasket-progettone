@@ -24,6 +24,15 @@ SCEGLI_ROOKIE, INSERISCI_IMPORTO_R, SCEGLI_ANNI_R, CONFERMA_R = range(4)
 _ANNULLA_HINT = "\n<i>Per annullare: /annulla</i>"
 
 
+def _slot_scala(pick_numero: int) -> dict | None:
+    """Contratto dalla rookie scale per l'attivazione dei diritti: sempre colonna I anno."""
+    for fascia, valori in settings.get().get("rookie_scale", {}).items():
+        limiti = fascia.split("-")
+        if int(limiti[0]) <= pick_numero <= int(limiti[-1]):
+            return valori[0] if valori else None
+    return None
+
+
 @solo_privato
 @richiede_fase(*FASI_TRADE_APERTE, msg="❌ L'attivazione dei diritti rookie non è disponibile in questa fase.")
 async def cmd_attiva_diritti(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -38,11 +47,13 @@ async def cmd_attiva_diritti(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.effective_message.reply_text("Non hai diritti di 2nd pick da attivare.")
         return ConversationHandler.END
 
+    def _label(r):
+        slot = _slot_scala(r["pick_numero"])
+        contratto = f" — {slot['imp']}x{slot['anni']}" if slot else ""
+        return f"{r['nome_common']} (#{r['pick_numero']} {r['anno_draft']}){contratto}"
+
     bottoni = [
-        [InlineKeyboardButton(
-            f"{r['nome_common']} (#{r['pick_numero']} {r['anno_draft']})",
-            callback_data=f"att_r:{r['id']}"
-        )]
+        [InlineKeyboardButton(_label(r), callback_data=f"att_r:{r['id']}")]
         for r in diritti
     ]
     await update.effective_message.reply_text(
@@ -70,20 +81,9 @@ async def cb_scegli_rookie(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     context.user_data["att_rookie_id"] = rookie_id
     giocatore = db.get_giocatore(rookie["giocatore_id"])
 
-    # Contratto predefinito dalla rookie scale
-    s   = settings.get()
-    rs  = s.get("rookie_scale", {})
-    pic = rookie["pick_numero"]
-    slot = None
-    for fascia, valori in rs.items():
-        limiti = fascia.split("-")
-        lo = int(limiti[0])
-        hi = int(limiti[-1])
-        if lo <= pic <= hi:
-            # Attivazione diritti: sempre anno I della scala (idx 0)
-            anno_idx = 0
-            slot = valori[anno_idx] if anno_idx < len(valori) else None
-            break
+    # Contratto predefinito dalla rookie scale (anno I)
+    pic  = rookie["pick_numero"]
+    slot = _slot_scala(pic)
 
     if not slot:
         # Fascia non trovata: fallback a input manuale (non dovrebbe succedere)

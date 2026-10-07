@@ -749,3 +749,9 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 - Riepilogo della bozza/proposta (builder, proposta ai GM, invio agli admin, modifica): contratti accanto ai giocatori
 - In offseason: avviso non bloccante se una squadra dopo la trade supera i 150M (meno eventuali penalità) della regular season; resta bloccante il limite di 165M
 - Validatore: calcolo del cap post-trade in una funzione unica (`_cap_post_team`), usata anche dagli avvisi
+
+## v3.4.5 (2026-10-07)
+
+### Miglioramenti
+- `/attiva_diritti` e 🏀 Rookie nel menu: ogni bottone mostra il contratto della rookie scale (es. `Dailyn Swain (#40 2026) — 1x2`); calcolo della scala in una funzione unica usata anche dalla conferma
+- Bot aste: versione mostrata al riavvio letta dal suo CHANGELOG (era fissa a "beta-1")

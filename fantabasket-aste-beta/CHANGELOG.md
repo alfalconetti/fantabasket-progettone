@@ -516,3 +516,7 @@ Comandi riservati al solo `dev_id` (non visibili in /admin), per osservare lo st
 ## v47 — Fix messaggio d'uso /reset_rfa
 
 - Il segnaposto `<nuova_stagione>` in un messaggio HTML veniva rifiutato da Telegram; ora `&lt;nuova_stagione&gt;`
+
+## v48 — Versione automatica
+
+- La versione mostrata al riavvio è l'ultima voce di questo CHANGELOG (prima era fissa a "beta-1")
