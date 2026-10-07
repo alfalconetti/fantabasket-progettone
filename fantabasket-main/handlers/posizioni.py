@@ -378,8 +378,42 @@ async def cb_set_posizioni(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _applica_set_posizioni(query.edit_message_text, g, posizioni_canoniche(pos))
 
 
+@solo_privato
+async def cmd_data_erminio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Data in cui Yahoo ha aggiunto l'ultima posizione del giocatore (finestra Erminio di 14 giorni)."""
+    from datetime import date
+    if not _is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ Comando riservato agli admin.")
+        return
+    try:
+        giorno = date.fromisoformat(context.args[-1]) if len(context.args or []) >= 2 else None
+    except ValueError:
+        giorno = None
+    if not giorno:
+        await update.effective_message.reply_text("Uso: /data_erminio <nome giocatore> <AAAA-MM-GG>")
+        return
+    nome = " ".join(context.args[:-1])
+    candidati, esatto = _cerca_giocatori(nome)
+    if not (esatto and len(candidati) == 1):
+        nomi = ", ".join(f"{g['nome_common']} [id {g['id']}]" for g in candidati[:5])
+        await update.effective_message.reply_text(f"Giocatore non univoco per «{nome}». Candidati: {nomi or 'nessuno'}")
+        return
+    g = candidati[0]
+    r = db._q("""UPDATE posizioni_eleggibili SET data_yahoo = %s
+                 WHERE id = (SELECT id FROM posizioni_eleggibili WHERE giocatore_id = %s
+                             ORDER BY timestamp DESC, id DESC LIMIT 1)
+                 RETURNING posizioni""", (giorno, g["id"]), one=True)
+    if not r:
+        await update.effective_message.reply_text(f"{g['nome_common']} non ha posizioni registrate.")
+        return
+    await update.effective_message.reply_text(
+        f"✅ {g['nome_common']} ({r['posizioni']}): ultima posizione aggiunta su Yahoo il "
+        f"{giorno.strftime('%d/%m/%Y')}. La finestra Erminio di 14 giorni parte da questa data.")
+
+
 def get_handlers() -> list:
     return [
+        CommandHandler("data_erminio", cmd_data_erminio),
         CommandHandler("set_posizioni_eleggibili", cmd_set_posizioni),
         CallbackQueryHandler(cb_set_posizioni, pattern=r"^spe:(no|\d+:[A-Z,]+)$"),
         ConversationHandler(

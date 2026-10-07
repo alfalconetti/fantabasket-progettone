@@ -680,3 +680,15 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 
 ### Bug fix
 - `/registra_firma`: la transazione era registrata con tipo `'firma'`, non ammesso dalla tabella → il contratto veniva creato ma la transazione falliva ("Errore DB"). Ora tipo `'signed'`, con contratto e transazione in un'unica transazione DB
+
+## v3.3.1 (2026-10-07)
+
+### Nuove feature — cambi ruolo (regular season e playoff)
+- **`/cambio_ruolo`** e "🔁 Cambio ruolo" nel `/menu` (`handlers/cambi_ruolo.py`): giocatore → nuovo ruolo tra le eleggibili → tipo di cambio, con l'esito dei controlli per ogni tipo
+  - **ordinario**: max 2 a stagione; contatore "cambi ruolo usati" su `/roster` e sul foglio Google
+  - **Erminio** (gratuito): verso una posizione aggiunta negli ultimi 14 giorni (data Yahoo se inserita con `/data_erminio`, altrimenti data di rilevazione dell'import); le posizioni nuove sono segnate con ✨
+  - **Saedro** (10 giorni, una volta a stagione): il GM la richiede, gli admin approvano dal gruppo con l'elenco dei giocatori della squadra in quel ruolo; ritorno automatico al ruolo originale (job ogni 15 minuti)
+- **Admin**: `/admin_menu` → "🔁 Cambi ruolo" → qualsiasi squadra: ordinario per conto del GM, Erminio, Saedro diretta e **forzato admin** (non conta nel contatore; vincoli solo come avviso)
+- Vincoli 4G/4F/2C bloccanti per i cambi (passano quelli che non peggiorano); giocatori con Saedro in corso non modificabili
+- Annunci sul canale principale, avviso al GM per i cambi fatti dagli admin, sync dei roster di tutte le squadre
+- **`/data_erminio <nome> <AAAA-MM-GG>`** (admin): data in cui Yahoo ha aggiunto l'ultima posizione (colonna `posizioni_eleggibili.data_yahoo`)

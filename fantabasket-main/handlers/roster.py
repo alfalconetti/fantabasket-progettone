@@ -172,6 +172,16 @@ def _ruoli_e_posizioni(team_id: str, stagione: str, as_of=None) -> tuple[dict, d
     return ruoli, posizioni
 
 
+def _cambi_usati(team_id: str, stagione: str) -> str:
+    """Cambi ruolo ordinari usati nella stagione, es. '1/2'."""
+    try:
+        n = db._qval("SELECT count(*) FROM cambi_ruolo WHERE team_id = %s AND stagione = %s "
+                     "AND tipo = 'ordinario'", (team_id, stagione)) or 0
+    except Exception:
+        n = 0
+    return f"{n}/2"
+
+
 def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None,
                          ruoli: dict = None, posizioni: dict = None) -> str:
     """
@@ -269,7 +279,7 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
     from handlers.tagli import MAX_TAGLI_GRATUITI
     _tagli_used  = db.get_tagli_gratuiti_usati(team["id"], stagione_str)
     tagli_usati  = f"{_tagli_used}/{MAX_TAGLI_GRATUITI}"
-    cambi_usati  = team.get("cambi_usati", "0/2")  # non ancora tracciato nel DB
+    cambi_usati  = _cambi_usati(team["id"], stagione)
 
     # Genera in file temporaneo
     tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
@@ -480,7 +490,7 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
     from handlers.tagli import MAX_TAGLI_GRATUITI
     _tagli_used = db.get_tagli_gratuiti_usati(team_id, stagione)
     tagli_usati = f"{_tagli_used}/{MAX_TAGLI_GRATUITI}"
-    cambi_usati = team.get("cambi_usati", "0/2")  # non ancora tracciato nel DB
+    cambi_usati = _cambi_usati(team["id"], stagione)
 
     logo = _logo_path(team_id)
 

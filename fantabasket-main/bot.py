@@ -30,6 +30,7 @@ from handlers.decadimento import get_handlers as decadimento_handlers
 from handlers.posizioni   import get_handlers as posizioni_handlers
 from handlers.ruoli       import get_handlers as ruoli_handlers
 from handlers.ruoli_rs    import get_handlers as ruoli_rs_handlers
+from handlers.cambi_ruolo import get_handlers as cambi_ruolo_handlers
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -201,6 +202,7 @@ async def post_init(application):
         BotCommand("dpe",            "Richiedi Disabled Player Exception"),
         BotCommand("attiva_diritti", "Attiva diritti 2nd pick"),
         BotCommand("dichiarazione_ruoli", "Dichiara i ruoli (fase dichiarazione ruoli)"),
+        BotCommand("cambio_ruolo", "Cambio ruolo (regular season e playoff)"),
         BotCommand("decadimento",    "Segnala contratto decaduto (ritiro, altra lega)"),
         BotCommand("my_team",        "Info e impostazioni del tuo team"),
         BotCommand("palette",        "Personalizza colori roster/assets"),
@@ -221,6 +223,7 @@ async def post_init(application):
         BotCommand("import_posizioni_eleggibili", "Importa posizioni eleggibili Yahoo (CSV)"),
         BotCommand("set_posizioni_eleggibili",    "Correggi posizioni di un giocatore [nome] [PG,SG]"),
         BotCommand("deadline_ruoli",              "Deadline dichiarazione ruoli [AAAA-MM-GG] [HH:MM]"),
+        BotCommand("data_erminio",                "Data aggiunta posizione su Yahoo [nome] [AAAA-MM-GG]"),
     ]
     cmd_dev = cmd_admin + [
         BotCommand("dev",          "Lista comandi dev"),
@@ -516,6 +519,8 @@ def main():
         app.add_handler(h)
     for h in ruoli_rs_handlers():
         app.add_handler(h)
+    for h in cambi_ruolo_handlers():
+        app.add_handler(h)
 
     for h in dev_handlers():
         app.add_handler(h)
@@ -545,6 +550,8 @@ def main():
     # Ruoli in regular season: estrazione per le dichiarazioni scadute (48h)
     from handlers.ruoli_rs import job_scadenze
     app.job_queue.run_repeating(job_scadenze, interval=900, first=120)
+    from handlers.cambi_ruolo import job_fine_saedro
+    app.job_queue.run_repeating(job_fine_saedro, interval=900, first=180)
     # Backup settimanale domenica alle 00:30
     app.job_queue.run_daily(
         backup_settimanale,

@@ -36,10 +36,10 @@ AZIONI_FASE = [
     ("🏀 Rookie",         "menu:rookie",  lambda: FASI_TRADE_APERTE),
     ("🏥 DPE",            "menu:dpe",     _fasi_dpe),
     ("🏁 Decadimento",    "dec_start",    lambda: FASI_TRADE_APERTE),
+    ("🔁 Cambio ruolo",   "cr:home",      lambda: settings.FASI_RUOLI_RS),
     # Prossime (da implementare):
     # ("📝 Rinnovi",       "menu:rinnovi",      lambda: {"offseason-rinnovi"}),
     # ("🔒 Dichiara RFA",  "menu:rfa",          lambda: {"offseason-rinnovi"}),
-    # ("🔁 Cambio ruolo",  "menu:cambio_ruolo", lambda: {"regular-season-fa", "regular-season-deadline", "playoff"}),
 ]
 
 AZIONI_SEMPRE = [

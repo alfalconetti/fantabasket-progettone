@@ -137,7 +137,9 @@ def _build_team_payload(team_id: str) -> dict:
     return {
         "team_id":              team_id,
         "tagli_gratuiti_usati": tagli_usati,
-        "cambi_ruolo_usati":    0,  # da implementare con i ruoli
+        "cambi_ruolo_usati":    db._qval(
+            "SELECT count(*) FROM cambi_ruolo WHERE team_id = %s AND stagione = %s AND tipo = 'ordinario'",
+            (team_id, stagione)) or 0,
         "cap_penalizzato":      cap_penalizzato,
         "giocatori":            giocatori_payload,
         "impatti_tagli":        impatti_payload,

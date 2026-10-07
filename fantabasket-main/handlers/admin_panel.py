@@ -45,6 +45,7 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("📊 Situazione cap",  callback_data="adm:cap")],
         [InlineKeyboardButton("🎽 Ruoli squadre",   callback_data="rladm:list"),
          InlineKeyboardButton("⏳ Ruoli in sospeso", callback_data="rpadm:list")],
+        [InlineKeyboardButton("🔁 Cambi ruolo",     callback_data="cradm:teams")],
     ])
 
 

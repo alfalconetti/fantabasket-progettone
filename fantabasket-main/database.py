@@ -111,6 +111,9 @@ def migrate_db():
         ORDER BY giocatore_id, timestamp DESC, id DESC
     """)
 
+    # v3.3.1 — data in cui Yahoo ha aggiunto la posizione (Erminio rule), inserita dagli admin
+    _q("ALTER TABLE posizioni_eleggibili ADD COLUMN IF NOT EXISTS data_yahoo DATE")
+
     # v3.3.0 — dichiarazioni di ruolo in sospeso in regular season (48h, poi estrazione)
     _q("""
         CREATE TABLE IF NOT EXISTS ruoli_pendenti (
