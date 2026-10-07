@@ -34,8 +34,8 @@ MAX_ORDINARI = 2
 GIORNI_ERMINIO = 14
 GIORNI_SAEDRO = 10
 TIPI = {"o": "ordinario", "e": "erminio", "s": "saedro", "f": "forzato_admin"}
-ETICHETTE = {"ordinario": "cambio ordinario", "erminio": "Erminio rule (gratuito)",
-             "saedro": f"Saedro rule ({GIORNI_SAEDRO} giorni)", "forzato_admin": "forzato dagli admin"}
+ETICHETTE = {"ordinario": "cambio ordinario", "erminio": "Erminio (ruolo aggiunto)",
+             "saedro": "Saedro (10 day)", "forzato_admin": "forzato dagli admin"}
 
 
 # ══ dati ════════════════════════════════════════════════════════════════════
@@ -270,7 +270,7 @@ async def cb_cambio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         testo = (f"🔁 <b>{g['nome']}</b> — ruolo attuale <b>{g['ruolo']}</b>\n"
                  f"Eleggibile: {', '.join(eleggibili(gid)) or 'nessuna posizione registrata'}")
         if erm:
-            testo += f"\n✨ Posizioni nuove (Erminio, gratuito): {', '.join(sorted(erm))}"
+            testo += f"\n✨ Ruoli aggiunti (Erminio): {', '.join(sorted(erm))}"
         if not altri:
             testo += "\n\nNessun altro ruolo disponibile."
         kb = [[InlineKeyboardButton(r + (" ✨" if r in erm else ""), callback_data=f"cr:r:{team_id}:{gid}:{r}")
@@ -289,8 +289,8 @@ async def cb_cambio(update: Update, context: ContextTypes.DEFAULT_TYPE):
             stato = "❌ " + errori[0] if errori else ("⚠️ " + avvisi[0] if avvisi else "✅ possibile")
             righe.append(f"• <b>{ETICHETTE[TIPI[k]].capitalize()}</b>: {stato}")
             if not errori:
-                label = {"o": f"Ordinario ({ordinari_usati(team_id)}/{MAX_ORDINARI})", "e": "✨ Erminio (gratis)",
-                         "s": "⏳ Saedro" + ("" if is_admin else " — richiedi"), "f": "🛠 Forzato admin"}[k]
+                label = {"o": f"Ordinario ({ordinari_usati(team_id)}/{MAX_ORDINARI})", "e": "✨ Erminio (ruolo aggiunto)",
+                         "s": "⏳ Saedro (10 day)" + ("" if is_admin else " — richiedi"), "f": "🛠 Forzato admin"}[k]
                 passo = "cf" if k == "o" else "do"
                 kb.append([InlineKeyboardButton(label, callback_data=f"cr:{passo}:{team_id}:{gid}:{nuovo}:{k}")])
         kb.append([InlineKeyboardButton("← Indietro", callback_data=f"cr:g:{team_id}:{gid}")])

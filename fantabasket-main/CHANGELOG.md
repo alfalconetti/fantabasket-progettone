@@ -698,3 +698,8 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 ### Miglioramenti
 - Cambio ruolo: se per il nuovo ruolo è disponibile l'Erminio vengono proposti solo Erminio e Saedro (l'ordinario non è ammesso); altrimenti Ordinario e Saedro. Gli admin hanno sempre anche il Forzato
 - Passaggio di conferma prima del cambio ordinario ("Userai il cambio n/2")
+
+## v3.3.3 (2026-10-07)
+
+### Miglioramenti
+- Cambio ruolo: etichette "Erminio (ruolo aggiunto)" e "Saedro (10 day)" in bottoni, riepiloghi e annunci
