@@ -116,6 +116,8 @@ def verifica(team_id: str, gid: int, nuovo: str, tipo: str, admin: bool) -> tupl
         errori.append(f"È già {nuovo}.")
     if nuovo not in eleggibili(gid):
         errori.append(f"{nuovo} non è tra le posizioni eleggibili.")
+    if tipo == "ordinario" and nuovo in ruoli_erminio(gid):
+        errori.append("Per questo ruolo è disponibile l'Erminio (gratuito): usa quello.")
     if tipo == "ordinario" and ordinari_usati(team_id) >= MAX_ORDINARI:
         errori.append(f"Cambi ordinari esauriti ({MAX_ORDINARI}/{MAX_ORDINARI}).")
     if tipo == "erminio" and nuovo not in ruoli_erminio(gid):
@@ -279,20 +281,33 @@ async def cb_cambio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif azione == "r":                                   # scelta del tipo di cambio
         gid, nuovo = int(parti[3]), parti[4]
         g = next((x for x in roster_ruoli(team_id) if x["gid"] == gid), None)
-        tipi = ["e", "o", "s"] + (["f"] if is_admin else [])
+        erminio = nuovo in ruoli_erminio(gid)
+        tipi = (["e", "s"] if erminio else ["o", "s"]) + (["f"] if is_admin else [])
         righe, kb = [f"🔁 <b>{g['nome'] if g else gid}</b>: {g['ruolo'] if g else '?'} → <b>{nuovo}</b>\n"], []
         for k in tipi:
             errori, avvisi = verifica(team_id, gid, nuovo, TIPI[k], is_admin)
-            if k == "e" and nuovo not in ruoli_erminio(gid):
-                continue
             stato = "❌ " + errori[0] if errori else ("⚠️ " + avvisi[0] if avvisi else "✅ possibile")
             righe.append(f"• <b>{ETICHETTE[TIPI[k]].capitalize()}</b>: {stato}")
             if not errori:
                 label = {"o": f"Ordinario ({ordinari_usati(team_id)}/{MAX_ORDINARI})", "e": "✨ Erminio (gratis)",
                          "s": "⏳ Saedro" + ("" if is_admin else " — richiedi"), "f": "🛠 Forzato admin"}[k]
-                kb.append([InlineKeyboardButton(label, callback_data=f"cr:do:{team_id}:{gid}:{nuovo}:{k}")])
+                passo = "cf" if k == "o" else "do"
+                kb.append([InlineKeyboardButton(label, callback_data=f"cr:{passo}:{team_id}:{gid}:{nuovo}:{k}")])
         kb.append([InlineKeyboardButton("← Indietro", callback_data=f"cr:g:{team_id}:{gid}")])
         await query.edit_message_text("\n".join(righe), parse_mode="HTML", reply_markup=InlineKeyboardMarkup(kb))
+
+    elif azione == "cf":                                  # conferma del cambio ordinario
+        gid, nuovo = int(parti[3]), parti[4]
+        g = next((x for x in roster_ruoli(team_id) if x["gid"] == gid), None)
+        n = ordinari_usati(team_id) + 1
+        await query.edit_message_text(
+            f"Confermi il <b>cambio ordinario</b> {g['nome'] if g else gid}: {g['ruolo'] if g else '?'} → <b>{nuovo}</b>?\n"
+            f"Userai il cambio <b>{n}/{MAX_ORDINARI}</b> di questa stagione.",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("✅ Confermo", callback_data=f"cr:do:{team_id}:{gid}:{nuovo}:o"),
+                InlineKeyboardButton("← Indietro", callback_data=f"cr:r:{team_id}:{gid}:{nuovo}"),
+            ]]))
 
     elif azione == "do":
         gid, nuovo, tipo = int(parti[3]), parti[4], TIPI[parti[5]]
@@ -396,7 +411,7 @@ async def job_fine_saedro(context: ContextTypes.DEFAULT_TYPE):
 def get_handlers() -> list:
     return [
         CommandHandler("cambio_ruolo", cmd_cambio_ruolo),
-        CallbackQueryHandler(cb_cambio, pattern=r"^cr:(close|home|t:[\w-]+|g:[\w-]+:\d+|r:[\w-]+:\d+:[A-Z]{1,2}|do:[\w-]+:\d+:[A-Z]{1,2}:[oesf])$"),
+        CallbackQueryHandler(cb_cambio, pattern=r"^cr:(close|home|t:[\w-]+|g:[\w-]+:\d+|r:[\w-]+:\d+:[A-Z]{1,2}|(?:cf|do):[\w-]+:\d+:[A-Z]{1,2}:[oesf])$"),
         CallbackQueryHandler(cb_saedro, pattern=r"^sae:(ok|no):[\w-]+:\d+:[A-Z]{1,2}$"),
         CallbackQueryHandler(cb_admin_teams, pattern=r"^cradm:teams$"),
     ]

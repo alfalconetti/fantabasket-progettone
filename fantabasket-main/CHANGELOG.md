@@ -692,3 +692,9 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 - Vincoli 4G/4F/2C bloccanti per i cambi (passano quelli che non peggiorano); giocatori con Saedro in corso non modificabili
 - Annunci sul canale principale, avviso al GM per i cambi fatti dagli admin, sync dei roster di tutte le squadre
 - **`/data_erminio <nome> <AAAA-MM-GG>`** (admin): data in cui Yahoo ha aggiunto l'ultima posizione (colonna `posizioni_eleggibili.data_yahoo`)
+
+## v3.3.2 (2026-10-07)
+
+### Miglioramenti
+- Cambio ruolo: se per il nuovo ruolo è disponibile l'Erminio vengono proposti solo Erminio e Saedro (l'ordinario non è ammesso); altrimenti Ordinario e Saedro. Gli admin hanno sempre anche il Forzato
+- Passaggio di conferma prima del cambio ordinario ("Userai il cambio n/2")
