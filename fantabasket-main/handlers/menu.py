@@ -35,6 +35,7 @@ AZIONI_FASE = [
     ("✂️ Tagli",          "menu:tagli",   lambda: FASI_TRADE_APERTE),
     ("🏀 Rookie",         "menu:rookie",  lambda: FASI_TRADE_APERTE),
     ("🏥 DPE",            "menu:dpe",     _fasi_dpe),
+    ("🏁 Decadimento",    "dec_start",    lambda: FASI_TRADE_APERTE),
     # Prossime (da implementare):
     # ("📝 Rinnovi",       "menu:rinnovi",      lambda: {"offseason-rinnovi"}),
     # ("🔒 Dichiara RFA",  "menu:rfa",          lambda: {"offseason-rinnovi"}),

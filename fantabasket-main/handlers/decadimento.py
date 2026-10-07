@@ -66,6 +66,12 @@ async def cmd_decadimento(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     return DEC_GIOCATORE
 
 
+async def cb_dec_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Ingresso dal bottone del /menu (stesso flusso di /decadimento)."""
+    await update.callback_query.answer()
+    return await cmd_decadimento(update, context)
+
+
 async def cb_dec_giocatore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
@@ -244,7 +250,8 @@ def _anni_residui(r: dict, stagione: str) -> int:
 
 def get_handlers() -> list:
     conv = ConversationHandler(
-        entry_points=[CommandHandler("decadimento", cmd_decadimento)],
+        entry_points=[CommandHandler("decadimento", cmd_decadimento),
+                      CallbackQueryHandler(cb_dec_start, pattern=r"^dec_start$")],
         states={
             DEC_GIOCATORE: [CallbackQueryHandler(cb_dec_giocatore, pattern=r"^dec_giocat:\d+$")],
             DEC_MOTIVO:    [CallbackQueryHandler(cb_dec_motivo,    pattern=r"^dec_motivo:\w+$")],

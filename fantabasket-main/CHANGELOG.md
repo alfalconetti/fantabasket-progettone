@@ -648,3 +648,11 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 - Il bottone DPE ora segue `FASI_DPE` (prima compariva solo in regular season, anche se `/dpe` funzionava anche in offseason)
 - **Foglio Google**: roster ordinato per ruolo quando tutti i ruoli sono dichiarati, come `/roster`
 - Documentazione ripulita da dettagli non necessari
+
+## v3.2.4 (2026-10-07)
+
+### Bug fix
+- Bottone 🏀 Rookie del `/menu`: la scelta del giocatore non faceva nulla (la conversazione partiva solo da `/attiva_diritti`). Ora la scelta è anche un punto d'ingresso; aggiunto controllo che i diritti siano della squadra del GM, attivi e non firmati
+
+### Miglioramenti
+- **🏁 Decadimento nel `/menu`** nelle fasi di mercato aperto (il comando `/decadimento` resta disponibile in ogni fase)

@@ -61,6 +61,11 @@ async def cb_scegli_rookie(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if not rookie:
         await query.edit_message_text("❌ Rookie non trovato.")
         return ConversationHandler.END
+    team = tm.get_team_by_gm(query.from_user.id)
+    if (not team or rookie["team_id"] != team["id"] or rookie.get("firmato")
+            or rookie.get("diritti_scaduti")):
+        await query.edit_message_text("❌ Diritti non disponibili per la tua squadra.")
+        return ConversationHandler.END
 
     context.user_data["att_rookie_id"] = rookie_id
     giocatore = db.get_giocatore(rookie["giocatore_id"])
@@ -324,7 +329,10 @@ async def cb_scadi_diritti(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def get_handlers() -> list:
     conv = ConversationHandler(
-        entry_points=[CommandHandler("attiva_diritti", cmd_attiva_diritti)],
+        # Anche la scelta del rookie è un ingresso: la lista può arrivare dal /menu,
+        # che la mostra senza avviare la conversazione
+        entry_points=[CommandHandler("attiva_diritti", cmd_attiva_diritti),
+                      CallbackQueryHandler(cb_scegli_rookie, pattern=r"^att_r:\d+$")],
         states={
             SCEGLI_ROOKIE: [
                 CallbackQueryHandler(cb_scegli_rookie, pattern=r"^att_r:\d+$"),
