@@ -710,3 +710,8 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 - `docs/guida_gm.md` e `docs/guida_admin.md` riscritte (menu per fase, ruoli, posizioni, cambi ruolo, Stepien, DPE, parser trade, fasi)
 - Indicazioni dell'annuncio di fase aggiornate: dichiarazioni post-trade e cambi ruolo in regular season, deadline e playoff; dichiarazione ruoli con import da testo e possibilità di passare da un admin
 - MIGRATION aggiornato allo stato v3.3.4
+
+## v3.3.5 (2026-10-07)
+
+### Miglioramenti
+- Annuncio trade sul canale: in ogni sezione prima i giocatori, poi le pick, i diritti in fondo

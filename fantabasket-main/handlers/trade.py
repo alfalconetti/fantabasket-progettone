@@ -612,11 +612,15 @@ def _formatta_annuncio_canale(trade_id: int) -> str:
             return f"Diritti di {item['nome_common']}"
         return "?"
 
+    # Ordine dentro ogni sezione: giocatori, pick, diritti in fondo
+    _ordine = {"giocatore": 0, "pick": 1, "diritti": 2}
+    _ordina = lambda lst: sorted(lst, key=lambda i: _ordine.get(i["tipo"], 9))
+
     # Sezioni "cede"
     for sq in squadre:
         team     = tm.get_team_by_id(sq["team_id"])
         nome     = team["nome"] if team else sq["team_id"]
-        items_sq = [i for i in items if i["team_id_da"] == sq["team_id"]]
+        items_sq = _ordina([i for i in items if i["team_id_da"] == sq["team_id"]])
         if not items_sq:
             continue
         righe.append("")
@@ -630,7 +634,7 @@ def _formatta_annuncio_canale(trade_id: int) -> str:
         for sq in squadre:
             team     = tm.get_team_by_id(sq["team_id"])
             nome     = team["nome"] if team else sq["team_id"]
-            items_sq = [i for i in items if i["team_id_a"] == sq["team_id"]]
+            items_sq = _ordina([i for i in items if i["team_id_a"] == sq["team_id"]])
             if not items_sq:
                 continue
             righe.append("")
