@@ -662,3 +662,8 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 ### Bug fix
 - `query.bot` → `query.get_bot()` (python-telegram-bot ≥ 20): non partivano l'annuncio di fase sul canale principale, il messaggio di cambio fase sul canale log, il report di fine dichiarazione ruoli, e la notifica al GM + annuncio sul canale della DPE attivata da admin. Gli errori venivano ignorati in silenzio
 - DPE da admin: i messaggi contenevano `\n` letterali al posto degli a capo
+
+## v3.2.6 (2026-10-07)
+
+### Miglioramenti
+- Dopo la conferma dei ruoli il foglio Google aggiorna il roster di tutte le squadre (prima solo quella confermata), in un'unica chiamata; foglio Scelte escluso

@@ -371,8 +371,9 @@ async def cb_ruoli(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🎽 Torna ai ruoli", callback_data=f"rl:v:{team_id}")]]))
         await _log_conferma(context, team_id, nuovi, r, query.from_user, admin)
         try:
+            # Sync del roster di TUTTE le squadre (un'unica chiamata, foglio Scelte escluso)
             import gas_client
-            gas_client.sync_teams([team_id])
+            gas_client.sync_teams([t["id"] for t in tm.get_all_teams()])
         except Exception as e:
             logger.warning("GAS sync dopo ruoli %s: %s", team_id, e)
 
