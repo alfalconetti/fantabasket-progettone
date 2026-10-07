@@ -727,3 +727,12 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 
 ### Nuove feature
 - Al passaggio a `regular-season-fa`: report nel gruppo admin delle squadre che non rispettano i minimi dei ruoli (4 G, 4 F, 2 C), con i conteggi per categoria dei ruoli ufficiali e i giocatori ancora senza ruolo
+
+## v3.4.2 (2026-10-07)
+
+### Bug fix — robustezza trade
+- **Esecuzione e annullamento atomici**: approvazione, spostamento di giocatori/pick/diritti, transazioni e stato della trade avvengono in un'unica transazione DB (`_scrivi_trade`). Prima ogni scrittura faceva il proprio commit: un errore a metà lasciava una trade parzialmente eseguita
+- Ogni asset viene verificato al momento dell'esecuzione (contratto ancora attivo e nella squadra che cede, pick e diritti ancora suoi): se qualcosa non torna la trade non viene toccata e l'admin riceve il motivo (`TradeNonEseguibile`); la trade resta da approvare
+- Protezione dal doppio clic: una trade già approvata non viene rieseguita
+- Il messaggio nel gruppo admin non dice più "approvata" prima che l'esecuzione sia riuscita
+- `_valida_rollback`: controlla solo i diritti attivi (prima guardava anche diritti già firmati o scaduti)

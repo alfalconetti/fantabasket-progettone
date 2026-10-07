@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v3.4.0)
+# Messaggio di migrazione — Fantabasket Progettone (stato v3.4.2)
 
 ---
 
@@ -157,7 +157,7 @@ Stati ConversationHandler:
 - Pick nel parser: lookup per `proprietario_orig` non per `proprietario_att`
 - `_esegui_trade` e `_rollback_trade` gestiscono giocatori, pick E diritti (diritti fino a v3.0.4 non si spostavano). I diritti si spostano solo se attivi e posseduti dal cedente
 - `_valida_rollback` controlla anche i diritti: se non sono nella squadra che li ha ricevuti, l'annullamento è bloccato
-- ⚠️ Esecuzione e rollback NON sono atomici (un commit per operazione): da portare in un'unica transazione
+- Esecuzione e rollback **atomici** (v3.4.2, `_scrivi_trade`): approvazione + spostamenti + transazioni + stato in un'unica transazione DB, con verifica di ogni asset; se qualcosa non torna → `TradeNonEseguibile`, nessuna modifica
 
 **DPE:**
 - Fasi disponibili: `offseason-rinnovi` → `regular-season-deadline` (tutte e 6)
@@ -218,8 +218,6 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 **Bug noti aperti:**
 - Votazione GM non testata end-to-end
 - Guest mode in attesa supporto completo ptb per `InputRichMessageContent`
-- Esecuzione/rollback trade non atomici (vedi sezione Trade)
-- `_valida_rollback` usa `get_rookie_by_giocatore` (ultima riga, anche firmata/scaduta): da restringere ai diritti attivi
 
 ---
 
@@ -267,14 +265,14 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 - **Ruoli in RS (v3.3.0, `handlers/ruoli_rs.py`)**: dichiarazioni in sospeso (`ruoli_pendenti`) aperte da trade, attivazione diritti e /registra_firma solo in `FASI_RUOLI_RS`; 48h poi estrazione (job ogni 15'); regola dei 60 giorni; admin dichiarano da /admin_menu → ⏳ Ruoli in sospeso; annunci sul canale principale. Vincoli 4G/4F/2C: `validators/ruoli.py` (`deficit_minimo` = 0 se esiste un'assegnazione valida; fissi = ruoli ufficiali, flessibili = senza ruolo), usati da trade (RS) e dichiarazioni
 - **Cambi ruolo (v3.3.1, `handlers/cambi_ruolo.py`)**: ordinari max 2/stagione (contatore = eventi `ordinario` della squadra nella stagione, su /roster e foglio); Erminio gratuito entro 14 giorni da `COALESCE(data_yahoo, timestamp)` dell'ultima riga posizioni (data_yahoo con /data_erminio); Saedro 10 giorni una volta a stagione (evento con `scadenza` + `ruolo_ripristino`, ritorno via job `job_fine_saedro`), richiesta GM → approvazione nel gruppo admin, admin anche diretta; forzato_admin non conta. Vincoli bloccanti tranne per i forzati
 - **Bot aste (v3.4.0 / aste v46)**: FA in RS → anni, poi ruolo (stesse regole via `shared/`); 48h senza risposta → 3 anni + ruolo estratto; ruolo nell'annuncio sul canale principale
-- Prossimi passi: DPE post-deadline (cambio aggiuntivo), robustezza trade (esecuzione/rollback atomici, diritti attivi nel rollback), Basketball-Reference (nuovi giocatori, date di nascita, medie sul foglio)
+- Prossimi passi: Basketball-Reference (nuovi giocatori, date di nascita, medie sul foglio), DPE post-deadline (cambio aggiuntivo), Mini App
 
 **@qf_bot (vX.x — dipende da guest mode PTB)**
 - Bot pubblico per roster e info lega
 
 ---
 
-**Stato attuale: v3.4.0**
+**Stato attuale: v3.4.2**
 
 Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v2.1.19** — `/attiva_diritti` propone il contratto della rookie scale (anno I) e chiede solo conferma
@@ -301,6 +299,8 @@ Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v3.3.4** — guide GM e admin riscritte; indicazioni di fase aggiornate
 - **v3.3.5** — diritti in fondo nell'annuncio trade
 - **v3.4.0** — modulo condiviso `shared/ruoli_core.py`; bot aste: ruolo insieme agli anni per le FA in RS (aste v46)
+- **v3.4.1** — report vincoli ruoli al passaggio in regular season
+- **v3.4.2** — trade: esecuzione e rollback atomici, verifica degli asset, diritti attivi nel rollback
 
 Novità v2.0.31–v2.0.38:
 - **v2.0.31** — DPE disponibile in tutte e 6 le fasi (da offseason-rinnovi a regular-season-deadline); admin menu DPE diretta; `pre_deadline = (fase != "regular-season-deadline")`

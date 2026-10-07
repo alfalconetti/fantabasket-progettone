@@ -1030,17 +1030,17 @@ async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     n_trade  = db.get_trade_count_approvate(stagione)
     trade_ref = f"TRADE-{stagione}-{n_trade + 1:03d}"
 
-    # Aggiorna subito il messaggio nel gruppo admin (prima di operazioni che potrebbero fallire)
     from datetime import datetime
     ora = format_dt(datetime.now(ROME))
-    await query.edit_message_text(
-        f"✅ <b>{trade_ref}</b> approvata da {admin_nome} alle {ora}.",
-        parse_mode="HTML",
-    )
 
-    # Esegui la trade e registra
-    db.approva_trade(trade_id, trade_ref, admin_nome)
-    await _esegui_trade(context, trade_id, trade_ref)
+    # Approvazione + esecuzione atomiche: se fallisce, la trade resta com'era
+    try:
+        await _esegui_trade(context, trade_id, trade_ref, approvata_da=admin_nome)
+    except TradeNonEseguibile as e:
+        await query.edit_message_text(
+            f"❌ <b>Trade non eseguita</b>: {e}.\nNessuna modifica è stata salvata; la trade resta da approvare.",
+            parse_mode="HTML")
+        return
 
     # Annuncio sul canale principale
     main_channel = settings.load_globals().get("main_channel_id")
@@ -1066,39 +1066,73 @@ async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def _esegui_trade(context, trade_id: int, trade_ref: str):
-    """Esegue materialmente la trade: aggiorna contratti e inserisce transazioni.
-    trade_ref viene passato dal chiamante (è già stato calcolato prima di scrivere sul DB).
-    """
+class TradeNonEseguibile(Exception):
+    """La trade non può essere eseguita/annullata così com'è: nessuna modifica è stata salvata."""
+
+
+def _nome_item(item: dict) -> str:
+    return item.get("nome_common") or f"#{item.get('giocatore_id') or item.get('pick_id')}"
+
+
+def _scrivi_trade(trade_id: int, trade_ref: str, approvata_da: str | None, inverti: bool = False) -> None:
+    """Esegue (o, con inverti=True, annulla) TUTTE le scritture di una trade in
+    un'unica transazione DB: o passano tutte o nessuna. Ogni asset viene
+    verificato prima di essere spostato; se qualcosa non torna → TradeNonEseguibile."""
     trade    = db.get_trade(trade_id)
     items    = db.get_items_trade(trade_id)
     stagione = trade["stagione"]
+    nota_tx  = f"ANNULLAMENTO {trade['trade_ref']}" if inverti else trade_ref
+    with db.get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT stato FROM trade WHERE id = %s FOR UPDATE", (trade_id,))
+            stato = (cur.fetchone() or [None])[0]
+            if inverti and stato != "approvata":
+                raise TradeNonEseguibile(f"la trade è in stato '{stato}', non 'approvata'")
+            if not inverti and stato == "approvata":
+                raise TradeNonEseguibile("la trade risulta già approvata ed eseguita")
+            for item in items:
+                da, a = (item["team_id_a"], item["team_id_da"]) if inverti else (item["team_id_da"], item["team_id_a"])
+                if item["tipo"] == "giocatore":
+                    gid = item["giocatore_id"]
+                    cur.execute("SELECT id, team_id FROM contratti WHERE giocatore_id = %s AND attivo = TRUE FOR UPDATE",
+                                (gid,))
+                    c = cur.fetchone()
+                    if not c:
+                        raise TradeNonEseguibile(f"{_nome_item(item)} non ha più un contratto attivo")
+                    if c[1] != da:
+                        raise TradeNonEseguibile(f"{_nome_item(item)} non è più nella squadra che lo cede")
+                    cur.execute("UPDATE contratti SET team_id = %s WHERE id = %s", (a, c[0]))
+                    cur.execute("INSERT INTO transazioni (tipo, giocatore_id, team_id_da, team_id_a, stagione, "
+                                "contratto_id, trade_id, note) VALUES ('traded', %s, %s, %s, %s, %s, %s, %s)",
+                                (gid, da, a, stagione, c[0], trade_id, nota_tx))
+                elif item["tipo"] == "pick":
+                    cur.execute("UPDATE pick SET proprietario_att = %s WHERE id = %s AND proprietario_att = %s",
+                                (a, item["pick_id"], da))
+                    if cur.rowcount != 1:
+                        raise TradeNonEseguibile(f"pick #{item['pick_id']} non più della squadra che la cede")
+                elif item["tipo"] == "diritti":
+                    cur.execute("UPDATE rookie SET team_id = %s WHERE giocatore_id = %s AND team_id = %s "
+                                "AND firmato = FALSE AND diritti_scaduti = FALSE",
+                                (a, item["giocatore_id"], da))
+                    if cur.rowcount != 1:
+                        raise TradeNonEseguibile(f"diritti di {_nome_item(item)} non più attivi nella squadra che li cede")
+            if inverti:
+                cur.execute("UPDATE trade SET stato = 'annullata', aggiornato = NOW() WHERE id = %s", (trade_id,))
+            else:
+                cur.execute("UPDATE trade SET stato = 'approvata', trade_ref = %s, approvata_da = %s, "
+                            "approvata_at = NOW(), bozza_num = NULL, aggiornato = NOW() WHERE id = %s",
+                            (trade_ref, approvata_da, trade_id))
+
+
+async def _esegui_trade(context, trade_id: int, trade_ref: str, approvata_da: str | None = None):
+    """Approva ed esegue la trade in un'unica transazione DB (vedi _scrivi_trade),
+    poi notifiche, sync e dichiarazioni di ruolo. Solleva TradeNonEseguibile se
+    non è eseguibile: in quel caso il DB non è stato toccato."""
+    trade    = db.get_trade(trade_id)
+    items    = db.get_items_trade(trade_id)
     fase_corrente = settings.fase()
 
-    for item in items:
-        if item["tipo"] == "giocatore":
-            gid = item["giocatore_id"]
-            contratto = db.get_contratto_attivo(gid)
-            from database import _q
-            _q("UPDATE contratti SET team_id = %s WHERE id = %s",
-               (item["team_id_a"], contratto["id"]))
-            db.registra_transazione(
-                "traded", gid, item["team_id_da"], item["team_id_a"],
-                stagione, contratto_id=contratto["id"], trade_id=trade_id,
-                note=trade_ref
-            )
-        elif item["tipo"] == "pick":
-            from database import _q
-            _q("UPDATE pick SET proprietario_att = %s WHERE id = %s",
-               (item["team_id_a"], item["pick_id"]))
-        elif item["tipo"] == "diritti":
-            from database import _q
-            _q("UPDATE rookie SET team_id = %s "
-               "WHERE giocatore_id = %s AND team_id = %s "
-               "AND firmato = FALSE AND diritti_scaduti = FALSE",
-               (item["team_id_a"], item["giocatore_id"], item["team_id_da"]))
-
-    db.aggiorna_stato_trade(trade_id, "approvata")
+    _scrivi_trade(trade_id, trade_ref, approvata_da or trade.get("approvata_da"))
     logger.info("Trade %s eseguita.", trade_ref)
 
     # Notifica tutti i GM coinvolti
@@ -1140,38 +1174,12 @@ async def _esegui_trade(context, trade_id: int, trade_ref: str):
 
 async def _rollback_trade(trade_id: int):
     """
-    Inverte una trade già eseguita:
-    - giocatori: riporta team_id al mittente originale
-    - pick: riporta proprietario_att al mittente originale
-    - transazioni: inserisce movimento inverso
+    Inverte una trade già eseguita, in un'unica transazione DB:
+    giocatori, pick e diritti tornano al mittente, transazioni inverse, stato 'annullata'.
+    Solleva TradeNonEseguibile se un asset non è più dove dovrebbe (nessuna modifica salvata).
     """
-    from database import _q
-    trade    = db.get_trade(trade_id)
-    items    = db.get_items_trade(trade_id)
-    stagione = trade["stagione"]
-
-    for item in items:
-        if item["tipo"] == "giocatore":
-            gid       = item["giocatore_id"]
-            contratto = db.get_contratto_attivo(gid)
-            if contratto:
-                _q("UPDATE contratti SET team_id = %s WHERE id = %s",
-                   (item["team_id_da"], contratto["id"]))
-                db.registra_transazione(
-                    "traded", gid, item["team_id_a"], item["team_id_da"],
-                    stagione, contratto_id=contratto["id"], trade_id=trade_id,
-                    note=f"ANNULLAMENTO {trade['trade_ref']}"
-                )
-        elif item["tipo"] == "pick":
-            _q("UPDATE pick SET proprietario_att = %s WHERE id = %s",
-               (item["team_id_da"], item["pick_id"]))
-        elif item["tipo"] == "diritti":
-            _q("UPDATE rookie SET team_id = %s "
-               "WHERE giocatore_id = %s AND team_id = %s "
-               "AND firmato = FALSE AND diritti_scaduti = FALSE",
-               (item["team_id_da"], item["giocatore_id"], item["team_id_a"]))
-
-    db.aggiorna_stato_trade(trade_id, "annullata")
+    trade = db.get_trade(trade_id)
+    _scrivi_trade(trade_id, trade["trade_ref"], None, inverti=True)
     logger.info("Trade %s annullata e rollback eseguito.", trade["trade_ref"])
 
     # Sync GAS — roster e scelte
@@ -1225,10 +1233,12 @@ async def _valida_rollback(trade_id: int) -> list[str]:
                 )
 
         elif item["tipo"] == "diritti":
-            rookie = db.get_rookie_by_giocatore(item["giocatore_id"])
+            rookie = db._q("SELECT * FROM rookie WHERE giocatore_id = %s AND firmato = FALSE "
+                           "AND diritti_scaduti = FALSE ORDER BY anno_draft DESC LIMIT 1",
+                           (item["giocatore_id"],), one=True)
             nome   = item.get("nome_common", f"#{item['giocatore_id']}")
             if not rookie:
-                errori.append(f"Diritti di {nome} non trovati nel DB")
+                errori.append(f"Diritti di {nome} non più attivi (firmati o scaduti)")
             elif rookie["team_id"] != item["team_id_a"]:
                 team_att = tm.get_team_by_id(rookie["team_id"])
                 nome_att = team_att["nome"] if team_att else rookie["team_id"]
@@ -1287,7 +1297,12 @@ async def cmd_annulla_trade_admin(update: Update, context: ContextTypes.DEFAULT_
         return
 
     await update.effective_message.reply_text("✅ Compatibilità OK, eseguo il rollback...")
-    await _rollback_trade(trade["id"])
+    try:
+        await _rollback_trade(trade["id"])
+    except TradeNonEseguibile as e:
+        await update.effective_message.reply_text(
+            f"❌ Rollback non eseguito: {e}. Nessuna modifica è stata salvata.")
+        return
 
     admin_nome = user.first_name or str(user.id)
     from datetime import datetime
