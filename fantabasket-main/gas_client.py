@@ -51,8 +51,14 @@ def _build_team_payload(team_id: str) -> dict:
         "SELECT giocatore_id, ruolo FROM ruolo_attuale WHERE stagione = %s AND team_id = %s",
         (stagione, team_id), many=True) or []}
 
-    # Giocatori ordinati per importo DESC poi cognome
-    giocatori = sorted(roster, key=lambda r: (-r["importo"], r["nome_common"].split()[-1]))
+    # Giocatori ordinati per importo DESC poi cognome; quando TUTTI hanno un ruolo
+    # ufficiale: per ruolo (PG, SG, SF, PF, C), poi importo (come /roster)
+    ordine_ruoli = {"PG": 0, "SG": 1, "SF": 2, "PF": 3, "C": 4}
+    per_importo = lambda r: (-r["importo"], r["nome_common"].split()[-1])
+    if roster and all(ruoli.get(r["giocatore_id"]) for r in roster):
+        giocatori = sorted(roster, key=lambda r: (ordine_ruoli.get(ruoli[r["giocatore_id"]], 9),) + per_importo(r))
+    else:
+        giocatori = sorted(roster, key=per_importo)
 
     # Flag rookie/RFA
     def _flag(r):

@@ -2,7 +2,7 @@
 
 ---
 
-Ecosistema Fantabasket su M910q Ubuntu (alfalconetti@ubuntum910q). Bot aste v48 standalone SPENTO — bot-aste-beta del progettone è ora in produzione con token reale. Tutto gira su Docker Compose unificato.
+Ecosistema Fantabasket su server domestico Ubuntu. Bot aste v48 standalone SPENTO — bot-aste-beta del progettone è ora in produzione con token reale. Tutto gira su Docker Compose unificato.
 
 **Stack:** Python 3.12 + python-telegram-bot 22.8 [job-queue] + PostgreSQL 16 + SQLite (bot aste beta) + Typst + aiohttp + pandas + lxml + html5lib
 
@@ -253,7 +253,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 **Posizioni e ruoli (v3.1.0):**
 - `posizioni_eleggibili` = event log delle posizioni Yahoo (set completo, es. `PG,SG`), nuova riga solo se il set cambia → vista `posizioni_attuali`. Le aggiunte segnalate nell'anteprima servono per la Erminio rule (2 settimane dalla data della riga)
 - `cambi_ruolo` + vista `ruolo_attuale` = event log dei ruoli dichiarati (già nello schema)
-- Import: script in console del browser sulle pagine giocatori Yahoo (accumula in localStorage, export CSV con `copy()`), poi `/import_posizioni_eleggibili`; correzioni puntuali con `/set_posizioni_eleggibili` (fonte `manuale`). Primo import: 713 righe, 628 abbinate, tutti i sotto contratto coperti
+- Import: CSV `yahoo_id;nome;team;posizioni` esportato dalle pagine giocatori Yahoo, poi `/import_posizioni_eleggibili`; correzioni puntuali con `/set_posizioni_eleggibili` (fonte `manuale`). Primo import: 713 righe, 628 abbinate, tutti i sotto contratto coperti
 - `giocatori.yahoo_id` + `nome_yahoo` salvati dall'import: dai successivi l'abbinamento è per ID (i nomi accorciati della lista Yahoo, "K. Caldwell-Pope", non vengono salvati)
 - **Dichiarazione ruoli (v3.2.0, `handlers/ruoli.py`)**: ogni stagione da capo, solo PG/SG/SF/PF/C tra le eleggibili; bozze in `ruoli_bozze`, ufficiali con Conferma → `cambi_ruolo` (`iniziale` / `forzato_admin`). Conferma parziale permessa. Vincoli 4G/4F/2C: avviso in offseason, BLOCCO previsto per i cambi ruolo in regular season (da implementare). Import da testo con match sul proprio roster. Admin: /admin_menu → Ruoli squadre. Job 10:00 promemoria deadline, 17:00 report canale log, report mancanti al gruppo admin a fine fase
 - Prossimi passi ruoli: cambi ruolo in RS (2/stagione, con blocchi sui vincoli), dichiarazione post-trade/post-firma entro 48h, Saedro, Erminio, regola 60 giorni, ruoli nelle immagini roster

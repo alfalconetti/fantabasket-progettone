@@ -19,37 +19,50 @@ logger = logging.getLogger(__name__)
 
 # ── keyboards ─────────────────────────────────────────────────────────────────
 
+def _fasi_dpe() -> set:
+    from handlers.dpe import FASI_DPE
+    return set(FASI_DPE)
+
+
+# Azioni del menu principale, ognuna con le fasi in cui è disponibile.
+# Le fasi vengono dalle stesse costanti usate dai comandi, così menu e comandi
+# non possono divergere. Per aggiungere un'azione di fase (rinnovi, RFA, cambi
+# ruolo...) basta una riga qui + il suo callback.
+#   (etichetta, callback_data, funzione che restituisce le fasi)
+AZIONI_FASE = [
+    ("🎽 Dichiara ruoli", "rl:home",      lambda: {"offseason-ruoli"}),
+    ("🔄 Trade",          "menu:trade",   lambda: FASI_TRADE_APERTE),
+    ("✂️ Tagli",          "menu:tagli",   lambda: FASI_TRADE_APERTE),
+    ("🏀 Rookie",         "menu:rookie",  lambda: FASI_TRADE_APERTE),
+    ("🏥 DPE",            "menu:dpe",     _fasi_dpe),
+    # Prossime (da implementare):
+    # ("📝 Rinnovi",       "menu:rinnovi",      lambda: {"offseason-rinnovi"}),
+    # ("🔒 Dichiara RFA",  "menu:rfa",          lambda: {"offseason-rinnovi"}),
+    # ("🔁 Cambio ruolo",  "menu:cambio_ruolo", lambda: {"regular-season-fa", "regular-season-deadline", "playoff"}),
+]
+
+AZIONI_SEMPRE = [
+    ("📊 Roster", "menu:roster"),
+    ("📋 Assets", "menu:assets"),
+]
+
+
 def _kb_menu_principale(fase: str) -> InlineKeyboardMarkup:
-    """Keyboard dinamica — mostra solo i bottoni disponibili nella fase corrente."""
-    trade_aperte = fase in FASI_TRADE_APERTE
-    dpe_aperta   = fase in ("regular-season-fa", "regular-season-deadline")
-
-    righe = []
-
-    riga1 = []
-    if trade_aperte:
-        riga1.append(InlineKeyboardButton("🔄 Trade",  callback_data="menu:trade"))
-        riga1.append(InlineKeyboardButton("✂️ Tagli",  callback_data="menu:tagli"))
-    if riga1:
-        righe.append(riga1)
-
-    riga2 = []
-    if trade_aperte:
-        riga2.append(InlineKeyboardButton("🏀 Rookie", callback_data="menu:rookie"))
-    if dpe_aperta:
-        riga2.append(InlineKeyboardButton("🏥 DPE",    callback_data="menu:dpe"))
-    if riga2:
-        righe.append(riga2)
-
-    if fase == "offseason-ruoli":
-        righe.append([InlineKeyboardButton("🎽 Dichiara ruoli", callback_data="rl:home")])
-
-    righe.append([
-        InlineKeyboardButton("📊 Roster",  callback_data="menu:roster"),
-        InlineKeyboardButton("📋 Assets",  callback_data="menu:assets"),
-    ])
-
+    """Keyboard dinamica — solo le azioni disponibili nella fase corrente (2 per riga)."""
+    bottoni = [InlineKeyboardButton(label, callback_data=cb)
+               for label, cb, fasi in AZIONI_FASE if fase in fasi()]
+    righe = [bottoni[i:i + 2] for i in range(0, len(bottoni), 2)]
+    righe.append([InlineKeyboardButton(label, callback_data=cb) for label, cb in AZIONI_SEMPRE])
     return InlineKeyboardMarkup(righe)
+
+
+def _testo_home(fase: str) -> str:
+    try:
+        from handlers.admin_panel import FASI_LABEL
+        etichetta = FASI_LABEL.get(fase, fase)
+    except Exception:
+        etichetta = fase
+    return f"🏠 <b>Menu principale</b>\nFase: {etichetta}\n\nCosa vuoi fare?"
 
 
 def _kb_menu_trade() -> InlineKeyboardMarkup:
@@ -63,7 +76,6 @@ def _kb_menu_trade() -> InlineKeyboardMarkup:
     ])
 
 
-_TESTO_HOME  = "🏠 <b>Menu principale</b>\nCosa vuoi fare?"
 _TESTO_TRADE = "🔄 <b>Trade</b>\nScegli una modalità:"
 
 
@@ -79,7 +91,7 @@ async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     fase = settings.fase()
     await update.effective_message.reply_text(
-        _TESTO_HOME, parse_mode="HTML", reply_markup=_kb_menu_principale(fase)
+        _testo_home(fase), parse_mode="HTML", reply_markup=_kb_menu_principale(fase)
     )
 
 
@@ -92,7 +104,7 @@ async def cb_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if azione == "home":
         fase = settings.fase()
         await query.edit_message_text(
-            _TESTO_HOME, parse_mode="HTML", reply_markup=_kb_menu_principale(fase)
+            _testo_home(fase), parse_mode="HTML", reply_markup=_kb_menu_principale(fase)
         )
 
     elif azione == "trade":

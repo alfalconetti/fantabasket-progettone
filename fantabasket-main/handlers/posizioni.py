@@ -4,7 +4,7 @@ Posizioni eleggibili (Yahoo) — import da CSV.
   /import_posizioni_eleggibili (admin, privato) → invio file CSV → anteprima → conferma
   /set_posizioni_eleggibili <nome> <PG,SG> (admin) → correzione puntuale (fonte 'manuale')
 
-CSV (prodotto dallo script in console del browser sulle pagine giocatori Yahoo):
+CSV esportato dalle pagine giocatori Yahoo:
     yahoo_id;nome;team;posizioni
     5352;Nikola Jokić;DEN;C
 

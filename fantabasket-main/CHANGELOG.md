@@ -602,7 +602,7 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 
 ### Nuove feature
 - **Posizioni eleggibili** (base per i ruoli): tabella `posizioni_eleggibili` come event log (nuova riga solo quando il set di posizioni di un giocatore cambia), vista `posizioni_attuali`; colonna `giocatori.yahoo_id` (indice unico)
-- **`/import_posizioni`** (admin, privato): import da CSV `yahoo_id;nome;team;posizioni` generato da uno script in console sulle pagine giocatori Yahoo. Abbinamento per yahoo_id → nome → nome senza suffisso → iniziale+cognome (solo se univoco). Anteprima con posizioni cambiate (Erminio rule), sotto contratto senza posizioni, ambigui, conflitti, righe scartate e file dei non abbinati; salvataggio solo dopo conferma, in un'unica transazione. Salva anche `yahoo_id` e `nome_yahoo`
+- **`/import_posizioni`** (admin, privato): import da CSV `yahoo_id;nome;team;posizioni` esportato dalle pagine giocatori Yahoo. Abbinamento per yahoo_id → nome → nome senza suffisso → iniziale+cognome (solo se univoco). Anteprima con posizioni cambiate (Erminio rule), sotto contratto senza posizioni, ambigui, conflitti, righe scartate e file dei non abbinati; salvataggio solo dopo conferma, in un'unica transazione. Salva anche `yahoo_id` e `nome_yahoo`
 
 ### Dati
 - Corretti i nomi di tre rookie in base a Yahoo: Cameron Boozer, Dailyn Swain, Jayden Quaintance
@@ -640,3 +640,11 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 ### Nuove feature
 - **Ruoli nelle immagini**: colonna RUOLO a sinistra del giocatore in `/roster` e `/assets`; in `/roster` le posizioni eleggibili in corsivo accanto al nome. Per il roster a una data passata, ruoli e posizioni sono quelli in vigore a quella data (event log)
 - **Ordinamento per ruolo**: quando tutti i giocatori hanno un ruolo ufficiale, roster ordinato per ruolo (PG, SG, SF, PF, C), poi contratto; altrimenti per contratto come prima
+
+## v3.2.3 (2026-10-07)
+
+### Miglioramenti
+- **Menu principale dinamico per fase**: azioni dichiarate in `AZIONI_FASE` (`handlers/menu.py`) con le fasi prese dalle stesse costanti dei comandi; la fase corrente è indicata nel menu. Predisposte (commentate) le azioni future: rinnovi, dichiarazione RFA, cambio ruolo
+- Il bottone DPE ora segue `FASI_DPE` (prima compariva solo in regular season, anche se `/dpe` funzionava anche in offseason)
+- **Foglio Google**: roster ordinato per ruolo quando tutti i ruoli sono dichiarati, come `/roster`
+- Documentazione ripulita da dettagli non necessari
