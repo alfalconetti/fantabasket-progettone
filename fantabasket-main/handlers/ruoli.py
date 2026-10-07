@@ -668,6 +668,37 @@ async def report_fine_fase(bot) -> None:
         logger.warning("report_fine_fase ruoli: %s", e)
 
 
+async def report_vincoli_inizio_rs(bot) -> None:
+    """Al passaggio a regular-season-fa: squadre che non rispettano i minimi 4G/4F/2C
+    (con i ruoli ufficiali; chi non ha ruolo conta come flessibile tra le eleggibili)."""
+    from shared import ruoli_core as core
+    gruppo = settings.load_globals().get("admin_group_id")
+    if not gruppo:
+        return
+    righe = []
+    for t in tm.get_all_teams():
+        deficit = core.deficit_team(db._q, t["id"], _stagione())
+        if deficit == 0:
+            continue
+        stato = stato_team(t["id"])
+        uff = [s["ufficiale"] for s in stato if s["ufficiale"]]
+        g = sum(r in ("PG", "SG") for r in uff)
+        f = sum(r in ("SF", "PF") for r in uff)
+        c = sum(r == "C" for r in uff)
+        senza = [s["nome"] for s in stato if not s["ufficiale"]]
+        righe.append(f"• <b>{t['nome']}</b>: G {g}/4 · F {f}/4 · C {c}/2"
+                     + (f" — senza ruolo: {', '.join(senza)}" if senza else ""))
+    testo = ("🏀 <b>Inizio regular season — vincoli dei ruoli</b>\n" +
+             ("Tutte le squadre rispettano i minimi (4 guardie, 4 ali, 2 centri). ✅" if not righe else
+              "Squadre che non rispettano i minimi (4 G, 4 F, 2 C), nemmeno con la scelta migliore "
+              "dei ruoli mancanti:\n" + "\n".join(righe) +
+              "\n\nSi sistemano con un cambio forzato (/admin_menu → 🔁 Cambi ruolo) o sul mercato."))
+    try:
+        await bot.send_message(chat_id=gruppo, text=testo, parse_mode="HTML")
+    except Exception as e:
+        logger.warning("report_vincoli_inizio_rs: %s", e)
+
+
 # ══ registrazione ═══════════════════════════════════════════════════════════
 
 def get_handlers() -> list:

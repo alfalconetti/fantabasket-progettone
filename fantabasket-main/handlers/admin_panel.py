@@ -867,6 +867,14 @@ async def _esegui_cambio_fase(query, fase_vecchia: str, nuova_fase: str):
     except Exception as e:
         logger.warning("Annuncio cambio fase sul canale: %s", e)
 
+    # Inizio regular season: squadre fuori dai minimi dei ruoli
+    if nuova_fase == "regular-season-fa" and fase_vecchia != "regular-season-fa":
+        try:
+            from handlers.ruoli import report_vincoli_inizio_rs
+            await report_vincoli_inizio_rs(query.get_bot())
+        except Exception as e:
+            logger.warning("report_vincoli_inizio_rs: %s", e)
+
     # Fine fase dichiarazione ruoli: elenco dei giocatori senza ruolo agli admin
     if fase_vecchia == "offseason-ruoli" and nuova_fase != "offseason-ruoli":
         try:
