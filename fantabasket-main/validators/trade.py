@@ -9,6 +9,42 @@ import settings
 import teams as tm
 
 
+def _cap_post_team(team_id: str, items: list, stagione: str) -> tuple[int, int]:
+    """(cap attuale, cap post-trade) di una squadra; contratti con DPE contati all'importo ridotto."""
+    def _importo_effettivo(giocatore_id):
+        dpe = db.get_dpe_attiva(giocatore_id, stagione)
+        if dpe:
+            return dpe["importo_dpe"]
+        return (db.get_contratto_attivo(giocatore_id) or {}).get("importo", 0)
+    cap_attuale = db.cap_occupato_team(team_id, stagione)
+    cap_out = sum(_importo_effettivo(i["giocatore_id"]) for i in items
+                  if i["team_id_da"] == team_id and i["tipo"] == "giocatore")
+    cap_in  = sum(_importo_effettivo(i["giocatore_id"]) for i in items
+                  if i["team_id_a"] == team_id and i["tipo"] == "giocatore")
+    return cap_attuale, cap_attuale - cap_out + cap_in
+
+
+def avvisi_trade(trade_id: int) -> list[str]:
+    """Avvisi NON bloccanti. In offseason: squadre che dopo la trade superano i 150M
+    (permesso fino a 165M, ma va riportato in regola entro l'inizio della regular season)."""
+    if not settings.fase().startswith("offseason"):
+        return []
+    trade = db.get_trade(trade_id)
+    if not trade:
+        return []
+    items = db.get_items_trade(trade_id)
+    avvisi = []
+    for s in db.get_squadre_trade(trade_id):
+        team_id = s["team_id"]
+        _, cap_post = _cap_post_team(team_id, items, trade["stagione"])
+        team = tm.get_team_by_id(team_id)
+        cap_rs = settings.cap_massimo() - int((team or {}).get("cap_penalizzato") or 0)
+        if cap_rs < cap_post <= settings.luxury_cap():
+            avvisi.append(f"⚠️ {team['nome'] if team else team_id}: cap post-trade {cap_post}M, sopra i "
+                          f"{cap_rs}M della regular season (va riportato in regola prima dell'inizio)")
+    return avvisi
+
+
 def valida_trade(trade_id: int) -> tuple[bool, list[str]]:
     """
     Valida una trade completa:
@@ -64,19 +100,7 @@ def valida_trade(trade_id: int) -> tuple[bool, list[str]]:
                 errori.append(
                     f"⚠️ {nome}: {nome_g} — anni trade {anni_item} ≠ DB {anni_db}"
                 )
-        cap_attuale = db.cap_occupato_team(team_id, stagione)
-
-        def _importo_effettivo(giocatore_id):
-            """Usa importo_dpe se attiva, altrimenti importo contratto."""
-            dpe = db.get_dpe_attiva(giocatore_id, stagione)
-            if dpe:
-                return dpe["importo_dpe"]
-            contratto = db.get_contratto_attivo(giocatore_id) or {}
-            return contratto.get("importo", 0)
-
-        cap_out = sum(_importo_effettivo(i["giocatore_id"]) for i in out_g)
-        cap_in  = sum(_importo_effettivo(i["giocatore_id"]) for i in in_g)
-        cap_post = cap_attuale - cap_out + cap_in
+        cap_attuale, cap_post = _cap_post_team(team_id, items, stagione)
 
         # Tetto: in offseason 165M per tutti; in regular season 150M meno
         # l'eventuale penalità della squadra.

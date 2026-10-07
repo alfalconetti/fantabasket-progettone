@@ -73,6 +73,32 @@ def _kb_asset_menu(trade_id: int, team_id: str) -> InlineKeyboardMarkup:
     ])
 
 
+def _contratto_str(r: dict) -> str:
+    """'20x2' da una riga di roster (importo del contratto × anni residui)."""
+    from handlers.tagli import _anni_residui
+    try:
+        anni = _anni_residui(r, settings.stagione_corrente())
+    except Exception:
+        anni = r.get("anni_originali") or "?"
+    importo = r.get("importo_originale") or r.get("importo")
+    return f"{importo}x{anni}"
+
+
+def _contratti_trade(items: list) -> dict:
+    """{giocatore_id: '20x2'} per i giocatori della trade, dai roster di chi li cede."""
+    out, roster_cache = {}, {}
+    for i in items:
+        if i["tipo"] != "giocatore":
+            continue
+        tid = i["team_id_da"]
+        if tid not in roster_cache:
+            roster_cache[tid] = {r["giocatore_id"]: r for r in db.get_roster_team(tid) or []}
+        r = roster_cache[tid].get(i["giocatore_id"])
+        if r:
+            out[i["giocatore_id"]] = _contratto_str(r)
+    return out
+
+
 def _testo_riepilogo(trade_id: int) -> str:
     trade  = db.get_trade(trade_id)
     items  = db.get_items_trade(trade_id)
@@ -80,6 +106,7 @@ def _testo_riepilogo(trade_id: int) -> str:
 
     label = _label_bozza(trade) if trade else f"#{trade_id}"
     righe = [f"📋 <b>Bozza {label}</b>\n"]
+    contratti = _contratti_trade(items)
 
     for sq in squadre:
         tid = sq["team_id"]
@@ -93,20 +120,30 @@ def _testo_riepilogo(trade_id: int) -> str:
         if invia:
             righe.append("  <i>Cede:</i>")
             for i in invia:
-                righe.append(f"    • {_label_item(i)}")
+                righe.append(f"    • {_label_item(i, contratti)}")
         if riceve:
             righe.append("  <i>Riceve:</i>")
             for i in riceve:
-                righe.append(f"    • {_label_item(i)}")
+                righe.append(f"    • {_label_item(i, contratti)}")
         if not invia and not riceve:
             righe.append("  <i>Nessun asset</i>")
+
+    try:
+        from validators.trade import avvisi_trade
+        avvisi = avvisi_trade(trade_id)
+        if avvisi:
+            righe.append("\n" + "\n".join(avvisi))
+    except Exception as e:
+        logger.warning("Avvisi trade %s: %s", trade_id, e)
 
     return "\n".join(righe)
 
 
-def _label_item(item: dict) -> str:
+def _label_item(item: dict, contratti: dict | None = None) -> str:
     if item["tipo"] == "giocatore":
-        return item.get("nome_common") or f"Giocatore #{item['giocatore_id']}"
+        nome = item.get("nome_common") or f"Giocatore #{item['giocatore_id']}"
+        contratto = (contratti or {}).get(item["giocatore_id"])
+        return f"{nome} {contratto}" if contratto else nome
     if item["tipo"] == "pick":
         orig_id = item.get("pick_orig", "?")
         team_orig = tm.get_team_by_id(orig_id) if orig_id != "?" else None
@@ -250,7 +287,7 @@ async def cb_asset_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         for r in roster:
             gid   = r["giocatore_id"]
             check = "✅ " if gid in items_gi else ""
-            label = f"{check}{r['nome_common']} ({r['importo']}M)"
+            label = f"{check}{r['nome_common']} {_contratto_str(r)}"
             bottoni.append([InlineKeyboardButton(label, callback_data=f"trade_gi:{trade_id}:{team_id}:{gid}")])
         bottoni.append([InlineKeyboardButton("← Indietro", callback_data=f"trade_am:back:{trade_id}:{team_id}")])
         await query.answer()
@@ -353,7 +390,7 @@ async def _ricarica_lista_giocatori(query, trade_id: int, team_id: str) -> int:
     for r in roster:
         gid   = r["giocatore_id"]
         check = "✅ " if gid in items_gi else ""
-        label = f"{check}{r['nome_common']} ({r['importo']}M)"
+        label = f"{check}{r['nome_common']} {_contratto_str(r)}"
         bottoni.append([InlineKeyboardButton(label, callback_data=f"trade_gi:{trade_id}:{team_id}:{gid}")])
     bottoni.append([InlineKeyboardButton("← Indietro", callback_data=f"trade_am:back:{trade_id}:{team_id}")])
     await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(bottoni))

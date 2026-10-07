@@ -741,3 +741,11 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 
 ### Bug fix
 - `/edit_trade` senza argomenti: il messaggio d'uso conteneva `<numero_bozza>` in un testo HTML e Telegram lo rifiutava ("Can't parse entities"); ora `&lt;numero_bozza&gt;`. Stesso problema corretto in `/reset_rfa` del bot aste
+
+## v3.4.4 (2026-10-07)
+
+### Miglioramenti — trade builder
+- Selezione giocatori: ogni giocatore mostra il contratto nel formato `importo x anni` (es. `Josh Hart 20x2`)
+- Riepilogo della bozza/proposta (builder, proposta ai GM, invio agli admin, modifica): contratti accanto ai giocatori
+- In offseason: avviso non bloccante se una squadra dopo la trade supera i 150M (meno eventuali penalità) della regular season; resta bloccante il limite di 165M
+- Validatore: calcolo del cap post-trade in una funzione unica (`_cap_post_team`), usata anche dagli avvisi
