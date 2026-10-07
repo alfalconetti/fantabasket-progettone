@@ -16,7 +16,6 @@ Fasi: settings.FASI_RUOLI_RS (regular-season-fa, regular-season-deadline, playof
   ruolo è il vecchio, assegnato subito senza scelta.
 """
 import logging
-import random
 from datetime import datetime, timedelta, timezone
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -25,13 +24,13 @@ from telegram.ext import ContextTypes, CallbackQueryHandler
 import database as db
 import settings
 import teams as tm
-from validators.ruoli import deficit_team
+from shared import ruoli_core as core
 
 logger = logging.getLogger(__name__)
 
-RUOLI = ["PG", "SG", "SF", "PF", "C"]
+RUOLI = core.RUOLI
 ORE_DICHIARAZIONE = 48
-GIORNI_RIACQUISTO = 60
+GIORNI_RIACQUISTO = core.GIORNI_RIACQUISTO
 _TIPO_EVENTO = {"trade": "post_trade", "firma": "post_firma", "rookie": "post_firma"}
 _ORIGINE_TXT = {"trade": "post-trade", "firma": "post-firma", "rookie": "attivazione diritti"}
 
@@ -43,9 +42,7 @@ def _stagione() -> str:
 
 
 def eleggibili(gid: int) -> list[str]:
-    r = db._q("SELECT posizioni FROM posizioni_attuali WHERE giocatore_id = %s", (gid,), one=True)
-    pos = set((r["posizioni"] if r else "").split(","))
-    return [p for p in RUOLI if p in pos]
+    return core.eleggibili(db._q, gid)
 
 
 def get_pendente(pid: int) -> dict | None:
@@ -61,20 +58,11 @@ def pendenti_aperti(team_id: str | None = None) -> list[dict]:
 
 
 def _ruolo_riacquisto(gid: int, team_id: str) -> str | None:
-    """Regola dei 60 giorni: vecchio ruolo se la squadra ha avuto il giocatore di recente."""
-    uscito = db._q("""SELECT 1 FROM transazioni WHERE giocatore_id = %s AND team_id_da = %s
-                      AND timestamp >= NOW() - (%s || ' days')::interval LIMIT 1""",
-                   (gid, team_id, str(GIORNI_RIACQUISTO)), one=True)
-    if not uscito:
-        return None
-    r = db._q("""SELECT ruolo_a FROM cambi_ruolo WHERE giocatore_id = %s AND team_id = %s
-                 ORDER BY timestamp DESC, id DESC LIMIT 1""", (gid, team_id), one=True)
-    return r["ruolo_a"] if r else None
+    return core.ruolo_riacquisto(db._q, gid, team_id)
 
 
 def _registra_ruolo(gid: int, team_id: str, ruolo: str, tipo: str) -> None:
-    db._q("INSERT INTO cambi_ruolo (giocatore_id, team_id, ruolo_da, ruolo_a, stagione, tipo) "
-          "VALUES (%s, %s, NULL, %s, %s, %s)", (gid, team_id, ruolo, _stagione(), tipo))
+    core.registra_ruolo(db._q, gid, team_id, ruolo, _stagione(), tipo)
 
 
 def _chiudi(pid: int, stato: str, ruolo: str | None) -> None:
@@ -84,9 +72,7 @@ def _chiudi(pid: int, stato: str, ruolo: str | None) -> None:
 
 def _scelta_rispetta_vincoli(p: dict, ruolo: str) -> bool:
     """La scelta lascia possibile rispettare i vincoli? (o almeno non peggiora)"""
-    prima = deficit_team(p["team_id"], _stagione())
-    dopo  = deficit_team(p["team_id"], _stagione(), imposti={p["giocatore_id"]: ruolo})
-    return dopo == 0 or dopo <= prima
+    return core.scelta_valida(db._q, p["team_id"], _stagione(), p["giocatore_id"], ruolo)
 
 
 # ══ notifiche ═══════════════════════════════════════════════════════════════
@@ -271,8 +257,7 @@ async def job_scadenze(context: ContextTypes.DEFAULT_TYPE):
                         text=f"⚠️ Ruolo di <b>{p['nome_common']}</b> ({_nome_team(p['team_id'])}) non estraibile: "
                              f"posizioni eleggibili mancanti. Impostale con /set_posizioni_eleggibili e assegna il ruolo.")
                 continue
-            validi = [r for r in eleg if _scelta_rispetta_vincoli(p, r)] or eleg
-            ruolo = random.choice(validi)
+            ruolo = core.estrai_ruolo(db._q, p["team_id"], _stagione(), p["giocatore_id"])
             _registra_ruolo(p["giocatore_id"], p["team_id"], ruolo, _TIPO_EVENTO.get(p["origine"], "post_trade"))
             _chiudi(p["id"], "estratta", ruolo)
             cambiato = True

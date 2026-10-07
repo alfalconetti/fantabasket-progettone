@@ -151,11 +151,8 @@ FASI_FA_APERTA = {
 }
 
 # Fasi con ruoli "attivi": dichiarazioni post-trade/firma e cambi ruolo
-FASI_RUOLI_RS = {
-    "regular-season-fa",
-    "regular-season-deadline",
-    "playoff",
-}
+# (definite nel modulo condiviso col bot aste)
+from shared.ruoli_core import FASI_RUOLI_RS  # noqa: E402
 
 FASI_MERCATO_APERTO = {
     "regular-season-fa",

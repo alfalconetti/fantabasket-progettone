@@ -74,6 +74,30 @@ def _putconn(conn):
     _pool.putconn(conn)
 
 
+def q(sql: str, params=(), one: bool = False, many: bool = False):
+    """Query generica (righe come dict) — usata dal modulo condiviso shared/ruoli_core."""
+    if not pg_disponibile():
+        raise RuntimeError("PostgreSQL non disponibile")
+    conn = _conn()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(sql, params)
+            if one:
+                r = cur.fetchone()
+                res = dict(r) if r else None
+            elif many:
+                res = [dict(x) for x in cur.fetchall()]
+            else:
+                res = None
+        conn.commit()
+        return res
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        _putconn(conn)
+
+
 # ── cap ───────────────────────────────────────────────────────────────────────
 
 def get_cap_contratti(team_id: str, stagione: str = None) -> int:

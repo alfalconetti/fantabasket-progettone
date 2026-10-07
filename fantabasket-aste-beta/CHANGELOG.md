@@ -503,3 +503,13 @@ Comandi riservati al solo `dev_id` (non visibili in /admin), per osservare lo st
 - Aggiunto `/team_detail` (tutti): keyboard inline con tutte le 24 squadre (2 per riga); premendo una squadra mostra cap/slot (identico a `/team`) + sezione "Offerte ultime 24h" con stato per offerta (✅ vincente con scadenza se asta APERTA, ✅ vincente senza scadenza se chiusa/conclusa, ❌ superata). Bottone "← Torna alla lista" per navigare.
 - Apertura asta FA (`/nuova_fa` e deep link da `/lista_fa`): aggiunta visualizzazione cap libero e, se fase offseason, cap in Regular Season stimato (come in `/team`). Allineato al messaggio di rilancio che già mostrava il cap.
 - `BOT_VERSION` aggiornato a v45
+
+## v46 — Ruolo insieme agli anni (regular season)
+
+- FA in regular season: dopo la scelta degli anni il vincitore sceglie il ruolo tra le posizioni eleggibili (regole nel modulo condiviso `shared/ruoli_core.py`, le stesse del bot main): esclusi i ruoli che violerebbero i minimi 4G/4F/2C, ruolo imposto dalla regola dei 60 giorni, conferma con contratto e ruolo
+- Firma automatica dopo 48h: 3 anni (penale) + ruolo estratto tra le eleggibili; messaggio al GM
+- Ruolo nell'annuncio della firma sul canale principale e nel contratto del DB aste (campo `ruolo`)
+- Dopo la conferma il messaggio del GM mostra l'esito della firma
+- `pg_client.q()`: query generica usata dal modulo condiviso
+- RFA e fasi di offseason invariate
+

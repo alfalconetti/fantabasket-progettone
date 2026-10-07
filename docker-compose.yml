@@ -39,6 +39,7 @@ services:
     volumes:
       - ./config:/config:ro
       - aste_beta_data:/data
+      - ./shared:/app/shared:ro      # regole condivise col bot main (ruoli)
 
   bot-main:
     build: ./fantabasket-main
@@ -69,6 +70,7 @@ services:
     volumes:
       - ./config:/config
       - aste_beta_data:/data_aste:ro
+      - ./shared:/app/shared:ro      # regole condivise col bot aste (ruoli)
 
   gas-router:
     build: ./gas-router

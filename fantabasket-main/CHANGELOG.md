@@ -715,3 +715,10 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 
 ### Miglioramenti
 - Annuncio trade sul canale: in ogni sezione prima i giocatori, poi le pick, i diritti in fondo
+
+## v3.4.0 (2026-10-07)
+
+### Nuove feature
+- **Modulo condiviso `shared/ruoli_core.py`** (cartella `shared/` montata in sola lettura in bot main e bot aste): unica implementazione delle regole dei ruoli (eleggibili, vincoli 4G/4F/2C, regola dei 60 giorni, estrazione, registrazione evento). Ogni funzione riceve la funzione di query del bot chiamante. Il main la usa in `validators/ruoli.py`, `ruoli_rs.py`, `cambi_ruolo.py`; `FASI_RUOLI_RS` definita lì
+- **Bot aste — ruolo insieme agli anni** (FA in regular season): dopo gli anni il vincitore sceglie il ruolo tra le eleggibili (esclusi quelli che violerebbero i minimi, con spiegazione); con la regola dei 60 giorni il ruolo è già fissato; la conferma mostra contratto e ruolo. Senza risposta in 48h: 3 anni (penale) e ruolo estratto, con avviso al GM. Il ruolo compare nell'annuncio della firma sul canale principale ed entra nell'event log condiviso (foglio, /roster, cambi ruolo). Senza posizioni eleggibili: firma senza ruolo e avviso agli admin. RFA e offseason invariati
+- Guide GM e admin: ruolo nelle firme di free agency

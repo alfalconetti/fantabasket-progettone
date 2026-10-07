@@ -33,6 +33,89 @@ from handlers.helpers import aggiorna_canale as _aggiorna_canale, notifica_admin
 logger = logging.getLogger(__name__)
 
 
+# ── ruoli (regular season) — regole nel modulo condiviso col bot main ─────────
+
+def _ruoli_attivi(asta: dict) -> bool:
+    """Ruolo da scegliere insieme agli anni: solo FA, solo in regular season, con PG."""
+    import pg_client
+    from shared.ruoli_core import FASI_RUOLI_RS
+    return (asta["tipo"] == "FA" and pg_client.pg_disponibile()
+            and utils.load_globals().get("fase", "") in FASI_RUOLI_RS)
+
+
+def _info_ruolo(asta: dict, team_id: str) -> dict:
+    """gid, posizioni eleggibili, ruolo imposto dalla regola dei 60 giorni, ruoli validi."""
+    import pg_client
+    from shared import ruoli_core as core
+    stagione = utils.load_globals().get("stagione_corrente", "2025")
+    gid = pg_client.trova_o_crea_giocatore(asta["giocatore"])
+    if gid is None:
+        return {"gid": None, "eleggibili": [], "fisso": None, "validi": []}
+    eleg = core.eleggibili(pg_client.q, gid)
+    fisso = core.ruolo_riacquisto(pg_client.q, gid, team_id)
+    validi = [r for r in eleg if core.scelta_valida(pg_client.q, team_id, stagione, gid, r, in_arrivo=True)]
+    return {"gid": gid, "eleggibili": eleg, "fisso": fisso, "validi": validi or eleg}
+
+
+def _kb_conferma(asta_id: int, anni: int, ruolo: str | None) -> InlineKeyboardMarkup:
+    cb = f"firma_confirm:{asta_id}:{anni}" + (f":{ruolo}" if ruolo else "")
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ Conferma", callback_data=cb),
+        InlineKeyboardButton("← Indietro", callback_data=f"firma_indietro:{asta_id}"),
+    ]])
+
+
+async def _mostra_scelta_ruolo(query, asta: dict, anni: int, team_id: str) -> bool:
+    """Dopo gli anni: scelta del ruolo. Ritorna False se il ruolo non va scelto
+    (fuori RS / non FA): in quel caso il chiamante prosegue col flusso normale."""
+    if not _ruoli_attivi(asta):
+        return False
+    info = _info_ruolo(asta, team_id)
+    contratto = f"{asta['offerta_corrente']}M × {anni} ann{'o' if anni == 1 else 'i'}"
+    if info["fisso"]:
+        await query.edit_message_text(
+            f"🏆 Confermi firma?\n\nGiocatore: <b>{asta['giocatore']}</b>\nContratto: <b>{contratto}</b>\n"
+            f"Ruolo: <b>{info['fisso']}</b> <i>(regola dei 60 giorni: torna col vecchio ruolo)</i>",
+            parse_mode="HTML", reply_markup=_kb_conferma(asta["id"], anni, info["fisso"]))
+        return True
+    if not info["eleggibili"]:
+        await query.edit_message_text(
+            f"🏆 Confermi firma?\n\nGiocatore: <b>{asta['giocatore']}</b>\nContratto: <b>{contratto}</b>\n"
+            f"Ruolo: <i>posizioni eleggibili non registrate, lo assegnerà un admin</i>",
+            parse_mode="HTML", reply_markup=_kb_conferma(asta["id"], anni, None))
+        return True
+    kb = [[InlineKeyboardButton(r, callback_data=f"firma_ruolo:{asta['id']}:{anni}:{r}") for r in info["validi"]],
+          [InlineKeyboardButton("← Indietro", callback_data=f"firma_indietro:{asta['id']}")]]
+    esclusi = [r for r in info["eleggibili"] if r not in info["validi"]]
+    nota = (f"\n<i>{', '.join(esclusi)} non disponibile: il roster non rispetterebbe i minimi (4G/4F/2C).</i>"
+            if esclusi else "")
+    await query.edit_message_text(
+        f"🎽 <b>{asta['giocatore']}</b> — {contratto}\n\nScegli il ruolo tra quelli eleggibili "
+        f"({', '.join(info['eleggibili'])}):{nota}",
+        parse_mode="HTML", reply_markup=InlineKeyboardMarkup(kb))
+    return True
+
+
+async def firma_ruolo_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    _, asta_id_s, anni_s, ruolo = query.data.split(":")
+    asta_id, anni = int(asta_id_s), int(anni_s)
+    asta = db.get_asta(asta_id)
+    if not asta or asta["stato"] != "CHIUSA":
+        await query.edit_message_text("✅ Firma già registrata o asta non in fase di firma.")
+        return
+    team = tm.get_team_by_gm(query.from_user.id)
+    if not team or team["id"] != asta["offerente_team_id"]:
+        await query.edit_message_text("⛔ Non sei il GM vincitore di questa asta.")
+        return
+    await query.edit_message_text(
+        f"🏆 Confermi firma?\n\nGiocatore: <b>{asta['giocatore']}</b>\n"
+        f"Contratto: <b>{asta['offerta_corrente']}M × {anni} ann{'o' if anni == 1 else 'i'}</b>\n"
+        f"Ruolo: <b>{ruolo}</b>",
+        parse_mode="HTML", reply_markup=_kb_conferma(asta_id, anni, ruolo))
+
+
 # ── helpers soglie RFA ────────────────────────────────────────────────────────
 
 def anni_minimi(importo: int) -> int:
@@ -664,13 +747,15 @@ def _anni_kb_e_testo(asta: dict) -> tuple:
     kb = InlineKeyboardMarkup([bottoni])
     s = settings.get()
     nota_anni = f"<i>({s['soglia_anni_2']}–{s['fascia_media_max']}M → min 2 anni · {s['soglia_anni_3']}M+ → 3 anni obbligatori)</i>"
+    con_ruolo = _ruoli_attivi(asta)
     testo = (
         f"🏆 <b>Hai vinto l'asta per {asta['giocatore']}!</b>\n\n"
         f"💰 Offerta: <b>{importo}M</b>\n\n"
-        f"Scegli per quanti anni firmare il contratto.\n{nota_anni}\n\n"
+        f"Scegli per quanti anni firmare il contratto"
+        f"{', poi il ruolo' if con_ruolo else ''}.\n{nota_anni}\n\n"
         f"⏰ Hai <b>{ore} ore</b> per rispondere.\n"
         f"Se non rispondi, {'gli anni minimi verranno assegnati automaticamente e il proprietario verrà avvisato' if is_rfa else 'il contratto sarà firmato automaticamente per 3 anni (penale)'}"
-        f"."
+        f"{' e il ruolo verrà estratto a caso tra quelli eleggibili' if con_ruolo else ''}."
     )
     return testo, kb
 
@@ -706,6 +791,9 @@ async def firma_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"❌ {errore}")
         return
 
+    if await _mostra_scelta_ruolo(query, asta, anni, team["id"]):
+        return
+
     # Chiedi conferma
     kb = InlineKeyboardMarkup([[
         InlineKeyboardButton("✅ Conferma", callback_data=f"firma_confirm:{asta_id}:{anni}"),
@@ -724,9 +812,10 @@ async def firma_confirm_callback(update: Update, context: ContextTypes.DEFAULT_T
     query = update.callback_query
     await query.answer()
 
-    _, asta_id_s, anni_s = query.data.split(":")
-    asta_id = int(asta_id_s)
-    anni    = int(anni_s)
+    parti   = query.data.split(":")
+    asta_id = int(parti[1])
+    anni    = int(parti[2])
+    ruolo   = parti[3] if len(parti) > 3 else None
 
     asta = db.get_asta(asta_id)
     if not asta:
@@ -755,7 +844,23 @@ async def firma_confirm_callback(update: Update, context: ContextTypes.DEFAULT_T
         j.schedule_removal()
 
     if asta["tipo"] == "FA":
-        await _registra_firma_finale(context, asta_id, anni, team["id"], query=query)
+        if _ruoli_attivi(asta):
+            info = _info_ruolo(asta, team["id"])
+            if ruolo is None and info["eleggibili"] and not info["fisso"]:
+                # bottone di conferma senza ruolo (es. messaggio precedente): prima il ruolo
+                await _mostra_scelta_ruolo(query, asta, anni, team["id"])
+                return
+            if info["fisso"]:
+                ruolo = info["fisso"]
+            elif ruolo is not None and ruolo not in info["validi"]:
+                await query.edit_message_text("❌ Ruolo non più valido (eleggibilità o minimi del roster cambiati). Riprova.")
+                await _mostra_scelta_ruolo(query, asta, anni, team["id"])
+                return
+        ruolo_finale = await _registra_firma_finale(context, asta_id, anni, team["id"], query=query, ruolo=ruolo)
+        await query.edit_message_text(
+            f"✅ <b>{asta['giocatore']}</b> firmato: {asta['offerta_corrente']}M × {anni} ann{'o' if anni == 1 else 'i'}"
+            + (f" — ruolo <b>{ruolo_finale}</b>" if ruolo_finale else ""),
+            parse_mode="HTML")
     else:
         db.set_anni_offerti(asta_id, anni)
 
@@ -918,7 +1023,17 @@ async def firma_automatica(context: ContextTypes.DEFAULT_TYPE):
         if asta["tipo"] == "FA":
             anni = 3
             logger.info("Firma automatica FA (penale 3 anni): asta_id=%d", asta_id)
-            await _registra_firma_finale(context, asta_id, anni, asta["offerente_team_id"])
+            ruolo = await _registra_firma_finale(context, asta_id, anni, asta["offerente_team_id"])
+            team_auto = tm.get_team_by_id(asta["offerente_team_id"])
+            for gm_id in (team_auto or {}).get("gm_ids", []):
+                try:
+                    await context.bot.send_message(
+                        chat_id=gm_id, parse_mode="HTML",
+                        text=(f"⚠️ Non hai risposto in tempo: <b>{asta['giocatore']}</b> firmato per "
+                              f"<b>{asta['offerta_corrente']}M × 3 anni</b> (penale)"
+                              + (f", ruolo <b>{ruolo}</b>." if ruolo else ".")))
+                except Exception as e:
+                    await _log_warn(context, f"Notifica firma automatica GM {gm_id}: {e}")
             return
         else:
             anni = anni_minimi(asta["offerta_corrente"])
@@ -1428,8 +1543,9 @@ async def lascia_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def _registra_firma_finale(
     context, asta_id: int, anni: int, team_id: str,
-    query=None, importo_override: int = None, pareggiato: bool = False
-):
+    query=None, importo_override: int = None, pareggiato: bool = False,
+    ruolo: str | None = None,
+) -> str | None:
     """
     Gestisce SEMPRE:
     1. Liberazione vecchio compenso RFA dal cap del proprietario
@@ -1464,10 +1580,36 @@ async def _registra_firma_finale(
     if not ok_pg:
         logger.warning("Firma PG fallita per %s — verificare manualmente.", asta["giocatore"])
 
+    # Ruolo (FA in regular season): scelto dal GM, imposto dalla regola dei 60 giorni,
+    # oppure estratto se il GM non ha risposto in tempo
+    riga_ruolo = ""
+    if ok_pg and _ruoli_attivi(asta):
+        try:
+            from shared import ruoli_core as core
+            gid = pg_client.trova_o_crea_giocatore(asta["giocatore"])
+            nota = ""
+            fisso = core.ruolo_riacquisto(pg_client.q, gid, team_id)
+            if fisso:
+                ruolo, nota = fisso, " (regola dei 60 giorni)"
+            elif ruolo is None:
+                ruolo = core.estrai_ruolo(pg_client.q, team_id, stagione, gid)
+                nota = " (estratto: nessuna risposta in tempo)" if ruolo else ""
+            if ruolo:
+                core.registra_ruolo(pg_client.q, gid, team_id, ruolo, stagione, "post_firma")
+                riga_ruolo = f"\n🎽 Ruolo: <b>{ruolo}</b>{nota}"
+            else:
+                riga_ruolo = "\n🎽 Ruolo: da assegnare (posizioni eleggibili mancanti)"
+                await _notifica_admin_group(
+                    context, f"⚠️ {asta['giocatore']} firmato da {team_id} senza ruolo: posizioni eleggibili "
+                             f"mancanti. Impostale con /set_posizioni_eleggibili e assegna il ruolo dal bot main.")
+        except Exception as e:
+            ruolo = None
+            await _log_warn(context, f"Registrazione ruolo firma {asta['giocatore']} fallita: {e}")
+
     db.registra_contratto(
         asta_id=asta_id, giocatore=asta["giocatore"],
         team_id=team_id, importo=importo, anni=anni,
-        ruolo=None, firmato_at=now,
+        ruolo=ruolo, firmato_at=now,
     )
     db.concludi_asta(asta_id, anni_contratto=anni, firmato_at=now)
 
@@ -1503,6 +1645,7 @@ async def _registra_firma_finale(
                 testo_main = (
                     f"<b>{firma_label} {asta['giocatore']}</b> con <b>{team_nome}</b>\n"
                     f"💰 {importo}M × {anni} ann{'o' if anni==1 else 'i'}"
+                    f"{riga_ruolo}"
                 )
             await context.bot.send_message(
                 chat_id=main_channel_id,
@@ -1530,6 +1673,8 @@ async def _registra_firma_finale(
     except Exception as e:
         logger.warning("Accodamento sync GAS fallito: %s", e)
 
+    return ruolo
+
 
 # ── validazione anni ──────────────────────────────────────────────────────────
 
@@ -1547,7 +1692,8 @@ def _valida_anni(importo: int, anni: int) -> str | None:
 def get_handlers():
     return [
         CallbackQueryHandler(firma_callback,                pattern=r"^firma:\d+:\d+$"),
-        CallbackQueryHandler(firma_confirm_callback,        pattern=r"^firma_confirm:\d+:\d+$"),
+        CallbackQueryHandler(firma_confirm_callback,        pattern=r"^firma_confirm:\d+:\d+(:(PG|SG|SF|PF|C))?$"),
+        CallbackQueryHandler(firma_ruolo_callback,          pattern=r"^firma_ruolo:\d+:\d+:(PG|SG|SF|PF|C)$"),
         CallbackQueryHandler(firma_indietro_callback,       pattern=r"^firma_indietro:\d+$"),
         CallbackQueryHandler(pareggio_callback,             pattern=r"^pareggio:\d+:(si|no|no_confermato|indietro)$"),
         CallbackQueryHandler(pareggio_anni_callback,        pattern=r"^pareggio_anni:\d+:\d+$"),

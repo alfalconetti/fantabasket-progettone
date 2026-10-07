@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v3.3.4)
+# Messaggio di migrazione — Fantabasket Progettone (stato v3.4.0)
 
 ---
 
@@ -132,7 +132,8 @@ Cambio fase via `/set_fase` (solo admin). Passaggio a `offseason-rinnovi` increm
 - `ruoli_rs.py` — dichiarazioni post-trade/firma in RS (`ruoli_pendenti`, 48h, estrazione, regola 60 giorni)
 - `cambi_ruolo.py` — `/cambio_ruolo`: ordinario (2/stagione), Erminio, Saedro (richiesta → gruppo admin, `job_fine_saedro`), forzato admin
 - `menu.py` — menu per fase: `AZIONI_FASE` (etichetta, callback, fasi) + `AZIONI_SEMPRE`
-- `validators/ruoli.py` — vincoli 4G/4F/2C: `deficit_minimo`, `deficit_team`
+- `validators/ruoli.py` — involucro di `shared/ruoli_core.py` (`deficit_team` col `db._q` del main)
+- **`shared/ruoli_core.py`** (radice del progetto, montato in `/app/shared` in bot main e bot aste) — UNICA implementazione delle regole dei ruoli: `RUOLI`, `FASI_RUOLI_RS`, `deficit_minimo`, `deficit_team`, `eleggibili`, `scelta_valida`, `ruolo_riacquisto`, `estrai_ruolo`, `registra_ruolo`. Ogni funzione riceve `q` (main: `database._q`, aste: `pg_client.q`). **Una modifica a `shared/` richiede il riavvio di entrambi i bot**
 - `dev_player.py`, `dev.py`, `helpers.py` — invariati
 
 **File principali bot-main:**
@@ -208,6 +209,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 ```
 - Nuove cartelle/servizi: `unzip -o ~/bots/zip -d ~/bots/fantabasket-progettone/`
 - Bot aste: rebuild `bot-aste-beta`; entrambi: `docker compose up --build -d bot-main bot-aste-beta`
+- File in `shared/`: `unzip -p ... > ~/bots/fantabasket-progettone/shared/...` e poi riavvio di ENTRAMBI i bot (`docker compose up --build -d bot-main bot-aste-beta`)
 - Variabili sensibili non-secret (URL, ID) in `secrets/*.env` via `env_file`: `yahoo_router.env` (ID leghe), `bot_main.env` (HEALTHCHECK_URL). Mai valori sensibili nel compose o nei .md
 - Secrets modificati: `docker compose up -d --force-recreate <servizio>` (i secrets sono bind-mount per file: editor come vi creano un file nuovo e il container continua a vedere il vecchio)
 - Script Python nel container: chiamare `db.init_db()` prima di usare il DB (il pool non è inizializzato fuori dal bot)
@@ -264,14 +266,15 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 - **Dichiarazione ruoli (v3.2.0, `handlers/ruoli.py`)**: ogni stagione da capo, solo PG/SG/SF/PF/C tra le eleggibili; bozze in `ruoli_bozze`, ufficiali con Conferma → `cambi_ruolo` (`iniziale` / `forzato_admin`). Conferma parziale permessa. Vincoli 4G/4F/2C: avviso in offseason, BLOCCO previsto per i cambi ruolo in regular season (da implementare). Import da testo con match sul proprio roster. Admin: /admin_menu → Ruoli squadre. Job 10:00 promemoria deadline, 17:00 report canale log, report mancanti al gruppo admin a fine fase
 - **Ruoli in RS (v3.3.0, `handlers/ruoli_rs.py`)**: dichiarazioni in sospeso (`ruoli_pendenti`) aperte da trade, attivazione diritti e /registra_firma solo in `FASI_RUOLI_RS`; 48h poi estrazione (job ogni 15'); regola dei 60 giorni; admin dichiarano da /admin_menu → ⏳ Ruoli in sospeso; annunci sul canale principale. Vincoli 4G/4F/2C: `validators/ruoli.py` (`deficit_minimo` = 0 se esiste un'assegnazione valida; fissi = ruoli ufficiali, flessibili = senza ruolo), usati da trade (RS) e dichiarazioni
 - **Cambi ruolo (v3.3.1, `handlers/cambi_ruolo.py`)**: ordinari max 2/stagione (contatore = eventi `ordinario` della squadra nella stagione, su /roster e foglio); Erminio gratuito entro 14 giorni da `COALESCE(data_yahoo, timestamp)` dell'ultima riga posizioni (data_yahoo con /data_erminio); Saedro 10 giorni una volta a stagione (evento con `scadenza` + `ruolo_ripristino`, ritorno via job `job_fine_saedro`), richiesta GM → approvazione nel gruppo admin, admin anche diretta; forzato_admin non conta. Vincoli bloccanti tranne per i forzati
-- Prossimi passi ruoli: DPE post-deadline (cambio aggiuntivo), ruolo + anni nel bot aste (48h → ruolo casuale e 3 anni), poi Basketball-Reference (nuovi giocatori, date di nascita, medie sul foglio)
+- **Bot aste (v3.4.0 / aste v46)**: FA in RS → anni, poi ruolo (stesse regole via `shared/`); 48h senza risposta → 3 anni + ruolo estratto; ruolo nell'annuncio sul canale principale
+- Prossimi passi: DPE post-deadline (cambio aggiuntivo), robustezza trade (esecuzione/rollback atomici, diritti attivi nel rollback), Basketball-Reference (nuovi giocatori, date di nascita, medie sul foglio)
 
 **@qf_bot (vX.x — dipende da guest mode PTB)**
 - Bot pubblico per roster e info lega
 
 ---
 
-**Stato attuale: v3.3.4**
+**Stato attuale: v3.4.0**
 
 Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v2.1.19** — `/attiva_diritti` propone il contratto della rookie scale (anno I) e chiede solo conferma
@@ -296,6 +299,8 @@ Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v3.3.0** — ruoli in RS: dichiarazioni post-trade/firma (48h, estrazione, regola 60 giorni), vincoli ruoli nelle trade; fix `/registra_firma`
 - **v3.3.1–v3.3.3** — cambi ruolo (ordinari con contatore, Erminio, Saedro, forzati admin), `/data_erminio`; Erminio esclusivo, conferma per l'ordinario
 - **v3.3.4** — guide GM e admin riscritte; indicazioni di fase aggiornate
+- **v3.3.5** — diritti in fondo nell'annuncio trade
+- **v3.4.0** — modulo condiviso `shared/ruoli_core.py`; bot aste: ruolo insieme agli anni per le FA in RS (aste v46)
 
 Novità v2.0.31–v2.0.38:
 - **v2.0.31** — DPE disponibile in tutte e 6 le fasi (da offseason-rinnovi a regular-season-deadline); admin menu DPE diretta; `pre_deadline = (fase != "regular-season-deadline")`
@@ -342,6 +347,7 @@ zip -r ~/fantabasket-progettone-export-$(date +%Y%m%d).zip \
   gas/ \
   gas-router/ \
   yahoo-router/ \
+  shared/ \
   docker-compose.yml \
   README.md \
   --exclude "**/__pycache__/*" \

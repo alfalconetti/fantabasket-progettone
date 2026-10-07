@@ -86,7 +86,9 @@ I ruoli possibili sono PG, SG, SF, PF, C, sempre tra le **posizioni eleggibili**
 
 ### Nuovi giocatori in regular season
 
-Dopo una trade, una firma o l'attivazione dei diritti ricevi in privato un messaggio con i bottoni dei ruoli eleggibili (o solo la conferma, se ne ha uno). Lo ritrovi anche nel menu, in **🎽 Ruoli da dichiarare**.
+**Free agency:** quando vinci un'asta il bot aste ti chiede prima gli anni e poi il ruolo, tra quelli eleggibili; la conferma li mostra insieme. Se non rispondi entro 48 ore il giocatore viene firmato per 3 anni (penale) con un ruolo estratto a caso. Il ruolo compare nell'annuncio della firma.
+
+**Trade, firme registrate dagli admin, attivazione diritti:** dopo una trade, una firma o l'attivazione dei diritti ricevi in privato un messaggio con i bottoni dei ruoli eleggibili (o solo la conferma, se ne ha uno). Lo ritrovi anche nel menu, in **🎽 Ruoli da dichiarare**.
 
 - Hai **48 ore**, poi il ruolo viene estratto a caso tra quelli eleggibili.
 - Se riprendi un giocatore che hai avuto negli ultimi **60 giorni**, torna automaticamente col suo vecchio ruolo.

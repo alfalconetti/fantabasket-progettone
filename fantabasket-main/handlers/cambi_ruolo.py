@@ -26,10 +26,11 @@ import settings
 import teams as tm
 from settings import solo_privato
 from validators.ruoli import deficit_team
+from shared import ruoli_core as core
 
 logger = logging.getLogger(__name__)
 
-RUOLI = ["PG", "SG", "SF", "PF", "C"]
+RUOLI = core.RUOLI
 MAX_ORDINARI = 2
 GIORNI_ERMINIO = 14
 GIORNI_SAEDRO = 10
@@ -80,9 +81,7 @@ def roster_ruoli(team_id: str) -> list[dict]:
 
 
 def eleggibili(gid: int) -> list[str]:
-    r = db._q("SELECT posizioni FROM posizioni_attuali WHERE giocatore_id = %s", (gid,), one=True)
-    pos = set((r["posizioni"] if r else "").split(","))
-    return [p for p in RUOLI if p in pos]
+    return core.eleggibili(db._q, gid)
 
 
 def ruoli_erminio(gid: int) -> set[str]:

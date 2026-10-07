@@ -61,6 +61,7 @@ I diritti al secondo anno scadono 10 giorni prima della `trade_deadline` (in `gl
 
 ### Regular season
 
+- Free agency: il ruolo lo sceglie il vincitore nel bot aste insieme agli anni (o viene estratto dopo 48h insieme ai 3 anni di penale). Se il giocatore non ha posizioni eleggibili, la firma avviene senza ruolo e arriva un avviso nel gruppo admin: impostale con `/set_posizioni_eleggibili` e assegna il ruolo con un cambio forzato.
 - Pannello → **⏳ Ruoli in sospeso**: dichiarazioni post-trade/firma ancora aperte, dichiarabili al posto del GM. Dopo 48h il bot estrae il ruolo da solo.
 - Pannello → **🔁 Cambi ruolo** → squadra: cambio **ordinario** per conto del GM (conta nel contatore), **Erminio**, **Saedro** diretta, **forzato** (non conta; i vincoli dei ruoli sono solo un avviso).
 - Le richieste di **Saedro** dei GM arrivano nel gruppo con l'elenco dei giocatori della squadra in quel ruolo: da approvare se nessuno è disponibile (OUT o fuori rotazione).
