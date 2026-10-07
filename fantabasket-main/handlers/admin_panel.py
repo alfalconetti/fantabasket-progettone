@@ -301,7 +301,7 @@ async def cb_adm_dpe_team(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     bottoni.append([InlineKeyboardButton("← Indietro", callback_data="adm:dpe")])
     await query.edit_message_text(
-        f"🏥 <b>DPE admin — {team['nome']}</b>\\nSeleziona giocatore:",
+        f"🏥 <b>DPE admin — {team['nome']}</b>\nSeleziona giocatore:",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(bottoni),
     )
@@ -334,11 +334,11 @@ async def cb_adm_dpe_giocatore(update: Update, context: ContextTypes.DEFAULT_TYP
     effetto      = "✅ Libera uno slot roster" if pre_deadline else "ℹ️ Nessuno slot liberato (post-deadline)"
 
     testo = (
-        f"🏥 <b>DPE admin — {giocatore['nome_common']}</b>\\n\\n"
-        f"Contratto attuale: <b>{importo_orig}M</b>\\n"
-        f"Contratto DPE (stagione {stagione}): <b>{importo_new}M</b> (-{risparmio}M)\\n"
-        f"Il contratto torna normale dalla stagione successiva.\\n\\n"
-        f"{effetto}\\n\\n"
+        f"🏥 <b>DPE admin — {giocatore['nome_common']}</b>\n\n"
+        f"Contratto attuale: <b>{importo_orig}M</b>\n"
+        f"Contratto DPE (stagione {stagione}): <b>{importo_new}M</b> (-{risparmio}M)\n"
+        f"Il contratto torna normale dalla stagione successiva.\n\n"
+        f"{effetto}\n\n"
         f"<i>Operazione diretta — nessuna approvazione richiesta.</i>"
     )
     kb = InlineKeyboardMarkup([[
@@ -393,8 +393,8 @@ async def cb_adm_dpe_conferma(update: Update, context: ContextTypes.DEFAULT_TYPE
     effetto   = "✅ Slot roster liberato" if pre_deadline else "ℹ️ Nessuno slot liberato (post-deadline)"
 
     await query.edit_message_text(
-        f"✅ DPE registrata — <b>{giocatore['nome_common']}</b>\\n"
-        f"{importo_orig}M → {importo_new}M (stagione {stagione})\\n"
+        f"✅ DPE registrata — <b>{giocatore['nome_common']}</b>\n"
+        f"{importo_orig}M → {importo_new}M (stagione {stagione})\n"
         f"{effetto}",
         parse_mode="HTML",
     )
@@ -403,14 +403,14 @@ async def cb_adm_dpe_conferma(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         gm_ids   = team.get("gm_ids", [])
         testo_gm = (
-            f"🏥 <b>DPE attivata</b> per <b>{giocatore['nome_common']}</b>.\\n"
-            f"Contratto per questa stagione: <b>{importo_new}M</b> (-{risparmio}M)\\n"
-            f"{effetto}\\n\\n"
+            f"🏥 <b>DPE attivata</b> per <b>{giocatore['nome_common']}</b>.\n"
+            f"Contratto per questa stagione: <b>{importo_new}M</b> (-{risparmio}M)\n"
+            f"{effetto}\n\n"
             f"<i>Operazione effettuata dall'admin {admin_tag}</i>"
         )
         for gm_id in gm_ids:
             try:
-                await query.bot.send_message(chat_id=gm_id, text=testo_gm, parse_mode="HTML")
+                await query.get_bot().send_message(chat_id=gm_id, text=testo_gm, parse_mode="HTML")
             except Exception:
                 pass
     except Exception as e:
@@ -420,12 +420,12 @@ async def cb_adm_dpe_conferma(update: Update, context: ContextTypes.DEFAULT_TYPE
     main_channel = settings.load_globals().get("main_channel_id")
     if main_channel:
         testo_canale = (
-            f"🏥 <b>{team['gm_nome']}</b> attiva la DPE per <b>{giocatore['nome_common']}</b>\\n"
-            f"Contratto {stagione}: {importo_orig}M → <b>{importo_new}M</b> (-{risparmio}M)\\n"
+            f"🏥 <b>{team['gm_nome']}</b> attiva la DPE per <b>{giocatore['nome_common']}</b>\n"
+            f"Contratto {stagione}: {importo_orig}M → <b>{importo_new}M</b> (-{risparmio}M)\n"
             f"{effetto}"
         )
         try:
-            await query.bot.send_message(
+            await query.get_bot().send_message(
                 chat_id=main_channel, text=testo_canale, parse_mode="HTML"
             )
         except Exception as e:
@@ -843,7 +843,7 @@ async def _esegui_cambio_fase(query, fase_vecchia: str, nuova_fase: str):
         g2 = json.load(open(globals_path))
         log_ch = g2.get("log_channel_id_main")
         if log_ch:
-            await query.bot.send_message(
+            await query.get_bot().send_message(
                 chat_id=log_ch,
                 text=f"⚙️ {testo}",
                 parse_mode="HTML",
@@ -855,7 +855,7 @@ async def _esegui_cambio_fase(query, fase_vecchia: str, nuova_fase: str):
     try:
         main_ch = settings.load_globals().get("main_channel_id")
         if main_ch and nuova_fase != fase_vecchia:
-            await query.bot.send_message(chat_id=main_ch, text=testo_annuncio_fase(nuova_fase),
+            await query.get_bot().send_message(chat_id=main_ch, text=testo_annuncio_fase(nuova_fase),
                                          parse_mode="HTML")
     except Exception as e:
         logger.warning("Annuncio cambio fase sul canale: %s", e)
@@ -864,7 +864,7 @@ async def _esegui_cambio_fase(query, fase_vecchia: str, nuova_fase: str):
     if fase_vecchia == "offseason-ruoli" and nuova_fase != "offseason-ruoli":
         try:
             from handlers.ruoli import report_fine_fase
-            await report_fine_fase(query.bot)
+            await report_fine_fase(query.get_bot())
         except Exception as e:
             logger.warning("report_fine_fase ruoli: %s", e)
 

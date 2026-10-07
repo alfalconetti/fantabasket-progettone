@@ -656,3 +656,9 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 
 ### Miglioramenti
 - **🏁 Decadimento nel `/menu`** nelle fasi di mercato aperto (il comando `/decadimento` resta disponibile in ogni fase)
+
+## v3.2.5 (2026-10-07)
+
+### Bug fix
+- `query.bot` → `query.get_bot()` (python-telegram-bot ≥ 20): non partivano l'annuncio di fase sul canale principale, il messaggio di cambio fase sul canale log, il report di fine dichiarazione ruoli, e la notifica al GM + annuncio sul canale della DPE attivata da admin. Gli errori venivano ignorati in silenzio
+- DPE da admin: i messaggi contenevano `\n` letterali al posto degli a capo
