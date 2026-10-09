@@ -1039,9 +1039,13 @@ async def _esegui_registra_firma(update_or_query, context, giocatore, team_id, t
 
 def get_handlers() -> list:
     from handlers.trade import (
-        TRADE_ASSET_MENU, TRADE_ASSET_GIOCATORI, TRADE_ASSET_PICK, TRADE_RIEPILOGO,
-        cb_asset_menu, cb_toggle_giocatore, cb_toggle_pick, cb_send_trade,
-        cmd_annulla_trade,
+        TRADE_ASSET_MENU, TRADE_ASSET_GIOCATORI, TRADE_ASSET_PICK, TRADE_ASSET_DIRITTI,
+        TRADE_ASSEGNA_DEST, TRADE_NOTA, TRADE_RIEPILOGO,
+        EDIT_MENU, EDIT_AGGIUNGI_TIPO, EDIT_AGGIUNGI_ITEM,
+        cb_asset_menu, cb_toggle_giocatore, cb_toggle_pick, cb_toggle_diritti, cb_assegna_dest,
+        cb_nota_ricevi, cb_nota_apri, cb_salva_bozza, cb_trade_del, cb_modifica_da_riepilogo,
+        cb_edit_rm, cb_edit_add, cb_edit_done, cb_edit_back, cb_edit_tipo, cb_edit_item,
+        cb_send_trade, cmd_annulla_trade,
     )
 
     conv = ConversationHandler(
@@ -1068,8 +1072,39 @@ def get_handlers() -> list:
                 CallbackQueryHandler(cb_toggle_pick,  pattern=r"^trade_pi:.+$"),
                 CallbackQueryHandler(cb_asset_menu,   pattern=r"^trade_am:.+$"),
             ],
+            # Stessi stati e handler del builder GM (trade.py): mancavano diritti,
+            # destinazioni (trade a 3-4), nota, bozza, elimina e modifica
+            TRADE_ASSET_DIRITTI: [
+                CallbackQueryHandler(cb_toggle_diritti, pattern=r"^trade_di:.+$"),
+                CallbackQueryHandler(cb_asset_menu,     pattern=r"^trade_am:.+$"),
+            ],
+            TRADE_ASSEGNA_DEST: [
+                CallbackQueryHandler(cb_assegna_dest, pattern=r"^trade_dest:\d+:.+$"),
+            ],
+            TRADE_NOTA: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cb_nota_ricevi),
+                CommandHandler("salta", cb_nota_ricevi),
+            ],
             TRADE_RIEPILOGO: [
-                CallbackQueryHandler(cb_send_trade, pattern=r"^trade_send:.+$"),
+                CallbackQueryHandler(cb_send_trade,            pattern=r"^trade_send:.+$"),
+                CallbackQueryHandler(cb_nota_apri,             pattern=r"^trade_nota:\d+$"),
+                CallbackQueryHandler(cb_salva_bozza,           pattern=r"^trade_salva:\d+$"),
+                CallbackQueryHandler(cb_trade_del,             pattern=r"^trade_del:\d+$"),
+                CallbackQueryHandler(cb_modifica_da_riepilogo, pattern=r"^edit_back:\d+$"),
+            ],
+            EDIT_MENU: [
+                CallbackQueryHandler(cb_edit_rm,   pattern=r"^edit_rm:\d+:\d+$"),
+                CallbackQueryHandler(cb_edit_add,  pattern=r"^edit_add:\d+$"),
+                CallbackQueryHandler(cb_edit_done, pattern=r"^edit_done:\d+$"),
+                CallbackQueryHandler(cb_edit_back, pattern=r"^edit_back:\d+$"),
+            ],
+            EDIT_AGGIUNGI_TIPO: [
+                CallbackQueryHandler(cb_edit_tipo, pattern=r"^edit_tipo:[gp]:\d+:.+$"),
+                CallbackQueryHandler(cb_edit_add,  pattern=r"^edit_add:\d+$"),
+            ],
+            EDIT_AGGIUNGI_ITEM: [
+                CallbackQueryHandler(cb_edit_item, pattern=r"^edit_item:[gp]:\d+:.+$"),
+                CallbackQueryHandler(cb_edit_tipo, pattern=r"^edit_tipo:[gp]:\d+:.+$"),
             ],
             ADMIN_IMPORT_TESTO: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, admin_import_ricevi_testo),

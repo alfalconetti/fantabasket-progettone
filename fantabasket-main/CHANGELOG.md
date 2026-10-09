@@ -755,3 +755,8 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 ### Miglioramenti
 - `/attiva_diritti` e 🏀 Rookie nel menu: ogni bottone mostra il contratto della rookie scale (es. `Dailyn Swain (#40 2026) — 1x2`); calcolo della scala in una funzione unica usata anche dalla conferma
 - Bot aste: versione mostrata al riavvio letta dal suo CHANGELOG (era fissa a "beta-1")
+
+## v3.4.6 (2026-10-09)
+
+### Bug fix
+- Trade builder admin (/admin_menu → Trade → Build): selezionando i diritti il bot si bloccava, perché la conversazione admin non aveva lo stato dei diritti. Aggiunti tutti gli stati del builder GM che mancavano: diritti, destinazioni nelle trade a 3-4 squadre, nota, salva bozza, elimina, modifica
