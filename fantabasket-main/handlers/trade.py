@@ -4,6 +4,7 @@ Trade builder — flusso completo:
   /mie_trade → bozze e trade in votazione
   Callback: accetta/rifiuta trade proposta
 """
+import html
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -19,6 +20,16 @@ from utils import ROME, format_dt
 from validators.trade import valida_trade
 
 logger = logging.getLogger(__name__)
+
+_STATI = {
+    "bozza":           "📝 bozza",
+    "proposta":        "🗳 in voto tra i GM",
+    "in_approvazione": "⏳ in attesa degli admin",
+    "approvata":       "✅ approvata",
+    "rifiutata_gm":    "❌ rifiutata da un GM",
+    "rifiutata_admin": "🚫 rifiutata dagli admin",
+    "annullata":       "🗑 annullata",
+}
 
 # ── stati ConversationHandler ─────────────────────────────────────────────────
 (
@@ -725,6 +736,9 @@ async def _invia_ad_admin(query, context, trade_id: int):
     admin_gid = settings.admin_group_id()
     testo = _testo_riepilogo(trade_id)
     trade = db.get_trade(trade_id)
+    if not db.cambia_stato_trade(trade_id, ("bozza",), "in_approvazione"):
+        await query.edit_message_text(f"⚠️ La trade non è più una bozza (stato: {_STATI.get(trade['stato'], trade['stato'])}).")
+        return
 
     kb = InlineKeyboardMarkup([[
         InlineKeyboardButton("✅ Approva", callback_data=f"trade_admin:ok:{trade_id}"),
@@ -740,7 +754,6 @@ async def _invia_ad_admin(query, context, trade_id: int):
             reply_markup=kb,
         )
 
-    db.aggiorna_stato_trade(trade_id, "in_approvazione")
     await query.edit_message_text(
         f"✅ Trade inviata agli admin per approvazione.",
         parse_mode="HTML",
@@ -822,8 +835,11 @@ async def _proponi_ai_gm(query, context, trade_id: int):
 
     # Tutti i GM tranne il proponente devono votare
     da_votare = [tid for tid in squadre if tid != trade["proposta_da"]]
+    if not db.cambia_stato_trade(trade_id, ("bozza",), "proposta"):
+        await query.edit_message_text(f"⚠️ La trade non è più una bozza (stato: {_STATI.get(trade['stato'], trade['stato'])}).")
+        return
+    db._q("DELETE FROM trade_voti WHERE trade_id = %s", (trade_id,))   # voti di eventuali proposte precedenti
     db.inizializza_voti(trade_id, da_votare)
-    db.aggiorna_stato_trade(trade_id, "proposta")
 
     for team_id in da_votare:
         team = tm.get_team_by_id(team_id)
@@ -881,9 +897,13 @@ async def cb_trade_vedi(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cb_voto_gm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Callback quando un GM accetta o rifiuta una trade proposta."""
     query = update.callback_query
-    await query.answer()
     _, esito, trade_id_s, team_id = query.data.split(":")
     trade_id = int(trade_id_s)
+    votante = tm.get_team_by_gm(query.from_user.id)
+    if not votante or votante["id"] != team_id:
+        await query.answer("⛔ Può votare solo il GM della squadra.", show_alert=True)
+        return
+    await query.answer()
     trade    = db.get_trade(trade_id)
 
     if not trade or trade["stato"] != "proposta":
@@ -891,7 +911,6 @@ async def cb_voto_gm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     voto = "accettato" if esito == "si" else "rifiutato"
-    db.registra_voto(trade_id, team_id, voto)
     team = tm.get_team_by_id(team_id)
 
     if voto == "rifiutato":
@@ -906,14 +925,15 @@ async def cb_voto_gm(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML",
             reply_markup=kb,
         )
-        # Annulla il voto registrato — verrà confermato dopo
-        db._q("DELETE FROM trade_voti WHERE trade_id = %s AND team_id = %s", (trade_id, team_id))
+        # Il voto resta 'pending' finché il rifiuto non viene confermato
+        # (prima la riga veniva cancellata: se il GM non confermava, la trade
+        # poteva arrivare agli admin come se avesse accettato)
         return
 
+    db.registra_voto(trade_id, team_id, voto)
     await query.edit_message_text(f"✅ Hai accettato la trade {_trade_label(trade)}. Attendo gli altri.")
 
-    if db.tutti_hanno_votato(trade_id):
-        db.aggiorna_stato_trade(trade_id, "in_approvazione")
+    if db.chiudi_voto_se_tutti_accettano(trade_id):
         await _invia_ad_admin_dopo_voti(context, trade_id)
 
 
@@ -938,8 +958,12 @@ def _trade_label(trade: dict) -> str:
 async def cb_rifiuta_conf(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Gestisce la conferma del rifiuto — secco o con nota."""
     query = update.callback_query
-    await query.answer()
     _, trade_id_s, team_id, con_nota = query.data.split(":")
+    votante = tm.get_team_by_gm(query.from_user.id)
+    if not votante or votante["id"] != team_id:
+        await query.answer("⛔ Può votare solo il GM della squadra.", show_alert=True)
+        return ConversationHandler.END
+    await query.answer()
     trade_id = int(trade_id_s)
     trade    = db.get_trade(trade_id)
 
@@ -995,7 +1019,9 @@ async def _esegui_rifiuto(query, context, trade_id: int, team_id: str, nota: str
     note_db = f"Rifiutata da {team['nome'] if team else team_id}"
     if nota:
         note_db += f": {nota}"
-    db.aggiorna_stato_trade(trade_id, "rifiutata_gm", note=note_db)
+    if not db.cambia_stato_trade(trade_id, ("proposta",), "rifiutata_gm", note=note_db):
+        await query.edit_message_text("⚠️ Questa trade non è più in votazione.")
+        return
 
     testo_proponente = f"❌ <b>{team['nome']}</b> ha rifiutato la trade <b>{_trade_label(trade)}</b>."
     if nota:
@@ -1048,21 +1074,36 @@ async def _invia_ad_admin_dopo_voti(context, trade_id: int):
 async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Admin approva o rifiuta la trade."""
     query = update.callback_query
+    if not settings.is_admin(query.from_user.id):
+        await query.answer("⛔ Solo gli admin possono approvare o rifiutare.", show_alert=True)
+        return
     await query.answer()
     _, esito, trade_id_s = query.data.split(":")
     trade_id = int(trade_id_s)
-
-    if esito == "no":
-        db.aggiorna_stato_trade(trade_id, "rifiutata_admin")
-        await query.edit_message_text("❌ Trade rifiutata dagli admin.")
-        await _notifica_proponente(context, trade_id, "❌ Gli admin hanno rifiutato la trade.")
-        return
-
     admin_user = update.effective_user
     admin_nome = admin_user.first_name or admin_user.username or str(admin_user.id)
 
-    # Genera trade_ref (MAX progressivo per evitare collisioni)
+    if esito == "no":
+        # Solo se è ancora in approvazione: mai sopra una trade già approvata ed eseguita
+        if not db.cambia_stato_trade(trade_id, ("in_approvazione",), "rifiutata_admin",
+                                     note=f"Rifiutata dagli admin ({admin_nome})"):
+            t = db.get_trade(trade_id) or {}
+            await query.edit_message_text(
+                query.message.text_html + f"\n\nℹ️ <b>Già gestita</b>: stato {_STATI.get(t.get('stato'), t.get('stato'))}.",
+                parse_mode="HTML")
+            return
+        await query.edit_message_text(f"❌ Trade rifiutata dagli admin ({admin_nome}).")
+        await _notifica_proponente(context, trade_id, "❌ Gli admin hanno rifiutato la trade.")
+        return
+
     trade    = db.get_trade(trade_id)
+    if not trade or trade["stato"] != "in_approvazione":
+        await query.edit_message_text(
+            query.message.text_html + f"\n\nℹ️ <b>Non approvabile</b>: stato "
+            f"{_STATI.get((trade or {}).get('stato'), (trade or {}).get('stato'))}.", parse_mode="HTML")
+        return
+
+    # Genera trade_ref (MAX progressivo per evitare collisioni)
     stagione = trade["stagione"]
     n_trade  = db.get_trade_count_approvate(stagione)
     trade_ref = f"TRADE-{stagione}-{n_trade + 1:03d}"
@@ -1076,7 +1117,7 @@ async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except TradeNonEseguibile as e:
         await query.edit_message_text(
             f"❌ <b>Trade non eseguita</b>: {e}.\nNessuna modifica è stata salvata; la trade resta da approvare.",
-            parse_mode="HTML")
+            parse_mode="HTML", reply_markup=query.message.reply_markup)   # Approva/Rifiuta restano
         return
 
     # Annuncio sul canale principale
@@ -1127,6 +1168,8 @@ def _scrivi_trade(trade_id: int, trade_ref: str, approvata_da: str | None, inver
                 raise TradeNonEseguibile(f"la trade è in stato '{stato}', non 'approvata'")
             if not inverti and stato == "approvata":
                 raise TradeNonEseguibile("la trade risulta già approvata ed eseguita")
+            if not inverti and stato in ("rifiutata_gm", "rifiutata_admin", "annullata"):
+                raise TradeNonEseguibile(f"la trade è in stato '{stato}'")
             for item in items:
                 da, a = (item["team_id_a"], item["team_id_da"]) if inverti else (item["team_id_da"], item["team_id_a"])
                 if item["tipo"] == "giocatore":
@@ -1409,15 +1452,161 @@ async def cmd_mie_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
         righe.append("")
         righe.append("<b>⏳ In attesa del tuo voto:</b>")
         for t in pending:
-            righe.append(f"  • {t['trade_ref']}")
+            righe.append(f"  • {_trade_label(t)}")
             bottoni.append([InlineKeyboardButton(
-                f"👀 {t['trade_ref']}", callback_data=f"trade_vedi:{t['id']}"
+                f"👀 {_trade_label(t)}", callback_data=f"trade_vedi:{t['id']}"
             )])
+    righe.append("\n<i>Tutte le tue trade, anche inviate o rifiutate: /my_trades</i>")
 
     kb = InlineKeyboardMarkup(bottoni) if bottoni else None
     await update.effective_message.reply_text(
         "\n".join(righe), parse_mode="HTML", reply_markup=kb
     )
+
+
+# ── /my_trades ────────────────────────────────────────────────────────────────
+# Tutte le trade della squadra (proposte o ricevute) con lo stato, il dettaglio e le
+# azioni possibili: modifica (bozza), voto, ritiro della proposta, "riprendi come
+# bozza" per quelle rifiutate. Callback mt:l (elenco), mt:v:<id>, mt:r:<id>, mt:c:<id>.
+
+def _data_breve(ts) -> str:
+    try:
+        return ts.astimezone(ROME).strftime("%d/%m")
+    except Exception:
+        return ""
+
+
+def _altre_squadre(trade_id: int, team_id: str) -> str:
+    nomi = []
+    for sq in db.get_squadre_trade(trade_id):
+        if sq["team_id"] != team_id:
+            t = tm.get_team_by_id(sq["team_id"])
+            nomi.append(t["nome"] if t else sq["team_id"])
+    return ", ".join(nomi) or "—"
+
+
+def _riga_voti(trade_id: int) -> str:
+    icone = {"accettato": "✅", "rifiutato": "❌", "pending": "⏳"}
+    parti = []
+    for v in db.get_voti_trade(trade_id) or []:
+        t = tm.get_team_by_id(v["team_id"])
+        parti.append(f"{icone.get(v['voto'], '?')} {t['nome'] if t else v['team_id']}")
+    return " · ".join(parti)
+
+
+def _testo_lista_my_trades(team_id: str):
+    trades = db.get_trade_team(team_id)
+    if not trades:
+        return "📂 <b>Le tue trade</b>\n\nNessuna trade.", None
+    righe, kb = ["📂 <b>Le tue trade</b> <i>(ultime {})</i>\n".format(len(trades))], []
+    for t in trades:
+        stato = _STATI.get(t["stato"], t["stato"])
+        chi = "proposta da te" if t["proposta_da"] == team_id else "ricevuta"
+        righe.append(f"{stato.split(' ')[0]} <b>{_trade_label(t)}</b> — con {_altre_squadre(t['id'], team_id)} "
+                     f"<i>({chi}, {_data_breve(t['aggiornato'])})</i>")
+        kb.append([InlineKeyboardButton(f"{stato.split(' ')[0]} {_trade_label(t)}", callback_data=f"mt:v:{t['id']}")])
+    righe.append("\n" + " · ".join(_STATI.values()))
+    return "\n".join(righe), InlineKeyboardMarkup(kb)
+
+
+@solo_privato
+async def cmd_my_trades(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    team = tm.get_team_by_gm(update.effective_user.id)
+    if not team:
+        await update.effective_message.reply_text("⛔ Non sei registrato come GM.")
+        return
+    testo, kb = _testo_lista_my_trades(team["id"])
+    await update.effective_message.reply_text(testo, parse_mode="HTML", reply_markup=kb)
+
+
+def _coinvolta(trade: dict, team_id: str) -> bool:
+    return trade["proposta_da"] == team_id or any(
+        s["team_id"] == team_id for s in db.get_squadre_trade(trade["id"]))
+
+
+async def cb_my_trades(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    team = tm.get_team_by_gm(query.from_user.id)
+    if not team:
+        await query.answer("⛔ Non sei registrato come GM.", show_alert=True)
+        return
+    parti = query.data.split(":")
+    azione = parti[1]
+
+    if azione == "l":
+        await query.answer()
+        testo, kb = _testo_lista_my_trades(team["id"])
+        await query.edit_message_text(testo, parse_mode="HTML", reply_markup=kb)
+        return
+
+    trade_id = int(parti[2])
+    trade = db.get_trade(trade_id)
+    if not trade or not _coinvolta(trade, team["id"]):
+        await query.answer("❌ Trade non trovata tra le tue.", show_alert=True)
+        return
+    indietro = [InlineKeyboardButton("← Elenco", callback_data="mt:l")]
+
+    if azione == "r":                         # ritira una proposta ancora in voto
+        if trade["proposta_da"] != team["id"]:
+            await query.answer("⛔ Può ritirarla solo chi l'ha proposta.", show_alert=True)
+            return
+        if not db.cambia_stato_trade(trade_id, ("proposta",), "annullata", note="Ritirata dal proponente"):
+            await query.answer("⚠️ Non è più in voto: non si può ritirare.", show_alert=True)
+            return
+        await query.answer("Proposta ritirata.")
+        for sq in db.get_squadre_trade(trade_id):
+            if sq["team_id"] == team["id"]:
+                continue
+            for gm in (tm.get_team_by_id(sq["team_id"]) or {}).get("gm_ids", []):
+                try:
+                    await context.bot.send_message(chat_id=gm, parse_mode="HTML",
+                        text=f"🗑 <b>{team['nome']}</b> ha ritirato la proposta di trade <b>{_trade_label(trade)}</b>.")
+                except Exception as e:
+                    logger.warning("Avviso ritiro trade: %s", e)
+        trade = db.get_trade(trade_id)
+
+    elif azione == "c":                       # riprendi come bozza
+        if trade["stato"] not in ("rifiutata_gm", "rifiutata_admin", "annullata"):
+            await query.answer("Si possono riprendere solo trade rifiutate o ritirate.", show_alert=True)
+            return
+        await query.answer()
+        nuovo = db.clona_trade_in_bozza(trade_id, team["id"], settings.stagione_corrente())
+        bozza = db.get_trade(nuovo)
+        await query.edit_message_text(
+            f"♻️ Nuova bozza <b>{_label_bozza(bozza)}</b> creata da {_trade_label(trade)}.\n"
+            f"Modificala e inviala di nuovo quando vuoi.", parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✏️ Modifica", callback_data=f"edit_back:{nuovo}")],
+                                               indietro]))
+        return
+    else:
+        await query.answer()
+
+    # dettaglio
+    stato = trade["stato"]
+    righe = [f"<b>{_trade_label(trade)}</b> — {_STATI.get(stato, stato)}",
+             f"<i>Proposta da {('te' if trade['proposta_da'] == team['id'] else (tm.get_team_by_id(trade['proposta_da']) or {}).get('nome', trade['proposta_da']))}"
+             f" · aggiornata il {_data_breve(trade['aggiornato'])}</i>", "",
+             _testo_riepilogo(trade_id)]
+    if stato in ("proposta", "rifiutata_gm", "in_approvazione"):
+        voti = _riga_voti(trade_id)
+        if voti:
+            righe += ["", f"🗳 {voti}"]
+    if trade.get("note") and stato in ("rifiutata_gm", "rifiutata_admin", "annullata"):
+        righe += ["", f"📝 {html.escape(trade['note'])}"]
+    kb = []
+    if stato == "bozza" and trade["proposta_da"] == team["id"]:
+        kb.append([InlineKeyboardButton("✏️ Modifica", callback_data=f"edit_back:{trade_id}")])
+    if stato == "proposta":
+        mio = next((v for v in db.get_voti_trade(trade_id) or [] if v["team_id"] == team["id"]), None)
+        if mio and mio["voto"] == "pending":
+            kb.append([InlineKeyboardButton("✅ Accetto", callback_data=f"trade_voto:si:{trade_id}:{team['id']}"),
+                       InlineKeyboardButton("❌ Rifiuto", callback_data=f"trade_voto:no:{trade_id}:{team['id']}")])
+        if trade["proposta_da"] == team["id"]:
+            kb.append([InlineKeyboardButton("🗑 Ritira la proposta", callback_data=f"mt:r:{trade_id}")])
+    if stato in ("rifiutata_gm", "rifiutata_admin", "annullata"):
+        kb.append([InlineKeyboardButton("♻️ Riprendi come bozza", callback_data=f"mt:c:{trade_id}")])
+    kb.append(indietro)
+    await query.edit_message_text("\n".join(righe), parse_mode="HTML", reply_markup=InlineKeyboardMarkup(kb))
 
 
 # ── /annulla_trade ─────────────────────────────────────────────────────────────
@@ -1426,7 +1615,8 @@ async def cmd_mie_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_annulla_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     trade_id = context.user_data.pop("trade_id", None)
     if trade_id:
-        db.aggiorna_stato_trade(trade_id, "annullata")
+        # Solo una bozza: una trade già inviata/approvata non va mai toccata da qui
+        db.cambia_stato_trade(trade_id, ("bozza",), "annullata")
     context.user_data.pop("trade_squadre_ordine", None)
     context.user_data.pop("trade_squadre_corrente_idx", None)
     await update.effective_message.reply_text("Trade annullata.")
@@ -1874,7 +2064,9 @@ def get_handlers() -> list:
         conv_rifiuto,
         conv_import,
         conv_edit,
-        CommandHandler("mie_trade",          cmd_mie_trade),
+        CommandHandler("my_trades",          cmd_my_trades),
+        CommandHandler("mie_trade",          cmd_my_trades),
+        CallbackQueryHandler(cb_my_trades,   pattern=r"^mt:(?:l|[vrc]:\d+)$"),
         CommandHandler("bozze_trade",         cmd_mie_trade),
         CommandHandler("annulla_trade_admin", cmd_annulla_trade_admin),
         CallbackQueryHandler(cb_trade_vedi,  pattern=r"^trade_vedi:\d+$"),

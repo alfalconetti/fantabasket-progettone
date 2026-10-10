@@ -82,6 +82,7 @@ def _kb_menu_trade() -> InlineKeyboardMarkup:
             InlineKeyboardButton("📝 Bozze",   callback_data="menu:trade_bozze"),
             InlineKeyboardButton("📥 Import",  callback_data="menu_trade_import"),
         ],
+        [InlineKeyboardButton("📂 Le mie trade", callback_data="mt:l")],
         [InlineKeyboardButton("← Menu",       callback_data="menu:home")],
     ])
 

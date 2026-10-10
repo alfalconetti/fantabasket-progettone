@@ -27,6 +27,7 @@ offseason-rfa → offseason-fa → offseason-ruoli → (ricomincia)
 
 ## Trade
 
+- **Bottoni di approvazione** (trade, DPE, Saedro, decadimento): funzionano anche dopo un riavvio, li può premere solo un admin, e la prima decisione vale. Se la richiesta è già stata gestita (da un altro admin o da un altro messaggio) il bottone risponde "già gestita" e non cambia niente: un Rifiuta non annulla mai un'approvazione. Un GM non può mandare una seconda richiesta per lo stesso giocatore finché la prima è aperta (dopo 7 giorni senza risposta può rimandarla).
 - Le trade proposte dai GM arrivano nel gruppo admin con ✅ Approva / ❌ Rifiuta; l'approvazione esegue, assegna `TRADE-AAAA-NNN` e annuncia sul canale.
 - Pannello → **Trade → Import**: importa dal testo e ufficializza direttamente.
 - `/annulla_trade_admin TRADE-AAAA-NNN`: rollback di una trade eseguita (giocatori, pick e diritti), dopo aver verificato che il roster sia compatibile.
@@ -36,7 +37,7 @@ offseason-rfa → offseason-fa → offseason-ruoli → (ricomincia)
 
 ## DPE, tagli, firme, decadimento
 
-- Pannello → **DPE**: attivazione diretta (contratto − 25% arrotondato per eccesso), con notifica al GM e annuncio.
+- Pannello → **DPE**: attivazione diretta (contratto − 25% arrotondato per eccesso), con notifica al GM e annuncio. Pre o post deadline, importo e squadra si valutano al momento dell'approvazione (anche per le richieste dei GM); la DPE post-deadline dà alla squadra un cambio ruolo gratuito "Extra DPE" verso il ruolo dell'infortunato.
 - Pannello → **Taglia giocatore**: taglio per conto di una squadra.
 - `/registra_firma`: firma avvenuta fuori dal bot. In regular season apre anche la dichiarazione del ruolo per il GM.
 - Le richieste di decadimento dei GM arrivano nel gruppo admin da approvare.

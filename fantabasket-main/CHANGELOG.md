@@ -802,3 +802,34 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 
 ### Miglioramenti
 - Backup: link "📖 Guida di ripristino" nella didascalia (e nel MANIFEST) di ogni backup, costruito da `repo_url` in `config/globals.json` (fuori da git, così l'URL non sta nel codice). Senza `repo_url` resta il testo `docs/RECOVERY.md`
+
+## v3.6.0 (2026-10-10)
+
+### Trade
+- Nuovo `/my_trades` (anche `/mie_trade` e menu → Trade → 📂 Le mie trade): tutte le trade della squadra, proposte o ricevute, con lo stato (📝 🗳 ⏳ ✅ ❌ 🚫). Dettaglio con voti, motivazione del rifiuto e azioni: modifica (bozza), voto, ritiro della propria proposta ancora in voto, "♻️ Riprendi come bozza" per le rifiutate (copia squadre e asset in una nuova bozza; l'originale resta)
+- Passaggi di stato atomici (`db.cambia_stato_trade`): invio ai GM/admin solo da bozza, rifiuto di un GM solo se ancora in voto, Rifiuta admin solo se ancora in approvazione (prima poteva segnare "rifiutata" una trade già approvata ed eseguita), approvazione solo se in approvazione; `_scrivi_trade` rifiuta anche le trade rifiutate o annullate
+- Voti: può votare solo il GM della squadra; premere ❌ senza confermare non cancella più il voto (prima la trade poteva arrivare agli admin come accettata); passaggio agli admin atomico, una sola volta anche con voti simultanei
+- Approva/Rifiuta trade solo per gli admin; se l'esecuzione fallisce i bottoni restano (prima sparivano e la trade restava bloccata in approvazione)
+- `/annulla_trade` annulla solo una bozza (prima poteva segnare annullata una trade già inviata o approvata rimasta in memoria)
+- `/bozze_trade`: le proposte da votare mostravano "None" al posto dell'etichetta
+
+### Richieste agli admin (DPE, Saedro, decadimento)
+- Nuova tabella `richieste_admin`: una sola richiesta aperta per giocatore e tipo (il GM viene avvisato se ne ha già una; dopo 7 giorni senza risposta può rimandarla). Approva/Rifiuta la chiudono in modo atomico: la seconda decisione risponde "già gestita" e non fa niente. Le azioni dirette dal pannello admin chiudono l'eventuale richiesta aperta. Compatibile con i bottoni già inviati prima della v3.6.0
+- Approva/Rifiuta DPE solo per gli admin
+- Saedro approvabile solo in regular season e playoff
+
+### DPE
+- Pre o post deadline, importo e squadra valutati al momento dell'approvazione (prima: al momento della richiesta). Logica unica `applica_dpe()` per richieste dei GM e DPE diretta admin
+- DPE post-deadline: cambio ruolo gratuito "🏥 Extra DPE" verso il ruolo dell'infortunato, uno per DPE (nuovo tipo `dpe_extra` in `cambi_ruolo`)
+
+### Ruoli
+- Giocatore con una sola posizione eleggibile che arriva in squadra in regular season (trade, attivazione diritti, `/registra_firma`): ruolo assegnato subito, con annuncio, senza dichiarazione da fare
+
+### Roster
+- Colonna **FM** (fantamedia Basketball-Reference) nell'immagine del roster, con la stagione nell'intestazione (es. "FM 25-26"). Stagione unica per tutta la lega: quella in corso da quando almeno metà dei giocatori sotto contratto ha una fantamedia di quell'anno; "—" per chi non ha dati
+
+### Database
+- `migrate_db()`: i CHECK su `transazioni.tipo` e `cambi_ruolo.tipo` vengono ricreati con l'unione di valori del codice, valori già ammessi e valori presenti nei dati (non toglie mai niente); se fallisce scrive un errore nel log senza bloccare l'avvio
+
+### Google Sheets
+- Penalità cap nel foglio Roster col segno meno: `SALARY CAP [-5]` (richiede `clasp push`)

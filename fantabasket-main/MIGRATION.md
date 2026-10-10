@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v3.5.0, bot aste v49)
+# Messaggio di migrazione — Fantabasket Progettone (stato v3.6.0, bot aste v50)
 
 ---
 
@@ -88,7 +88,7 @@ Cambio fase via `/set_fase` (solo admin). Passaggio a `offseason-rinnovi` increm
 
 ---
 
-**Bot aste beta** — v49 + pg_client.py. Cap/slot da PostgreSQL. FA list da PostgreSQL (esclude diritti 2nd non firmati, ordinata per fantamedia bref desc). Versione = ultima voce `## vNN` del suo `CHANGELOG.md` (v48). Niente backup propri da v49 (solo `/backup_ora` d'emergenza del DB aste). Config montata `:ro`. `cap_massimo()` alias di `cap_regular` (150M fisso), `cap_limite()` dinamico (165M offseason, 150M RS).
+**Bot aste beta** — v50 + pg_client.py. Cap/slot da PostgreSQL. FA list da PostgreSQL (esclude diritti 2nd non firmati, ordinata per fantamedia bref desc). Versione = ultima voce `## vNN` del suo `CHANGELOG.md` (v48). Niente backup propri da v49 (solo `/backup_ora` d'emergenza del DB aste). Config montata `:ro`. `cap_massimo()` alias di `cap_regular` (150M fisso), `cap_limite()` dinamico (165M offseason, 150M RS).
 
 **Il DB del bot aste resta su SQLite per scelta** (decisione del 09/10/2026): così si può sempre tornare al bot aste standalone v48. Modifiche allo schema SQLite solo additive (nuove colonne con default, mai rinominare o togliere), così il DB resta leggibile dallo standalone.
 
@@ -176,7 +176,7 @@ Stati ConversationHandler:
 **DPE:**
 - Fasi disponibili: `offseason-rinnovi` → `regular-season-deadline` (tutte e 6)
 - `pre_deadline = (fase != "regular-season-deadline")` — libera slot in tutte le fasi tranne post-deadline
-- Post-deadline: decurtazione 25% + nessuno slot liberato (cambio ruolo aggiuntivo — da implementare con i ruoli v5.x)
+- Post-deadline: decurtazione 25% + nessuno slot liberato + cambio ruolo `dpe_extra` gratuito verso il ruolo dell'infortunato (v3.6.0). Pre/post si decide all'approvazione
 - `get_roster_count()` nel bot aste riceve sempre `stagione` per escludere giocatori con DPE dal conteggio slot
 - Tabella `dpe`: `(id, giocatore_id, team_id, stagione, importo_originale, importo_dpe, pre_deadline, approvata_da, timestamp)`
 
@@ -228,6 +228,13 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 - Secrets modificati: `docker compose up -d --force-recreate <servizio>` (i secrets sono bind-mount per file: editor come vi creano un file nuovo e il container continua a vedere il vecchio)
 - Script Python nel container: chiamare `db.init_db()` prima di usare il DB (il pool non è inizializzato fuori dal bot)
 - psql: `docker compose exec postgres psql -U fantabasket -d fantabasket -c "..."`
+
+**Richieste agli admin e trade (v3.6.0):**
+- `richieste_admin (tipo, chiave=giocatore_id, team_id, stato)`, indice unico sulle aperte. `db.apri_richiesta` alla richiesta del GM; `db.chiudi_richiesta` in Approva/Rifiuta → `'ok'` (procedi), `'gestita'` (già decisa: non fare niente), `'nessuna'` (bottoni di prima della v3.6.0: procedi). Nuove richieste agli admin vanno fatte così
+- Trade: ogni cambio di stato passa da `db.cambia_stato_trade(id, da=(...), a=...)` (atomico). Stati: bozza → proposta → in_approvazione → approvata, oppure rifiutata_gm / rifiutata_admin / annullata. Etichette in `_STATI` (trade.py)
+- `/my_trades`: `db.get_trade_team`, `db.clona_trade_in_bozza`, callback `mt:l`, `mt:v|r|c:<id>`
+- CHECK dei tipi: `_allinea_check(tabella, valori)` in `migrate_db()` per `transazioni` e `cambi_ruolo`. Un tipo nuovo va aggiunto lì e in `schema.sql`
+- Fantamedia nel roster: `db.stagione_fantamedia()` (stagione bref = anno di fine, cioè `stagione_corrente + 1`, se ≥50% dei giocatori sotto contratto ce l'ha) e `db.fantamedie(gids, stagione)`; 9° campo del payload Typst, `fm_label` in input
 
 **Backup (v3.5.0):**
 - Un solo backup, generato dal bot main, sempre completo: `db/fantabasket.sql` (`pg_dump --clean --if-exists --no-owner`), `db/aste.db` (copia coerente: `_snapshot_aste` copia -wal e DB, `integrity_check`, API di backup sqlite → un solo file; fino a 3 tentativi), tutta `config/`, `secrets.tar.gpg` se presente, `MANIFEST.txt`. Canale log 00:00 e 12:00 e allo spegnimento, gruppo admin domenica 00:30, `/backup` (dev)
@@ -286,14 +293,14 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 - **Ruoli in RS (v3.3.0, `handlers/ruoli_rs.py`)**: dichiarazioni in sospeso (`ruoli_pendenti`) aperte da trade, attivazione diritti e /registra_firma solo in `FASI_RUOLI_RS`; 48h poi estrazione (job ogni 15'); regola dei 60 giorni; admin dichiarano da /admin_menu → ⏳ Ruoli in sospeso; annunci sul canale principale. Vincoli 4G/4F/2C: `validators/ruoli.py` (`deficit_minimo` = 0 se esiste un'assegnazione valida; fissi = ruoli ufficiali, flessibili = senza ruolo), usati da trade (RS) e dichiarazioni
 - **Cambi ruolo (v3.3.1, `handlers/cambi_ruolo.py`)**: ordinari max 2/stagione (contatore = eventi `ordinario` della squadra nella stagione, su /roster e foglio); Erminio gratuito entro 14 giorni da `COALESCE(data_yahoo, timestamp)` dell'ultima riga posizioni (data_yahoo con /data_erminio); Saedro 10 giorni una volta a stagione (evento con `scadenza` + `ruolo_ripristino`, ritorno via job `job_fine_saedro`), richiesta GM → approvazione nel gruppo admin, admin anche diretta; forzato_admin non conta. Vincoli bloccanti tranne per i forzati
 - **Bot aste (v3.4.0 / aste v46)**: FA in RS → anni, poi ruolo (stesse regole via `shared/`); 48h senza risposta → 3 anni + ruolo estratto; ruolo nell'annuncio sul canale principale
-- Prossimi passi: Basketball-Reference (nuovi giocatori, date di nascita, medie sul foglio), DPE post-deadline (cambio aggiuntivo), Mini App
+- Prossimi passi: v3.7 Basketball-Reference (nuovi giocatori, date di nascita, medie sul foglio), Mini App
 
 **@qf_bot (vX.x — dipende da guest mode PTB)**
 - Bot pubblico per roster e info lega
 
 ---
 
-**Stato attuale: v3.5.0**
+**Stato attuale: v3.6.0**
 
 Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v2.1.19** — `/attiva_diritti` propone il contratto della rookie scale (anno I) e chiede solo conferma
@@ -327,6 +334,8 @@ Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v3.4.5** — contratto della rookie scale nei bottoni dei diritti; versione del bot aste dal suo CHANGELOG (v48)
 - **v3.4.6** — hotfix: trade builder admin con tutti gli stati del builder GM (diritti, destinazioni, nota, modifica)
 - **v3.5.0** — cambi ruolo GM/admin separati (`cr:`/`ca:`) e solo in RS/playoff; comandi Telegram per fase (`comandi.py`); pannello admin per fase con Attiva diritti, Decadimento diretto e Situazione cap; fix decadimento (tipo `decaduto`, atomico, solo admin approvano); cap per fase in /attiva_diritti; backup unico con secrets cifrati e `docs/RECOVERY.md` (aste v49)
+- **v3.5.0a/b** — `cifra_secrets.sh` senza gpg-agent; link alla guida di ripristino nei backup (`repo_url` in globals.json)
+- **v3.6.0** — `/my_trades`; stati delle trade atomici; `richieste_admin` (DPE, Saedro, decadimento: una richiesta aperta, decisione unica); DPE valutata all'approvazione + cambio ruolo Extra DPE post-deadline; ruolo automatico per i monoruolo (main e aste v50); colonna FM nel roster; CHECK dei tipi allineati per unione; penalità col meno nel foglio
 
 Novità v2.0.31–v2.0.38:
 - **v2.0.31** — DPE disponibile in tutte e 6 le fasi (da offseason-rinnovi a regular-season-deadline); admin menu DPE diretta; `pre_deadline = (fase != "regular-season-deadline")`

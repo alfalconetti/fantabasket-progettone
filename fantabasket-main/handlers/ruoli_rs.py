@@ -14,6 +14,7 @@ Fasi: settings.FASI_RUOLI_RS (regular-season-fa, regular-season-deadline, playof
   rispettabili i vincoli), annuncio sul canale e messaggio al GM.
 - Regola dei 60 giorni: se la squadra aveva il giocatore negli ultimi 60 giorni, il
   ruolo è il vecchio, assegnato subito senza scelta.
+- Una sola posizione eleggibile: ruolo assegnato subito, senza dichiarazione (v3.6.0).
 """
 import logging
 from datetime import datetime, timedelta, timezone
@@ -143,6 +144,14 @@ async def apri_pendenti(bot, team_id: str, gids: list[int], origine: str, riferi
                                      f"<i>Regola dei {GIORNI_RIACQUISTO} giorni: torna col vecchio ruolo.</i>")
                 await _ai_gm(bot, team_id, f"🎽 {nome} torna nel suo vecchio ruolo <b>{vecchio}</b> "
                                            f"(regola dei {GIORNI_RIACQUISTO} giorni), non serve dichiararlo.")
+                continue
+            eleg = eleggibili(gid)
+            if len(eleg) == 1:   # una sola posizione eleggibile: niente da scegliere
+                _registra_ruolo(gid, team_id, eleg[0], tipo)
+                await _annuncia(bot, f"🎽 <b>{_nome_team(team_id)}</b>: {nome} → <b>{eleg[0]}</b>\n"
+                                     f"<i>Unica posizione eleggibile.</i>")
+                await _ai_gm(bot, team_id, f"🎽 {nome}: ruolo <b>{eleg[0]}</b> assegnato in automatico "
+                                           f"(unica posizione eleggibile), non serve dichiararlo.")
                 continue
             pid = db._qval("""INSERT INTO ruoli_pendenti (giocatore_id, team_id, origine, riferimento, scadenza)
                               VALUES (%s, %s, %s, %s, NOW() + (%s || ' hours')::interval) RETURNING id""",

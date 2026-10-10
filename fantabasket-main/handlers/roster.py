@@ -183,18 +183,19 @@ def _cambi_usati(team_id: str, stagione: str) -> str:
 
 
 def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None,
-                         ruoli: dict = None, posizioni: dict = None) -> str:
+                         ruoli: dict = None, posizioni: dict = None, fm: dict = None) -> str:
     """
     Costruisce la stringa giocatori per Typst:
     "Nome|importo|anni_res|flag|importo_orig|badge|ruolo|eleggibili;..."
     - 5° campo importo_orig: presente se ha_dpe
     - 6° campo badge: 'badge' se il contrasto testo-sfondo è insufficiente
     - 7° campo ruolo ufficiale, 8° posizioni eleggibili ("SF/PF")
+    - 9° campo fantamedia ("23.4", "—" se manca)
     Ordinamento: importo_originale DESC, cognome ASC; quando TUTTI i giocatori
     hanno un ruolo ufficiale: ruolo (PG, SG, SF, PF, C), poi importo, poi cognome.
     Flag: N=normale, A=RFA, R0-R3=rookie anno I-IV scale
     """
-    ruoli, posizioni = ruoli or {}, posizioni or {}
+    ruoli, posizioni, fm = ruoli or {}, posizioni or {}, fm or {}
     stagione_int = int(settings.stagione_corrente())
     righe = []
     per_importo = lambda x: (-(x.get("importo_originale") or x.get("importo") or 0), _cognome(x["nome_common"]))
@@ -229,7 +230,9 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
         ruolo = ruoli.get(r["giocatore_id"], "")
         eleg  = (posizioni.get(r["giocatore_id"]) or "").replace(",", "/")
         dpe   = importo_orig if ha_dpe else ""
-        righe.append(f"{nome}|{importo}|{anni_res}|{flag}|{dpe}|{badge}|{ruolo}|{eleg}")
+        media = fm.get(r["giocatore_id"])
+        fm_txt = f"{media:.1f}" if media is not None else "—"
+        righe.append(f"{nome}|{importo}|{anni_res}|{flag}|{dpe}|{badge}|{ruolo}|{eleg}|{fm_txt}")
     return ";".join(righe)
 
 
@@ -249,8 +252,17 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
         contratti = db.get_contratti_team(team_id)
 
     ruoli, posizioni = _ruoli_e_posizioni(team_id, stagione, as_of)
+    # Fantamedia: stessa stagione per tutta la lega (quella in corso da quando almeno
+    # metà dei giocatori sotto contratto ce l'ha), "—" per chi non ce l'ha
+    try:
+        stagione_fm = db.stagione_fantamedia()
+        fm = db.fantamedie([r["giocatore_id"] for r in roster], stagione_fm)
+        fm_label = f"FM {int(stagione_fm) - 1 - 2000:02d}-{int(stagione_fm) - 2000:02d}"
+    except Exception as e:
+        logger.warning("Fantamedia per il roster: %s", e)
+        fm, fm_label = {}, "FM"
     giocatori_str = _build_giocatori_str(roster, contratti, team_colori=team,
-                                         ruoli=ruoli, posizioni=posizioni)
+                                         ruoli=ruoli, posizioni=posizioni, fm=fm)
 
     # Salary cap
     cap_contratti = sum(r.get("importo", 0) for r in roster)
@@ -307,6 +319,7 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
         "--input", f"cambi_usati={cambi_usati}",
         "--input", f"logo_path={logo}",
         "--input", f"giocatori={giocatori_str}",
+        "--input", f"fm_label={fm_label}",
         "--root", "/",
         os.path.abspath(TYPST_TEMPLATE),
         tmp.name,

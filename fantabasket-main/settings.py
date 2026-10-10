@@ -99,6 +99,9 @@ def stagione_corrente() -> str:
 def admin_ids() -> list:
     return load_globals().get("admin_ids", [])
 
+def is_admin(user_id: int) -> bool:
+    return int(user_id) in [int(a) for a in admin_ids()]
+
 def dev_id() -> int | None:
     return load_globals().get("dev_id")
 

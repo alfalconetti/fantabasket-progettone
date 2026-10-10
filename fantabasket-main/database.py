@@ -47,28 +47,64 @@ def init_db():
     logger.info("Pool PostgreSQL inizializzato.")
 
 
+def _allinea_check(tabella: str, valori: tuple) -> None:
+    """Ricrea il CHECK sulla colonna `tipo` di `tabella` con l'unione di: valori del
+    codice, valori ammessi dal CHECK attuale, valori già presenti nei dati.
+    Quindi non toglie mai niente: aggiunge solo quello che manca."""
+    import re
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"SELECT DISTINCT tipo FROM {tabella}")
+                tutti = set(valori) | {r[0] for r in cur.fetchall() if r[0]}
+                cur.execute("""
+                    SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint
+                    WHERE conrelid = %s::regclass AND contype = 'c'
+                      AND pg_get_constraintdef(oid) LIKE %s
+                """, (tabella, "%tipo%"))
+                vecchi = cur.fetchall()
+                for _, definizione in vecchi:
+                    tutti |= set(re.findall(r"'([^']+)'", definizione))
+                tutti = sorted(tutti)
+                for nome, _ in vecchi:
+                    cur.execute(f'ALTER TABLE {tabella} DROP CONSTRAINT "{nome}"')
+                elenco = ", ".join("'" + v.replace("'", "''") + "'" for v in tutti)
+                cur.execute(f"ALTER TABLE {tabella} ADD CONSTRAINT {tabella}_tipo_check "
+                            f"CHECK (tipo IN ({elenco}))")
+    except Exception as e:
+        logger.error("Allineamento CHECK %s.tipo fallito: %s", tabella, e)
+
+
 def migrate_db():
     """Applica migrazioni incrementali al DB."""
-    # v3.5.0 — CHECK su transazioni.tipo allineato al codice. Il DB di produzione era nato
-    # da uno schema più vecchio di schema.sql e non ammetteva 'rookie_firma' (attivazione
-    # diritti). Unione dei due elenchi: nessuna riga esistente diventa non valida.
-    # Rilanciabile a ogni avvio: toglie qualsiasi CHECK su tipo e lo ricrea.
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                DO $$
-                DECLARE c text;
-                BEGIN
-                    FOR c IN SELECT conname FROM pg_constraint
-                             WHERE conrelid = 'transazioni'::regclass AND contype = 'c'
-                               AND pg_get_constraintdef(oid) LIKE '%tipo%'
-                    LOOP
-                        EXECUTE format('ALTER TABLE transazioni DROP CONSTRAINT %I', c);
-                    END LOOP;
-                END $$;
-            """)
-            cur.execute("ALTER TABLE transazioni ADD CONSTRAINT transazioni_tipo_check "
-                        "CHECK (tipo IN ('signed', 'traded', 'cut', 'renewed', 'expired', 'decadimento', 'decaduto', 'dpe_attivata', '10day_firma', '10day_scadenza', 'rookie_firma', 'rookie_diritti_scaduti', 'firma', 'taglio', 'trade', 'rookie', 'dpe'))")
+    # CHECK sui tipi allineati al codice (v3.5.0, v3.6.0). Il DB di produzione era
+    # nato da uno schema più vecchio di schema.sql. Si ricrea il CHECK con l'unione
+    # dei valori del codice e di quelli già presenti nella tabella, così nessuna riga
+    # esistente diventa non valida. Rilanciabile a ogni avvio; se fallisce non blocca il bot.
+    _allinea_check("transazioni", (
+        "signed", "traded", "cut", "renewed", "expired", "decadimento", "decaduto",
+        "dpe_attivata", "10day_firma", "10day_scadenza", "rookie_firma", "rookie_diritti_scaduti",
+        "firma", "taglio", "trade", "rookie", "dpe"))
+    _allinea_check("cambi_ruolo", (
+        "iniziale", "ordinario", "erminio", "saedro", "forzato_admin",
+        "post_trade", "post_firma", "dpe_extra"))
+    # v3.6.0 — richieste ai admin (DPE, Saedro, decadimento): una sola aperta per
+    # giocatore e tipo; Approva/Rifiuta la chiudono in modo atomico (niente doppie
+    # gestioni, niente "rifiutata" dopo un'approvazione)
+    _q("""
+        CREATE TABLE IF NOT EXISTS richieste_admin (
+            id        SERIAL PRIMARY KEY,
+            tipo      TEXT NOT NULL,              -- dpe | saedro | decadimento
+            chiave    INT  NOT NULL,              -- giocatore_id
+            team_id   TEXT NOT NULL,
+            stato     TEXT NOT NULL DEFAULT 'aperta',  -- aperta | approvata | rifiutata | scaduta
+            creato    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            chiuso    TIMESTAMPTZ,
+            da        TEXT
+        )
+    """)
+    _q("CREATE UNIQUE INDEX IF NOT EXISTS idx_richieste_admin_aperte "
+       "ON richieste_admin (tipo, chiave) WHERE stato = 'aperta'")
     _q("""
         CREATE TABLE IF NOT EXISTS cap_anticipato (
             team_id      TEXT PRIMARY KEY,
@@ -375,6 +411,62 @@ def aggiorna_stato_trade(trade_id: int, stato: str, note: str | None = None,
         "WHERE id = %s",
         (stato, note, validazione_ok, validazione_note, trade_id)
     )
+
+def cambia_stato_trade(trade_id: int, da: tuple, a: str, note: str | None = None) -> bool:
+    """Passaggio di stato atomico: avviene solo se la trade è ancora in uno degli
+    stati `da`. False se nel frattempo qualcun altro l'ha già cambiata."""
+    return _qval(
+        "UPDATE trade SET stato = %s, aggiornato = NOW(), note = COALESCE(%s, note) "
+        "WHERE id = %s AND stato = ANY(%s) RETURNING id",
+        (a, note, trade_id, list(da))
+    ) is not None
+
+
+def chiudi_voto_se_tutti_accettano(trade_id: int) -> bool:
+    """proposta → in_approvazione solo se tutti i voti sono 'accettato' (atomico:
+    con due voti quasi simultanei la trade va agli admin una volta sola)."""
+    return _qval(
+        "UPDATE trade SET stato = 'in_approvazione', aggiornato = NOW() "
+        "WHERE id = %s AND stato = 'proposta' AND NOT EXISTS ("
+        "  SELECT 1 FROM trade_voti WHERE trade_id = %s AND voto <> 'accettato') RETURNING id",
+        (trade_id, trade_id)
+    ) is not None
+
+
+def get_trade_team(team_id: str, limite: int = 15) -> list:
+    """Trade di una squadra per /my_trades: proposte da lei o in cui è coinvolta.
+    Escluse le annullate e le bozze delle altre squadre (non ancora inviate)."""
+    return _q(
+        """SELECT t.* FROM trade t
+           WHERE t.stato <> 'annullata'
+             AND (t.proposta_da = %s
+                  OR (t.stato <> 'bozza' AND EXISTS (
+                      SELECT 1 FROM trade_squadre s WHERE s.trade_id = t.id AND s.team_id = %s)))
+           ORDER BY t.aggiornato DESC
+           LIMIT %s""",
+        (team_id, team_id, limite), many=True
+    ) or []
+
+
+def clona_trade_in_bozza(trade_id: int, team_id: str, stagione: str) -> int:
+    """Copia una trade (squadre e asset) in una nuova bozza di `team_id`.
+    L'originale resta com'è, con il suo stato."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT n_squadre FROM trade WHERE id = %s", (trade_id,))
+            n_squadre = cur.fetchone()[0]
+            cur.execute("SELECT COALESCE(MAX(bozza_num), 0) + 1 FROM trade WHERE proposta_da = %s", (team_id,))
+            num = cur.fetchone()[0]
+            cur.execute("INSERT INTO trade (stagione, stato, n_squadre, proposta_da, bozza_num) "
+                        "VALUES (%s, 'bozza', %s, %s, %s) RETURNING id", (stagione, n_squadre, team_id, num))
+            nuovo = cur.fetchone()[0]
+            cur.execute("INSERT INTO trade_squadre (trade_id, team_id, ordine) "
+                        "SELECT %s, team_id, ordine FROM trade_squadre WHERE trade_id = %s", (nuovo, trade_id))
+            cur.execute("INSERT INTO trade_items (trade_id, tipo, giocatore_id, pick_id, team_id_da, team_id_a) "
+                        "SELECT %s, tipo, giocatore_id, pick_id, team_id_da, team_id_a "
+                        "FROM trade_items WHERE trade_id = %s", (nuovo, trade_id))
+            return nuovo
+
 
 def set_trade_ref(trade_id: int, trade_ref: str):
     _q("UPDATE trade SET trade_ref = %s WHERE id = %s", (trade_ref, trade_id))
@@ -906,3 +998,76 @@ def get_max_pick_anno() -> int:
 
 def get_trade_by_ref(trade_ref: str) -> dict | None:
     return _q("SELECT * FROM trade WHERE trade_ref = %s", (trade_ref,), one=True)
+
+
+# ── richieste agli admin (v3.6.0) ─────────────────────────────────────────────
+
+GIORNI_RICHIESTA = 7   # una richiesta aperta da più giorni non blocca più una nuova
+
+
+def apri_richiesta(tipo: str, chiave: int, team_id: str) -> bool:
+    """Registra una richiesta aperta. False se ce n'è già una aperta (recente) per
+    lo stesso tipo e giocatore."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE richieste_admin SET stato = 'scaduta', chiuso = NOW() "
+                        "WHERE tipo = %s AND chiave = %s AND stato = 'aperta' "
+                        "AND creato < NOW() - (%s || ' days')::interval",
+                        (tipo, chiave, str(GIORNI_RICHIESTA)))
+            cur.execute("INSERT INTO richieste_admin (tipo, chiave, team_id) VALUES (%s, %s, %s) "
+                        "ON CONFLICT (tipo, chiave) WHERE stato = 'aperta' DO NOTHING RETURNING id",
+                        (tipo, chiave, team_id))
+            return cur.fetchone() is not None
+
+
+def chiudi_richiesta(tipo: str, chiave: int, esito: str, da: str | None = None) -> str:
+    """Chiude la richiesta aperta. Restituisce:
+    'ok'       → chiusa adesso da questa chiamata (si procede);
+    'gestita'  → era già stata approvata/rifiutata (non fare niente);
+    'nessuna'  → nessuna richiesta registrata (messaggi di prima della v3.6.0: si procede)."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE richieste_admin SET stato = %s, chiuso = NOW(), da = %s "
+                        "WHERE tipo = %s AND chiave = %s AND stato = 'aperta' RETURNING id",
+                        (esito, da, tipo, chiave))
+            if cur.fetchone():
+                return "ok"
+            cur.execute("SELECT 1 FROM richieste_admin WHERE tipo = %s AND chiave = %s "
+                        "AND stato IN ('approvata', 'rifiutata') LIMIT 1", (tipo, chiave))
+            return "gestita" if cur.fetchone() else "nessuna"
+
+
+def riapri_richiesta(tipo: str, chiave: int) -> None:
+    """Se l'esecuzione fallisce dopo la chiusura, la richiesta torna aperta."""
+    _q("UPDATE richieste_admin SET stato = 'aperta', chiuso = NULL, da = NULL "
+       "WHERE id = (SELECT id FROM richieste_admin WHERE tipo = %s AND chiave = %s "
+       "ORDER BY id DESC LIMIT 1)", (tipo, chiave))
+
+
+# ── fantamedia per il roster (v3.6.0) ─────────────────────────────────────────
+
+def stagione_fantamedia() -> str:
+    """Stagione bref da mostrare nella colonna FM del roster (anno di fine: '2027' =
+    2026-27). Si usa quella in corso solo se almeno metà dei giocatori sotto contratto
+    nella lega ha già una fantamedia di quell'anno, altrimenti la precedente."""
+    from settings import stagione_corrente
+    corrente = str(int(stagione_corrente()) + 1)
+    r = _q("""SELECT count(*) AS tot,
+                     count(*) FILTER (WHERE EXISTS (
+                         SELECT 1 FROM bref_stats b WHERE b.nome_bref = g.nome_bref AND b.stagione = %s
+                     )) AS con_fm
+              FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
+              WHERE c.attivo = TRUE""", (corrente,), one=True) or {}
+    tot, con_fm = r.get("tot") or 0, r.get("con_fm") or 0
+    return corrente if tot and con_fm * 2 >= tot else str(int(corrente) - 1)
+
+
+def fantamedie(gids: list[int], stagione_bref: str) -> dict[int, float]:
+    """Ultima fantamedia della stagione per ciascun giocatore (chi non ce l'ha manca)."""
+    if not gids:
+        return {}
+    righe = _q("""SELECT DISTINCT ON (g.id) g.id AS gid, b.fantamedia
+                  FROM giocatori g JOIN bref_stats b ON b.nome_bref = g.nome_bref
+                  WHERE g.id = ANY(%s) AND b.stagione = %s AND b.fantamedia IS NOT NULL
+                  ORDER BY g.id, b.timestamp DESC""", (list(gids), stagione_bref), many=True) or []
+    return {r["gid"]: float(r["fantamedia"]) for r in righe}

@@ -526,3 +526,7 @@ Comandi riservati al solo `dev_id` (non visibili in /admin), per osservare lo st
 - Niente più backup periodici e allo spegnimento: il backup completo (PostgreSQL + aste.db + config + secrets cifrati) lo fa il bot principale
 - `/backup_ora` resta come copia d'emergenza del solo DB aste, con didascalia che rimanda a `docs/RECOVERY.md`; la copia ora usa l'API di backup di sqlite (prima il file veniva copiato così com'era e le scritture ancora nel WAL mancavano)
 - Rimossa `docs/emergency_recovery.md` (si riferiva al vecchio repo separato)
+
+## v50 — Ruolo automatico per chi ha una sola posizione
+
+- Firma in regular season: se il giocatore ha una sola posizione eleggibile non c'è la scelta del ruolo, la conferma lo mostra già ("unica posizione eleggibile")

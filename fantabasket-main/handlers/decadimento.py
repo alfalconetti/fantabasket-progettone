@@ -106,6 +106,13 @@ async def cb_dec_motivo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     user     = update.effective_user
     gm_tag   = f"@{user.username}" if user.username else user.first_name
 
+    if not db.apri_richiesta("decadimento", gid, team_id):
+        await query.edit_message_text(
+            f"⏳ C'è già una richiesta di decadimento in attesa per <b>{nome}</b>: aspetta la risposta degli admin.",
+            parse_mode="HTML")
+        context.user_data.clear()
+        return ConversationHandler.END
+
     await query.edit_message_text(
         f"⏳ Richiesta inviata al gruppo admin.\n\n"
         f"Giocatore: <b>{nome}</b>\n"
@@ -218,9 +225,17 @@ async def cb_dec_approva(update: Update, context: ContextTypes.DEFAULT_TYPE):
     gid        = int(parts[2])
     motivo_key = parts[3] if len(parts) > 3 else "altro"
     admin_tag  = _admin_tag(query.from_user)
-    errore = await applica_decadimento(context.bot, team_id, gid, motivo_key, admin_tag)
+    esito_r = db.chiudi_richiesta("decadimento", gid, "approvata", admin_tag)
+    if esito_r == "gestita":
+        await query.edit_message_text(query.message.text_html + "\n\nℹ️ <b>Richiesta già gestita</b>", parse_mode="HTML")
+        return
+    try:
+        errore = await applica_decadimento(context.bot, team_id, gid, motivo_key, admin_tag)
+    except Exception:
+        db.riapri_richiesta("decadimento", gid)
+        raise
     if errore:
-        await query.edit_message_text(errore)
+        await query.edit_message_text(query.message.text_html + f"\n\n{errore}", parse_mode="HTML")
         return
     await query.edit_message_text(query.message.text_html + f"\n\n✅ <b>Approvato</b> da {admin_tag}",
                                   parse_mode="HTML", reply_markup=None)
@@ -234,9 +249,12 @@ async def cb_dec_rifiuta(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("⛔ Solo gli admin possono rifiutare.", show_alert=True)
         return
     await query.answer()
+    _, team_id, gid = query.data.split(":")
+    if db.chiudi_richiesta("decadimento", int(gid), "rifiutata", _admin_tag(query.from_user)) == "gestita":
+        await query.edit_message_text(query.message.text_html + "\n\nℹ️ <b>Richiesta già gestita</b>", parse_mode="HTML")
+        return
     await query.edit_message_text(query.message.text_html + f"\n\n❌ <b>Rifiutato</b> da {_admin_tag(query.from_user)}",
                                   parse_mode="HTML", reply_markup=None)
-    _, team_id, gid = query.data.split(":")
     nome = (db.get_giocatore(int(gid)) or {}).get("nome_common", gid)
     await _ai_gm(context.bot, team_id, f"❌ Richiesta di decadimento per <b>{nome}</b> rifiutata dagli admin.")
 
@@ -297,6 +315,7 @@ async def cb_dec_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if azione == "ok":
         admin_tag = _admin_tag(query.from_user)
+        db.chiudi_richiesta("decadimento", gid, "approvata", admin_tag)  # eventuale richiesta del GM
         errore = await applica_decadimento(context.bot, team_id, gid, motivo, admin_tag)
         if errore:
             await query.edit_message_text(errore)

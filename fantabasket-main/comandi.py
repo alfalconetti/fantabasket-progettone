@@ -45,6 +45,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("build_trade",    "Costruisci una trade"),
         BotCommand("import_trade",   "Importa trade da testo"),
         BotCommand("bozze_trade",    "Le tue bozze di trade"),
+        BotCommand("my_trades",      "Tutte le tue trade e che fine hanno fatto"),
         BotCommand("edit_trade",     "Modifica una bozza [numero]"),
         BotCommand("taglia",         "Taglia un giocatore"),
         BotCommand("dpe",            "Richiedi Disabled Player Exception"),

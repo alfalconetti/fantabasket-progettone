@@ -384,7 +384,8 @@ async def cb_adm_dpe_giocatore(update: Update, context: ContextTypes.DEFAULT_TYP
     importo_orig = contratto["importo"]
     importo_new  = _importo_dpe(importo_orig)
     risparmio    = importo_orig - importo_new
-    effetto      = "✅ Libera uno slot roster" if pre_deadline else "ℹ️ Nessuno slot liberato (post-deadline)"
+    from handlers.dpe import _effetto
+    effetto      = _effetto(pre_deadline, gid)
 
     testo = (
         f"🏥 <b>DPE admin — {giocatore['nome_common']}</b>\n\n"
@@ -409,90 +410,15 @@ async def cb_adm_dpe_conferma(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
     import database as db
 
-    parts        = query.data.split(":")
-    gid          = int(parts[1])
-    team_id      = parts[2]
-    importo_orig = int(parts[3])
-    importo_new  = int(parts[4])
-    pre_deadline = parts[5] == "1"
-
-    giocatore = db.get_giocatore(gid)
-    team      = tm.get_team_by_id(team_id)
-    stagione  = settings.stagione_corrente()
-    admin     = update.effective_user
-
-    if db.get_dpe_attiva(gid, stagione):
-        await query.edit_message_text(
-            f"⚠️ DPE per <b>{giocatore['nome_common']}</b> già registrata questa stagione.",
-            parse_mode="HTML",
-        )
-        return
-
-    admin_tag = admin.first_name or str(admin.id)
-    if admin.username:
-        admin_tag += f" (@{admin.username})"
-
-    db.inserisci_dpe(
-        giocatore_id=gid,
-        team_id=team_id,
-        stagione=stagione,
-        importo_originale=importo_orig,
-        importo_dpe=importo_new,
-        pre_deadline=pre_deadline,
-        approvata_da=admin_tag,
-    )
-
-    risparmio = importo_orig - importo_new
-    effetto   = "✅ Slot roster liberato" if pre_deadline else "ℹ️ Nessuno slot liberato (post-deadline)"
-
-    await query.edit_message_text(
-        f"✅ DPE registrata — <b>{giocatore['nome_common']}</b>\n"
-        f"{importo_orig}M → {importo_new}M (stagione {stagione})\n"
-        f"{effetto}",
-        parse_mode="HTML",
-    )
-
-    # Notifica al GM
-    try:
-        gm_ids   = team.get("gm_ids", [])
-        testo_gm = (
-            f"🏥 <b>DPE attivata</b> per <b>{giocatore['nome_common']}</b>.\n"
-            f"Contratto per questa stagione: <b>{importo_new}M</b> (-{risparmio}M)\n"
-            f"{effetto}\n\n"
-            f"<i>Operazione effettuata dall'admin {admin_tag}</i>"
-        )
-        for gm_id in gm_ids:
-            try:
-                await query.get_bot().send_message(chat_id=gm_id, text=testo_gm, parse_mode="HTML")
-            except Exception:
-                pass
-    except Exception as e:
-        logger.warning("Notifica GM DPE admin fallita: %s", e)
-
-    # Annuncio canale principale
-    main_channel = settings.load_globals().get("main_channel_id")
-    if main_channel:
-        testo_canale = (
-            f"🏥 <b>{team['gm_nome']}</b> attiva la DPE per <b>{giocatore['nome_common']}</b>\n"
-            f"Contratto {stagione}: {importo_orig}M → <b>{importo_new}M</b> (-{risparmio}M)\n"
-            f"{effetto}"
-        )
-        try:
-            await query.get_bot().send_message(
-                chat_id=main_channel, text=testo_canale, parse_mode="HTML"
-            )
-        except Exception as e:
-            logger.warning("Annuncio canale DPE admin fallito: %s", e)
-
-    logger.info("DPE admin: team=%s giocatore=%d %dM→%dM pre_deadline=%s admin=%s",
-                team_id, gid, importo_orig, importo_new, pre_deadline, admin_tag)
-
-    # Sync GAS Sheets
-    try:
-        import gas_client
-        gas_client.sync_after_dpe(team_id)
-    except Exception as e:
-        logger.warning("GAS sync DPE admin fallito: %s", e)
+    parts   = query.data.split(":")
+    gid     = int(parts[1])
+    team_id = parts[2]
+    # Importi e pre/post deadline ricalcolati adesso (non quelli della schermata di conferma)
+    from handlers.dpe import applica_dpe, _admin_tag
+    errore, esito = await applica_dpe(query.get_bot(), gid, team_id, _admin_tag(update.effective_user), da_admin=True)
+    if not errore:
+        db.chiudi_richiesta("dpe", gid, "approvata", _admin_tag(update.effective_user))  # eventuale richiesta del GM
+    await query.edit_message_text(errore or esito, parse_mode="HTML")
 
 
 # ── Admin build trade ─────────────────────────────────────────────────────────

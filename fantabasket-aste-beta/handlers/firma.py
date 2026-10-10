@@ -78,6 +78,12 @@ async def _mostra_scelta_ruolo(query, asta: dict, anni: int, team_id: str) -> bo
             f"Ruolo: <b>{info['fisso']}</b> <i>(regola dei 60 giorni: torna col vecchio ruolo)</i>",
             parse_mode="HTML", reply_markup=_kb_conferma(asta["id"], anni, info["fisso"]))
         return True
+    if len(info["eleggibili"]) == 1:   # una sola posizione: niente scelta, solo conferma
+        await query.edit_message_text(
+            f"🏆 Confermi firma?\n\nGiocatore: <b>{asta['giocatore']}</b>\nContratto: <b>{contratto}</b>\n"
+            f"Ruolo: <b>{info['eleggibili'][0]}</b> <i>(unica posizione eleggibile)</i>",
+            parse_mode="HTML", reply_markup=_kb_conferma(asta["id"], anni, info["eleggibili"][0]))
+        return True
     if not info["eleggibili"]:
         await query.edit_message_text(
             f"🏆 Confermi firma?\n\nGiocatore: <b>{asta['giocatore']}</b>\nContratto: <b>{contratto}</b>\n"

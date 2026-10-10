@@ -187,7 +187,7 @@ CREATE TABLE cambi_ruolo (
     stagione        TEXT NOT NULL,
     tipo            TEXT NOT NULL CHECK (tipo IN (
         'iniziale', 'ordinario', 'erminio', 'saedro',
-        'forzato_admin', 'post_trade', 'post_firma'
+        'forzato_admin', 'post_trade', 'post_firma', 'dpe_extra'
     )),
     scadenza        TIMESTAMPTZ,
     ruolo_ripristino TEXT

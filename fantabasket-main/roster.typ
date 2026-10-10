@@ -19,6 +19,7 @@
 #let logo_path     = sys.inputs.at("logo_path")
 #let giocatori_raw = sys.inputs.at("giocatori")
 #let salary_detail = sys.inputs.at("salary_detail")
+#let fm_label      = sys.inputs.at("fm_label", default: "FM")
 
 // flag: N=normale, A=RFA, R0-R3=rookie anno scale 1-4
 #let giocatori = if giocatori_raw == "" { () } else {
@@ -27,7 +28,7 @@
     (nome: p.at(0, default: ""), importo: p.at(1, default: "0"),
      anni: p.at(2, default: "1"), flag: p.at(3, default: "N"),
      importo_orig: p.at(4, default: ""), badge: p.at(5, default: ""),
-     ruolo: p.at(6, default: ""), eleg: p.at(7, default: ""))
+     ruolo: p.at(6, default: ""), eleg: p.at(7, default: ""), fm: p.at(8, default: ""))
   })
 }
 
@@ -35,7 +36,7 @@
 #let roster_max = 15
 #let giocatori = if giocatori.len() >= roster_max { giocatori } else {
   giocatori + range(roster_max - giocatori.len()).map(_ =>
-    (nome: "", importo: "", anni: "", flag: "VUOTO", importo_orig: "", badge: "", ruolo: "", eleg: "")
+    (nome: "", importo: "", anni: "", flag: "VUOTO", importo_orig: "", badge: "", ruolo: "", eleg: "", fm: "")
   )
 }
 
@@ -78,7 +79,7 @@
 
 // ── tabella ───────────────────────────────────────────────────────────────────
 #table(
-  columns:  (30pt, 1fr, 26pt, 20pt),
+  columns:  (30pt, 1fr, 34pt, 26pt, 20pt),
   rows:     18pt,
   inset:    (x: 6pt, y: 0pt),
   align:    horizon + left,
@@ -93,6 +94,7 @@
   // intestazione
   [#align(center)[#text(6.5pt, weight: "bold", fill: white)[RUOLO]]],
   [#text(8pt, weight: "bold", fill: white)[GIOCATORE]],
+  [#align(center)[#text(6.5pt, weight: "bold", fill: white)[#fm_label]]],
   [#align(center)[#text(8pt, weight: "bold", fill: white)[\$]]],
   [#align(center)[#text(8pt, weight: "bold", fill: white)[Y]]],
   // giocatori
@@ -125,6 +127,7 @@
           if g.eleg != "" { h(4pt); text(7pt, fill: tc, style: "italic")[(#g.eleg)] }
         }]
       },
+      if is_vuoto { [] } else { [#align(center)[#text(8pt, fill: tc)[#g.fm]]] },
       cella_importo,
       if is_vuoto { [] } else { [#align(center)[#text(8.5pt, fill: tc)[#g.anni]]] },
     )

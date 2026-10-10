@@ -37,9 +37,10 @@ RUOLI = core.RUOLI
 MAX_ORDINARI = 2
 GIORNI_ERMINIO = 14
 GIORNI_SAEDRO = 10
-TIPI = {"o": "ordinario", "e": "erminio", "s": "saedro", "f": "forzato_admin"}
+TIPI = {"o": "ordinario", "e": "erminio", "s": "saedro", "f": "forzato_admin", "d": "dpe_extra"}
 ETICHETTE = {"ordinario": "cambio ordinario", "erminio": "Erminio (ruolo aggiunto)",
-             "saedro": "Saedro (10 day)", "forzato_admin": "forzato dagli admin"}
+             "saedro": "Saedro (10 day)", "forzato_admin": "forzato dagli admin",
+             "dpe_extra": "extra DPE post-deadline"}
 
 
 # ══ dati ════════════════════════════════════════════════════════════════════
@@ -65,6 +66,22 @@ def ordinari_usati(team_id: str, stagione: str | None = None) -> int:
 def saedro_usata(team_id: str) -> bool:
     return bool(db._qval("SELECT count(*) FROM cambi_ruolo WHERE team_id = %s AND stagione = %s "
                          "AND tipo = 'saedro' AND scadenza IS NOT NULL", (team_id, _stagione())))
+
+
+def dpe_extra(team_id: str) -> tuple[int, set[str]]:
+    """Regolamento: una DPE attivata dopo la deadline dà un cambio ruolo aggiuntivo
+    verso il ruolo del giocatore infortunato. (cambi rimasti, ruoli possibili)."""
+    gids = [r["giocatore_id"] for r in db._q(
+        "SELECT giocatore_id FROM dpe WHERE team_id = %s AND stagione = %s AND pre_deadline = FALSE",
+        (team_id, _stagione()), many=True) or []]
+    if not gids:
+        return 0, set()
+    usati = db._qval("SELECT count(*) FROM cambi_ruolo WHERE team_id = %s AND stagione = %s AND tipo = 'dpe_extra'",
+                     (team_id, _stagione())) or 0
+    ruoli = {r["ruolo"] for r in db._q(
+        "SELECT ruolo FROM ruolo_attuale WHERE stagione = %s AND giocatore_id = ANY(%s)",
+        (_stagione(), gids), many=True) or [] if r["ruolo"]}
+    return max(0, len(gids) - usati), ruoli
 
 
 def roster_ruoli(team_id: str) -> list[dict]:
@@ -128,6 +145,12 @@ def verifica(team_id: str, gid: int, nuovo: str, tipo: str, admin: bool) -> tupl
         errori.append("Saedro già usata in questa stagione.")
     if tipo == "forzato_admin" and not admin:
         errori.append("Solo gli admin possono forzare un cambio.")
+    if tipo == "dpe_extra":
+        rimasti, ruoli_dpe = dpe_extra(team_id)
+        if rimasti <= 0:
+            errori.append("Nessun cambio extra DPE disponibile.")
+        elif nuovo not in ruoli_dpe:
+            errori.append(f"Il cambio extra DPE va verso il ruolo dell'infortunato ({', '.join(sorted(ruoli_dpe)) or '?'}).")
     prima = deficit_team(team_id, _stagione())
     dopo = deficit_team(team_id, _stagione(), imposti={gid: nuovo})
     if dopo > 0 and dopo > prima:
@@ -211,7 +234,11 @@ def _vista_team(team_id: str, admin: bool):
     usati = ordinari_usati(team_id)
     testo = (f"🔁 <b>Cambio ruolo — {_nome_team(team_id)}</b>" + (" <i>(admin)</i>" if admin else "") +
              f"\nCambi ordinari usati: <b>{usati}/{MAX_ORDINARI}</b> · Saedro: "
-             f"{'usata' if saedro_usata(team_id) else 'disponibile'}\n\nScegli il giocatore:")
+             f"{'usata' if saedro_usata(team_id) else 'disponibile'}")
+    rimasti_dpe, ruoli_dpe = dpe_extra(team_id)
+    if rimasti_dpe:
+        testo += f"\n🏥 Extra DPE: <b>{rimasti_dpe}</b> verso {', '.join(sorted(ruoli_dpe)) or '?'}"
+    testo += "\n\nScegli il giocatore:"
     kb = []
     for g in roster_ruoli(team_id):
         if not g["ruolo"]:
@@ -293,15 +320,18 @@ async def cb_cambio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         gid, nuovo = int(parti[3]), parti[4]
         g = next((x for x in roster_ruoli(team_id) if x["gid"] == gid), None)
         erminio = nuovo in ruoli_erminio(gid)
-        tipi = (["e", "s"] if erminio else ["o", "s"]) + (["f"] if admin_mode else [])
+        rimasti_dpe, ruoli_dpe = dpe_extra(team_id)
+        tipi = ((["d"] if rimasti_dpe and nuovo in ruoli_dpe else [])
+                + (["e", "s"] if erminio else ["o", "s"]) + (["f"] if admin_mode else []))
         righe, kb = [f"🔁 <b>{g['nome'] if g else gid}</b>: {g['ruolo'] if g else '?'} → <b>{nuovo}</b>\n"], []
         for k in tipi:
             errori, avvisi = verifica(team_id, gid, nuovo, TIPI[k], admin_mode)
             stato = "❌ " + errori[0] if errori else ("⚠️ " + avvisi[0] if avvisi else "✅ possibile")
-            righe.append(f"• <b>{ETICHETTE[TIPI[k]].capitalize()}</b>: {stato}")
+            righe.append(f"• <b>{(ETICHETTE[TIPI[k]][:1].upper() + ETICHETTE[TIPI[k]][1:])}</b>: {stato}")
             if not errori:
                 label = {"o": f"Ordinario ({ordinari_usati(team_id)}/{MAX_ORDINARI})", "e": "✨ Erminio (ruolo aggiunto)",
-                         "s": "⏳ Saedro (10 day)" + ("" if admin_mode else " — richiedi"), "f": "🛠 Forzato admin"}[k]
+                         "s": "⏳ Saedro (10 day)" + ("" if admin_mode else " — richiedi"), "f": "🛠 Forzato admin",
+                         "d": f"🏥 Extra DPE (gratuito, {rimasti_dpe} disponibil{'e' if rimasti_dpe == 1 else 'i'})"}[k]
                 passo = "cf" if k == "o" else "do"
                 kb.append([InlineKeyboardButton(label, callback_data=f"{p}:{passo}:{team_id}:{gid}:{nuovo}:{k}")])
         kb.append([InlineKeyboardButton("← Indietro", callback_data=f"{p}:g:{team_id}:{gid}")])
@@ -330,10 +360,16 @@ async def cb_cambio(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                           reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("← Indietro", callback_data=f"{p}:g:{team_id}:{gid}")]]))
             return
         if tipo == "saedro" and not admin_mode:
+            if not db.apri_richiesta("saedro", gid, team_id):
+                await query.edit_message_text("⏳ C'è già una richiesta di Saedro in attesa per questo giocatore: "
+                                              "aspetta la risposta degli admin.")
+                return
             await _richiedi_saedro(context.bot, team_id, gid, nuovo, query.from_user)
             await query.edit_message_text("📨 Richiesta di Saedro inviata agli admin. Ti arriva un messaggio quando decidono.")
             return
         chi = f" — {query.from_user.first_name or 'admin'}" if admin_mode else ""
+        if tipo == "saedro":   # Saedro diretta dell'admin: chiude l'eventuale richiesta del GM
+            db.chiudi_richiesta("saedro", gid, "approvata", query.from_user.first_name or "admin")
         esito = await _esegui(context.bot, team_id, gid, nuovo, tipo, chi)
         await query.edit_message_text(esito, parse_mode="HTML",
                                       reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔁 Altri cambi", callback_data=f"{p}:t:{team_id}")]]))
@@ -367,14 +403,25 @@ async def cb_saedro(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _, esito, team_id, gid, nuovo = query.data.split(":")
     gid = int(gid)
     admin_nome = query.from_user.first_name or str(query.from_user.id)
+    if esito == "ok" and settings.fase() not in settings.FASI_RUOLI_RS:
+        await query.answer(FUORI_FASE, show_alert=True)
+        return
     await query.answer()
+    gia = "\n\nℹ️ <b>Richiesta già gestita</b>"
     if esito == "no":
+        if db.chiudi_richiesta("saedro", gid, "rifiutata", admin_nome) == "gestita":
+            await query.edit_message_text(query.message.text_html + gia, parse_mode="HTML")
+            return
         await query.edit_message_text(query.message.text_html + f"\n\n❌ <b>Rifiutata</b> da {admin_nome}", parse_mode="HTML")
         await _ai_gm(context.bot, team_id, f"❌ La richiesta di Saedro per il ruolo {nuovo} è stata rifiutata.")
         return
     errori, _ = verifica(team_id, gid, nuovo, "saedro", admin=True)
     if errori:
+        db.chiudi_richiesta("saedro", gid, "scaduta")
         await query.edit_message_text(query.message.text_html + "\n\n⚠️ Non applicabile: " + "; ".join(errori), parse_mode="HTML")
+        return
+    if db.chiudi_richiesta("saedro", gid, "approvata", admin_nome) == "gestita":
+        await query.edit_message_text(query.message.text_html + gia, parse_mode="HTML")
         return
     esito_txt = await _esegui(context.bot, team_id, gid, nuovo, "saedro", f" — approvata da {admin_nome}")
     await query.edit_message_text(query.message.text_html + f"\n\n✅ <b>Approvata</b> da {admin_nome}", parse_mode="HTML")
@@ -427,7 +474,7 @@ async def job_fine_saedro(context: ContextTypes.DEFAULT_TYPE):
 def get_handlers() -> list:
     return [
         CommandHandler("cambio_ruolo", cmd_cambio_ruolo),
-        CallbackQueryHandler(cb_cambio, pattern=r"^(?:cr:(?:close|home)|c[ra]:(?:t:[\w-]+|g:[\w-]+:\d+|r:[\w-]+:\d+:[A-Z]{1,2}|(?:cf|do):[\w-]+:\d+:[A-Z]{1,2}:[oesf]))$"),
+        CallbackQueryHandler(cb_cambio, pattern=r"^(?:cr:(?:close|home)|c[ra]:(?:t:[\w-]+|g:[\w-]+:\d+|r:[\w-]+:\d+:[A-Z]{1,2}|(?:cf|do):[\w-]+:\d+:[A-Z]{1,2}:[oesfd]))$"),
         CallbackQueryHandler(cb_saedro, pattern=r"^sae:(ok|no):[\w-]+:\d+:[A-Z]{1,2}$"),
         CallbackQueryHandler(cb_admin_teams, pattern=r"^cradm:teams$"),
     ]
