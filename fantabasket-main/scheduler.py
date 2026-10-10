@@ -60,6 +60,12 @@ def _versione() -> str:
         return "?"
 
 
+def link_guida() -> str | None:
+    """Link alla guida di ripristino, se in globals.json c'è "repo_url" (fuori da git)."""
+    url = (settings.load_globals().get("repo_url") or "").strip().rstrip("/")
+    return f"{url}/blob/main/docs/RECOVERY.md" if url else None
+
+
 def info_secrets_cifrati() -> str | None:
     """Data del file secrets cifrato, se presente (per caption e /backup)."""
     if os.path.isfile(SECRETS_CIFRATI):
@@ -138,7 +144,7 @@ def _crea_backup_zip(includi_aste_db: bool = True) -> bytes:
         BOT_VERSION = _versione()
         zf.writestr("MANIFEST.txt", "\n".join(
             [f"Backup Fantabasket Progettone — {now.strftime('%d/%m/%Y %H:%M')}",
-             f"Bot main {BOT_VERSION}", "Ripristino: docs/RECOVERY.md nel repo", "", *contenuto]
+             f"Bot main {BOT_VERSION}", f"Ripristino: {link_guida() or 'docs/RECOVERY.md nel repo'}", "", *contenuto]
             + ([f"", "Saltati (troppo grandi):", *saltati] if saltati else [])) + "\n")
     return buf.getvalue()
 
@@ -153,7 +159,8 @@ async def invia_backup(context, chat_id: int, label: str, includi_aste_db: bool 
         caption = (f"💾 <b>Backup {label}</b> — {now.strftime('%d/%m/%Y %H:%M')}\n"
                    f"DB + aste + config" + (f" + secrets cifrati (del {data_secrets})" if data_secrets
                                              else " · ⚠️ secrets non inclusi")
-                   + "\n📖 Ripristino: <code>docs/RECOVERY.md</code> nel repo")
+                   + (f'\n📖 <a href="{link_guida()}">Guida di ripristino</a>' if link_guida()
+                      else "\n📖 Ripristino: <code>docs/RECOVERY.md</code> nel repo"))
         await context.bot.send_document(
             chat_id=chat_id,
             document=io.BytesIO(data),

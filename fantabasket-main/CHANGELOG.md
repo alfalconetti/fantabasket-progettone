@@ -797,3 +797,8 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 ### Bug fix
 - `scripts/cifra_secrets.sh`: via SSH gpg falliva con "problem with the agent: A locale function failed" (pinentry di gpg-agent). Ora lo script chiede la passphrase da sé (due volte, con controllo) e la passa a gpg con `--pinentry-mode loopback --passphrase-fd`, senza agent; verifica di decifratura con la stessa passphrase
 - `docs/RECOVERY.md`: decifratura con `--pinentry-mode loopback`
+
+## v3.5.0b (2026-10-10)
+
+### Miglioramenti
+- Backup: link "📖 Guida di ripristino" nella didascalia (e nel MANIFEST) di ogni backup, costruito da `repo_url` in `config/globals.json` (fuori da git, così l'URL non sta nel codice). Senza `repo_url` resta il testo `docs/RECOVERY.md`

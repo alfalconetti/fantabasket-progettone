@@ -78,7 +78,7 @@ Vale sia per rimettere in piedi il server sia per partire da un altro computer.
 ### 3.1 Codice e backup
 
 ```bash
-git clone <indirizzo del repo GitHub, fissato nel gruppo admin> fantabasket-progettone
+git clone <indirizzo del repo GitHub: è nel link "Guida di ripristino" di ogni backup> fantabasket-progettone
 cd fantabasket-progettone
 unzip ~/Downloads/backup_progettone_AAAAMMGG_HHMM.zip -d restore/
 cp -r restore/config ./config

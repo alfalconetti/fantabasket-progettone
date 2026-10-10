@@ -232,6 +232,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 **Backup (v3.5.0):**
 - Un solo backup, generato dal bot main, sempre completo: `db/fantabasket.sql` (`pg_dump --clean --if-exists --no-owner`), `db/aste.db` (copia coerente: `_snapshot_aste` copia -wal e DB, `integrity_check`, API di backup sqlite → un solo file; fino a 3 tentativi), tutta `config/`, `secrets.tar.gpg` se presente, `MANIFEST.txt`. Canale log 00:00 e 12:00 e allo spegnimento, gruppo admin domenica 00:30, `/backup` (dev)
 - Secrets: `./scripts/cifra_secrets.sh` (gpg AES256 simmetrico, passphrase nel password manager) → `secrets/cifrati/secrets.tar.gpg`, montata `:ro` nel bot main come `/secrets_cifrati`. Il bot non vede mai i secrets in chiaro. **Rilanciare lo script dopo ogni modifica a `secrets/`**: la didascalia del backup mostra la data dei secrets inclusi
+- Link alla guida nella didascalia di ogni backup: chiave `repo_url` in `config/globals.json` (v3.5.0b)
 - Ripristino e emergenza: `docs/RECOVERY.md` (unica guida; le vecchie DEV_RECOVERY/emergency_recovery eliminate)
 - Il bot aste non manda più backup periodici (v49)
 
