@@ -1,8 +1,11 @@
 """
 Cambi ruolo in regular season (fasi settings.FASI_RUOLI_RS).
 
-GM:    /cambio_ruolo o "🔁 Cambio ruolo" nel /menu
-Admin: /admin_menu → "🔁 Cambi ruolo" → squadra (qualsiasi squadra)
+GM:    /cambio_ruolo o "🔁 Cambio ruolo" nel /menu (callback cr:) — solo la propria squadra,
+       anche per chi è admin: qui niente cambio forzato e la Saedro è sempre una richiesta
+Admin: /admin_menu → "🔁 Cambi ruolo" → squadra (callback ca:) — per conto di qualsiasi
+       squadra, con cambio forzato e Saedro diretta
+Tutto solo nelle fasi FASI_RUOLI_RS (in offseason i ruoli si dichiarano da capo).
 
 Tipi (eventi cambi_ruolo):
 - ordinario      → max 2 a stagione per squadra (contatore su /roster e foglio)
@@ -184,19 +187,27 @@ async def _esegui(bot, team_id: str, gid: int, nuovo: str, tipo: str, chi: str) 
 
 
 # ══ interfaccia ═════════════════════════════════════════════════════════════
+# Due modalità, distinte dal prefisso del callback:
+#   cr: → GM sulla propria squadra (anche se è admin): niente "forzato", Saedro su richiesta
+#   ca: → admin per conto di una squadra (da /admin_menu): forzato disponibile, Saedro diretta
+# In entrambe solo nelle fasi di regular season/playoff: in offseason i ruoli si dichiarano da capo.
 
-def _accesso(uid: int, team_id: str) -> str | None:
-    if _is_admin(uid):
-        return None
+FUORI_FASE = "❌ I cambi ruolo sono disponibili solo in regular season e playoff."
+
+
+def _accesso(uid: int, team_id: str, admin_mode: bool) -> str | None:
+    if settings.fase() not in settings.FASI_RUOLI_RS:
+        return FUORI_FASE
+    if admin_mode:
+        return None if _is_admin(uid) else "⛔ Solo admin."
     t = tm.get_team_by_gm(uid)
     if not t or t["id"] != team_id:
         return "⛔ Puoi cambiare solo i ruoli della tua squadra."
-    if settings.fase() not in settings.FASI_RUOLI_RS:
-        return "❌ I cambi ruolo sono disponibili solo in regular season e playoff."
     return None
 
 
 def _vista_team(team_id: str, admin: bool):
+    p = "ca" if admin else "cr"
     usati = ordinari_usati(team_id)
     testo = (f"🔁 <b>Cambio ruolo — {_nome_team(team_id)}</b>" + (" <i>(admin)</i>" if admin else "") +
              f"\nCambi ordinari usati: <b>{usati}/{MAX_ORDINARI}</b> · Saedro: "
@@ -209,8 +220,9 @@ def _vista_team(team_id: str, admin: bool):
             label = f"⏳ {g['ruolo']} · {g['nome']} (Saedro)"
         else:
             label = f"{g['ruolo']} · {g['nome']}"
-        kb.append([InlineKeyboardButton(label, callback_data=f"cr:g:{team_id}:{g['gid']}")])
-    kb.append([InlineKeyboardButton("✖️ Chiudi", callback_data="cr:close")])
+        kb.append([InlineKeyboardButton(label, callback_data=f"{p}:g:{team_id}:{g['gid']}")])
+    kb.append([InlineKeyboardButton("← Squadre", callback_data="cradm:teams") if admin
+               else InlineKeyboardButton("✖️ Chiudi", callback_data="cr:close")])
     return testo, InlineKeyboardMarkup(kb)
 
 
@@ -221,7 +233,7 @@ async def cmd_cambio_ruolo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not t:
         await update.effective_message.reply_text("⛔ Non sei registrato come GM.")
         return
-    motivo = _accesso(uid, t["id"])
+    motivo = _accesso(uid, t["id"], admin_mode=False)
     if motivo:
         await update.effective_message.reply_text(motivo)
         return
@@ -243,23 +255,23 @@ async def cb_cambio(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("⛔ Non sei registrato come GM.", show_alert=True)
             return
         parti = ["cr", "t", t["id"]]
+    p = parti[0]
+    admin_mode = p == "ca"
     azione, team_id = parti[1], parti[2]
-    motivo = _accesso(uid, team_id)
+    motivo = _accesso(uid, team_id, admin_mode)
     if motivo:
         await query.answer(motivo, show_alert=True)
         return
-    gm = tm.get_team_by_gm(uid)
-    is_admin = _is_admin(uid)
     await query.answer()
 
     if azione == "t":
-        testo, kb = _vista_team(team_id, is_admin and (not gm or gm["id"] != team_id))
+        testo, kb = _vista_team(team_id, admin_mode)
         await query.edit_message_text(testo, parse_mode="HTML", reply_markup=kb)
 
     elif azione == "g":
         gid = int(parti[3])
         g = next((x for x in roster_ruoli(team_id) if x["gid"] == gid), None)
-        indietro = [InlineKeyboardButton("← Indietro", callback_data=f"cr:t:{team_id}")]
+        indietro = [InlineKeyboardButton("← Indietro", callback_data=f"{p}:t:{team_id}")]
         if not g or not g["ruolo"]:
             await query.edit_message_text("Questo giocatore non ha ancora un ruolo ufficiale: va prima dichiarato.",
                                           reply_markup=InlineKeyboardMarkup([indietro]))
@@ -272,7 +284,7 @@ async def cb_cambio(update: Update, context: ContextTypes.DEFAULT_TYPE):
             testo += f"\n✨ Ruoli aggiunti (Erminio): {', '.join(sorted(erm))}"
         if not altri:
             testo += "\n\nNessun altro ruolo disponibile."
-        kb = [[InlineKeyboardButton(r + (" ✨" if r in erm else ""), callback_data=f"cr:r:{team_id}:{gid}:{r}")
+        kb = [[InlineKeyboardButton(r + (" ✨" if r in erm else ""), callback_data=f"{p}:r:{team_id}:{gid}:{r}")
                for r in altri]] if altri else []
         kb.append(indietro)
         await query.edit_message_text(testo, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(kb))
@@ -281,18 +293,18 @@ async def cb_cambio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         gid, nuovo = int(parti[3]), parti[4]
         g = next((x for x in roster_ruoli(team_id) if x["gid"] == gid), None)
         erminio = nuovo in ruoli_erminio(gid)
-        tipi = (["e", "s"] if erminio else ["o", "s"]) + (["f"] if is_admin else [])
+        tipi = (["e", "s"] if erminio else ["o", "s"]) + (["f"] if admin_mode else [])
         righe, kb = [f"🔁 <b>{g['nome'] if g else gid}</b>: {g['ruolo'] if g else '?'} → <b>{nuovo}</b>\n"], []
         for k in tipi:
-            errori, avvisi = verifica(team_id, gid, nuovo, TIPI[k], is_admin)
+            errori, avvisi = verifica(team_id, gid, nuovo, TIPI[k], admin_mode)
             stato = "❌ " + errori[0] if errori else ("⚠️ " + avvisi[0] if avvisi else "✅ possibile")
             righe.append(f"• <b>{ETICHETTE[TIPI[k]].capitalize()}</b>: {stato}")
             if not errori:
                 label = {"o": f"Ordinario ({ordinari_usati(team_id)}/{MAX_ORDINARI})", "e": "✨ Erminio (ruolo aggiunto)",
-                         "s": "⏳ Saedro (10 day)" + ("" if is_admin else " — richiedi"), "f": "🛠 Forzato admin"}[k]
+                         "s": "⏳ Saedro (10 day)" + ("" if admin_mode else " — richiedi"), "f": "🛠 Forzato admin"}[k]
                 passo = "cf" if k == "o" else "do"
-                kb.append([InlineKeyboardButton(label, callback_data=f"cr:{passo}:{team_id}:{gid}:{nuovo}:{k}")])
-        kb.append([InlineKeyboardButton("← Indietro", callback_data=f"cr:g:{team_id}:{gid}")])
+                kb.append([InlineKeyboardButton(label, callback_data=f"{p}:{passo}:{team_id}:{gid}:{nuovo}:{k}")])
+        kb.append([InlineKeyboardButton("← Indietro", callback_data=f"{p}:g:{team_id}:{gid}")])
         await query.edit_message_text("\n".join(righe), parse_mode="HTML", reply_markup=InlineKeyboardMarkup(kb))
 
     elif azione == "cf":                                  # conferma del cambio ordinario
@@ -304,26 +316,28 @@ async def cb_cambio(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Userai il cambio <b>{n}/{MAX_ORDINARI}</b> di questa stagione.",
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("✅ Confermo", callback_data=f"cr:do:{team_id}:{gid}:{nuovo}:o"),
-                InlineKeyboardButton("← Indietro", callback_data=f"cr:r:{team_id}:{gid}:{nuovo}"),
+                InlineKeyboardButton("✅ Confermo", callback_data=f"{p}:do:{team_id}:{gid}:{nuovo}:o"),
+                InlineKeyboardButton("← Indietro", callback_data=f"{p}:r:{team_id}:{gid}:{nuovo}"),
             ]]))
 
     elif azione == "do":
         gid, nuovo, tipo = int(parti[3]), parti[4], TIPI[parti[5]]
-        errori, _ = verifica(team_id, gid, nuovo, tipo, is_admin)
+        if tipo == "forzato_admin" and not admin_mode:
+            return
+        errori, _ = verifica(team_id, gid, nuovo, tipo, admin_mode)
         if errori:
             await query.edit_message_text("❌ " + "\n❌ ".join(errori),
-                                          reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("← Indietro", callback_data=f"cr:g:{team_id}:{gid}")]]))
+                                          reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("← Indietro", callback_data=f"{p}:g:{team_id}:{gid}")]]))
             return
-        if tipo == "saedro" and not is_admin:
+        if tipo == "saedro" and not admin_mode:
             await _richiedi_saedro(context.bot, team_id, gid, nuovo, query.from_user)
             await query.edit_message_text("📨 Richiesta di Saedro inviata agli admin. Ti arriva un messaggio quando decidono.")
             return
-        chi = f" — {query.from_user.first_name or 'admin'}" if is_admin and (not gm or gm["id"] != team_id) else ""
+        chi = f" — {query.from_user.first_name or 'admin'}" if admin_mode else ""
         esito = await _esegui(context.bot, team_id, gid, nuovo, tipo, chi)
         await query.edit_message_text(esito, parse_mode="HTML",
-                                      reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔁 Altri cambi", callback_data=f"cr:t:{team_id}")]]))
-        if chi:
+                                      reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔁 Altri cambi", callback_data=f"{p}:t:{team_id}")]]))
+        if admin_mode:
             await _ai_gm(context.bot, team_id, f"🛠 Un admin ha registrato un cambio ruolo: {esito[2:]}")
 
 
@@ -372,9 +386,12 @@ async def cb_admin_teams(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _is_admin(query.from_user.id):
         await query.answer("⛔ Solo admin.", show_alert=True)
         return
+    if settings.fase() not in settings.FASI_RUOLI_RS:
+        await query.answer(FUORI_FASE, show_alert=True)
+        return
     await query.answer()
     kb = [[InlineKeyboardButton(f"{t['nome']} ({ordinari_usati(t['id'])}/{MAX_ORDINARI})",
-                                callback_data=f"cr:t:{t['id']}")] for t in tm.get_all_teams()]
+                                callback_data=f"ca:t:{t['id']}")] for t in tm.get_all_teams()]
     kb.append([InlineKeyboardButton("← Menu admin", callback_data="adm:home")])
     await query.edit_message_text("🔁 <b>Cambi ruolo</b> — scegli la squadra\n<i>Tra parentesi i cambi ordinari usati.</i>",
                                   parse_mode="HTML", reply_markup=InlineKeyboardMarkup(kb))
@@ -410,7 +427,7 @@ async def job_fine_saedro(context: ContextTypes.DEFAULT_TYPE):
 def get_handlers() -> list:
     return [
         CommandHandler("cambio_ruolo", cmd_cambio_ruolo),
-        CallbackQueryHandler(cb_cambio, pattern=r"^cr:(close|home|t:[\w-]+|g:[\w-]+:\d+|r:[\w-]+:\d+:[A-Z]{1,2}|(?:cf|do):[\w-]+:\d+:[A-Z]{1,2}:[oesf])$"),
+        CallbackQueryHandler(cb_cambio, pattern=r"^(?:cr:(?:close|home)|c[ra]:(?:t:[\w-]+|g:[\w-]+:\d+|r:[\w-]+:\d+:[A-Z]{1,2}|(?:cf|do):[\w-]+:\d+:[A-Z]{1,2}:[oesf]))$"),
         CallbackQueryHandler(cb_saedro, pattern=r"^sae:(ok|no):[\w-]+:\d+:[A-Z]{1,2}$"),
         CallbackQueryHandler(cb_admin_teams, pattern=r"^cradm:teams$"),
     ]

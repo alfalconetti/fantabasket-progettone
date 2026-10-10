@@ -131,7 +131,7 @@ docker compose logs -f
 
 - [Guida GM](docs/guida_gm.md)
 - [Guida Admin](docs/guida_admin.md)
-- [Emergency Recovery](docs/emergency_recovery.md)
+- [Backup e ripristino](../docs/RECOVERY.md) (guida unica del progettone)
 - [Changelog](CHANGELOG.md)
 
 ## Comandi utente

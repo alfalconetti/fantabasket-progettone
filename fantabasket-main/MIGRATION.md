@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v3.4.2)
+# Messaggio di migrazione — Fantabasket Progettone (stato v3.5.0, bot aste v49)
 
 ---
 
@@ -19,7 +19,11 @@ Ecosistema Fantabasket su server domestico Ubuntu. Bot aste v48 standalone SPENT
     │   ├── tabelle/
     │   └── loghi/
     ├── secrets/               ← anche yahoo_client_id, yahoo_client_secret, yahoo_router_token
+    │   └── cifrati/           ← secrets.tar.gpg da scripts/cifra_secrets.sh (montata :ro nel bot main)
     ├── README.md              ← in inglese, linkato nella richiesta di accesso a Yahoo
+    ├── docs/RECOVERY.md       ← guida UNICA backup e ripristino (dev + emergenza admin)
+    ├── scripts/cifra_secrets.sh ← cifra secrets/ per il backup (da rilanciare a ogni modifica dei secrets)
+    ├── shared/                ← regole condivise (ruoli), montata in entrambi i bot
     ├── fantabasket-aste-beta/
     ├── fantabasket-main/
     ├── gas-router/
@@ -84,7 +88,9 @@ Cambio fase via `/set_fase` (solo admin). Passaggio a `offseason-rinnovi` increm
 
 ---
 
-**Bot aste beta** — v48 + pg_client.py. Cap/slot da PostgreSQL. FA list da PostgreSQL (esclude diritti 2nd non firmati, ordinata per fantamedia bref desc). `BOT_VERSION = "beta-1"`. Config montata `:ro`. `cap_massimo()` alias di `cap_regular` (150M fisso), `cap_limite()` dinamico (165M offseason, 150M RS).
+**Bot aste beta** — v49 + pg_client.py. Cap/slot da PostgreSQL. FA list da PostgreSQL (esclude diritti 2nd non firmati, ordinata per fantamedia bref desc). Versione = ultima voce `## vNN` del suo `CHANGELOG.md` (v48). Niente backup propri da v49 (solo `/backup_ora` d'emergenza del DB aste). Config montata `:ro`. `cap_massimo()` alias di `cap_regular` (150M fisso), `cap_limite()` dinamico (165M offseason, 150M RS).
+
+**Il DB del bot aste resta su SQLite per scelta** (decisione del 09/10/2026): così si può sempre tornare al bot aste standalone v48. Modifiche allo schema SQLite solo additive (nuove colonne con default, mai rinominare o togliere), così il DB resta leggibile dallo standalone.
 
 `cap_slot_display()` in `utils.py` è PG-first — se PG non disponibile cade su fallback JSON (non dovrebbe mai succedere in produzione).
 
@@ -109,6 +115,10 @@ Cambio fase via `/set_fase` (solo admin). Passaggio a `offseason-rinnovi` increm
 - Versioning: patch con suffisso incrementale (v1.4.17, v1.4.18...), feature bump minor (v1.5.0), nuovo servizio bump major (v2.0.0); `vX.Y.Za` per docs/hotfix della stessa patch
 - Ogni zip include comando deploy + git commit + git push origin main (vedi sezione deploy: si parte SEMPRE da `cd ~/bots`)
 - **Ogni zip aggiorna SEMPRE `fantabasket-main/CHANGELOG.md`** con la voce `## vX.Y.Z (data)`: la versione mostrata dal bot all'avvio e in `/dev_version` è letta dall'ultima voce del CHANGELOG (v3.0.9). Senza voce nuova il bot mostra la versione precedente
+- **Ogni patch che tocca il bot aste aggiorna ANCHE `fantabasket-aste-beta/CHANGELOG.md`** con una voce `## vNN — titolo` (numero successivo): da v48 la versione del bot aste è l'ultima voce del suo CHANGELOG. Nello zip il file si chiama `CHANGELOG_aste.md`
+- **Parità GM/admin**: ogni azione che può fare un GM deve avere l'equivalente "per conto di" una squadra nel pannello admin (`_kb_admin_home`). Chi aggiunge un'azione GM aggiunge anche la voce admin
+- **Admin che è anche GM**: nei flussi GM (/menu, comandi) agisce come GM, con le regole dei GM (es. `cambi_ruolo` modalità `cr:`); i poteri admin solo dal pannello (`ca:`, `attadm:`, `decadm:`)
+- **Comandi di Telegram per fase**: `comandi.py` (`_fasi_comando`). Un nuovo comando GM legato a una fase va aggiunto lì, oltre che in `AZIONI_FASE` del menu
 - Prima di ogni zip: `ast.parse` + `pyflakes` (cerca "undefined name"): i bug v3.0.2/v3.0.3 erano tutti nomi non definiti in rami poco usati
 - Un solo file per modulo: niente copie con lo stesso nome in radice e in `handlers/` (in passato fix finiti sulla copia morta, v3.0.1). Gli import usano sempre `handlers.xxx`
 - Prima di discutere → poi codice → poi zip: niente deploy di patch non discusse
@@ -119,18 +129,21 @@ Cambio fase via `/set_fase` (solo admin). Passaggio a `offseason-rinnovi` increm
 - `trade.py` — builder (2-4 squadre), import, bozze con bottoni inline, edit, annulla, rollback; `/bozze_trade` mostra InlineKeyboard con bottoni diretti all'edit per bozze e al riepilogo-voto per pending; label bozze: `BUF03-3` (prime 3 lettere nome + num team + bozza_num) o `ADM-4` per admin; `trade_ref` (`TRADE-2026-001`) assegnato prima di `_esegui_trade` per evitare NULL nelle transazioni; notifica GM post-trade include "comunica i ruoli" solo in `regular-season-fa`
 - `trade_parser.py` — parser deterministico testo trade; lookup pick per `proprietario_orig` via `get_pick_by_orig_anno_round()` (davvero attivo solo da v3.0.1: prima il fix era sulla copia morta in radice); `by` facoltativo (`1st round pick 2028 Birra`); GM trovati anche per singola parola di `gm_nome`/nome squadra se univoca; verifica che pick e diritti ceduti siano posseduti OGGI dal cedente; errori non duplicati nelle trade a 2
 - `tagli.py` — taglio con preview impatto, conferma, scrittura DB, annuncio canale; tagli 1x1 gratuiti bloccati quando esauriti
-- `rookie.py` — attivazione diritti 2nd pick, aperto a tutte `FASI_TRADE_APERTE`, annuncio canale; contratto SEMPRE dalla colonna "I anno" della rookie scale (`anno_idx = 0`: la scala parte dall'anno di firma, non di draft), solo conferma; bottone `scadi_diritti:<anno>` per la scadenza diritti (v3.0.6)
+- `rookie.py` — attivazione diritti 2nd pick, GM in `FASI_TRADE_APERTE`, admin (`attadm:`) in qualsiasi fase; contratto SEMPRE dalla colonna "I anno" della rookie scale (`_slot_scala`, la scala parte dall'anno di firma), solo conferma; `esegui_attivazione()` unica transazione DB con `FOR UPDATE` e cap con `settings.cap_limite_team`; `_dopo_attivazione()` annuncio/avviso GM/ruolo RS/sync; bottone `scadi_diritti:<anno>` per la scadenza diritti (v3.0.6)
+- `decadimento.py` — GM: richiesta → gruppo admin (Approva/Rifiuta, solo admin); admin diretto `decadm:`; `applica_decadimento()` comune; transazione tipo `decadimento`, scrittura atomica in `db.registra_decadimento`
+- **Tipi di `transazioni`**: il CHECK in produzione NON coincideva con `schema.sql` (DB nato da uno schema più vecchio). Da v3.5.0 `migrate_db()` lo ricrea a ogni avvio con l'unione: `signed, traded, cut, renewed, expired, decadimento, decaduto, dpe_attivata, 10day_firma, 10day_scadenza, rookie_firma, rookie_diritti_scaduti, firma, taglio, trade, rookie, dpe`. Un tipo nuovo va aggiunto lì E in `schema.sql`. Verifica: `SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname LIKE 'transazioni_tipo%'`
+- `comandi.py` (radice bot-main) — liste comandi Telegram per scope, filtrate per fase; `registra_comandi(bot)` all'avvio e in `_esegui_cambio_fase`
 - `roster.py` — PNG via Typst subprocess per `/roster` e `/assets`; fuzzy match team via `get_team_by_query()`; roster sempre 15 righe (padding con righe vuote); giocatori con DPE mostrano importo barrato in rosso
 - `palette.py` — `/palette` con anteprima PNG live
 - `myteam.py` — modifica nome/colori team
 - `team_diff.py` — variazioni roster tra date; fuzzy match team via `get_team_by_query()`
-- `admin_panel.py` — pannello admin; DPE admin diretta (team→giocatore→conferma→DB+canale); annuncio canale usa `_formatta_annuncio_canale()` (non `_testo_riepilogo`)
+- `admin_panel.py` — pannello admin dinamico per fase (`_kb_admin_home`: Trade, Taglia, Attiva diritti, Decadimento, DPE, Ruoli squadre, Ruoli in sospeso, Cambi ruolo, Situazione cap); DPE admin diretta (team→giocatore→conferma→DB+canale); annuncio canale usa `_formatta_annuncio_canale()` (non `_testo_riepilogo`)
 - `dpe.py` — `/dpe` GM: flusso richiesta→approvazione admin gruppo→DB+canale; `pre_deadline = (fase != "regular-season-deadline")`; DPE legata alla stagione corrente; `_importo_dpe()` unica funzione usata anche da `admin_panel.py`
 - `tagli.py` — spalmatura >5M: rate per eccesso, eccedenza tolta dal fondo senza scendere sotto 1 (7x1 → 4-2-1)
 - `posizioni.py` — posizioni eleggibili: `/import_posizioni_eleggibili` (CSV, anteprima, transazione unica), `/set_posizioni_eleggibili`, `/data_erminio`
 - `ruoli.py` — dichiarazione ruoli in `offseason-ruoli` (bozze `ruoli_bozze`, import da testo, admin per altre squadre, `/deadline_ruoli`, job 10:00 e 17:00, report a fine fase)
 - `ruoli_rs.py` — dichiarazioni post-trade/firma in RS (`ruoli_pendenti`, 48h, estrazione, regola 60 giorni)
-- `cambi_ruolo.py` — `/cambio_ruolo`: ordinario (2/stagione), Erminio, Saedro (richiesta → gruppo admin, `job_fine_saedro`), forzato admin
+- `cambi_ruolo.py` — `/cambio_ruolo`: ordinario (2/stagione), Erminio, Saedro (richiesta → gruppo admin, `job_fine_saedro`), forzato admin. Callback `cr:` = GM sulla propria squadra (anche se admin: niente forzato, Saedro su richiesta), `ca:` = admin da pannello. Tutto solo in `FASI_RUOLI_RS`
 - `menu.py` — menu per fase: `AZIONI_FASE` (etichetta, callback, fasi) + `AZIONI_SEMPRE`
 - `validators/ruoli.py` — involucro di `shared/ruoli_core.py` (`deficit_team` col `db._q` del main)
 - **`shared/ruoli_core.py`** (radice del progetto, montato in `/app/shared` in bot main e bot aste) — UNICA implementazione delle regole dei ruoli: `RUOLI`, `FASI_RUOLI_RS`, `deficit_minimo`, `deficit_team`, `eleggibili`, `scelta_valida`, `ruolo_riacquisto`, `estrai_ruolo`, `registra_ruolo`. Ogni funzione riceve `q` (main: `database._q`, aste: `pg_client.q`). **Una modifica a `shared/` richiede il riavvio di entrambi i bot**
@@ -140,7 +153,8 @@ Cambio fase via `/set_fase` (solo admin). Passaggio a `offseason-rinnovi` increm
 - `bot.py` — entry point; comandi GM: `build_trade`, `import_trade`, `bozze_trade`, `edit_trade`, `taglia`, `dpe`, `attiva_diritti`, `decadimento`, `my_team`, `palette`, `team_diff`, `annulla_trade`, `annulla`; comandi admin aggiuntivi: `admin_menu`, `set_fase`, `approva_trade`, `annulla_trade_admin`, `registra_firma`, `annulla_admin`, `settings`; comandi dev aggiuntivi: `dev*`, `job_status`, `broadcast`, `sync_sheets`, `backup`, `reboot`
 - `teams.py` — `get_team_by_id`, `get_team_by_gm`, `get_all_teams`, `get_team_by_query` (fuzzy match su team_id → nome esatto → gm_nome esatto → prefix → difflib 0.6)
 - `database.py` — `get_pick_by_orig_anno_round(proprietario_orig, anno, round)` per lookup pick nel trade parser; `get_roster_team()` joina tabella `dpe` e restituisce `importo` (DPE-adjusted), `importo_originale`, `ha_dpe`
-- `scheduler.py`, `bref_scraper.py`, `utils.py`, `log_buffer.py`, `settings.py` — invariati
+- `scheduler.py` — backup UNICO e completo (vedi sezione Backup)
+- `bref_scraper.py`, `utils.py`, `log_buffer.py` — invariati; `settings.py` + `cap_limite_team(team)`
 - `assets.typ` / `roster.typ` — 15 righe fisse con padding vuoto; flag `VUOTO` per righe empty; DPE: nome in rosso scuro (`#C62828`), cella importo `~~orig~~ nuovo`; leggenda include `■ DPE` se presente
 
 **Trade — architettura:**
@@ -215,6 +229,12 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 - Script Python nel container: chiamare `db.init_db()` prima di usare il DB (il pool non è inizializzato fuori dal bot)
 - psql: `docker compose exec postgres psql -U fantabasket -d fantabasket -c "..."`
 
+**Backup (v3.5.0):**
+- Un solo backup, generato dal bot main, sempre completo: `db/fantabasket.sql` (`pg_dump --clean --if-exists --no-owner`), `db/aste.db` (copia coerente: `_snapshot_aste` copia -wal e DB, `integrity_check`, API di backup sqlite → un solo file; fino a 3 tentativi), tutta `config/`, `secrets.tar.gpg` se presente, `MANIFEST.txt`. Canale log 00:00 e 12:00 e allo spegnimento, gruppo admin domenica 00:30, `/backup` (dev)
+- Secrets: `./scripts/cifra_secrets.sh` (gpg AES256 simmetrico, passphrase nel password manager) → `secrets/cifrati/secrets.tar.gpg`, montata `:ro` nel bot main come `/secrets_cifrati`. Il bot non vede mai i secrets in chiaro. **Rilanciare lo script dopo ogni modifica a `secrets/`**: la didascalia del backup mostra la data dei secrets inclusi
+- Ripristino e emergenza: `docs/RECOVERY.md` (unica guida; le vecchie DEV_RECOVERY/emergency_recovery eliminate)
+- Il bot aste non manda più backup periodici (v49)
+
 **Bug noti aperti:**
 - Votazione GM non testata end-to-end
 - Guest mode in attesa supporto completo ptb per `InputRichMessageContent`
@@ -272,7 +292,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 
 ---
 
-**Stato attuale: v3.4.2**
+**Stato attuale: v3.5.0**
 
 Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v2.1.19** — `/attiva_diritti` propone il contratto della rookie scale (anno I) e chiede solo conferma
@@ -301,6 +321,11 @@ Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v3.4.0** — modulo condiviso `shared/ruoli_core.py`; bot aste: ruolo insieme agli anni per le FA in RS (aste v46)
 - **v3.4.1** — report vincoli ruoli al passaggio in regular season
 - **v3.4.2** — trade: esecuzione e rollback atomici, verifica degli asset, diritti attivi nel rollback
+- **v3.4.3** — fix `&lt;numero_bozza&gt;` in /edit_trade e /reset_rfa
+- **v3.4.4** — trade builder: contratti `impxanni` nella selezione e nei riepiloghi, avviso offseason sopra i 150M
+- **v3.4.5** — contratto della rookie scale nei bottoni dei diritti; versione del bot aste dal suo CHANGELOG (v48)
+- **v3.4.6** — hotfix: trade builder admin con tutti gli stati del builder GM (diritti, destinazioni, nota, modifica)
+- **v3.5.0** — cambi ruolo GM/admin separati (`cr:`/`ca:`) e solo in RS/playoff; comandi Telegram per fase (`comandi.py`); pannello admin per fase con Attiva diritti, Decadimento diretto e Situazione cap; fix decadimento (tipo `decaduto`, atomico, solo admin approvano); cap per fase in /attiva_diritti; backup unico con secrets cifrati e `docs/RECOVERY.md` (aste v49)
 
 Novità v2.0.31–v2.0.38:
 - **v2.0.31** — DPE disponibile in tutte e 6 le fasi (da offseason-rinnovi a regular-season-deadline); admin menu DPE diretta; `pre_deadline = (fase != "regular-season-deadline")`
@@ -348,6 +373,8 @@ zip -r ~/fantabasket-progettone-export-$(date +%Y%m%d).zip \
   gas-router/ \
   yahoo-router/ \
   shared/ \
+  docs/ \
+  scripts/ \
   docker-compose.yml \
   README.md \
   --exclude "**/__pycache__/*" \

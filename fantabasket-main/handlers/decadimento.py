@@ -3,7 +3,7 @@ Handler per il decadimento contratti.
 Casi: ritiro, firma in altra lega, giocatore svincolato da lungo tempo.
 Il contratto viene annullato senza impatto sui tagli gratuiti.
 Flusso GM: richiesta → gruppo admin → approvazione → DB + canale
-Flusso admin: diretto da /admin_menu
+Flusso admin: diretto da /admin_menu → 🏁 Decadimento (decadm:)
 """
 import logging
 
@@ -148,53 +148,41 @@ async def cb_dec_annulla(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return ConversationHandler.END
 
 
-# ── Callback approvazione admin (dal gruppo admin) ─────────────────────────────
+# ── Applicazione (comune a approvazione e admin diretto) ──────────────────────
 
-async def cb_dec_approva(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+def _is_admin(uid: int) -> bool:
+    return uid in [int(a) for a in settings.admin_ids()]
 
-    parts    = query.data.split(":")
-    team_id  = parts[1]
-    gid      = int(parts[2])
-    motivo_key = parts[3] if len(parts) > 3 else "altro"
+
+async def _ai_gm(bot, team_id: str, testo: str) -> None:
+    for gm in (tm.get_team_by_id(team_id) or {}).get("gm_ids", []):
+        try:
+            await bot.send_message(chat_id=int(gm), text=testo, parse_mode="HTML")
+        except Exception as e:
+            logger.warning("Avviso al GM decadimento: %s", e)
+
+
+def _admin_tag(user) -> str:
+    tag = user.first_name or str(user.id)
+    return tag + (f" (@{user.username})" if user.username else "")
+
+
+async def applica_decadimento(bot, team_id: str, gid: int, motivo_key: str, admin_tag: str) -> str | None:
+    """Esegue il decadimento e lo annuncia. Restituisce un messaggio d'errore o None."""
     motivo_label = MOTIVI.get(motivo_key, motivo_key)
-
     stagione  = settings.stagione_corrente()
-    team      = tm.get_team_by_id(team_id)
+    team      = tm.get_team_by_id(team_id) or {"nome": team_id}
     giocatore = db.get_giocatore(gid)
     contratto = db.get_contratto_attivo(gid)
-
     if not giocatore:
-        await query.edit_message_text("❌ Giocatore non trovato.")
-        return
+        return "❌ Giocatore non trovato."
     if not contratto or contratto.get("team_id") != team_id:
-        await query.edit_message_text("❌ Contratto non trovato o già scaduto.")
-        return
+        return "❌ Contratto non trovato o già scaduto."
 
-    admin_user = update.effective_user
-    admin_tag  = admin_user.first_name or str(admin_user.id)
-    if admin_user.username:
-        admin_tag += f" (@{admin_user.username})"
-
-    # Esegui decadimento
-    db.registra_decadimento(
-        giocatore_id=gid,
-        team_id=team_id,
-        stagione=stagione,
-        contratto_id=contratto["id"],
-        note=f"Decadimento: {motivo_label}",
-    )
+    db.registra_decadimento(giocatore_id=gid, team_id=team_id, stagione=stagione,
+                            contratto_id=contratto["id"], note=f"Decadimento: {motivo_label}")
 
     ora = format_dt(datetime.now(ROME))
-
-    await query.edit_message_text(
-        query.message.text + f"\n\n✅ <b>Approvato</b> da {admin_tag}",
-        parse_mode="HTML",
-        reply_markup=None,
-    )
-
-    # Annuncio canale principale
     main_channel = settings.load_globals().get("main_channel_id")
     if main_channel:
         testo_canale = (
@@ -205,37 +193,118 @@ async def cb_dec_approva(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"<i>Approvato da {admin_tag} — {ora}</i>"
         )
         try:
-            await context.bot.send_message(
-                chat_id=main_channel, text=testo_canale, parse_mode="HTML"
-            )
+            await bot.send_message(chat_id=main_channel, text=testo_canale, parse_mode="HTML")
         except Exception as e:
             logger.warning("Annuncio canale decadimento: %s", e)
-
-    # Sync GAS
     try:
         import gas_client
         gas_client.sync_after_taglio(team_id)
     except Exception as e:
         logger.warning("GAS sync decadimento: %s", e)
+    logger.info("Decadimento: team=%s giocatore=%d motivo=%s admin=%s", team_id, gid, motivo_key, admin_tag)
+    return None
 
-    logger.info("Decadimento: team=%s giocatore=%d motivo=%s admin=%s",
-                team_id, gid, motivo_key, admin_tag)
+
+# ── Callback approvazione admin (dal gruppo admin) ─────────────────────────────
+
+async def cb_dec_approva(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    if not _is_admin(query.from_user.id):
+        await query.answer("⛔ Solo gli admin possono approvare.", show_alert=True)
+        return
+    await query.answer()
+    parts      = query.data.split(":")
+    team_id    = parts[1]
+    gid        = int(parts[2])
+    motivo_key = parts[3] if len(parts) > 3 else "altro"
+    admin_tag  = _admin_tag(query.from_user)
+    errore = await applica_decadimento(context.bot, team_id, gid, motivo_key, admin_tag)
+    if errore:
+        await query.edit_message_text(errore)
+        return
+    await query.edit_message_text(query.message.text_html + f"\n\n✅ <b>Approvato</b> da {admin_tag}",
+                                  parse_mode="HTML", reply_markup=None)
+    nome = (db.get_giocatore(gid) or {}).get("nome_common", str(gid))
+    await _ai_gm(context.bot, team_id, f"✅ Decadimento del contratto di <b>{nome}</b> approvato.")
 
 
 async def cb_dec_rifiuta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    if not _is_admin(query.from_user.id):
+        await query.answer("⛔ Solo gli admin possono rifiutare.", show_alert=True)
+        return
     await query.answer()
+    await query.edit_message_text(query.message.text_html + f"\n\n❌ <b>Rifiutato</b> da {_admin_tag(query.from_user)}",
+                                  parse_mode="HTML", reply_markup=None)
+    _, team_id, gid = query.data.split(":")
+    nome = (db.get_giocatore(int(gid)) or {}).get("nome_common", gid)
+    await _ai_gm(context.bot, team_id, f"❌ Richiesta di decadimento per <b>{nome}</b> rifiutata dagli admin.")
 
-    admin_user = update.effective_user
-    admin_tag  = admin_user.first_name or str(admin_user.id)
-    if admin_user.username:
-        admin_tag += f" (@{admin_user.username})"
 
-    await query.edit_message_text(
-        query.message.text + f"\n\n❌ <b>Rifiutato</b> da {admin_tag}",
-        parse_mode="HTML",
-        reply_markup=None,
-    )
+# ── Admin diretto: /admin_menu → 🏁 Decadimento ───────────────────────────────
+# adm:dec → decadm:t:<team> → decadm:g:<team>:<gid> → decadm:m:<team>:<gid>:<motivo> → decadm:ok:...
+
+async def admin_lista_team(query) -> None:
+    tutti = tm.get_all_teams()
+    bottoni = [InlineKeyboardButton(t["nome"], callback_data=f"decadm:t:{t['id']}") for t in tutti]
+    righe = [bottoni[i:i + 2] for i in range(0, len(bottoni), 2)]
+    righe.append([InlineKeyboardButton("← Menu admin", callback_data="adm:home")])
+    await query.edit_message_text("🏁 <b>Decadimento (admin)</b> — scegli la squadra:",
+                                  parse_mode="HTML", reply_markup=InlineKeyboardMarkup(righe))
+
+
+async def cb_dec_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    if not _is_admin(query.from_user.id):
+        await query.answer("⛔ Solo admin.", show_alert=True)
+        return
+    await query.answer()
+    parti = query.data.split(":")
+    azione, team_id = parti[1], parti[2]
+    team = tm.get_team_by_id(team_id) or {"nome": team_id}
+
+    if azione == "t":
+        stagione = settings.stagione_corrente()
+        roster = sorted(db.get_roster_team(team_id) or [], key=lambda x: -x["importo"])
+        kb = [[InlineKeyboardButton(f"{r['nome_common']} {r['importo']}x{_anni_residui(r, stagione)}",
+                                    callback_data=f"decadm:g:{team_id}:{r['giocatore_id']}")] for r in roster]
+        kb.append([InlineKeyboardButton("← Squadre", callback_data="adm:dec")])
+        await query.edit_message_text(f"🏁 <b>{team['nome']}</b> — il contratto di chi è decaduto?",
+                                      parse_mode="HTML", reply_markup=InlineKeyboardMarkup(kb))
+        return
+
+    gid = int(parti[3])
+    nome = (db.get_giocatore(gid) or {}).get("nome_common", str(gid))
+    if azione == "g":
+        kb = [[InlineKeyboardButton(label, callback_data=f"decadm:m:{team_id}:{gid}:{k}")] for k, label in MOTIVI.items()]
+        kb.append([InlineKeyboardButton("← Indietro", callback_data=f"decadm:t:{team_id}")])
+        await query.edit_message_text(f"🏁 <b>{nome}</b> ({team['nome']}) — motivo:",
+                                      parse_mode="HTML", reply_markup=InlineKeyboardMarkup(kb))
+        return
+
+    motivo = parti[4]
+    if azione == "m":
+        await query.edit_message_text(
+            f"🏁 Confermi il decadimento del contratto di <b>{nome}</b> ({team['nome']})?\n"
+            f"Motivo: {MOTIVI.get(motivo, motivo)}\n\n"
+            f"<i>Contratto annullato senza impatto sui tagli gratuiti, slot roster liberato.</i>",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("✅ Conferma", callback_data=f"decadm:ok:{team_id}:{gid}:{motivo}"),
+                InlineKeyboardButton("← Indietro", callback_data=f"decadm:g:{team_id}:{gid}"),
+            ]]))
+        return
+
+    if azione == "ok":
+        admin_tag = _admin_tag(query.from_user)
+        errore = await applica_decadimento(context.bot, team_id, gid, motivo, admin_tag)
+        if errore:
+            await query.edit_message_text(errore)
+            return
+        await query.edit_message_text(f"✅ Contratto di <b>{nome}</b> decaduto ({team['nome']}).", parse_mode="HTML",
+                                      reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("← Menu admin", callback_data="adm:home")]]))
+        await _ai_gm(context.bot, team_id, f"🛠 Un admin ha registrato il decadimento del contratto di <b>{nome}</b> "
+                                          f"({MOTIVI.get(motivo, motivo)}).")
 
 
 # ── Helper ─────────────────────────────────────────────────────────────────────
@@ -267,4 +336,5 @@ def get_handlers() -> list:
         conv,
         CallbackQueryHandler(cb_dec_approva, pattern=r"^dec_approva:.+:\d+:\w+$"),
         CallbackQueryHandler(cb_dec_rifiuta, pattern=r"^dec_rifiuta:.+:\d+$"),
+        CallbackQueryHandler(cb_dec_admin,   pattern=r"^decadm:(?:t:[\w-]+|g:[\w-]+:\d+|(?:m|ok):[\w-]+:\d+:\w+)$"),
     ]

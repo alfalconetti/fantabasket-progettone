@@ -760,3 +760,34 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 
 ### Bug fix
 - Trade builder admin (/admin_menu → Trade → Build): selezionando i diritti il bot si bloccava, perché la conversazione admin non aveva lo stato dei diritti. Aggiunti tutti gli stati del builder GM che mancavano: diritti, destinazioni nelle trade a 3-4 squadre, nota, salva bozza, elimina, modifica
+
+## v3.5.0 (2026-10-09)
+
+### Cambi ruolo: GM e admin separati
+- Due modalità distinte dal callback: `cr:` (GM sulla propria squadra) e `ca:` (admin per conto di una squadra, da /admin_menu)
+- Dal /menu e da `/cambio_ruolo` anche chi è admin agisce come GM: niente "Forzato admin", Saedro sempre come richiesta. Il forzato e la Saedro diretta solo dal pannello admin
+- Fasi: i cambi ruolo (GM e admin) solo in regular season e playoff; prima un admin poteva entrarci in qualsiasi fase, e così compariva anche in `offseason-ruoli`
+
+### Menu dei comandi di Telegram per fase
+- Nuovo `comandi.py`: le voci GM legate a una fase (`build_trade`, `import_trade`, `taglia`, `attiva_diritti`, `decadimento`, `dpe`, `dichiarazione_ruoli`, `cambio_ruolo`) compaiono solo quando la fase le permette, con le stesse costanti dei comandi
+- Registrazione all'avvio e a ogni cambio di fase
+
+### Pannello admin: tutto quello che fa un GM, per conto di una squadra
+- Menu dinamico per fase (DPE, Ruoli in sospeso e Cambi ruolo solo quando servono), con la fase nel titolo
+- 🏀 **Attiva diritti**: squadra → diritto → conferma, contratto dalla rookie scale, in qualsiasi fase; avviso al GM, annuncio, ruolo da dichiarare in RS, sync
+- 🏁 **Decadimento** diretto: squadra → giocatore → motivo → conferma; avviso al GM e annuncio
+- 📊 **Situazione cap** (era "da implementare"): cap occupato / tetto attuale e giocatori a roster di tutte le squadre
+
+### Bug fix
+- **CHECK di `transazioni.tipo`**: il DB di produzione era nato da uno schema più vecchio di `schema.sql` e ammetteva solo `signed, traded, firma, taglio, cut, trade, rookie, dpe, decadimento`. L'attivazione dei diritti scrive `rookie_firma` e veniva rifiutata (fino a v3.4.5 il contratto restava creato e il rookie segnato firmato, senza transazione). `migrate_db()` ora ricrea il CHECK con l'unione dei due elenchi a ogni avvio; `schema.sql` allineato
+- Decadimento: transazione (tipo `decadimento`, quello ammesso in produzione) + disattivazione contratto + impatti taglio in un'unica transazione DB; `/team_diff` mostra "Decaduto"
+- Approva/Rifiuta decadimento: controllo admin (prima chiunque nel gruppo poteva premere); messaggio riscritto con `text_html`; il GM riceve l'esito (prima non sapeva nulla)
+- `/attiva_diritti`: il controllo cap usava sempre 150M; ora il tetto della fase (165M in offseason, 150M − penalità in RS, `settings.cap_limite_team`). Contratto, rookie e transazione in un'unica transazione DB, con i diritti bloccati (`FOR UPDATE`) e ricontrollati
+
+### Backup unico
+- Un solo backup, sempre completo, dal bot main: `pg_dump --clean --if-exists --no-owner` (ripristinabile su DB vuoto o esistente), `aste.db` come copia verificata (`integrity_check`) con il WAL già consolidato (prima veniva copiato solo il file principale e le scritture ancora nel WAL andavano perse), **tutta** la cartella config (prima `settings.json` e `divisions.json` mancavano: cercava i vecchi `settings_main/aste.json`), `secrets.tar.gpg` se presente, `MANIFEST.txt`
+- Secrets: `scripts/cifra_secrets.sh` li cifra sul server (gpg AES256, passphrase) in `secrets/cifrati/`, montata in sola lettura nel bot main: il bot allega solo il file cifrato
+- Didascalia con data dei secrets inclusi (o avviso se mancano) e rimando a `docs/RECOVERY.md`; tolto il link al branch `master` inesistente
+- Il bot aste non manda più backup suoi (doppioni); `/backup_ora` resta come copia d'emergenza del solo DB aste
+- 📊 Situazione cap: 🔴 sopra il tetto, 🟠 in offseason sopra 150M − penalità, 🔵 in RS sotto il salary floor
+- Nuova guida unica `docs/RECOVERY.md` (radice del repo); eliminate `DEV_RECOVERY.md`, `emergency_recovery_progettone.md` e la guida del bot aste (nomi dei secrets, percorso di `aste.db` e file di config erano sbagliati)

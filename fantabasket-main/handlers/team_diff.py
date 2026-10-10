@@ -68,6 +68,7 @@ def _motivo_giocatore(team_id: str, giocatore_id: int,
                 "cut":    "Tagliato",
                 "expired":"Scaduto",
                 "decaduto":"Ritirato",
+                "decadimento":"Decaduto",
                 "dpe_attivata":"DPE",
             }.get(r["tipo"], r["tipo"].capitalize())
     return "—"

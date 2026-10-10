@@ -88,7 +88,16 @@ def _crea_backup_zip() -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         if os.path.exists(db_path):
-            zf.write(db_path, "data/aste.db")
+            # API di backup di sqlite: copia coerente con il WAL già consolidato
+            import sqlite3, tempfile
+            with tempfile.TemporaryDirectory() as tmp:
+                dest = os.path.join(tmp, "aste.db")
+                src, dst = sqlite3.connect(db_path), sqlite3.connect(dest)
+                try:
+                    src.backup(dst)
+                finally:
+                    dst.close(); src.close()
+                zf.write(dest, "data/aste.db")
         for fname in ["globals.json", "teams.json", "settings.json", "fa_players.csv"]:
             fpath = os.path.join(config_dir, fname)
             if os.path.exists(fpath):
@@ -102,9 +111,9 @@ async def invia_backup(context, chat_id: int, label: str):
         data = _crea_backup_zip()
         now = datetime.now(utils.ROME)
         filename = f"backup_aste_{now.strftime('%Y%m%d_%H%M')}.zip"
-        caption = f"💾 <b>Backup {label}</b> — {now.strftime('%d/%m/%Y %H:%M')}"
-        if label == "settimanale":
-            caption += "\n\n📖 <a href=\"https://github.com/alfalconetti/fantabasket_aste/blob/main/docs/emergency_recovery.md\">Emergency Recovery Guide</a>"
+        caption = (f"💾 <b>Backup {label} — solo DB aste</b> — {now.strftime('%d/%m/%Y %H:%M')}\n"
+                   f"<i>Copia d'emergenza: il backup completo lo fa il bot principale "
+                   f"(ripristino: docs/RECOVERY.md nel repo)</i>")
         await context.bot.send_document(
             chat_id=chat_id,
             document=io.BytesIO(data),

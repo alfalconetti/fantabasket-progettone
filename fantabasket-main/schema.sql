@@ -106,11 +106,12 @@ CREATE UNIQUE INDEX idx_trade_voti_uq ON trade_voti (trade_id, team_id);
 CREATE TABLE transazioni (
     id              SERIAL PRIMARY KEY,
     timestamp       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    tipo            TEXT NOT NULL CHECK (tipo IN (
+    tipo            TEXT NOT NULL CHECK (tipo IN (  -- allineato da migrate_db() (v3.5.0)
         'signed', 'traded', 'cut', 'renewed', 'expired',
-        'decaduto', 'dpe_attivata',
+        'decadimento', 'decaduto', 'dpe_attivata',
         '10day_firma', '10day_scadenza',
-        'rookie_firma', 'rookie_diritti_scaduti'
+        'rookie_firma', 'rookie_diritti_scaduti',
+        'firma', 'taglio', 'trade', 'rookie', 'dpe'
     )),
     giocatore_id    INT NOT NULL REFERENCES giocatori(id),
     team_id_da      TEXT,

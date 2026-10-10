@@ -15,7 +15,7 @@ from handlers.offerte import get_handlers as offerte_handlers
 from handlers.firma   import get_handlers as firma_handlers
 from handlers.user    import get_handlers as user_handlers
 from handlers.dev     import get_handlers as dev_handlers
-from scheduler        import check_scadenze, ping_healthcheck, backup_giornaliero, backup_settimanale, check_cap_stagionale, backup_shutdown
+from scheduler        import check_scadenze, ping_healthcheck, check_cap_stagionale
 
 def _leggi_versione() -> str:
     """Versione = ultima voce '## vNN' del CHANGELOG.md del bot aste."""
@@ -210,7 +210,7 @@ def main():
     import pg_client
     pg_client.init_pg()
 
-    app = ApplicationBuilder().token(TOKEN).post_shutdown(backup_shutdown).build()
+    app = ApplicationBuilder().token(TOKEN).build()
 
     for h in admin_handlers():
         app.add_handler(h)
@@ -232,20 +232,11 @@ def main():
     if os.environ.get("HEALTHCHECK_URL"):
         app.job_queue.run_repeating(ping_healthcheck, interval=300, first=30)
 
-    # Backup giornaliero: mezzogiorno e mezzanotte (ora di Roma)
+    # Backup: non più qui. Il backup unico e completo (PG + aste.db + config + secrets
+    # cifrati) lo fa il bot main; /backup_ora resta come copia d'emergenza del solo aste.db.
     from datetime import time as dtime
     from zoneinfo import ZoneInfo
     rome = ZoneInfo("Europe/Rome")
-    backup_h = settings.backup_intervallo_ore()
-    for ora in range(0, 24, backup_h):
-        app.job_queue.run_daily(backup_giornaliero, time=dtime(ora, 0, tzinfo=rome))
-
-    # Backup settimanale: domenica mezzanotte
-    app.job_queue.run_daily(
-        backup_settimanale,
-        time=dtime(0, 30, tzinfo=rome),
-        days=(6,),  # domenica
-    )
 
     # Check cap stagionale: ogni giorno alle 13:00
     app.job_queue.run_daily(check_cap_stagionale, time=dtime(13, 0, tzinfo=rome))
@@ -300,7 +291,7 @@ def main():
             BotCommand("apri_mercato",       "Apri il mercato"),
             BotCommand("chiudi_mercato",     "Chiudi il mercato"),
             BotCommand("set_fase",           "Cambia fase"),
-            BotCommand("backup_ora",         "Esegui backup manuale"),
+            BotCommand("backup_ora",         "Backup d'emergenza del solo DB aste"),
         ]
         cmd_dev = cmd_admin + [
             BotCommand("dev",            "Help comandi dev"),

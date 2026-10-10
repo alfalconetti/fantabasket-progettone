@@ -1,6 +1,10 @@
 """
 Attivazione diritti 2nd pick:
-  /attiva_diritti → lista diritti 2nd disponibili → seleziona → conferma contratto scale → firma
+  GM:    /attiva_diritti (o 🏀 Rookie nel /menu) → diritto → conferma contratto scale → firma
+  Admin: /admin_menu → 🏀 Attiva diritti → squadra → diritto → conferma (per conto del GM,
+         in qualsiasi fase; il GM riceve un messaggio)
+Entrambi passano da esegui_attivazione() (controlli + scrittura in un'unica transazione DB)
+e da _dopo_attivazione() (canale, ruolo da dichiarare in RS, sync fogli).
 
 Il contratto (importo e anni) è predefinito dalla rookie scale in settings.json.
 Non viene chiesto importo libero — solo conferma o annulla.
@@ -33,6 +37,87 @@ def _slot_scala(pick_numero: int) -> dict | None:
     return None
 
 
+class AttivazioneNonEseguibile(Exception):
+    """Controllo fallito: il messaggio va mostrato così com'è."""
+
+
+def _label_diritto(r: dict) -> str:
+    slot = _slot_scala(r["pick_numero"])
+    contratto = f" — {slot['imp']}x{slot['anni']}" if slot else ""
+    return f"{r['nome_common']} (#{r['pick_numero']} {r['anno_draft']}){contratto}"
+
+
+def esegui_attivazione(rookie_id: int, team_id: str, importo: int, anni: int) -> dict:
+    """Controlli e scrittura dell'attivazione in un'unica transazione: contratto rookie,
+    rookie firmato, transazione 'rookie_firma'. Restituisce la riga rookie (+ nome).
+    Solleva AttivazioneNonEseguibile se i diritti non sono più attivabili o il cap non basta."""
+    import psycopg2.extras
+    stagione = settings.stagione_corrente()
+    team = tm.get_team_by_id(team_id)
+    cap_lib = settings.cap_limite_team(team) - db.cap_occupato_team(team_id, stagione)
+    if cap_lib < importo:
+        raise AttivazioneNonEseguibile(
+            f"❌ Cap insufficiente: liberi {cap_lib}M, contratto da scala {importo}M.")
+    with db.get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT r.*, g.nome_common FROM rookie r JOIN giocatori g ON g.id = r.giocatore_id "
+                        "WHERE r.id = %s FOR UPDATE OF r", (rookie_id,))
+            r = cur.fetchone()
+            if (not r or r["team_id"] != team_id or r["round"] != 2
+                    or r["firmato"] or r["diritti_scaduti"]):
+                raise AttivazioneNonEseguibile("❌ Diritti non più disponibili per questa squadra "
+                                               "(già attivati, scaduti o ceduti).")
+            cur.execute("INSERT INTO contratti (giocatore_id, team_id, importo, anni_originali, stagione_firma, tipo) "
+                        "VALUES (%s, %s, %s, %s, %s, 'rookie') RETURNING id",
+                        (r["giocatore_id"], team_id, importo, anni, stagione))
+            contratto_id = cur.fetchone()["id"]
+            cur.execute("UPDATE rookie SET firmato = TRUE, anno_firma = %s WHERE id = %s", (stagione, rookie_id))
+            cur.execute("INSERT INTO transazioni (tipo, giocatore_id, team_id_da, team_id_a, stagione, "
+                        "contratto_id, rookie_scale, note) VALUES ('rookie_firma', %s, NULL, %s, %s, %s, TRUE, %s)",
+                        (r["giocatore_id"], team_id, stagione, contratto_id,
+                         f"Attivazione diritti 2nd — pick #{r['pick_numero']} {r['anno_draft']}"))
+    return dict(r)
+
+
+async def _dopo_attivazione(bot, team_id: str, r: dict, importo: int, anni: int,
+                            admin_nome: str | None = None) -> None:
+    """Annuncio sul canale, avviso al GM se ha fatto un admin, ruolo da dichiarare (RS), sync fogli."""
+    team = tm.get_team_by_id(team_id) or {"nome": team_id}
+    anni_str = "anno" if anni == 1 else "anni"
+    main_channel = settings.load_globals().get("main_channel_id")
+    if main_channel:
+        testo = (f"🏀 <b>{team.get('gm_nome', team['nome'])}</b> attiva i diritti di "
+                 f"<b>{r['nome_common']}</b>\n"
+                 f"📋 {importo}M × {anni} {anni_str} (#{r['pick_numero']} {r['anno_draft']})")
+        if admin_nome:
+            testo += f"\n<i>Registrata da un admin ({admin_nome})</i>"
+        try:
+            await bot.send_message(chat_id=main_channel, text=testo, parse_mode="HTML")
+        except Exception as e:
+            logger.warning("Annuncio canale attiva_diritti fallito: %s", e)
+    if admin_nome:
+        for gm in team.get("gm_ids", []):
+            try:
+                await bot.send_message(chat_id=int(gm), parse_mode="HTML",
+                                       text=f"🛠 Un admin ha attivato per te i diritti di <b>{r['nome_common']}</b>: "
+                                            f"{importo}M × {anni} {anni_str}.")
+            except Exception as e:
+                logger.warning("Avviso al GM attiva_diritti fallito: %s", e)
+    logger.info("Rookie firma: team=%s giocatore=%d importo=%d admin=%s",
+                team_id, r["giocatore_id"], importo, admin_nome)
+    try:
+        from handlers.ruoli_rs import apri_pendenti
+        await apri_pendenti(bot, team_id, [r["giocatore_id"]], "rookie",
+                            f"#{r['pick_numero']} {r['anno_draft']}")
+    except Exception as e:
+        logger.warning("Dichiarazione ruolo dopo attiva_diritti: %s", e)
+    try:
+        import gas_client
+        gas_client.sync_after_rookie(team_id)
+    except Exception as e:
+        logger.warning("GAS sync rookie fallito: %s", e)
+
+
 @solo_privato
 @richiede_fase(*FASI_TRADE_APERTE, msg="❌ L'attivazione dei diritti rookie non è disponibile in questa fase.")
 async def cmd_attiva_diritti(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -47,13 +132,8 @@ async def cmd_attiva_diritti(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.effective_message.reply_text("Non hai diritti di 2nd pick da attivare.")
         return ConversationHandler.END
 
-    def _label(r):
-        slot = _slot_scala(r["pick_numero"])
-        contratto = f" — {slot['imp']}x{slot['anni']}" if slot else ""
-        return f"{r['nome_common']} (#{r['pick_numero']} {r['anno_draft']}){contratto}"
-
     bottoni = [
-        [InlineKeyboardButton(_label(r), callback_data=f"att_r:{r['id']}")]
+        [InlineKeyboardButton(_label_diritto(r), callback_data=f"att_r:{r['id']}")]
         for r in diritti
     ]
     await update.effective_message.reply_text(
@@ -165,89 +245,25 @@ async def cb_conferma_firma_rookie(update: Update, context: ContextTypes.DEFAULT
     context.user_data.pop("att_imp_base", None)
     context.user_data.pop("att_anni_base", None)
 
-    if rookie_id is None or importo is None:
+    if rookie_id is None or importo is None or not team:
         await query.edit_message_text("❌ Sessione scaduta. Riprova con /attiva_diritti.")
         return ConversationHandler.END
 
-    # Check cap (qui, non al momento dell'input)
-    stagione = settings.stagione_corrente()
-    cap_occ  = db.cap_occupato_team(team["id"], stagione)
-    cap_lib  = settings.cap_massimo() - cap_occ
-    if cap_lib < importo:
-        await query.edit_message_text(
-            f"❌ Cap insufficiente. Libero: {cap_lib}M — contratto scale: {importo}M.\n"
-            f"Contatta un admin se ritieni ci sia un errore."
-        )
+    try:
+        r = esegui_attivazione(rookie_id, team["id"], importo, anni)
+    except AttivazioneNonEseguibile as e:
+        await query.edit_message_text(f"{e}\nContatta un admin se ritieni ci sia un errore.")
         return ConversationHandler.END
 
-    rookie    = db.get_rookie(rookie_id)
-    giocatore = db.get_giocatore(rookie["giocatore_id"])
-    now       = datetime.now(timezone.utc)
-
-    # Crea contratto
-    from database import _qval, _q
-    contratto_id = _qval(
-        "INSERT INTO contratti (giocatore_id, team_id, importo, anni_originali, stagione_firma, tipo) "
-        "VALUES (%s, %s, %s, %s, %s, 'rookie') RETURNING id",
-        (rookie["giocatore_id"], team["id"], importo, anni, stagione)
-    )
-
-    # Segna rookie come firmato e imposta anno_firma
-    _q(
-        "UPDATE rookie SET firmato = TRUE, anno_firma = %s WHERE id = %s",
-        (stagione, rookie_id)
-    )
-
-    # Registra transazione
-    db.registra_transazione(
-        "rookie_firma", rookie["giocatore_id"], None, team["id"],
-        stagione, contratto_id=contratto_id, rookie_scale=True,
-        note=f"Attivazione diritti 2nd — pick #{rookie['pick_numero']} {rookie['anno_draft']}"
-    )
-
     anni_str = "anno" if anni == 1 else "anni"
+    nota_ruolo = ("\n\n🎽 Ti arriva subito la richiesta del ruolo (48h)."
+                  if settings.fase() in settings.FASI_RUOLI_RS else "")
     await query.edit_message_text(
-        f"✅ <b>{giocatore['nome_common']}</b> firmato!\n"
-        f"Contratto: <b>{importo}M × {anni} {anni_str}</b> (rookie scale)\n\n"
-        f"⚠️ Ricordati di comunicare il ruolo entro 48h.",
+        f"✅ <b>{r['nome_common']}</b> firmato!\n"
+        f"Contratto: <b>{importo}M × {anni} {anni_str}</b> (rookie scale){nota_ruolo}",
         parse_mode="HTML",
     )
-
-    # Annuncio canale principale
-    main_channel = settings.load_globals().get("main_channel_id")
-    if main_channel:
-        testo_canale = (
-            f"🏀 <b>{team.get('gm_nome', team['nome'])}</b> attiva i diritti di "
-            f"<b>{giocatore['nome_common']}</b>\n"
-            f"📋 {importo}M × {anni} {anni_str} "
-            f"(#{rookie['pick_numero']} {rookie['anno_draft']})"
-        )
-        try:
-            await context.bot.send_message(
-                chat_id=main_channel,
-                text=testo_canale,
-                parse_mode="HTML",
-            )
-        except Exception as e:
-            logger.warning("Annuncio canale attiva_diritti fallito: %s", e)
-
-    logger.info("Rookie firma: team=%s giocatore=%d importo=%d",
-                team["id"], rookie["giocatore_id"], importo)
-
-    try:
-        from handlers.ruoli_rs import apri_pendenti
-        await apri_pendenti(context.bot, team["id"], [rookie["giocatore_id"]], "rookie",
-                            f"#{rookie['pick_numero']} {rookie['anno_draft']}")
-    except Exception as e:
-        logger.warning("Dichiarazione ruolo dopo attiva_diritti: %s", e)
-
-    # Sync GAS Sheets
-    try:
-        import gas_client
-        gas_client.sync_after_rookie(team["id"])
-    except Exception as e:
-        logger.warning("GAS sync rookie fallito: %s", e)
-
+    await _dopo_attivazione(context.bot, team["id"], r, importo, anni)
     return ConversationHandler.END
 
 
@@ -263,6 +279,91 @@ async def cb_annulla_firma_rookie(update: Update, context: ContextTypes.DEFAULT_
 async def cmd_annulla(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.effective_message.reply_text("Operazione annullata.")
     return ConversationHandler.END
+
+
+# ── Admin: attivazione per conto di una squadra ─────────────────────────────
+# /admin_menu → 🏀 Attiva diritti (adm:rookie) → attadm:t:<team> → attadm:r:<id> → attadm:ok:<id>
+# Nessun vincolo di fase: l'admin può intervenire sempre (avviso se per i GM è chiusa).
+
+def _is_admin(uid: int) -> bool:
+    return uid in [int(a) for a in settings.admin_ids()]
+
+
+async def admin_lista_team(query) -> None:
+    """Squadre con diritti 2nd attivabili (chiamata da admin_panel, azione 'rookie')."""
+    righe = []
+    for t in tm.get_all_teams():
+        n = len(db.get_diritti_2nd_team(t["id"]))
+        if n:
+            righe.append([InlineKeyboardButton(f"{t['nome']} ({n})", callback_data=f"attadm:t:{t['id']}")])
+    righe.append([InlineKeyboardButton("← Menu admin", callback_data="adm:home")])
+    testo = "🏀 <b>Attiva diritti (admin)</b> — scegli la squadra:" if len(righe) > 1 \
+        else "🏀 Nessuna squadra ha diritti 2nd da attivare."
+    if settings.fase() not in FASI_TRADE_APERTE:
+        testo += "\n<i>⚠️ In questa fase i GM non possono attivarli: stai intervenendo come admin.</i>"
+    await query.edit_message_text(testo, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(righe))
+
+
+async def cb_admin_attiva(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    if not _is_admin(query.from_user.id):
+        await query.answer("⛔ Solo admin.", show_alert=True)
+        return
+    await query.answer()
+    _, azione, arg = query.data.split(":")
+
+    if azione == "t":
+        team = tm.get_team_by_id(arg) or {"nome": arg}
+        diritti = db.get_diritti_2nd_team(arg)
+        kb = [[InlineKeyboardButton(_label_diritto(r), callback_data=f"attadm:r:{r['id']}")] for r in diritti]
+        kb.append([InlineKeyboardButton("← Squadre", callback_data="adm:rookie")])
+        await query.edit_message_text(
+            f"🏀 <b>{team['nome']}</b> — diritti 2nd da attivare:" if diritti else f"{team['nome']}: nessun diritto da attivare.",
+            parse_mode="HTML", reply_markup=InlineKeyboardMarkup(kb))
+        return
+
+    r = db.get_rookie(int(arg))
+    if not r:
+        await query.edit_message_text("❌ Diritto non trovato.")
+        return
+    giocatore = db.get_giocatore(r["giocatore_id"]) or {"nome_common": str(r["giocatore_id"])}
+    team = tm.get_team_by_id(r["team_id"]) or {"nome": r["team_id"]}
+    slot = _slot_scala(r["pick_numero"])
+    indietro = InlineKeyboardButton("← Indietro", callback_data=f"attadm:t:{r['team_id']}")
+    if not slot:
+        await query.edit_message_text(
+            f"⚠️ Nessun contratto in rookie_scale per la pick #{r['pick_numero']}: "
+            f"correggi settings.json (o usa /registra_firma).",
+            reply_markup=InlineKeyboardMarkup([[indietro]]))
+        return
+    importo, anni = slot["imp"], slot["anni"]
+    anni_str = "anno" if anni == 1 else "anni"
+
+    if azione == "r":
+        stagione = settings.stagione_corrente()
+        cap_lib = settings.cap_limite_team(team) - db.cap_occupato_team(r["team_id"], stagione)
+        await query.edit_message_text(
+            f"🏀 <b>{giocatore['nome_common']}</b> — {team['nome']}\n"
+            f"Pick #{r['pick_numero']} — Draft {r['anno_draft']}\n\n"
+            f"📋 Contratto dalla rookie scale: <b>{importo}M × {anni} {anni_str}</b>\n"
+            f"Cap libero della squadra: {cap_lib}M\n\nConfermi l'attivazione per conto del GM?",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("✅ Attiva", callback_data=f"attadm:ok:{r['id']}"), indietro]]))
+        return
+
+    if azione == "ok":
+        admin_nome = query.from_user.first_name or str(query.from_user.id)
+        try:
+            riga = esegui_attivazione(r["id"], r["team_id"], importo, anni)
+        except AttivazioneNonEseguibile as e:
+            await query.edit_message_text(str(e), reply_markup=InlineKeyboardMarkup([[indietro]]))
+            return
+        await query.edit_message_text(
+            f"✅ <b>{riga['nome_common']}</b> firmato per {team['nome']}: {importo}M × {anni} {anni_str}",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("← Squadre", callback_data="adm:rookie")]]))
+        await _dopo_attivazione(context.bot, r["team_id"], riga, importo, anni, admin_nome=admin_nome)
 
 
 # ── Scadenza diritti 2nd (bottone dal job check_scadenza_diritti) ─────────────
@@ -359,4 +460,5 @@ def get_handlers() -> list:
         per_message=False,
         conversation_timeout=300,
     )
-    return [conv, CallbackQueryHandler(cb_scadi_diritti, pattern=r"^scadi_diritti:\d+$")]
+    return [conv, CallbackQueryHandler(cb_scadi_diritti, pattern=r"^scadi_diritti:\d+$"),
+            CallbackQueryHandler(cb_admin_attiva, pattern=r"^attadm:(?:t:[\w-]+|r:\d+|ok:\d+)$")]

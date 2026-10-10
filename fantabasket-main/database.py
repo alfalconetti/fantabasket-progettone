@@ -49,6 +49,26 @@ def init_db():
 
 def migrate_db():
     """Applica migrazioni incrementali al DB."""
+    # v3.5.0 — CHECK su transazioni.tipo allineato al codice. Il DB di produzione era nato
+    # da uno schema più vecchio di schema.sql e non ammetteva 'rookie_firma' (attivazione
+    # diritti). Unione dei due elenchi: nessuna riga esistente diventa non valida.
+    # Rilanciabile a ogni avvio: toglie qualsiasi CHECK su tipo e lo ricrea.
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                DO $$
+                DECLARE c text;
+                BEGIN
+                    FOR c IN SELECT conname FROM pg_constraint
+                             WHERE conrelid = 'transazioni'::regclass AND contype = 'c'
+                               AND pg_get_constraintdef(oid) LIKE '%tipo%'
+                    LOOP
+                        EXECUTE format('ALTER TABLE transazioni DROP CONSTRAINT %I', c);
+                    END LOOP;
+                END $$;
+            """)
+            cur.execute("ALTER TABLE transazioni ADD CONSTRAINT transazioni_tipo_check "
+                        "CHECK (tipo IN ('signed', 'traded', 'cut', 'renewed', 'expired', 'decadimento', 'decaduto', 'dpe_attivata', '10day_firma', '10day_scadenza', 'rookie_firma', 'rookie_diritti_scaduti', 'firma', 'taglio', 'trade', 'rookie', 'dpe'))")
     _q("""
         CREATE TABLE IF NOT EXISTS cap_anticipato (
             team_id      TEXT PRIMARY KEY,
@@ -699,31 +719,24 @@ def registra_transazione(tipo: str, giocatore_id: int, team_id_da: str | None,
 def registra_decadimento(giocatore_id: int, team_id: str, stagione: str,
                           contratto_id: int | None = None, note: str | None = None) -> None:
     """
-    Registra il decadimento di un contratto (ritiro, altra lega, ecc.).
-    - Inserisce transazione tipo 'decadimento' con team_id_a = NULL
-    - Disattiva il contratto
-    - Elimina tutti gli impatti taglio futuri per quel giocatore in quel team
+    Registra il decadimento di un contratto (ritiro, altra lega, ecc.), tutto in
+    un'unica transazione DB:
+    - transazione tipo 'decadimento' con team_id_a = NULL
+    - contratto disattivato
+    - impatti taglio futuri del giocatore per quella squadra eliminati
     """
-    # Transazione event sourcing
-    registra_transazione(
-        tipo="decadimento",
-        giocatore_id=giocatore_id,
-        team_id_da=team_id,
-        team_id_a=None,
-        stagione=stagione,
-        contratto_id=contratto_id,
-        note=note,
-    )
-    # Disattiva contratto
-    _q(
-        "UPDATE contratti SET attivo = FALSE WHERE giocatore_id = %s AND team_id = %s AND attivo = TRUE",
-        (giocatore_id, team_id)
-    )
-    # Elimina impatti taglio futuri
-    _q(
-        "DELETE FROM impatto_taglio WHERE giocatore_id = %s AND team_id = %s AND stagione >= %s",
-        (giocatore_id, team_id, stagione)
-    )
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO transazioni (tipo, giocatore_id, team_id_da, team_id_a, stagione, contratto_id, note) "
+                "VALUES ('decadimento', %s, %s, NULL, %s, %s, %s)",
+                (giocatore_id, team_id, stagione, contratto_id, note))
+            cur.execute(
+                "UPDATE contratti SET attivo = FALSE WHERE giocatore_id = %s AND team_id = %s AND attivo = TRUE",
+                (giocatore_id, team_id))
+            cur.execute(
+                "DELETE FROM impatto_taglio WHERE giocatore_id = %s AND team_id = %s AND stagione >= %s",
+                (giocatore_id, team_id, stagione))
 
 
 def get_prima_transazione() -> str | None:

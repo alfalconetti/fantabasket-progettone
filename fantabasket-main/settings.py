@@ -34,6 +34,13 @@ def cap_limite() -> int:
     """Alias di luxury_cap() — nome più chiaro."""
     return luxury_cap()
 
+def cap_limite_team(team: dict | None) -> int:
+    """Tetto di una squadra adesso: in offseason 165M per tutti, in regular season
+    150M meno l'eventuale cap penalizzato della squadra (stessa regola delle trade)."""
+    if fase().startswith("offseason"):
+        return get()["cap_offseason"]
+    return get()["cap_regular"] - int((team or {}).get("cap_penalizzato") or 0)
+
 def salary_floor() -> int:
     return get()["salary_floor"]
 

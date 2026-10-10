@@ -71,6 +71,7 @@ services:
       - ./config:/config
       - aste_beta_data:/data_aste:ro
       - ./shared:/app/shared:ro      # regole condivise col bot aste (ruoli)
+      - ./secrets/cifrati:/secrets_cifrati:ro   # solo il file cifrato da scripts/cifra_secrets.sh, finisce nel backup
 
   gas-router:
     build: ./gas-router

@@ -2,9 +2,9 @@
 Pannello admin — InlineKeyboard per funzioni riservate.
 Accessibile via /admin_menu (solo admin).
 
-Funzioni:
-  - Trade: Build e Import con ufficializzazione diretta
-  - Altre funzioni admin (da espandere)
+Menu dinamico per fase. Regola: ogni azione che può fare un GM ha qui il suo
+equivalente "per conto di" una squadra (trade, tagli, diritti, decadimento, DPE,
+ruoli, cambi ruolo) + situazione cap di tutte le squadre.
 """
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -38,15 +38,55 @@ def is_admin(user_id: int) -> bool:
 # ── keyboard menu admin ───────────────────────────────────────────────────────
 
 def _kb_admin_home() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔄 Trade",           callback_data="adm:trade")],
-        [InlineKeyboardButton("✂️ Taglia giocatore", callback_data="adm:taglia")],
-        [InlineKeyboardButton("🏥 DPE",             callback_data="adm:dpe")],
-        [InlineKeyboardButton("📊 Situazione cap",  callback_data="adm:cap")],
-        [InlineKeyboardButton("🎽 Ruoli squadre",   callback_data="rladm:list"),
-         InlineKeyboardButton("⏳ Ruoli in sospeso", callback_data="rpadm:list")],
-        [InlineKeyboardButton("🔁 Cambi ruolo",     callback_data="cradm:teams")],
-    ])
+    """Menu admin dinamico per fase, come il /menu dei GM. Regola: ogni azione che può
+    fare un GM ha qui il suo equivalente "per conto di" una squadra."""
+    from handlers.dpe import FASI_DPE
+    fase = settings.fase()
+    voci = [
+        ("🔄 Trade",            "adm:trade",   True),
+        ("✂️ Taglia giocatore", "adm:taglia",  True),
+        ("🏀 Attiva diritti",   "adm:rookie",  True),
+        ("🏁 Decadimento",      "adm:dec",     True),
+        ("🏥 DPE",              "adm:dpe",     fase in FASI_DPE),
+        ("🎽 Ruoli squadre",    "rladm:list",  True),   # dichiarazione per conto dei GM, anche fuori fase
+        ("⏳ Ruoli in sospeso", "rpadm:list",  fase in settings.FASI_RUOLI_RS),
+        ("🔁 Cambi ruolo",      "cradm:teams", fase in settings.FASI_RUOLI_RS),
+        ("📊 Situazione cap",   "adm:cap",     True),
+    ]
+    bottoni = [InlineKeyboardButton(l, callback_data=cb) for l, cb, ok in voci if ok]
+    return InlineKeyboardMarkup([bottoni[i:i + 2] for i in range(0, len(bottoni), 2)])
+
+
+def _testo_admin_home() -> str:
+    etichetta = FASI_LABEL.get(settings.fase(), settings.fase())
+    return f"🛠 <b>Pannello Admin</b>\nFase: {etichetta}"
+
+
+def _testo_cap() -> str:
+    """Cap occupato / tetto attuale e giocatori a roster di tutte le squadre."""
+    stagione = settings.stagione_corrente()
+    offseason = settings.fase().startswith("offseason")
+    righe = []
+    for t in tm.get_all_teams():
+        cap = db.cap_occupato_team(t["id"], stagione)
+        limite = settings.cap_limite_team(t)
+        cap_rs = settings.cap_massimo() - int(t.get("cap_penalizzato") or 0)
+        n = len(db.get_roster_team(t["id"]) or [])
+        if cap > limite:
+            segno = "🔴"
+        elif offseason and cap > cap_rs:
+            segno = "🟠"
+        elif not offseason and cap < settings.salary_floor():
+            segno = "🔵"
+        else:
+            segno = "🟢"
+        righe.append((cap, f"{segno} <b>{t['nome']}</b>: {cap}/{limite}M · {n} gioc."))
+    righe.sort(key=lambda x: -x[0])
+    nota = ("\n\n🔴 sopra il tetto · 🟠 sopra il tetto della regular season (150M − penalità): "
+            "va riportato in regola prima dell'inizio" if offseason
+            else f"\n\n🔴 sopra il tetto · 🔵 sotto il salary floor ({settings.salary_floor()}M)")
+    return ("📊 <b>Situazione cap</b> — stagione " + stagione + "\n\n" +
+            "\n".join(r for _, r in righe) + nota)
 
 
 def _kb_admin_trade() -> InlineKeyboardMarkup:
@@ -80,7 +120,7 @@ async def cmd_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("⛔ Non sei admin.")
         return
     await update.effective_message.reply_text(
-        "🛠 <b>Pannello Admin</b>",
+        _testo_admin_home(),
         parse_mode="HTML",
         reply_markup=_kb_admin_home(),
     )
@@ -96,7 +136,7 @@ async def cb_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     if azione == "home":
         await query.edit_message_text(
-            "🛠 <b>Pannello Admin</b>", parse_mode="HTML",
+            _testo_admin_home(), parse_mode="HTML",
             reply_markup=_kb_admin_home()
         )
         return ConversationHandler.END
@@ -164,8 +204,19 @@ async def cb_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
 
     elif azione == "cap":
-        # TODO: situazione cap tutte le squadre
-        await query.answer("Da implementare.", show_alert=True)
+        await query.edit_message_text(
+            _testo_cap(), parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("← Menu", callback_data="adm:home")]]))
+        return ConversationHandler.END
+
+    elif azione == "rookie":
+        from handlers.rookie import admin_lista_team
+        await admin_lista_team(query)
+        return ConversationHandler.END
+
+    elif azione == "dec":
+        from handlers.decadimento import admin_lista_team
+        await admin_lista_team(query)
         return ConversationHandler.END
 
     return ConversationHandler.END
@@ -849,6 +900,13 @@ async def _esegui_cambio_fase(query, fase_vecchia: str, nuova_fase: str):
         f"{nota_stagione}"
     )
     await query.edit_message_text(testo, parse_mode="HTML")
+
+    # Menu comandi di Telegram allineato alla nuova fase
+    try:
+        from comandi import registra_comandi
+        await registra_comandi(query.get_bot())
+    except Exception as e:
+        logger.warning("Aggiornamento comandi dopo cambio fase: %s", e)
 
     # Notifica al canale log
     try:
