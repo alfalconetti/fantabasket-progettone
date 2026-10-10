@@ -1046,28 +1046,49 @@ def riapri_richiesta(tipo: str, chiave: int) -> None:
 
 # ── fantamedia per il roster (v3.6.0) ─────────────────────────────────────────
 
-def stagione_fantamedia() -> str:
+def stagione_fantamedia(as_of=None) -> str:
     """Stagione bref da mostrare nella colonna FM del roster (anno di fine: '2027' =
     2026-27). Si usa quella in corso solo se almeno metà dei giocatori sotto contratto
-    nella lega ha già una fantamedia di quell'anno, altrimenti la precedente."""
-    from settings import stagione_corrente
-    corrente = str(int(stagione_corrente()) + 1)
-    r = _q("""SELECT count(*) AS tot,
-                     count(*) FILTER (WHERE EXISTS (
-                         SELECT 1 FROM bref_stats b WHERE b.nome_bref = g.nome_bref AND b.stagione = %s
-                     )) AS con_fm
-              FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
-              WHERE c.attivo = TRUE""", (corrente,), one=True) or {}
+    nella lega ha già una fantamedia di quell'anno, altrimenti la precedente.
+    Con `as_of` (roster a una data) tutto è calcolato a quella data: stagione NBA del
+    momento, giocatori sotto contratto allora (event sourcing delle transazioni) e
+    rilevazioni bref fino a quel giorno."""
+    if as_of is None:
+        from settings import stagione_corrente
+        corrente = str(int(stagione_corrente()) + 1)
+        r = _q("""SELECT count(*) AS tot,
+                         count(*) FILTER (WHERE EXISTS (
+                             SELECT 1 FROM bref_stats b WHERE b.nome_bref = g.nome_bref AND b.stagione = %s
+                         )) AS con_fm
+                  FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
+                  WHERE c.attivo = TRUE""", (corrente,), one=True) or {}
+    else:
+        # da luglio si guarda alla stagione che deve iniziare: senza dati si ricade su quella finita
+        corrente = str(as_of.year + 1 if as_of.month >= 7 else as_of.year)
+        r = _q("""SELECT count(*) AS tot,
+                         count(*) FILTER (WHERE EXISTS (
+                             SELECT 1 FROM bref_stats b WHERE b.nome_bref = g.nome_bref
+                               AND b.stagione = %s AND b.timestamp <= %s
+                         )) AS con_fm
+                  FROM (SELECT DISTINCT ON (t.giocatore_id) t.giocatore_id, t.team_id_a
+                        FROM transazioni t WHERE t.timestamp <= %s
+                        ORDER BY t.giocatore_id, t.timestamp DESC) ultimo
+                  JOIN giocatori g ON g.id = ultimo.giocatore_id
+                  WHERE ultimo.team_id_a IS NOT NULL""",
+               (corrente, as_of, as_of), one=True) or {}
     tot, con_fm = r.get("tot") or 0, r.get("con_fm") or 0
     return corrente if tot and con_fm * 2 >= tot else str(int(corrente) - 1)
 
 
-def fantamedie(gids: list[int], stagione_bref: str) -> dict[int, float]:
-    """Ultima fantamedia della stagione per ciascun giocatore (chi non ce l'ha manca)."""
+def fantamedie(gids: list[int], stagione_bref: str, as_of=None) -> dict[int, float]:
+    """Ultima fantamedia della stagione per ciascun giocatore, fino a `as_of` se dato
+    (bref_stats è a snapshot: una riga per ogni aggiornamento). Chi non ce l'ha manca."""
     if not gids:
         return {}
-    righe = _q("""SELECT DISTINCT ON (g.id) g.id AS gid, b.fantamedia
-                  FROM giocatori g JOIN bref_stats b ON b.nome_bref = g.nome_bref
-                  WHERE g.id = ANY(%s) AND b.stagione = %s AND b.fantamedia IS NOT NULL
-                  ORDER BY g.id, b.timestamp DESC""", (list(gids), stagione_bref), many=True) or []
+    filtro, params = ("AND b.timestamp <= %s", (list(gids), stagione_bref, as_of)) if as_of \
+        else ("", (list(gids), stagione_bref))
+    righe = _q(f"""SELECT DISTINCT ON (g.id) g.id AS gid, b.fantamedia
+                   FROM giocatori g JOIN bref_stats b ON b.nome_bref = g.nome_bref
+                   WHERE g.id = ANY(%s) AND b.stagione = %s AND b.fantamedia IS NOT NULL {filtro}
+                   ORDER BY g.id, b.timestamp DESC""", params, many=True) or []
     return {r["gid"]: float(r["fantamedia"]) for r in righe}

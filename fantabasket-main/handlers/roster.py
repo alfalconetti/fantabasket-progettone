@@ -253,10 +253,11 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
 
     ruoli, posizioni = _ruoli_e_posizioni(team_id, stagione, as_of)
     # Fantamedia: stessa stagione per tutta la lega (quella in corso da quando almeno
-    # metà dei giocatori sotto contratto ce l'ha), "—" per chi non ce l'ha
+    # metà dei giocatori sotto contratto ce l'ha), "—" per chi non ce l'ha.
+    # Roster a una data: medie e scelta della stagione a quella data
     try:
-        stagione_fm = db.stagione_fantamedia()
-        fm = db.fantamedie([r["giocatore_id"] for r in roster], stagione_fm)
+        stagione_fm = db.stagione_fantamedia(as_of)
+        fm = db.fantamedie([r["giocatore_id"] for r in roster], stagione_fm, as_of)
         fm_label = f"FM {int(stagione_fm) - 1 - 2000:02d}-{int(stagione_fm) - 2000:02d}"
     except Exception as e:
         logger.warning("Fantamedia per il roster: %s", e)

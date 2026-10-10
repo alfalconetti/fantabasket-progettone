@@ -826,7 +826,7 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 - Giocatore con una sola posizione eleggibile che arriva in squadra in regular season (trade, attivazione diritti, `/registra_firma`): ruolo assegnato subito, con annuncio, senza dichiarazione da fare
 
 ### Roster
-- Colonna **FM** (fantamedia Basketball-Reference) nell'immagine del roster, con la stagione nell'intestazione (es. "FM 25-26"). Stagione unica per tutta la lega: quella in corso da quando almeno metà dei giocatori sotto contratto ha una fantamedia di quell'anno; "—" per chi non ha dati
+- Colonna **FM** (fantamedia Basketball-Reference) nell'immagine del roster, con la stagione nell'intestazione (es. "FM 25-26"). Stagione unica per tutta la lega: quella in corso da quando almeno metà dei giocatori sotto contratto ha una fantamedia di quell'anno; "—" per chi non ha dati. `/roster <data>`: medie a quella data (ultima rilevazione bref fino a quel giorno) e stagione scelta con i contratti e i dati di allora
 
 ### Database
 - `migrate_db()`: i CHECK su `transazioni.tipo` e `cambi_ruolo.tipo` vengono ricreati con l'unione di valori del codice, valori già ammessi e valori presenti nei dati (non toglie mai niente); se fallisce scrive un errore nel log senza bloccare l'avvio

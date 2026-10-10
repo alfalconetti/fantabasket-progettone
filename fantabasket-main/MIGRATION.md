@@ -223,6 +223,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 ```
 - Nuove cartelle/servizi: `unzip -o ~/bots/zip -d ~/bots/fantabasket-progettone/`
 - Bot aste: rebuild `bot-aste-beta`; entrambi: `docker compose up --build -d bot-main bot-aste-beta`
+- Modifiche a `gas/`: nel comando solo `cd ~/bots/fantabasket-progettone/gas && clasp push`; la nuova versione della web app (Gestisci deployment) la fa Luca a mano dal browser
 - File in `shared/`: `unzip -p ... > ~/bots/fantabasket-progettone/shared/...` e poi riavvio di ENTRAMBI i bot (`docker compose up --build -d bot-main bot-aste-beta`)
 - Variabili sensibili non-secret (URL, ID) in `secrets/*.env` via `env_file`: `yahoo_router.env` (ID leghe), `bot_main.env` (HEALTHCHECK_URL). Mai valori sensibili nel compose o nei .md
 - Secrets modificati: `docker compose up -d --force-recreate <servizio>` (i secrets sono bind-mount per file: editor come vi creano un file nuovo e il container continua a vedere il vecchio)
@@ -234,7 +235,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 - Trade: ogni cambio di stato passa da `db.cambia_stato_trade(id, da=(...), a=...)` (atomico). Stati: bozza → proposta → in_approvazione → approvata, oppure rifiutata_gm / rifiutata_admin / annullata. Etichette in `_STATI` (trade.py)
 - `/my_trades`: `db.get_trade_team`, `db.clona_trade_in_bozza`, callback `mt:l`, `mt:v|r|c:<id>`
 - CHECK dei tipi: `_allinea_check(tabella, valori)` in `migrate_db()` per `transazioni` e `cambi_ruolo`. Un tipo nuovo va aggiunto lì e in `schema.sql`
-- Fantamedia nel roster: `db.stagione_fantamedia()` (stagione bref = anno di fine, cioè `stagione_corrente + 1`, se ≥50% dei giocatori sotto contratto ce l'ha) e `db.fantamedie(gids, stagione)`; 9° campo del payload Typst, `fm_label` in input
+- Fantamedia nel roster: `db.stagione_fantamedia()` (stagione bref = anno di fine, cioè `stagione_corrente + 1`, se ≥50% dei giocatori sotto contratto ce l'ha) e `db.fantamedie(gids, stagione)`, entrambe con `as_of` per il roster a una data (snapshot bref `timestamp <= as_of`, contratti da event sourcing delle transazioni; da luglio la stagione di riferimento è quella che deve iniziare); 9° campo del payload Typst, `fm_label` in input
 
 **Backup (v3.5.0):**
 - Un solo backup, generato dal bot main, sempre completo: `db/fantabasket.sql` (`pg_dump --clean --if-exists --no-owner`), `db/aste.db` (copia coerente: `_snapshot_aste` copia -wal e DB, `integrity_check`, API di backup sqlite → un solo file; fino a 3 tentativi), tutta `config/`, `secrets.tar.gpg` se presente, `MANIFEST.txt`. Canale log 00:00 e 12:00 e allo spegnimento, gruppo admin domenica 00:30, `/backup` (dev)
