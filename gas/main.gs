@@ -14,6 +14,7 @@ function doPost(e) {
     switch (payload.action) {
       case "roster":  return handleRoster(payload);
       case "scelte":  return handleScelte(payload);
+      case "bref_raw": return handleBrefRaw(payload);
       default:        return respond({ error: "Unknown action: " + payload.action });
     }
 

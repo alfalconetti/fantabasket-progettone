@@ -153,7 +153,7 @@ def _do_sync(router_url: str, router_token: str, payload: dict, attempt: int = 1
     """Esegue il sync in background. Riprova una volta se fallisce."""
     try:
         data = json.dumps(payload).encode()
-        path = "/gas/scelte" if payload.get("action") == "scelte" else "/gas/roster"
+        path = {"scelte": "/gas/scelte", "bref_raw": "/gas/bref"}.get(payload.get("action"), "/gas/roster")
         req  = urllib.request.Request(
             f"{router_url}{path}",
             data=data,
@@ -409,4 +409,24 @@ def sync_all(sincrono: bool = False) -> bool:
         return ok_roster and ok_scelte
     except Exception as e:
         logger.warning("sync_all: %s", e)
+        return False
+
+
+def sync_bref_raw(csv: str) -> bool:
+    """Foglio BrefRaw: tabella per_game di bref così com'è (CSV). Sincrono,
+    chiamato dal job dello scraper in un thread. Riprova una volta dopo 30s."""
+    router_url, router_token = _get_config()
+    if not router_url or not router_token:
+        logger.debug("GAS Router non configurato — skip BrefRaw")
+        return False
+    try:
+        _do_sync(router_url, router_token, {"action": "bref_raw", "csv": csv}, attempt=99)
+        return True
+    except Exception as e:
+        logger.warning("Sync BrefRaw fallito: %s — riprovo tra 30s", e)
+        import threading
+        t = threading.Timer(30, _do_sync, args=[router_url, router_token,
+                                                {"action": "bref_raw", "csv": csv}, 2])
+        t.daemon = True
+        t.start()
         return False

@@ -31,6 +31,8 @@ from handlers.posizioni   import get_handlers as posizioni_handlers
 from handlers.ruoli       import get_handlers as ruoli_handlers
 from handlers.ruoli_rs    import get_handlers as ruoli_rs_handlers
 from handlers.cambi_ruolo import get_handlers as cambi_ruolo_handlers
+from handlers.bref        import get_handlers as bref_handlers
+from handlers.nascite     import get_handlers as nascite_handlers
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -346,30 +348,9 @@ async def _guest_handler(update: Update, context) -> None:
 
 
 async def _bref_scraper_job(context) -> None:
-    """Job giornaliero alle 10:00 — scraping bref e insert su DB.
-    Gira solo durante regular season e playoff.
-    """
-    try:
-        from bref_scraper import run_scraper
-        g = settings.load_globals()
-        fase = g.get("fase", "")
-        if fase not in ("regular-season-fa", "regular-season-deadline", "playoff"):
-            logger.debug("Bref scraper saltato — fase: %s", fase)
-            return
-        stagione_corrente = int(g.get("stagione_corrente", 2026))
-        stagione_bref = str(stagione_corrente + 1)
-        n = run_scraper(stagione_bref)
-        logger.info("Bref scraper: %d righe inserite (stagione %s)", n, stagione_bref)
-        if n > 0:
-            log_ch = g.get("log_channel_id_main")
-            if log_ch:
-                await context.bot.send_message(
-                    chat_id=log_ch,
-                    text=f"📊 Bref scraper: <b>{n}</b> giocatori aggiornati — stagione {stagione_bref}",
-                    parse_mode="HTML",
-                )
-    except Exception as e:
-        logger.error("Bref scraper fallito: %s", e)
+    """Job giornaliero alle 10:00 (solo regular season e playoff): vedi handlers/bref.py."""
+    from handlers.bref import job_bref
+    await job_bref(context)
 
 
 async def _ping_healthcheck(context) -> None:
@@ -430,6 +411,10 @@ def main():
         app.add_handler(h)
     for h in cambi_ruolo_handlers():
         app.add_handler(h)
+    for h in bref_handlers():
+        app.add_handler(h)
+    for h in nascite_handlers():
+        app.add_handler(h)
 
     for h in dev_handlers():
         app.add_handler(h)
@@ -461,7 +446,7 @@ def main():
     app.job_queue.run_repeating(job_scadenze, interval=900, first=120)
     from handlers.cambi_ruolo import job_fine_saedro
     app.job_queue.run_repeating(job_fine_saedro, interval=900, first=180)
-    # Backup settimanale domenica alle 00:30
+    # Backup settimanale sabato alle 00:30 (PTB: days 0 = domenica … 6 = sabato)
     app.job_queue.run_daily(
         backup_settimanale,
         time=dtime(0, 30, tzinfo=ROME),
@@ -472,6 +457,9 @@ def main():
         _bref_scraper_job,
         time=dtime(10, 0, tzinfo=ROME),
     )
+    # Date di nascita mancanti: report al dev il lunedì alle 9:30
+    from handlers.nascite import job_report_nascite
+    app.job_queue.run_daily(job_report_nascite, time=dtime(9, 30, tzinfo=ROME), days=(1,))  # PTB: 0 = domenica, 1 = lunedì
     # Check scadenza diritti ogni mattina alle 9:00
     app.job_queue.run_daily(
         check_scadenza_diritti,

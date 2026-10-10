@@ -833,3 +833,21 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 
 ### Google Sheets
 - Penalità cap nel foglio Roster col segno meno: `SALARY CAP [-5]` (richiede `clasp push`)
+
+## v3.7.0 (2026-10-10)
+
+### Basketball-Reference
+- Job delle 10:00 (solo regular season e playoff) riscritto in `handlers/bref.py`, sempre con una sola richiesta alla pagina per_game, eseguita fuori dal loop del bot (`asyncio.to_thread`):
+  - append in `bref_stats` per chi ha giocato (partite aumentate), come prima;
+  - foglio **BrefRaw** sincronizzato con la tabella, come il vecchio script del Raspberry: stessa pulizia (niente header ripetuti, riga dei totali per gli scambiati con l'ultima squadra al posto di 2TM), tutte le colonne, `sheet.clear()` e riscrittura da A1. Nuovo endpoint `/gas/bref` sul gas-router, `handleBrefRaw` in `gas/bref.gs`
+  - messaggio sul canale log con i giocatori aggiornati, l'esito del foglio e i **🔀 cambi squadra NBA** (squadra della riga nuova diversa dalla precedente)
+  - errori dello scraper segnalati sul canale log
+- **Giocatori nuovi**: quelli di bref non in anagrafica vengono proposti al dev con ✅ Crea tutti / ❌ Ignora, accanto a ciascuno gli eventuali giocatori già in anagrafica con un nome simile. Elenco in `bref_nuovi`: bottoni validi anche dopo un riavvio, gli ignorati non tornano
+- La riga "League Average" della tabella non finisce più in `bref_stats`
+
+### Date di nascita
+- `/set_nascita Nome GG-MM-AAAA` (solo admin), anche più giocatori in un messaggio, uno per riga. Abbinamento severo (`nomi.py`): nome esatto senza accenti/punteggiatura → salvato; omonimi o nomi simili (soglia 0.88) → bottoni da confermare; altrimenti "non trovato"
+- `/nascite_mancanti` e report il lunedì alle 9:30 al dev: giocatori sotto contratto senza data, in un blocco pronto da completare e rimandare
+
+### Correzioni
+- Documentazione: il backup settimanale nel gruppo admin parte il **sabato** alle 00:30 (notte tra venerdì e sabato), non la domenica: in python-telegram-bot ≥ 20 i giorni di `run_daily` vanno da 0 = domenica a 6 = sabato

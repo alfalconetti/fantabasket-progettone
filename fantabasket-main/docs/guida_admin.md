@@ -77,12 +77,20 @@ I diritti al secondo anno scadono 10 giorni prima della `trade_deadline` (in `gl
 
 ---
 
+## Basketball-Reference e date di nascita
+
+- Ogni mattina alle 10 (regular season e playoff) il bot scarica la tabella per_game: salva le statistiche di chi ha giocato, aggiorna il foglio **BrefRaw** e scrive sul canale log quanti giocatori sono stati aggiornati e i **cambi squadra NBA**.
+- I giocatori presenti su Basketball-Reference ma non in anagrafica arrivano al dev con ✅ Crea tutti / ❌ Ignora; accanto a ciascuno, gli eventuali nomi simili già presenti (per non creare doppioni). Gli ignorati non vengono riproposti.
+- `/set_nascita Nome GG-MM-AAAA` salva una data di nascita; per farne tante, un giocatore per riga dopo `/set_nascita`. Se il nome non è esatto o ci sono omonimi il bot propone i candidati con dei bottoni, non salva mai da solo.
+- `/nascite_mancanti`: giocatori sotto contratto senza data, in un blocco da copiare, completare e rimandare. Lo stesso report arriva al dev ogni lunedì.
+
 ## Google Sheets
 
 Il bot aggiorna i fogli dopo ogni operazione; dopo dichiarazioni e cambi ruolo aggiorna i roster di **tutte** le squadre. `/sync_sheets` forza una sincronizzazione completa.
 
 - **Roster**: ruolo di ogni giocatore (ordinati per ruolo quando la squadra li ha dichiarati tutti), cap con penalità, tagli gratuiti usati, cambi ruolo usati, tagli con impatto, righe DPE.
 - **Scelte**: pick proprie e altrui, diritti 2nd, tag `[STEPIEN]` sulle 1st non cedibili.
+- **BrefRaw**: la tabella per_game di Basketball-Reference, riscritta ogni mattina in regular season e playoff (le formule del foglio la leggono da lì).
 
 ---
 
@@ -96,4 +104,4 @@ Il bot aggiorna i fogli dopo ogni operazione; dopo dichiarazioni e cambi ruolo a
 
 ## Backup e ripristino
 
-Backup unico e completo (database, aste, config, secrets cifrati) alle 00 e alle 12 sul canale log e la domenica nel gruppo admin. Procedura di ripristino e di emergenza: `docs/RECOVERY.md` nella cartella principale del repo.
+Backup unico e completo (database, aste, config, secrets cifrati) alle 00 e alle 12 sul canale log e il sabato alle 00:30 (notte tra venerdì e sabato) nel gruppo admin. Procedura di ripristino e di emergenza: `docs/RECOVERY.md` nella cartella principale del repo.

@@ -1,7 +1,7 @@
 """
 Scheduler — backup periodico e shutdown per Fantabasket Main Bot.
 Backup unico e completo (PG + aste + config + secrets cifrati): canale log alle 00 e 12,
-gruppo admin la domenica alle 00:30, canale log allo spegnimento, /backup (dev).
+gruppo admin il sabato alle 00:30 (notte tra venerdì e sabato), canale log allo spegnimento, /backup (dev).
 """
 import io
 import logging
@@ -185,7 +185,7 @@ async def backup_giornaliero(context):
 
 
 async def backup_settimanale(context):
-    """Backup completo settimanale al gruppo admin (domenica 00:30)."""
+    """Backup completo settimanale al gruppo admin (sabato 00:30: in PTB days=(6,) è sabato)."""
     try:
         g = settings.load_globals()
         admin_group_id = g.get("admin_group_id")

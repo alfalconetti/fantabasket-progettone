@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v3.6.0, bot aste v50)
+# Messaggio di migrazione — Fantabasket Progettone (stato v3.7.0, bot aste v50)
 
 ---
 
@@ -230,6 +230,14 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 - Script Python nel container: chiamare `db.init_db()` prima di usare il DB (il pool non è inizializzato fuori dal bot)
 - psql: `docker compose exec postgres psql -U fantabasket -d fantabasket -c "..."`
 
+**Basketball-Reference (v3.7.0):**
+- `handlers/bref.py` → `job_bref` (10:00, solo `FASI_RUOLI_RS`) chiama `bref_scraper.run_giornaliero(stagione_corrente + 1)`: una richiesta, append in `bref_stats` solo se G aumentate, cambi squadra, nuovi giocatori, CSV
+- Foglio **BrefRaw** (stesso file di Roster e Scelte): CSV della tabella per_game ripulita come il vecchio script (`scrape_bref_df`), `gas_client.sync_bref_raw` → gas-router `/gas/bref` → `handleBrefRaw` in `gas/bref.gs` (`sheet.clear()` + `setValues` da A1). Nome del foglio da `CONFIG.BREF_SHEET_NAME` se definito in globals.gs, altrimenti "BrefRaw"
+- Giocatori nuovi: tabella `bref_nuovi (nome_bref PK, team, g, stato proposto|creato|ignorato)`; messaggio al dev con `brefn:ok` / `brefn:no`; creazione con `nome_common = nome_bref`, `nome_norm = utils.normalizza`
+- `nomi.py`: `chiave()` (minuscolo, senza accenti e punteggiatura), `esatti()`, `simili()` con soglia 0.88 — usato da `/set_nascita` e dalla proposta dei nuovi. Mai salvataggi automatici sui simili
+- `handlers/nascite.py`: `/set_nascita` (singolo o multi-riga, callback `nasc:<gid>:<AAAAMMGG>`), `/nascite_mancanti`, `job_report_nascite` lunedì 9:30 al dev
+- **Giorni in `run_daily`** (PTB ≥ 20): 0 = domenica … 6 = sabato
+
 **Richieste agli admin e trade (v3.6.0):**
 - `richieste_admin (tipo, chiave=giocatore_id, team_id, stato)`, indice unico sulle aperte. `db.apri_richiesta` alla richiesta del GM; `db.chiudi_richiesta` in Approva/Rifiuta → `'ok'` (procedi), `'gestita'` (già decisa: non fare niente), `'nessuna'` (bottoni di prima della v3.6.0: procedi). Nuove richieste agli admin vanno fatte così
 - Trade: ogni cambio di stato passa da `db.cambia_stato_trade(id, da=(...), a=...)` (atomico). Stati: bozza → proposta → in_approvazione → approvata, oppure rifiutata_gm / rifiutata_admin / annullata. Etichette in `_STATI` (trade.py)
@@ -238,7 +246,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 - Fantamedia nel roster: `db.stagione_fantamedia()` (stagione bref = anno di fine, cioè `stagione_corrente + 1`, se ≥50% dei giocatori sotto contratto ce l'ha) e `db.fantamedie(gids, stagione)`, entrambe con `as_of` per il roster a una data (snapshot bref `timestamp <= as_of`, contratti da event sourcing delle transazioni; da luglio la stagione di riferimento è quella che deve iniziare); 9° campo del payload Typst, `fm_label` in input
 
 **Backup (v3.5.0):**
-- Un solo backup, generato dal bot main, sempre completo: `db/fantabasket.sql` (`pg_dump --clean --if-exists --no-owner`), `db/aste.db` (copia coerente: `_snapshot_aste` copia -wal e DB, `integrity_check`, API di backup sqlite → un solo file; fino a 3 tentativi), tutta `config/`, `secrets.tar.gpg` se presente, `MANIFEST.txt`. Canale log 00:00 e 12:00 e allo spegnimento, gruppo admin domenica 00:30, `/backup` (dev)
+- Un solo backup, generato dal bot main, sempre completo: `db/fantabasket.sql` (`pg_dump --clean --if-exists --no-owner`), `db/aste.db` (copia coerente: `_snapshot_aste` copia -wal e DB, `integrity_check`, API di backup sqlite → un solo file; fino a 3 tentativi), tutta `config/`, `secrets.tar.gpg` se presente, `MANIFEST.txt`. Canale log 00:00 e 12:00 e allo spegnimento, gruppo admin sabato 00:30 (notte tra venerdì e sabato; in PTB `days=(6,)` = sabato, 0 = domenica), `/backup` (dev)
 - Secrets: `./scripts/cifra_secrets.sh` (gpg AES256 simmetrico, passphrase nel password manager) → `secrets/cifrati/secrets.tar.gpg`, montata `:ro` nel bot main come `/secrets_cifrati`. Il bot non vede mai i secrets in chiaro. **Rilanciare lo script dopo ogni modifica a `secrets/`**: la didascalia del backup mostra la data dei secrets inclusi
 - Link alla guida nella didascalia di ogni backup: chiave `repo_url` in `config/globals.json` (v3.5.0b)
 - Ripristino e emergenza: `docs/RECOVERY.md` (unica guida; le vecchie DEV_RECOVERY/emergency_recovery eliminate)
@@ -294,14 +302,14 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 - **Ruoli in RS (v3.3.0, `handlers/ruoli_rs.py`)**: dichiarazioni in sospeso (`ruoli_pendenti`) aperte da trade, attivazione diritti e /registra_firma solo in `FASI_RUOLI_RS`; 48h poi estrazione (job ogni 15'); regola dei 60 giorni; admin dichiarano da /admin_menu → ⏳ Ruoli in sospeso; annunci sul canale principale. Vincoli 4G/4F/2C: `validators/ruoli.py` (`deficit_minimo` = 0 se esiste un'assegnazione valida; fissi = ruoli ufficiali, flessibili = senza ruolo), usati da trade (RS) e dichiarazioni
 - **Cambi ruolo (v3.3.1, `handlers/cambi_ruolo.py`)**: ordinari max 2/stagione (contatore = eventi `ordinario` della squadra nella stagione, su /roster e foglio); Erminio gratuito entro 14 giorni da `COALESCE(data_yahoo, timestamp)` dell'ultima riga posizioni (data_yahoo con /data_erminio); Saedro 10 giorni una volta a stagione (evento con `scadenza` + `ruolo_ripristino`, ritorno via job `job_fine_saedro`), richiesta GM → approvazione nel gruppo admin, admin anche diretta; forzato_admin non conta. Vincoli bloccanti tranne per i forzati
 - **Bot aste (v3.4.0 / aste v46)**: FA in RS → anni, poi ruolo (stesse regole via `shared/`); 48h senza risposta → 3 anni + ruolo estratto; ruolo nell'annuncio sul canale principale
-- Prossimi passi: v3.7 Basketball-Reference (nuovi giocatori, date di nascita, medie sul foglio), Mini App
+- Prossimi passi: dashboard LAN (NocoDB, utente PG in sola lettura), rinnovo rookie, parità GM/admin nel bot aste, Mini App
 
 **@qf_bot (vX.x — dipende da guest mode PTB)**
 - Bot pubblico per roster e info lega
 
 ---
 
-**Stato attuale: v3.6.0**
+**Stato attuale: v3.7.0**
 
 Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v2.1.19** — `/attiva_diritti` propone il contratto della rookie scale (anno I) e chiede solo conferma
@@ -337,6 +345,7 @@ Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v3.5.0** — cambi ruolo GM/admin separati (`cr:`/`ca:`) e solo in RS/playoff; comandi Telegram per fase (`comandi.py`); pannello admin per fase con Attiva diritti, Decadimento diretto e Situazione cap; fix decadimento (tipo `decaduto`, atomico, solo admin approvano); cap per fase in /attiva_diritti; backup unico con secrets cifrati e `docs/RECOVERY.md` (aste v49)
 - **v3.5.0a/b** — `cifra_secrets.sh` senza gpg-agent; link alla guida di ripristino nei backup (`repo_url` in globals.json)
 - **v3.6.0** — `/my_trades`; stati delle trade atomici; `richieste_admin` (DPE, Saedro, decadimento: una richiesta aperta, decisione unica); DPE valutata all'approvazione + cambio ruolo Extra DPE post-deadline; ruolo automatico per i monoruolo (main e aste v50); colonna FM nel roster; CHECK dei tipi allineati per unione; penalità col meno nel foglio
+- **v3.7.0** — Basketball-Reference: foglio BrefRaw, cambi squadra NBA, giocatori nuovi con conferma del dev; `/set_nascita` (fuzzy severo) e report settimanale delle date mancanti
 
 Novità v2.0.31–v2.0.38:
 - **v2.0.31** — DPE disponibile in tutte e 6 le fasi (da offseason-rinnovi a regular-season-deadline); admin menu DPE diretta; `pre_deadline = (fase != "regular-season-deadline")`

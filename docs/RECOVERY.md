@@ -17,7 +17,7 @@ C'è **un solo tipo di backup**, sempre completo, generato dal bot principale:
 | Quando | Dove |
 |---|---|
 | Ogni giorno alle 00:00 e alle 12:00 | canale log |
-| Domenica alle 00:30 | gruppo admin |
+| Sabato alle 00:30 (notte tra venerdì e sabato) | gruppo admin |
 | Allo spegnimento del bot (`docker compose down`, riavvii) | canale log |
 | `/backup` (solo dev) | canale log |
 

@@ -73,6 +73,8 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("set_posizioni_eleggibili",    "Correggi posizioni di un giocatore [nome] [PG,SG]"),
         BotCommand("deadline_ruoli",              "Deadline dichiarazione ruoli [AAAA-MM-GG] [HH:MM]"),
         BotCommand("data_erminio",                "Data aggiunta posizione su Yahoo [nome] [AAAA-MM-GG]"),
+        BotCommand("set_nascita",                 "Data di nascita [nome] [GG-MM-AAAA], anche più righe"),
+        BotCommand("nascite_mancanti",            "Giocatori sotto contratto senza data di nascita"),
     ]
     cmd_dev = cmd_admin + [
         BotCommand("dev",          "Lista comandi dev"),

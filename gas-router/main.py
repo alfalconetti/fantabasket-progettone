@@ -32,6 +32,7 @@ class GASPayload(BaseModel):
     action: str
     teams: Optional[list[Any]] = None
     anni:  Optional[list[int]] = None
+    csv:   Optional[str] = None
 
 
 def _get_gas_scelte_url(): return _read_secret("GAS_SCELTE_URL_FILE")
@@ -58,6 +59,19 @@ async def scelte(payload: GASPayload, authorization: str = Header(...)):
         "teams":  payload.teams or [],
     }
     return await _forward(_get_gas_scelte_url(), gas_payload)
+
+
+@app.post("/gas/bref")
+async def bref(payload: GASPayload, authorization: str = Header(...)):
+    """Tabella per_game di Basketball-Reference (CSV) → foglio BrefRaw.
+    Stessa web app del Roster (doPost smista per action)."""
+    _check_auth(authorization)
+    gas_payload = {
+        "token":  _get_gas_token(),
+        "action": "bref_raw",
+        "csv":    payload.csv or "",
+    }
+    return await _forward(_get_gas_roster_url(), gas_payload)
 
 
 def _check_auth(authorization: str):

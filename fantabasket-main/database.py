@@ -88,6 +88,19 @@ def migrate_db():
     _allinea_check("cambi_ruolo", (
         "iniziale", "ordinario", "erminio", "saedro", "forzato_admin",
         "post_trade", "post_firma", "dpe_extra"))
+    # v3.7.0 — giocatori trovati su Basketball-Reference e non in anagrafica:
+    # proposti al dev, che li crea tutti o li ignora (gli ignorati non tornano)
+    _q("""
+        CREATE TABLE IF NOT EXISTS bref_nuovi (
+            nome_bref  TEXT PRIMARY KEY,
+            team       TEXT,
+            g          INT,
+            stato      TEXT NOT NULL DEFAULT 'proposto',   -- proposto | creato | ignorato
+            visto      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            deciso     TIMESTAMPTZ,
+            da         TEXT
+        )
+    """)
     # v3.6.0 — richieste ai admin (DPE, Saedro, decadimento): una sola aperta per
     # giocatore e tipo; Approva/Rifiuta la chiudono in modo atomico (niente doppie
     # gestioni, niente "rifiutata" dopo un'approvazione)

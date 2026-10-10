@@ -1,7 +1,8 @@
 """
 bref_scraper.py — Scraping giornaliero Basketball Reference
 Aggiunge una riga per ogni giocatore che ha aumentato G rispetto all'ultima snapshot.
-Gira ogni mattina alle 10 via scheduler del bot-main.
+Gira ogni mattina alle 10 via scheduler del bot-main (run_giornaliero): stessa
+richiesta per bref_stats, foglio BrefRaw, cambi squadra e giocatori nuovi.
 
 Uso standalone:
     python3 bref_scraper.py              # scraping normale
@@ -43,14 +44,19 @@ def _get_conn():
 
 def _get_ultima_g(conn, stagione: str) -> dict[str, int]:
     """Restituisce {nome_bref: g} dell'ultima snapshot per ogni giocatore."""
+    return {n: v[0] for n, v in _get_ultima(conn, stagione).items()}
+
+
+def _get_ultima(conn, stagione: str) -> dict[str, tuple]:
+    """{nome_bref: (g, team)} dell'ultima snapshot per ogni giocatore."""
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute("""
-            SELECT DISTINCT ON (nome_bref) nome_bref, g
+            SELECT DISTINCT ON (nome_bref) nome_bref, g, team
             FROM bref_stats
             WHERE stagione = %s
             ORDER BY nome_bref, timestamp DESC
         """, (stagione,))
-        return {r["nome_bref"]: r["g"] for r in cur.fetchall()}
+        return {r["nome_bref"]: (r["g"], r["team"]) for r in cur.fetchall()}
 
 
 def _inserisci_righe(conn, stagione: str, righe: list[dict]):
@@ -96,6 +102,13 @@ def _safe_int(val) -> int | None:
 
 def scrape_bref(anno: str) -> list[dict]:
     """Scarica e pulisce la tabella per_game da basketball-reference."""
+    return _righe_da_df(scrape_bref_df(anno))
+
+
+def scrape_bref_df(anno: str):
+    """Scarica la tabella per_game e la pulisce come il vecchio script del foglio
+    (BrefRaw): niente header ripetuti, per gli scambiati solo la riga dei totali con
+    l'ultima squadra reale al posto di 2TM/3TM. Tutte le colonne originali."""
     import pandas as pd
     url = BREF_BASE.format(anno=anno)
     logger.info("Scraping %s", url)
@@ -116,11 +129,14 @@ def scrape_bref(anno: str) -> list[dict]:
         if "TM" in str(x["Team"]) else x["Team"],
         axis=1
     )
+    return df
 
+
+def _righe_da_df(df) -> list[dict]:
     righe = []
     for _, row in df.iterrows():
         nome = str(row.get("Player", "")).strip()
-        if not nome:
+        if not nome or nome.lower() in ("nan", "league average", "player"):
             continue
         righe.append({
             "nome_bref": nome,
@@ -184,6 +200,38 @@ def run_scraper(stagione: str, migrate: bool = False):
         return n
     finally:
         conn.close()
+
+
+def run_giornaliero(stagione: str) -> dict:
+    """Job giornaliero (bot main): una sola richiesta a bref, poi
+    - append in bref_stats per chi ha giocato (G aumentate dall'ultima rilevazione);
+    - cambi squadra (squadra della riga nuova diversa dalla precedente);
+    - giocatori di bref che non sono in anagrafica (per la proposta al dev);
+    - CSV della tabella per il foglio BrefRaw.
+    """
+    df = scrape_bref_df(stagione)
+    dati = _righe_da_df(df)
+    out = {"inseriti": 0, "cambi": [], "nuovi": [], "csv": df.to_csv(index=False), "giocatori": len(dati)}
+    if not dati:
+        return out
+    conn = _get_conn()
+    try:
+        ultima = _get_ultima(conn, stagione)
+        righe = []
+        for r in dati:
+            g_vecchio, team_vecchio = ultima.get(r["nome_bref"], (0, None))
+            if (r.get("g") or 0) > (g_vecchio or 0):
+                righe.append({**r, "stagione": stagione})
+                if team_vecchio and r.get("team") and r["team"] != team_vecchio:
+                    out["cambi"].append((r["nome_bref"], team_vecchio, r["team"]))
+        out["inseriti"] = _inserisci_righe(conn, stagione, righe)
+        with conn.cursor() as cur:
+            cur.execute("SELECT nome_bref FROM giocatori")
+            noti = {x[0] for x in cur.fetchall()}
+        out["nuovi"] = [(r["nome_bref"], r.get("team"), r.get("g")) for r in dati if r["nome_bref"] not in noti]
+    finally:
+        conn.close()
+    return out
 
 
 # ── entry point standalone ────────────────────────────────────────────────────
