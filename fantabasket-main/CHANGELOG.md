@@ -791,3 +791,9 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 - Il bot aste non manda più backup suoi (doppioni); `/backup_ora` resta come copia d'emergenza del solo DB aste
 - 📊 Situazione cap: 🔴 sopra il tetto, 🟠 in offseason sopra 150M − penalità, 🔵 in RS sotto il salary floor
 - Nuova guida unica `docs/RECOVERY.md` (radice del repo); eliminate `DEV_RECOVERY.md`, `emergency_recovery_progettone.md` e la guida del bot aste (nomi dei secrets, percorso di `aste.db` e file di config erano sbagliati)
+
+## v3.5.0a (2026-10-10)
+
+### Bug fix
+- `scripts/cifra_secrets.sh`: via SSH gpg falliva con "problem with the agent: A locale function failed" (pinentry di gpg-agent). Ora lo script chiede la passphrase da sé (due volte, con controllo) e la passa a gpg con `--pinentry-mode loopback --passphrase-fd`, senza agent; verifica di decifratura con la stessa passphrase
+- `docs/RECOVERY.md`: decifratura con `--pinentry-mode loopback`

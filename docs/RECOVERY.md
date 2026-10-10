@@ -89,7 +89,7 @@ cp -r restore/config ./config
 **Con la passphrase** (backup con `secrets.tar.gpg`; su Windows serve Gpg4win):
 ```bash
 mkdir -p secrets
-gpg -d restore/secrets.tar.gpg | tar -xz -C secrets/
+gpg --pinentry-mode loopback -d restore/secrets.tar.gpg | tar -xz -C secrets/   # chiede la passphrase
 ```
 
 **Senza passphrase**: vanno ricreati a mano nella cartella `secrets/` (un valore per file,
