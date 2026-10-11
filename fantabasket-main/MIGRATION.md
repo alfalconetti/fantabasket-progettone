@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v3.8.1, bot aste v50)
+# Messaggio di migrazione — Fantabasket Progettone (stato v3.8.2, bot aste v50)
 
 ---
 
@@ -236,18 +236,15 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 - Script Python nel container: chiamare `db.init_db()` prima di usare il DB (il pool non è inizializzato fuori dal bot)
 - psql: `docker compose exec postgres psql -U fantabasket -d fantabasket -c "..."`
 
-**Dashboard (v3.8.0):**
-- Servizio `nocodb` (immagine fissata), porta `${NOCODB_PORT:-8090}` su tutte le interfacce del server (nessun port forwarding sul router: LAN + Tailscale). Dati di NocoDB (viste, account) nel volume `nocodb_data`, non nel backup (si ricreano)
-- `scripts/setup_dashboard.sh` (rilanciabile): `secrets/nocodb.env` (`env_file` con `required: false`, così gli altri servizi partono anche senza), `secrets/pg_lettore_password.txt`, ruolo PostgreSQL `lettore` con `default_transaction_read_only = on` e `ALTER DEFAULT PRIVILEGES` per le tabelle future. In NocoDB la sorgente è PostgreSQL host `postgres`, utente `lettore`
+**Dashboard (v3.8.0, sistemata in v3.8.2):**
+- Servizio `nocodb` (immagine fissata, `mem_limit: 1g`), porta `${NOCODB_PORT:-8090}` su tutte le interfacce del server (nessun port forwarding sul router: LAN + Tailscale; Docker scavalca ufw). Di solito spento: `docker compose stop|start nocodb`, non si perde niente
+- Dati interni di NocoDB (account, viste, display value) nel database PostgreSQL **`nocodb`** (utente `nocodb`, max 10 connessioni, nessun CONNECT su `fantabasket`) via `NC_DB`. Con SQLite (default) la 2026.09.1 va in timeout creando l'admin ("Failed to ensure org user") → utente senza workspace. Il database `nocodb` NON è nel backup
+- `NC_ALLOW_LOCAL_EXTERNAL_DBS=true`: senza, NocoDB rifiuta host interni ("connection to internal hosts is not allowed")
+- Niente `NC_ADMIN_EMAIL/PASSWORD`: account con la registrazione (`/#/signup`), il primo utente è admin. CE = un solo workspace (altri chiedono licenza): dentro si crea una base con sorgente esterna PostgreSQL
+- `lettore`: SELECT su tutto `public` (+ default privileges), `default_transaction_read_only`, `statement_timeout` e `idle_in_transaction_session_timeout` 30s (una query di NocoDB non può bloccare le ALTER di `migrate_db()` e quindi i bot), max 5 connessioni. `REVOKE CONNECT ON DATABASE fantabasket FROM PUBLIC` (i bot sono `fantabasket`, proprietario)
+- `scripts/setup_dashboard.sh` fa tutto ed è rilanciabile (aggiunge solo le chiavi mancanti a `nocodb.env`, tiene le password esistenti); va rilanciato dopo ogni ripristino del database
+- `giocatori.nome_common` è `TEXT` → per NocoDB testo lungo, non usabile come display value (usato `yahoo_id`)
 - Il database del bot aste (SQLite) non è collegato alla dashboard
-
-**Basketball-Reference (v3.7.0):**
-- `handlers/bref.py` → `job_bref` (10:00, solo `FASI_RUOLI_RS`) chiama `bref_scraper.run_giornaliero(stagione_corrente + 1)`: una richiesta, append in `bref_stats` solo se G aumentate, cambi squadra, nuovi giocatori, CSV
-- Foglio **BrefRaw** (stesso file di Roster e Scelte): CSV della tabella per_game ripulita come il vecchio script (`scrape_bref_df`), `gas_client.sync_bref_raw` → gas-router `/gas/bref` → `handleBrefRaw` in `gas/bref.gs` (`sheet.clear()` + `setValues` da A1). Nome del foglio da `CONFIG.BREF_SHEET_NAME` se definito in globals.gs, altrimenti "BrefRaw"
-- Giocatori nuovi: tabella `bref_nuovi (nome_bref PK, team, g, stato proposto|creato|ignorato)`; messaggio al dev con `brefn:ok` / `brefn:no`; creazione con `nome_common = nome_bref`, `nome_norm = utils.normalizza`
-- `nomi.py`: `chiave()` (minuscolo, senza accenti e punteggiatura), `esatti()`, `simili()` con soglia 0.88 — usato da `/set_nascita` e dalla proposta dei nuovi. Mai salvataggi automatici sui simili
-- `handlers/nascite.py`: `/set_nascita` (singolo o multi-riga, callback `nasc:<gid>:<AAAAMMGG>`), `/nascite_mancanti`, `job_report_nascite` lunedì 9:30 al dev
-- **Giorni in `run_daily`** (PTB ≥ 20): 0 = domenica … 6 = sabato
 
 **/team_diff (v3.8.1):** snapshot con `_snapshot_contratti(team_id, at)` (roster a una data + `contratto_id` + DPE da `db.get_dpe_at`); IN col contratto finale, OUT con l'iniziale, sezione "Contratto cambiato" se cambia `contratto_id` o importo effettivo. Limite: per i rookie `anni_scala` è quello di oggi
 
@@ -361,7 +358,9 @@ Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v3.5.0a/b** — `cifra_secrets.sh` senza gpg-agent; link alla guida di ripristino nei backup (`repo_url` in globals.json)
 - **v3.6.0** — `/my_trades`; stati delle trade atomici; `richieste_admin` (DPE, Saedro, decadimento: una richiesta aperta, decisione unica); DPE valutata all'approvazione + cambio ruolo Extra DPE post-deadline; ruolo automatico per i monoruolo (main e aste v50); colonna FM nel roster; CHECK dei tipi allineati per unione; penalità col meno nel foglio
 - **v3.7.0** — Basketball-Reference: foglio BrefRaw, cambi squadra NBA, giocatori nuovi con conferma del dev; `/set_nascita` (fuzzy severo) e report settimanale delle date mancanti
-- **v3.8.0** — dashboard NocoDB in LAN/Tailscale con utente PostgreSQL in sola lettura; `gas/.claspignore` e manifest con `webapp`
+- **v3.8.0** — dashboard NocoDB in LAN/Tailscale con utente PostgreSQL in sola lettura; `gas/.claspignore` e manifest con `webapp`; revisione trade a 3-4 squadre
+- **v3.8.1** — contratti nel `/team_diff`
+- **v3.8.2** — dashboard: dati interni su PostgreSQL, registrazione al primo accesso, timeout su `lettore`, `mem_limit`
 
 Novità v2.0.31–v2.0.38:
 - **v2.0.31** — DPE disponibile in tutte e 6 le fasi (da offseason-rinnovi a regular-season-deadline); admin menu DPE diretta; `pre_deadline = (fase != "regular-season-deadline")`

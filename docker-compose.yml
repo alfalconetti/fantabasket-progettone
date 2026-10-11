@@ -117,14 +117,18 @@ services:
   # Dashboard in LAN/Tailscale per guardare il database a tabelle (solo lettura).
   # Nessuna porta aperta sul router: raggiungibile da casa e via Tailscale.
   # Si collega a PostgreSQL con l'utente `lettore` (scripts/setup_dashboard.sh).
+  # Dati interni di NocoDB (account, viste) nel database PostgreSQL `nocodb` (NC_DB):
+  # con SQLite la 2026.09.1 non riesce a creare l'admin. Si può tenere spento:
+  # docker compose stop nocodb / start nocodb, non si perde niente.
   nocodb:
     image: nocodb/nocodb:2026.09.1
     restart: unless-stopped
+    mem_limit: 1g                    # oltre, Docker riavvia solo NocoDB (gli altri servizi non ne risentono)
     depends_on:
       postgres:
         condition: service_healthy
     env_file:
-      - path: ./secrets/nocodb.env   # NC_ADMIN_EMAIL, NC_ADMIN_PASSWORD, NC_AUTH_JWT_SECRET (fuori da git)
+      - path: ./secrets/nocodb.env   # NC_AUTH_JWT_SECRET, NC_DB, NC_ALLOW_LOCAL_EXTERNAL_DBS (fuori da git)
         required: false              # gli altri servizi partono anche prima di scripts/setup_dashboard.sh
     environment:
       NC_DISABLE_TELE: "true"

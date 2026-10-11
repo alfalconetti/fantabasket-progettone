@@ -881,3 +881,11 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 - `db.get_roster_team_at` restituisce anche `contratto_id`
 - Pick con il nome della squadra d'origine invece dell'ID
 
+## v3.8.2 (2026-10-11)
+
+### Dashboard NocoDB, allineata a come funziona davvero
+- `scripts/setup_dashboard.sh` riscritto (rilanciabile, anche dopo un ripristino): dati interni di NocoDB nel database PostgreSQL `nocodb` (utente dedicato, max 10 connessioni, senza accesso al database della lega) invece di SQLite, che con la 2026.09.1 non riusciva a creare l'admin; `NC_ALLOW_LOCAL_EXTERNAL_DBS=true` per collegare il PostgreSQL interno; niente `NC_ADMIN_*`, l'account si crea registrandosi al primo accesso
+- Utente `lettore`: timeout di 30 secondi su query e transazioni lasciate aperte (non può più bloccare le `ALTER TABLE` di `migrate_db()` all'avvio dei bot) e massimo 5 connessioni; database della lega non più accessibile "a chiunque" (`REVOKE CONNECT … FROM PUBLIC`)
+- `docker-compose.yml`: `mem_limit: 1g` per NocoDB
+- `RECOVERY.md`: dopo un ripristino del database va rilanciato lo script della dashboard
+

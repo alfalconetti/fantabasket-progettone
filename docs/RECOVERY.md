@@ -40,7 +40,7 @@ d'emergenza del suo database.
 **Cosa non c'è nel backup, e non serve:**
 - il codice → è su GitHub;
 - il token Yahoo (`yahoo_data`) → si rifà con `docker compose exec -it yahoo-router python3 cli.py auth`;
-- le viste della dashboard NocoDB (volume `nocodb_data`) → non servono ai bot; dopo un ripristino si rilancia `./scripts/setup_dashboard.sh` e si ricollega il database
+- la dashboard NocoDB (database `nocodb` e volume `nocodb_data`: account e viste) → non serve ai bot; dopo un ripristino si rilancia `./scripts/setup_dashboard.sh`, ci si registra di nuovo (`/#/signup`) e si ricollega il database
 - gli script Google Apps Script → stanno su Google e non cambiano: per riattaccarli bastano
   gli URL delle web app e il token, che sono tra i secrets.
 
@@ -107,7 +107,7 @@ senza a capo in più). Nomi esatti, come in `docker-compose.yml`:
 | `yahoo_client_id`, `yahoo_client_secret`, `yahoo_router_token` | Yahoo | portale developer Yahoo (dev); non necessari per i bot |
 | `bot_main.env` | `HEALTHCHECK_URL=...` | healthchecks.io; può restare vuoto |
 | `yahoo_router.env` | `YAHOO_LEAGUE_IDS=...` | dev; può restare vuoto |
-| `nocodb.env`, `pg_lettore_password.txt` | dashboard NocoDB | si rigenerano con `./scripts/setup_dashboard.sh`; non servono ai bot |
+| `nocodb.env`, `pg_lettore_password.txt` | dashboard NocoDB | si rigenerano con `./scripts/setup_dashboard.sh` (crea anche gli utenti PostgreSQL `nocodb` e `lettore`); non servono ai bot |
 
 Se i token dei bot non sono recuperabili, vedi **Bot di emergenza** nella sezione 4.
 
@@ -126,6 +126,9 @@ cat restore/db/fantabasket*.sql | docker compose exec -T postgres psql -q -U fan
 ```
 Un eventuale `unrecognized configuration parameter "transaction_timeout"` all'inizio è
 innocuo (dump fatto con un client PostgreSQL più recente del server).
+Su un server nuovo anche gli errori `role "lettore" does not exist` sono innocui (permessi
+della dashboard): dopo il ripristino si rilancia `./scripts/setup_dashboard.sh`. Va rilanciato
+anche sullo stesso server, perché ricreare il database azzera i permessi di connessione.
 
 Su Windows (PowerShell) l'ultima riga diventa:
 `Get-Content (Get-Item restore/db/fantabasket*.sql).FullName | docker compose exec -T postgres psql -q -U fantabasket -d fantabasket`
