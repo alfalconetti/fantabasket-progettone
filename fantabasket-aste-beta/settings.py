@@ -88,8 +88,9 @@ def backup_intervallo_ore() -> int:
 def offerta_massima() -> int:
     """
     Massimo spendibile su un singolo giocatore durante le aste:
-    cap_regular - (roster_max - 1) * 1M
-    Garantisce che restino fondi per riempire gli altri slot al minimo.
+    cap_regular - (roster_min_regular - 1) * 1M  → 150 - 9 = 141
+    Garantisce che restino fondi per arrivare al minimo di giocatori (10) a 1M l'uno.
+    Fino a v55 usava roster_max (15) e dava 136.
     """
     s = get()
-    return s["cap_regular"] - (s["roster_max"] - 1)
+    return s["cap_regular"] - (s["roster_min_regular"] - 1)

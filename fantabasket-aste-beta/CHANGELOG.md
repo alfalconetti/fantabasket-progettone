@@ -570,6 +570,10 @@ Comandi riservati al solo `dev_id` (non visibili in /admin), per osservare lo st
 - **`/autoslot` non contava**: lo slot anticipato compariva in `/me` ma non entrava nel conteggio degli slot, quindi chi lo chiedeva restava comunque bloccato. Ora `pg_client.get_slot_totale` lo somma (come già faceva il cap per `/autocap`); il reset dal gruppo admin controlla gli slot senza l'anticipato. Tolte le prime definizioni duplicate di `get_cap_anticipato`/`get_slot_anticipato` (codice morto)
 - **`/set_cap_penalizzato`** rimanda al bot principale: qui config è in sola lettura e il comando andava in errore. Tolto da `/admin`
 - **Benvenuto (`/start`)** riscritto: diceva 24 ore per le RFA (sono 12) e citava comandi admin
-- **Offerta massima di nuovo 141** (150 − 9, per arrivare al minimo di 10 giocatori a 1M): il calcolo usava `roster_max` (15) e dava 136. Documentato che chiude subito l'asta
+- **Offerta massima**: documentato che chiude subito l'asta
 - Nuova `docs/guida_dev.md` e `/guida_dev` (solo dev)
 - `/admin` ed esempi: id squadra nel formato vero (`team07`)
+
+## v56 — Offerta massima 141
+
+- **Offerta massima di nuovo 141** (150 − 9, per arrivare al minimo di 10 giocatori a 1M): `settings.offerta_massima` usava `roster_max` (15) e dava 136, quindi rifiutava le offerte da 137 a 141 e chiudeva subito l'asta già a 136. Guide e README corretti

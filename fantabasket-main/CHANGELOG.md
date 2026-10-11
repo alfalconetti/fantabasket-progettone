@@ -940,3 +940,11 @@ Revisione del codice contro il regolamento.
 ### Penalità cap
 - **`/set_cap_penalizzato <team_id> <valore>` (admin) ora sta nel bot principale.** Nel bot aste scriveva teams.json, che lì è montato in sola lettura: il comando andava in errore e la penalità si poteva cambiare solo a mano. Aggiorna il foglio della squadra; nel bot aste il comando rimanda qui
 - Guide: esempi con gli id veri delle squadre (`team07`), non nomi inventati
+
+## v3.9.5 (2026-10-12)
+
+### Fogli Google
+- Il foglio Roster si aggiorna **sempre per tutte le 24 squadre** (`gas_client.sync_teams` ignora l'elenco che riceve): dopo trade, tagli, firme, DPE, rookie, decadimenti, penalità e coda del bot aste. Prima ogni operazione aggiornava solo le squadre coinvolte
+
+### Bot aste (v56)
+- Offerta massima di nuovo 141 (vedi CHANGELOG del bot aste)

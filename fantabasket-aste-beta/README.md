@@ -101,7 +101,7 @@ Crea la cartella `config/` con i seguenti file:
 ```
 
 `offerta_massima` non è più una chiave di settings.json: dalla v20 viene calcolata come
-`cap_regular - (slot_minimi_rs - 1) * minimo_contrattuale`.
+`cap_regular - (roster_min_regular - 1)` (1M a giocatore): 150 - 9 = 141.
 
 **fa_players.csv**
 ```

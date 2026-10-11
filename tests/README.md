@@ -54,6 +54,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `dpe_trade_tagli` | main | DPE che segue il giocatore in trade (validazione = cap reale, annullamento), taglio bloccato se scopre i ruoli in RS |
 | `report_spalmature` | main | report mensile: free agent con spalmature, ultima partita bref, Cam Thomas, esclusi i sotto contratto e le stagioni passate |
 | `penalita_cap` | main | `/set_cap_penalizzato`: solo admin, scrive teams.json, tetto RS ridotto e offseason a 165 |
+| `sync_fogli` | main | il foglio Roster si aggiorna sempre per tutte le squadre |
 | `team_diff` | main | contratti nei due momenti, DPE, cambio contratto, niente falsi cambi tra stagioni |
 | `pg_rfa_30giorni_dpe` | aste + PG | RFA: cap sì slot no, lascio andare con movimento; regola dei 30 giorni; DPE nel cap per offrire; rifirma dopo taglio |
 | `rfa_lascio_andare` | aste + PG | "Lascio andare": solo proprietario, una volta sola |

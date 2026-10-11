@@ -179,11 +179,18 @@ def _do_sync(router_url: str, router_token: str, payload: dict, attempt: int = 1
             logger.warning("GAS sync fallito definitivamente: %s", e)
 
 
-def sync_teams(team_ids: list[str]) -> bool:
+def _tutte() -> list[str]:
+    import teams as tm
+    return [t["id"] for t in tm.get_all_teams()]
+
+
+def sync_teams(team_ids: list[str] | None = None) -> bool:
     """
-    Invia aggiornamento roster per i team indicati al GAS Router.
+    Invia al GAS Router il roster di TUTTE le 24 squadre (v3.9.4: il foglio si aggiorna
+    sempre per intero; `team_ids` resta solo per compatibilità con i chiamanti).
     Fire and forget — non blocca il bot, riprova una volta dopo 30s se fallisce.
     """
+    team_ids = _tutte()
     router_url, router_token = _get_config()
     if not router_url or not router_token:
         logger.debug("GAS Router non configurato — skip sync")
@@ -204,8 +211,9 @@ def sync_teams(team_ids: list[str]) -> bool:
         return False
 
 
-def sync_teams_sync(team_ids: list[str]) -> bool:
-    """Sync sincrono — per comandi manuali come /sync_sheets. Timeout 60s."""
+def sync_teams_sync(team_ids: list[str] | None = None) -> bool:
+    """Sync sincrono di tutte le squadre — per comandi manuali come /sync_sheets. Timeout 60s."""
+    team_ids = _tutte()
     router_url, router_token = _get_config()
     if not router_url or not router_token:
         return False
