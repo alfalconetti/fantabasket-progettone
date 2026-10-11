@@ -20,3 +20,4 @@ gas/globals.js
 test_sync_scelte.sh
 test_sync_roster.sh
 config/loghi/
+.env
