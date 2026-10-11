@@ -18,7 +18,7 @@ Il bot aste lavora quasi tutto da solo. Le aste si aprono, scadono, vanno in fir
 
 **Cap e slot.** Vengono dai contratti nel database del bot principale. Se un numero è sbagliato, va corretto lì (una firma o un taglio mancante), non qui. `/set_cap`, `/add_cap`, `/set_slot` e `/add_slot` non fanno più niente.
 
-L'unica cosa di cap che si imposta qui è la **penalità**: `/set_cap_penalizzato bulls 5`.
+Anche la **penalità** sul cap si imposta dal bot principale: `/set_cap_penalizzato team07 5`.
 
 ---
 
@@ -29,7 +29,7 @@ L'unica cosa di cap che si imposta qui è la **penalità**: `/set_cap_penalizzat
   - ⚠️ in offseason, chi sta sopra il cap che avrà in regular season;
   - ⚠️ in regular season, chi sta sotto il salary floor;
   - 🔴 cap o slot liberi negativi.
-- **`/team bulls`** — una squadra nel dettaglio: la stessa vista che il GM ha con `/me`.
+- **`/team team07`** — una squadra nel dettaglio: la stessa vista che il GM ha con `/me`.
 - **`/aste`** — le aste aperte, con il loro numero (l'id).
 - **`/all_aste`** — anche quelle finite (le ultime 30). Si può filtrare per stato: `/all_aste chiusa`, `pareggio`, `conclusa`, `annullata`. Serve per ritrovare l'id di un'asta che non è più in `/aste`.
 - **`/firme`** — le ultime 10 firme (`/firme 30` per vederne di più).
@@ -39,20 +39,20 @@ L'unica cosa di cap che si imposta qui è la **penalità**: `/set_cap_penalizzat
 
 ## Agire per conto di una squadra
 
-**Aprire un'asta FA.** Esempio: il GM dei Bulls ti scrive che non riesce ad aprire l'asta per LeBron a 5.
+**Aprire un'asta FA.** Esempio: il GM di team07 ti scrive che non riesce ad aprire l'asta per LeBron a 5.
 
 ```
-/apri_asta bulls 5 LeBron James
+/apri_asta team07 5 LeBron James
 ```
 
 Valgono gli stessi controlli del GM: mercato aperto, cap e slot della squadra, giocatore non già all'asta, regola dei 30 giorni e minimo Cam Thomas. Se il nome è ambiguo il bot ti propone i comandi già scritti coi nomi giusti, da ricopiare.
 
 L'asta compare sul canale con la scritta "aperta da admin per conto di", e i GM della squadra vengono avvisati e la seguono.
 
-**Fare un'offerta.** Per esempio 7 dei Bulls sull'asta 42:
+**Fare un'offerta.** Per esempio 7 di team07 sull'asta 42:
 
 ```
-/crea_offerta bulls 42 7
+/crea_offerta team07 42 7
 ```
 
 Stessi controlli di un'offerta normale. L'azione finisce sul canale log col tuo nome.
@@ -60,7 +60,7 @@ Stessi controlli di un'offerta normale. L'azione finisce sul canale log col tuo 
 **Aprire una RFA.** Nella fase RFA:
 
 ```
-/nuova_rfa Doncic mavs 28
+/nuova_rfa Doncic team12 28
 ```
 
 Cioè: giocatore, squadra proprietaria, vecchio contratto.
@@ -125,7 +125,7 @@ Rimanda il messaggio e riattiva le scadenze automatiche. Non cambia niente nel d
 
 - Un'asta che una squadra sta vincendo **impegna cap e slot** dal primo rilancio fino alla firma. Questo vale anche dopo la chiusura, mentre il GM sceglie anni e ruolo, e durante il pareggio di una RFA.
 - **Un RFA** occupa cap ma non slot del proprietario, finché la sua asta non è conclusa.
-- **L'offerta massima** su una singola asta si calcola da sola: è il cap di regular season meno il minimo per riempire gli altri 9 posti del roster.
+- **L'offerta massima** su una singola asta si calcola da sola: il cap di regular season meno 1M per ognuno degli altri 9 giocatori che servono ad arrivare al minimo di 10 (oggi 150 − 9 = 141M). Chi la offre chiude l'asta all'istante.
 - **Se il bot si riavvia**, firme e pareggi in sospeso ripartono da soli dopo pochi secondi.
 - **Gli avvisi importanti** finiscono sul canale log: cap negativi, errori nei job automatici, messaggi del canale che non si aggiornano. Gli errori arrivano anche in privato al dev.
 - **Per la diagnostica più tecnica** il dev ha `/dev`.

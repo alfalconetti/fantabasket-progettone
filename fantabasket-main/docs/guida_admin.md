@@ -35,7 +35,7 @@ Per orientarsi:
 - **Trade:** aperte in `regular-season-fa` e in tutta l'offseason tranne il break.
 - **Free agency:** aperta in `regular-season-fa`, `offseason-fa` e `offseason-ruoli`.
 - **Cap in offseason:** 165M per tutti.
-- **Cap in regular season:** 150M meno le eventuali penalità della squadra, con salary floor a 115M.
+- **Cap in regular season:** 150M meno le eventuali penalità della squadra, con salary floor a 115M. La penalità si imposta con `/set_cap_penalizzato team07 5` (0 per toglierla); vale per tutti e due i bot.
 
 ---
 
@@ -81,7 +81,7 @@ Il controllo automatico guarda cap, roster, Stepien Rule e, in regular season, i
 **Firma avvenuta fuori dal bot:** `/registra_firma <team_id> <importo> <anni> <nome>`. Esempio:
 
 ```
-/registra_firma bulls 22 2 Jalen Williams
+/registra_firma team07 22 2 Jalen Williams
 ```
 
 Il bot rifiuta gli anni sbagliati (da 20M almeno 2 anni, da 35M obbligatori 3) e ti avvisa se la squadra finisce oltre il tetto o oltre 15 giocatori. In regular season apre anche la dichiarazione del ruolo al GM.

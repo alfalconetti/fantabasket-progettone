@@ -64,7 +64,6 @@ def liste_comandi(fase: str, mercato_fa: bool, offerte: bool) -> dict:
         BotCommand("estendi_asta", "Sposta in avanti la scadenza di N ore"),
         BotCommand("stato_asta", "Tutti i dati di un'asta"),
         BotCommand("ripubblica_asta", "Ripubblica il messaggio di un'asta"),
-        BotCommand("set_cap_penalizzato", "Penalità cap: /set_cap_penalizzato <id> <valore>"),
         BotCommand("chiudi_mercato" if mercato_fa else "apri_mercato",
                    "Chiudi il mercato FA (emergenza)" if mercato_fa else "Apri il mercato FA (emergenza)"),
         BotCommand("admin", "Elenco comandi admin"),
@@ -73,6 +72,7 @@ def liste_comandi(fase: str, mercato_fa: bool, offerte: bool) -> dict:
     ]
     dev = list(admin) + [
         BotCommand("dev", "Comandi dev"),
+        BotCommand("guida_dev", "Guida tecnica del bot"),
         BotCommand("dev_version", "Versione"),
         BotCommand("dev_aste_stato", "Stato interno delle aste"),
         BotCommand("dev_cap", "Cap di tutte le squadre"),

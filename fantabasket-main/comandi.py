@@ -68,6 +68,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("registra_firma",      "Registra firma manuale [team] [giocatore] [importo] [anni]"),
         BotCommand("ritiro_fa",           "Free agent ritirato: toglie le spalmature dei tagli passati"),
         BotCommand("report_spalmature",   "Free agent con spalmature attive (possibili ritirati)"),
+        BotCommand("set_cap_penalizzato", "Penalità cap di una squadra [team_id] [valore]"),
         BotCommand("annulla_admin",       "Esci da operazione admin bloccata"),
         BotCommand("guida_admin",         "Guida completa per gli admin"),
         BotCommand("settings",            "Modifica settings [chiave] [valore]"),
@@ -80,6 +81,7 @@ def liste_comandi(fase: str) -> dict:
     ]
     cmd_dev = cmd_admin + [
         BotCommand("dev",          "Lista comandi dev"),
+        BotCommand("guida_dev",    "Guida tecnica del bot"),
         BotCommand("dev_version",  "Versione bot"),
         BotCommand("dev_log",      "Ultime N righe log [N]"),
         BotCommand("dev_trade",    "Ultime N trade approvate [N]"),

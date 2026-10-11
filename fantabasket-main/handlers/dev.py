@@ -55,6 +55,7 @@ async def cmd_dev(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     testo = (
         "<b>Comandi dev</b>\n\n"
+        "/guida_dev — il promemoria tecnico del bot (file .md)\n"
         "/dev_version — versione corrente del bot\n"
         "/dev_log [N] — ultime N righe di log in memoria (default 30)\n"
         "/dev_trade [N] — ultime N trade approvate (default 10)\n"
@@ -308,6 +309,21 @@ async def cmd_nuovo_giocatore(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.effective_message.reply_text(f"❌ Errore: {e}")
 
 
+
+async def cmd_guida_dev(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/guida_dev — promemoria tecnico del bot (docs/guida_dev.md), solo dev."""
+    if not _is_dev(update.effective_user.id):
+        return
+    import os
+    path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "docs", "guida_dev.md"))
+    try:
+        with open(path, "rb") as f:
+            await context.bot.send_document(chat_id=update.effective_user.id, document=f,
+                                            filename="guida_dev_main.md", caption="🛠 Guida dev — bot principale")
+    except Exception as e:
+        await update.effective_message.reply_text(f"❌ Errore: {e}")
+
+
 def get_handlers() -> list:
     return [
         CommandHandler("dev",          cmd_dev),
@@ -319,4 +335,5 @@ def get_handlers() -> list:
         CommandHandler("job_status",   cmd_job_status),
         CommandHandler("broadcast",        cmd_broadcast),
         CommandHandler("nuovo_giocatore",  cmd_nuovo_giocatore),
+        CommandHandler("guida_dev",        cmd_guida_dev),
     ]

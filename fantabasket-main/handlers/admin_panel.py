@@ -885,6 +885,44 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
 
 
+async def cmd_set_cap_penalizzato(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/set_cap_penalizzato <team_id> <valore> (admin) — penalità sul cap di regular season
+    (campo `cap_penalizzato` di teams.json, letto da entrambi i bot). Era nel bot aste, che
+    però ha config/ in sola lettura: lì il comando andava in errore."""
+    if not is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ Solo admin.")
+        return
+    args = context.args or []
+    if len(args) != 2:
+        await update.effective_message.reply_text(
+            "Uso: /set_cap_penalizzato <team_id> <valore>\nEs: /set_cap_penalizzato team07 5  (0 per toglierla)")
+        return
+    team = tm.get_team_by_id(args[0])
+    if not team:
+        await update.effective_message.reply_text(f"❌ Squadra '{args[0]}' non trovata. Gli id sono in /list.")
+        return
+    try:
+        valore = int(args[1])
+        if valore < 0:
+            raise ValueError
+    except ValueError:
+        await update.effective_message.reply_text("❌ Il valore deve essere un intero ≥ 0.")
+        return
+    prima = int(team.get("cap_penalizzato") or 0)
+    tm.set_campo_team(team["id"], "cap_penalizzato", valore)
+    await update.effective_message.reply_text(
+        f"✅ Penalità cap di <b>{team['nome']}</b>: {prima}M → <b>{valore}M</b>\n"
+        f"Tetto in regular season: {settings.get()['cap_regular'] - valore}M "
+        f"(in offseason resta {settings.get()['cap_offseason']}M per tutti).",
+        parse_mode="HTML")
+    logger.info("set_cap_penalizzato: %s %d → %d da %d", team["id"], prima, valore, update.effective_user.id)
+    try:
+        from gas_client import sync_teams
+        sync_teams([team["id"]])
+    except Exception as e:
+        logger.warning("sync dopo set_cap_penalizzato: %s", e)
+
+
 async def cmd_registra_firma(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /registra_firma <team_id> <importo> <anni> <nome giocatore>
@@ -1148,6 +1186,7 @@ def get_handlers() -> list:
     return [
         conv,
         CommandHandler("list",               cmd_list),
+        CommandHandler("set_cap_penalizzato", cmd_set_cap_penalizzato),
         CommandHandler("registra_firma",     cmd_registra_firma),
         CallbackQueryHandler(cb_registra_firma_sel, pattern=r"^rfirma:\d+:.+:\d+:\d+$"),
         CommandHandler("admin_menu", cmd_admin_menu),

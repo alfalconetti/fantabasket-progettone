@@ -8,8 +8,8 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 PGURL=${PGURL:-postgresql://fb:fb@localhost/fbt}
 # niente prove sul server: le prove fanno TRUNCATE (stessi controlli di tests/guardia.py)
 DATABASE_URL=$PGURL PG_URL=$PGURL python3 "$ROOT/tests/guardia.py" || exit 1
-MAIN=(trade_3_squadre revisione_regolamento dpe_trade_tagli team_diff report_spalmature)
-ASTE_PG=(pg_rfa_30giorni_dpe rfa_lascio_andare menu_e_listteams)
+MAIN=(trade_3_squadre revisione_regolamento dpe_trade_tagli team_diff report_spalmature penalita_cap)
+ASTE_PG=(pg_rfa_30giorni_dpe rfa_lascio_andare menu_e_listteams autoslot)
 ASTE_ISOLATO=(apri_asta_admin apertura_gm cap_asta_chiusa rfa_proprietario)
 DOCS=(guide_e_menu)
 scelti=("$@"); [ ${#scelti[@]} -eq 0 ] && scelti=("${MAIN[@]}" "${ASTE_PG[@]}" "${ASTE_ISOLATO[@]}" "${DOCS[@]}")

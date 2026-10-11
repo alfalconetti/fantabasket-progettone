@@ -19,3 +19,5 @@ async def main():
     assert aid2 is None, "con il cap impegnato dall'asta chiusa la seconda non deve aprirsi"
     print("✅ cap_asta_chiusa")
 asyncio.run(main())
+import settings as _st
+print(("✅" if _st.offerta_massima()==141 else "❌ FAIL"), f"offerta massima 150 − 9 = 141 ({_st.offerta_massima()})")

@@ -1,0 +1,358 @@
+# Guida dev — bot aste
+
+Promemoria tecnico del bot delle aste FA e RFA. Struttura generale del progetto, database PostgreSQL, fogli, backup e deploy sono nella guida dev del bot principale (`fantabasket-main/docs/guida_dev.md`). Qui c'è quello che è specifico delle aste. Da Telegram: `/guida_dev`.
+
+---
+
+## 1. Come sta in piedi
+
+Il bot lavora su **due database**.
+
+**SQLite (`/data/aste.db`, volume `aste_beta_data`).** È il suo database: aste, offerte, chi le segue. Resta SQLite per scelta, così si può sempre tornare al vecchio bot aste standalone (v48). Le modifiche allo schema sono **solo additive**: colonne nuove con default, mai rinominare o togliere.
+
+**PostgreSQL** (lo stesso del bot principale, via `pg_client.py`). Da qui legge contratti, tagli, DPE e roster, cioè cap e slot. Ci scrive:
+
+- le firme (`contratti` + transazione `signed`);
+- i rilasci RFA (`expired`);
+- cap e slot anticipati;
+- la coda dei fogli (`gas_sync_queue`, che poi svuota il bot principale).
+
+**Config.** `config/` è montata **in sola lettura**: globals, teams, settings, fa_players.csv. Fase, stagione, mercato, penalità e squadre li decide il bot principale. Il bot aste li legge e basta: `/set_fase`, `/reset_rfa`, `/set_cap`, `/add_cap`, `/set_slot`, `/add_slot` e `/set_cap_penalizzato` qui rispondono soltanto rimandando all'altro bot.
+
+**Modalità isolata.** Se `PG_URL` è vuoto, `pg_client` restituisce valori neutri e cap e slot vengono da `cap_disponibile`/`slot_disponibili` di teams.json, mentre la lista FA viene da `fa_players.csv`. Serve solo per emergenze e per alcune prove; in produzione non dovrebbe mai succedere.
+
+**Variabili d'ambiente:**
+
+| Variabile | Uso |
+|---|---|
+| `BOT_TOKEN_FILE` | token |
+| `GLOBALS_PATH`, `SETTINGS_PATH`, `TEAMS_PATH`, `FA_CSV_PATH` | config |
+| `DB_PATH` | aste.db |
+| `PG_URL` + `PG_PASSWORD_FILE` | PostgreSQL |
+| `HEALTHCHECK_URL` | facoltativa |
+
+**Chat** (da globals.json):
+
+| Chiave | Uso |
+|---|---|
+| `channel_id` | canale aste, con un messaggio per asta che si aggiorna |
+| `log_channel_id` | log del bot aste |
+| `main_channel_id` | annuncio delle firme |
+| `admin_group_id` | conferme e avvisi |
+
+**Versione.** È l'ultima voce `## vNN` del suo `CHANGELOG.md`.
+
+---
+
+## 2. SQLite
+
+| Tabella | Contenuto |
+|---|---|
+| `aste` | `tipo` (FA/RFA), `giocatore` (nome, non id), `squadra_proprietaria` e `vecchio_compenso` (RFA), `stato`, `offerta_corrente`, `offerente_team_id`, `anni_offerti`/`anni_contratto`, `creata_at`/`scade_at`/`conclusa_at`/`firmato_at` (ISO UTC), `stagione`, `canale_msg_id`, `notifica_15min`, `pareggio_preimpostato` (JSON), `rifiuto_preimpostato` |
+| `offerte` | storico: `asta_id`, `team_id`, `importo`, `timestamp` |
+| `aste_watch` | chi segue cosa: `asta_id`, `gm_id` |
+| `contratti` | copia locale delle firme (eredità dello standalone; la verità è su PostgreSQL) |
+
+**Stati dell'asta:**
+
+```
+APERTA ──scade──▶ CHIUSA ──anni scelti (FA)──────────────▶ CONCLUSA
+   │                │
+   │                └─anni scelti (RFA)─▶ PAREGGIO ──decisione/timeout──▶ CONCLUSA
+   │
+   └──senza offerte──▶ CONCLUSA  (RFA senza offerte: decide il proprietario)
+
+qualsiasi ──/annulla_asta──▶ ANNULLATA      CHIUSA/PAREGGIO/ANNULLATA ──/riapri_asta──▶ APERTA
+```
+
+**Cap e slot virtuali.** `database.STATI_IMPEGNO = ("APERTA","CHIUSA","PAREGGIO")`: un'asta in cui la squadra è in testa impegna cap (`get_cap_virtuale`) e uno slot (`get_slot_virtuali`) fino alla firma.
+
+---
+
+## 3. I conti di cap e slot
+
+Tutto passa da qui: `/me`, `/team`, `/listteams`, apertura, offerte, firma, pareggio.
+
+**Tetto** (`settings.py`):
+
+- `cap_limite()` = 165 in offseason, 150 in regular season;
+- `penalita_cap(team)` = 0 in offseason, `cap_penalizzato` di teams.json in regular season.
+
+**Cap libero per offrire** (`offerte._cap_libero`):
+
+```
+cap_limite − contratti (con DPE ridotta) − spalmature della stagione − penalità + cap anticipato
+          − cap virtuale (aste APERTA/CHIUSA/PAREGGIO in cui la squadra è in testa)
+```
+
+`pg_client.get_cap_totale` è la stessa cosa senza la parte virtuale (la usa `/me`).
+
+**Slot** (`pg_client.get_slot_totale` → `teams.check_slot_virtuale`):
+
+```
+roster_max − roster (ultimo movimento = squadra, esclusi i DPE)
+          + RFA della squadra con asta in corso      (l'RFA occupa cap ma non slot)
+          + slot anticipato                           (/autoslot, 48 ore)
+          − slot virtuali
+```
+
+**Altri limiti:**
+
+- **Offerta massima:** `settings.offerta_massima()` = `cap_regular − (roster_min_regular − 1)`, oggi 150 − 9 = 141.
+- **Rilancio:** almeno `rilancio_minimo` sopra l'offerta corrente, mai su te stesso.
+
+**Check aggregato** (job delle 13, solo offseason). Somma il cap occupato di tutte le squadre e lo confronta con 24 × 150, per capire se al passaggio in regular season qualcuno andrà in negativo. Il risultato va sul canale log.
+
+---
+
+## 4. I flussi
+
+### Apertura FA
+
+- **Dal GM:** `/nuova_fa` oppure il bottone di `/lista_fa` (`fa_avvia:`). Dal canale c'è il deep link `/start offri_…` o `nuova_fa_…`.
+- **Dall'admin:** `/apri_asta`.
+
+Tutte e due finiscono in `offerte.apri_asta_fa(context, team, giocatore, importo, watcher_ids)` → `(asta_id, errore)`, che ricontrolla:
+
+- mercato aperto;
+- importo (minimo, massimo);
+- cap e slot;
+- asta già aperta;
+- regola dei 30 giorni;
+- minimo Cam Thomas.
+
+Poi crea l'asta, pubblica il messaggio nel canale, avvisa il canale log e mette tutti i GM della squadra in watch.
+
+**La lista FA.** `get_fa_rows_pg()` prende dall'anagrafica i giocatori senza contratto attivo, esclude i diritti 2nd non firmati e ordina per fantamedia bref. La ricerca per nome è `utils.trova_giocatore_fa`: esatto → cognome → fuzzy, con gli omonimi da scegliere (`fa_omonimo:`).
+
+### Offerta
+
+Tre ingressi, che finiscono tutti in `offerte._esegui_offerta(context, team, asta_id, importo, gm_id)`:
+
+- conversazione `/offri` → asta → importo;
+- deep link dal canale;
+- `/offerta asta <id> <importo>`, senza conversazione e quindi programmabile.
+
+`_esegui_offerta` controlla:
+
+- stato APERTA;
+- che la squadra non sia la proprietaria dell'RFA;
+- che non sia già in testa;
+- rilancio minimo e offerta massima;
+- 30 giorni e Cam Thomas;
+- cap e slot.
+
+Se va bene registra l'offerta, porta `scade_at` a ora + `durata_asta_ore` (18), mette chi offre in watch, aggiorna il canale e avvisa i watcher (e il proprietario, se è una RFA).
+
+**Offerta uguale all'offerta massima:** l'asta si chiude subito e parte la firma.
+
+`/crea_offerta` (admin) passa dallo stesso punto.
+
+### Chiusura
+
+`scheduler.check_scadenze`, ogni 60 secondi:
+
+- asta scaduta con offerte → CHIUSA e `firma.chiedi_anni`;
+- asta scaduta senza offerte → CONCLUSA (o flusso del proprietario, se è RFA);
+- a 15 minuti dalla scadenza → avviso ai watcher (una volta sola, `notifica_15min`).
+
+### Firma FA (`handlers/firma.py`)
+
+1. **Anni.** Bottoni `firma:` → in regular season scelta del ruolo `firma_ruolo:` (regole in `shared/ruoli_core`, regola dei 60 giorni) → conferma `firma_confirm:`.
+2. **Timeout di 48 ore.** `firma_automatica` (job `run_once`) firma 3 anni di penale e, in regular season, estrae il ruolo.
+3. **Registrazione.** `_registra_firma_finale` è l'unico punto che chiude:
+   - `pg_client.registra_firma` (contratto + `signed` in un'unica transazione);
+   - ruolo su PostgreSQL;
+   - copia nel `contratti` locale;
+   - asta CONCLUSA;
+   - annuncio sul canale principale;
+   - `accoda_sync_gas`.
+
+**Anni minimi** (`anni_minimi`): da 20 almeno 2, da 35 obbligatori 3.
+
+### RFA
+
+**Apertura.** `/nuova_rfa <giocatore> <team_id> <vecchio_compenso>` (admin), con il giocatore cercato nel roster della squadra (`pg_client.nomi_roster`).
+
+- Una sola RFA per squadra per stagione (`team_ha_rfa_stagione`, sulla `stagione_corrente` condivisa).
+- Durante l'asta il proprietario non può offrire (`_check_partecipazione` + `_esegui_offerta`).
+
+**Il vincitore sceglie gli anni.** Ha 12 ore; al timeout prende gli anni minimi. Da 35 anni = 3, e si salta direttamente al pareggio.
+
+**Pareggio.** Dopo la scelta l'asta va in PAREGGIO: il proprietario ha 24 ore **dalla chiusura** (`_chiedi_pareggio`, `pareggio:` / `pareggio_anni:` / `pareggio_confirm:`; timeout → `pareggio_automatico` = passa al vincitore).
+
+- `soglia_pareggio(vecchio)`: fino a `fascia_bassa_max` (20) basta 1, fino a 34 ⌊vecchio/3⌋, oltre ⌊vecchio/2⌋.
+- `importo_minimo_pareggio = max(offerta, soglia)`.
+- Anni: sopra soglia ≥ quelli del vincitore; sotto soglia liberi.
+
+**Pre-impostazioni del proprietario.** Bottoni `pre_par_*` / `pre_rifiuto_*`, salvati in `pareggio_preimpostato` / `rifiuto_preimpostato`. Quando il vincitore sceglie gli anni, `_esegui_pre_pareggio_se_compatibile` decide da solo.
+
+**Senza offerte.** Il proprietario può:
+
+- firmarlo (`firma_prop:`, stesse soglie);
+- lasciarlo andare (`lascia:`, solo il proprietario, una volta). Qui `_concludi_rfa_senza_contratto` → `pg_client.rilascia_rfa` disattiva il contratto e scrive il movimento `expired`.
+
+**Il vecchio contratto.** Quando il giocatore passa al vincitore o viene rifirmato, `teams.libera_cap` → `pg_client.deattiva_contratto` disattiva quello del proprietario. Il movimento lo dà la `signed` della firma nuova.
+
+### Regole extra
+
+**Regola dei 30 giorni** (`pg_client.squadre_regola_30_giorni`). Se l'ultimo movimento del giocatore è un taglio, sono bloccate le squadre che l'hanno avuto negli ultimi 30 giorni.
+
+**Cam Thomas** (`pg_client.minimo_cam_thomas`). Se c'è un decadimento con nota "Cam Thomas" della stessa squadra nell'ultimo anno, l'offerta minima è il vecchio contratto.
+
+**Cap e slot anticipati** (`/autocap`, `/autoslot`). Una riga in `cap_anticipato`/`slot_anticipato` con scadenza a 48 ore, più una segnalazione al gruppo admin con il bottone di reset (`reset_cap_ant:` / `reset_slot_ant:`). Il reset è rifiutato se la squadra finirebbe in negativo.
+
+### Riavvio
+
+`recupera_stati_pendenti` gira 5 secondi dopo l'avvio. Ripesca le aste CHIUSA e PAREGGIO e rischedula firma e pareggio automatici **con il tempo che mancava**, non da capo. `/force_esito` fa la stessa cosa a mano per un'asta.
+
+---
+
+## 5. Job
+
+| Quando | Job | Cosa fa |
+|---|---|---|
+| ogni 60 s | `check_scadenze` | chiusure e avvisi a 15 minuti |
+| 5 s dopo l'avvio | `recupera_stati_pendenti` | riprende firme e pareggi |
+| ogni 5 min | `job_aggiorna_comandi` | se cambiano fase, mercato o presenza di aste aperte, ri-registra il menu "/" |
+| ogni 5 min | `ping_healthcheck` | solo con `HEALTHCHECK_URL` |
+| 13:00 | `check_cap_stagionale` | solo offseason |
+| una tantum | `firma_automatica`, `pareggio_automatico` | `run_once` alle scadenze di firma e pareggio |
+
+Gli errori dei job vanno a `helpers.log_job_error`: canale log e privato del dev.
+
+**Codice presente ma non schedulato:**
+
+- `scheduler.backup_*`: il backup lo fa il bot principale; qui resta solo `/backup_ora`.
+- `scheduler.pulizia_anticipati_scaduti`: non serve, perché le query filtrano già `scade_at > NOW()`. Restano solo righe vecchie nella tabella.
+
+---
+
+## 6. Menu "/" e comandi
+
+**Menu** (`comandi.py`). `liste_comandi(fase, mercato_fa, offerte)` costruisce le liste per scope:
+
+- GM in privato;
+- ogni admin;
+- dev;
+- gruppi: solo `/team` e `/listteams`.
+
+Visibilità:
+
+- i comandi FA (`/lista_fa`, `/nuova_fa`, `/apri_asta`) solo a mercato aperto;
+- quelli per offrire (`/offri`, `/offerta`, `/watch`, `/autocap`, `/autoslot`, `/crea_offerta`) anche in fase RFA o finché ci sono aste aperte;
+- `/nuova_rfa` solo in offseason.
+
+`registra_comandi(bot, forza)` ricorda l'ultimo stato e non rifà le chiamate se non è cambiato niente.
+
+**Dev:**
+
+| Comando | Cosa fa |
+|---|---|
+| `/dev` | elenco |
+| `/guida_dev` | questa guida |
+| `/dev_version` | versione |
+| `/dev_aste_stato` | aste raggruppate per stato |
+| `/dev_watched` | tutti i watcher, con nome |
+| `/dev_rfa` | RFA della stagione |
+| `/dev_firme [N]` | ultime firme in dettaglio |
+| `/dev_cap` | cap e slot virtuali di ogni squadra, con le aste che li occupano |
+| `/dev_log [N]` | ultime righe di log |
+| `/job_status` | job e prossima esecuzione |
+| `/broadcast <testo>` | messaggio a tutti i GM |
+| `/backup_ora` | copia di aste.db sul canale log |
+| `/reboot` | riavvio |
+
+**Admin:**
+
+| Area | Comandi |
+|---|---|
+| guardare | `/list`, `/listteams`, `/team`, `/aste`, `/all_aste`, `/firme`, `/stato_asta` |
+| per conto di una squadra | `/apri_asta`, `/crea_offerta`, `/nuova_rfa` |
+| correggere | `/annulla_offerta`, `/chiudi_asta`, `/annulla_asta`, `/riapri_asta`, `/estendi_asta`, `/sposta_asta` |
+| recupero | `/force_esito`, `/forza_aggiornamento`, `/ripubblica_asta` |
+| mercato | `/apri_mercato`, `/chiudi_mercato` (emergenza) |
+| aiuto | `/admin`, `/guida_admin` |
+
+**GM:**
+
+| Area | Comandi |
+|---|---|
+| situazione | `/me`, `/team`, `/team_detail` (tastiera con tutte le squadre), `/listteams`, `/aste` |
+| aste | `/lista_fa`, `/nuova_fa`, `/offri`, `/offerta` |
+| seguire | `/watch`, `/watched`, `/silenzia` |
+| emergenze | `/autocap`, `/autoslot` |
+| varie | `/guida`, `/annulla`, `/start` (benvenuto o deep link) |
+
+---
+
+## 7. I file
+
+| File | Contenuto |
+|---|---|
+| `bot.py` | avvio, handler, job, error handler, `recupera_stati_pendenti`, `/reboot` |
+| `database.py` | SQLite: schema, `_migrate()` additivo, query su aste, offerte e watch, `STATI_IMPEGNO` |
+| `pg_client.py` | PostgreSQL: cap, roster, firme, RFA, 30 giorni, Cam Thomas, anticipati, lista FA, coda GAS |
+| `teams.py` | teams.json (lettura), `check_slot_virtuale`, `libera_cap`/`scala_cap_slot` (no-op su JSON con PostgreSQL attivo) |
+| `settings.py` | settings e regole di cap (`cap_limite`, `penalita_cap`, `offerta_massima`) |
+| `utils.py` | globals, ricerca giocatori, formattazione, messaggio del canale (`build_canale_message`), `cap_slot_display`, `cap_impegnato_display` |
+| `comandi.py` | menu "/" |
+| `scheduler.py` | `check_scadenze`, `check_cap_stagionale`, healthcheck |
+| `handlers/offerte.py` | apertura, offerta, deep link, `/offri` |
+| `handlers/firma.py` | firma, RFA, pareggio, pre-impostazioni, lascio andare |
+| `handlers/user.py` | `/me`, `/watch`, `/watched`, `/lista_fa`, `/silenzia`, `/offerta`, `/team_detail`, `/guida` |
+| `handlers/admin.py` | tutti i comandi admin, `/team`, `/listteams`, `/autocap`, `/autoslot` |
+| `handlers/helpers.py` | `aggiorna_canale`, `notifica_watchers`, `notifica_admin_group`, `log_warn`, `log_job_error` |
+| `handlers/dev.py` | comandi dev |
+| `flowchart.mermaid` | schema dei flussi GM (può essere indietro rispetto al codice) |
+
+### Prefissi dei bottoni
+
+| File | Prefissi |
+|---|---|
+| `offerte.py` | `conferma_offerta:`, `fa_conferma:`, `fa_omonimo:`, `offri_page:`, `annulla` |
+| `firma.py` | `firma*`, `pareggio*`, `pre_par_*`, `pre_rifiuto*`, `firma_prop*`, `lascia:` |
+| `user.py` | `watch:`, `fa_page:`, `fa_avvia:`, `td:`, `td_back` |
+| `admin.py` | `admin_annulla:`, `admin_chiudi:`, `admin_noop`, `annulla_off_cap:`, `riapri_cap:`, `riapri_annullata:`, `reset_cap_ant:`, `reset_slot_ant:`, `reset_rfa:` (disattivato) |
+
+---
+
+## 8. Diagnosi rapida
+
+**Un'asta è "bloccata":**
+
+1. `/stato_asta <id>` per vedere stato, scadenze e offerte.
+2. Se è CHIUSA o PAREGGIO e il GM non ha il messaggio: `/force_esito <id>`.
+3. Se il canale non si aggiorna: `/forza_aggiornamento`, poi `/ripubblica_asta`.
+
+**Cap o slot sbagliati in `/me`:**
+
+1. `/dev_cap` per vedere quali aste stanno impegnando cap e slot.
+2. Poi guarda i contratti attivi e i movimenti su PostgreSQL. Spesso è una firma o un taglio fatti a mano senza transazione: il bot aste conta il roster dall'**ultimo movimento**.
+
+```sql
+-- roster secondo il bot aste
+SELECT g.nome_common, t.tipo, t.timestamp FROM giocatori g
+JOIN LATERAL (SELECT * FROM transazioni WHERE giocatore_id = g.id ORDER BY timestamp DESC LIMIT 1) t ON TRUE
+WHERE t.team_id_a = 'team07';
+```
+
+**Firma non arrivata su PostgreSQL.** Nei log c'è `Firma PG fallita per …`: registrala con `/registra_firma` dal bot principale.
+
+**Leggere il database delle aste:**
+
+```bash
+docker compose exec bot-aste-beta python3 -c "import sqlite3; c=sqlite3.connect('/data/aste.db'); print(c.execute('SELECT id,giocatore,stato,offerta_corrente,offerente_team_id,scade_at FROM aste ORDER BY id DESC LIMIT 10').fetchall())"
+```
+
+---
+
+## 9. Sviluppare e provare
+
+- Le prove del bot aste stanno in `tests/aste/`:
+  - quelle "isolate" girano senza PostgreSQL (`PG_URL` vuoto);
+  - le altre usano il PostgreSQL locale di prova.
+- Lancio: `tests/run.sh` dalla radice del progetto, in locale, mai sul server.
+- Schema SQLite: solo `ALTER TABLE … ADD COLUMN` in `_migrate()`, con default.
+- Ogni rilascio che tocca questo bot aggiunge una voce `## vNN — titolo` al suo CHANGELOG (nello zip `CHANGELOG_aste.md`).
+- Rebuild: `docker compose up --build -d bot-aste-beta`. Se cambia `shared/`, anche `bot-main`.

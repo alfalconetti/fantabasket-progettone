@@ -690,6 +690,12 @@ async def set_cap_penalizzato(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.effective_message.reply_text("⛔ Non sei autorizzato.")
         return
 
+    # config/ è montata in sola lettura nel bot aste: scrivere teams.json da qui falliva.
+    await update.effective_message.reply_text(
+        "La penalità cap si imposta dal bot principale: /set_cap_penalizzato &lt;team_id&gt; &lt;valore&gt;",
+        parse_mode="HTML")
+    return
+
     if len(context.args) != 2:
         await update.effective_message.reply_text("Uso: /set_cap_penalizzato <team_id> <valore>")
         return
@@ -1094,7 +1100,7 @@ async def cb_reset_slot_anticipato(update: Update, context: ContextTypes.DEFAULT
     except Exception:
         slot_virt = 0
 
-    slot_reale = pg_client.get_slot_totale(team_id)
+    slot_reale = pg_client.get_slot_totale(team_id, stagione=utils.get_stagione_corrente()) - slot_ant - slot_virt
     if slot_reale < 0:
         await query.edit_message_reply_markup(reply_markup=None)
         await query.message.reply_text(
@@ -1195,7 +1201,7 @@ async def cmd_team(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.effective_message.reply_text(
             "Uso: /team &lt;team_id&gt;\n"
-            "Esempio: /team bulls\n\n"
+            "Esempio: /team team07\n\n"
             "Usa /listteams per vedere tutti gli ID squadra.",
             parse_mode="HTML",
         )
@@ -2123,7 +2129,7 @@ async def crea_offerta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) != 3:
         await update.effective_message.reply_text(
             "Uso: /crea_offerta &lt;team_id&gt; &lt;asta_id&gt; &lt;importo&gt;\n"
-            "Esempio: /crea_offerta bulls 42 25",
+            "Esempio: /crea_offerta team07 42 25",
             parse_mode="HTML",
         )
         return
@@ -2202,7 +2208,7 @@ async def apri_asta(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     uso = ("Uso: /apri_asta &lt;team_id&gt; &lt;importo&gt; &lt;nome giocatore&gt;\n"
-           "Esempio: /apri_asta bulls 5 LeBron James")
+           "Esempio: /apri_asta team07 5 LeBron James")
     if len(context.args) < 3:
         await update.effective_message.reply_text(uso, parse_mode="HTML")
         return
@@ -2346,7 +2352,7 @@ async def cmd_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     testo = (
         "<b>Comandi admin — bot aste</b>\n"
-        "<i>Fase, cap e slot arrivano dal bot principale: qui non si cambiano.</i>\n"
+        "<i>Fase, stagione, cap, slot e penalità arrivano dal bot principale: qui non si cambiano.</i>\n"
         "\n"
         "<b>👀 Guardare</b>\n"
         "/list — squadre con id e GM\n"
@@ -2357,9 +2363,9 @@ async def cmd_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/stato_asta &lt;asta_id&gt; — tutti i dati di un'asta con le offerte\n"
         "\n"
         "<b>🏀 Aprire e offrire per una squadra</b>\n"
-        "/apri_asta &lt;team_id&gt; &lt;importo&gt; &lt;giocatore&gt; — es. /apri_asta bulls 5 LeBron James\n"
-        "/crea_offerta &lt;team_id&gt; &lt;asta_id&gt; &lt;importo&gt; — es. /crea_offerta bulls 42 7\n"
-        "/nuova_rfa &lt;giocatore&gt; &lt;team_id&gt; &lt;vecchio_compenso&gt; — es. /nuova_rfa Doncic mavs 28\n"
+        "/apri_asta &lt;team_id&gt; &lt;importo&gt; &lt;giocatore&gt; — es. /apri_asta team07 5 LeBron James\n"
+        "/crea_offerta &lt;team_id&gt; &lt;asta_id&gt; &lt;importo&gt; — es. /crea_offerta team07 42 7\n"
+        "/nuova_rfa &lt;giocatore&gt; &lt;team_id&gt; &lt;vecchio_compenso&gt; — es. /nuova_rfa Doncic team12 28\n"
         "\n"
         "<b>🛠 Correggere un'asta</b>\n"
         "/annulla_offerta &lt;asta_id&gt; — toglie l'ultima offerta\n"
@@ -2375,9 +2381,8 @@ async def cmd_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/ripubblica_asta &lt;asta_id&gt; — ripubblica il messaggio se è stato cancellato\n"
         "/backup_ora — backup subito sul canale log\n"
         "\n"
-        "<b>🏟 Mercato e penalità</b>\n"
+        "<b>🏟 Mercato</b>\n"
         "/apri_mercato · /chiudi_mercato — solo emergenza (di solito segue la fase)\n"
-        "/set_cap_penalizzato &lt;team_id&gt; &lt;valore&gt; — penalità sul cap\n"
         "\n"
         "/guida_admin — la guida completa · /dev — comandi dev"
     )

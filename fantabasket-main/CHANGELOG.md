@@ -930,3 +930,13 @@ Revisione del codice contro il regolamento.
 - Tolto dal menu admin `/approva_trade`, che non esiste (le trade si approvano coi bottoni nel gruppo)
 - `/dev`: aggiunti `/dev_player`, `/nuovo_giocatore`, `/sync_sheets`; `/nuovo_giocatore` anche nel menu dev
 - Nuova prova `tests/docs/guide_e_menu.py`: ogni comando citato nelle guide, negli aiuti `/admin` e `/dev` e nei menu "/" deve esistere nel suo bot
+
+## v3.9.4 (2026-10-12)
+
+### Guide dev
+- Nuove `docs/guida_dev.md` per i due bot: promemoria tecnico (mappa del progetto, config, fasi, tabelle, file, prefissi dei bottoni, regole e dove stanno, job, comandi, integrazioni, backup, come sviluppare e rilasciare, cose non ancora automatizzate). `/guida_dev` (solo dev) le manda su Telegram
+- La prova `guide_e_menu` controlla anche le guide dev e il benvenuto del bot aste
+
+### Penalità cap
+- **`/set_cap_penalizzato <team_id> <valore>` (admin) ora sta nel bot principale.** Nel bot aste scriveva teams.json, che lì è montato in sola lettura: il comando andava in errore e la penalità si poteva cambiare solo a mano. Aggiorna il foglio della squadra; nel bot aste il comando rimanda qui
+- Guide: esempi con gli id veri delle squadre (`team07`), non nomi inventati

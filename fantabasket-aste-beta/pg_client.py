@@ -339,10 +339,8 @@ def cancella_spalmate_future(team_id: str, giocatore_id: int, stagione_corrente:
 def registra_firma(team_id: str, nome_giocatore: str, importo: int,
                     anni: int, stagione: str, tipo: str = "normale") -> bool:
     """
-    Scrive contratto + transazione 'signed' su PostgreSQL.
-    Se il giocatore ha spalmate residue su questo team (re-signing dopo taglio):
-      - somma lo spalmato all'importo del contratto
-      - cancella le spalmate future (ora incorporate nel nuovo contratto)
+    Scrive contratto + transazione 'signed' su PostgreSQL, nella stessa transazione.
+    Rifirma dopo un taglio: contratto = quello firmato, le spalmature restano (v52).
     Restituisce True se ok, False se PG non disponibile o errore.
     """
     if not pg_disponibile():
@@ -541,54 +539,17 @@ def get_cap_totale(team_id: str, stagione: str, cap_pen: int = 0) -> int:
     return _settings.cap_limite() - get_cap_contratti(team_id, stagione) - get_impatto_taglio(team_id, stagione) - cap_pen + get_cap_anticipato(team_id)
 
 
-def get_cap_anticipato(team_id: str) -> int:
-    """Cap anticipato attivo dal DB condiviso (tabella cap_anticipato)."""
-    conn = _conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT importo FROM cap_anticipato WHERE team_id = %s AND scade_at > NOW()",
-                (team_id,)
-            )
-            row = cur.fetchone()
-            return row[0] if row else 0
-    except Exception as e:
-        logger.error("get_cap_anticipato(%s): %s", team_id, e)
-        return 0
-    finally:
-        conn.rollback()
-        _putconn(conn)
-
-
-def get_slot_anticipato(team_id: str) -> int:
-    """Slot anticipato attivo dal DB condiviso."""
-    conn = _conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT quantita FROM slot_anticipato WHERE team_id = %s AND scade_at > NOW()",
-                (team_id,)
-            )
-            row = cur.fetchone()
-            return row[0] if row else 0
-    except Exception as e:
-        logger.error("get_slot_anticipato(%s): %s", team_id, e)
-        return 0
-    finally:
-        conn.rollback()
-        _putconn(conn)
-
-
 def get_slot_totale(team_id: str, stagione: str = None) -> int:
     """
     Slot totali disponibili = max_roster - roster_count_pg + RFA in corso della squadra
-    (l'RFA occupa cap ma non slot). Se stagione fornita, esclude anche i giocatori con
+    (l'RFA occupa cap ma non slot) + slot anticipato (/autoslot, 48h; fino a v54 era
+    mostrato in /me ma non contava). Se stagione fornita, esclude anche i giocatori con
     DPE attiva (slot liberato).
     """
     import database as _db_aste
     nomi_rfa = [r["giocatore"] for r in _db_aste.get_rfa_proprietario(team_id)]
     return (_settings.slot_massimo() - get_roster_count(team_id, stagione=stagione)
-            + rfa_fuori_slot(team_id, nomi_rfa))
+            + rfa_fuori_slot(team_id, nomi_rfa) + get_slot_anticipato(team_id))
 
 
 def get_bref_fantamedie_bulk(nomi: list[str]) -> dict[str, tuple[float | None, str | None]]:

@@ -25,20 +25,25 @@ def funzione(path, nome):
     return t[i:fine]
 
 def citati(testo):
-    return set(re.findall(r'(?<![\w/.<])/([a-z][a-z_]*)', testo))
+    return set(re.findall(r'(?<![\w/.<~])/([a-z][a-z_]*)(?![\w/.])', testo))
 
 for bot, testi in {
     "fantabasket-main": [("guida GM", leggi("fantabasket-main/docs/guida_gm.md")),
                          ("guida admin", leggi("fantabasket-main/docs/guida_admin.md")),
+                         ("guida dev", leggi("fantabasket-main/docs/guida_dev.md")),
                          ("/dev", funzione("fantabasket-main/handlers/dev.py", "cmd_dev"))],
     "fantabasket-aste-beta": [("guida GM", leggi("fantabasket-aste-beta/docs/guida_gm.md")),
                               ("guida admin", leggi("fantabasket-aste-beta/docs/guida_admin.md")),
+                              ("guida dev", leggi("fantabasket-aste-beta/docs/guida_dev.md")),
                               ("/admin e /dev", funzione("fantabasket-aste-beta/handlers/admin.py", "cmd_admin")
-                               + funzione("fantabasket-aste-beta/handlers/dev.py", "dev_help"))],
+                               + funzione("fantabasket-aste-beta/handlers/dev.py", "dev_help")),
+                              ("/start", funzione("fantabasket-aste-beta/handlers/offerte.py", "start_deep_link"))],
 }.items():
     reg = registrati(bot)
+    tutti = registrati("fantabasket-main") | registrati("fantabasket-aste-beta")
     for nome, t in testi:
-        mancanti = sorted(citati(t) - reg)
+        # la guida dev cita anche i comandi dell'altro bot
+        mancanti = sorted(citati(t) - (tutti if nome == "guida dev" else reg))
         ok(not mancanti, f"{bot} {nome}: comandi citati tutti esistenti {mancanti or ''}")
     menu = set(re.findall(r'BotCommand\(\s*"(\w+)"', leggi(bot, "comandi.py")))
     menu |= set(re.findall(r'BotCommand\(\s*"(\w+)" if', leggi(bot, "comandi.py")))

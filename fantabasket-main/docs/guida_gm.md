@@ -34,7 +34,7 @@ In fondo trovi cap, tagli gratuiti usati e cambi ruolo usati.
 
 Il comando funziona anche in altri modi:
 
-- `/roster bulls` oppure `/roster Rossi` → il roster di un'altra squadra (basta una parte del nome della squadra o del GM)
+- `/roster team07` oppure `/roster Rossi` → il roster di un'altra squadra (basta una parte del nome della squadra o del GM)
 - `/roster 15-01-26` → il tuo roster com'era il 15 gennaio 2026
 
 **`/assets`** è il roster più tutto il resto: le pick anno per anno (★ quelle tue, ○ quelle prese da altri) e i diritti sui rookie. Se vedi il tag rosso **STEPIEN** su una tua prima scelta, vuol dire che non puoi cederla senza violare la Stepien Rule.
@@ -50,7 +50,7 @@ Il comando funziona anche in altri modi:
   • Joel Embiid 40x2 → 30x2 (DPE, era 40)
 ```
 
-Funziona anche per un'altra squadra (`/team_diff bulls`) o tra due date a scelta (`/team_diff bulls 01-10-26 15-10-26`).
+Funziona anche per un'altra squadra (`/team_diff team07`) o tra due date a scelta (`/team_diff team07 01-10-26 15-10-26`).
 
 **`/my_team`** serve a cambiare nome squadra, nome GM e colori. **`/palette`** personalizza i colori delle immagini di roster e assets, con un'anteprima prima di salvare.
 

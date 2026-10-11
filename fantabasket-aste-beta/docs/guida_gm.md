@@ -18,7 +18,7 @@ Il menu dei comandi (il tasto `/`) segue la fase. A mercato chiuso, per esempio,
 
 In offseason ti mostra anche come saresti messo col cap di regular season, e quanto pesa il tuo eventuale RFA.
 
-Per vedere un'altra squadra: **`/team bulls`**, con l'id della squadra. Gli id li trovi in `/listteams`, che mostra anche cap e slot di tutti in una riga a testa.
+Per vedere un'altra squadra: **`/team team07`**, con l'id della squadra. Gli id li trovi in `/listteams`, che mostra anche cap e slot di tutti in una riga a testa.
 
 Il bot fa sempre questi conti prima di accettare un'offerta. Se non hai cap o slot te lo dice subito e l'offerta non parte.
 
@@ -48,7 +48,8 @@ Regole del rilancio:
 
 - devi superare l'offerta attuale di almeno 1;
 - non puoi rilanciare su te stesso;
-- **ogni offerta fa ripartire il timer da 18 ore**.
+- **ogni offerta fa ripartire il timer da 18 ore**;
+- chi offre il **massimo consentito** (oggi 141M: 150 meno 1M per ognuno degli altri 9 giocatori del minimo di 10) chiude l'asta all'istante e se lo prende.
 
 ---
 
@@ -163,7 +164,7 @@ Se il bot sembra bloccato ad aspettare una tua risposta: **`/annulla`**.
 | Voglio… | Comando |
 |---|---|
 | sapere quanto posso spendere | `/me` |
-| vedere un'altra squadra | `/team bulls` |
+| vedere un'altra squadra | `/team team07` |
 | vedere i free agent | `/lista_fa` |
 | aprire un'asta | `/nuova_fa Nome` |
 | rilanciare | `/offri` oppure `/offerta asta 42 15` |

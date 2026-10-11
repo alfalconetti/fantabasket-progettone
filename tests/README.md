@@ -53,6 +53,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `revisione_regolamento` | main | tagli 1x1 (3 gratuiti, 4° con spalmatura, minimo 10 in RS), decadimento ritiro vs altro, `/ritiro_fa`, slot all'attivazione diritti, anni in `/registra_firma` |
 | `dpe_trade_tagli` | main | DPE che segue il giocatore in trade (validazione = cap reale, annullamento), taglio bloccato se scopre i ruoli in RS |
 | `report_spalmature` | main | report mensile: free agent con spalmature, ultima partita bref, Cam Thomas, esclusi i sotto contratto e le stagioni passate |
+| `penalita_cap` | main | `/set_cap_penalizzato`: solo admin, scrive teams.json, tetto RS ridotto e offseason a 165 |
 | `team_diff` | main | contratti nei due momenti, DPE, cambio contratto, niente falsi cambi tra stagioni |
 | `pg_rfa_30giorni_dpe` | aste + PG | RFA: cap sì slot no, lascio andare con movimento; regola dei 30 giorni; DPE nel cap per offrire; rifirma dopo taglio |
 | `rfa_lascio_andare` | aste + PG | "Lascio andare": solo proprietario, una volta sola |
@@ -61,6 +62,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `cap_asta_chiusa` | aste (isolato) | un'asta chiusa e non firmata impegna ancora cap e slot |
 | `rfa_proprietario` | aste (isolato) | il proprietario non offre sul proprio RFA neanche con `/offerta` |
 | `menu_e_listteams` | aste + PG | menu "/" per fase e ruolo, `/listteams` compatto, `/reset_rfa` disattivato |
+| `autoslot` | aste + PG | `/autoslot` e `/autocap` contano davvero negli slot e nel cap |
 | `guide_e_menu` | — | ogni comando citato in guide, `/admin`, `/dev` e menu "/" esiste nel suo bot (nessun database) |
 
 "Isolato" = bot aste senza PostgreSQL (`PG_URL` vuoto): cap e slot dal JSON.
