@@ -458,6 +458,8 @@ async def cb_adm_seleziona_squadra(update: Update, context: ContextTypes.DEFAULT
     trade_id = int(trade_id_s)
 
     ordine = context.user_data.get("adm_trade_squadre", [])
+    if team_id in ordine:        # doppio tap sullo stesso bottone
+        return ADMIN_TRADE_BUILD_SQ
     ordine.append(team_id)
     context.user_data["adm_trade_squadre"] = ordine
     db.aggiungi_squadra_trade(trade_id, team_id, len(ordine))
@@ -1083,12 +1085,12 @@ def get_handlers() -> list:
                 CallbackQueryHandler(cb_edit_back, pattern=r"^edit_back:\d+$"),
             ],
             EDIT_AGGIUNGI_TIPO: [
-                CallbackQueryHandler(cb_edit_tipo, pattern=r"^edit_tipo:[gp]:\d+:.+$"),
+                CallbackQueryHandler(cb_edit_tipo, pattern=r"^edit_tipo:[gpd]:\d+:.+$"),
                 CallbackQueryHandler(cb_edit_add,  pattern=r"^edit_add:\d+$"),
             ],
             EDIT_AGGIUNGI_ITEM: [
-                CallbackQueryHandler(cb_edit_item, pattern=r"^edit_item:[gp]:\d+:.+$"),
-                CallbackQueryHandler(cb_edit_tipo, pattern=r"^edit_tipo:[gp]:\d+:.+$"),
+                CallbackQueryHandler(cb_edit_item, pattern=r"^edit_item:[gpd]:\d+:.+$"),
+                CallbackQueryHandler(cb_edit_tipo, pattern=r"^edit_tipo:[gpd]:\d+:.+$"),
             ],
             ADMIN_IMPORT_TESTO: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, admin_import_ricevi_testo),

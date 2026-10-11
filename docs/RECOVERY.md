@@ -40,6 +40,7 @@ d'emergenza del suo database.
 **Cosa non c'è nel backup, e non serve:**
 - il codice → è su GitHub;
 - il token Yahoo (`yahoo_data`) → si rifà con `docker compose exec -it yahoo-router python3 cli.py auth`;
+- le viste della dashboard NocoDB (volume `nocodb_data`) → non servono ai bot; dopo un ripristino si rilancia `./scripts/setup_dashboard.sh` e si ricollega il database
 - gli script Google Apps Script → stanno su Google e non cambiano: per riattaccarli bastano
   gli URL delle web app e il token, che sono tra i secrets.
 
@@ -106,6 +107,7 @@ senza a capo in più). Nomi esatti, come in `docker-compose.yml`:
 | `yahoo_client_id`, `yahoo_client_secret`, `yahoo_router_token` | Yahoo | portale developer Yahoo (dev); non necessari per i bot |
 | `bot_main.env` | `HEALTHCHECK_URL=...` | healthchecks.io; può restare vuoto |
 | `yahoo_router.env` | `YAHOO_LEAGUE_IDS=...` | dev; può restare vuoto |
+| `nocodb.env`, `pg_lettore_password.txt` | dashboard NocoDB | si rigenerano con `./scripts/setup_dashboard.sh`; non servono ai bot |
 
 Se i token dei bot non sono recuperabili, vedi **Bot di emergenza** nella sezione 4.
 

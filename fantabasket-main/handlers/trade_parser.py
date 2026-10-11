@@ -277,12 +277,44 @@ def parsa_trade(testo: str, stagione: str, tutti_team: list) -> tuple[list[Sezio
             squadre[0].riceve = squadre[1].cede[:]
             squadre[1].riceve = squadre[0].cede[:]
     elif len(squadre) > 2:
-        # Per trade multi-squadra senza "riceve" espliciti, segnala
+        # Trade a 3-4: ogni asset ceduto deve comparire nel "riceve" di UNA sola altra
+        # squadra, e ogni asset ricevuto deve essere ceduto da qualcuno. Prima un asset
+        # senza "riceve" restava con destinatario '?' senza nessun errore.
+        def _k(it):
+            if it.tipo == "giocatore" and it.giocatore_id:
+                return ("g", it.giocatore_id)
+            if it.tipo == "pick" and it.pick_id:
+                return ("p", it.pick_id)
+            if it.tipo == "diritti" and it.giocatore_id:
+                return ("d", it.giocatore_id)
+            return None      # non risolto: l'errore è già sull'item
+        ceduti = {}          # chiave → (squadra che cede, item)
         for sq in squadre:
-            if not sq.riceve:
-                errori.append(
-                    f"{sq.team_nome}: trade a più squadre richiede sezioni 'riceve' esplicite"
-                )
+            for it in sq.cede:
+                k = _k(it)
+                if k:
+                    if k in ceduti:
+                        errori.append(f"'{it.raw}': ceduto da più squadre")
+                    ceduti[k] = (sq, it)
+        ricevuti = {}        # chiave → [squadre che lo ricevono]
+        for sq in squadre:
+            for it in sq.riceve:
+                k = _k(it)
+                if not k:
+                    continue
+                ricevuti.setdefault(k, []).append(sq)
+                if k not in ceduti:
+                    errori.append(f"{sq.team_nome} riceve '{it.raw}', ma nessuna squadra lo cede")
+                elif ceduti[k][0].team_id == sq.team_id:
+                    errori.append(f"{sq.team_nome}: '{it.raw}' è sia ceduto che ricevuto")
+        for k, (sq, it) in ceduti.items():
+            chi = ricevuti.get(k, [])
+            if not chi:
+                errori.append(f"{sq.team_nome} cede '{it.raw}', ma nessuna squadra lo riceve "
+                              f"(aggiungilo nel 'riceve' giusto)")
+            elif len(chi) > 1:
+                errori.append(f"'{it.raw}' ricevuto da più squadre: "
+                              + ", ".join(s.team_nome for s in chi))
 
     # Pick e diritti ceduti devono essere posseduti oggi da chi li cede
     nomi = {t["id"]: t["nome"] for t in tutti_team}

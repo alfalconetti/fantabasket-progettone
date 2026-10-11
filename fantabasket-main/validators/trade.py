@@ -45,6 +45,56 @@ def avvisi_trade(trade_id: int) -> list[str]:
     return avvisi
 
 
+def _nome_asset(i: dict) -> str:
+    if i["tipo"] == "pick":
+        rnd = "1st" if i.get("pick_round") == 1 else "2nd"
+        orig = tm.get_team_by_id(i.get("pick_orig") or "")
+        return f"{rnd} {i.get('pick_anno', '?')} di {orig['nome'] if orig else i.get('pick_orig', '?')}"
+    nome = i.get("nome_common") or f"#{i.get('giocatore_id')}"
+    return f"diritti di {nome}" if i["tipo"] == "diritti" else nome
+
+
+def _errori_struttura(trade: dict, items: list, squadre: list) -> list[str]:
+    """Controlli di forma, soprattutto per le trade a 3-4 squadre: ogni asset deve
+    avere un destinatario tra le squadre della trade (mai '?': in esecuzione il
+    giocatore finirebbe a una squadra inesistente), ogni squadra deve partecipare."""
+    errori = []
+    nomi = {t: (tm.get_team_by_id(t) or {}).get("nome", t) for t in squadre}
+    if len(squadre) != trade["n_squadre"]:
+        errori.append(f"❌ Squadre selezionate {len(squadre)} su {trade['n_squadre']}")
+    if not items:
+        errori.append("❌ La trade non contiene asset")
+    for i in items:
+        if i["team_id_da"] not in squadre:
+            errori.append(f"❌ {_nome_asset(i)}: ceduto da una squadra fuori dalla trade")
+        elif i["team_id_a"] == "?":
+            errori.append(f"❌ {_nome_asset(i)} ({nomi[i['team_id_da']]}): manca la squadra che lo riceve")
+        elif i["team_id_a"] not in squadre:
+            errori.append(f"❌ {_nome_asset(i)}: destinatario fuori dalla trade")
+        elif i["team_id_a"] == i["team_id_da"]:
+            errori.append(f"❌ {_nome_asset(i)}: ceduto e ricevuto dalla stessa squadra")
+    chiavi = [(i["tipo"], i.get("giocatore_id"), i.get("pick_id")) for i in items]
+    if len(chiavi) != len(set(chiavi)):
+        errori.append("❌ Lo stesso asset compare più volte")
+    if items:
+        for t in squadre:
+            if not any(t in (i["team_id_da"], i["team_id_a"]) for i in items):
+                errori.append(f"❌ {nomi[t]}: non cede e non riceve niente")
+    # pick e diritti: posseduti oggi da chi li cede (i giocatori sono controllati sotto)
+    for i in items:
+        if i["tipo"] == "pick" and i.get("pick_id"):
+            p = db.get_pick(i["pick_id"])
+            if not p or p["proprietario_att"] != i["team_id_da"]:
+                errori.append(f"❌ {nomi.get(i['team_id_da'], i['team_id_da'])}: la pick {_nome_asset(i)} non è sua")
+        elif i["tipo"] == "diritti":
+            r = db._q("SELECT team_id FROM rookie WHERE giocatore_id = %s AND firmato = FALSE "
+                      "AND diritti_scaduti = FALSE ORDER BY anno_draft DESC LIMIT 1",
+                      (i["giocatore_id"],), one=True)
+            if not r or r["team_id"] != i["team_id_da"]:
+                errori.append(f"❌ {nomi.get(i['team_id_da'], i['team_id_da'])}: {_nome_asset(i)} non attivi nella squadra")
+    return errori
+
+
 def valida_trade(trade_id: int) -> tuple[bool, list[str]]:
     """
     Valida una trade completa:
@@ -61,6 +111,8 @@ def valida_trade(trade_id: int) -> tuple[bool, list[str]]:
     stagione = trade["stagione"]
     items = db.get_items_trade(trade_id)
     squadre = [s["team_id"] for s in db.get_squadre_trade(trade_id)]
+
+    errori += _errori_struttura(trade, items, squadre)
 
     for team_id in squadre:
         # Asset che escono da questo team

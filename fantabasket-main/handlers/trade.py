@@ -241,6 +241,8 @@ async def cb_seleziona_squadra(update: Update, context: ContextTypes.DEFAULT_TYP
 
     trade_id = context.user_data["trade_id"]
     ordine   = context.user_data["trade_squadre_ordine"]
+    if tid in ordine:            # doppio tap sullo stesso bottone
+        return TRADE_SELEZIONA_SQUADRE
     ordine.append(tid)
     db.aggiungi_squadra_trade(trade_id, tid, len(ordine))
 
@@ -367,8 +369,7 @@ async def cb_asset_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 
 async def cb_toggle_giocatore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    query = update.callback_query
-    await query.answer()
+    query = update.callback_query   # answer() una volta sola, più sotto ("Aggiunto"/"Rimosso")
     _, trade_id_s, team_id, gid_s = query.data.split(":")
     trade_id, gid = int(trade_id_s), int(gid_s)
 
@@ -409,8 +410,7 @@ async def _ricarica_lista_giocatori(query, trade_id: int, team_id: str) -> int:
 
 
 async def cb_toggle_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    query = update.callback_query
-    await query.answer()
+    query = update.callback_query   # answer() una volta sola, più sotto ("Aggiunto"/"Rimosso")
     _, trade_id_s, team_id, pid_s = query.data.split(":")
     trade_id, pid = int(trade_id_s), int(pid_s)
 
@@ -436,7 +436,8 @@ async def cb_toggle_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         team_orig = tm.get_team_by_id(p["proprietario_orig"])
         nome_orig = team_orig["nome"] if team_orig else p["proprietario_orig"]
         rnd   = "1st" if p["round"] == 1 else "2nd"
-        label = f"{check}{nome_orig} {rnd} {p['anno']}"
+        prot  = f" ({p['protezioni']})" if p.get("protezioni") else ""
+        label = f"{check}{nome_orig} {rnd} {p['anno']}{prot}"
         bottoni.append([InlineKeyboardButton(label, callback_data=f"trade_pi:{trade_id}:{team_id}:{p['id']}")])
     bottoni.append([InlineKeyboardButton("← Indietro", callback_data=f"trade_am:back:{trade_id}:{team_id}")])
     await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(bottoni))
@@ -444,14 +445,14 @@ async def cb_toggle_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def cb_toggle_diritti(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    query = update.callback_query
-    await query.answer()
+    query = update.callback_query   # answer() una volta sola, più sotto ("Aggiunto"/"Rimosso")
     _, trade_id_s, team_id, rookie_id_s = query.data.split(":")
     trade_id, rookie_id = int(trade_id_s), int(rookie_id_s)
 
     rookie = db.get_rookie(rookie_id)
     if not rookie:
-        return TRADE_ASSET_PICK
+        await query.answer("Diritti non trovati.", show_alert=True)
+        return TRADE_ASSET_DIRITTI
 
     items = db.get_items_trade(trade_id)
     esistente = next(
@@ -481,7 +482,7 @@ async def cb_toggle_diritti(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         bottoni.append([InlineKeyboardButton(label, callback_data=f"trade_di:{trade_id}:{team_id}:{d['id']}")])
     bottoni.append([InlineKeyboardButton("← Indietro", callback_data=f"trade_am:back:{trade_id}:{team_id}")])
     await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(bottoni))
-    return TRADE_ASSET_PICK
+    return TRADE_ASSET_DIRITTI   # era TRADE_ASSET_PICK: dal secondo diritto in poi il tap non faceva niente
 
 
 async def cb_squadra_confermata(query, context, trade_id: int, team_id: str) -> int:
@@ -568,14 +569,23 @@ async def _prossimo_item_da_assegnare(query, context, trade_id: int, squadre: li
 async def cb_assegna_dest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """L'utente ha scelto il destinatario di un item."""
     query = update.callback_query
-    await query.answer()
     _, item_id_s, team_id_a = query.data.split(":")
     item_id  = int(item_id_s)
-    trade_id = db.get_item_trade(item_id)["trade_id"]
+    item     = db.get_item_trade(item_id)
+    if not item:
+        await query.answer("Asset non più nella bozza.", show_alert=True)
+        return TRADE_ASSEGNA_DEST
+    trade_id = item["trade_id"]
+    if await _bozza_non_modificabile(query, trade_id):
+        return ConversationHandler.END
+    squadre = [s["team_id"] for s in db.get_squadre_trade(trade_id)]
+    if team_id_a not in squadre or team_id_a == item["team_id_da"]:
+        await query.answer("Destinatario non valido.", show_alert=True)
+        return TRADE_ASSEGNA_DEST
+    await query.answer()
 
     db.assegna_destinatario_item(item_id, team_id_a)
 
-    squadre = [s["team_id"] for s in db.get_squadre_trade(trade_id)]
     return await _prossimo_item_da_assegnare(query, context, trade_id, squadre)
 
 
@@ -598,12 +608,48 @@ async def _vai_a_riepilogo(query, trade_id: int) -> int:
     return TRADE_RIEPILOGO
 
 
+def _puo_gestire_bozza(uid: int, trade: dict) -> bool:
+    """Bozza del GM che la sta usando, o bozza admin ("admin") per un admin."""
+    if trade["proposta_da"] == "admin":
+        return settings.is_admin(uid)
+    team = tm.get_team_by_gm(uid)
+    return bool(team and team["id"] == trade["proposta_da"]) or settings.is_admin(uid)
+
+
+async def _bozza_non_modificabile(query, trade_id: int) -> bool:
+    """True (e avviso) se la trade non è più una bozza modificabile da chi preme:
+    i vecchi bottoni di modifica non devono toccare trade già inviate."""
+    trade = db.get_trade(trade_id)
+    if not trade:
+        await query.answer("Bozza non trovata (eliminata?).", show_alert=True)
+        return True
+    if trade["stato"] != "bozza":
+        await query.answer(f"Non è più una bozza ({_STATI.get(trade['stato'], trade['stato'])}): "
+                           "per cambiarla usa ♻️ Riprendi come bozza da /my_trades.", show_alert=True)
+        return True
+    if not _puo_gestire_bozza(query.from_user.id, trade):
+        await query.answer("⛔ Non è una tua bozza.", show_alert=True)
+        return True
+    return False
+
+
 async def cb_trade_del(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Elimina la bozza."""
+    """Elimina la bozza. Solo bozze: un vecchio bottone "Elimina" non deve poter
+    cancellare una trade già inviata ai GM o agli admin."""
     query    = update.callback_query
     trade_id = int(query.data.split(":")[1])
     trade    = db.get_trade(trade_id)
-    label    = _label_bozza(trade) if trade else f"#{trade_id}"
+    if not trade:
+        await query.answer("Bozza già eliminata.", show_alert=True)
+        return ConversationHandler.END
+    label    = _label_bozza(trade)
+    if trade["stato"] != "bozza":
+        await query.answer(f"Non è più una bozza ({_STATI.get(trade['stato'], trade['stato'])}): "
+                           "non si può eliminare.", show_alert=True)
+        return ConversationHandler.END
+    if not _puo_gestire_bozza(query.from_user.id, trade):
+        await query.answer("⛔ Non è una tua bozza.", show_alert=True)
+        return ConversationHandler.END
     db.elimina_trade(trade_id)
     await query.answer()
     await query.edit_message_text(f"🗑️ Bozza {label} eliminata.")
@@ -614,9 +660,11 @@ async def cb_modifica_da_riepilogo(update: Update, context: ContextTypes.DEFAULT
     """Apre l'editor inline da TRADE_RIEPILOGO."""
     query    = update.callback_query
     trade_id = int(query.data.split(":")[1])
+    if await _bozza_non_modificabile(query, trade_id):
+        return ConversationHandler.END
+    await query.answer()
     trade    = db.get_trade(trade_id)
     context.user_data["edit_from_riepilogo"] = True
-    await query.answer()
     await query.edit_message_text(
         f"✏️ <b>Modifica bozza {_label_bozza(trade)}</b>\n\n"
         f"{_testo_riepilogo(trade_id)}\n\n"
@@ -697,33 +745,32 @@ def _formatta_annuncio_canale(trade_id: int) -> str:
 
 async def cb_send_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
-    await query.answer()
     _, destinatario, trade_id_s = query.data.split(":")
     trade_id = int(trade_id_s)
     trade    = db.get_trade(trade_id)
 
-    # Rileggi trade fresca dal DB per avere validazione_ok aggiornata
-    trade = db.get_trade(trade_id)
     if not trade:
         await query.answer("❌ Trade non trovata.", show_alert=True)
         return ConversationHandler.END
-    if trade["validazione_ok"] is False:
+    if trade["stato"] != "bozza":
         await query.answer()
-        # Rivalida prima di mostrare l'errore — potrebbe essere già ok
-        ok, errori = valida_trade(trade_id)
-        db.aggiorna_stato_trade(trade_id, "bozza", validazione_ok=ok,
-                                validazione_note="\n".join(errori) if errori else None)
-        if ok:
-            # Era già ok, procedi
-            pass
-        else:
-            testo = _testo_riepilogo(trade_id)
-            testo += "\n\n⚠️ <b>Problemi rilevati:</b>\n" + "\n".join(errori)
-            await query.edit_message_text(
-                testo, parse_mode="HTML",
-                reply_markup=_kb_riepilogo(trade_id),
-            )
-            return TRADE_RIEPILOGO
+        await query.edit_message_text(f"⚠️ La trade non è più una bozza (stato: {_STATI.get(trade['stato'], trade['stato'])}).")
+        return ConversationHandler.END
+    if not _puo_gestire_bozza(update.effective_user.id, trade):
+        await query.answer("⛔ Non è una tua bozza.", show_alert=True)
+        return ConversationHandler.END
+    await query.answer()
+    # Sempre rivalidata al momento dell'invio: roster, cap e pick possono essere
+    # cambiati dopo il riepilogo, e l'editor non aggiorna validazione_ok
+    ok, errori = valida_trade(trade_id)
+    db.aggiorna_stato_trade(trade_id, "bozza", validazione_ok=ok,
+                            validazione_note="\n".join(errori) if errori else None)
+    if not ok:
+        testo = _testo_riepilogo(trade_id)
+        testo += "\n\n⚠️ <b>Problemi rilevati:</b>\n" + "\n".join(errori)
+        await query.edit_message_text(testo, parse_mode="HTML",
+                                      reply_markup=_kb_riepilogo_non_valida(trade_id))
+        return TRADE_RIEPILOGO
 
     if destinatario == "admin":
         await _invia_ad_admin(query, context, trade_id)
@@ -773,7 +820,7 @@ async def cb_nota_apri(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     testo = ("📝 <b>Nota alla trade</b>\n\n"
             "Scrivi il messaggio da allegare (max 300 caratteri).\n")
     if nota_attuale:
-        testo += f"\nNota attuale: <i>{nota_attuale}</i>\n"
+        testo += f"\nNota attuale: <i>{html.escape(nota_attuale)}</i>\n"
     testo += "\n<i>Invia /salta per rimuovere la nota.</i>"
 
     await query.edit_message_text(testo, parse_mode="HTML")
@@ -800,7 +847,7 @@ async def cb_nota_ricevi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if ok:
         testo += "\n\n✅ <b>Validazione OK</b>"
         if nota:
-            testo += f"\n📝 Nota: <i>{nota}</i>"
+            testo += f"\n📝 Nota: <i>{html.escape(nota)}</i>"
     else:
         note_val = trade.get("validazione_note") or ""
         testo += "\n\n⚠️ <b>Problemi rilevati:</b>\n" + note_val
@@ -853,7 +900,7 @@ async def _proponi_ai_gm(query, context, trade_id: int):
         nota_gm = trade.get("nota_gm", "") or ""
         proponente = tm.get_team_by_id(trade["proposta_da"])
         proponente_nome = proponente["gm_nome"] if proponente else "GM"
-        testo_nota = f"\n\n💬 <b>Messaggio da {proponente_nome}:</b> <i>{nota_gm}</i>" if nota_gm else ""
+        testo_nota = f"\n\n💬 <b>Messaggio da {html.escape(proponente_nome)}:</b> <i>{html.escape(nota_gm)}</i>" if nota_gm else ""
         for gm_id in team.get("gm_ids", []):
             try:
                 await context.bot.send_message(
@@ -909,6 +956,9 @@ async def cb_voto_gm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not trade or trade["stato"] != "proposta":
         await query.edit_message_text("⚠️ Questa trade non è più in votazione.")
         return
+    if not any(v["team_id"] == team_id for v in db.get_voti_trade(trade_id) or []):
+        await query.edit_message_text("⚠️ La tua squadra non deve votare questa trade.")
+        return
 
     voto = "accettato" if esito == "si" else "rifiutato"
     team = tm.get_team_by_id(team_id)
@@ -931,10 +981,16 @@ async def cb_voto_gm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     db.registra_voto(trade_id, team_id, voto)
-    await query.edit_message_text(f"✅ Hai accettato la trade {_trade_label(trade)}. Attendo gli altri.")
-
     if db.chiudi_voto_se_tutti_accettano(trade_id):
+        await query.edit_message_text(f"✅ Hai accettato la trade {_trade_label(trade)}. "
+                                      f"Hanno accettato tutti: ora tocca agli admin.")
         await _invia_ad_admin_dopo_voti(context, trade_id)
+        return
+    await query.edit_message_text(f"✅ Hai accettato la trade {_trade_label(trade)}.\n🗳 {_riga_voti(trade_id)}")
+    # trade a 3-4: il proponente vede l'avanzamento dei voti
+    await _notifica_proponente(context, trade_id,
+                               f"✅ <b>{team['nome'] if team else team_id}</b> ha accettato la trade "
+                               f"<b>{_trade_label(trade)}</b>.\n🗳 {_riga_voti(trade_id)}")
 
 
 def _label_bozza(trade: dict) -> str:
@@ -1023,14 +1079,15 @@ async def _esegui_rifiuto(query, context, trade_id: int, team_id: str, nota: str
         await query.edit_message_text("⚠️ Questa trade non è più in votazione.")
         return
 
-    testo_proponente = f"❌ <b>{team['nome']}</b> ha rifiutato la trade <b>{_trade_label(trade)}</b>."
+    testo_altri = f"❌ <b>{team['nome'] if team else team_id}</b> ha rifiutato la trade <b>{_trade_label(trade)}</b>."
     if nota:
-        testo_proponente += f"\n\n📝 Motivazione: <i>{nota}</i>"
-    await _notifica_proponente(context, trade_id, testo_proponente)
+        testo_altri += f"\n\n📝 Motivazione: <i>{html.escape(nota)}</i>"
+    testo_altri += "\n<i>La trade è chiusa. Il proponente può riprenderla come bozza da /my_trades.</i>"
+    await _notifica_squadre(context, trade_id, testo_altri, escludi=(team_id,))
 
     testo_gm = f"❌ Hai rifiutato la trade {_trade_label(trade)}."
     if nota:
-        testo_gm += f"\n📝 Nota: <i>{nota}</i>"
+        testo_gm += f"\n📝 Nota: <i>{html.escape(nota)}</i>"
     await query.edit_message_text(testo_gm, parse_mode="HTML")
 
 
@@ -1053,6 +1110,28 @@ async def _notifica_proponente(context, trade_id: int, testo: str) -> None:
             logger.warning("_notifica_proponente GM %d: %s", gm_id, e)
 
 
+async def _notifica_squadre(context, trade_id: int, testo: str, escludi: tuple = ()) -> None:
+    """Messaggio privato ai GM di TUTTE le squadre della trade (tranne `escludi`).
+    Nelle trade a 3-4 squadre anche chi non ha proposto deve sapere com'è finita.
+    Per le trade create dagli admin (proposta_da 'admin') avvisa anche il gruppo admin."""
+    trade = db.get_trade(trade_id)
+    if not trade:
+        return
+    for sq in db.get_squadre_trade(trade_id):
+        if sq["team_id"] in escludi:
+            continue
+        for gm_id in (tm.get_team_by_id(sq["team_id"]) or {}).get("gm_ids", []):
+            try:
+                await context.bot.send_message(chat_id=gm_id, text=testo, parse_mode="HTML")
+            except Exception as e:
+                logger.warning("_notifica_squadre GM %s: %s", gm_id, e)
+    if trade["proposta_da"] == "admin" and "admin" not in escludi and settings.admin_group_id():
+        try:
+            await context.bot.send_message(chat_id=settings.admin_group_id(), text=testo, parse_mode="HTML")
+        except Exception as e:
+            logger.warning("_notifica_squadre gruppo admin: %s", e)
+
+
 async def _invia_ad_admin_dopo_voti(context, trade_id: int):
     admin_gid = settings.admin_group_id()
     if not admin_gid:
@@ -1069,6 +1148,9 @@ async def _invia_ad_admin_dopo_voti(context, trade_id: int):
         parse_mode="HTML",
         reply_markup=kb,
     )
+    await _notifica_squadre(context, trade_id,
+                            f"🗳 Tutte le squadre hanno accettato la trade <b>{_trade_label(trade)}</b>: "
+                            f"ora è in attesa degli admin.", escludi=("admin",))
 
 
 async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1092,8 +1174,10 @@ async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 query.message.text_html + f"\n\nℹ️ <b>Già gestita</b>: stato {_STATI.get(t.get('stato'), t.get('stato'))}.",
                 parse_mode="HTML")
             return
-        await query.edit_message_text(f"❌ Trade rifiutata dagli admin ({admin_nome}).")
-        await _notifica_proponente(context, trade_id, "❌ Gli admin hanno rifiutato la trade.")
+        t = db.get_trade(trade_id) or {}
+        await query.edit_message_text(f"❌ Trade {_trade_label(t) if t else ''} rifiutata dagli admin ({admin_nome}).")
+        await _notifica_squadre(context, trade_id,
+                                f"🚫 Gli admin hanno rifiutato la trade <b>{_trade_label(t)}</b>.", escludi=("admin",))
         return
 
     trade    = db.get_trade(trade_id)
@@ -1170,7 +1254,13 @@ def _scrivi_trade(trade_id: int, trade_ref: str, approvata_da: str | None, inver
                 raise TradeNonEseguibile("la trade risulta già approvata ed eseguita")
             if not inverti and stato in ("rifiutata_gm", "rifiutata_admin", "annullata"):
                 raise TradeNonEseguibile(f"la trade è in stato '{stato}'")
+            cur.execute("SELECT team_id FROM trade_squadre WHERE trade_id = %s", (trade_id,))
+            squadre = {r[0] for r in cur.fetchall()}
             for item in items:
+                if item["team_id_a"] not in squadre or item["team_id_da"] not in squadre \
+                        or item["team_id_a"] == item["team_id_da"]:
+                    raise TradeNonEseguibile(f"{_nome_item(item)}: destinatario non valido "
+                                             f"('{item['team_id_a']}'), va riassegnato dalla bozza")
                 da, a = (item["team_id_a"], item["team_id_da"]) if inverti else (item["team_id_da"], item["team_id_a"])
                 if item["tipo"] == "giocatore":
                     gid = item["giocatore_id"]
@@ -1222,8 +1312,11 @@ async def _esegui_trade(context, trade_id: int, trade_ref: str, approvata_da: st
         if not team:
             continue
         testo = f"✅ <b>Trade {trade_ref} eseguita!</b>"
-        if fase_corrente in settings.FASI_RUOLI_RS:
-            testo += "\nTi mando qui sotto i ruoli da dichiarare per i nuovi giocatori (48h)."
+        riceve_giocatori = any(i["tipo"] == "giocatore" and i["team_id_a"] == team_id for i in items)
+        if not riceve_giocatori:
+            pass
+        elif fase_corrente in settings.FASI_RUOLI_RS:
+            testo += "\nPer i nuovi giocatori ti arrivano qui i ruoli da dichiarare (48h), se ce n'è bisogno."
         elif fase_corrente == "offseason-ruoli":
             testo += "\nRicordati di dichiarare i ruoli dei nuovi giocatori con /dichiarazione_ruoli."
         for gm_id in team.get("gm_ids", []):
@@ -1409,14 +1502,10 @@ async def cmd_annulla_trade_admin(update: Update, context: ContextTypes.DEFAULT_
         f"✅ <b>{trade_ref}</b> annullata. Roster e pick ripristinati.",
         parse_mode="HTML",
     )
-    team  = tm.get_team_by_id(trade["proposta_da"])
-    if not team:
-        return
-    for gm_id in team.get("gm_ids", []):
-        try:
-            await context.bot.send_message(chat_id=gm_id, text=testo, parse_mode="HTML")
-        except Exception:
-            pass
+    # tutte le squadre coinvolte (prima: solo il proponente, e con `testo` non definito → crash)
+    await _notifica_squadre(context, trade["id"],
+                            f"⚠️ La trade <b>{trade_ref}</b> è stata annullata dagli admin: "
+                            f"giocatori, pick e diritti sono tornati alle squadre di prima.", escludi=("admin",))
 
 
 # ── /mie_trade ─────────────────────────────────────────────────────────────────
@@ -1634,8 +1723,14 @@ def _kb_edit_menu(trade_id: int) -> InlineKeyboardMarkup:
     squadre = [s["team_id"] for s in db.get_squadre_trade(trade_id)]
     bottoni = []
 
+    def _nome(tid):
+        if tid == "?":
+            return "❓"
+        t = tm.get_team_by_id(tid)
+        return t["nome"] if t else tid
+
     for item in items:
-        label = f"❌ {_label_item(item)} ({tm.get_team_by_id(item['team_id_da'])['nome'] if tm.get_team_by_id(item['team_id_da']) else item['team_id_da']} → {item['team_id_a']})"
+        label = f"❌ {_label_item(item)} ({_nome(item['team_id_da'])} → {_nome(item['team_id_a'])})"
         bottoni.append([InlineKeyboardButton(label, callback_data=f"edit_rm:{trade_id}:{item['id']}")])
 
     bottoni.append([InlineKeyboardButton("➕ Aggiungi asset", callback_data=f"edit_add:{trade_id}")])
@@ -1683,11 +1778,13 @@ async def cmd_edit_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def cb_edit_rm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Rimuove un item dalla bozza."""
     query = update.callback_query
-    await query.answer()
     _, trade_id_s, item_id_s = query.data.split(":")
     trade_id, item_id = int(trade_id_s), int(item_id_s)
+    if await _bozza_non_modificabile(query, trade_id):
+        return EDIT_MENU
+    await query.answer()
 
-    db.rimuovi_item_trade(item_id)
+    db._q("DELETE FROM trade_items WHERE id = %s AND trade_id = %s", (item_id, trade_id))
 
     trade = db.get_trade(trade_id)
     testo = f"✏️ <b>Modifica bozza {_label_bozza(trade)}</b>\n\n{_testo_riepilogo(trade_id)}" + _ANNULLA_HINT
@@ -1698,8 +1795,10 @@ async def cb_edit_rm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def cb_edit_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Scegli tipo di asset da aggiungere."""
     query = update.callback_query
-    await query.answer()
     trade_id = int(query.data.split(":")[1])
+    if await _bozza_non_modificabile(query, trade_id):
+        return EDIT_MENU
+    await query.answer()
     context.user_data["edit_trade_id"] = trade_id
 
     squadre = db.get_squadre_trade(trade_id)
@@ -1710,6 +1809,7 @@ async def cb_edit_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         kb_rows.append([
             InlineKeyboardButton(f"🏀 {nome} — Giocatori", callback_data=f"edit_tipo:g:{trade_id}:{sq['team_id']}"),
             InlineKeyboardButton(f"🎯 Pick",               callback_data=f"edit_tipo:p:{trade_id}:{sq['team_id']}"),
+            InlineKeyboardButton(f"📋 Diritti",            callback_data=f"edit_tipo:d:{trade_id}:{sq['team_id']}"),
         ])
     kb_rows.append([InlineKeyboardButton("← Indietro", callback_data=f"edit_back:{trade_id}")])
 
@@ -1743,7 +1843,7 @@ async def cb_edit_tipo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         for r in roster:
             if r["giocatore_id"] in items_gi:
                 continue
-            label = f"{r['nome_common']} ({r['importo']}M)"
+            label = f"{r['nome_common']} {_contratto_str(r)}"
             bottoni.append([InlineKeyboardButton(label, callback_data=f"edit_item:g:{trade_id}:{team_id}:{team_a}:{r['giocatore_id']}")])
     elif tipo == "p":
         picks = db.get_pick_team(team_id)
@@ -1753,8 +1853,18 @@ async def cb_edit_tipo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                 continue
             orig = p["proprietario_orig"]
             prot = f" ({p['protezioni']})" if p.get("protezioni") else ""
-            label = f"{orig} {p['anno']} R{p['round']}{prot}"
+            t_orig = tm.get_team_by_id(orig)
+            rnd = "1st" if p["round"] == 1 else "2nd"
+            label = f"{t_orig['nome'] if t_orig else orig} {rnd} {p['anno']}{prot}"
             bottoni.append([InlineKeyboardButton(label, callback_data=f"edit_item:p:{trade_id}:{team_id}:{team_a}:{p['id']}")])
+    elif tipo == "d":
+        diritti = db.get_diritti_2nd_team(team_id)
+        items_di = [i["giocatore_id"] for i in db.get_items_trade(trade_id) if i["team_id_da"] == team_id and i["tipo"] == "diritti"]
+        for d in diritti:
+            if d["giocatore_id"] in items_di:
+                continue
+            label = f"{d['nome_common']} (pick {d['pick_numero']} {d['anno_draft']})"
+            bottoni.append([InlineKeyboardButton(label, callback_data=f"edit_item:d:{trade_id}:{team_id}:{team_a}:{d['giocatore_id']}")])
 
     if not bottoni:
         await query.answer("Nessun asset disponibile da aggiungere.", show_alert=True)
@@ -1772,18 +1882,22 @@ async def cb_edit_tipo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 async def cb_edit_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Aggiunge l'asset selezionato alla bozza."""
     query = update.callback_query
-    await query.answer()
     parts    = query.data.split(":")
     tipo     = parts[1]
     trade_id = int(parts[2])
     team_da  = parts[3]
     team_a   = parts[4]
     item_ref = int(parts[5])
+    if await _bozza_non_modificabile(query, trade_id):
+        return EDIT_MENU
+    await query.answer()
 
     if tipo == "g":
         db.aggiungi_item_trade(trade_id, "giocatore", team_da, team_a, giocatore_id=item_ref)
     elif tipo == "p":
         db.aggiungi_item_trade(trade_id, "pick", team_da, team_a, pick_id=item_ref)
+    elif tipo == "d":
+        db.aggiungi_item_trade(trade_id, "diritti", team_da, team_a, giocatore_id=item_ref)
 
     trade = db.get_trade(trade_id)
     testo = f"✏️ <b>Modifica bozza {_label_bozza(trade)}</b>\n\n{_testo_riepilogo(trade_id)}" + _ANNULLA_HINT
@@ -1792,37 +1906,30 @@ async def cb_edit_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def cb_edit_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Chiude l'editor, mostra riepilogo o lancia assegnazione destinatari per 3+ squadre."""
+    """Chiude l'editor: per le trade a 3+ squadre chiede prima il destinatario
+    degli asset aggiunti (team_id_a = '?'), da qualunque punto si sia entrati
+    (builder, /edit_trade, /bozze_trade, /my_trades), poi riepilogo validato."""
     query = update.callback_query
-    await query.answer()
     trade_id = int(query.data.split(":")[1])
+    if await _bozza_non_modificabile(query, trade_id):
+        return ConversationHandler.END
+    await query.answer()
 
-    from_riepilogo = context.user_data.pop("edit_from_riepilogo", False)
+    context.user_data.pop("edit_from_riepilogo", None)
     context.user_data.pop("edit_trade_id", None)
 
-    # Per trade 3+ squadre: se ci sono item senza destinatario, riassegna
-    if from_riepilogo:
-        squadre = [s["team_id"] for s in db.get_squadre_trade(trade_id)]
-        items_pending = [i for i in db.get_items_trade(trade_id) if i["team_id_a"] == "?"]
-        if len(squadre) > 2 and items_pending:
-            return await _prossimo_item_da_assegnare(query, context, trade_id, squadre)
-
-    from validators.trade import valida_trade
-    ok, errori_val = valida_trade(trade_id)
-    testo = _testo_riepilogo(trade_id)
-    if ok:
-        testo += "\n\n✅ <b>Validazione OK</b>"
-    else:
-        testo += "\n\n⚠️ <b>Problemi:</b>\n" + "\n".join(errori_val)
-
-    await query.edit_message_text(testo, parse_mode="HTML", reply_markup=_kb_riepilogo(trade_id) if ok else _kb_riepilogo_non_valida(trade_id))
-    return TRADE_RIEPILOGO if from_riepilogo else ConversationHandler.END
+    squadre = [s["team_id"] for s in db.get_squadre_trade(trade_id)]
+    if any(i["team_id_a"] == "?" for i in db.get_items_trade(trade_id)):
+        return await _prossimo_item_da_assegnare(query, context, trade_id, squadre)
+    return await _vai_a_riepilogo(query, trade_id)
 
 
 async def cb_edit_back(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
-    await query.answer()
     trade_id = int(query.data.split(":")[1])
+    if await _bozza_non_modificabile(query, trade_id):
+        return ConversationHandler.END
+    await query.answer()
     trade    = db.get_trade(trade_id)
     testo    = f"✏️ <b>Modifica bozza {_label_bozza(trade)}</b>\n\n{_testo_riepilogo(trade_id)}" + _ANNULLA_HINT
     await query.edit_message_text(testo, parse_mode="HTML", reply_markup=_kb_edit_menu(trade_id))
@@ -1963,12 +2070,12 @@ def get_handlers() -> list:
                 CallbackQueryHandler(cb_edit_back, pattern=r"^edit_back:\d+$"),
             ],
             EDIT_AGGIUNGI_TIPO: [
-                CallbackQueryHandler(cb_edit_tipo, pattern=r"^edit_tipo:[gp]:\d+:.+$"),
+                CallbackQueryHandler(cb_edit_tipo, pattern=r"^edit_tipo:[gpd]:\d+:.+$"),
                 CallbackQueryHandler(cb_edit_add,  pattern=r"^edit_add:\d+$"),
             ],
             EDIT_AGGIUNGI_ITEM: [
-                CallbackQueryHandler(cb_edit_item, pattern=r"^edit_item:[gp]:\d+:.+$"),
-                CallbackQueryHandler(cb_edit_tipo, pattern=r"^edit_tipo:[gp]:\d+:.+$"),
+                CallbackQueryHandler(cb_edit_item, pattern=r"^edit_item:[gpd]:\d+:.+$"),
+                CallbackQueryHandler(cb_edit_tipo, pattern=r"^edit_tipo:[gpd]:\d+:.+$"),
             ],
         },
         fallbacks=[
@@ -2023,12 +2130,27 @@ def get_handlers() -> list:
                 CallbackQueryHandler(cb_edit_done, pattern=r"^edit_done:\d+$"),
             ],
             EDIT_AGGIUNGI_TIPO: [
-                CallbackQueryHandler(cb_edit_tipo, pattern=r"^edit_tipo:[gp]:\d+:.+$"),
+                CallbackQueryHandler(cb_edit_tipo, pattern=r"^edit_tipo:[gpd]:\d+:.+$"),
                 CallbackQueryHandler(cb_edit_add,  pattern=r"^edit_add:\d+$"),
             ],
             EDIT_AGGIUNGI_ITEM: [
-                CallbackQueryHandler(cb_edit_item, pattern=r"^edit_item:[gp]:\d+:.+$"),
-                CallbackQueryHandler(cb_edit_tipo, pattern=r"^edit_tipo:[gp]:\d+:.+$"),
+                CallbackQueryHandler(cb_edit_item, pattern=r"^edit_item:[gpd]:\d+:.+$"),
+                CallbackQueryHandler(cb_edit_tipo, pattern=r"^edit_tipo:[gpd]:\d+:.+$"),
+            ],
+            # dopo "Fatto": destinatari (trade a 3-4) e riepilogo, come nel builder
+            TRADE_ASSEGNA_DEST: [
+                CallbackQueryHandler(cb_assegna_dest, pattern=r"^trade_dest:\d+:.+$"),
+            ],
+            TRADE_RIEPILOGO: [
+                CallbackQueryHandler(cb_send_trade,            pattern=r"^trade_send:.+$"),
+                CallbackQueryHandler(cb_nota_apri,             pattern=r"^trade_nota:\d+$"),
+                CallbackQueryHandler(cb_salva_bozza,           pattern=r"^trade_salva:\d+$"),
+                CallbackQueryHandler(cb_trade_del,             pattern=r"^trade_del:\d+$"),
+                CallbackQueryHandler(cb_modifica_da_riepilogo, pattern=r"^edit_back:\d+$"),
+            ],
+            TRADE_NOTA: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cb_nota_ricevi),
+                CommandHandler("salta", cb_nota_ricevi),
             ],
         },
         fallbacks=[

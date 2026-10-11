@@ -56,6 +56,7 @@ Everything runs with Docker Compose on a small home server.
 | `gas-router`   | Internal proxy to the Google Apps Script web app                |
 | `yahoo-router` | Internal proxy to the Yahoo Fantasy API (OAuth2, token refresh) |
 | `postgres`     | League database                                                 |
+| `nocodb`       | Read-only table browser for the admin, reachable only on the home network / VPN |
 
 The routers are only reachable on the internal Docker network. Credentials are
 stored as Docker secrets and are never committed to this repository.

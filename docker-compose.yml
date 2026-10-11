@@ -114,6 +114,25 @@ services:
       timeout: 5s
       retries: 3
 
+  # Dashboard in LAN/Tailscale per guardare il database a tabelle (solo lettura).
+  # Nessuna porta aperta sul router: raggiungibile da casa e via Tailscale.
+  # Si collega a PostgreSQL con l'utente `lettore` (scripts/setup_dashboard.sh).
+  nocodb:
+    image: nocodb/nocodb:2026.09.1
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - path: ./secrets/nocodb.env   # NC_ADMIN_EMAIL, NC_ADMIN_PASSWORD, NC_AUTH_JWT_SECRET (fuori da git)
+        required: false              # gli altri servizi partono anche prima di scripts/setup_dashboard.sh
+    environment:
+      NC_DISABLE_TELE: "true"
+    ports:
+      - "${NOCODB_PORT:-8090}:8080"
+    volumes:
+      - nocodb_data:/usr/app/data
+
 secrets:
   bot_token_aste_beta:
     file: ./secrets/bot_token_aste_beta.txt
@@ -140,3 +159,4 @@ volumes:
   pgdata:
   aste_beta_data:
   yahoo_data:
+  nocodb_data:

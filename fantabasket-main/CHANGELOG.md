@@ -851,3 +851,23 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 
 ### Correzioni
 - Documentazione: il backup settimanale nel gruppo admin parte il **sabato** alle 00:30 (notte tra venerdì e sabato), non la domenica: in python-telegram-bot ≥ 20 i giorni di `run_daily` vanno da 0 = domenica a 6 = sabato
+
+## v3.8.0 (2026-10-10)
+
+### Dashboard in LAN
+- Nuovo servizio `nocodb` (NocoDB 2026.09.1) per guardare il database a tabelle, con filtri, ordinamenti e viste salvate. Porta 8090 (variabile `NOCODB_PORT`), nessuna porta aperta sul router: raggiungibile dalla rete di casa e via Tailscale
+- `scripts/setup_dashboard.sh`: crea `secrets/nocodb.env` (admin NocoDB, segreto JWT) e l'utente PostgreSQL `lettore` in sola lettura (SELECT su tabelle e viste, anche future; transazioni read-only di default), e stampa i dati per collegare il database in NocoDB
+
+### Trade a 3-4 squadre (revisione completa)
+- **Destinatario `?`**: un asset aggiunto dall'editor (`/edit_trade`, `/bozze_trade`, `/my_trades` → Modifica o Riprendi come bozza) in una trade a 3+ restava senza destinatario, la trade risultava valida e all'esecuzione il giocatore finiva alla squadra "?". Ora "✅ Fatto" chiede sempre a chi va ogni asset senza destinatario; il validatore blocca `?`, destinatari fuori dalla trade, asset ceduti e ricevuti dalla stessa squadra, asset doppi, trade vuote e squadre che non cedono né ricevono niente, e controlla anche pick e diritti; `_scrivi_trade` rifiuta comunque un destinatario non valido (bozze vecchie già nel DB)
+- **Import a 3+ squadre**: ogni asset ceduto deve comparire nel "riceve" di una sola altra squadra e ogni asset ricevuto deve essere ceduto da qualcuno (prima: asset senza "riceve" → destinatario `?` senza errori)
+- **Notifiche a tutte le squadre**: rifiuto di un GM, rifiuto degli admin, "tutti hanno accettato" e annullamento admin arrivano a tutte le squadre coinvolte (prima solo al proponente: la terza squadra non sapeva com'era finita). Il proponente vede l'avanzamento dei voti a ogni accettazione. Per le trade create dagli admin, il rifiuto di un GM arriva al gruppo admin
+- **`/annulla_trade_admin`**: dopo un rollback riuscito andava in errore (`testo` non definito) e non avvisava nessuna squadra
+- **Builder**: dal secondo diritto in poi il tap non faceva niente (stato sbagliato dopo il primo); doppia `answer()` nei toggle giocatori/pick/diritti; doppio tap su una squadra la contava due volte (GM e admin); protezioni della pick perse ricaricando la lista
+- **Bottoni vecchi**: "Elimina bozza" poteva cancellare una trade già in voto o dagli admin, e i bottoni dell'editor potevano togliere o aggiungere asset a una trade già inviata. Ora agiscono solo sulle bozze e solo per chi le ha create (o un admin). "Proponi"/"Manda ad admin" rivalida sempre la trade al momento dell'invio
+- **Editor**: si possono aggiungere anche i diritti; giocatori mostrati con il contratto (`20x2`), destinatari con il nome della squadra; da `/edit_trade` ora funzionano anche nota e destinatari
+- Voto: solo le squadre chiamate a votare (non chi apre il riepilogo da un altro messaggio); note dei GM con caratteri HTML non rompono più i messaggi
+
+### Google Apps Script
+- `gas/.claspignore`: `globals_sample.gs` non va più su Apps Script (insieme a `globals.gs` dichiarava due volte `CONFIG` e la web app non partiva: "SyntaxError: Identifier 'CONFIG' has already been declared")
+- `gas/appsscript.json` allineato a quello di Apps Script, con la sezione `webapp` (esegui come proprietario, accesso a chiunque)

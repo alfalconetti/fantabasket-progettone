@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v3.7.0, bot aste v50)
+# Messaggio di migrazione — Fantabasket Progettone (stato v3.8.0, bot aste v50)
 
 ---
 
@@ -27,7 +27,8 @@ Ecosistema Fantabasket su server domestico Ubuntu. Bot aste v48 standalone SPENT
     ├── fantabasket-aste-beta/
     ├── fantabasket-main/
     ├── gas-router/
-    └── yahoo-router/          ← v3.0.0, OAuth2 Yahoo (in attesa di abilitazione)
+    ├── yahoo-router/          ← v3.0.0, OAuth2 Yahoo (in attesa di abilitazione)
+    └── (servizio nocodb)      ← v3.8.0, dashboard in LAN, solo immagine Docker
 ```
 
 **Regola assoluta:** zip mai include `config/`, `fantabasket-main/config/`, `.db`, `.db-shm`, `.db-wal`, `.env`. Gestiti solo sul server.
@@ -172,6 +173,9 @@ Stati ConversationHandler:
 - `_esegui_trade` e `_rollback_trade` gestiscono giocatori, pick E diritti (diritti fino a v3.0.4 non si spostavano). I diritti si spostano solo se attivi e posseduti dal cedente
 - `_valida_rollback` controlla anche i diritti: se non sono nella squadra che li ha ricevuti, l'annullamento è bloccato
 - Esecuzione e rollback **atomici** (v3.4.2, `_scrivi_trade`): approvazione + spostamenti + transazioni + stato in un'unica transazione DB, con verifica di ogni asset; se qualcosa non torna → `TradeNonEseguibile`, nessuna modifica
+- Trade a 3-4 (v3.8.0): `team_id_a = '?'` = destinatario da assegnare; `cb_edit_done` passa SEMPRE da `_prossimo_item_da_assegnare` se ce n'è uno (conv_build, conv_edit e admin hanno tutti `TRADE_ASSEGNA_DEST` e `TRADE_RIEPILOGO`). `validators/trade._errori_struttura` blocca `?`, destinatari fuori trade, asset doppi, squadre senza asset; `_scrivi_trade` rifiuta comunque destinatari non validi. Parser: ceduti ↔ ricevuti devono combaciare 1 a 1
+- Esiti della trade a tutte le squadre con `_notifica_squadre(context, trade_id, testo, escludi=())` (per proposta_da 'admin' anche il gruppo admin; `escludi=("admin",)` lo salta). `_notifica_proponente` solo per l'avanzamento dei voti
+- Bottoni di bozza (elimina, editor, invio, destinatari): `_bozza_non_modificabile` / `_puo_gestire_bozza` → solo stato `bozza`, solo il proponente o un admin
 
 **DPE:**
 - Fasi disponibili: `offseason-rinnovi` → `regular-season-deadline` (tutte e 6)
@@ -224,11 +228,18 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 - Nuove cartelle/servizi: `unzip -o ~/bots/zip -d ~/bots/fantabasket-progettone/`
 - Bot aste: rebuild `bot-aste-beta`; entrambi: `docker compose up --build -d bot-main bot-aste-beta`
 - Modifiche a `gas/`: nel comando solo `cd ~/bots/fantabasket-progettone/gas && clasp push`; la nuova versione della web app (Gestisci deployment) la fa Luca a mano dal browser
+- **GAS, regole imparate (10/10/2026)**: `gas/.claspignore` esclude `globals_sample.gs` (altrimenti `CONFIG` dichiarato due volte e la web app risponde con una pagina d'errore HTML → "Sync fallito"). Il manifest `appsscript.json` contiene la sezione `webapp`: se `clasp push` chiede "Manifest file has been updated… overwrite?" rispondere **No** e prima riallineare il manifest locale con un `clasp pull` in una cartella temporanea. Pubblicare sempre con Gestisci deployment → matita → **Nuova versione** (un "Nuovo deployment" cambia URL: poi vanno aggiornati `secrets/gas_roster_url` e `gas_scelte_url`, `--force-recreate gas-router` e `cifra_secrets.sh`)
+- Diagnosi web app: chiamata diretta dal container gas-router con `httpx` (token da `/run/secrets/gas_token`); se risponde HTML, il `<title>` e il testo dicono l'errore (login = accesso non "Chiunque"; "Errore …" = problema nel codice pubblicato)
 - File in `shared/`: `unzip -p ... > ~/bots/fantabasket-progettone/shared/...` e poi riavvio di ENTRAMBI i bot (`docker compose up --build -d bot-main bot-aste-beta`)
 - Variabili sensibili non-secret (URL, ID) in `secrets/*.env` via `env_file`: `yahoo_router.env` (ID leghe), `bot_main.env` (HEALTHCHECK_URL). Mai valori sensibili nel compose o nei .md
 - Secrets modificati: `docker compose up -d --force-recreate <servizio>` (i secrets sono bind-mount per file: editor come vi creano un file nuovo e il container continua a vedere il vecchio)
 - Script Python nel container: chiamare `db.init_db()` prima di usare il DB (il pool non è inizializzato fuori dal bot)
 - psql: `docker compose exec postgres psql -U fantabasket -d fantabasket -c "..."`
+
+**Dashboard (v3.8.0):**
+- Servizio `nocodb` (immagine fissata), porta `${NOCODB_PORT:-8090}` su tutte le interfacce del server (nessun port forwarding sul router: LAN + Tailscale). Dati di NocoDB (viste, account) nel volume `nocodb_data`, non nel backup (si ricreano)
+- `scripts/setup_dashboard.sh` (rilanciabile): `secrets/nocodb.env` (`env_file` con `required: false`, così gli altri servizi partono anche senza), `secrets/pg_lettore_password.txt`, ruolo PostgreSQL `lettore` con `default_transaction_read_only = on` e `ALTER DEFAULT PRIVILEGES` per le tabelle future. In NocoDB la sorgente è PostgreSQL host `postgres`, utente `lettore`
+- Il database del bot aste (SQLite) non è collegato alla dashboard
 
 **Basketball-Reference (v3.7.0):**
 - `handlers/bref.py` → `job_bref` (10:00, solo `FASI_RUOLI_RS`) chiama `bref_scraper.run_giornaliero(stagione_corrente + 1)`: una richiesta, append in `bref_stats` solo se G aumentate, cambi squadra, nuovi giocatori, CSV
@@ -292,6 +303,9 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 
 **Pending fuori roadmap:**
 - Rinnovo rookie (offseason, flusso separato dall'attivazione diritti)
+- Bot aste, parità admin: un admin deve poter **aprire un'asta per conto di una squadra** (oggi può solo fare offerte per altri con `/offerta`; aprire un'asta da 1 per un'altra squadra è impossibile)
+- `/team_diff`: mostrare i contratti (importo x anni) dei giocatori nei due momenti del confronto
+- Piano deciso il 10/10/2026: aspettare qualche giorno la risposta di Yahoo; se non arriva, partire comunque con **IPanchinariBot** (bot delle panchine)
 
 **Posizioni e ruoli (v3.1.0):**
 - `posizioni_eleggibili` = event log delle posizioni Yahoo (set completo, es. `PG,SG`), nuova riga solo se il set cambia → vista `posizioni_attuali`. Le aggiunte segnalate nell'anteprima servono per la Erminio rule (2 settimane dalla data della riga)
@@ -302,14 +316,14 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 - **Ruoli in RS (v3.3.0, `handlers/ruoli_rs.py`)**: dichiarazioni in sospeso (`ruoli_pendenti`) aperte da trade, attivazione diritti e /registra_firma solo in `FASI_RUOLI_RS`; 48h poi estrazione (job ogni 15'); regola dei 60 giorni; admin dichiarano da /admin_menu → ⏳ Ruoli in sospeso; annunci sul canale principale. Vincoli 4G/4F/2C: `validators/ruoli.py` (`deficit_minimo` = 0 se esiste un'assegnazione valida; fissi = ruoli ufficiali, flessibili = senza ruolo), usati da trade (RS) e dichiarazioni
 - **Cambi ruolo (v3.3.1, `handlers/cambi_ruolo.py`)**: ordinari max 2/stagione (contatore = eventi `ordinario` della squadra nella stagione, su /roster e foglio); Erminio gratuito entro 14 giorni da `COALESCE(data_yahoo, timestamp)` dell'ultima riga posizioni (data_yahoo con /data_erminio); Saedro 10 giorni una volta a stagione (evento con `scadenza` + `ruolo_ripristino`, ritorno via job `job_fine_saedro`), richiesta GM → approvazione nel gruppo admin, admin anche diretta; forzato_admin non conta. Vincoli bloccanti tranne per i forzati
 - **Bot aste (v3.4.0 / aste v46)**: FA in RS → anni, poi ruolo (stesse regole via `shared/`); 48h senza risposta → 3 anni + ruolo estratto; ruolo nell'annuncio sul canale principale
-- Prossimi passi: dashboard LAN (NocoDB, utente PG in sola lettura), rinnovo rookie, parità GM/admin nel bot aste, Mini App
+- Prossimi passi: IPanchinariBot se Yahoo non risponde a breve, apertura aste per conto di altre squadre (admin, bot aste), rinnovo rookie, Mini App
 
 **@qf_bot (vX.x — dipende da guest mode PTB)**
 - Bot pubblico per roster e info lega
 
 ---
 
-**Stato attuale: v3.7.0**
+**Stato attuale: v3.8.0**
 
 Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v2.1.19** — `/attiva_diritti` propone il contratto della rookie scale (anno I) e chiede solo conferma
@@ -346,6 +360,7 @@ Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v3.5.0a/b** — `cifra_secrets.sh` senza gpg-agent; link alla guida di ripristino nei backup (`repo_url` in globals.json)
 - **v3.6.0** — `/my_trades`; stati delle trade atomici; `richieste_admin` (DPE, Saedro, decadimento: una richiesta aperta, decisione unica); DPE valutata all'approvazione + cambio ruolo Extra DPE post-deadline; ruolo automatico per i monoruolo (main e aste v50); colonna FM nel roster; CHECK dei tipi allineati per unione; penalità col meno nel foglio
 - **v3.7.0** — Basketball-Reference: foglio BrefRaw, cambi squadra NBA, giocatori nuovi con conferma del dev; `/set_nascita` (fuzzy severo) e report settimanale delle date mancanti
+- **v3.8.0** — dashboard NocoDB in LAN/Tailscale con utente PostgreSQL in sola lettura; `gas/.claspignore` e manifest con `webapp`
 
 Novità v2.0.31–v2.0.38:
 - **v2.0.31** — DPE disponibile in tutte e 6 le fasi (da offseason-rinnovi a regular-season-deadline); admin menu DPE diretta; `pre_deadline = (fase != "regular-season-deadline")`
