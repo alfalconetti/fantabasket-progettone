@@ -822,16 +822,26 @@ def registra_transazione(tipo: str, giocatore_id: int, team_id_da: str | None,
 
 
 def registra_decadimento(giocatore_id: int, team_id: str, stagione: str,
-                          contratto_id: int | None = None, note: str | None = None) -> None:
+                          contratto_id: int | None = None, note: str | None = None,
+                          tutte_le_squadre: bool = False) -> list[str]:
     """
     Registra il decadimento di un contratto (ritiro, altra lega, ecc.), tutto in
     un'unica transazione DB:
     - transazione tipo 'decadimento' con team_id_a = NULL
     - contratto disattivato
-    - impatti taglio futuri del giocatore per quella squadra eliminati
+    - impatti taglio futuri del giocatore eliminati: della sola squadra, oppure
+      (tutte_le_squadre, ritiro / altra lega) anche di chi l'aveva tagliato in passato
+      — regolamento: "il suo stipendio non peserà più neanche se in passato è stato
+      tagliato da una franchigia"
+    Restituisce le ALTRE squadre a cui sono state tolte spalmature.
     """
+    altre = []
     with get_conn() as conn:
         with conn.cursor() as cur:
+            if tutte_le_squadre:
+                cur.execute("DELETE FROM impatto_taglio WHERE giocatore_id = %s AND team_id <> %s "
+                            "AND stagione >= %s RETURNING team_id", (giocatore_id, team_id, stagione))
+                altre = sorted({r[0] for r in cur.fetchall()})
             cur.execute(
                 "INSERT INTO transazioni (tipo, giocatore_id, team_id_da, team_id_a, stagione, contratto_id, note) "
                 "VALUES ('decadimento', %s, %s, NULL, %s, %s, %s)",
@@ -842,6 +852,15 @@ def registra_decadimento(giocatore_id: int, team_id: str, stagione: str,
             cur.execute(
                 "DELETE FROM impatto_taglio WHERE giocatore_id = %s AND team_id = %s AND stagione >= %s",
                 (giocatore_id, team_id, stagione))
+    return altre
+
+
+def cancella_spalmate_ritirato(giocatore_id: int, stagione: str) -> list[dict]:
+    """Giocatore ritirato o andato in un'altra lega mentre era free agent: le spalmature
+    dei tagli passati smettono di pesare (dalla stagione corrente). Restituisce
+    [{team_id, importo}] di quanto tolto."""
+    return _q("""DELETE FROM impatto_taglio WHERE giocatore_id = %s AND stagione >= %s
+                 RETURNING team_id, importo""", (giocatore_id, stagione), many=True) or []
 
 
 def get_prima_transazione() -> str | None:
@@ -1114,3 +1133,13 @@ def fantamedie(gids: list[int], stagione_bref: str, as_of=None) -> dict[int, flo
                    WHERE g.id = ANY(%s) AND b.stagione = %s AND b.fantamedia IS NOT NULL {filtro}
                    ORDER BY g.id, b.timestamp DESC""", params, many=True) or []
     return {r["gid"]: float(r["fantamedia"]) for r in righe}
+
+
+def minimo_cam_thomas(giocatore_id: int, team_id: str) -> int | None:
+    """Cam Thomas exception: se `team_id` ha fatto decadere il giocatore con questa
+    regola nell'ultimo anno, l'importo del contratto di allora (minimo per rifirmarlo)."""
+    return _qval("""SELECT c.importo FROM transazioni t JOIN contratti c ON c.id = t.contratto_id
+                    WHERE t.tipo = 'decadimento' AND t.giocatore_id = %s AND t.team_id_da = %s
+                      AND t.note LIKE '%%Cam Thomas%%' AND t.timestamp > NOW() - INTERVAL '1 year'
+                    ORDER BY t.timestamp DESC LIMIT 1""", (giocatore_id, team_id))
+

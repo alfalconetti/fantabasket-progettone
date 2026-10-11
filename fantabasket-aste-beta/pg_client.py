@@ -353,14 +353,10 @@ def registra_firma(team_id: str, nome_giocatore: str, importo: int,
     if gid is None:
         return False
 
-    # Re-signing: controlla spalmate residue per questo team+giocatore
-    spalmato_residuo = get_spalmato_residuo(team_id, gid, stagione)
-    importo_finale = importo + spalmato_residuo
-    if spalmato_residuo > 0:
-        logger.info(
-            "Re-signing %s → %s: %dM + %dM spalmato = %dM",
-            nome_giocatore, team_id, importo, spalmato_residuo, importo_finale
-        )
+    # Rifirma dopo un taglio (v52): la spalmata resta com'è nell'impatto taglio e il
+    # contratto è quello firmato. Prima veniva sommato TUTTO lo spalmato residuo
+    # all'importo annuo (es. 10x2 tagliato, rifirmato 5x3 → 25x3).
+    importo_finale = importo
 
     conn = _conn()
     try:
@@ -373,17 +369,12 @@ def registra_firma(team_id: str, nome_giocatore: str, importo: int,
             contratto_id = cur.fetchone()[0]
 
             nota = f"Firma FA bot aste — {nome_giocatore} {importo_finale}M x{anni}"
-            if spalmato_residuo > 0:
-                nota += f" (re-signing: {importo}M + {spalmato_residuo}M spalmato incorporato)"
             cur.execute(
                 "INSERT INTO transazioni (tipo, giocatore_id, team_id_da, team_id_a, "
                 "stagione, contratto_id, note) VALUES (%s, %s, NULL, %s, %s, %s, %s)",
                 ("signed", gid, team_id, stagione, contratto_id, nota)
             )
         conn.commit()
-
-        if spalmato_residuo > 0:
-            cancella_spalmate_future(team_id, gid, stagione)
 
         logger.info("PG: firma — %s → %s %dM x%d", nome_giocatore, team_id, importo_finale, anni)
         return True
@@ -432,6 +423,112 @@ def deattiva_contratto(team_id: str, importo: int, nome_giocatore: str) -> bool:
         return False
     finally:
         _putconn(conn)
+
+
+def trova_giocatore(nome: str) -> int | None:
+    """id del giocatore per nome normalizzato, senza crearlo (None se non c'è)."""
+    if not pg_disponibile():
+        return None
+    r = q("SELECT id FROM giocatori WHERE nome_norm = %s", (_normalizza(nome),), one=True)
+    return r["id"] if r else None
+
+
+def rilascia_rfa(team_id: str, nome_giocatore: str, stagione: str) -> bool:
+    """RFA lasciato andare: contratto disattivato E movimento di uscita ('expired',
+    team_id_a NULL) nella stessa transazione. Senza il movimento il roster calcolato
+    dalle transazioni (slot del bot aste, roster a una data, team_diff) continuava a
+    contarlo nella squadra."""
+    if not pg_disponibile():
+        return False
+    gid = trova_giocatore(nome_giocatore)
+    if gid is None:
+        logger.warning("rilascia_rfa: '%s' non in anagrafica — gestire manualmente.", nome_giocatore)
+        return False
+    conn = _conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE contratti SET attivo = FALSE WHERE team_id = %s AND giocatore_id = %s "
+                        "AND attivo = TRUE RETURNING id", (team_id, gid))
+            row = cur.fetchone()
+            if not row:
+                conn.rollback()
+                logger.warning("rilascia_rfa: nessun contratto attivo di %s con %s.", nome_giocatore, team_id)
+                return False
+            cur.execute("INSERT INTO transazioni (tipo, giocatore_id, team_id_da, team_id_a, stagione, "
+                        "contratto_id, note) VALUES ('expired', %s, %s, NULL, %s, %s, %s)",
+                        (gid, team_id, stagione, row[0], f"RFA non rifirmato — {nome_giocatore}"))
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        logger.error("rilascia_rfa('%s', '%s'): %s", team_id, nome_giocatore, e)
+        return False
+    finally:
+        _putconn(conn)
+
+
+def rfa_fuori_slot(team_id: str, nomi_rfa: list[str]) -> int:
+    """Quanti RFA in corso della squadra hanno ancora il contratto attivo con lei.
+    Regolamento: l'RFA continua a occupare cap ma NON slot finché la sua asta non è
+    conclusa → vanno tolti dal conteggio del roster."""
+    if not pg_disponibile() or not nomi_rfa:
+        return 0
+    r = q("""SELECT count(*) AS n FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
+             WHERE c.team_id = %s AND c.attivo = TRUE AND g.nome_norm = ANY(%s)""",
+          (team_id, [_normalizza(n) for n in nomi_rfa]), one=True)
+    return int(r["n"]) if r else 0
+
+
+def squadre_regola_30_giorni(nome_giocatore: str) -> set[str]:
+    """Regolamento (Tagli): se un giocatore è stato tagliato, ogni franchigia che l'ha
+    avuto negli ultimi 30 giorni non può firmarlo in FA né rilanciare.
+    Vale se l'ultimo movimento del giocatore è un taglio: restituisce le squadre che lo
+    avevano in un qualsiasi momento degli ultimi 30 giorni (chi lo aveva 30 giorni fa
+    + chi l'ha ceduto o ricevuto da allora)."""
+    if not pg_disponibile():
+        return set()
+    gid = trova_giocatore(nome_giocatore)
+    if gid is None:
+        return set()
+    ultimo = q("""SELECT tipo FROM transazioni WHERE giocatore_id = %s
+                  ORDER BY timestamp DESC, id DESC LIMIT 1""", (gid,), one=True)
+    if not ultimo or ultimo["tipo"] not in ("cut", "taglio"):
+        return set()
+    squadre = set()
+    prima = q("""SELECT team_id_a FROM transazioni WHERE giocatore_id = %s
+                 AND timestamp <= NOW() - INTERVAL '30 days'
+                 ORDER BY timestamp DESC, id DESC LIMIT 1""", (gid,), one=True)
+    if prima and prima["team_id_a"]:
+        squadre.add(prima["team_id_a"])
+    for r in q("""SELECT team_id_da, team_id_a FROM transazioni WHERE giocatore_id = %s
+                  AND timestamp > NOW() - INTERVAL '30 days'""", (gid,), many=True) or []:
+        squadre.update(t for t in (r["team_id_da"], r["team_id_a"]) if t)
+    return squadre
+
+
+def nomi_roster(team_id: str) -> list[str]:
+    """nome_common dei giocatori con contratto attivo nella squadra (per /nuova_rfa)."""
+    if not pg_disponibile():
+        return []
+    return [r["nome_common"] for r in q(
+        """SELECT g.nome_common FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
+           WHERE c.team_id = %s AND c.attivo = TRUE ORDER BY g.nome_common""",
+        (team_id,), many=True) or []]
+
+
+def minimo_cam_thomas(nome_giocatore: str, team_id: str) -> int | None:
+    """Cam Thomas exception: se `team_id` ha fatto decadere il giocatore con questa
+    regola nell'ultimo anno, il contratto di allora è il minimo per rifirmarlo."""
+    if not pg_disponibile():
+        return None
+    gid = trova_giocatore(nome_giocatore)
+    if gid is None:
+        return None
+    r = q("""SELECT c.importo FROM transazioni t JOIN contratti c ON c.id = t.contratto_id
+             WHERE t.tipo = 'decadimento' AND t.giocatore_id = %s AND t.team_id_da = %s
+               AND t.note LIKE '%%Cam Thomas%%' AND t.timestamp > NOW() - INTERVAL '1 year'
+             ORDER BY t.timestamp DESC LIMIT 1""", (gid, team_id), one=True)
+    return r["importo"] if r else None
 
 
 # ── helper display ─────────────────────────────────────────────────────────────
@@ -484,10 +581,14 @@ def get_slot_anticipato(team_id: str) -> int:
 
 def get_slot_totale(team_id: str, stagione: str = None) -> int:
     """
-    Slot totali disponibili = max_roster - roster_count_pg.
-    Se stagione fornita, esclude giocatori con DPE attiva (slot liberato).
+    Slot totali disponibili = max_roster - roster_count_pg + RFA in corso della squadra
+    (l'RFA occupa cap ma non slot). Se stagione fornita, esclude anche i giocatori con
+    DPE attiva (slot liberato).
     """
-    return _settings.slot_massimo() - get_roster_count(team_id, stagione=stagione)
+    import database as _db_aste
+    nomi_rfa = [r["giocatore"] for r in _db_aste.get_rfa_proprietario(team_id)]
+    return (_settings.slot_massimo() - get_roster_count(team_id, stagione=stagione)
+            + rfa_fuori_slot(team_id, nomi_rfa))
 
 
 def get_bref_fantamedie_bulk(nomi: list[str]) -> dict[str, tuple[float | None, str | None]]:

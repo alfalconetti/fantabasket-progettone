@@ -230,12 +230,18 @@ def segna_notifica_15min(asta_id: int):
 
 # ── cap/slot virtuale ─────────────────────────────────────────────────────────
 
+# Stati in cui l'offerta vincente impegna cap e slot di chi la detiene: anche CHIUSA
+# (asta finita, il vincitore deve ancora scegliere anni/ruolo — fino a 48h): prima
+# non era contata e in quel lasso il cap risultava di nuovo libero per altre aste.
+STATI_IMPEGNO = ("APERTA", "CHIUSA", "PAREGGIO")
+
+
 def get_cap_virtuale(team_id: str) -> int:
     with get_conn() as conn:
         row = conn.execute(
             """SELECT COALESCE(SUM(offerta_corrente), 0) as totale
                FROM aste
-               WHERE offerente_team_id=? AND stato IN ('APERTA','PAREGGIO')""",
+               WHERE offerente_team_id=? AND stato IN ('APERTA','CHIUSA','PAREGGIO')""",
             (team_id,),
         ).fetchone()
         return row["totale"] if row else 0
@@ -246,7 +252,7 @@ def get_slot_virtuali(team_id: str) -> int:
         row = conn.execute(
             """SELECT COUNT(*) as totale
                FROM aste
-               WHERE offerente_team_id=? AND stato IN ('APERTA','PAREGGIO')""",
+               WHERE offerente_team_id=? AND stato IN ('APERTA','CHIUSA','PAREGGIO')""",
             (team_id,),
         ).fetchone()
         return row["totale"] if row else 0
@@ -268,7 +274,7 @@ def get_offerte_vincenti_team(team_id: str) -> list:
         return conn.execute(
             """SELECT id, tipo, giocatore, offerta_corrente, scade_at
                FROM aste
-               WHERE offerente_team_id=? AND stato IN ('APERTA','PAREGGIO')
+               WHERE offerente_team_id=? AND stato IN ('APERTA','CHIUSA','PAREGGIO')
                ORDER BY scade_at""",
             (team_id,),
         ).fetchall()

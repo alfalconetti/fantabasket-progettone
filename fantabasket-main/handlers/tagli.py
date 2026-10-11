@@ -142,147 +142,158 @@ async def cb_seleziona_taglio(update: Update, context: ContextTypes.DEFAULT_TYPE
     await _mostra_anteprima_taglio(query, team, gid)
 
 
-async def _mostra_anteprima_taglio(msg_or_query, team: dict, gid: int):
+class TaglioNonEseguibile(Exception):
+    """Taglio non consentito: il messaggio va mostrato così com'è."""
+
+
+def _valuta_taglio(team: dict, gid: int) -> dict:
+    """Tutto quello che serve per anteprima e conferma, calcolato allo stesso modo:
+    contratto, anni residui, gratuito (1x1 con meno di 3 gratuiti usati), rate,
+    eventuale blocco (roster sotto il minimo in RS) e avviso (minimi dei ruoli)."""
     contratto = db.get_contratto_attivo(gid)
     if not contratto or contratto["team_id"] != team["id"]:
-        testo = "❌ Giocatore non trovato nel tuo roster."
+        raise TaglioNonEseguibile("❌ Giocatore non trovato nel tuo roster.")
+    stagione = settings.stagione_corrente()
+    anni_res = _anni_residui(contratto, stagione)
+    usati = db.get_tagli_gratuiti_usati(team["id"], stagione)
+    # 1x1: gratuito solo entro i 3 a stagione; dal 4° è un taglio normale (spalmatura 1x1).
+    # Prima il 4° 1x1 era vietato, ma il regolamento consente tagli illimitati.
+    gratuito = _e_taglio_gratuito(contratto["importo"], anni_res) and usati < MAX_TAGLI_GRATUITI
+    rate = [] if gratuito else calcola_impatto_taglio(contratto["importo"], anni_res, stagione)
+    avviso = None
+    if settings.fase() in settings.FASI_RUOLI_RS:
+        roster = db.get_roster_team(team["id"]) or []
+        dopo = len(roster) - sum(1 for r in roster if r.get("ha_dpe")) - 1
+        if dopo < settings.min_roster():
+            raise TaglioNonEseguibile(
+                f"❌ Dopo il taglio il roster scenderebbe a {dopo} giocatori, sotto il minimo di "
+                f"{settings.min_roster()} in regular season.")
+        try:
+            from validators.ruoli import deficit_team
+            prima_d = deficit_team(team["id"], stagione)
+            dopo_d = deficit_team(team["id"], stagione, togli=[gid])
+        except Exception as e:
+            logger.warning("Controllo ruoli taglio: %s", e)
+            prima_d = dopo_d = 0
+        if dopo_d > 0 and dopo_d > prima_d:
+            raise TaglioNonEseguibile(
+                "❌ Dopo il taglio il roster non rispetterebbe più i minimi dei ruoli (4 G, 4 F, 2 C) "
+                "con i ruoli ufficiali: taglio non consentito in regular season.")
+    return {"contratto": contratto, "stagione": stagione, "anni_res": anni_res,
+            "gratuito": gratuito, "usati": usati, "rate": rate, "avviso": avviso,
+            "giocatore": db.get_giocatore(gid)}
+
+
+async def _mostra_anteprima_taglio(msg_or_query, team: dict, gid: int):
+    async def _rispondi(testo, kb=None):
         if hasattr(msg_or_query, "edit_message_text"):
-            await msg_or_query.edit_message_text(testo)
+            await msg_or_query.edit_message_text(testo, parse_mode="HTML", reply_markup=kb)
         else:
-            await msg_or_query.reply_text(testo)
+            await msg_or_query.reply_text(testo, parse_mode="HTML", reply_markup=kb)
+    try:
+        v = _valuta_taglio(team, gid)
+    except TaglioNonEseguibile as e:
+        await _rispondi(str(e))
         return
-
-    giocatore  = db.get_giocatore(gid)
-    stagione   = settings.stagione_corrente()
-    anni_res   = _anni_residui(contratto, stagione)
-    gratuito   = _e_taglio_gratuito(contratto["importo"], anni_res)
-
-    if gratuito:
-        usati = db.get_tagli_gratuiti_usati(team["id"], stagione)
-        rimanenti = MAX_TAGLI_GRATUITI - usati
-        if rimanenti <= 0:
-            testo = (
-                f"❌ <b>{giocatore['nome_common']}</b> non può essere tagliato.\n"
-                f"Hai già usato tutti i {MAX_TAGLI_GRATUITI} tagli gratuiti 1x1 questa stagione."
-            )
-            kb = InlineKeyboardMarkup([[
-                InlineKeyboardButton("❌ Chiudi", callback_data="taglia_no"),
-            ]])
-        else:
-            testo = (
-                f"✂️ <b>Taglio senza impatto — {giocatore['nome_common']}</b>\n\n"
-                f"Contratto: <b>1M × 1 anno</b>\n"
-                f"✅ Nessuna impatto taglio sul cap.\n"
-                f"Tagli gratuiti rimanenti: <b>{rimanenti - 1}/{MAX_TAGLI_GRATUITI}</b>"
-            )
-            kb = InlineKeyboardMarkup([[
-                InlineKeyboardButton("✅ Conferma taglio", callback_data=f"taglia_ok:{gid}"),
-                InlineKeyboardButton("❌ Annulla",          callback_data="taglia_no"),
-            ]])
+    c, nome = v["contratto"], v["giocatore"]["nome_common"]
+    if v["gratuito"]:
+        testo = (
+            f"✂️ <b>Taglio senza impatto — {nome}</b>\n\n"
+            f"Contratto: <b>1M × 1 anno</b>\n"
+            f"✅ Nessun impatto taglio sul cap.\n"
+            f"Tagli gratuiti rimanenti dopo questo: <b>{MAX_TAGLI_GRATUITI - v['usati'] - 1}/{MAX_TAGLI_GRATUITI}</b>"
+        )
     else:
-        rate = calcola_impatto_taglio(contratto["importo"], anni_res, stagione)
-        righe = [
-            f"✂️ <b>Taglio — {giocatore['nome_common']}</b>\n",
-            f"Contratto: {contratto['importo']}M × {anni_res} anni residui\n",
-            "<b>Impatto taglio sul cap:</b>",
-        ]
-        for r in rate:
-            righe.append(f"  • Stagione {r['stagione']}: {r['importo']}M")
+        righe = [f"✂️ <b>Taglio — {nome}</b>\n",
+                 f"Contratto: {c['importo']}M × {v['anni_res']} anni residui\n"]
+        if _e_taglio_gratuito(c["importo"], v["anni_res"]):
+            righe.append(f"<i>Tagli 1x1 gratuiti già usati ({MAX_TAGLI_GRATUITI}/{MAX_TAGLI_GRATUITI}): "
+                         f"questo pesa sul cap.</i>\n")
+        righe.append("<b>Impatto taglio sul cap:</b>")
+        righe += [f"  • Stagione {r['stagione']}: {r['importo']}M" for r in v["rate"]]
         testo = "\n".join(righe)
-        kb = InlineKeyboardMarkup([[
-            InlineKeyboardButton("✅ Conferma taglio", callback_data=f"taglia_ok:{gid}"),
-            InlineKeyboardButton("❌ Annulla",          callback_data="taglia_no"),
-        ]])
-
-    if hasattr(msg_or_query, "edit_message_text"):
-        await msg_or_query.edit_message_text(testo, parse_mode="HTML", reply_markup=kb)
-    else:
-        await msg_or_query.reply_text(testo, parse_mode="HTML", reply_markup=kb)
+    if v["avviso"]:
+        testo += "\n\n" + v["avviso"]
+    kb = InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ Conferma taglio", callback_data=f"taglia_ok:{gid}"),
+        InlineKeyboardButton("❌ Annulla",          callback_data="taglia_no"),
+    ]])
+    await _rispondi(testo, kb)
 
 
 async def cb_conferma_taglio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    gid     = int(query.data.split(":")[1])
-    user    = update.effective_user
-    team    = tm.get_team_by_gm(user.id)
-
-    contratto = db.get_contratto_attivo(gid)
-    if not contratto or contratto["team_id"] != team["id"]:
-        await query.edit_message_text("❌ Giocatore non trovato nel tuo roster.")
+    gid  = int(query.data.split(":")[1])
+    team = tm.get_team_by_gm(update.effective_user.id)
+    if not team:
+        await query.edit_message_text("⛔ Non sei registrato come GM.")
         return
+    if settings.fase() not in FASI_TRADE_APERTE:   # bottone premuto dopo la chiusura del mercato
+        await query.edit_message_text("❌ I tagli non sono disponibili in questa fase.")
+        return
+    try:
+        v = _valuta_taglio(team, gid)   # ricalcolato: gratuiti usati e roster possono essere cambiati
+    except TaglioNonEseguibile as e:
+        await query.edit_message_text(str(e))
+        return
+    c, stagione, gratuito, rate = v["contratto"], v["stagione"], v["gratuito"], v["rate"]
+    nome = v["giocatore"]["nome_common"]
+    note = (f"Taglio senza impatto 1x1 — {nome}" if gratuito
+            else f"Taglio {nome} {c['importo']}M x{v['anni_res']}")
 
-    stagione  = settings.stagione_corrente()
-    anni_res  = _anni_residui(contratto, stagione)
-    gratuito  = _e_taglio_gratuito(contratto["importo"], anni_res)
-    giocatore = db.get_giocatore(gid)
-
-    from database import _q
-    _q("UPDATE contratti SET attivo = FALSE WHERE id = %s", (contratto["id"],))
+    # contratto chiuso + transazione + rate in un'unica transazione DB
+    with db.get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE contratti SET attivo = FALSE WHERE id = %s AND attivo = TRUE "
+                        "AND team_id = %s RETURNING id", (c["id"], team["id"]))
+            if not cur.fetchone():
+                conn.rollback()
+                await query.edit_message_text("❌ Giocatore non più nel tuo roster.")
+                return
+            cur.execute("INSERT INTO transazioni (tipo, giocatore_id, team_id_da, team_id_a, stagione, "
+                        "contratto_id, gratuito, note) VALUES ('cut', %s, %s, NULL, %s, %s, %s, %s) RETURNING id",
+                        (gid, team["id"], stagione, c["id"], gratuito, note))
+            trans_id = cur.fetchone()[0]
+            for r in rate:
+                cur.execute("INSERT INTO impatto_taglio (team_id, giocatore_id, stagione_taglio, stagione, "
+                            "importo, transazione_id) VALUES (%s, %s, %s, %s, %s, %s)",
+                            (team["id"], gid, stagione, r["stagione"], r["importo"], trans_id))
 
     main_channel = settings.load_globals().get("main_channel_id")
-
     if gratuito:
-        db.registra_transazione(
-            "cut", gid, team["id"], None, stagione,
-            contratto_id=contratto["id"], gratuito=True,
-            note=f"Taglio senza impatto 1x1 — {giocatore['nome_common']}"
-        )
-        usati = db.get_tagli_gratuiti_usati(team["id"], stagione)
-        rimanenti = MAX_TAGLI_GRATUITI - usati
+        usati = v["usati"] + 1
         await query.edit_message_text(
-            f"✅ <b>{giocatore['nome_common']}</b> tagliato gratuitamente.\n"
+            f"✅ <b>{nome}</b> tagliato gratuitamente.\n"
             f"Tagli gratuiti usati questa stagione: <b>{usati}/{MAX_TAGLI_GRATUITI}</b>",
             parse_mode="HTML",
         )
-        if main_channel:
-            testo_canale = (
-                f"✂️ <b>{team['gm_nome']}</b> taglia <b>{giocatore['nome_common']}</b>\n"
-                f"Contratto: {contratto['importo']}M × 1 anno — nessun impatto\n"
-                f"Tagli gratuiti rimasti: <b>{rimanenti}/{MAX_TAGLI_GRATUITI}</b>"
-            )
-            try:
-                await context.bot.send_message(
-                    chat_id=main_channel, text=testo_canale, parse_mode="HTML"
-                )
-            except Exception as e:
-                logger.warning("Annuncio canale taglio gratuito fallito: %s", e)
-    else:
-        rate = calcola_impatto_taglio(contratto["importo"], anni_res, stagione)
-        trans_id = db.registra_transazione(
-            "cut", gid, team["id"], None, stagione,
-            contratto_id=contratto["id"], gratuito=False,
-            note=f"Taglio {giocatore['nome_common']} {contratto['importo']}M x{anni_res}"
+        testo_canale = (
+            f"✂️ <b>{team['gm_nome']}</b> taglia <b>{nome}</b>\n"
+            f"Contratto: {c['importo']}M × 1 anno — nessun impatto\n"
+            f"Tagli gratuiti rimasti: <b>{MAX_TAGLI_GRATUITI - usati}/{MAX_TAGLI_GRATUITI}</b>"
         )
-        for r in rate:
-            _q(
-                "INSERT INTO impatto_taglio "
-                "(team_id, giocatore_id, stagione_taglio, stagione, importo, transazione_id) "
-                "VALUES (%s, %s, %s, %s, %s, %s)",
-                (team["id"], gid, stagione, r["stagione"], r["importo"], trans_id)
-            )
+    else:
         righe_imp = "\n".join(f"  • {r['stagione']}: {r['importo']}M" for r in rate)
         await query.edit_message_text(
-            f"✅ <b>{giocatore['nome_common']}</b> tagliato.\n\nImpatto taglio:\n{righe_imp}",
+            f"✅ <b>{nome}</b> tagliato.\n\nImpatto taglio:\n{righe_imp}"
+            + (f"\n\n{v['avviso']}" if v["avviso"] else ""),
             parse_mode="HTML",
         )
-        if main_channel:
-            rate_str = " · ".join(f"{r['stagione']}: {r['importo']}M" for r in rate)
-            testo_canale = (
-                f"✂️ <b>{team['gm_nome']}</b> taglia <b>{giocatore['nome_common']}</b>\n"
-                f"Contratto precedente: {contratto['importo']}M × {anni_res} "
-                f"{'anno' if anni_res == 1 else 'anni'}\n"
-                f"Impatto taglio: {rate_str}"
-            )
-            try:
-                await context.bot.send_message(
-                    chat_id=main_channel, text=testo_canale, parse_mode="HTML"
-                )
-            except Exception as e:
-                logger.warning("Annuncio canale taglio fallito: %s", e)
+        rate_str = " · ".join(f"{r['stagione']}: {r['importo']}M" for r in rate)
+        testo_canale = (
+            f"✂️ <b>{team['gm_nome']}</b> taglia <b>{nome}</b>\n"
+            f"Contratto precedente: {c['importo']}M × {v['anni_res']} "
+            f"{'anno' if v['anni_res'] == 1 else 'anni'}\n"
+            f"Impatto taglio: {rate_str}"
+        )
+    if main_channel:
+        try:
+            await context.bot.send_message(chat_id=main_channel, text=testo_canale, parse_mode="HTML")
+        except Exception as e:
+            logger.warning("Annuncio canale taglio fallito: %s", e)
     logger.info("Taglio: team=%s giocatore=%d gratuito=%s", team["id"], gid, gratuito)
 
-    # Sync GAS Sheets
     try:
         import gas_client
         gas_client.sync_after_taglio(team["id"])

@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v3.8.2, bot aste v51)
+# Messaggio di migrazione — Fantabasket Progettone (stato v3.9.0, bot aste v52)
 
 ---
 
@@ -248,6 +248,10 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 
 **Bot aste v51 — `/apri_asta <team_id> <importo> <giocatore>`:** apertura FA per conto di una squadra (prima solo `/crea_offerta` sulle aste esistenti). Apertura unica in `handlers/offerte.apri_asta_fa(context, team, giocatore, importo, watcher_ids)` → (asta_id, errore), usata anche dal GM dopo la conferma: ricontrolla mercato, importo, cap, slot e asta già aperta. Nome non esatto → il bot propone i comandi con i nomi esatti da ricopiare (nessuno stato in memoria). Watch per tutti i GM della squadra, annuncio canale + canale log
 
+**Revisione regolamento (v3.9.0 / aste v52, 12/10/2026):** decisioni di Luca — luxury offseason 165 per tutti anche se penalizzati (va corretto il regolamento, come per Stepien a 4 anni); nessun minimo per fantamedia nelle aste FA; rifirma dopo taglio = spalmatura invariata + contratto firmato. RFA: cap sì, slot no (`pg_client.get_slot_totale` + `rfa_fuori_slot`). DPE: segue il giocatore in trade (`_scrivi_trade` aggiorna `dpe.team_id`, anche nell'annullamento). Tagli in RS: bloccati sotto 10 giocatori e se scoprono i minimi dei ruoli. Cam Thomas exception = motivo `cam_thomas` del decadimento (nota "Cam Thomas" nella transazione): spalmature invariate, rifirma della stessa squadra entro un anno ≥ contratto precedente (`db.minimo_cam_thomas` / `pg_client.minimo_cam_thomas`). Aste che impegnano cap/slot: `database.STATI_IMPEGNO` = APERTA, CHIUSA, PAREGGIO. Regola dei 30 giorni: ultimo movimento = taglio → bloccate le squadre che l'hanno avuto negli ultimi 30 giorni. Due conteggi del roster: bot main = contratti attivi, bot aste = ultimo movimento in `transazioni` → ogni chiusura di contratto deve avere anche il suo movimento
+
+**Ambiente di test (`tests/`, dal 12/10/2026):** PostgreSQL 16 locale, database `fbt` (utente `fb`/`fb`, schema da `fantabasket-main/schema.sql`, tabelle successive da `migrate_db()`), configurazione finta in `tests/config/` (settings = valori di produzione; 4 squadre `team01`–`team04`, GM 101+111/102/103/104, admin 900, chat fittizie negative), Telegram simulato con oggetti finti. `tests/run.sh` lancia tutte le prove (10: trade a 3, revisione regolamento, DPE in trade, team_diff, RFA/30 giorni/DPE su PG, lascio andare, `/apri_asta`, apertura GM, cap ad asta chiusa, proprietario RFA) con una copia pulita della config per ognuna. Le prove fanno `TRUNCATE`: mai sul DB vero — `tests/guardia.py` (importato da ogni prova e da `run.sh`) le blocca se trova `secrets/` nel repo, `/run/secrets`, un database non locale o il database `fantabasket`; sul server inoltre `run.sh` non è eseguibile (`core.fileMode false`). `tests/dashboard/docker_finto` simula `docker compose exec -T postgres` per provare `scripts/setup_dashboard.sh`. Dettagli e come scrivere prove nuove: `tests/README.md`. Prima di ogni zip: `tests/run.sh` deve finire con "Tutte le prove passate."
+
 **/team_diff (v3.8.1):** snapshot con `_snapshot_contratti(team_id, at)` (roster a una data + `contratto_id` + DPE da `db.get_dpe_at`); IN col contratto finale, OUT con l'iniziale, sezione "Contratto cambiato" se cambia `contratto_id` o importo effettivo. Limite: per i rookie `anni_scala` è quello di oggi
 
 **Richieste agli admin e trade (v3.6.0):**
@@ -303,7 +307,10 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 **v5.x — IPanchinariBot**
 
 **Pending fuori roadmap:**
-- Rinnovo rookie (offseason, flusso separato dall'attivazione diritti)
+- **Cambio di stagione (prima di giugno 2027)**, oggi non automatizzato: scadenza contratti (oggi `anni_residui` = max(1, …): un contratto finito resta x1 invece di x0 → FA); rinnovi (max 2, +¼ e +½ per eccesso, minimo da `tabella_minimo_contratto`, x2/x3); dichiarazione RFA (max 1, x0; RFA non scambiabili fino a fine fase RFA salvo RFA per RFA); avanzamento rookie scale (`anni_scala` e importo anno per anno: oggi nessuno li aggiorna) + Doncic rule; draft (pick `scattata`, pick del nuovo anno, solo 6 draft scambiabili, firma obbligatoria delle 1st); a inizio RS penalità salary floor (2M per milione sotto 115) e controllo luxury
+- 10-day contract non implementato (gestito a mano: NON registrarlo con /registra_firma, peserebbe sul cap)
+- **RFA dal prossimo anno** (detto da Luca il 12/10/2026): nuova fase **prima di `offseason-rfa`** in cui ogni GM dichiara il suo RFA (max 1, contratto x0) dal bot principale; al passaggio a `offseason-rfa` le aste RFA si aprono **in automatico** (oggi le apre un admin con `/nuova_rfa`, che resta per le correzioni)
+- **Promemoria spalmature** (idea 12/10/2026, da decidere): report periodico agli admin dei giocatori free agent con spalmature attive che non giocano da tempo (ultima presenza in `bref_stats`), candidati a `/ritiro_fa`
 - Piano deciso il 10/10/2026: aspettare qualche giorno la risposta di Yahoo; se non arriva, partire comunque con **IPanchinariBot** (bot delle panchine)
 
 **Posizioni e ruoli (v3.1.0):**
@@ -362,6 +369,7 @@ Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v3.8.0** — dashboard NocoDB in LAN/Tailscale con utente PostgreSQL in sola lettura; `gas/.claspignore` e manifest con `webapp`; revisione trade a 3-4 squadre
 - **v3.8.1** — contratti nel `/team_diff`
 - **v3.8.2** — dashboard: dati interni su PostgreSQL, registrazione al primo accesso, timeout su `lettore`, `mem_limit`
+- **v3.9.0 / aste v52** — revisione contro il regolamento: aste chiuse nel cap virtuale, RFA (cap sì slot no, proprietario non offre, lascio andare), regola dei 30 giorni, tagli, ritiro, slot rookie
 
 Novità v2.0.31–v2.0.38:
 - **v2.0.31** — DPE disponibile in tutte e 6 le fasi (da offseason-rinnovi a regular-season-deadline); admin menu DPE diretta; `pre_deadline = (fase != "regular-season-deadline")`

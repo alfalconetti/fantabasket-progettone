@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# finto docker: "compose up" no-op, "compose exec -T postgres <cmd> ..." → comando locale su localhost
+[ "$1" = compose ] || exit 0; shift
+[ "$1" = exec ] || exit 0; shift; [ "$1" = -T ] && shift; shift   # salta il nome del servizio
+cmd=$1; shift
+exec "$cmd" -h localhost "$@"

@@ -88,17 +88,32 @@ async def nuova_rfa(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text(f"❌ {team['nome']} ha già utilizzato la RFA questa stagione.")
         return
 
-    # normalizzazione nome giocatore — per RFA non c'è lista fissa,
-    # ma normalizziamo l'input per salvarlo in forma canonica
-    # (l'admin inserisce il nome come vuole, lo salviamo normalizzato-decoded)
+    # Il giocatore deve essere sotto contratto con la squadra proprietaria: il nome
+    # viene preso dal roster (prima testo libero: con un errore di battitura alla
+    # firma veniva creato un giocatore nuovo e il vecchio contratto restava attivo)
+    import pg_client
     giocatore = giocatore_input.strip()
+    if pg_client.pg_disponibile():
+        roster = pg_client.nomi_roster(team_id)
+        esatto, suggerimento = utils.trova_giocatore_generico(giocatore, roster)
+        if not esatto:
+            if suggerimento:
+                await update.effective_message.reply_text(
+                    f"🔎 «{html.escape(giocatore)}» non è un nome esatto del roster di {team['nome']}. Intendevi:\n\n"
+                    f"<code>/nuova_rfa {html.escape(suggerimento)} {team_id} {vecchio_compenso}</code>",
+                    parse_mode="HTML")
+            else:
+                await update.effective_message.reply_text(
+                    f"❌ «{html.escape(giocatore)}» non è sotto contratto con {team['nome']}.", parse_mode="HTML")
+            return
+        giocatore = esatto
 
     if db.giocatore_gia_in_asta(giocatore):
         await update.effective_message.reply_text(f"❌ Esiste già un'asta aperta per {giocatore}.")
         return
 
     now   = datetime.now(timezone.utc)
-    scade = now + timedelta(hours=DURATA_ASTA_H)
+    scade = now + timedelta(hours=settings.durata_asta_ore())   # prima 18 fisso nel codice
 
     asta_id = db.crea_asta(
         tipo="RFA",
@@ -141,8 +156,7 @@ async def nuova_rfa(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def listteams(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Lista squadre con cap e slot — disponibile a tutti."""
     s = settings.get()
-    cap_totale = s.get("cap_offseason", 165)
-    slot_totale = s.get("slot_massimo", 15)
+    slot_totale = s.get("roster_max", 15)
 
     all_teams = tm.get_all_teams()
     righe = ["<b>🏀 Squadre</b>\n"]
@@ -151,14 +165,14 @@ async def listteams(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cap_virt  = db.get_cap_virtuale(t["id"])
         slot_virt = db.get_slot_virtuali(t["id"])
         cap_disp, slot_disp = utils.cap_slot_display(t, stagione_ls)
-        cap_impegnati_contratti  = cap_totale - cap_disp
+        cap_impegnati_contratti  = utils.cap_impegnato_display(t, stagione_ls)
         slot_impegnati_contratti = slot_totale - slot_disp
         cap_libero  = cap_disp - cap_virt
         slot_liberi = slot_disp - slot_virt
 
         righe.append(
             f"<b>{t['nome']}</b> — <code>{t['id']}</code>\n"
-            f"💰 {cap_impegnati_contratti}M impegnati ({cap_totale}-{cap_disp}) | {cap_disp}M disponibili | {cap_libero}M liberi\n"
+            f"💰 {cap_impegnati_contratti}M impegnati | {cap_disp}M disponibili | {cap_libero}M liberi\n"
             f"🪑 {slot_impegnati_contratti} impegnati ({slot_totale}-{slot_disp}) | {slot_disp} disponibili | {slot_liberi} liberi\n"
         )
 
@@ -1178,15 +1192,15 @@ async def cmd_team(update: Update, context: ContextTypes.DEFAULT_TYPE):
     fase = utils.load_globals().get("fase", "offseason")
     cap_pen = team.get("cap_penalizzato", 0)
     s = settings.get()
-    cap_impegnati_contratti  = s["cap_offseason"] - cap_tot
+    cap_impegnati_contratti  = utils.cap_impegnato_display(team, stagione)
     slot_impegnati_contratti = s.get("slot_massimo", 15) - slot_tot
 
     righe = [
         f"🏀 <b>{team['nome']}</b>",
         f"<i>ID: <code>{team_id}</code></i>",
         "",
-        f"💰 <b>{cap_impegnati_contratti}M</b> impegnati in contratti",
-        f"💰 Cap disponibile (offseason): <b>{cap_tot}M</b>",
+        f"💰 <b>{cap_impegnati_contratti}M</b> impegnati (contratti + tagli)",
+        f"💰 Cap disponibile {utils.etichetta_cap()}: <b>{cap_tot}M</b>",
         f"⏳ Cap virtualmente impegnato: <b>{cap_virtuale}M</b>",
         f"✅ Cap effettivamente libero: <b>{cap_libero}M</b>",
     ]
@@ -1647,8 +1661,10 @@ def _cap_virtuale_post_riapertura(asta: dict) -> tuple[int, int, int]:
         return 0, 0, 0
     stagione_ri = utils.load_globals().get("stagione_corrente", "2025")
     cap_disp, _ = utils.cap_slot_display(team_data, stagione_ri)
-    cap_virt  = db.get_cap_virtuale(team_id)
     offerta   = asta["offerta_corrente"] or 0
+    stato     = asta.get("stato") if isinstance(asta, dict) else asta["stato"]
+    # l'asta stessa, se ancora in uno stato che impegna cap, è già nel cap virtuale
+    cap_virt  = db.get_cap_virtuale(team_id) - (offerta if stato in db.STATI_IMPEGNO else 0)
     return cap_disp, cap_virt, cap_virt + offerta
 
 

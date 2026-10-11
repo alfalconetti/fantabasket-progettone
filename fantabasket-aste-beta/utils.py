@@ -282,3 +282,23 @@ def cap_slot_display(team: dict, stagione: str) -> tuple[int, int]:
             pg_client.get_slot_totale(team["id"], stagione=stagione),
         )
     return team["cap_disponibile"], team["slot_disponibili"]
+
+
+def cap_impegnato_display(team: dict, stagione: str) -> int:
+    """Cap occupato da contratti (con DPE) + impatto tagli della stagione.
+    Prima /me, /team_detail e /listteams lo ricavavano come 165 - cap disponibile:
+    in regular season veniva gonfiato di 15M (e della penalità)."""
+    import pg_client
+    if pg_client.pg_disponibile():
+        return pg_client.get_cap_contratti(team["id"], stagione) + pg_client.get_impatto_taglio(team["id"], stagione)
+    import settings as _settings
+    return _settings.cap_limite() - team.get("cap_disponibile", 0)
+
+
+def etichetta_cap() -> str:
+    """'(offseason, tetto 165M)' oppure '(regular season)' per le righe del cap disponibile."""
+    import settings as _settings
+    if load_globals().get("fase", "").startswith("offseason"):
+        return f"(offseason, tetto {_settings.cap_limite()}M)"
+    return "(regular season)"
+

@@ -889,3 +889,23 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 - `docker-compose.yml`: `mem_limit: 1g` per NocoDB
 - `RECOVERY.md`: dopo un ripristino del database va rilanciato lo script della dashboard
 
+## v3.9.0 (2026-10-12)
+
+Revisione del codice contro il regolamento.
+
+### Tagli
+- 1x1 oltre i 3 gratuiti: consentito con spalmatura 1x1 (prima vietato; il regolamento ammette tagli illimitati). Il limite dei 3 gratuiti è ricontrollato alla conferma (prima solo nell'anteprima: aprendone due se ne facevano 4)
+- Regular season: bloccato il taglio che porta il roster sotto i 10 giocatori o che lascia scoperti i minimi dei ruoli (4 G, 4 F, 2 C)
+- Contratto chiuso, transazione e rate in un'unica transazione DB; bottone di conferma inutilizzabile a mercato chiuso
+
+### Decadimento
+- Nuovo motivo **✂️ Cam Thomas exception** (giocatore tagliato in NBA, senza squadra da un mese di mercato NBA aperto; condizioni verificate dagli admin sulla richiesta del GM): contratto chiuso senza spalmatura, le spalmature esistenti restano. Se la stessa squadra lo rifirma entro un anno deve dargli almeno il contratto precedente: controllato in `/registra_firma` e nel bot aste (apertura asta e offerte)
+- Motivo ritiro o altra lega: tolte anche le spalmature future di chi aveva tagliato il giocatore in passato (regolamento: "il suo stipendio non peserà più neanche se in passato è stato tagliato"); con "altro" (Cam Thomas) solo quelle della squadra
+- `/ritiro_fa <nome>` (admin): stesso effetto per un free agent che si ritira
+
+### Altro
+- Attivazione diritti: controllo slot (prima si poteva arrivare a 16 giocatori)
+- `/registra_firma`: anni minimi obbligatori (20M → x2, 35M → x3) e avviso se la squadra risulta oltre il tetto o oltre 15 giocatori
+- Trade: la DPE segue il giocatore. All'esecuzione (e all'annullamento) la riga `dpe` passa alla squadra che lo riceve, che lo paga ridotto e senza occupare slot; prima il controllo della trade lo contava ridotto ma dopo la trade roster e cap della nuova squadra lo vedevano pieno. Anche il controllo slot della trade ora esclude i giocatori con DPE
+- `tests/`: prove dei due bot su PostgreSQL locale e configurazione finta (`tests/run.sh`, istruzioni in `tests/README.md`). `tests/guardia.py` le blocca sul server (cartella `secrets/`), nei container, su database non locali o sul database `fantabasket`
+

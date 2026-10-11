@@ -1,0 +1,233 @@
+{
+  "cap_regular": 150,
+  "cap_offseason": 165,
+  "salary_floor": 115,
+  "roster_max": 15,
+  "roster_min_regular": 10,
+  "roster_min_guardie": 4,
+  "roster_min_ali": 4,
+  "roster_min_centri": 2,
+  "soglia_anni_2": 20,
+  "soglia_anni_3": 35,
+  "fascia_bassa_max": 20,
+  "fascia_media_max": 34,
+  "max_rinnovi_standard": 2,
+  "max_10day_per_giocatore": 2,
+  "ore_comunicazione_ruolo": 48,
+  "stepien_anni": 4,
+  "doncic_soglia_1": 20,
+  "doncic_soglia_2": 25,
+  "numero_teams": 24,
+  "durata_asta_ore": 18,
+  "timeout_firma_fa_ore": 48,
+  "timeout_firma_rfa_ore": 12,
+  "timeout_pareggio_ore": 24,
+  "rilancio_minimo": 1,
+  "notifica_minuti_scadenza": 15,
+  "paginazione_aste": 8,
+  "paginazione_fa": 8,
+  "backup_intervallo_ore": 12,
+  "tabella_minimo_contratto": [
+    {
+      "da": 0,
+      "a": 10.99,
+      "minimo": 1
+    },
+    {
+      "da": 11,
+      "a": 14.99,
+      "minimo": 2
+    },
+    {
+      "da": 15,
+      "a": 19.99,
+      "minimo": 5
+    },
+    {
+      "da": 20,
+      "a": 24.99,
+      "minimo": 10
+    },
+    {
+      "da": 25,
+      "a": 29.99,
+      "minimo": 15
+    },
+    {
+      "da": 30,
+      "a": 34.99,
+      "minimo": 20
+    },
+    {
+      "da": 35,
+      "a": 39.99,
+      "minimo": 25
+    },
+    {
+      "da": 40,
+      "a": 44.99,
+      "minimo": 30
+    },
+    {
+      "da": 45,
+      "a": 9999,
+      "minimo": 35
+    }
+  ],
+  "rookie_scale": {
+    "1": [
+      {
+        "anno": 1,
+        "imp": 12,
+        "anni": 2
+      },
+      {
+        "anno": 2,
+        "imp": 13,
+        "anni": 1
+      },
+      {
+        "anno": 3,
+        "imp": 14,
+        "anni": 2
+      },
+      {
+        "anno": 4,
+        "imp": 15,
+        "anni": 1
+      }
+    ],
+    "2-3": [
+      {
+        "anno": 1,
+        "imp": 10,
+        "anni": 2
+      },
+      {
+        "anno": 2,
+        "imp": 11,
+        "anni": 1
+      },
+      {
+        "anno": 3,
+        "imp": 12,
+        "anni": 2
+      },
+      {
+        "anno": 4,
+        "imp": 13,
+        "anni": 1
+      }
+    ],
+    "4-5": [
+      {
+        "anno": 1,
+        "imp": 8,
+        "anni": 2
+      },
+      {
+        "anno": 2,
+        "imp": 9,
+        "anni": 1
+      },
+      {
+        "anno": 3,
+        "imp": 10,
+        "anni": 2
+      },
+      {
+        "anno": 4,
+        "imp": 11,
+        "anni": 1
+      }
+    ],
+    "6-10": [
+      {
+        "anno": 1,
+        "imp": 5,
+        "anni": 2
+      },
+      {
+        "anno": 2,
+        "imp": 6,
+        "anni": 1
+      },
+      {
+        "anno": 3,
+        "imp": 7,
+        "anni": 2
+      },
+      {
+        "anno": 4,
+        "imp": 8,
+        "anni": 1
+      }
+    ],
+    "11-24": [
+      {
+        "anno": 1,
+        "imp": 3,
+        "anni": 2
+      },
+      {
+        "anno": 2,
+        "imp": 3,
+        "anni": 1
+      },
+      {
+        "anno": 3,
+        "imp": 4,
+        "anni": 2
+      },
+      {
+        "anno": 4,
+        "imp": 4,
+        "anni": 1
+      }
+    ],
+    "25-30": [
+      {
+        "anno": 1,
+        "imp": 2,
+        "anni": 2
+      },
+      {
+        "anno": 2,
+        "imp": 2,
+        "anni": 1
+      },
+      {
+        "anno": 3,
+        "imp": 3,
+        "anni": 2
+      },
+      {
+        "anno": 4,
+        "imp": 3,
+        "anni": 1
+      }
+    ],
+    "31-48": [
+      {
+        "anno": 1,
+        "imp": 1,
+        "anni": 2
+      },
+      {
+        "anno": 2,
+        "imp": 1,
+        "anni": 1
+      },
+      {
+        "anno": 3,
+        "imp": 2,
+        "anni": 2
+      },
+      {
+        "anno": 4,
+        "imp": 2,
+        "anni": 1
+      }
+    ]
+  }
+}

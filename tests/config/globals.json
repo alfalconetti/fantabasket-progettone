@@ -1,0 +1,14 @@
+{
+  "fase": "offseason-fa",
+  "stagione_corrente": "2026",
+  "mercato_aperto": true,
+  "channel_id": -10,
+  "main_channel_id": -1,
+  "admin_ids": [
+    900
+  ],
+  "admin_group_id": -2,
+  "dev_id": 900,
+  "log_channel_id": -30,
+  "log_channel_id_main": -3
+}

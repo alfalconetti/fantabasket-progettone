@@ -25,10 +25,17 @@ logger = logging.getLogger(__name__)
 DEC_SQUADRA, DEC_GIOCATORE, DEC_MOTIVO = range(50, 53)
 
 MOTIVI = {
-    "ritiro":    "🏁 Ritiro dal basket",
+    "ritiro":     "🏁 Ritiro dal basket",
     "altra_lega": "🌍 Firma in altra lega",
-    "altro":     "📝 Altro",
+    "cam_thomas": "✂️ Cam Thomas exception",
+    "altro":      "📝 Altro",
 }
+# Cam Thomas exception (regolamento, Tagli): giocatore tagliato in NBA e senza squadra da
+# almeno un mese di mercato NBA aperto → il GM può chiedere il decadimento gratuito
+# (condizioni verificate dagli admin). Le spalmature restano. Se la stessa squadra lo
+# rifirma entro un anno deve dargli almeno il contratto precedente: il bot aste lo
+# controlla leggendo questa transazione (nota "Cam Thomas").
+NOTA_CAM_THOMAS = "Cam Thomas"
 
 
 # ── Flusso GM ──────────────────────────────────────────────────────────────────
@@ -186,8 +193,13 @@ async def applica_decadimento(bot, team_id: str, gid: int, motivo_key: str, admi
     if not contratto or contratto.get("team_id") != team_id:
         return "❌ Contratto non trovato o già scaduto."
 
-    db.registra_decadimento(giocatore_id=gid, team_id=team_id, stagione=stagione,
-                            contratto_id=contratto["id"], note=f"Decadimento: {motivo_label}")
+    # Ritiro / altra lega: smettono di pesare anche le spalmature di chi l'aveva tagliato
+    # (non per "altro", es. Cam Thomas exception: il giocatore resta in NBA)
+    tutte = motivo_key in ("ritiro", "altra_lega")
+    altre = db.registra_decadimento(giocatore_id=gid, team_id=team_id, stagione=stagione,
+                                    contratto_id=contratto["id"], note=f"Decadimento: {motivo_label}",
+                                    tutte_le_squadre=tutte)
+    nomi_altre = ", ".join((tm.get_team_by_id(t) or {}).get("nome", t) for t in altre)
 
     ora = format_dt(datetime.now(ROME))
     main_channel = settings.load_globals().get("main_channel_id")
@@ -196,8 +208,9 @@ async def applica_decadimento(bot, team_id: str, gid: int, motivo_key: str, admi
             f"📋 <b>{team['nome']}</b> — Decadimento contratto\n\n"
             f"Il contratto di <b>{giocatore['nome_common']}</b> è decaduto.\n"
             f"Motivo: {motivo_label}\n"
-            f"Lo slot roster è stato liberato.\n\n"
-            f"<i>Approvato da {admin_tag} — {ora}</i>"
+            f"Lo slot roster è stato liberato."
+            + (f"\nTolte anche le spalmature dei tagli passati: {nomi_altre}." if altre else "")
+            + f"\n\n<i>Approvato da {admin_tag} — {ora}</i>"
         )
         try:
             await bot.send_message(chat_id=main_channel, text=testo_canale, parse_mode="HTML")
@@ -206,6 +219,8 @@ async def applica_decadimento(bot, team_id: str, gid: int, motivo_key: str, admi
     try:
         import gas_client
         gas_client.sync_after_taglio(team_id)
+        if altre:
+            gas_client.sync_teams(altre)
     except Exception as e:
         logger.warning("GAS sync decadimento: %s", e)
     logger.info("Decadimento: team=%s giocatore=%d motivo=%s admin=%s", team_id, gid, motivo_key, admin_tag)
@@ -334,6 +349,61 @@ def _anni_residui(r: dict, stagione: str) -> int:
     return max(1, r["anni_originali"] - (int(stagione) - int(r.get("stagione_firma") or stagione)))
 
 
+# ── /ritiro_fa: free agent ritirato o andato in un'altra lega ──────────────────
+
+async def cmd_ritiro_fa(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/ritiro_fa <nome> (admin) — giocatore SENZA contratto che si ritira o va in un'altra
+    lega: le spalmature dei tagli passati smettono di pesare sul cap di chi l'aveva tagliato.
+    Per un giocatore sotto contratto si usa il decadimento normale."""
+    if not _is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ Solo admin.")
+        return
+    nome = " ".join(context.args or []).strip()
+    if not nome:
+        await update.effective_message.reply_text("Uso: /ritiro_fa <nome giocatore>")
+        return
+    import html as _html
+    from utils import normalizza
+    trovati = db.cerca_giocatori(normalizza(nome)) or []
+    esatti = [g for g in trovati if g["nome_norm"] == normalizza(nome)]
+    scelti = esatti or trovati
+    if len(scelti) != 1:
+        elenco = "\n".join(f"• {_html.escape(g['nome_common'])}" for g in scelti[:10]) or "nessuno"
+        await update.effective_message.reply_text(
+            f"Serve il nome esatto di un solo giocatore. Trovati:\n{elenco}", parse_mode="HTML")
+        return
+    g = scelti[0]
+    c = db.get_contratto_attivo(g["id"])
+    if c:
+        await update.effective_message.reply_text(
+            f"❌ {_html.escape(g['nome_common'])} è sotto contratto con {c['team_id']}: usa il decadimento "
+            f"(/admin_menu → 🏁 Decadimento, motivo ritiro o altra lega).", parse_mode="HTML")
+        return
+    tolte = db.cancella_spalmate_ritirato(g["id"], settings.stagione_corrente())
+    if not tolte:
+        await update.effective_message.reply_text(
+            f"ℹ️ {_html.escape(g['nome_common'])}: nessuna spalmatura da togliere.", parse_mode="HTML")
+        return
+    per_team = {}
+    for r in tolte:
+        per_team[r["team_id"]] = per_team.get(r["team_id"], 0) + r["importo"]
+    righe = [f"• {(tm.get_team_by_id(t) or {}).get('nome', t)}: −{imp}M in totale" for t, imp in per_team.items()]
+    testo = (f"🏁 <b>{_html.escape(g['nome_common'])}</b> si è ritirato / ha lasciato la NBA: "
+             f"le spalmature dei tagli passati non pesano più sul cap.\n" + "\n".join(righe))
+    await update.effective_message.reply_text(testo, parse_mode="HTML")
+    ch = settings.load_globals().get("main_channel_id")
+    if ch:
+        try:
+            await context.bot.send_message(chat_id=ch, text=testo, parse_mode="HTML")
+        except Exception as e:
+            logger.warning("Annuncio ritiro_fa: %s", e)
+    try:
+        import gas_client
+        gas_client.sync_teams(list(per_team))
+    except Exception as e:
+        logger.warning("GAS sync ritiro_fa: %s", e)
+
+
 # ── Registrazione handler ──────────────────────────────────────────────────────
 
 def get_handlers() -> list:
@@ -353,6 +423,7 @@ def get_handlers() -> list:
     )
     return [
         conv,
+        CommandHandler("ritiro_fa", cmd_ritiro_fa),
         CallbackQueryHandler(cb_dec_approva, pattern=r"^dec_approva:.+:\d+:\w+$"),
         CallbackQueryHandler(cb_dec_rifiuta, pattern=r"^dec_rifiuta:.+:\d+$"),
         CallbackQueryHandler(cb_dec_admin,   pattern=r"^decadm:(?:t:[\w-]+|g:[\w-]+:\d+|(?:m|ok):[\w-]+:\d+:\w+)$"),

@@ -40,14 +40,14 @@ async def cmd_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
     fase = utils.load_globals().get("fase", "offseason")
     cap_pen = team.get("cap_penalizzato", 0)
     s = settings.get()
-    cap_impegnati_contratti  = s["cap_offseason"] - cap_tot
+    cap_impegnati_contratti  = utils.cap_impegnato_display(team, stagione)
     slot_impegnati_contratti = s.get("slot_massimo", 15) - slot_tot
 
     righe = [
         f"🏀 <b>{team['nome']}</b>",
         "",
-        f"💰 <b>{cap_impegnati_contratti}M</b> impegnati in contratti",
-        f"💰 Cap disponibile (offseason): <b>{cap_tot}M</b>",
+        f"💰 <b>{cap_impegnati_contratti}M</b> impegnati (contratti + tagli)",
+        f"💰 Cap disponibile {utils.etichetta_cap()}: <b>{cap_tot}M</b>",
         f"⏳ Cap virtualmente impegnato: <b>{cap_virtuale}M</b>",
         f"✅ Cap effettivamente libero: <b>{cap_libero}M</b>",
     ]
@@ -491,15 +491,15 @@ def _build_team_detail_testo(team: dict) -> str:
     fase = utils.load_globals().get("fase", "offseason")
     cap_pen = team.get("cap_penalizzato", 0)
     s = settings.get()
-    cap_imp_contratti  = s["cap_offseason"] - cap_tot
+    cap_imp_contratti  = utils.cap_impegnato_display(team, stagione)
     slot_imp_contratti = s.get("slot_massimo", 15) - slot_tot
 
     righe = [
         f"🏀 <b>{team['nome']}</b>",
         f"<i>ID: <code>{team_id}</code></i>",
         "",
-        f"💰 <b>{cap_imp_contratti}M</b> impegnati in contratti",
-        f"💰 Cap disponibile (offseason): <b>{cap_tot}M</b>",
+        f"💰 <b>{cap_imp_contratti}M</b> impegnati (contratti + tagli)",
+        f"💰 Cap disponibile {utils.etichetta_cap()}: <b>{cap_tot}M</b>",
         f"⏳ Cap virtualmente impegnato: <b>{cap_virtuale}M</b>",
         f"✅ Cap effettivamente libero: <b>{cap_libero}M</b>",
     ]

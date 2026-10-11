@@ -90,3 +90,11 @@ Se pareggi sopra soglia, devi offrire almeno gli stessi anni del vincitore. Sott
 
 ### Nessuna offerta ricevuta
 Se nessuno ha offerto per il tuo RFA, puoi firmarlo tu seguendo le stesse regole di soglia, oppure lasciarlo andare in free agency.
+
+## Regole controllate dal bot (v52)
+
+- **Cap e slot impegnati**: un'asta che stai vincendo impegna cap e slot finché non firmi, anche dopo la chiusura mentre scegli anni e ruolo.
+- **RFA**: il tuo RFA continua a occupare cap ma non slot finché la sua asta non è conclusa. Non puoi fare offerte sul tuo RFA.
+- **Regola dei 30 giorni**: se hai avuto un giocatore negli ultimi 30 giorni ed è stato tagliato, non puoi aprire l'asta né rilanciare su di lui.
+- **DPE**: il cap per le offerte tiene conto della riduzione della DPE.
+

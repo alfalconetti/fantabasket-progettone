@@ -1272,6 +1272,10 @@ def _scrivi_trade(trade_id: int, trade_ref: str, approvata_da: str | None, inver
                     if c[1] != da:
                         raise TradeNonEseguibile(f"{_nome_item(item)} non è più nella squadra che lo cede")
                     cur.execute("UPDATE contratti SET team_id = %s WHERE id = %s", (a, c[0]))
+                    # la DPE della stagione segue il giocatore (regolamento: chi lo riceve
+                    # se lo porta dietro con l'importo ridotto e lo slot libero)
+                    cur.execute("UPDATE dpe SET team_id = %s WHERE giocatore_id = %s AND team_id = %s "
+                                "AND stagione = %s", (a, gid, da, settings.stagione_corrente()))
                     cur.execute("INSERT INTO transazioni (tipo, giocatore_id, team_id_da, team_id_a, stagione, "
                                 "contratto_id, trade_id, note) VALUES ('traded', %s, %s, %s, %s, %s, %s, %s)",
                                 (gid, da, a, stagione, c[0], trade_id, nota_tx))

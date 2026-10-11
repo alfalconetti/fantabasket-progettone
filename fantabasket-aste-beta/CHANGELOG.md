@@ -536,3 +536,17 @@ Comandi riservati al solo `dev_id` (non visibili in /admin), per osservare lo st
 - **`/apri_asta <team_id> <importo> <nome giocatore>`** (admin): apre un'asta FA per conto di una squadra con la sua offerta iniziale. Prima gli admin potevano solo rilanciare per altri con `/crea_offerta`. Stessa ricerca del nome di `/nuova_fa`; se il nome non è esatto il bot propone i comandi con i nomi giusti da ricopiare. Annuncio sul canale ("aperta da admin per conto di"), avviso ai GM della squadra, che seguono l'asta, e riga sul canale log
 - Apertura delle aste FA in un'unica funzione (`offerte.apri_asta_fa`) usata da GM e admin: mercato, importo, cap, slot e "asta già aperta" vengono ricontrollati al momento dell'apertura (prima, per il GM, solo prima del bottone di conferma)
 
+## v52 — Revisione contro il regolamento
+
+- **Cap e slot impegnati anche ad asta chiusa**: tra la chiusura e la firma (fino a 48h per scegliere anni e ruolo) l'offerta vincente non contava più nel cap e negli slot virtuali, e con lo stesso cap si potevano aprire o vincere altre aste. Ora contano le aste APERTA, CHIUSA e PAREGGIO (`database.STATI_IMPEGNO`). `/riapri_asta` non conta più due volte l'asta stessa
+- **RFA: il proprietario non può offrire** sul proprio RFA neanche con `/offerta` o `/crea_offerta` (il blocco c'era solo dal canale)
+- **RFA occupa cap ma non slot** (regolamento): slot totali = 15 − roster + RFA in corso della squadra, per offerte, `/me`, pareggio e firma del proprietario (prima chi aveva 14 giocatori + l'RFA non poteva offrire né rifirmarlo)
+- **Lascio andare**: solo il proprietario, solo su un RFA chiuso senza offerte; il contratto viene davvero chiuso su PostgreSQL con un movimento di uscita (prima la funzione veniva chiamata senza il nome del giocatore e su PG non succedeva niente: il giocatore restava in squadra). Con due GM il secondo poteva annullare una firma appena fatta dal primo
+- **Regola dei 30 giorni**: chi ha avuto negli ultimi 30 giorni un giocatore poi tagliato non può aprire l'asta né rilanciare (`pg_client.squadre_regola_30_giorni`)
+- **DPE nel cap per offrire**: il cap delle offerte ora usa l'importo ridotto, come `/me`
+- **Rifirma dopo un taglio**: il contratto è quello firmato e la spalmatura resta com'è (prima veniva sommato tutto lo spalmato residuo all'importo annuo)
+- **`/nuova_rfa`**: il giocatore va scelto dal roster della squadra proprietaria (con suggerimento se il nome non è esatto); durata da `settings` invece che 18 fisso
+- Pareggio: gli avvisi di cap o slot insufficienti ora compaiono (doppia `answer()`)
+- `/me`, `/team_detail`, `/listteams`: cap impegnato calcolato davvero (contratti con DPE + tagli; prima 165 − disponibile, gonfiato di 15M in regular season) ed etichetta in base alla fase
+- Config: `fascia_bassa_max` va a **20** (regolamento: "≤ 20 milioni si può pareggiare qualsiasi offerta")
+- **Cam Thomas exception**: la squadra che ha fatto decadere un giocatore con questa regola nell'ultimo anno può riaprirne l'asta o rilanciare solo ad almeno il contratto precedente (`pg_client.minimo_cam_thomas`)

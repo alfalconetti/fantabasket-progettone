@@ -10,16 +10,18 @@ import teams as tm
 
 
 def _cap_post_team(team_id: str, items: list, stagione: str) -> tuple[int, int]:
-    """(cap attuale, cap post-trade) di una squadra; contratti con DPE contati all'importo ridotto."""
-    def _importo_effettivo(giocatore_id):
+    """(cap attuale, cap post-trade) di una squadra. La DPE segue il giocatore
+    (`_scrivi_trade` sposta anche la riga dpe): conta all'importo ridotto sia per chi
+    lo cede sia per chi lo riceve."""
+    def _importo(giocatore_id):
         dpe = db.get_dpe_attiva(giocatore_id, stagione)
         if dpe:
             return dpe["importo_dpe"]
         return (db.get_contratto_attivo(giocatore_id) or {}).get("importo", 0)
     cap_attuale = db.cap_occupato_team(team_id, stagione)
-    cap_out = sum(_importo_effettivo(i["giocatore_id"]) for i in items
+    cap_out = sum(_importo(i["giocatore_id"]) for i in items
                   if i["team_id_da"] == team_id and i["tipo"] == "giocatore")
-    cap_in  = sum(_importo_effettivo(i["giocatore_id"]) for i in items
+    cap_in  = sum(_importo(i["giocatore_id"]) for i in items
                   if i["team_id_a"] == team_id and i["tipo"] == "giocatore")
     return cap_attuale, cap_attuale - cap_out + cap_in
 
@@ -197,7 +199,10 @@ def valida_trade(trade_id: int) -> tuple[bool, list[str]]:
         # Giocatori con DPE in fase pre-deadline non occupano slot
         slot_dpe_liberati = sum(1 for r in roster if r.get("ha_dpe") and pre_deadline)
         roster_count = len(roster) - slot_dpe_liberati
-        roster_post = roster_count - len(out_g) + len(in_g)
+        # chi ha una DPE non occupa slot né prima né dopo la trade (la DPE lo segue)
+        def _slot(lista):
+            return sum(1 for i in lista if not (pre_deadline and db.get_dpe_attiva(i["giocatore_id"], stagione)))
+        roster_post = roster_count - _slot(out_g) + _slot(in_g)
         if roster_post > settings.max_roster():
             errori.append(
                 f"❌ {nome}: roster post-trade {roster_post} supera il massimo {settings.max_roster()}"

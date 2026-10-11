@@ -58,8 +58,8 @@ def check_slot_virtuale(team_id: str, slot_impegnati: int) -> bool:
     from utils import load_globals
     if pg_client.pg_disponibile():
         stagione = load_globals().get("stagione_corrente")
-        roster_count = pg_client.get_roster_count(team_id, stagione=stagione)
-        return (_settings.slot_massimo() - roster_count - slot_impegnati) > 0
+        # slot totali = max - roster (senza DPE pre-deadline) + RFA in corso (non occupano slot)
+        return (pg_client.get_slot_totale(team_id, stagione=stagione) - slot_impegnati) > 0
     # Modalità isolata
     team = get_team_by_id(team_id)
     if team is None:

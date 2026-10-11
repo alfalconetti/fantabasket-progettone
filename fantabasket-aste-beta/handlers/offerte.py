@@ -86,7 +86,7 @@ def _cap_libero(team_id: str) -> int:
     cap_pen = settings.penalita_cap(team)  # 0 in offseason: tetto 165 per tutti
     if pg_client.pg_disponibile():
         stagione       = utils.load_globals().get("stagione_corrente", "2025")
-        cap_contratti  = pg_client.get_cap_contratti(team_id)
+        cap_contratti  = pg_client.get_cap_contratti(team_id, stagione)   # con DPE, come /me
         impatto_taglio = pg_client.get_impatto_taglio(team_id, stagione)
         cap_anticipato = pg_client.get_cap_anticipato(team_id)
         cap_fisso      = settings.cap_limite() - cap_contratti - impatto_taglio - cap_pen + cap_anticipato
@@ -123,6 +123,10 @@ def _check_partecipazione(team: dict, asta: dict) -> str | None:
     if asta["tipo"] == "RFA" and asta["squadra_proprietaria"] == team["id"]:
         return "❌ Detieni i diritti RFA: non puoi offrire."
 
+    blocco = _blocco_30_giorni(team, asta["giocatore"])
+    if blocco:
+        return f"❌ {blocco}"
+
     min_offerta = asta["offerta_corrente"] + settings.rilancio_minimo()
     cap = _cap_libero(team["id"])
     if cap < min_offerta:
@@ -138,6 +142,34 @@ def _check_partecipazione(team: dict, asta: dict) -> str | None:
             f"Hai già <b>{slot_imp}</b> slot virtualmente impegnati."
         )
 
+    return None
+
+
+def _blocco_30_giorni(team: dict, giocatore: str) -> str | None:
+    """Regola dei 30 giorni (Tagli): chi ha avuto negli ultimi 30 giorni un giocatore
+    poi tagliato non può firmarlo né rilanciare. Messaggio d'errore o None."""
+    import pg_client
+    try:
+        if team["id"] in pg_client.squadre_regola_30_giorni(giocatore):
+            return (f"Hai avuto <b>{giocatore}</b> negli ultimi 30 giorni ed è stato tagliato: "
+                    f"per regolamento non puoi firmarlo né rilanciare (regola dei 30 giorni).")
+    except Exception as e:
+        logger.warning("Controllo regola 30 giorni per %s: %s", giocatore, e)
+    return None
+
+
+def _minimo_cam_thomas(team: dict, giocatore: str, importo: int) -> str | None:
+    """Cam Thomas exception: la squadra che l'ha fatto decadere nell'ultimo anno può
+    rifirmarlo solo ad almeno il contratto precedente (anche aprendo l'asta)."""
+    import pg_client
+    try:
+        minimo = pg_client.minimo_cam_thomas(giocatore, team["id"])
+    except Exception as e:
+        logger.warning("Controllo Cam Thomas per %s: %s", giocatore, e)
+        return None
+    if minimo and importo < minimo:
+        return (f"<b>{giocatore}</b> è decaduto dalla tua squadra con la Cam Thomas exception meno di un anno fa: "
+                f"la tua offerta deve essere almeno il contratto precedente (<b>{minimo}M</b>).")
     return None
 
 
@@ -453,6 +485,16 @@ async def nuova_fa_importo(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         return ConversationHandler.END
 
+    blocco = _blocco_30_giorni(team, giocatore)
+    if blocco:
+        await update.effective_message.reply_text(f"❌ {blocco}", parse_mode="HTML")
+        return ConversationHandler.END
+    blocco = _minimo_cam_thomas(team, giocatore, importo)
+    if blocco:   # si può riprovare con un importo più alto
+        await update.effective_message.reply_text(f"❌ {blocco}\n\nQuanto offri?\n<i>Per annullare: /annulla</i>",
+                                                  parse_mode="HTML")
+        return NUOVA_FA_IMPORTO
+
     # Tutto validato — chiedi conferma
     context.user_data["pending_importo"] = importo
     context.user_data["pending_tipo"] = "apertura"
@@ -696,6 +738,15 @@ async def _esegui_offerta(context, team, asta_id: int, importo: int, gm_id: int)
     if asta["offerente_team_id"] == team["id"]:
         return "Sei già il miglior offerente."
 
+    # prima il blocco c'era solo nel percorso dal canale: con /offerta o /crea_offerta
+    # il proprietario poteva offrire sul proprio RFA
+    if asta["tipo"] == "RFA" and asta["squadra_proprietaria"] == team["id"]:
+        return "Detieni i diritti RFA di questo giocatore: non puoi offrire."
+
+    blocco = _blocco_30_giorni(team, asta["giocatore"]) or _minimo_cam_thomas(team, asta["giocatore"], importo)
+    if blocco:
+        return blocco
+
     min_offerta = asta["offerta_corrente"] + settings.rilancio_minimo()
     if importo < min_offerta:
         return f"Offerta troppo bassa. Minimo: {min_offerta}M."
@@ -791,6 +842,9 @@ async def apri_asta_fa(context, team: dict, giocatore: str, importo: int,
                       f"ne ha già {slot_impegnati} virtualmente impegnati.")
     if db.giocatore_gia_in_asta(giocatore):
         return None, f"Esiste già un'asta aperta per <b>{giocatore}</b>."
+    blocco = _blocco_30_giorni(team, giocatore) or _minimo_cam_thomas(team, giocatore, importo)
+    if blocco:
+        return None, blocco
 
     now   = datetime.now(timezone.utc)
     scade = now + timedelta(hours=settings.durata_asta_ore())

@@ -106,3 +106,10 @@ I ruoli possibili sono PG, SG, SF, PF, C, sempre tra le **posizioni eleggibili**
 - **🏥 Extra DPE** — gratuito, uno per ogni DPE attivata dopo la deadline, verso il ruolo del giocatore infortunato.
 
 I cambi che farebbero scendere il roster sotto i minimi (4G/4F/2C) vengono bloccati. Ogni cambio viene annunciato sul canale.
+
+## Tagli
+
+- I primi 3 tagli 1x1 di ogni stagione sono gratuiti; dal quarto il taglio 1x1 è consentito ma pesa 1M sul cap per una stagione.
+- In regular season un taglio non può portare il roster sotto i 10 giocatori né lasciare scoperti i minimi dei ruoli (4 G, 4 F, 2 C).
+- Un giocatore con DPE ceduto in trade si porta dietro la DPE: chi lo riceve lo paga ridotto e non gli occupa slot.
+- **Cam Thomas exception**: se un tuo giocatore è stato tagliato in NBA ed è senza squadra da almeno un mese (con mercato NBA aperto), puoi chiedere il decadimento gratuito del contratto (menu → Decadimento, motivo Cam Thomas); decidono gli admin. Le spalmature che avevi restano. Se lo rifirmi entro un anno devi dargli almeno il contratto precedente.

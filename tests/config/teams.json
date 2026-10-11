@@ -1,0 +1,49 @@
+{
+  "teams": [
+    {
+      "id": "team01",
+      "nome": "Alfa",
+      "gm_nome": "GA",
+      "gm_ids": [
+        101,
+        111
+      ],
+      "cap_disponibile": 30,
+      "slot_disponibili": 2,
+      "cap_penalizzato": 0
+    },
+    {
+      "id": "team02",
+      "nome": "Beta",
+      "gm_nome": "GB",
+      "gm_ids": [
+        102
+      ],
+      "cap_disponibile": 3,
+      "slot_disponibili": 2,
+      "cap_penalizzato": 0
+    },
+    {
+      "id": "team03",
+      "nome": "Gamma",
+      "gm_nome": "GC",
+      "gm_ids": [
+        103
+      ],
+      "cap_disponibile": 30,
+      "slot_disponibili": 2,
+      "cap_penalizzato": 0
+    },
+    {
+      "id": "team04",
+      "nome": "Delta",
+      "gm_nome": "GD",
+      "gm_ids": [
+        104
+      ],
+      "cap_disponibile": 30,
+      "slot_disponibili": 2,
+      "cap_penalizzato": 0
+    }
+  ]
+}

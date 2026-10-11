@@ -163,9 +163,18 @@ async def _concludi_rfa_senza_contratto(context, asta_id: int):
     asta = db.get_asta(asta_id)
     if not asta:
         return
-    if asta["vecchio_compenso"]:
-        tm.libera_cap(asta["squadra_proprietaria"], asta["vecchio_compenso"])
-        logger.info("Liberato vecchio compenso %dM per RFA asta_id=%d", asta["vecchio_compenso"], asta_id)
+    import pg_client
+    if pg_client.pg_disponibile():
+        # contratto disattivato + movimento di uscita (prima libera_cap veniva chiamata
+        # senza il nome del giocatore: su PG non succedeva niente e l'RFA restava in squadra)
+        stagione = utils.load_globals().get("stagione_corrente", "2025")
+        if not pg_client.rilascia_rfa(asta["squadra_proprietaria"], asta["giocatore"], stagione):
+            await _log_warn(context, f"RFA {asta['giocatore']} lasciato andare ma contratto non trovato su PG "
+                                     f"({asta['squadra_proprietaria']}): verificare a mano.")
+        pg_client.accoda_sync_gas(f"RFA lasciato andare {asta['giocatore']}")
+    elif asta["vecchio_compenso"]:
+        tm.libera_cap(asta["squadra_proprietaria"], asta["vecchio_compenso"])   # modalità isolata (JSON)
+    logger.info("RFA senza contratto chiusa: asta_id=%d giocatore=%s", asta_id, asta["giocatore"])
 
 
 # ── notifica admin group ──────────────────────────────────────────────────────
@@ -1262,8 +1271,7 @@ async def pareggio_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def pareggio_anni_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+    query = update.callback_query   # answer() una volta sola: sotto ci sono gli alert cap/slot
 
     _, asta_id_s, anni_s = query.data.split(":")
     asta_id = int(asta_id_s)
@@ -1271,11 +1279,13 @@ async def pareggio_anni_callback(update: Update, context: ContextTypes.DEFAULT_T
     asta    = db.get_asta(asta_id)
 
     if not asta or asta["stato"] != "PAREGGIO":
+        await query.answer()
         await query.edit_message_text("✅ Già conclusa.")
         return
 
     team = tm.get_team_by_gm(query.from_user.id)
     if not team or team["id"] != asta["squadra_proprietaria"]:
+        await query.answer()
         await query.edit_message_text("⛔ Non sei il proprietario di questo RFA.")
         return
 
@@ -1288,7 +1298,10 @@ async def pareggio_anni_callback(update: Update, context: ContextTypes.DEFAULT_T
     slot_impegnati = db.get_slot_virtuali(team["id"])
     cap_libero     = _cap_lib_offerte(team["id"]) + vec_comp
     if pg_client.pg_disponibile():
-        slot_liberi = settings.slot_massimo() - pg_client.get_roster_count(team["id"]) - slot_impegnati
+        # slot totali senza l'RFA stesso (l'RFA non occupa slot finché l'asta è in corso):
+        # rifirmarlo richiede uno slot libero
+        stagione_s = utils.load_globals().get("stagione_corrente")
+        slot_liberi = pg_client.get_slot_totale(team["id"], stagione=stagione_s) - slot_impegnati
     else:
         slot_liberi = tm.get_team_by_id(team["id"])["slot_disponibili"] - slot_impegnati
 
@@ -1310,6 +1323,7 @@ async def pareggio_anni_callback(update: Update, context: ContextTypes.DEFAULT_T
         )
         return
 
+    await query.answer()
     await query.edit_message_text(
         f"⚖️ <b>Confermi il pareggio?</b>\n\n"
         f"<b>{asta['giocatore']}</b> rimarrà con <b>{team['nome']}</b>\n"
@@ -1497,7 +1511,10 @@ async def firma_prop_anni_callback(update: Update, context: ContextTypes.DEFAULT
     slot_impegnati = db.get_slot_virtuali(team["id"])
     cap_libero     = _cap_lib_offerte(team["id"]) + vec_comp
     if pg_client.pg_disponibile():
-        slot_liberi = settings.slot_massimo() - pg_client.get_roster_count(team["id"]) - slot_impegnati
+        # slot totali senza l'RFA stesso (l'RFA non occupa slot finché l'asta è in corso):
+        # rifirmarlo richiede uno slot libero
+        stagione_s = utils.load_globals().get("stagione_corrente")
+        slot_liberi = pg_client.get_slot_totale(team["id"], stagione=stagione_s) - slot_impegnati
     else:
         slot_liberi = tm.get_team_by_id(team["id"])["slot_disponibili"] - slot_impegnati
 
@@ -1532,6 +1549,16 @@ async def lascia_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not asta:
         await query.edit_message_text("❌ Asta non trovata.")
+        return
+    # Solo il proprietario, solo un RFA chiuso senza offerte ancora da decidere: prima
+    # nessun controllo, e con due GM il secondo poteva "lasciar andare" un giocatore
+    # appena rifirmato dal primo (contratto nuovo disattivato, asta annullata)
+    team = tm.get_team_by_gm(query.from_user.id)
+    if not team or team["id"] != asta["squadra_proprietaria"]:
+        await query.edit_message_text("⛔ Non sei il proprietario.")
+        return
+    if asta["tipo"] != "RFA" or asta["stato"] != "CHIUSA" or asta["offerente_team_id"]:
+        await query.edit_message_text("✅ Già conclusa.")
         return
 
     await _concludi_rfa_senza_contratto(context, asta_id)

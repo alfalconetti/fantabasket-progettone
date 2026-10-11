@@ -58,6 +58,13 @@ def esegui_attivazione(rookie_id: int, team_id: str, importo: int, anni: int) ->
     if cap_lib < importo:
         raise AttivazioneNonEseguibile(
             f"❌ Cap insufficiente: liberi {cap_lib}M, contratto da scala {importo}M.")
+    # slot: prima non c'era controllo e si poteva arrivare a 16 giocatori
+    # (i giocatori con DPE non occupano posto)
+    roster = db.get_roster_team(team_id) or []
+    occupati = len(roster) - sum(1 for x in roster if x.get("ha_dpe"))
+    if occupati >= settings.max_roster():
+        raise AttivazioneNonEseguibile(
+            f"❌ Roster pieno ({occupati}/{settings.max_roster()}): libera uno slot prima di attivare i diritti.")
     with db.get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("SELECT r.*, g.nome_common FROM rookie r JOIN giocatori g ON g.id = r.giocatore_id "

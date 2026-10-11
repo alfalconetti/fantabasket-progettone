@@ -905,6 +905,11 @@ async def cmd_registra_firma(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not team:
         await update.effective_message.reply_text(f"❌ Team <code>{team_id}</code> non trovato.", parse_mode="HTML")
         return
+    if anni not in (1, 2, 3) or anni < settings.anni_minimi_contratto(importo):
+        await update.effective_message.reply_text(
+            f"❌ {importo}M × {anni}: anni non validi (1-3; da {settings.soglia_anni_2()}M almeno 2, "
+            f"da {settings.soglia_anni_3()}M obbligatori 3).")
+        return
 
     risultati = db.cerca_giocatori(nome_norm)
     if not risultati:
@@ -955,8 +960,32 @@ async def cb_registra_firma_sel(update: Update, context: ContextTypes.DEFAULT_TY
     await _esegui_registra_firma(query, context, g, team_id, team, importo, anni, is_callback=True)
 
 
+def _avviso_cap_slot(team: dict, stagione: str) -> str:
+    """Avviso (non blocca: la firma è già avvenuta fuori dal bot) se la squadra
+    risulta oltre il tetto o con più di 15 giocatori."""
+    righe = []
+    cap = db.cap_occupato_team(team["id"], stagione)
+    tetto = settings.cap_limite_team(team)
+    if cap > tetto:
+        righe.append(f"⚠️ Cap {cap}M oltre il tetto di {tetto}M.")
+    roster = db.get_roster_team(team["id"]) or []
+    occupati = len(roster) - sum(1 for x in roster if x.get("ha_dpe"))
+    if occupati > settings.max_roster():
+        righe.append(f"⚠️ Roster a {occupati} giocatori, oltre il massimo di {settings.max_roster()}.")
+    return ("\n\n" + "\n".join(righe)) if righe else ""
+
+
 async def _esegui_registra_firma(update_or_query, context, giocatore, team_id, team, importo, anni, is_callback=False):
     stagione = settings.stagione_corrente()
+    minimo_ct = db.minimo_cam_thomas(giocatore["id"], team_id)
+    if minimo_ct and importo < minimo_ct:
+        testo = (f"❌ {giocatore['nome_common']} è decaduto da {team['nome']} con la Cam Thomas exception "
+                 f"meno di un anno fa: per rifirmarlo serve almeno il contratto precedente ({minimo_ct}M).")
+        if is_callback:
+            await update_or_query.edit_message_text(testo)
+        else:
+            await update_or_query.effective_message.reply_text(testo)
+        return
     try:
         # contratto + transazione in un'unica transazione DB (prima: tipo 'firma' non
         # ammesso dal CHECK → contratto creato e transazione fallita)
@@ -1016,6 +1045,7 @@ async def _esegui_registra_firma(update_or_query, context, giocatore, team_id, t
         f"✅ Firma registrata:\n"
         f"<b>{giocatore['nome_common']}</b> → <b>{team['nome']}</b>\n"
         f"{importo}M × {anni} anni"
+        f"{_avviso_cap_slot(team, stagione)}"
     )
     if is_callback:
         await update_or_query.edit_message_text(testo, parse_mode="HTML")
