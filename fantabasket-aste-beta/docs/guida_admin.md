@@ -47,6 +47,8 @@ Tutti i comandi che modificano lo stato di un'asta o del mercato includono ora i
 
 `/firme [N]` — ultime N firme concluse con nome squadra e anni contratto (default 10). Utile per aggiornare i roster dopo le firme.
 
+`/apri_asta <team_id> <importo> <nome giocatore>` — apre un'asta FA per conto di una squadra, con la sua offerta iniziale (es. `/apri_asta bulls 5 LeBron James`). Stessa ricerca del nome e stessi controlli di `/nuova_fa`: mercato aperto, minimo e massimo, cap e slot della squadra, giocatore non già in asta. Se il nome è ambiguo o approssimato il bot propone i comandi con i nomi esatti da ricopiare. L'asta compare sul canale come le altre, con un avviso "aperta da admin per conto di"; i GM della squadra vengono avvisati e seguono l'asta.
+
 `/crea_offerta <team_id> <asta_id> <importo>` — registra un'offerta per conto di un team specifico senza ConversationHandler. Tutti i check vengono applicati. L'azione viene loggata sul canale log con il nome dell'admin. Utile in caso di emergenza o per correggere situazioni particolari.
 
 `/stato_asta <asta_id>` — dump completo di tutti i campi DB di un'asta con storico offerte. Alternativa rapida all'aprire sqlite3 manualmente.

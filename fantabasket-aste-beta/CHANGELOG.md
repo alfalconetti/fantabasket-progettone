@@ -530,3 +530,9 @@ Comandi riservati al solo `dev_id` (non visibili in /admin), per osservare lo st
 ## v50 — Ruolo automatico per chi ha una sola posizione
 
 - Firma in regular season: se il giocatore ha una sola posizione eleggibile non c'è la scelta del ruolo, la conferma lo mostra già ("unica posizione eleggibile")
+
+## v51 — Admin: apertura aste per conto di una squadra
+
+- **`/apri_asta <team_id> <importo> <nome giocatore>`** (admin): apre un'asta FA per conto di una squadra con la sua offerta iniziale. Prima gli admin potevano solo rilanciare per altri con `/crea_offerta`. Stessa ricerca del nome di `/nuova_fa`; se il nome non è esatto il bot propone i comandi con i nomi giusti da ricopiare. Annuncio sul canale ("aperta da admin per conto di"), avviso ai GM della squadra, che seguono l'asta, e riga sul canale log
+- Apertura delle aste FA in un'unica funzione (`offerte.apri_asta_fa`) usata da GM e admin: mercato, importo, cap, slot e "asta già aperta" vengono ricontrollati al momento dell'apertura (prima, per il GM, solo prima del bottone di conferma)
+

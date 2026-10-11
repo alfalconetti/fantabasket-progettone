@@ -7,6 +7,7 @@ Comandi admin:
   /set_cap <team_id> <valore>
   /set_slot <team_id> <valore>
 """
+import html
 import logging
 import json
 import os
@@ -2141,6 +2142,105 @@ async def crea_offerta(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 team_id, asta_id, importo, update.effective_user.id)
 
 
+# ── /apri_asta (per conto di una squadra) ─────────────────────────────────────
+
+async def apri_asta(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Apre un'asta FA per conto di una squadra, con la sua offerta iniziale.
+    Solo admin. Uso: /apri_asta <team_id> <importo> <nome giocatore>
+    Stessa ricerca del nome e stessi controlli di /nuova_fa (mercato, cap, slot…).
+    Il nome deve corrispondere a un solo giocatore della lista FA: se è ambiguo o
+    approssimato il bot propone i nomi esatti da ricopiare (niente stato in memoria).
+    """
+    if not is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ Non sei autorizzato.")
+        return
+
+    uso = ("Uso: /apri_asta &lt;team_id&gt; &lt;importo&gt; &lt;nome giocatore&gt;\n"
+           "Esempio: /apri_asta bulls 5 LeBron James")
+    if len(context.args) < 3:
+        await update.effective_message.reply_text(uso, parse_mode="HTML")
+        return
+    team_id = context.args[0]
+    try:
+        importo = int(context.args[1])
+    except ValueError:
+        await update.effective_message.reply_text("❌ L'importo deve essere un numero intero.\n\n" + uso,
+                                                  parse_mode="HTML")
+        return
+    testo_nome = " ".join(context.args[2:])
+
+    team = tm.get_team_by_id(team_id)
+    if not team:
+        await update.effective_message.reply_text(
+            f"❌ Team '<code>{html.escape(team_id)}</code>' non trovato. Usa /listteams per la lista.",
+            parse_mode="HTML",
+        )
+        return
+
+    nome_esatto, suggerimento, omonimi = utils.trova_giocatore_fa(testo_nome)
+    if not nome_esatto:
+        if suggerimento and suggerimento.startswith("__cognome__"):
+            candidati = omonimi
+        elif omonimi:
+            candidati = omonimi
+        elif suggerimento:
+            candidati = [suggerimento]
+        else:
+            candidati = []
+        if not candidati:
+            await update.effective_message.reply_text(
+                f"❌ <b>{html.escape(testo_nome)}</b> non trovato nella lista FA.", parse_mode="HTML")
+            return
+        righe = [f"<code>/apri_asta {html.escape(team_id)} {importo} {html.escape(n)}</code>" for n in candidati]
+        await update.effective_message.reply_text(
+            f"🔎 «{html.escape(testo_nome)}» non è un nome esatto. Intendevi:\n\n" + "\n".join(righe) +
+            "\n\n<i>Tocca il comando giusto per copiarlo e rimandalo.</i>",
+            parse_mode="HTML",
+        )
+        return
+
+    from handlers.offerte import apri_asta_fa
+    asta_id, errore = await apri_asta_fa(context, team, nome_esatto, importo, list(team.get("gm_ids", [])))
+    if errore:
+        await update.effective_message.reply_text(f"❌ {errore}", parse_mode="HTML")
+        return
+
+    admin_label = _admin_label(update.effective_user)
+    asta = db.get_asta(asta_id)
+    await update.effective_message.reply_text(
+        f"✅ Asta FA <b>#{asta_id}</b> aperta per <b>{nome_esatto}</b> per conto di <b>{team['nome']}</b> "
+        f"con offerta iniziale <b>{importo}M</b>.\nScade: {utils.format_dt(asta['scade_at'])}",
+        parse_mode="HTML",
+    )
+    try:
+        await context.bot.send_message(
+            chat_id=utils.get_channel_id(),
+            text=(f"🔧 Asta aperta da <b>{html.escape(admin_label)}</b> per conto di <b>{team['nome']}</b>:\n"
+                  f"<b>{nome_esatto}</b>, offerta iniziale <b>{importo}M</b>"),
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        await _log_warn(context, f"Annuncio apri_asta canale fallito: {e}")
+    for gm_id in team.get("gm_ids", []):
+        try:
+            await context.bot.send_message(
+                chat_id=gm_id,
+                text=(f"🔧 Un admin ha aperto per la tua squadra l'asta FA per <b>{nome_esatto}</b> "
+                      f"con offerta iniziale <b>{importo}M</b>.\n"
+                      f"Scade: {utils.format_dt(asta['scade_at'])}. Ricevi gli aggiornamenti (/silenzia {asta_id} per smettere)."),
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.warning("Avviso apri_asta al GM %s fallito: %s", gm_id, e)
+    await _log_warn(context,
+        f"🏀 Asta aperta da admin <b>{html.escape(admin_label)}</b>: "
+        f"{team['nome']} → {nome_esatto} {importo}M (asta #{asta_id})"
+    )
+    logger.info("apri_asta: team=%s giocatore=%s importo=%d asta_id=%d admin=%d",
+                team_id, nome_esatto, importo, asta_id, update.effective_user.id)
+
+
 # ── /firme ────────────────────────────────────────────────────────────────────
 
 async def cmd_firme(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2209,6 +2309,7 @@ async def cmd_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/chiudi_asta &lt;asta_id&gt; — chiude forzatamente un'asta\n"
         "/annulla_asta &lt;asta_id&gt; — annulla un'asta\n"
         "/annulla_offerta &lt;asta_id&gt; — annulla ultima offerta\n"
+        "/apri_asta &lt;team_id&gt; &lt;importo&gt; &lt;giocatore&gt; — apre un'asta FA per conto di un team\n"
         "/crea_offerta &lt;team_id&gt; &lt;asta_id&gt; &lt;importo&gt; — offerta one-shot per conto di un team\n"
         "/firme [N] — ultime N firme con nome squadra (default 10)\n"
         "/estendi_asta &lt;asta_id&gt; &lt;ore&gt; — sposta la scadenza in avanti di N ore\n"
@@ -2264,6 +2365,7 @@ def get_handlers():
         CommandHandler("set_cap_penalizzato",   set_cap_penalizzato),
         CommandHandler("guida_admin",           guida_admin),
         CommandHandler("crea_offerta",          crea_offerta),
+        CommandHandler("apri_asta",             apri_asta),
         CommandHandler("firme",                 cmd_firme),
         CommandHandler("all_aste",              all_aste),
         CommandHandler("riapri_asta",           riapri_asta),

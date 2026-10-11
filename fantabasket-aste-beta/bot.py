@@ -278,6 +278,7 @@ def main():
             BotCommand("firme",              "Firme recenti"),
             BotCommand("guida_admin",        "Guida comandi admin"),
             BotCommand("nuova_rfa",          "Crea asta RFA"),
+            BotCommand("apri_asta",          "Apri asta FA per conto di una squadra"),
             BotCommand("crea_offerta",       "Crea offerta manuale per un giocatore"),
             BotCommand("chiudi_asta",        "Chiudi un'asta manualmente"),
             BotCommand("annulla_asta",       "Annulla un'asta"),

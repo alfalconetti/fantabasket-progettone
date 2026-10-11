@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v3.8.2, bot aste v50)
+# Messaggio di migrazione — Fantabasket Progettone (stato v3.8.2, bot aste v51)
 
 ---
 
@@ -246,6 +246,8 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 - `giocatori.nome_common` è `TEXT` → per NocoDB testo lungo, non usabile come display value (usato `yahoo_id`)
 - Il database del bot aste (SQLite) non è collegato alla dashboard
 
+**Bot aste v51 — `/apri_asta <team_id> <importo> <giocatore>`:** apertura FA per conto di una squadra (prima solo `/crea_offerta` sulle aste esistenti). Apertura unica in `handlers/offerte.apri_asta_fa(context, team, giocatore, importo, watcher_ids)` → (asta_id, errore), usata anche dal GM dopo la conferma: ricontrolla mercato, importo, cap, slot e asta già aperta. Nome non esatto → il bot propone i comandi con i nomi esatti da ricopiare (nessuno stato in memoria). Watch per tutti i GM della squadra, annuncio canale + canale log
+
 **/team_diff (v3.8.1):** snapshot con `_snapshot_contratti(team_id, at)` (roster a una data + `contratto_id` + DPE da `db.get_dpe_at`); IN col contratto finale, OUT con l'iniziale, sezione "Contratto cambiato" se cambia `contratto_id` o importo effettivo. Limite: per i rookie `anni_scala` è quello di oggi
 
 **Richieste agli admin e trade (v3.6.0):**
@@ -302,7 +304,6 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 
 **Pending fuori roadmap:**
 - Rinnovo rookie (offseason, flusso separato dall'attivazione diritti)
-- Bot aste, parità admin: un admin deve poter **aprire un'asta per conto di una squadra** (oggi può solo fare offerte per altri con `/offerta`; aprire un'asta da 1 per un'altra squadra è impossibile)
 - Piano deciso il 10/10/2026: aspettare qualche giorno la risposta di Yahoo; se non arriva, partire comunque con **IPanchinariBot** (bot delle panchine)
 
 **Posizioni e ruoli (v3.1.0):**

@@ -770,6 +770,50 @@ async def _esegui_offerta(context, team, asta_id: int, importo: int, gm_id: int)
     return None
 
 
+async def apri_asta_fa(context, team: dict, giocatore: str, importo: int,
+                       watcher_ids: list[int]) -> tuple[int | None, str | None]:
+    """Apre un'asta FA con l'offerta iniziale di `team` e la pubblica sul canale.
+    Unico punto di apertura: GM (/nuova_fa, dopo la conferma) e admin (/apri_asta).
+    Ricontrolla tutto al momento dell'apertura (mercato, importo, cap, slot, asta
+    già aperta). Restituisce (asta_id, None) oppure (None, messaggio di errore)."""
+    if not utils.is_mercato_aperto():
+        return None, "🔒 Il mercato FA è chiuso."
+    if importo < settings.rilancio_minimo():
+        return None, f"Offerta minima: {settings.rilancio_minimo()}M."
+    if importo > settings.offerta_massima():
+        return None, f"Offerta massima: {settings.offerta_massima()}M."
+    ok, cap_libero = _check_cap(team["id"], importo)
+    if not ok:
+        return None, f"Cap insufficiente per {team['nome']}. Cap libero: {cap_libero}M."
+    slot_impegnati = db.get_slot_virtuali(team["id"])
+    if not tm.check_slot_virtuale(team["id"], slot_impegnati):
+        return None, (f"Nessuno slot libero per {team['nome']}: "
+                      f"ne ha già {slot_impegnati} virtualmente impegnati.")
+    if db.giocatore_gia_in_asta(giocatore):
+        return None, f"Esiste già un'asta aperta per <b>{giocatore}</b>."
+
+    now   = datetime.now(timezone.utc)
+    scade = now + timedelta(hours=settings.durata_asta_ore())
+    asta_id = db.crea_asta(
+        tipo="FA", giocatore=giocatore, squadra_proprietaria=None,
+        creata_at=now.isoformat(), scade_at=scade.isoformat(),
+        stagione=utils.load_globals().get("stagione_corrente"),
+    )
+    db.registra_offerta(asta_id, team["id"], importo, now.isoformat())
+    db.aggiorna_offerta(asta_id, team["id"], importo, scade.isoformat())
+    for uid in watcher_ids:
+        db.add_watch(asta_id, uid)
+    asta_row  = db.get_asta(asta_id)
+    testo_can = utils.build_canale_message(asta_row, db.get_offerte(asta_id), teams_map())
+    kb_can    = await _canale_keyboard(context, asta_id)
+    msg = await context.bot.send_message(
+        chat_id=utils.get_channel_id(), text=testo_can, parse_mode="HTML", reply_markup=kb_can,
+    )
+    db.set_canale_msg_id(asta_id, msg.message_id)
+    logger.info("Nuova FA: asta_id=%d giocatore=%s team=%s importo=%d", asta_id, giocatore, team["id"], importo)
+    return asta_id, None
+
+
 # ── handler registrations ─────────────────────────────────────────────────────
 
 # ── conferma offerta ─────────────────────────────────────────────────────────
@@ -803,38 +847,18 @@ async def conferma_offerta_callback(update: Update, context: ContextTypes.DEFAUL
             )
 
     elif tipo == "apertura":
-        team     = context.user_data.get("nuova_fa_team") or tm.get_team_by_gm(user.id)
+        team      = context.user_data.get("nuova_fa_team") or tm.get_team_by_gm(user.id)
         giocatore = context.user_data.get("nuova_fa_giocatore")
-        if db.giocatore_gia_in_asta(giocatore):
+        asta_id, errore = await apri_asta_fa(context, team, giocatore, importo, [user.id])
+        if errore:
+            await query.edit_message_text(f"❌ {errore}", parse_mode="HTML")
+        else:
+            asta_row = db.get_asta(asta_id)
             await query.edit_message_text(
-                f"❌ Nel frattempo è stata aperta un'asta per <b>{giocatore}</b>.", parse_mode="HTML"
+                f"✅ Asta FA aperta per <b>{giocatore}</b> con offerta iniziale <b>{importo}M</b>.\n"
+                f"Scade il {utils.format_dt(asta_row['scade_at'])}.",
+                parse_mode="HTML",
             )
-            context.user_data.clear()
-            return ConversationHandler.END
-        now   = datetime.now(timezone.utc)
-        scade = now + timedelta(hours=settings.durata_asta_ore())
-        asta_id = db.crea_asta(
-            tipo="FA", giocatore=giocatore, squadra_proprietaria=None,
-            creata_at=now.isoformat(), scade_at=scade.isoformat(),
-            stagione=utils.load_globals().get("stagione_corrente"),
-        )
-        db.registra_offerta(asta_id, team["id"], importo, now.isoformat())
-        db.aggiorna_offerta(asta_id, team["id"], importo, scade.isoformat())
-        db.add_watch(asta_id, user.id)
-        channel_id = utils.get_channel_id()
-        asta_row   = db.get_asta(asta_id)
-        testo_can  = utils.build_canale_message(asta_row, db.get_offerte(asta_id), teams_map())
-        kb_can     = await _canale_keyboard(context, asta_id)
-        msg = await context.bot.send_message(
-            chat_id=channel_id, text=testo_can, parse_mode="HTML", reply_markup=kb_can,
-        )
-        db.set_canale_msg_id(asta_id, msg.message_id)
-        await query.edit_message_text(
-            f"✅ Asta FA aperta per <b>{giocatore}</b> con offerta iniziale <b>{importo}M</b>.\n"
-            f"Scade il {utils.format_dt(scade.isoformat())}.",
-            parse_mode="HTML",
-        )
-        logger.info("Nuova FA: asta_id=%d giocatore=%s team=%s importo=%d", asta_id, giocatore, team["id"], importo)
 
     context.user_data.clear()
     return ConversationHandler.END
