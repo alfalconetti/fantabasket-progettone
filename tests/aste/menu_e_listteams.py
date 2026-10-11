@@ -33,3 +33,10 @@ t="".join(out); riga=[r for r in t.splitlines() if "team02" in r][0]
 print("   ", riga)
 ok("151/165M" in riga and "sopra 150 in RS" in riga and "16/15" in riga and "negativo" in riga, "riga compatta con tetto, avviso RS e negativo")
 ok("disponibili" not in t and "(15-" not in t, "niente più 'disponibili' e conti tipo (15-1)")
+# /reset_rfa (v54): la stagione la porta avanti il bot principale, qui non si tocca più
+ok(all("reset_rfa" not in nomi(liste_comandi(f, False, True)["admin"]) for f in ("offseason-rfa", "offseason-fa")), "reset_rfa fuori dal menu")
+prima=json.load(open(os.environ["GLOBALS_PATH"]))["stagione_corrente"]
+admin_id=json.load(open(os.environ["GLOBALS_PATH"]))["admin_ids"][0]
+out.clear()
+asyncio.run(A.reset_rfa(types.SimpleNamespace(effective_message=M(),effective_user=types.SimpleNamespace(id=admin_id)), types.SimpleNamespace(args=["2025-26"], user_data={})))
+ok(json.load(open(os.environ["GLOBALS_PATH"]))["stagione_corrente"]==prima and "offseason-rinnovi" in out[-1], "/reset_rfa non cambia la stagione e rimanda al bot principale")

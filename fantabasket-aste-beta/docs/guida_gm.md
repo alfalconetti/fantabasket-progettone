@@ -1,100 +1,171 @@
-# Guida GM — Fantabasket Aste Bot
+# Guida GM — bot aste
 
-## Prima di tutto
+Qui si fanno le aste: free agent (FA) e restricted free agent (RFA). Roster, trade e tagli sono nel bot principale.
 
-Manda `/start` al bot in privato — obbligatorio almeno una volta per ricevere messaggi privati.
+**La prima volta** manda `/start` al bot in privato, altrimenti non può scriverti (e ti perdi le notifiche delle aste).
 
-## Comandi disponibili
+Il menu dei comandi (il tasto `/`) segue la fase. A mercato chiuso, per esempio, non vedi `/nuova_fa`. Se qualcosa non compare, probabilmente adesso non si può fare.
 
-### Offerte
-`/offri` — mostra la lista delle aste aperte. Ogni bottone mostra giocatore, offerta corrente e **tempo mancante** (es. `3h` o `47min`). Clicca il bottone per aprire subito il flusso di offerta in chat privata col bot. I bottoni non scadono mai — puoi cliccarli anche ore dopo senza problemi. Se nel frattempo l'asta è chiusa, il bot te lo dice subito. Il bot blocca automaticamente offerte invalide (troppo basse, cap insufficiente, slot esauriti) sia prima di chiederti l'importo che al momento dell'inserimento.
+---
 
-`/nuova_fa <giocatore>` — apri un'asta per un giocatore free agent. Puoi scrivere solo il cognome, anche con piccoli errori di battitura (es. `Currry` trova `Curry`). Il bot ti chiederà subito quanto offri. Esempio: `/nuova_fa LeBron James`
+## Quanto posso spendere?
 
-`/offerta asta <asta_id> <importo>` — offerta diretta senza menu interattivo. Tutti i check vengono applicati (cap, slot, stato asta). Se l'offerta non è valida ti dice subito il motivo senza chiederti di reinserire. Utile per programmare offerte in anticipo con lo scheduling messaggi di Telegram — scrivi il messaggio, programmalo per l'orario che vuoi, e il bot lo eseguirà automaticamente.
+**`/me`** ti dà la tua situazione:
 
-`/annulla` — esci da qualsiasi operazione se il bot sembra bloccato ad aspettare qualcosa.
+- **cap libero**, già al netto delle aste che stai vincendo in questo momento;
+- **slot liberi** (massimo 15 giocatori);
+- le **offerte** con cui sei in testa.
 
-### Info
-`/lista_fa` — lista giocatori FA disponibili. Clicca su un giocatore per aprire direttamente il flusso di offerta in chat privata col bot, senza dover scrivere nulla. 🟡 indica che c'è già un'asta aperta per quel giocatore.
+In offseason ti mostra anche come saresti messo col cap di regular season, e quanto pesa il tuo eventuale RFA.
 
-`/team <team_id>` — situazione dettagliata di una squadra specifica: cap, slot e offerte vincenti in corso.
+Per vedere un'altra squadra: **`/team bulls`**, con l'id della squadra. Gli id li trovi in `/listteams`, che mostra anche cap e slot di tutti in una riga a testa.
 
-`/watched` — aste che stai seguendo con stato attuale e offerta corrente. Per le aste ancora aperte compare un link **Offri** inline per offrire direttamente senza passare da `/offri`.
+Il bot fa sempre questi conti prima di accettare un'offerta. Se non hai cap o slot te lo dice subito e l'offerta non parte.
 
-`/watch` — mostra la lista delle aste aperte con bottoni per iniziare a seguirle. Le aste che già segui sono marcate ✅. Puoi anche usare `/watch <asta_id>` per seguire direttamente un'asta di cui conosci l'ID.
+---
 
-`/me` — la tua situazione: cap disponibile, cap virtualmente impegnato sulle aste in corso, slot liberi, offerte vincenti attive. In offseason mostra anche il cap previsto in Regular Season e il peso dei tuoi giocatori RFA.
+## Aprire un'asta
 
-### Emergenza
-`/autocap <importo>` — aggiunge cap immediatamente alla tua squadra in caso di emergenza (es. trade avvenuta di notte con admin non disponibile). La richiesta viene segnalata agli admin per verifica. Usare solo in caso di reale necessità — dichiarazioni false comportano penalità.
+Due modi:
 
-`/autoslot <importo>` — come autocap ma per gli slot.
+**Dalla lista.** `/lista_fa` mostra i free agent. Tocchi un nome e il bot ti chiede quanto offri. Il pallino 🟡 vuol dire che per quel giocatore c'è già un'asta aperta.
 
-### Notifiche
-`/silenzia <asta_id>` — smetti di ricevere notifiche per un'asta specifica.
+**Scrivendo il nome.** `/nuova_fa Jalen Williams`. Basta anche il cognome, e qualche errore di battitura viene perdonato (`/nuova_fa Currry` trova Curry). Se ci sono omonimi il bot ti fa scegliere.
 
-## Come funziona un'asta
+L'offerta con cui apri è la prima offerta dell'asta, e da lì parte il timer di **18 ore**.
 
-Ogni offerta resetta il timer a 18 ore. Non puoi rilanciare su te stesso. Il bot controlla cap e slot in tempo reale tenendo conto di tutte le aste che stai vincendo contemporaneamente.
+---
 
-## Seguire un'asta
+## Rilanciare
 
-Dal bottone 🔔 nel canale puoi seguire un'asta. Riceverai notifica privata ad ogni rilancio, 15 minuti prima della scadenza e quando il contratto viene firmato. Chi fa un'offerta viene messo in follow automaticamente. In ogni notifica di rilancio trovi `/silenzia <id>` per smettere di seguire.
+**`/offri`** elenca le aste aperte, ognuna con offerta attuale e tempo che manca (per esempio `3h` o `47min`). Tocchi quella che ti interessa e scrivi la cifra.
 
-## Quando vinci un'asta FA
+I bottoni non scadono: puoi usarli anche ore dopo. Se intanto l'asta è finita, il bot te lo dice.
 
-Ricevi un messaggio privato con i bottoni per scegliere gli anni (1, 2 o 3). Hai 48 ore per rispondere. Se non rispondi il contratto viene firmato automaticamente per 3 anni come penale. Ricorda: 20-34M → minimo 2 anni, 35M+ → obbligatori 3 anni.
+**`/offerta asta 42 15`** fa la stessa cosa in un colpo solo: offre 15 sull'asta 42. È comodo con i **messaggi programmati** di Telegram. Scrivi il comando, tieni premuto invio, scegli "Programma messaggio" e il bot eseguirà l'offerta all'ora che hai deciso. Se in quel momento l'offerta non è valida, ti risponde col motivo.
 
-## Quando vinci un'asta RFA
+Regole del rilancio:
 
-Come per la FA, ricevi un messaggio privato con i bottoni per scegliere gli anni (1, 2 o 3). Hai **12 ore** per rispondere — se non rispondi, vengono assegnati automaticamente gli anni minimi per la tua fascia (1 se <20M, 2 se 20-34M, 3 se ≥35M).
+- devi superare l'offerta attuale di almeno 1;
+- non puoi rilanciare su te stesso;
+- **ogni offerta fa ripartire il timer da 18 ore**.
 
-**Per offerte ≥35M** gli anni sono sempre 3 (obbligatori) — non ti viene chiesto nulla, ricevi solo la conferma dell'offerta e il proprietario viene avvisato immediatamente. Le 24h di pareggio partono subito.
+---
 
-Dopo che hai scelto gli anni, il proprietario ha 24 ore **dalla fine dell'asta** per decidere se pareggiare. Il bot lo informa subito della tua offerta e della scadenza esatta.
+## Seguire le aste
 
-## Se sei il proprietario di un RFA
+Quando fai un'offerta inizi a seguire l'asta in automatico. Puoi seguirne altre:
 
-Alla chiusura dell'asta ricevi un messaggio con l'importo offerto, la scadenza esatta (24h dalla chiusura) e l'eventuale avviso fascia se l'offerta è sotto soglia.
+- dal bottone 🔔 nel canale;
+- con **`/watch`**, che ti mostra la lista (✅ = già seguita);
+- con `/watch 42`.
 
-Il vincitore ha fino a 12h per scegliere gli anni — poi riceverai il messaggio completo con tutti i dettagli per decidere. Per le offerte ≥35M gli anni sono già noti (3 obbligatori) e ricevi subito tutto.
+Per ogni asta che segui ricevi un messaggio:
 
-### Pre-impostazioni opzionali
+- a ogni rilancio;
+- 15 minuti prima della fine;
+- alla firma.
 
-Puoi pre-impostare la tua decisione subito, senza aspettare che il vincitore scelga gli anni. **È tutto opzionale** — se non imposti nulla, ricevi normalmente il messaggio completo quando il vincitore risponde.
+**`/watched`** elenca le aste che segui, con un link per offrire direttamente su quelle ancora aperte.
 
-Le pre-impostazioni ti permettono di **risparmiare le ore di attesa** del vincitore.
+Per smettere di ricevere notifiche di un'asta: **`/silenzia 42`** (il comando lo trovi già pronto in ogni notifica).
 
-**⚡ Pre-pareggio ≤N anni** — pareggia automaticamente se il vincitore offre ≤N anni:
-- Se l'offerta è sopra soglia: gli anni del tuo contratto sono quelli offerti dal vincitore
-- Se l'offerta è sotto soglia: il pareggio scatta sempre a prescindere dagli anni — scegli tu gli anni del tuo contratto
+---
 
-**❌ Rifiuto assoluto** — il giocatore passa al vincitore qualunque siano gli anni. Incompatibile con il pre-pareggio.
+## Ho vinto: la firma
 
-**❌ Rifiuto condizionale >N anni** — il giocatore passa al vincitore solo se offre più di N anni. Compatibile con il pre-pareggio (es. pareggio ≤2 anni + rifiuto >2 anni copre tutti i casi automaticamente).
+Quando l'asta finisce e sei in testa, ti arriva un messaggio con i bottoni per scegliere gli **anni**. In regular season, dopo gli anni scegli anche il **ruolo** tra quelli eleggibili del giocatore.
 
-**Compatibilità:**
-- Pre-pareggio + rifiuto condizionale ✅ se i valori non si sovrappongono (es. ≤2 e >2)
-- Pre-pareggio + rifiuto assoluto ❌ contraddittori — il bot lo impedisce
-- Pre-pareggio ≤2 + rifiuto >1 ❌ si sovrappongono su 2 anni — il bot lo impedisce
+Gli anni dipendono dalla cifra:
 
-Puoi modificare o annullare qualsiasi pre-impostazione finché il vincitore non sceglie gli anni.
+| Cifra | Anni |
+|---|---|
+| sotto 20M | 1, 2 o 3, scegli tu |
+| da 20M a 34M | 2 o 3 |
+| da 35M | 3, obbligatori |
 
-### Fasce contratto per il pareggio
-- **Vecchio compenso ≤20M**: puoi pareggiare a qualsiasi cifra offerta
-- **Vecchio compenso 21-34M**: se l'offerta è inferiore a 1/3 del vecchio compenso (arrotondato per difetto), devi pareggiare almeno a quella soglia — ma gli anni sono liberi. Se l'offerta è superiore, pareggi alla cifra offerta.
-- **Vecchio compenso ≥35M**: come sopra ma la soglia è 1/2 del vecchio compenso.
+Hai **48 ore**. Se non rispondi, il contratto viene firmato per **3 anni** come penale (e in regular season il ruolo viene estratto a caso).
 
-Se pareggi sopra soglia, devi offrire almeno gli stessi anni del vincitore. Sotto soglia gli anni sono liberi.
+Finché non firmi, quel giocatore **conta già** sul tuo cap e sui tuoi slot, anche ad asta chiusa. Quindi non puoi usare quei soldi per un'altra asta nel frattempo.
 
-### Nessuna offerta ricevuta
-Se nessuno ha offerto per il tuo RFA, puoi firmarlo tu seguendo le stesse regole di soglia, oppure lasciarlo andare in free agency.
+---
 
-## Regole controllate dal bot (v52)
+## Le regole che il bot controlla da solo
 
-- **Cap e slot impegnati**: un'asta che stai vincendo impegna cap e slot finché non firmi, anche dopo la chiusura mentre scegli anni e ruolo.
-- **RFA**: il tuo RFA continua a occupare cap ma non slot finché la sua asta non è conclusa. Non puoi fare offerte sul tuo RFA.
-- **Regola dei 30 giorni**: se hai avuto un giocatore negli ultimi 30 giorni ed è stato tagliato, non puoi aprire l'asta né rilanciare su di lui.
-- **DPE**: il cap per le offerte tiene conto della riduzione della DPE.
+**Regola dei 30 giorni.** Se un giocatore è stato tagliato e tu l'hai avuto in squadra negli ultimi 30 giorni, non puoi aprirgli l'asta né rilanciare. Esempio: lo tagli il 1° marzo, finisce in FA e tu vorresti riprenderlo a meno. Fino al 31 marzo non puoi.
 
+**Cam Thomas exception.** Se hai fatto decadere un giocatore con la Cam Thomas exception, per un anno puoi riprenderlo solo ad almeno il contratto che aveva prima. Esempio: era 15 → la tua prima offerta (o il tuo rilancio) deve essere almeno 15.
+
+**DPE.** Un giocatore con la DPE pesa sul tuo cap con lo stipendio ridotto, e il bot conta quello.
+
+**Il tuo RFA.** Occupa cap ma **non** uno slot, finché la sua asta non è finita. E non puoi fare offerte sul tuo stesso RFA.
+
+---
+
+## Le aste RFA (offseason)
+
+Nella fase RFA ogni squadra può mettere all'asta un suo giocatore in scadenza. Gli altri fanno offerte; alla fine il proprietario decide se **pareggiare** e tenerselo, o lasciarlo andare.
+
+### Se vinci l'asta di un RFA altrui
+
+Scegli gli anni come in FA, ma hai solo **12 ore**. Se non rispondi ti vengono dati gli anni minimi per la cifra:
+
+- 1 anno sotto i 20M;
+- 2 anni da 20M;
+- 3 anni da 35M.
+
+Da 35M in su gli anni sono 3 per forza, quindi non ti viene chiesto niente.
+
+Poi aspetti: il proprietario ha **24 ore dalla fine dell'asta** per decidere se pareggiare.
+
+### Se il RFA è tuo
+
+Alla fine dell'asta ti arriva l'offerta vincente con la scadenza esatta per decidere. Quando il vincitore ha scelto gli anni ricevi tutti i dettagli e i bottoni per pareggiare o lasciarlo andare.
+
+**Quanto devi offrire per pareggiare** dipende da quanto guadagnava prima:
+
+- **vecchio contratto fino a 20M:** pareggi la cifra offerta, qualunque sia;
+- **vecchio contratto da 21M a 34M:** devi offrire almeno **1/3** del vecchio contratto, anche se l'offerta vincente è più bassa;
+- **vecchio contratto da 35M:** devi offrire almeno **la metà** del vecchio contratto.
+
+Esempio: il tuo RFA prendeva 30M e l'asta si chiude a 6M. Un terzo di 30 è 10, quindi per tenerlo devi dargli **almeno 10M**. Visto che stai sopra l'offerta "per obbligo", gli anni li scegli tu.
+
+Se invece l'asta si chiude a 14M (sopra la soglia di 10), pareggi a 14M e devi dargli **almeno gli stessi anni** del vincitore.
+
+**Nessuno ha offerto?** Puoi firmarlo tu con le stesse soglie, oppure lasciarlo andare in free agency.
+
+### Decidere in anticipo (facoltativo)
+
+Se non vuoi aspettare che il vincitore scelga gli anni, puoi impostare la tua decisione subito dopo la fine dell'asta:
+
+- **⚡ Pre-pareggio ≤N anni.** Pareggi in automatico se il vincitore sceglie al massimo N anni.
+- **❌ Rifiuto assoluto.** Lo lasci andare comunque.
+- **❌ Rifiuto se >N anni.** Lo lasci andare solo se il vincitore sceglie più di N anni.
+
+Si possono combinare. Esempio: "pareggio se ≤2 anni" più "rifiuto se >2 anni" copre tutti i casi, e non devi più fare niente. Il bot blocca le combinazioni contraddittorie (pareggio e rifiuto assoluto insieme, oppure pareggio ≤2 con rifiuto >1, che si sovrappongono sui 2 anni).
+
+Puoi cambiare idea finché il vincitore non ha scelto gli anni.
+
+---
+
+## Emergenze
+
+**`/autocap 10`** e **`/autoslot 1`** servono quando ti manca cap o uno slot per una cosa già successa che il bot non vede ancora. Esempio: una trade approvata di notte con gli admin che dormono. Il cap o lo slot ti vengono dati subito, valgono **48 ore** (il tempo che la trade venga registrata), e gli admin ricevono la segnalazione per controllare.
+
+Usali solo se serve davvero: le dichiarazioni false si pagano con una penalità.
+
+Se il bot sembra bloccato ad aspettare una tua risposta: **`/annulla`**.
+
+---
+
+## In breve
+
+| Voglio… | Comando |
+|---|---|
+| sapere quanto posso spendere | `/me` |
+| vedere un'altra squadra | `/team bulls` |
+| vedere i free agent | `/lista_fa` |
+| aprire un'asta | `/nuova_fa Nome` |
+| rilanciare | `/offri` oppure `/offerta asta 42 15` |
+| seguire o smettere di seguire | `/watch`, `/watched`, `/silenzia 42` |
+| ricevere questa guida | `/guida` |

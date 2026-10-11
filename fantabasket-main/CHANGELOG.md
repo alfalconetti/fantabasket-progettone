@@ -919,3 +919,14 @@ Revisione del codice contro il regolamento.
 
 - `/list` (admin) anche nel bot principale: squadre con id e GM, come nel bot aste
 
+
+## v3.9.3 (2026-10-12)
+
+### Guide riscritte
+- `docs/guida_gm.md` e `docs/guida_admin.md` (e le due del bot aste) riscritte in modo discorsivo, con esempi: trade a 3 squadre col formato "riceve", voto e notifiche a tutte le squadre, editor e destinatari, DPE che segue il giocatore, tagli (4° 1x1, minimi in RS), decadimento con la tabella dei motivi e Cam Thomas exception, `/ritiro_fa` e report spalmature, `/registra_firma` con esempio, `/list`
+- `/sync_sheets` indicato come comando dev (lo è sempre stato)
+
+### Menu e aiuti
+- Tolto dal menu admin `/approva_trade`, che non esiste (le trade si approvano coi bottoni nel gruppo)
+- `/dev`: aggiunti `/dev_player`, `/nuovo_giocatore`, `/sync_sheets`; `/nuovo_giocatore` anche nel menu dev
+- Nuova prova `tests/docs/guide_e_menu.py`: ogni comando citato nelle guide, negli aiuti `/admin` e `/dev` e nei menu "/" deve esistere nel suo bot

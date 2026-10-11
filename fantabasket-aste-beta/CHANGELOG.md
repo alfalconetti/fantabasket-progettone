@@ -557,3 +557,10 @@ Comandi riservati al solo `dev_id` (non visibili in /admin), per osservare lo st
 - **`/set_fase` del bot aste disattivato**: scriveva "offseason"/"regular" nel globals.json condiviso, mandando fuori fase tutti i controlli del bot principale. Ora rimanda al `/set_fase` del bot principale
 - **`/listteams` compatto**: una riga per squadra, `cap occupato/tetto · liberi · roster/15`, offerte in corso solo se ci sono; avvisi ⚠️ per chi in offseason sta sopra il cap di regular season (150 meno penalità) e in regular season sotto il floor; 🔴 se cap o slot liberi sono negativi
 
+
+## v54 — Guide e aiuti
+
+- **Guide riscritte** (`docs/guida_gm.md`, `docs/guida_admin.md`) in modo discorsivo e con esempi; la guida admin spiega cosa non si fa più da qui (fase, stagione, cap e slot) e i comandi per conto delle squadre
+- **`/admin`** riscritto per gruppi d'uso: tolti `/set_fase`, `/set_cap`, `/set_slot`, `/add_cap`, `/add_slot` (non fanno più niente) e `/reset_rfa`; aggiunti `/list`, `/stato_asta`, `/estendi_asta`, `/sposta_asta`, `/apri_asta` con esempi
+- **`/reset_rfa` disattivato**: la stagione la porta avanti il bot principale entrando in offseason-rinnovi (e con lei si azzera la RFA di ogni squadra); scriverla da qui con il formato dell'esempio ("2025-26") rompeva i conti del bot principale. Tolto dal menu
+- `/dev`: aggiunti `/backup_ora` e `/reboot`

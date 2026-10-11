@@ -45,8 +45,9 @@ async def dev_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/dev_cap — cap e slot virtuali con aste che li occupano\n"
         "/dev_log [N] — ultime N righe di log in memoria (default 30)\n"
         "/broadcast &lt;testo&gt; — manda messaggio a tutti i GM\n"
-
         "/job_status — job attivi nella JobQueue\n"
+        "/backup_ora — backup d'emergenza del DB aste\n"
+        "/reboot — riavvia il bot\n"
     )
     await update.effective_message.reply_text(testo, parse_mode="HTML")
 

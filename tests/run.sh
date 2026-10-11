@@ -11,7 +11,8 @@ DATABASE_URL=$PGURL PG_URL=$PGURL python3 "$ROOT/tests/guardia.py" || exit 1
 MAIN=(trade_3_squadre revisione_regolamento dpe_trade_tagli team_diff report_spalmature)
 ASTE_PG=(pg_rfa_30giorni_dpe rfa_lascio_andare menu_e_listteams)
 ASTE_ISOLATO=(apri_asta_admin apertura_gm cap_asta_chiusa rfa_proprietario)
-scelti=("$@"); [ ${#scelti[@]} -eq 0 ] && scelti=("${MAIN[@]}" "${ASTE_PG[@]}" "${ASTE_ISOLATO[@]}")
+DOCS=(guide_e_menu)
+scelti=("$@"); [ ${#scelti[@]} -eq 0 ] && scelti=("${MAIN[@]}" "${ASTE_PG[@]}" "${ASTE_ISOLATO[@]}" "${DOCS[@]}")
 in_lista() { local x=$1; shift; for y in "$@"; do [ "$x" = "$y" ] && return 0; done; return 1; }
 falliti=0
 for t in "${scelti[@]}"; do
@@ -21,6 +22,7 @@ for t in "${scelti[@]}"; do
   if in_lista "$t" "${MAIN[@]}"; then dir=fantabasket-main; file=tests/main/$t.py; export PG_URL=$PGURL
   elif in_lista "$t" "${ASTE_PG[@]}"; then dir=fantabasket-aste-beta; file=tests/aste/$t.py; export PG_URL=$PGURL
   elif in_lista "$t" "${ASTE_ISOLATO[@]}"; then dir=fantabasket-aste-beta; file=tests/aste/$t.py; export PG_URL=
+  elif in_lista "$t" "${DOCS[@]}"; then dir=.; file=tests/docs/$t.py
   else echo "?? prova sconosciuta: $t"; continue; fi
   echo "═══ $t"
   out=$(cd "$ROOT/$dir" && PYTHONPATH=.:.. python3 "$ROOT/$file" 2>&1 | grep -v "^INFO\|WARNING")

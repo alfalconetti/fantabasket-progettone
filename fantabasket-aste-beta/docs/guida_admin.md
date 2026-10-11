@@ -1,78 +1,131 @@
-# Guida Admin — Fantabasket Aste Bot
+# Guida admin — bot aste
 
-## Gestione mercato
+Il bot aste lavora quasi tutto da solo. Le aste si aprono, scadono, vanno in firma e annunciano il risultato senza bisogno di nessuno. Da admin intervieni in tre casi:
 
-`/apri_mercato` — apre il mercato FA
-`/chiudi_mercato` — chiude il mercato FA (le RFA non sono bloccate)
-`/set_fase offseason|regular` — cambia fase e scala automaticamente il cap di tutte le squadre sottraendo o aggiungendo `15 + cap_penalizzato` per ogni squadra
+- quando una squadra non può fare da sé;
+- quando un'asta va corretta;
+- quando qualcosa si inceppa.
 
-## Gestione squadre
+`/admin` ti dà l'elenco dei comandi in breve; questa guida li spiega con calma.
 
-`/list` — lista asciutta di tutte le squadre con nome, ID e GM. Utile per trovare rapidamente un team_id.
+---
 
-`/listteams` — lista squadre con ID cliccabile, cap totale, cap libero (virtuale) e slot liberi
-`/team <team_id>` — situazione completa di una singola squadra: cap totale, cap virtualmente impegnato, cap effettivamente libero, stima cap in regular season, slot, e tutte le offerte vincenti in corso. È la stessa vista che un GM ottiene con `/me`, ma per qualunque squadra. Utile per controlli puntuali senza dover scorrere `/list` — lista asciutta di tutte le squadre con nome, ID e GM. Utile per trovare rapidamente un team_id.
+## Cosa NON si fa da qui
 
-`/listteams`.
-`/set_cap <team_id> <valore>` — imposta il cap disponibile a un valore assoluto
-`/add_cap <team_id> <importo>` — aggiunge o sottrae cap (accetta negativi)
-`/set_slot <team_id> <valore>` — imposta gli slot disponibili
-`/add_slot <team_id> <importo>` — aggiunge o sottrae slot (accetta negativi)
-`/set_cap_penalizzato <team_id> <valore>` — imposta la penalità cap
+**La fase.** La cambia solo il bot principale (`/set_fase`). Il bot aste se ne accorge entro 5 minuti: aggiorna i menu e apre o chiude il mercato FA da solo. Il `/set_fase` di questo bot non fa più niente e rimanda all'altro.
 
-Quando modifichi cap o slot, il GM della squadra riceve automaticamente una notifica con il tuo nome e l'orario.
+**La stagione.** Anche questa la porta avanti il bot principale, entrando in *offseason-rinnovi*. Con la stagione nuova ogni squadra può di nuovo aprire una RFA. `/reset_rfa` non serve più.
 
-## Gestione RFA
+**Cap e slot.** Vengono dai contratti nel database del bot principale. Se un numero è sbagliato, va corretto lì (una firma o un taglio mancante), non qui. `/set_cap`, `/add_cap`, `/set_slot` e `/add_slot` non fanno più niente.
 
-`/nuova_rfa <giocatore> <team_id> <vecchio_compenso>` — apre un'asta RFA. Il nome non richiede accenti (Doncic = Dončić). Ogni team può avere al massimo una RFA per stagione.
+L'unica cosa di cap che si imposta qui è la **penalità**: `/set_cap_penalizzato bulls 5`.
 
-`/reset_rfa <nuova_stagione>` — a inizio nuova stagione aggiorna la stagione corrente (es. `/reset_rfa 2027`). Lo storico delle aste precedenti viene conservato nel DB. Mostra conferma prima di procedere.
+---
 
-## Gestione aste
+## Guardare la situazione
 
-`/aste` — lista aste in corso con ID
-`/chiudi_asta <id>` — chiude forzatamente un'asta. Se c'è un vincitore avvia il flusso firma. Se è RFA senza offerte avvia il flusso proprietario.
-`/annulla_asta <id>` — annulla un'asta senza vincitore. Notifica tutti gli interessati (vincitore, proprietario RFA, watcher).
-`/annulla_offerta <id>` — elimina l'ultima offerta e ripristina la precedente. Notifica il GM a cui viene annullata e i watcher. Warning automatico se il cap virtuale diventa negativo.
+- **`/list`** — nome, id e GM di tutte le squadre. Serve soprattutto per trovare un id.
+- **`/listteams`** — una riga per squadra: cap occupato su tetto, cap libero, giocatori su 15, ed eventuali offerte in corso. I segnali:
+  - ⚠️ in offseason, chi sta sopra il cap che avrà in regular season;
+  - ⚠️ in regular season, chi sta sotto il salary floor;
+  - 🔴 cap o slot liberi negativi.
+- **`/team bulls`** — una squadra nel dettaglio: la stessa vista che il GM ha con `/me`.
+- **`/aste`** — le aste aperte, con il loro numero (l'id).
+- **`/all_aste`** — anche quelle finite (le ultime 30). Si può filtrare per stato: `/all_aste chiusa`, `pareggio`, `conclusa`, `annullata`. Serve per ritrovare l'id di un'asta che non è più in `/aste`.
+- **`/firme`** — le ultime 10 firme (`/firme 30` per vederne di più).
+- **`/stato_asta 42`** — tutto quello che c'è nel database su un'asta, offerte comprese.
 
-Tutti i comandi che modificano lo stato di un'asta o del mercato includono ora il nome dell'admin nella notifica inviata ai GM e nel canale log, per tracciabilità completa delle azioni.
+---
 
-`/annulla_offerta <asta_id>` controlla preventivamente se l'annullamento porterebbe il cap virtuale del nuovo vincitore in negativo. Se sì, richiede conferma dal gruppo admin prima di procedere.
+## Agire per conto di una squadra
 
-`/all_aste [stato]` — lista tutte le aste con filtro opzionale per stato (`aperta`, `chiusa`, `pareggio`, `conclusa`, `annullata`). Senza argomenti mostra le ultime 30. Indispensabile per trovare l'ID di un'asta non più visibile in `/aste`, ad esempio per usare `/force_esito` o `/stato_asta`.
+**Aprire un'asta FA.** Esempio: il GM dei Bulls ti scrive che non riesce ad aprire l'asta per LeBron a 5.
 
-`/riapri_asta <asta_id> [ore]` — riporta un'asta da CHIUSA, PAREGGIO o ANNULLATA ad APERTA con una nuova scadenza. Se l'operazione porterebbe il cap virtuale di una squadra in negativo, invia una richiesta di conferma al gruppo admin prima di procedere. Per aste ANNULLATE chiede sempre conferma. Default 18h se non specificato. Cancella automaticamente i job di firma/pareggio pendenti, aggiorna il messaggio nel canale, notifica i watcher e manda un annuncio nel canale.
+```
+/apri_asta bulls 5 LeBron James
+```
 
-## Comandi di osservazione e diagnostica
+Valgono gli stessi controlli del GM: mercato aperto, cap e slot della squadra, giocatore non già all'asta, regola dei 30 giorni e minimo Cam Thomas. Se il nome è ambiguo il bot ti propone i comandi già scritti coi nomi giusti, da ricopiare.
 
-`/firme [N]` — ultime N firme concluse con nome squadra e anni contratto (default 10). Utile per aggiornare i roster dopo le firme.
+L'asta compare sul canale con la scritta "aperta da admin per conto di", e i GM della squadra vengono avvisati e la seguono.
 
-`/apri_asta <team_id> <importo> <nome giocatore>` — apre un'asta FA per conto di una squadra, con la sua offerta iniziale (es. `/apri_asta bulls 5 LeBron James`). Stessa ricerca del nome e stessi controlli di `/nuova_fa`: mercato aperto, minimo e massimo, cap e slot della squadra, giocatore non già in asta. Se il nome è ambiguo o approssimato il bot propone i comandi con i nomi esatti da ricopiare. L'asta compare sul canale come le altre, con un avviso "aperta da admin per conto di"; i GM della squadra vengono avvisati e seguono l'asta.
+**Fare un'offerta.** Per esempio 7 dei Bulls sull'asta 42:
 
-`/crea_offerta <team_id> <asta_id> <importo>` — registra un'offerta per conto di un team specifico senza ConversationHandler. Tutti i check vengono applicati. L'azione viene loggata sul canale log con il nome dell'admin. Utile in caso di emergenza o per correggere situazioni particolari.
+```
+/crea_offerta bulls 42 7
+```
 
-`/stato_asta <asta_id>` — dump completo di tutti i campi DB di un'asta con storico offerte. Alternativa rapida all'aprire sqlite3 manualmente.
+Stessi controlli di un'offerta normale. L'azione finisce sul canale log col tuo nome.
 
-Per comandi di diagnostica avanzata (log, job attivi, cap dettagliato) usa `/dev` — disponibile solo per il dev_id configurato in globals.json.
+**Aprire una RFA.** Nella fase RFA:
 
-## Comandi di recupero emergenza
+```
+/nuova_rfa Doncic mavs 28
+```
 
-`/ripubblica_asta <asta_id>` — se il messaggio di un'asta nel canale viene cancellato per errore, questo comando pubblica un nuovo messaggio aggiornato e corregge il riferimento nel DB. Senza questo intervento `aggiorna_canale` continua a fallire (con avviso sul canale log) ad ogni rilancio finché non si sistema manualmente.
+Cioè: giocatore, squadra proprietaria, vecchio contratto.
 
-`/forza_aggiornamento <asta_id>` — riedita forzatamente il messaggio canale esistente con i dati attuali dal DB. Utile quando `aggiorna_canale` è andato in timeout silenzioso e il messaggio è rimasto obsoleto (es. non mostra l'ultima offerta). A differenza di `/ripubblica_asta` non invia un nuovo messaggio: edita quello già presente. Se l'edit fallisce (messaggio cancellato, timeout di nuovo) suggerisce automaticamente di usare `/ripubblica_asta`.
+- Il giocatore viene cercato nel roster di quella squadra, quindi gli accenti non servono e basta il cognome; se il nome non torna, il bot suggerisce quello giusto.
+- Ogni squadra ha **una sola RFA a stagione**.
 
-`/force_esito <asta_id>` — rimanda manualmente il messaggio di firma o pareggio al GM interessato, senza dover reboottare il bot. Funziona solo su aste in stato CHIUSA o PAREGGIO. Non modifica il DB né cambia lo stato dell'asta: si limita a reinviare i messaggi e rischedulare i timeout automatici. Utile quando il GM non ha ricevuto il messaggio (es. aveva bloccato il bot temporaneamente) o quando il job automatico è saltato senza che se ne accorgesse nessuno.
+---
 
-## Diagnostica e manutenzione
+## Correggere un'asta
 
-`/admin` — lista comandi admin
-`/reboot` — riavvia il bot (solo dev). Docker lo riporta su automaticamente.
+Tutte queste azioni avvisano chi è coinvolto (GM in testa, proprietario RFA, chi segue l'asta) e riportano il tuo nome sul canale log.
 
-## Note operative
+**`/annulla_offerta 42`** toglie l'ultima offerta e rimette in testa quella prima. Se così chi torna in testa finirebbe con il cap in negativo, il bot chiede conferma nel gruppo admin prima di procedere.
 
-- Il cap virtuale include le offerte vincenti su aste APERTE e in PAREGGIO
-- Modifiche manuali al cap/slot possono creare cap virtuale negativo — il bot manda warning automatici al gruppo admin
-- In caso di restart del bot, le aste in CHIUSA e PAREGGIO vengono automaticamente ripristinate dopo 5 secondi
-- Tutti i warning critici finiscono nel canale log configurato in `globals.json`
-- Le eccezioni nei job periodici (controllo scadenze, firma automatica, pareggio automatico, recupero stati al riavvio, backup) vengono ora segnalate anche sul canale log e in privato al dev, oltre che nei log del container — prima della v21 restavano visibili solo nei log Docker
-- L'offerta massima consentita su una singola asta non è più un valore fisso in `settings.json`: viene calcolata come `cap_regular - (slot_minimi_rs - 1) * minimo_contrattuale`, così si aggiorna automaticamente se cambiano questi parametri
+**`/chiudi_asta 42`** chiude subito l'asta:
+
+- se c'è un vincitore parte la firma;
+- se è una RFA senza offerte, il proprietario riceve i bottoni per firmarlo o lasciarlo andare.
+
+**`/annulla_asta 42`** annulla l'asta senza vincitore.
+
+**`/riapri_asta 42`** riporta ad aperta un'asta chiusa, in pareggio o annullata, con 18 ore di tempo (`/riapri_asta 42 6` per darne 6). Il bot:
+
+- ferma firme e pareggi in sospeso;
+- aggiorna il messaggio nel canale;
+- avvisa chi segue l'asta.
+
+Chiede conferma nel gruppo se l'asta era annullata, o se qualcuno finirebbe col cap in negativo.
+
+**Cambiare la scadenza:**
+
+- `/estendi_asta 42 6` → 6 ore in più;
+- `/estendi_asta 42 -3` → 3 ore in meno;
+- `/sposta_asta 42 2026-11-15T20:00` → scadenza precisa, in ora di Roma.
+
+---
+
+## Se qualcosa si inceppa
+
+**Un GM dice che non gli è arrivato il messaggio per firmare o pareggiare.** Per esempio aveva bloccato il bot.
+
+```
+/force_esito 42
+```
+
+Rimanda il messaggio e riattiva le scadenze automatiche. Non cambia niente nel database. Funziona sulle aste chiuse o in pareggio.
+
+**Il messaggio dell'asta nel canale è rimasto indietro**, per esempio non mostra l'ultima offerta: `/forza_aggiornamento 42` lo riscrive con i dati giusti.
+
+**Il messaggio nel canale è stato cancellato**: `/ripubblica_asta 42` ne pubblica uno nuovo e lo collega all'asta. Senza, ogni rilancio darebbe errore sul canale log.
+
+**Un GM ha usato `/autocap` o `/autoslot`.** Arriva una segnalazione nel gruppo. Il cap o lo slot anticipato dura 48 ore; se la richiesta non è giustificata c'è il bottone per azzerarlo.
+
+**Il mercato FA va aperto o chiuso fuori fase:** `/apri_mercato` e `/chiudi_mercato`. Solo per emergenze: di norma il mercato segue la fase del bot principale, e il cambio di fase successivo lo rimette com'era previsto. Le RFA non dipendono dal mercato.
+
+**Backup subito del database delle aste:** `/backup_ora`. I backup completi automatici li fa il bot principale.
+
+---
+
+## Da sapere
+
+- Un'asta che una squadra sta vincendo **impegna cap e slot** dal primo rilancio fino alla firma. Questo vale anche dopo la chiusura, mentre il GM sceglie anni e ruolo, e durante il pareggio di una RFA.
+- **Un RFA** occupa cap ma non slot del proprietario, finché la sua asta non è conclusa.
+- **L'offerta massima** su una singola asta si calcola da sola: è il cap di regular season meno il minimo per riempire gli altri 9 posti del roster.
+- **Se il bot si riavvia**, firme e pareggi in sospeso ripartono da soli dopo pochi secondi.
+- **Gli avvisi importanti** finiscono sul canale log: cap negativi, errori nei job automatici, messaggi del canale che non si aggiornano. Gli errori arrivano anche in privato al dev.
+- **Per la diagnostica più tecnica** il dev ha `/dev`.

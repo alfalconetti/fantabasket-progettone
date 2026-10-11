@@ -1,115 +1,278 @@
-# Guida GM — Fantabasket Main Bot
+# Guida GM — bot principale
 
-Tutto si fa in **chat privata** col bot. In qualsiasi momento puoi anche scrivere a un admin, che può fare per te qualsiasi operazione.
+Questo è il bot dove vive la tua squadra: roster, trade, tagli, rookie, ruoli. Le aste per i free agent sono nell'altro bot (quello delle aste), che ha la sua guida.
 
-## Menu principale
-
-`/menu` apre il menu con i bottoni. Mostra **solo le azioni disponibili nella fase corrente** e indica in che fase siamo. A seconda della fase trovi Trade, Tagli, Rookie, DPE, Decadimento, Dichiarazione ruoli, Cambio ruolo; Roster e Assets ci sono sempre.
-
-I flussi si chiudono dopo qualche minuto di inattività. `/annulla` (o `/annulla_trade`) esce da un'operazione in corso.
+Si usa tutto in **chat privata**. Se qualcosa non torna, o non sai come fare, scrivi a un admin: può fare qualsiasi operazione al posto tuo.
 
 ---
 
-## Roster e Assets
+## Da dove si parte
 
-- `/roster` — immagine del tuo roster: ruolo di ogni giocatore a sinistra, posizioni eleggibili in corsivo accanto al nome, fantamedia (colonna **FM**, con la stagione nell'intestazione), contratti, cap, tagli gratuiti e cambi ruolo usati. La FM è della stagione in corso da quando almeno metà dei giocatori sotto contratto nella lega ha giocato, prima è quella della stagione precedente; "—" se il giocatore non ha dati. Quando tutti i ruoli sono dichiarati i giocatori sono ordinati per ruolo (PG, SG, SF, PF, C), poi per contratto.
-- `/roster <squadra>` — roster di qualsiasi squadra (nome squadra, nome del GM, anche parziale).
-- `/roster <GG-MM-AA>` — il tuo roster a una data passata, con i ruoli di quella data.
-- `/assets` — roster + pick per anno (★ proprie, ○ altrui) + diritti rookie. Il tag rosso **STEPIEN** indica una tua 1st che non puoi cedere senza violare la Stepien Rule.
-- `/team_diff` — movimenti dell'ultima settimana (accetta squadra e date).
-- `/palette` — personalizza i colori delle immagini.
+Scrivi `/menu`. Ti compare un messaggio con dei bottoni e, in alto, la fase in cui siamo (per esempio *regular-season-fa* o *offseason-draft*).
+
+I bottoni cambiano con la fase: se le trade sono chiuse il bottone Trade non c'è, se non siamo in regular season non c'è il cambio ruolo. Quindi se cerchi una cosa e non la trovi, probabilmente in questo momento non si può fare. Roster e Assets invece ci sono sempre.
+
+Anche il menu dei comandi di Telegram (il tasto `/` vicino alla tastiera) segue la fase. Se dopo un cambio di fase non vedi un comando nuovo, chiudi e riapri la chat.
+
+Due cose da sapere:
+
+- Se lasci un'operazione a metà, dopo qualche minuto il bot la chiude da solo.
+- Se il bot sembra bloccato ad aspettare una tua risposta, scrivi `/annulla` ed esci da qualsiasi cosa.
 
 ---
 
-## Trade
+## Guardare la squadra
 
-**Build** (menu → Trade → Build, o `/build_trade`): scegli le squadre e per ognuna cosa cede (giocatori, pick, diritti). Il riepilogo mostra la validazione: cap, roster, Stepien Rule e — in regular season — i **ruoli minimi** (4 guardie, 4 ali, 2 centri: deve esistere un modo di assegnare i ruoli eleggibili ai nuovi arrivati che li rispetti). Poi puoi proporla ai GM, mandarla agli admin o salvarla in bozza.
+**`/roster`** ti manda un'immagine del tuo roster. Per ogni giocatore vedi:
 
-**Import** (menu → Trade → Import, o `/import_trade`): incolla il testo nel formato della lega:
+- il ruolo a sinistra;
+- le posizioni eleggibili in corsivo accanto al nome;
+- la fantamedia (colonna FM);
+- il contratto.
+
+In fondo trovi cap, tagli gratuiti usati e cambi ruolo usati.
+
+Il comando funziona anche in altri modi:
+
+- `/roster bulls` oppure `/roster Rossi` → il roster di un'altra squadra (basta una parte del nome della squadra o del GM)
+- `/roster 15-01-26` → il tuo roster com'era il 15 gennaio 2026
+
+**`/assets`** è il roster più tutto il resto: le pick anno per anno (★ quelle tue, ○ quelle prese da altri) e i diritti sui rookie. Se vedi il tag rosso **STEPIEN** su una tua prima scelta, vuol dire che non puoi cederla senza violare la Stepien Rule.
+
+**`/team_diff`** ti dice cosa è cambiato nell'ultima settimana: chi è arrivato, chi è uscito e chi ha cambiato contratto (per esempio per una DPE). Esempio di risposta:
 
 ```
-Nome GM cede:
-Giocatore 25x2
-1st round pick 2027 by AltroGM
-2nd round pick 2028 AltroGM
-Diritti di Nome Rookie
-
-Altro GM cede:
-Giocatore 10x1
+🟢 IN
+  • Jalen Williams 12x2 (Trade)
+🔴 OUT
+  • Kevin Durant 30x1 (Tagliato)
+🔁 CONTRATTO CAMBIATO
+  • Joel Embiid 40x2 → 30x2 (DPE, era 40)
 ```
 
-- Il `by` prima del GM è facoltativo; il GM si può indicare anche solo col cognome o col nome della squadra, se non è ambiguo.
-- "by GM" indica il **proprietario originale** della pick: va scritta così anche se nel frattempo è passata di mano.
-- Il bot controlla che pick e diritti che cedi siano **tuoi oggi**; se ci sono errori la bozza non viene salvata e ti dice cosa correggere.
+Funziona anche per un'altra squadra (`/team_diff bulls`) o tra due date a scelta (`/team_diff bulls 01-10-26 15-10-26`).
 
-`/bozze_trade` elenca le tue bozze; quando ricevi una proposta voti con ✅/❌.
-
-`/my_trades` (o menu → Trade → 📂 Le mie trade) elenca **tutte** le tue trade, proposte o ricevute, con che fine hanno fatto: 📝 bozza, 🗳 in voto (con chi ha già risposto), ⏳ dagli admin, ✅ approvata, ❌ rifiutata da un GM (con la motivazione), 🚫 rifiutata dagli admin. Dal dettaglio puoi votare, ritirare una tua proposta ancora in voto, o **riprendere come bozza** una trade rifiutata per modificarla e rimandarla.
+**`/my_team`** serve a cambiare nome squadra, nome GM e colori. **`/palette`** personalizza i colori delle immagini di roster e assets, con un'anteprima prima di salvare.
 
 ---
 
-## Tagli
+## Le trade
 
-Menu → Tagli → giocatore: vedi l'anteprima dell'impatto sul cap prima di confermare. 3 tagli gratuiti a stagione per i contratti 1x1; gli altri contratti vengono spalmati secondo la tabella del regolamento.
+### Costruirla coi bottoni
+
+Menu → **Trade → Build** (oppure `/build_trade`).
+
+1. Scegli le squadre coinvolte: la tua più una, due o tre altre.
+2. Per ogni squadra tocchi cosa cede: giocatori, pick, diritti.
+3. Se le squadre sono più di due, il bot ti chiede anche **a chi va** ogni pezzo.
+
+Alla fine vedi il riepilogo con il controllo automatico. Il bot verifica:
+
+- il cap di ogni squadra;
+- che nessuno superi i 15 giocatori;
+- la Stepien Rule;
+- in regular season, i ruoli minimi (4 guardie, 4 ali, 2 centri).
+
+Se c'è un problema te lo dice e non ti fa inviare.
+
+Se è tutto a posto hai tre scelte:
+
+- **proporla agli altri GM**;
+- **mandarla direttamente agli admin**;
+- **tenerla in bozza** per dopo.
+
+### Scriverla come testo
+
+Menu → **Trade → Import** (oppure `/import_trade`) e incolli la trade nel formato della lega. Per una trade a due basta scrivere cosa cede ognuno:
+
+```
+Rossi cede:
+LeBron James 25x2
+1st round pick 2027 by Bianchi
+
+Bianchi cede:
+Jalen Williams 12x2
+2nd round pick 2028 Rossi
+Diritti di Mario Rookie
+```
+
+Per una trade a **tre o più squadre** serve anche cosa **riceve** ognuno, altrimenti il bot non sa dove mandare i pezzi:
+
+```
+Rossi cede:
+LeBron James 25x2
+
+Bianchi cede:
+Jalen Williams 12x2
+
+Verdi cede:
+1st round pick 2027 by Verdi
+
+Rossi riceve:
+Jalen Williams 12x2
+
+Bianchi riceve:
+1st round pick 2027 by Verdi
+
+Verdi riceve:
+LeBron James 25x2
+```
+
+Qualche regola:
+
+- **I GM.** Puoi indicarli col cognome o col nome della squadra, purché non ci siano ambiguità.
+- **Il "by" delle pick.** Indica la squadra di **origine** della pick, anche se nel frattempo è passata di mano. Scriverlo è facoltativo: "2nd round pick 2028 Rossi" va bene uguale.
+- **Cosa puoi cedere.** Il bot controlla che pick e diritti che cedi siano davvero tuoi oggi. Se trova errori non salva niente e ti dice cosa correggere.
+
+### Il voto
+
+Quando proponi una trade, tutte le squadre coinvolte la ricevono e votano ✅ o ❌; chi rifiuta può aggiungere una motivazione.
+
+- Tu vedi l'avanzamento dei voti man mano che arrivano.
+- Se tutti accettano, la trade passa agli admin per l'approvazione finale.
+- Ogni esito arriva a **tutte** le squadre coinvolte, non solo a chi l'ha proposta: rifiuto di un GM, rifiuto degli admin, approvazione o annullamento.
+
+### Tenere traccia
+
+**`/my_trades`** (o Trade → 📂 Le mie trade) elenca tutte le trade che ti riguardano, con lo stato:
+
+- 📝 bozza
+- 🗳 in voto (con chi ha già risposto)
+- ⏳ dagli admin
+- ✅ approvata
+- ❌ rifiutata da un GM (con la motivazione)
+- 🚫 rifiutata dagli admin
+
+Dal dettaglio puoi votare, ritirare una tua proposta ancora in voto, oppure **riprendere come bozza** una trade rifiutata, sistemarla e rimandarla.
+
+**`/bozze_trade`** mostra solo le bozze. **`/edit_trade 3`** apre la bozza numero 3.
+
+Nell'editor puoi aggiungere o togliere giocatori, pick e diritti, cambiare la nota e i destinatari. In una trade a tre, quando premi **✅ Fatto** il bot ti chiede a chi va ogni pezzo nuovo che non ha ancora un destinatario.
+
+Le bozze si modificano solo finché sono bozze: una trade già in voto o dagli admin non si tocca più. Se va cambiata, la ritiri e la riprendi come bozza.
+
+### La DPE segue il giocatore
+
+Se cedi un giocatore con la DPE attiva, la DPE va con lui. Chi lo riceve lo paga ridotto e non gli occupa uno slot, esattamente come succedeva a te.
 
 ---
 
-## DPE — Disabled Player Exception
+## Tagliare un giocatore
 
-`/dpe` (o menu → DPE) per un giocatore out for the season: per la stagione corrente il contratto scende del 25%, con la riduzione arrotondata per eccesso (5 → 3, 9 → 6, 10 → 7). Serve l'approvazione di un admin, e conta il momento dell'approvazione: prima della deadline libera uno slot, dopo la deadline dà invece un **cambio ruolo aggiuntivo gratuito** verso il ruolo dell'infortunato (lo trovi in `/cambio_ruolo` come 🏥 Extra DPE). Una sola richiesta per giocatore alla volta.
+Menu → **Tagli** → scegli il giocatore. Prima di confermare vedi quanto peserà il taglio sul tuo cap, anno per anno.
+
+**Contratti 1x1.** Ogni stagione hai **3 tagli gratuiti**. Dal quarto in poi puoi tagliare lo stesso, ma quel giocatore ti pesa 1M sul cap per la stagione.
+
+**Gli altri contratti** si spalmano secondo la tabella del regolamento. Esempio: tagli un 20x3 e per un paio di stagioni ti resta una parte del suo stipendio sul cap. L'anteprima ti dice quanto, prima di decidere.
+
+**In regular season** il bot blocca il taglio se:
+
+- ti lascerebbe sotto i **10 giocatori**;
+- ti lascerebbe scoperto un ruolo, cioè meno di 4 guardie, 4 ali o 2 centri.
+
+Esempio: hai esattamente 2 centri e provi a tagliarne uno → il bot ti ferma.
 
 ---
 
-## Rookie
+## DPE — giocatore fuori per la stagione
 
-Menu → Rookie (o `/attiva_diritti`) → scegli il giocatore: il contratto è quello della rookie scale (colonna I anno, in base alla pick), devi solo confermare. I diritti delle seconde al secondo anno scadono 10 giorni prima della trade deadline.
+`/dpe` (o menu → DPE), poi scegli il giocatore. La richiesta va agli admin.
+
+Se viene approvata, per la stagione in corso il suo contratto scende del 25%, arrotondando la riduzione per eccesso:
+
+- 10M → 7M
+- 9M → 6M
+- 5M → 3M
+
+Conta il momento in cui l'admin approva:
+
+- **prima della trade deadline**: il giocatore smette di occuparti uno slot;
+- **dopo la deadline**: lo slot no, ma ricevi un **cambio ruolo gratuito** verso il ruolo dell'infortunato. Lo trovi in `/cambio_ruolo` come 🏥 Extra DPE.
+
+Puoi avere una sola richiesta aperta per giocatore.
 
 ---
 
-## Decadimento
+## Rookie: attivare i diritti
 
-`/decadimento` (o menu → Decadimento) per un giocatore ritirato o andato in un altro campionato: il contratto viene annullato senza contare tra i tagli. Serve l'approvazione di un admin.
+Menu → **Rookie** (o `/attiva_diritti`), poi scegli il giocatore. Il contratto è già scritto dalla rookie scale in base alla pick: devi solo confermare. Serve uno slot libero.
+
+Attenzione: i diritti delle seconde scelte al secondo anno **scadono 10 giorni prima della trade deadline**. Dopo quella data il giocatore torna free agent.
+
+---
+
+## Decadimento: il contratto si chiude senza contare come taglio
+
+`/decadimento` (o menu → Decadimento), poi scegli il giocatore e il motivo. Decidono gli admin.
+
+**Si è ritirato, o è andato a giocare in un altro campionato.** Il contratto si chiude. In più smettono di pesare anche le vecchie spalmature: se l'avevi tagliato in passato, i soldi che ti restavano sul cap per lui spariscono. Questo vale per tutte le squadre che l'avevano tagliato.
+
+**Cam Thomas exception.** Il giocatore è stato tagliato in NBA ed è senza squadra da almeno un mese, con il mercato NBA aperto. Il contratto decade gratis, ma le spalmature che avevi già restano. Gli admin verificano le condizioni quando arriva la tua richiesta.
+
+Se poi lo rifirmi entro un anno devi dargli **almeno il contratto che aveva prima**. Esempio: era un 15x2, lo fai decadere a novembre e a febbraio firma con un'altra squadra NBA. Se lo vuoi riprendere all'asta, non puoi offrire meno di 15.
 
 ---
 
 ## Ruoli
 
-I ruoli possibili sono PG, SG, SF, PF, C, sempre tra le **posizioni eleggibili** del giocatore su Yahoo. Ogni roster deve avere almeno 4 guardie (PG/SG), 4 ali (SF/PF) e 2 centri.
+Ogni giocatore in rosa ha un ruolo: PG, SG, SF, PF o C, sempre scelto tra le sue **posizioni eleggibili** su Yahoo. Il roster deve avere sempre almeno **4 guardie** (PG/SG), **4 ali** (SF/PF) e **2 centri**.
 
-### Dichiarazione a inizio stagione (fase "Dichiarazione ruoli")
+### A inizio stagione: la dichiarazione
 
-`/dichiarazione_ruoli` o 🎽 nel menu. Ogni stagione si dichiara tutto da capo.
+Nella fase *offseason-ruoli* scrivi `/dichiarazione_ruoli` (o 🎽 nel menu). Ogni stagione si riparte da zero. Ci sono due modi per farla.
 
-- Tocca un giocatore e scegli il ruolo; chi ha una sola posizione è già impostato (🔒).
-- Oppure **📥 Importa da testo**: un messaggio con una riga per giocatore (`LeBron SF`, `Curry PG`...). Basta nome o cognome; se il nome è incerto il bot chiede conferma, e ti segnala chi hai saltato.
-- Le scelte restano in bozza finché non premi **✅ Conferma**. Puoi confermare anche una parte e completare dopo, entro la deadline.
-- Il giorno prima della deadline, se non hai completato, ricevi un promemoria.
-- Se ricevi o firmi un giocatore durante questa fase, comparirà da dichiarare.
+**Coi bottoni.** Tocchi un giocatore e scegli il ruolo. Chi ha una sola posizione è già a posto (🔒).
 
-### Nuovi giocatori in regular season
+**Col testo.** Premi 📥 Importa da testo e mandi un messaggio con una riga per giocatore:
 
-**Free agency:** quando vinci un'asta il bot aste ti chiede prima gli anni e poi il ruolo, tra quelli eleggibili; la conferma li mostra insieme. Se non rispondi entro 48 ore il giocatore viene firmato per 3 anni (penale) con un ruolo estratto a caso. Il ruolo compare nell'annuncio della firma.
+```
+LeBron SF
+Curry PG
+Jokic C
+```
 
-**Trade, firme registrate dagli admin, attivazione diritti:** dopo una trade, una firma o l'attivazione dei diritti ricevi in privato un messaggio con i bottoni dei ruoli eleggibili. Lo ritrovi anche nel menu, in **🎽 Ruoli da dichiarare**. Chi ha **una sola posizione eleggibile** prende quel ruolo in automatico: non c'è niente da dichiarare (vale anche nel bot aste).
+Basta nome o cognome. Se un nome è dubbio il bot ti chiede conferma, e ti dice chi hai dimenticato.
 
-- Hai **48 ore**, poi il ruolo viene estratto a caso tra quelli eleggibili.
-- Se riprendi un giocatore che hai avuto negli ultimi **60 giorni**, torna automaticamente col suo vecchio ruolo.
-- I ruoli non passano da una squadra all'altra: chi riceve il giocatore dichiara il suo.
+Le scelte restano in bozza finché non premi **✅ Conferma**. Puoi anche confermarne una parte e finire dopo, purché entro la deadline. Il giorno prima, se non hai finito, ti arriva un promemoria.
 
-### Cambi ruolo (regular season e playoff)
+### Giocatori nuovi durante la stagione
 
-`/cambio_ruolo` o 🔁 nel menu → giocatore → nuovo ruolo. Il bot mostra solo i tipi possibili:
+**Dall'asta.** Il bot aste ti chiede prima gli anni e poi il ruolo.
 
-- **Ordinario** — massimo 2 a stagione (contatore su `/roster` e sul foglio); chiede una conferma.
-- **Erminio (ruolo aggiunto)** — gratuito, se Yahoo ha aggiunto quel ruolo al giocatore negli ultimi 14 giorni (lo vedi segnato con ✨). Quando è disponibile, l'ordinario non viene proposto.
-- **Saedro (10 day)** — cambio temporaneo di 10 giorni, una volta a stagione, quando non hai giocatori disponibili in quel ruolo: la richiedi e la approvano gli admin. Alla scadenza il giocatore torna nel ruolo originale da solo.
-- **🏥 Extra DPE** — gratuito, uno per ogni DPE attivata dopo la deadline, verso il ruolo del giocatore infortunato.
+**Da trade, firma registrata da un admin o attivazione diritti.** Ti arriva un messaggio privato con i bottoni dei ruoli possibili; lo ritrovi anche nel menu, in 🎽 Ruoli da dichiarare.
 
-I cambi che farebbero scendere il roster sotto i minimi (4G/4F/2C) vengono bloccati. Ogni cambio viene annunciato sul canale.
+- Hai **48 ore**. Dopo, il ruolo viene estratto a caso tra quelli possibili.
+- Se il giocatore ha una sola posizione eleggibile, il ruolo è automatico e non c'è niente da fare.
+- Se riprendi un giocatore che avevi negli ultimi **60 giorni**, torna col suo vecchio ruolo.
+- Il ruolo non viaggia con il giocatore: chi lo riceve in trade dichiara il suo.
 
-## Tagli
+### Cambiare ruolo (regular season e playoff)
 
-- I primi 3 tagli 1x1 di ogni stagione sono gratuiti; dal quarto il taglio 1x1 è consentito ma pesa 1M sul cap per una stagione.
-- In regular season un taglio non può portare il roster sotto i 10 giocatori né lasciare scoperti i minimi dei ruoli (4 G, 4 F, 2 C).
-- Un giocatore con DPE ceduto in trade si porta dietro la DPE: chi lo riceve lo paga ridotto e non gli occupa slot.
-- **Cam Thomas exception**: se un tuo giocatore è stato tagliato in NBA ed è senza squadra da almeno un mese (con mercato NBA aperto), puoi chiedere il decadimento gratuito del contratto (menu → Decadimento, motivo Cam Thomas); decidono gli admin. Le spalmature che avevi restano. Se lo rifirmi entro un anno devi dargli almeno il contratto precedente.
+`/cambio_ruolo` (o 🔁 nel menu), poi giocatore e nuovo ruolo. Il bot ti mostra solo i tipi di cambio che puoi usare in quel momento:
+
+- **Ordinario.** Al massimo 2 a stagione; il contatore è su `/roster`.
+- **Erminio.** Gratuito, quando Yahoo ha aggiunto quella posizione al giocatore negli ultimi 14 giorni (lo vedi segnato con ✨). Quando c'è, l'ordinario non viene proposto, così non lo sprechi.
+- **Saedro (10 giorni).** Cambio temporaneo, una volta a stagione, quando in un ruolo non hai nessuno disponibile. Lo approvano gli admin; dopo 10 giorni il giocatore torna da solo nel ruolo di prima.
+- **🏥 Extra DPE.** Gratuito, uno per ogni DPE approvata dopo la deadline, verso il ruolo dell'infortunato.
+
+Esempio: Yahoo ieri ha aggiunto "C" a un tuo PF. Apri `/cambio_ruolo`, scegli il giocatore e vedi l'opzione ✨ Erminio verso C, gratis.
+
+I cambi che ti lascerebbero sotto i minimi (4 G, 4 F, 2 C) vengono bloccati. Ogni cambio viene annunciato sul canale.
+
+---
+
+## In breve
+
+| Voglio… | Comando |
+|---|---|
+| vedere la mia squadra | `/roster`, `/assets` |
+| vedere cosa è cambiato | `/team_diff` |
+| fare una trade | `/build_trade` o `/import_trade` |
+| vedere le mie trade | `/my_trades` |
+| tagliare | menu → Tagli (`/taglia`) |
+| chiedere una DPE | `/dpe` |
+| attivare un rookie | `/attiva_diritti` |
+| chiudere un contratto (ritiro, altra lega, Cam Thomas) | `/decadimento` |
+| dichiarare o cambiare ruoli | `/dichiarazione_ruoli`, `/cambio_ruolo` |
+| uscire da un'operazione bloccata | `/annulla` |
+| ricevere questa guida | `/guida` |

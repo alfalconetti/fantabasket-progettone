@@ -616,6 +616,14 @@ async def reset_rfa(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("⛔ Non sei autorizzato.")
         return
 
+    # La stagione è condivisa nel globals.json e la avanza il bot principale entrando in
+    # offseason-rinnovi: cambiarla qui (es. "2025-26") rompeva i conti del bot principale.
+    await update.effective_message.reply_text(
+        "Non serve più: la stagione avanza da sola quando il bot principale entra in "
+        "<b>offseason-rinnovi</b> (/set_fase), e con lei si azzera la RFA di ogni squadra.\n"
+        f"Stagione attuale: <b>{utils.get_stagione_corrente()}</b>", parse_mode="HTML")
+    return
+
     if not context.args:
         stagione_corrente = utils.get_stagione_corrente()
         await update.effective_message.reply_text(
@@ -649,8 +657,11 @@ async def reset_rfa_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.edit_message_text("⛔ Non sei autorizzato.")
         return
 
-    # leggi nuova stagione dagli args salvati in user_data
-    nuova_stagione = context.user_data.pop("nuova_stagione", None)
+    context.user_data.pop("nuova_stagione", None)
+    await query.edit_message_text("La stagione la cambia il bot principale (/set_fase → offseason-rinnovi).")
+    return
+
+    nuova_stagione = None
     if not nuova_stagione:
         await query.edit_message_text("❌ Stagione non specificata.")
         return
@@ -2334,50 +2345,41 @@ async def cmd_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     testo = (
-        "<b>Comandi admin</b>\n"
+        "<b>Comandi admin — bot aste</b>\n"
+        "<i>Fase, cap e slot arrivano dal bot principale: qui non si cambiano.</i>\n"
         "\n"
-        "<b>🏀 Aste</b>\n"
-        "/nuova_rfa &lt;giocatore&gt; &lt;team_id&gt; &lt;vecchio_compenso&gt; — apre asta RFA\n"
-        "/aste — lista aste aperte\n"
-        "/all_aste [stato] — lista tutte le aste con filtro opzionale per stato\n"
-        "/chiudi_asta &lt;asta_id&gt; — chiude forzatamente un'asta\n"
-        "/annulla_asta &lt;asta_id&gt; — annulla un'asta\n"
-        "/annulla_offerta &lt;asta_id&gt; — annulla ultima offerta\n"
-        "/apri_asta &lt;team_id&gt; &lt;importo&gt; &lt;giocatore&gt; — apre un'asta FA per conto di un team\n"
-        "/crea_offerta &lt;team_id&gt; &lt;asta_id&gt; &lt;importo&gt; — offerta one-shot per conto di un team\n"
-        "/firme [N] — ultime N firme con nome squadra (default 10)\n"
-        "/estendi_asta &lt;asta_id&gt; &lt;ore&gt; — sposta la scadenza in avanti di N ore\n"
-        "/sposta_asta &lt;asta_id&gt; &lt;YYYY-MM-DDTHH:MM&gt; — imposta scadenza precisa (ora di Roma)\n"
-        "/riapri_asta &lt;asta_id&gt; [ore] — riporta asta CHIUSA/PAREGGIO/ANNULLATA ad APERTA (conferma se ANNULLATA)\n"
-        "/reset_rfa — resetta flag RFA per nuova stagione\n"
+        "<b>👀 Guardare</b>\n"
+        "/list — squadre con id e GM\n"
+        "/listteams — cap e slot di tutte le squadre, una riga a testa\n"
+        "/team &lt;team_id&gt; — la situazione di una squadra (come /me)\n"
+        "/aste — aste aperte · /all_aste [stato] — tutte, anche chiuse\n"
+        "/firme [N] — ultime firme (default 10)\n"
+        "/stato_asta &lt;asta_id&gt; — tutti i dati di un'asta con le offerte\n"
         "\n"
-        "<b>💰 Cap e slot</b>\n"
-        "/set_cap &lt;team_id&gt; &lt;valore&gt; — imposta cap squadra\n"
-        "/add_cap &lt;team_id&gt; &lt;importo&gt; — aggiunge/sottrae cap (accetta negativi)\n"
-        "/set_slot &lt;team_id&gt; &lt;valore&gt; — imposta slot squadra\n"
-        "/add_slot &lt;team_id&gt; &lt;importo&gt; — aggiunge/sottrae slot\n"
-        "/set_cap_penalizzato &lt;team_id&gt; &lt;valore&gt; — imposta penalità cap\n"
+        "<b>🏀 Aprire e offrire per una squadra</b>\n"
+        "/apri_asta &lt;team_id&gt; &lt;importo&gt; &lt;giocatore&gt; — es. /apri_asta bulls 5 LeBron James\n"
+        "/crea_offerta &lt;team_id&gt; &lt;asta_id&gt; &lt;importo&gt; — es. /crea_offerta bulls 42 7\n"
+        "/nuova_rfa &lt;giocatore&gt; &lt;team_id&gt; &lt;vecchio_compenso&gt; — es. /nuova_rfa Doncic mavs 28\n"
         "\n"
-        "<b>🏟️ Lega</b>\n"
-        "/apri_mercato — apre il mercato FA\n"
-        "/chiudi_mercato — chiude il mercato FA\n"
-        "/set_fase &lt;offseason|regular&gt; — cambia fase e scala cap\n"
-        "/listteams — lista squadre con cap e slot (tutti)\n"
-        "/list — specchio del teams.json con IDs e GM (admin)\n"
-        "/guida_admin — ricevi la guida admin in privata\n"
-        "/team &lt;team_id&gt; — situazione cap e slot di una squadra (tutti)\n"
+        "<b>🛠 Correggere un'asta</b>\n"
+        "/annulla_offerta &lt;asta_id&gt; — toglie l'ultima offerta\n"
+        "/chiudi_asta &lt;asta_id&gt; — chiude subito (parte la firma)\n"
+        "/annulla_asta &lt;asta_id&gt; — annulla senza vincitore\n"
+        "/riapri_asta &lt;asta_id&gt; [ore] — da chiusa/pareggio/annullata ad aperta\n"
+        "/estendi_asta &lt;asta_id&gt; &lt;ore&gt; — sposta la scadenza (negativo per accorciare)\n"
+        "/sposta_asta &lt;asta_id&gt; &lt;AAAA-MM-GGTHH:MM&gt; — scadenza precisa, ora di Roma\n"
         "\n"
-        "<b>🔧 Recovery ed emergenza</b>\n"
-        "/ripubblica_asta &lt;asta_id&gt; — ripubblica il messaggio canale se cancellato per errore\n"
-        "/forza_aggiornamento &lt;asta_id&gt; — riedita forzatamente il messaggio canale (es. dopo timeout)\n"
-        "/backup_ora — invia subito un backup al canale log\n"
-        "/force_esito &lt;asta_id&gt; — rimanda il messaggio di firma/pareggio al GM senza reboottare\n"
+        "<b>🚑 Se qualcosa si inceppa</b>\n"
+        "/force_esito &lt;asta_id&gt; — rimanda al GM il messaggio di firma o pareggio\n"
+        "/forza_aggiornamento &lt;asta_id&gt; — riscrive il messaggio dell'asta nel canale\n"
+        "/ripubblica_asta &lt;asta_id&gt; — ripubblica il messaggio se è stato cancellato\n"
+        "/backup_ora — backup subito sul canale log\n"
         "\n"
-        "<b>🔍 Diagnostica</b>\n"
-        "/stato_asta &lt;asta_id&gt; — dump completo del record DB di un'asta\n"
+        "<b>🏟 Mercato e penalità</b>\n"
+        "/apri_mercato · /chiudi_mercato — solo emergenza (di solito segue la fase)\n"
+        "/set_cap_penalizzato &lt;team_id&gt; &lt;valore&gt; — penalità sul cap\n"
         "\n"
-        "/admin — questo messaggio\n"
-        "/dev — comandi dev (solo dev)"
+        "/guida_admin — la guida completa · /dev — comandi dev"
     )
     await update.effective_message.reply_text(testo, parse_mode="HTML")
 
