@@ -154,29 +154,43 @@ async def nuova_rfa(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ── /listteams ────────────────────────────────────────────────────────────────
 
 async def listteams(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Lista squadre con cap e slot — disponibile a tutti."""
+    """Cap e slot di tutte le squadre, una riga ciascuna — disponibile a tutti.
+    Avvisi: in offseason chi sta sopra il cap di regular season (150 meno la penalità),
+    in regular season chi è sotto il salary floor."""
     s = settings.get()
-    slot_totale = s.get("roster_max", 15)
-
-    all_teams = tm.get_all_teams()
-    righe = ["<b>🏀 Squadre</b>\n"]
-    stagione_ls = utils.load_globals().get("stagione_corrente", "2025")
-    for t in all_teams:
-        cap_virt  = db.get_cap_virtuale(t["id"])
-        slot_virt = db.get_slot_virtuali(t["id"])
-        cap_disp, slot_disp = utils.cap_slot_display(t, stagione_ls)
-        cap_impegnati_contratti  = utils.cap_impegnato_display(t, stagione_ls)
-        slot_impegnati_contratti = slot_totale - slot_disp
-        cap_libero  = cap_disp - cap_virt
-        slot_liberi = slot_disp - slot_virt
-
-        righe.append(
-            f"<b>{t['nome']}</b> — <code>{t['id']}</code>\n"
-            f"💰 {cap_impegnati_contratti}M impegnati | {cap_disp}M disponibili | {cap_libero}M liberi\n"
-            f"🪑 {slot_impegnati_contratti} impegnati ({slot_totale}-{slot_disp}) | {slot_disp} disponibili | {slot_liberi} liberi\n"
-        )
-
-    await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
+    stagione = utils.load_globals().get("stagione_corrente", "2025")
+    offseason = utils.load_globals().get("fase", "").startswith("offseason")
+    tetto = settings.cap_limite()
+    slot_max = s.get("roster_max", 15)
+    if offseason:
+        intest = f"<b>🏀 Squadre</b> — offseason (tetto {tetto}M, in regular season {s['cap_regular']}M)"
+    else:
+        intest = f"<b>🏀 Squadre</b> — regular season (tetto {tetto}M meno penalità, floor {s['salary_floor']}M)"
+    righe = [intest, ""]
+    for t in tm.get_all_teams():
+        cap_disp, slot_disp = utils.cap_slot_display(t, stagione)
+        occupato = utils.cap_impegnato_display(t, stagione)
+        pen = int(t.get("cap_penalizzato") or 0)
+        tetto_t = tetto - settings.penalita_cap(t)
+        cap_virt, slot_virt = db.get_cap_virtuale(t["id"]), db.get_slot_virtuali(t["id"])
+        riga = (f"<b>{t['nome']}</b> (<code>{t['id']}</code>) — 💰 {occupato}/{tetto_t}M · "
+                f"{cap_disp - cap_virt}M liberi · 🪑 {slot_max - slot_disp}/{slot_max}")
+        if cap_virt or slot_virt:
+            riga += f" · ⏳ {cap_virt}M e {slot_virt} slot in aste"
+        if offseason and occupato > s["cap_regular"] - pen:
+            riga += f" ⚠️ sopra {s['cap_regular'] - pen} in RS"
+        elif not offseason and occupato < s["salary_floor"]:
+            riga += f" ⚠️ sotto il floor"
+        if cap_disp - cap_virt < 0 or slot_disp - slot_virt < 0:
+            riga += " 🔴 negativo"
+        righe.append(riga)
+    blocco = ""
+    for r in righe:                          # spezza solo tra una riga e l'altra (tag HTML interi)
+        if len(blocco) + len(r) > 3900:
+            await update.effective_message.reply_text(blocco, parse_mode="HTML")
+            blocco = ""
+        blocco += r + "\n"
+    await update.effective_message.reply_text(blocco, parse_mode="HTML")
 
 
 async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -559,9 +573,13 @@ async def set_fase(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("⛔ Non sei autorizzato.")
         return
 
-    if not context.args or context.args[0] not in ("offseason", "regular"):
-        await update.effective_message.reply_text("Uso: /set_fase <offseason|regular>")
-        return
+    # La fase è condivisa nel globals.json e la gestisce il bot principale con i nomi
+    # completi (regular-season-fa, offseason-rfa, …): scrivere qui "offseason"/"regular"
+    # mandava fuori fase tutti i controlli del bot principale.
+    await update.effective_message.reply_text(
+        "La fase si cambia dal bot principale: /set_fase (o /admin_menu → Fase).\n"
+        f"Fase attuale: <b>{utils.load_globals().get('fase', '?')}</b>", parse_mode="HTML")
+    return
 
     fase = context.args[0]
 

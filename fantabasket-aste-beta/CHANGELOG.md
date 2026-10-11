@@ -550,3 +550,10 @@ Comandi riservati al solo `dev_id` (non visibili in /admin), per osservare lo st
 - `/me`, `/team_detail`, `/listteams`: cap impegnato calcolato davvero (contratti con DPE + tagli; prima 165 − disponibile, gonfiato di 15M in regular season) ed etichetta in base alla fase
 - Config: `fascia_bassa_max` va a **20** (regolamento: "≤ 20 milioni si può pareggiare qualsiasi offerta")
 - **Cam Thomas exception**: la squadra che ha fatto decadere un giocatore con questa regola nell'ultimo anno può riaprirne l'asta o rilanciare solo ad almeno il contratto precedente (`pg_client.minimo_cam_thomas`)
+
+## v53 — Menu comandi per fase e /listteams compatto
+
+- **Menu dei comandi per ruolo e per fase** (`comandi.py`): GM in privato, admin, dev, gruppi (solo `/team` e `/listteams`). I comandi FA (`/lista_fa`, `/nuova_fa`, `/apri_asta`) compaiono solo a mercato FA aperto; quelli per offrire (`/offri`, `/offerta`, `/watch`, `/autocap`, `/autoslot`, `/crea_offerta`) anche in fase RFA o finché ci sono aste aperte; `/nuova_rfa` e `/reset_rfa` solo in offseason. La fase la cambia il bot principale: il bot aste la ricontrolla ogni 5 minuti e aggiorna il menu se cambia. Tolti dal menu `/set_cap` e `/set_slot` (non fanno più niente); `/list` descritto correttamente (squadre, non aste)
+- **`/set_fase` del bot aste disattivato**: scriveva "offseason"/"regular" nel globals.json condiviso, mandando fuori fase tutti i controlli del bot principale. Ora rimanda al `/set_fase` del bot principale
+- **`/listteams` compatto**: una riga per squadra, `cap occupato/tetto · liberi · roster/15`, offerte in corso solo se ci sono; avvisi ⚠️ per chi in offseason sta sopra il cap di regular season (150 meno penalità) e in regular season sotto il floor; 🔴 se cap o slot liberi sono negativi
+

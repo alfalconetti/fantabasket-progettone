@@ -9,7 +9,7 @@ PGURL=${PGURL:-postgresql://fb:fb@localhost/fbt}
 # niente prove sul server: le prove fanno TRUNCATE (stessi controlli di tests/guardia.py)
 DATABASE_URL=$PGURL PG_URL=$PGURL python3 "$ROOT/tests/guardia.py" || exit 1
 MAIN=(trade_3_squadre revisione_regolamento dpe_trade_tagli team_diff report_spalmature)
-ASTE_PG=(pg_rfa_30giorni_dpe rfa_lascio_andare)
+ASTE_PG=(pg_rfa_30giorni_dpe rfa_lascio_andare menu_e_listteams)
 ASTE_ISOLATO=(apri_asta_admin apertura_gm cap_asta_chiusa rfa_proprietario)
 scelti=("$@"); [ ${#scelti[@]} -eq 0 ] && scelti=("${MAIN[@]}" "${ASTE_PG[@]}" "${ASTE_ISOLATO[@]}")
 in_lista() { local x=$1; shift; for y in "$@"; do [ "$x" = "$y" ] && return 0; done; return 1; }

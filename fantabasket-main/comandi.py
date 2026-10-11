@@ -62,6 +62,7 @@ def liste_comandi(fase: str) -> dict:
     ]
     cmd_admin = cmd_gm + [
         BotCommand("admin_menu",          "Pannello admin"),
+        BotCommand("list",                "Squadre: nome, id e GM"),
         BotCommand("set_fase",            "Cambia fase della stagione"),
         BotCommand("approva_trade",       "Approva una trade in attesa"),
         BotCommand("annulla_trade_admin", "Annulla una trade approvata"),

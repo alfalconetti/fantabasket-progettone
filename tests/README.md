@@ -55,6 +55,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `report_spalmature` | main | report mensile: free agent con spalmature, ultima partita bref, Cam Thomas, esclusi i sotto contratto e le stagioni passate |
 | `team_diff` | main | contratti nei due momenti, DPE, cambio contratto, niente falsi cambi tra stagioni |
 | `pg_rfa_30giorni_dpe` | aste + PG | RFA: cap sì slot no, lascio andare con movimento; regola dei 30 giorni; DPE nel cap per offrire; rifirma dopo taglio |
+| `menu_e_listteams` | aste + PG | menu dei comandi per fase e ruolo, `/listteams` compatto con avvisi |
 | `rfa_lascio_andare` | aste + PG | "Lascio andare": solo proprietario, una volta sola |
 | `apri_asta_admin` | aste (isolato) | `/apri_asta`: nome esatto/omonimi/fuzzy, cap, squadra, importo, mercato chiuso |
 | `apertura_gm` | aste (isolato) | apertura del GM passata dalla funzione comune |

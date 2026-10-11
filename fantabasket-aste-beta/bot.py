@@ -252,76 +252,13 @@ def main():
         )
 
     async def _register_commands(app):
-        from telegram import BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeChat
-        g = utils.load_globals()
-        admin_ids = g.get("admin_ids", [])
-        dev_id    = g.get("dev_id")
+        # menu per ruolo e per fase (comandi.py); ricontrollato ogni 5 minuti perché la
+        # fase la cambia il bot principale
+        from comandi import registra_comandi
+        await registra_comandi(app.bot, forza=True)
 
-        cmd_gm = [
-            BotCommand("me",        "Il tuo cap e slot"),
-            BotCommand("team",      "Dettaglio cap e slot di un team"),
-            BotCommand("lista_fa",  "Lista free agent disponibili"),
-            BotCommand("offri",     "Lista aste aperte con bottone offerta"),
-            BotCommand("offerta",   "Offerta diretta: /offerta asta <id> <importo>"),
-            BotCommand("nuova_fa",  "Apri asta per un FA: /nuova_fa <giocatore>"),
-            BotCommand("watch",     "Aggiungi un'asta alla watchlist"),
-            BotCommand("watched",   "Aste che stai seguendo"),
-            BotCommand("guida",     "Guida al bot aste"),
-            BotCommand("autocap",   "Cap anticipato emergenza notturna"),
-            BotCommand("autoslot",  "Slot anticipato emergenza notturna"),
-            BotCommand("annulla",   "Annulla operazione in corso"),
-        ]
-        cmd_admin = cmd_gm + [
-            BotCommand("list",               "Lista aste in corso"),
-            BotCommand("aste",               "Lista aste in corso (alias)"),
-            BotCommand("listteams",          "Cap e slot di tutte le squadre"),
-            BotCommand("firme",              "Firme recenti"),
-            BotCommand("guida_admin",        "Guida comandi admin"),
-            BotCommand("nuova_rfa",          "Crea asta RFA"),
-            BotCommand("apri_asta",          "Apri asta FA per conto di una squadra"),
-            BotCommand("crea_offerta",       "Crea offerta manuale per un giocatore"),
-            BotCommand("chiudi_asta",        "Chiudi un'asta manualmente"),
-            BotCommand("annulla_asta",       "Annulla un'asta"),
-            BotCommand("riapri_asta",        "Riapri un'asta chiusa"),
-            BotCommand("ripubblica_asta",    "Ripubblica annuncio asta"),
-            BotCommand("all_aste",           "Tutte le aste incluse le chiuse"),
-            BotCommand("reset_rfa",          "Reset stato RFA"),
-            BotCommand("set_cap",            "Imposta cap manuale [team_id] [valore]"),
-            BotCommand("set_slot",           "Imposta slot manuale [team_id] [valore]"),
-            BotCommand("set_cap_penalizzato","Imposta cap penalizzato [team_id] [valore]"),
-            BotCommand("apri_mercato",       "Apri il mercato"),
-            BotCommand("chiudi_mercato",     "Chiudi il mercato"),
-            BotCommand("set_fase",           "Cambia fase"),
-            BotCommand("backup_ora",         "Backup d'emergenza del solo DB aste"),
-        ]
-        cmd_dev = cmd_admin + [
-            BotCommand("dev",            "Help comandi dev"),
-            BotCommand("dev_version",    "Versione del bot"),
-            BotCommand("dev_aste_stato", "Stato interno delle aste"),
-            BotCommand("dev_watched",    "Watchlist globale"),
-            BotCommand("dev_rfa",        "Stato RFA"),
-            BotCommand("dev_firme",      "Log firme dettagliato"),
-            BotCommand("dev_cap",        "Cap di tutti i team"),
-            BotCommand("dev_log",        "Log recenti"),
-            BotCommand("job_status",     "Stato job schedulati"),
-            BotCommand("broadcast",      "Broadcast messaggio a tutti i GM"),
-        ]
-
-        try:
-            await app.bot.set_my_commands(cmd_gm, scope=BotCommandScopeAllPrivateChats())
-            for aid in admin_ids:
-                try:
-                    await app.bot.set_my_commands(cmd_admin, scope=BotCommandScopeChat(chat_id=aid))
-                except Exception:
-                    pass
-            if dev_id:
-                try:
-                    await app.bot.set_my_commands(cmd_dev, scope=BotCommandScopeChat(chat_id=dev_id))
-                except Exception:
-                    pass
-            logger.info("Comandi bot aste registrati.")
-        except Exception as e:
-            logger.warning("Registrazione comandi aste fallita: %s", e)
+    from comandi import job_aggiorna_comandi
+    app.job_queue.run_repeating(job_aggiorna_comandi, interval=300, first=300)
 
     app.post_init = _register_commands
     logger.info("Bot avviato.")

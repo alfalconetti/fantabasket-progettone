@@ -915,3 +915,7 @@ Revisione del codice contro il regolamento.
 - Report mensile (il 1° del mese alle 9:45, gruppo admin, solo se c'è qualcuno) dei free agent con spalmature ancora attive: quanto pesano e su quali squadre, ultima partita rilevata su Basketball-Reference, eventuale Cam Thomas exception con data. Serve a trovare chi si è ritirato o è andato in un'altra lega e chiuderlo con `/ritiro_fa` (`handlers/spalmature.py`)
 - `/report_spalmature` (admin): lo stesso report su richiesta
 
+## v3.9.2 (2026-10-12)
+
+- `/list` (admin) anche nel bot principale: squadre con id e GM, come nel bot aste
+

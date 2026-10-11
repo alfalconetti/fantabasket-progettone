@@ -875,6 +875,16 @@ async def _esegui_cambio_fase(query, fase_vecchia: str, nuova_fase: str):
             logger.warning("report_fine_fase ruoli: %s", e)
 
 
+async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/list (admin) — squadre con id e GM, come /list del bot aste."""
+    if not is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ Solo admin.")
+        return
+    righe = ["<b>📋 Squadre</b>\n"] + [
+        f"<b>{t['nome']}</b> — <code>{t['id']}</code> — {t.get('gm_nome', '—')}" for t in tm.get_all_teams()]
+    await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
+
+
 async def cmd_registra_firma(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /registra_firma <team_id> <importo> <anni> <nome giocatore>
@@ -1137,6 +1147,7 @@ def get_handlers() -> list:
 
     return [
         conv,
+        CommandHandler("list",               cmd_list),
         CommandHandler("registra_firma",     cmd_registra_firma),
         CallbackQueryHandler(cb_registra_firma_sel, pattern=r"^rfirma:\d+:.+:\d+:\d+$"),
         CommandHandler("admin_menu", cmd_admin_menu),
