@@ -871,3 +871,13 @@ ALTER TABLE trade ADD COLUMN IF NOT EXISTS nota_gm TEXT;
 ### Google Apps Script
 - `gas/.claspignore`: `globals_sample.gs` non va più su Apps Script (insieme a `globals.gs` dichiarava due volte `CONFIG` e la web app non partiva: "SyntaxError: Identifier 'CONFIG' has already been declared")
 - `gas/appsscript.json` allineato a quello di Apps Script, con la sezione `webapp` (esegui come proprietario, accesso a chiunque)
+
+## v3.8.1 (2026-10-11)
+
+### /team_diff con i contratti
+- IN con il contratto alla data finale, OUT con quello alla data iniziale (`20x2`; con DPE `15x2 (DPE, era 20)`)
+- Nuova sezione 🔁 **Contratto cambiato**: giocatori rimasti in squadra con un contratto diverso tra le due date (nuovo contratto, DPE approvata o scaduta), `vecchio → nuovo`. Il solo anno in meno tra una stagione e l'altra non conta come cambio
+- Anni residui calcolati sulla stagione di ciascuna data (da luglio quella che inizia); DPE dalla tabella `dpe` approvate entro quella data (`db.get_dpe_at`)
+- `db.get_roster_team_at` restituisce anche `contratto_id`
+- Pick con il nome della squadra d'origine invece dell'ID
+

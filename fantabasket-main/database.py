@@ -860,6 +860,7 @@ def get_roster_team_at(team_id: str, timestamp_iso: str) -> list:
                    g.id AS giocatore_id,
                    g.nome_common, g.nome_norm, g.data_nascita,
                    t.tipo AS ultimo_movimento, t.team_id_a, t.timestamp,
+                   c.id AS contratto_id,
                    c.importo, c.anni_originali, c.stagione_firma, c.tipo AS tipo_contratto,
                    COALESCE(r.anni_scala, 0) AS anni_scala
                FROM transazioni t
@@ -873,6 +874,14 @@ def get_roster_team_at(team_id: str, timestamp_iso: str) -> list:
            WHERE team_id_a = %s""",
         (timestamp_iso, team_id), many=True
     ) or []
+
+
+def get_dpe_at(team_id: str, stagione: str, timestamp_iso: str) -> dict:
+    """{giocatore_id: importo_dpe} delle DPE della squadra in quella stagione già
+    approvate a quella data (per /team_diff)."""
+    rows = _q("SELECT giocatore_id, importo_dpe FROM dpe WHERE team_id = %s AND stagione = %s "
+              "AND timestamp <= %s", (team_id, stagione, timestamp_iso), many=True) or []
+    return {r["giocatore_id"]: r["importo_dpe"] for r in rows}
 
 
 def get_contratti_team_at(team_id: str, timestamp_iso: str) -> list:

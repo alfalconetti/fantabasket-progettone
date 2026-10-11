@@ -3,6 +3,8 @@
 
 Mostra la differenza del roster tra due date (o tra una data e oggi).
 Solo il confronto tra i due snapshot — nessun tracciamento degli eventi intermedi.
+Contratti (v3.8.1): IN col contratto alla data finale, OUT con quello alla data
+iniziale, e i giocatori rimasti con un contratto diverso tra le due date.
 Se un giocatore è entrato e uscito nel periodo non appare in nessuna lista.
 
 Esempi:
@@ -13,6 +15,7 @@ Esempi:
   /team_diff 01-01-25 01-06-25     → tua squadra, tra le due date
   /team_diff bulls 01-01-25 01-06-25
 """
+import html
 import logging
 from datetime import datetime, timezone, timedelta
 
@@ -27,10 +30,45 @@ logger = logging.getLogger(__name__)
 
 # ── snapshot roster a una certa data ─────────────────────────────────────────
 
-def _snapshot_giocatori(team_id: str, at: datetime) -> set[int]:
-    """IDs giocatori nel roster a una certa data."""
-    rows = db.get_roster_team_at(team_id, at.isoformat())
-    return {r["giocatore_id"] for r in rows}
+def _stagione_at(at: datetime) -> int:
+    """Stagione della lega a una data: da luglio quella che inizia (2026 = 2026-27)."""
+    return at.year if at.month >= 7 else at.year - 1
+
+
+def _snapshot_contratti(team_id: str, at: datetime) -> dict[int, dict]:
+    """{giocatore_id: contratto a quella data} per il roster della squadra.
+    Contratto: id, importo effettivo (con l'eventuale DPE già approvata a quella
+    data), importo originale, anni residui calcolati sulla stagione di quella data."""
+    stagione = _stagione_at(at)
+    dpe = db.get_dpe_at(team_id, str(stagione), at.isoformat())
+    out = {}
+    for r in db.get_roster_team_at(team_id, at.isoformat()):
+        if r.get("tipo_contratto") == "rookie":
+            scala = int(r.get("anni_scala") or 0)
+            anni = 2 if scala in (0, 2) else 1
+        elif r.get("anni_originali"):
+            s_firma = int(r.get("stagione_firma") or stagione)
+            anni = max(1, int(r["anni_originali"]) - (stagione - s_firma))
+        else:
+            anni = None
+        importo = r.get("importo")
+        out[r["giocatore_id"]] = {
+            "contratto_id": r.get("contratto_id"),
+            "importo": dpe.get(r["giocatore_id"], importo),
+            "importo_orig": importo,
+            "anni": anni,
+        }
+    return out
+
+
+def _fmt_contratto(c: dict | None) -> str:
+    """'20x2', con DPE '15x2 (DPE, era 20)', '?' se non ricostruibile."""
+    if not c or c.get("importo") is None:
+        return "?"
+    testo = f"{c['importo']}x{c['anni'] if c.get('anni') else '?'}"
+    if c.get("importo_orig") is not None and c["importo"] != c["importo_orig"]:
+        testo += f" (DPE, era {c['importo_orig']})"
+    return testo
 
 
 def _snapshot_pick(team_id: str, at: datetime) -> set[int]:
@@ -134,9 +172,11 @@ async def cmd_team_diff(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     team_id = team["id"]
 
-    # Snapshot inizio e fine
-    g_da   = _snapshot_giocatori(team_id, data_da)
-    g_a    = _snapshot_giocatori(team_id, data_a)
+    # Snapshot inizio e fine (con i contratti a ciascuna data)
+    c_da   = _snapshot_contratti(team_id, data_da)
+    c_a    = _snapshot_contratti(team_id, data_a)
+    g_da   = set(c_da)
+    g_a    = set(c_a)
     p_da   = _snapshot_pick(team_id, data_da)
     p_a    = _snapshot_pick(team_id, data_a)
     d_da   = _snapshot_diritti(team_id, data_da)
@@ -149,8 +189,13 @@ async def cmd_team_diff(update: Update, context: ContextTypes.DEFAULT_TYPE):
     p_out  = p_da - p_a
     d_in   = d_a  - d_da
     d_out  = d_da - d_a
+    # Rimasti in squadra ma con un contratto diverso (nuovo contratto, DPE…). Il solo
+    # scalare di un anno tra una stagione e l'altra non conta come cambio.
+    g_cambiati = [gid for gid in g_da & g_a
+                  if c_da[gid]["contratto_id"] != c_a[gid]["contratto_id"]
+                  or c_da[gid]["importo"] != c_a[gid]["importo"]]
 
-    if not any([g_in, g_out, p_in, p_out, d_in, d_out]):
+    if not any([g_in, g_out, p_in, p_out, d_in, d_out, g_cambiati]):
         await update.effective_message.reply_text(
             f"📊 <b>{team['nome']}</b>\n"
             f"{_fmt_data(data_da)} → {_fmt_data(data_a)}\n\n"
@@ -171,12 +216,12 @@ async def cmd_team_diff(update: Update, context: ContextTypes.DEFAULT_TYPE):
             g = db.get_giocatore(gid)
             nome = g["nome_common"] if g else f"#{gid}"
             motivo = _motivo_giocatore(team_id, gid, data_da, data_a, "in")
-            righe.append(f"  • {nome} <i>({motivo})</i>")
+            righe.append(f"  • {html.escape(nome)} {_fmt_contratto(c_a.get(gid))} <i>({motivo})</i>")
         for pid in p_in:
             p = db.get_pick(pid)
             if p:
                 rnd  = "1st" if p["round"] == 1 else "2nd"
-                orig = p["proprietario_orig"]
+                orig = (tm.get_team_by_id(p["proprietario_orig"]) or {}).get("nome", p["proprietario_orig"])
                 prot = f" — {p['protezioni']}" if p.get("protezioni") else ""
                 righe.append(f"  • {rnd} pick {p['anno']} by {orig}{prot} <i>(Trade)</i>")
         for did in d_in:
@@ -193,12 +238,12 @@ async def cmd_team_diff(update: Update, context: ContextTypes.DEFAULT_TYPE):
             g = db.get_giocatore(gid)
             nome = g["nome_common"] if g else f"#{gid}"
             motivo = _motivo_giocatore(team_id, gid, data_da, data_a, "out")
-            righe.append(f"  • {nome} <i>({motivo})</i>")
+            righe.append(f"  • {html.escape(nome)} {_fmt_contratto(c_da.get(gid))} <i>({motivo})</i>")
         for pid in p_out:
             p = db.get_pick(pid)
             if p:
                 rnd  = "1st" if p["round"] == 1 else "2nd"
-                orig = p["proprietario_orig"]
+                orig = (tm.get_team_by_id(p["proprietario_orig"]) or {}).get("nome", p["proprietario_orig"])
                 righe.append(f"  • {rnd} pick {p['anno']} by {orig} <i>(Trade)</i>")
         for did in d_out:
             r = db.get_rookie(did)
@@ -206,9 +251,17 @@ async def cmd_team_diff(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 g = db.get_giocatore(r["giocatore_id"])
                 nome = g["nome_common"] if g else f"#{r['giocatore_id']}"
                 righe.append(f"  • Diritti di {nome} <i>(—)</i>")
+        righe.append("")
+
+    if g_cambiati:
+        righe.append("🔁 <b>CONTRATTO CAMBIATO</b>")
+        for gid in sorted(g_cambiati, key=lambda g: -(c_a[g]["importo"] or 0)):
+            g = db.get_giocatore(gid)
+            nome = g["nome_common"] if g else f"#{gid}"
+            righe.append(f"  • {html.escape(nome)} {_fmt_contratto(c_da[gid])} → {_fmt_contratto(c_a[gid])}")
 
     await update.effective_message.reply_text(
-        "\n".join(righe), parse_mode="HTML"
+        "\n".join(righe).rstrip(), parse_mode="HTML"
     )
 
 

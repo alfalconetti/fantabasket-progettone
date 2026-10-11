@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v3.8.0, bot aste v50)
+# Messaggio di migrazione — Fantabasket Progettone (stato v3.8.1, bot aste v50)
 
 ---
 
@@ -249,6 +249,8 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 - `handlers/nascite.py`: `/set_nascita` (singolo o multi-riga, callback `nasc:<gid>:<AAAAMMGG>`), `/nascite_mancanti`, `job_report_nascite` lunedì 9:30 al dev
 - **Giorni in `run_daily`** (PTB ≥ 20): 0 = domenica … 6 = sabato
 
+**/team_diff (v3.8.1):** snapshot con `_snapshot_contratti(team_id, at)` (roster a una data + `contratto_id` + DPE da `db.get_dpe_at`); IN col contratto finale, OUT con l'iniziale, sezione "Contratto cambiato" se cambia `contratto_id` o importo effettivo. Limite: per i rookie `anni_scala` è quello di oggi
+
 **Richieste agli admin e trade (v3.6.0):**
 - `richieste_admin (tipo, chiave=giocatore_id, team_id, stato)`, indice unico sulle aperte. `db.apri_richiesta` alla richiesta del GM; `db.chiudi_richiesta` in Approva/Rifiuta → `'ok'` (procedi), `'gestita'` (già decisa: non fare niente), `'nessuna'` (bottoni di prima della v3.6.0: procedi). Nuove richieste agli admin vanno fatte così
 - Trade: ogni cambio di stato passa da `db.cambia_stato_trade(id, da=(...), a=...)` (atomico). Stati: bozza → proposta → in_approvazione → approvata, oppure rifiutata_gm / rifiutata_admin / annullata. Etichette in `_STATI` (trade.py)
@@ -304,7 +306,6 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 **Pending fuori roadmap:**
 - Rinnovo rookie (offseason, flusso separato dall'attivazione diritti)
 - Bot aste, parità admin: un admin deve poter **aprire un'asta per conto di una squadra** (oggi può solo fare offerte per altri con `/offerta`; aprire un'asta da 1 per un'altra squadra è impossibile)
-- `/team_diff`: mostrare i contratti (importo x anni) dei giocatori nei due momenti del confronto
 - Piano deciso il 10/10/2026: aspettare qualche giorno la risposta di Yahoo; se non arriva, partire comunque con **IPanchinariBot** (bot delle panchine)
 
 **Posizioni e ruoli (v3.1.0):**
