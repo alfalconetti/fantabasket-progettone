@@ -33,6 +33,7 @@ from handlers.ruoli_rs    import get_handlers as ruoli_rs_handlers
 from handlers.cambi_ruolo import get_handlers as cambi_ruolo_handlers
 from handlers.bref        import get_handlers as bref_handlers
 from handlers.nascite     import get_handlers as nascite_handlers
+from handlers.spalmature  import get_handlers as spalmature_handlers
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -415,6 +416,8 @@ def main():
         app.add_handler(h)
     for h in nascite_handlers():
         app.add_handler(h)
+    for h in spalmature_handlers():
+        app.add_handler(h)
 
     for h in dev_handlers():
         app.add_handler(h)
@@ -460,6 +463,9 @@ def main():
     # Date di nascita mancanti: report al dev il lunedì alle 9:30
     from handlers.nascite import job_report_nascite
     app.job_queue.run_daily(job_report_nascite, time=dtime(9, 30, tzinfo=ROME), days=(1,))  # PTB: 0 = domenica, 1 = lunedì
+    # Spalmature di free agent (possibili ritirati): il 1° di ogni mese alle 9:45 al gruppo admin
+    from handlers.spalmature import job_report_spalmature
+    app.job_queue.run_monthly(job_report_spalmature, when=dtime(9, 45, tzinfo=ROME), day=1)
     # Check scadenza diritti ogni mattina alle 9:00
     app.job_queue.run_daily(
         check_scadenza_diritti,

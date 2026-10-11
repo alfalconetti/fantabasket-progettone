@@ -67,6 +67,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("annulla_trade_admin", "Annulla una trade approvata"),
         BotCommand("registra_firma",      "Registra firma manuale [team] [giocatore] [importo] [anni]"),
         BotCommand("ritiro_fa",           "Free agent ritirato: toglie le spalmature dei tagli passati"),
+        BotCommand("report_spalmature",   "Free agent con spalmature attive (possibili ritirati)"),
         BotCommand("annulla_admin",       "Esci da operazione admin bloccata"),
         BotCommand("guida_admin",         "Guida completa per gli admin"),
         BotCommand("settings",            "Modifica settings [chiave] [valore]"),

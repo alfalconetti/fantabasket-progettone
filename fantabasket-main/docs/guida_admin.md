@@ -43,6 +43,7 @@ offseason-rfa → offseason-fa → offseason-ruoli → (ricomincia)
 - Le richieste di decadimento dei GM arrivano nel gruppo admin da approvare.
 - Pannello → **🏁 Decadimento** → squadra → giocatore → motivo: decadimento diretto, con avviso al GM e annuncio sul canale.
 - Con motivo **ritiro** o **altra lega** smettono di pesare anche le spalmature di chi aveva tagliato il giocatore in passato; con **Cam Thomas exception** o **altro** le spalmature esistenti restano. Cam Thomas: verificate che il giocatore sia stato tagliato in NBA e sia senza squadra da almeno un mese di mercato NBA aperto; se la stessa squadra lo rifirma entro un anno, il bot pretende almeno il contratto precedente.
+- **Report mensile spalmature** (il 1° del mese nel gruppo admin, o `/report_spalmature`): free agent con spalmature ancora attive, con l'ultima partita giocata. Se uno si è ritirato o è andato in un'altra lega, chiudetelo con `/ritiro_fa`.
 - `/ritiro_fa <nome>`: giocatore **senza contratto** che si ritira o va in un'altra lega → le spalmature dei tagli passati (dalla stagione corrente) smettono di pesare sul cap di chi l'aveva tagliato.
 - `/registra_firma` rifiuta anni non validi (da 20M almeno 2, da 35M obbligatori 3) e avvisa se la squadra risulta oltre il tetto o oltre 15 giocatori.
 

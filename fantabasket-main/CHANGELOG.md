@@ -909,3 +909,9 @@ Revisione del codice contro il regolamento.
 - Trade: la DPE segue il giocatore. All'esecuzione (e all'annullamento) la riga `dpe` passa alla squadra che lo riceve, che lo paga ridotto e senza occupare slot; prima il controllo della trade lo contava ridotto ma dopo la trade roster e cap della nuova squadra lo vedevano pieno. Anche il controllo slot della trade ora esclude i giocatori con DPE
 - `tests/`: prove dei due bot su PostgreSQL locale e configurazione finta (`tests/run.sh`, istruzioni in `tests/README.md`). `tests/guardia.py` le blocca sul server (cartella `secrets/`), nei container, su database non locali o sul database `fantabasket`
 
+## v3.9.1 (2026-10-12)
+
+### Promemoria spalmature
+- Report mensile (il 1° del mese alle 9:45, gruppo admin, solo se c'è qualcuno) dei free agent con spalmature ancora attive: quanto pesano e su quali squadre, ultima partita rilevata su Basketball-Reference, eventuale Cam Thomas exception con data. Serve a trovare chi si è ritirato o è andato in un'altra lega e chiuderlo con `/ritiro_fa` (`handlers/spalmature.py`)
+- `/report_spalmature` (admin): lo stesso report su richiesta
+
