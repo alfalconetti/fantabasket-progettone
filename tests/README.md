@@ -58,6 +58,8 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `registro_unico` | main | migrazione al registro unico (tagli pre-bot, trade rimesse approvate, storico di pick e diritti con trade annullate e pre-bot), movimenti scritti da trade/annullamento/attivazione/scadenza, `roster_attuale`, controllo di coerenza, ricostruzione che si ferma su dati incoerenti |
 | `taglio_admin` | main | il taglio dal pannello admin usa lo stesso codice dei GM: anteprima, minimi di regular season, scrittura atomica, avviso al GM |
 | `team_diff` | main | contratti nei due momenti, DPE, cambio contratto, niente falsi cambi tra stagioni |
+| `stagione` | main | cambio di stagione: Doncic (arrotondamenti), migrazione dei contratti rookie, anteprima completa (anche chi resta uguale, stima del rinnovo), II e IV anno, fine scala con Doncic d'ufficio, x0 fuori da cap e slot, rinnovo rookie, RFA dichiarati (cap sì, slot no, uno per squadra), regola delle trade RFA, pick dell'anno +6 ai rinnovi, scadenza degli x0 a inizio FA, report di inizio RS, coerenza a ogni passo, report lunghi come file `.md` |
+| `stagione_ui` | main | bottoni di rinnovo rookie e RFA (GM e admin, fuori fase, permessi), conferma con anteprima del cambio fase, doppio tap, ritorno ai rinnovi senza far avanzare la stagione |
 | `pg_rfa_30giorni_dpe` | aste + PG | RFA: cap sì slot no, lascio andare con movimento; regola dei 30 giorni; DPE nel cap per offrire; rifirma dopo taglio |
 | `rfa_lascio_andare` | aste + PG | "Lascio andare": solo proprietario, una volta sola |
 | `apri_asta_admin` | aste (isolato) | `/apri_asta`: nome esatto/omonimi/fuzzy, cap, squadra, importo, mercato chiuso |
@@ -67,6 +69,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `menu_e_listteams` | aste + PG | menu "/" per fase e ruolo, `/listteams` compatto, `/reset_rfa` disattivato |
 | `autoslot` | aste + PG | `/autoslot` e `/autocap` contano davvero negli slot e nel cap |
 | `giocatore_id` | aste + PG | l'asta ricorda l'id del giocatore: la firma non crea doppioni se il nome cambia |
+| `rfa_dichiarati` | aste + PG | x0 fuori da cap e slot, RFA dichiarato sul cap; aste RFA aperte da sole nella fase RFA, una volta sola; proprietario allineato dopo una trade; il contratto nuovo di chi vince non cambia il proprietario |
 | `guide_e_menu` | — | ogni comando citato in guide, `/admin`, `/dev` e menu "/" esiste nel suo bot (nessun database) |
 | `letture_transazioni` | — | nessuno legge `transazioni` fuori dalle funzioni ammesse (i roster si ricostruiscono da `movimenti_giocatori`) |
 

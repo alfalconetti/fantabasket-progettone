@@ -1,6 +1,6 @@
 """
 Comandi admin:
-  /nuova_rfa <giocatore> <team_id> <vecchio_compenso>
+  /nuova_rfa <giocatore> <team_id> <vecchio_compenso>   (a mano; i dichiarati li apre handlers/rfa.py)
   /apri_mercato
   /chiudi_mercato
   /listteams
@@ -2319,7 +2319,8 @@ async def cmd_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "<b>🏀 Aprire e offrire per una squadra</b>\n"
         "/apri_asta &lt;team_id&gt; &lt;importo&gt; &lt;giocatore&gt; — es. /apri_asta team07 5 LeBron James\n"
         "/crea_offerta &lt;team_id&gt; &lt;asta_id&gt; &lt;importo&gt; — es. /crea_offerta team07 42 7\n"
-        "/nuova_rfa &lt;giocatore&gt; &lt;team_id&gt; &lt;vecchio_compenso&gt; — es. /nuova_rfa Doncic team12 28\n"
+        "/nuova_rfa &lt;giocatore&gt; &lt;team_id&gt; &lt;vecchio_compenso&gt; — es. /nuova_rfa Doncic team12 28 "
+        "(solo a mano: le RFA dichiarate nel bot principale si aprono da sole)\n"
         "\n"
         "<b>🛠 Correggere un'asta</b>\n"
         "/annulla_offerta &lt;asta_id&gt; — toglie l'ultima offerta\n"

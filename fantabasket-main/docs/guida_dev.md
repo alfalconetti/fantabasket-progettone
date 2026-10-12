@@ -12,7 +12,7 @@ fantabasket-progettone/
 ├── config/             globals.json, teams.json, settings.json, divisions.json, loghi/ …  (NON in git)
 ├── secrets/            token, password, URL dei fogli, *.env                            (NON in git)
 │   └── cifrati/        secrets.tar.gpg per il backup (scripts/cifra_secrets.sh)
-├── shared/ruoli_core.py   regole dei ruoli, usate da entrambi i bot
+├── shared/              in comune ai due bot: ruoli_core.py (regole dei ruoli), messaggi.py (report lunghi)
 ├── fantabasket-main/      ← questo bot
 ├── fantabasket-aste-beta/ bot aste
 ├── gas-router/            ponte verso Google Apps Script (fogli)
@@ -36,7 +36,7 @@ fantabasket-progettone/
 
 **Chi possiede cosa:**
 
-- **PostgreSQL** è la fonte di verità di contratti, trade, pick, tagli e ruoli. Ci scrivono entrambi i bot; il bot aste scrive solo firme, rilasci RFA, cap/slot anticipati e coda dei fogli.
+- **PostgreSQL** è la fonte di verità di contratti, trade, pick, tagli, ruoli e RFA dichiarati. Ci scrivono entrambi i bot; il bot aste scrive solo firme, rilasci RFA, cap/slot anticipati e coda dei fogli, e legge `rfa_dichiarati` per aprire le aste RFA.
 - **globals.json** è condiviso. Lo scrive solo questo bot (fase, stagione, mercato, deadline); il bot aste lo monta in sola lettura.
 - **teams.json** è condiviso. Lo scrive solo questo bot (`/my_team`, `/palette`, `/set_cap_penalizzato`).
 - **aste.db** (SQLite) è del bot aste. Questo bot lo legge solo per il backup (`/data_aste/aste.db`, in sola lettura).
@@ -70,7 +70,7 @@ fantabasket-progettone/
 | `log_channel_id_main` | log del bot e backup |
 | `log_channel_id` | log del bot aste |
 | `channel_id` | canale aste (usato dal bot aste) |
-| `trade_deadline` | data; i diritti 2nd scadono 10 giorni prima |
+| `trade_deadline` | data; i diritti 2nd scadono 10 giorni prima. **Va aggiornata a mano ogni stagione** |
 | `deadline_ruoli` | scadenza della dichiarazione ruoli (`/deadline_ruoli`) |
 | `repo_url` | link alla guida di ripristino nella didascalia dei backup |
 
@@ -81,7 +81,8 @@ fantabasket-progettone/
 - **anni minimi:** `soglia_anni_2` 20, `soglia_anni_3` 35;
 - **pareggio RFA:** `fascia_bassa_max` 20, `fascia_media_max` 34;
 - **regole varie:** `stepien_anni` 4, `ore_comunicazione_ruolo` 48;
-- **tabelle:** `rookie_scale` (per pick, anno per anno), `tabella_minimo_contratto` (per i rinnovi, non ancora usata);
+- **Doncic:** `doncic_soglia_1` 20 e `doncic_soglia_2` 25 (le due fasce della formula, `stagione.doncic`);
+- **tabelle:** `rookie_scale` (per fascia di pick, anno per anno: importo e anni; la usano attivazione diritti e cambio di stagione), `tabella_minimo_contratto` (per i rinnovi normali, non ancora usata);
 - **tempi del bot aste:** `durata_asta_ore`, `timeout_*`, `rilancio_minimo`.
 
 `tests/config/settings.json` ha gli stessi valori: se cambi uno, cambia l'altro.
@@ -144,7 +145,7 @@ Il bot aste vede la fase nuova entro 5 minuti.
 | Tabella | Contenuto |
 |---|---|
 | `giocatori` | anagrafica: `nome_common`, `nome_bref`, `nome_yahoo`, `nome_norm`, `yahoo_id`, `data_nascita` |
-| `contratti` | `importo`, `anni_originali`, `stagione_firma`, `tipo` (normale/rookie/10day), `attivo` |
+| `contratti` | `importo`, `anni_originali`, `stagione_firma` (da quando parte il contratto, o il pezzo di rookie scale), `tipo` (normale/rookie/10day), `attivo`. Mai cancellati: un contratto chiuso ha `attivo = FALSE` |
 | `transazioni` | **registro unico** di tutto quello che si muove in lega: giocatori, diritti, pick (vedi sotto) |
 | `impatto_taglio` | rate delle spalmature: una riga per squadra, giocatore e stagione |
 | `dpe` | DPE approvate: `importo_originale`, `importo_dpe`, `pre_deadline`, `stagione`, `team_id` (segue il giocatore in trade) |
@@ -158,7 +159,7 @@ Il bot aste vede la fase nuova entro 5 minuti.
 | `trade` | trade e bozze: `stato`, `trade_ref` `TRADE-AAAA-NNN`, `bozza_num`, `proposta_da`, `note`/`nota_gm` |
 | `trade_squadre`, `trade_items`, `trade_voti` | squadre, pezzi (`team_id_a = '?'` = destinatario da assegnare) e voti |
 | `pick` | `proprietario_orig`, `proprietario_att`, `anno`, `round`, `protezioni`, `scattata` |
-| `rookie` | diritti e rookie scale: `pick_numero`, `anno_draft`, `anni_scala`, `firmato`, `diritti_scaduti` |
+| `rookie` | diritti e rookie scale: `pick_numero`, `anno_draft`, `anno_firma` (inizio della scala: da qui l'anno di scala e il colore R0–R3), `anni_scala` (solo informativa, aggiornata al cambio di stagione), `firmato`, `diritti_scaduti` |
 
 **Ruoli e posizioni**
 
@@ -249,10 +250,12 @@ Rinnovo rookie a fine II anno (`esegui_rinnovo_rookie`): `tipo = 'rookie'` x2, i
 
 | Entrando in | Cosa |
 |---|---|
-| `offseason-rinnovi` | `applica_stagione`, dettaglio nel gruppo admin; `crea_pick_anno(S + 6)` con movimento `creata` (fino al draft di S le annate sono 7) |
+| `offseason-rinnovi` | `applica_stagione`, dettaglio nel gruppo admin (`testo_piano` via `manda_lungo`); `crea_pick_anno(S + 6)` con movimento `creata` (fino al draft di S le annate sono 7: le pick di S diventeranno posizioni al draft) |
 | `offseason-rfa` | niente qui: le aste RFA le apre il bot aste (`handlers/rfa.py`) |
 | `offseason-fa` | `scadenza_x0`: gli x0 non RFA → `attivo = FALSE` + `expired`, elenco sul canale |
 | `regular-season-fa` | `testo_report_inizio_rs`: sotto il floor (con `/set_cap_penalizzato` già scritto, 2M per milione) o sopra il tetto → gruppo admin |
+
+**Il piano** (`_calcola_piano`, la stessa funzione per l'anteprima e per il passaggio vero) elenca tutti i rookie che cambiano anno di scala: `secondo_anno` / `quarto_anno` (importo nuovo), `secondo_anno_uguali` / `quarto_anno_uguali` (restano, con il `motivo`: stesso importo in tabella o Doncic sopra la tabella), `fine_scala`, `da_rinnovare` (con la `proposta` del rinnovo rookie, stima con le fantamedie del momento), `anomalie` (contratti rookie con una forma che non torna col loro anno: finiscono in "Da controllare", non vengono toccati), `x0` per squadra. Nel passaggio vero si scrivono solo `secondo_anno`, `quarto_anno` e `fine_scala`.
 
 **RFA dichiarati.** Uno per squadra e stagione (indici unici parziali). La dichiarazione vale finché il suo contratto x0 è attivo: quando l'asta si conclude il bot aste chiude quel contratto e lei smette di pesare da sola (`rfa_squadra`, `rfa_dichiarato`; `rfa_usata` la vede anche dopo). In trade la sposta `db.sposta_rfa_trade` dentro `_scrivi_trade` (anche nell'annullamento). La regola delle trade è `validators.trade._errori_rfa`: dopo la trade ogni squadra ha al massimo un RFA.
 
@@ -390,7 +393,8 @@ Attenzione: `mt:` è usato da due file. Funziona perché gli handler di `trade.p
 - roster ≤ 15 (i giocatori con DPE non contano);
 - salary floor in stagione;
 - Stepien (`anni_coperti_stepien`, finestre di `stepien_anni`; gli anni ≤ 2026 sono coperti d'ufficio);
-- in RS, i ruoli (`deficit_minimo`).
+- in RS, i ruoli (`deficit_minimo`);
+- RFA dichiarati: dopo la trade al massimo uno per squadra (`_errori_rfa`). Cap e slot usano `peso_cap_giocatore` e `occupa_slot`: un x0 non pesa, l'RFA dichiarato pesa sul cap.
 
 **Notifiche.** `_notifica_squadre(context, trade_id, testo, escludi=())` scrive a tutte le squadre (e al gruppo admin se la trade è degli admin). `_notifica_proponente` solo per l'avanzamento dei voti.
 
@@ -403,7 +407,7 @@ Attenzione: `mt:` è usato da due file. Funziona perché gli handler di `trade.p
 - **Gratuito:** 1M x1 con meno di 3 tagli gratuiti già fatti nella stagione (`MAX_TAGLI_GRATUITI`). Dal quarto, spalmatura 1x1.
 - **Sopra i 5M:** percentuali per anni residui (x1: 50-30-20; x2: 60-50-50-40; x3: 70-70-60-50-50), arrotondate per eccesso, con l'eccedenza tolta dal fondo senza scendere sotto 1 (7x1 → 4-2-1).
 - **Fino a 5M:** tabella fissa `_TABELLA_SPALMATA_BASSA`.
-- **Controlli e scrittura:** `_valuta_taglio` / `TaglioNonEseguibile` bloccano in RS sotto i 10 e se si scopre un ruolo. `esegui_taglio` scrive contratto, transazione e rate in un'unica transazione; `dopo_taglio` annuncia e sincronizza. GM e pannello admin passano entrambi da qui (v3.10.0).
+- **Controlli e scrittura:** `_valuta_taglio` / `TaglioNonEseguibile` bloccano in RS sotto i 10 e se si scopre un ruolo, e un contratto finito (x0: non pesa e scade da solo). `esegui_taglio` scrive contratto, transazione e rate in un'unica transazione; `dopo_taglio` annuncia e sincronizza. GM e pannello admin passano entrambi da qui (v3.10.0).
 
 ### DPE (`dpe.py`)
 
@@ -424,6 +428,7 @@ Attenzione: `mt:` è usato da due file. Funziona perché gli handler di `trade.p
 ### Rookie (`rookie.py`)
 
 - `esegui_attivazione()`: una transazione con `FOR UPDATE`, contratto dalla colonna "I anno" della rookie scale (`_slot_scala`), controllo di cap e slot.
+- Rinnovo rookie a fine II anno e passaggi della scala: `stagione.py` (sezione 4, "Stagioni e contratti finiti").
 - Scadenza diritti delle 2nd del draft `stagione − 1`: il giorno `trade_deadline − 10`. Prima un avviso 3 giorni prima, poi il bottone `scadi_diritti:<anno>` ogni giorno finché un admin non conferma.
 
 ### Ruoli (`shared/ruoli_core.py`, unica implementazione)
@@ -587,6 +592,8 @@ La prova `tests/docs/guide_e_menu.py` si accorge se una guida o il menu cita un 
 
 **Regole di casa:**
 
+- Report ed elenchi amministrativi che possono crescere: `shared.messaggi.manda_lungo`, non messaggi spezzati a mano (sopra i 4096 caratteri Telegram rifiuta il messaggio).
+- I contratti non si cancellano mai: chiusura = `attivo = FALSE` + movimento; cambio di importo = contratto nuovo + movimento; cambio di squadra (trade) = `team_id` aggiornato + movimento. Ogni cosa che sposta o chiude un contratto scrive il suo movimento nella stessa transazione DB, se no il controllo notturno lo segnala.
 - `update.effective_message` ovunque. Nei callback, `query.get_bot()` per mandare messaggi altrove.
 - ConversationHandler con `per_message=False`. `/annulla` globale (group −1) pulisce `user_data` e chiude tutto.
 - Le scritture che toccano più tabelle vanno in un'unica transazione: vedi `_scrivi_trade`, i tagli, `registra_decadimento`.
@@ -608,7 +615,9 @@ PostgreSQL 16 locale, database `fbt` (fb/fb), config finta in `tests/config/`. `
 1. voce `## vX.Y.Z (data)` nel CHANGELOG (la versione del bot si legge da lì);
 2. voce `## vNN` nel CHANGELOG del bot aste, se lo tocchi;
 3. riga in `MIGRATION.md`;
-4. zip senza `config/`, `secrets/`, `.db`, `gas/globals.gs`.
+4. zip con i percorsi del repo (si scompatta con `unzip -o -d` nella cartella del repo), senza `config/`, `secrets/`, `.db`, `gas/globals.gs`.
+
+Per le modifiche strutturali (schema, migrazioni, conti di cap e roster) prima la prova generale su una copia del database di produzione: `scripts/prova_generale/README.md`.
 
 Deploy da `~/bots`:
 
@@ -622,20 +631,18 @@ docker compose logs -f --tail 100 bot-main            # log
 
 ## 12. Cose da sapere
 
-**Non ancora automatizzato: il cambio di stagione.** Va fatto prima di giugno 2027:
+**Da fare prima di giugno 2027:**
 
-- scadenza dei contratti (oggi un contratto finito resta x1);
-- rinnovi con `tabella_minimo_contratto`;
-- dichiarazione RFA in una fase nuova prima di `offseason-rfa`, con apertura automatica delle aste RFA;
-- avanzamento della rookie scale (`anni_scala`) e Doncic rule;
-- draft;
-- penalità salary floor a inizio RS.
+- **rinnovi normali**: sui contratti x1 e sugli ex rookie x0 a fine scala, max 2 a stagione, +¼ e +½ per eccesso, minimi da `tabella_minimo_contratto`;
+- **draft**: le pick dell'anno diventano posizioni al draft (pick `scattata`, riga `draft` nel registro), righe `rookie` importate dagli admin, firma obbligatoria delle 1st.
+
+**Ogni stagione, a mano:** `trade_deadline` in `globals.json` (scadenza dei diritti 2nd).
 
 **10-day contract.** Non c'è: si gestisce a mano. Non va registrato con `/registra_firma`, perché peserebbe sul cap.
 
 **Limiti noti:**
 
-- `/team_diff` per i rookie usa `anni_scala` di oggi.
 - La tabella `penalita` non è usata.
+- `rookie.team_id` dei firmati non segue le trade (per loro conta il contratto); `rookie.pick_numero` e `pick.numero_scelta` non sono collegati.
 
 **Doppio account admin/GM:** dal `/menu` si agisce sempre come GM. I poteri admin (`ca:`, `attadm:`, `decadm:`) stanno solo nel pannello.

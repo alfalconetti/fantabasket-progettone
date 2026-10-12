@@ -50,7 +50,9 @@ Alcuni passaggi di fase toccano i contratti. Per questi, anche con "Avanza", il 
 - fine del IV anno: Doncic d'ufficio sulla fantamedia migliore del III e IV anno, se è più alta del contratto. Il contratto diventa un x0 normale, rinnovabile come gli altri;
 - rookie a fine II anno: x0, in attesa di rinnovo rookie, RFA o scadenza.
 
-Il dettaglio, giocatore per giocatore, arriva nel gruppo admin come file (vedi sotto, "Messaggi lunghi"). Nello stesso passaggio il bot crea le pick del draft di 6 anni dopo per tutte le squadre (nel 2027 quelle del 2033): fino al draft dell'anno le annate scambiabili sono quindi 7.
+Il dettaglio arriva nel gruppo admin come file (vedi sotto, "Messaggi lunghi"). Elenca ogni rookie che cambia anno di scala, anche quelli che restano uguali, con il motivo ("stesso importo in tabella", "Doncic, la tabella dice 11"). Per i rookie a fine II anno c'è anche la stima del rinnovo rookie: scala del III anno o Doncic, con la fantamedia usata. Se un contratto rookie non torna col suo anno di scala finisce in "⚠️ Da controllare" e il bot non lo tocca.
+
+**Prima del passaggio**, il dev può vedere lo stesso report con `/dev_stagione`, senza che venga scritto niente. Durante la stagione Doncic e rinnovi sono stime con le fantamedie di quel momento. Nello stesso passaggio il bot crea le pick del draft di 6 anni dopo per tutte le squadre (nel 2027 quelle del 2033): fino al draft dell'anno le annate scambiabili sono quindi 7.
 
 **Durante i rinnovi (e il draft)**, dal pannello:
 
@@ -103,7 +105,8 @@ Il controllo automatico guarda cap, roster, Stepien Rule e, in regular season, i
 **Taglio per conto di una squadra:** pannello → **Taglia giocatore**. Valgono le stesse regole dei GM:
 
 - 3 tagli 1x1 gratuiti a stagione, dal quarto pesa 1M;
-- in regular season niente tagli sotto i 10 giocatori o che scoprono un ruolo.
+- in regular season niente tagli sotto i 10 giocatori o che scoprono un ruolo;
+- un contratto finito (x0) non si taglia: non pesa e scade da solo all'inizio della FA.
 
 **DPE diretta:** pannello → **DPE**. Il contratto scende del 25% (arrotondato per eccesso), il GM viene avvisato e parte l'annuncio. Conta il momento dell'approvazione:
 
@@ -211,7 +214,7 @@ Se il nome non è esatto il bot propone i candidati coi bottoni, non indovina ma
 
 Il bot aggiorna i fogli dopo ogni operazione:
 
-- **Roster:** ruoli, cap con penalità, tagli e cambi ruolo usati, DPE.
+- **Roster:** ruoli, cap con penalità, tagli e cambi ruolo usati, DPE. I contratti finiti (x0) non compaiono, perché non pesano; l'RFA dichiarato c'è, con la sigla A.
 - **Scelte:** pick e diritti, con il tag `[STEPIEN]`.
 - **BrefRaw:** le statistiche del mattino.
 

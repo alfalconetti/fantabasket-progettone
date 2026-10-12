@@ -1033,3 +1033,12 @@ Rookie scale e cambio di stagione. Provato su una copia del database di produzio
 
 - Report del cambio di stagione: per ogni rookie a fine II anno c'è anche la **stima del rinnovo rookie** (scala del III anno, o Doncic se più alta, con la fantamedia usata). Il rinnovo resta una scelta del GM: la Doncic d'ufficio c'è solo a fine IV anno
 - `/dev_stagione` avvisa che Doncic e rinnovi sono stime con le fantamedie di oggi; al cambio di stagione si usano quelle di fine stagione
+
+## v3.11.4 (2026-10-12)
+
+Passata sulla documentazione dopo la 3.11.
+- Guide dev dei due bot: `shared/` (ruoli e messaggi lunghi), chiavi Doncic di settings, `trade_deadline` da aggiornare ogni stagione, significato di `stagione_firma` e `anno_firma`, regole dei contratti (mai cancellati, ogni cambio col suo movimento), piano del cambio di stagione (invariati, stima del rinnovo, anomalie), x0 non tagliabili, regola RFA nella validazione delle trade, cosa resta da fare (rinnovi normali e draft), diagnosi delle aste RFA, cap e slot da tenere uguali nei due bot
+- Guide GM e admin: x0 e sigla A nel roster e sul foglio, rookie che cambia contratto in `/team_diff`, report di stagione con tutti i rookie e la stima del rinnovo
+- README del bot aste riscritto (era fermo a quando contratti e cap stavano nel JSON); README principale con il cambio di stagione; `tests/README.md` con le prove nuove; MIGRATION aggiornato
+- Tolte le vecchie guide di emergenza (`docs/DEV_RECOVERY.md`, `docs/emergency_recovery_progettone.md` del bot principale, `docs/emergency_recovery.md` del bot aste): erano state sostituite da `docs/RECOVERY.md` già nella v3.5.0 ma i file erano rimasti, con istruzioni ormai sbagliate
+- Bot aste: aiuto `/admin` e menu "/" dicono che `/nuova_rfa` serve solo per le RFA a mano

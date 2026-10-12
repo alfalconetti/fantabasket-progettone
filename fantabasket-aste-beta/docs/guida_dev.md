@@ -10,7 +10,7 @@ Il bot lavora su **due database**.
 
 **SQLite (`/data/aste.db`, volume `aste_beta_data`).** È il suo database: aste, offerte, chi le segue. Resta SQLite per scelta, così si può sempre tornare al vecchio bot aste standalone (v48). Le modifiche allo schema sono **solo additive**: colonne nuove con default, mai rinominare o togliere.
 
-**PostgreSQL** (lo stesso del bot principale, via `pg_client.py`). Da qui legge contratti, tagli, DPE e roster, cioè cap e slot. Ci scrive:
+**PostgreSQL** (lo stesso del bot principale, via `pg_client.py`). Da qui legge contratti, tagli, DPE e roster, cioè cap e slot, e gli RFA dichiarati (`rfa_dichiarati`) per aprire le aste RFA. Ci scrive:
 
 - le firme (`contratti` + transazione `signed`);
 - i rilasci RFA (`expired`);
@@ -93,7 +93,8 @@ cap_limite − contratti (con DPE ridotta) − spalmature della stagione − pen
 
 ```
 roster_max − roster (contratti attivi in corso, esclusi i DPE)
-          + RFA della squadra con asta in corso      (l'RFA occupa cap ma non slot)
+          + RFA con asta in corso e contratto non finito  (aste aperte a mano: l'RFA occupa cap ma non slot;
+                                                            gli x0 sono già fuori dal roster)
           + slot anticipato                           (/autoslot, 48 ore)
           − slot virtuali
 ```
@@ -351,6 +352,10 @@ WHERE c.team_id = 'team07' AND c.attivo ORDER BY c.importo DESC;
 
 **Firma non arrivata su PostgreSQL.** Nei log c'è `Firma PG fallita per …`: registrala con `/registra_firma` dal bot principale.
 
+**Un'asta RFA non si è aperta da sola.** Il job gira ogni 5 minuti solo in fase `offseason-rfa` e apre le aste dei dichiarati il cui contratto x0 è ancora attivo, una per giocatore e stagione. Controlla la dichiarazione nel bot principale (pannello → 🔒 RFA squadre → 📋 RFA dichiarati) e i log (`job_rfa`). In ultima istanza: `/nuova_rfa`.
+
+**Elenchi lunghi** (`/all_aste`, `/firme`, comandi dev): se non stanno in un messaggio arrivano come file `.md` (`shared/messaggi.manda_lungo`).
+
 **Leggere il database delle aste:**
 
 ```bash
@@ -367,4 +372,5 @@ docker compose exec bot-aste-beta python3 -c "import sqlite3; c=sqlite3.connect(
 - Lancio: `tests/run.sh` dalla radice del progetto, in locale, mai sul server.
 - Schema SQLite: solo `ALTER TABLE … ADD COLUMN` in `_migrate()`, con default.
 - Ogni rilascio che tocca questo bot aggiunge una voce `## vNN — titolo` al suo CHANGELOG (nello zip `CHANGELOG_aste.md`).
-- Rebuild: `docker compose up --build -d bot-aste-beta`. Se cambia `shared/`, anche `bot-main`.
+- Rebuild: `docker compose up --build -d bot-aste-beta`. Se cambia `shared/` (`ruoli_core.py`, `messaggi.py`), anche `bot-main`.
+- Cap e slot devono restare uguali a quelli del bot principale: se cambia una regola su cosa pesa (x0, RFA, DPE), va cambiata in tutti e due (`database.cap_occupato_team` / `slot_occupati` e `pg_client.get_cap_contratti` / `get_roster_count`). La prova `rfa_dichiarati` e la prova generale sulla copia del database lo controllano.

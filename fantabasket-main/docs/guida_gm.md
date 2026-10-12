@@ -28,9 +28,11 @@ Due cose da sapere:
 - il ruolo a sinistra;
 - le posizioni eleggibili in corsivo accanto al nome;
 - la fantamedia (colonna FM);
-- il contratto.
+- il contratto: i rookie hanno il colore del loro anno di scala (dal I al IV).
 
 In fondo trovi cap, tagli gratuiti usati e cambi ruolo usati.
+
+Dalla fase dei rinnovi all'inizio della free agency i contratti finiti compaiono con durata **0** (per esempio 10x0) e non entrano nel cap. L'RFA dichiarato è segnato con la sigla **A** e invece nel cap c'è.
 
 Il comando funziona anche in altri modi:
 
@@ -39,7 +41,7 @@ Il comando funziona anche in altri modi:
 
 **`/assets`** è il roster più tutto il resto: le pick anno per anno (★ quelle tue, ○ quelle prese da altri) e i diritti sui rookie. Se vedi il tag rosso **STEPIEN** su una tua prima scelta, vuol dire che non puoi cederla senza violare la Stepien Rule.
 
-**`/team_diff`** ti dice cosa è cambiato nell'ultima settimana: chi è arrivato, chi è uscito e chi ha cambiato contratto (per esempio per una DPE). Esempio di risposta:
+**`/team_diff`** ti dice cosa è cambiato nell'ultima settimana: chi è arrivato, chi è uscito e chi ha cambiato contratto (per esempio per una DPE, un rinnovo o un rookie che passa al II anno, 12x2 → 13x1). Esempio di risposta:
 
 ```
 🟢 IN

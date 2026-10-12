@@ -26,6 +26,8 @@ bots automate the bookkeeping:
 - **Trades**: proposal, validation (cap, roster limits, draft-pick rules) and
   approval flow.
 - **Draft and rookie scale**: draft picks, rookie rights and rookie-scale contracts.
+- **Season rollover**: expiring contracts, rookie-scale steps, rookie renewals and
+  restricted free agency declarations, new draft picks.
 - **League sheet sync**: keeps the league's Google Sheet (rosters, picks) up to
   date via Google Apps Script.
 - **Roster cards**: rendered roster images (Typst) posted on request.

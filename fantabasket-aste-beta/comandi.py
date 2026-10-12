@@ -55,7 +55,7 @@ def liste_comandi(fase: str, mercato_fa: bool, offerte: bool) -> dict:
     if offerte:
         admin.append(BotCommand("crea_offerta", "Offerta per conto di una squadra"))
     if fase.startswith("offseason"):
-        admin.append(BotCommand("nuova_rfa", "Apri un'asta RFA"))
+        admin.append(BotCommand("nuova_rfa", "Apri un'asta RFA a mano (i dichiarati si aprono da soli)"))
     admin += [
         BotCommand("chiudi_asta", "Chiudi un'asta"),
         BotCommand("annulla_asta", "Annulla un'asta"),

@@ -597,3 +597,9 @@ Insieme al bot principale v3.11.0.
 ## v59 — Elenchi lunghi come file
 
 - `/all_aste`, `/firme`, `/dev_aste_stato`, `/dev_watched`, `/dev_rfa`, `/dev_firme`, `/dev_cap` e `/job_status`: se non stanno in un messaggio arrivano come riassunto più file `.md` col testo completo (`shared/messaggi.py`, in comune col bot principale), invece di più messaggi spezzati. `/aste` e `/listteams`, che usano anche i GM, restano messaggi
+
+## v60 — Documentazione
+
+- README riscritto (stack, i due database, struttura, configurazione condivisa e in sola lettura, guide); guida dev con le RFA dichiarate, la diagnosi delle aste RFA che non si aprono e la regola "cap e slot uguali nei due bot"
+- `/admin` e menu "/": `/nuova_rfa` è per le RFA a mano, quelle dichiarate si aprono da sole
+- Tolta `docs/emergency_recovery.md`, sostituita da tempo da `docs/RECOVERY.md` del progettone
