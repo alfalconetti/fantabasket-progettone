@@ -60,21 +60,23 @@ def _build_team_payload(team_id: str) -> dict:
     else:
         giocatori = sorted(roster, key=per_importo)
 
-    # Flag rookie/RFA
+    # Flag rookie/RFA. Gli x0 non dichiarati RFA non pesano (v3.11.0): fuori dal foglio,
+    # che somma gli importi della colonna; l'RFA dichiarato resta (pesa sul cap), flag "A"
     def _flag(r):
+        if r.get("rfa") and r.get("x0"):
+            return "A"
         if r.get("tipo_contratto") == "rookie":
             scala = int(r.get("anni_scala") or 0)
             return f"R{min(scala, 3)}"
         return ""
+    giocatori = [r for r in giocatori if not r.get("x0") or r.get("rfa")]
 
     giocatori_payload = [
         {
             "ruolo":   ruoli.get(r["giocatore_id"], ""),
             "nome":    r["nome_common"],
             "importo": r["importo"],
-            "anni":    (2 if int(r.get("anni_scala") or 0) in (0, 2) else 1)
-                       if r.get("tipo_contratto") == "rookie"
-                       else max(1, r["anni_originali"] - (int(stagione) - int(r.get("stagione_firma") or stagione))),
+            "anni":    max(0, db.anni_residui(r, stagione)),
             "flag":    _flag(r),
         }
         for r in giocatori
@@ -129,7 +131,7 @@ def _build_team_payload(team_id: str) -> dict:
             "nome":          d["nome_common"],
             "importo_orig":  d["importo_originale"],
             "importo_dpe":   d["importo_dpe"],
-            "anni":          max(1, d.get("anni_originali", 1) - (int(stagione) - int(d.get("stagione_firma") or stagione))),
+            "anni":          max(0, db.anni_residui(d, stagione)),
         }
         for d in dpe_attive
     ]

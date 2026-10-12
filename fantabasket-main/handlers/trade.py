@@ -688,14 +688,9 @@ def _formatta_annuncio_canale(trade_id: int) -> str:
 
     def _label_item_canale(item: dict) -> str:
         if item["tipo"] == "giocatore":
-            tipo_c = item.get("giocatore_tipo_contratto", "normale")
-            if tipo_c == "rookie":
-                scala = int(item.get("giocatore_anni_scala") or 0)
-                anni  = 2 if scala in (0, 2) else 1
-            else:
-                anni_orig = item.get("giocatore_anni", 1) or 1
-                s_firma   = int(item.get("giocatore_stagione_firma") or stagione_int)
-                anni      = max(1, anni_orig - (stagione_int - s_firma))
+            anni_orig = item.get("giocatore_anni", 1) or 1
+            s_firma   = int(item.get("giocatore_stagione_firma") or stagione_int)
+            anni      = anni_orig - (stagione_int - s_firma)   # 0 = x0 (v3.11.0)
             importo = item.get("giocatore_importo", 0) or 0
             return f"{item['nome_common']} {importo}x{anni}"
         elif item["tipo"] == "pick":
@@ -1278,6 +1273,9 @@ def _scrivi_trade(trade_id: int, trade_ref: str, approvata_da: str | None, inver
                     # se lo porta dietro con l'importo ridotto e lo slot libero)
                     cur.execute("UPDATE dpe SET team_id = %s WHERE giocatore_id = %s AND team_id = %s "
                                 "AND stagione = %s", (a, gid, da, settings.stagione_corrente()))
+                    # v3.11: anche la dichiarazione RFA segue il giocatore (il bot aste
+                    # allinea il proprietario dell'asta da solo)
+                    db.sposta_rfa_trade(cur, gid, da, a, settings.stagione_corrente())
                     cur.execute("INSERT INTO transazioni (tipo, giocatore_id, team_id_da, team_id_a, stagione, "
                                 "contratto_id, trade_id, note) VALUES ('traded', %s, %s, %s, %s, %s, %s, %s)",
                                 (gid, da, a, stagione, c[0], trade_id, nota_tx))

@@ -101,11 +101,15 @@ Finché non firmi, quel giocatore **conta già** sul tuo cap e sui tuoi slot, an
 
 **Il tuo RFA.** Occupa cap ma **non** uno slot, finché la sua asta non è finita. E non puoi fare offerte sul tuo stesso RFA.
 
+**I contratti finiti (x0).** Dalla fase dei rinnovi all'inizio della free agency i giocatori col contratto finito restano nella tua squadra, ma non pesano né sul cap né sugli slot. L'unico che pesa è quello che hai dichiarato RFA (sul cap).
+
 ---
 
 ## Le aste RFA (offseason)
 
-Nella fase RFA ogni squadra può mettere all'asta un suo giocatore in scadenza. Gli altri fanno offerte; alla fine il proprietario decide se **pareggiare** e tenerselo, o lasciarlo andare.
+Nella fase dei rinnovi ogni squadra può dichiarare RFA **un** suo giocatore col contratto finito: si fa nel bot principale, dal menu (🔒 Dichiara RFA). Quando inizia la fase RFA, questo bot apre da solo l'asta di ogni giocatore dichiarato (entro qualche minuto) e il proprietario la segue in automatico. Gli altri fanno offerte; alla fine il proprietario decide se **pareggiare** e tenerselo, o lasciarlo andare.
+
+Se un RFA viene scambiato mentre la sua asta è aperta, i diritti passano a chi lo riceve: sarà lui a decidere sul pareggio.
 
 ### Se vinci l'asta di un RFA altrui
 

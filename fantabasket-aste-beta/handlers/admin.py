@@ -112,35 +112,10 @@ async def nuova_rfa(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text(f"❌ Esiste già un'asta aperta per {giocatore}.")
         return
 
-    now   = datetime.now(timezone.utc)
-    scade = now + timedelta(hours=settings.durata_asta_ore())   # prima 18 fisso nel codice
-
-    asta_id = db.crea_asta(
-        tipo="RFA",
-        giocatore=giocatore,
-        squadra_proprietaria=team_id,
-        vecchio_compenso=vecchio_compenso,
-        creata_at=now.isoformat(),
-        scade_at=scade.isoformat(),
-        stagione=stagione,
-        giocatore_id=pg_client.id_in_roster(team_id, giocatore),
-    )
-
-    admin_label = _admin_label(update.effective_user)
-    channel_id = utils.get_channel_id()
-    teams_map  = {t["id"]: t["nome"] for t in tm.get_all_teams()}
-    asta_row   = db.get_asta(asta_id)
-    testo      = utils.build_canale_message(asta_row, [], teams_map, aperta_da=admin_label)
-
-    keyboard = InlineKeyboardMarkup([[
-        InlineKeyboardButton("🏀 Offri",  url=f"https://t.me/{context.bot.username}?start=offri_{asta_id}"),
-        InlineKeyboardButton("🔔 Segui",  callback_data=f"watch:{asta_id}"),
-    ]])
-
-    msg = await context.bot.send_message(
-        chat_id=channel_id, text=testo, parse_mode="HTML", reply_markup=keyboard,
-    )
-    db.set_canale_msg_id(asta_id, msg.message_id)
+    from handlers.rfa import pubblica_asta_rfa
+    asta_id, scade = await pubblica_asta_rfa(context.bot, team_id, giocatore, vecchio_compenso,
+                                             pg_client.id_in_roster(team_id, giocatore),
+                                             _admin_label(update.effective_user))
 
     await update.effective_message.reply_text(
         f"✅ Asta RFA aperta per <b>{giocatore}</b>\n"
@@ -984,7 +959,7 @@ async def autocap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     stagione = utils.load_globals().get("stagione_corrente", "2025")
     cap_pen  = settings.penalita_cap(team)  # 0 in offseason: tetto 165 per tutti
     if pg_client.pg_disponibile():
-        cap_occ = pg_client.get_cap_contratti(team["id"]) + pg_client.get_impatto_taglio(team["id"], stagione) + cap_pen
+        cap_occ = pg_client.get_cap_contratti(team["id"], stagione) + pg_client.get_impatto_taglio(team["id"], stagione) + cap_pen
     else:
         cap_occ = settings.cap_massimo() - team.get("cap_disponibile", 0)
     cap_libero_reale = settings.cap_limite() - cap_occ
@@ -1060,7 +1035,7 @@ async def cb_reset_cap_anticipato(update: Update, context: ContextTypes.DEFAULT_
         pass
 
     if pg_client.pg_disponibile():
-        cap_occ = pg_client.get_cap_contratti(team_id) + pg_client.get_impatto_taglio(team_id, stagione) + cap_pen
+        cap_occ = pg_client.get_cap_contratti(team_id, stagione) + pg_client.get_impatto_taglio(team_id, stagione) + cap_pen
     else:
         cap_occ = settings.cap_massimo() - (team.get("cap_disponibile", 0) if team else 0)
 
@@ -1519,19 +1494,8 @@ async def all_aste(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     testo = "\n".join(righe)
-    if len(testo) <= 4096:
-        await update.effective_message.reply_text(testo, parse_mode="HTML")
-    else:
-        chunk = ""
-        for riga in righe:
-            candidato = chunk + ("\n" if chunk else "") + riga
-            if len(candidato) > 4096:
-                await update.effective_message.reply_text(chunk, parse_mode="HTML")
-                chunk = riga
-            else:
-                chunk = candidato
-        if chunk:
-            await update.effective_message.reply_text(chunk, parse_mode="HTML")
+    from shared.messaggi import manda_lungo     # se è lungo arriva come file .md
+    await manda_lungo(context.bot, update.effective_chat.id, testo, "aste")
 
 
 # ── /riapri_asta ──────────────────────────────────────────────────────────────
@@ -2329,19 +2293,8 @@ async def cmd_firme(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     testo = "\n".join(righe)
-    if len(testo) <= 4096:
-        await update.effective_message.reply_text(testo, parse_mode="HTML")
-    else:
-        chunk = ""
-        for riga in righe:
-            candidato = chunk + ("\n" if chunk else "") + riga
-            if len(candidato) > 4096:
-                await update.effective_message.reply_text(chunk, parse_mode="HTML")
-                chunk = riga
-            else:
-                chunk = candidato
-        if chunk:
-            await update.effective_message.reply_text(chunk, parse_mode="HTML")
+    from shared.messaggi import manda_lungo     # se è lungo arriva come file .md
+    await manda_lungo(context.bot, update.effective_chat.id, testo, "firme")
 
 
 # ── /admin ────────────────────────────────────────────────────────────────────

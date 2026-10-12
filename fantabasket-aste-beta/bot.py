@@ -260,6 +260,11 @@ def main():
     from comandi import job_aggiorna_comandi
     app.job_queue.run_repeating(job_aggiorna_comandi, interval=300, first=300)
 
+    # v58: RFA dichiarati nel bot principale → aste aperte da sole nella fase RFA, e
+    # proprietario delle aste RFA allineato alle trade (ogni 5 minuti, come la fase)
+    from handlers.rfa import job_rfa
+    app.job_queue.run_repeating(job_rfa, interval=300, first=90)
+
     app.post_init = _register_commands
     logger.info("Bot avviato.")
     app.run_polling(drop_pending_updates=True)

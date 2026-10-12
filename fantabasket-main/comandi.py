@@ -29,6 +29,8 @@ def _fasi_comando() -> dict:
         "dpe":                 set(FASI_DPE),
         "dichiarazione_ruoli": {"offseason-ruoli"},
         "cambio_ruolo":        settings.FASI_RUOLI_RS,
+        "rinnovo_rookie":      {"offseason-rinnovi"},
+        "dichiara_rfa":        {"offseason-rinnovi"},
     }
 
 
@@ -52,6 +54,8 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("attiva_diritti", "Attiva diritti 2nd pick"),
         BotCommand("dichiarazione_ruoli", "Dichiara i ruoli (fase dichiarazione ruoli)"),
         BotCommand("cambio_ruolo", "Cambio ruolo (regular season e playoff)"),
+        BotCommand("rinnovo_rookie", "Rinnova i rookie a fine II anno (fase rinnovi)"),
+        BotCommand("dichiara_rfa",   "Dichiara il tuo RFA (fase rinnovi)"),
         BotCommand("decadimento",    "Segnala contratto decaduto (ritiro, altra lega)"),
         BotCommand("my_team",        "Info e impostazioni del tuo team"),
         BotCommand("palette",        "Personalizza colori roster/assets"),
@@ -89,6 +93,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("dev_roster",   "Dump roster raw [team_id]"),
         BotCommand("dev_player",   "Anagrafica giocatore [nome]"),
         BotCommand("dev_coerenza", "Controllo contratti/registro"),
+        BotCommand("dev_stagione", "Anteprima cambio di stagione [rifai]"),
         BotCommand("nuovo_giocatore", "Crea giocatore [nome] | [nome_bref] [data]"),
         BotCommand("job_status",   "Job attivi nella JobQueue"),
         BotCommand("broadcast",    "Messaggio a tutti i GM"),

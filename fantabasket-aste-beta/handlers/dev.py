@@ -84,19 +84,8 @@ async def dev_aste_stato(update: Update, context: ContextTypes.DEFAULT_TYPE):
         righe.append("")
 
     testo = "\n".join(righe)
-    if len(testo) <= 4096:
-        await update.effective_message.reply_text(testo, parse_mode="HTML")
-    else:
-        chunk = ""
-        for riga in righe:
-            candidato = chunk + ("\n" if chunk else "") + riga
-            if len(candidato) > 4096:
-                await update.effective_message.reply_text(chunk, parse_mode="HTML")
-                chunk = riga
-            else:
-                chunk = candidato
-        if chunk:
-            await update.effective_message.reply_text(chunk, parse_mode="HTML")
+    from shared.messaggi import manda_lungo     # se è lungo arriva come file .md
+    await manda_lungo(context.bot, update.effective_chat.id, testo, "stato-asta")
 
 
 # ── /dev_watched ──────────────────────────────────────────────────────────────
@@ -134,19 +123,8 @@ async def dev_watched(update: Update, context: ContextTypes.DEFAULT_TYPE):
         righe.append(f"  {', '.join(info['watchers'])}")
 
     testo = "\n".join(righe)
-    if len(testo) <= 4096:
-        await update.effective_message.reply_text(testo, parse_mode="HTML")
-    else:
-        chunk = ""
-        for riga in righe:
-            candidato = chunk + ("\n" if chunk else "") + riga
-            if len(candidato) > 4096:
-                await update.effective_message.reply_text(chunk, parse_mode="HTML")
-                chunk = riga
-            else:
-                chunk = candidato
-        if chunk:
-            await update.effective_message.reply_text(chunk, parse_mode="HTML")
+    from shared.messaggi import manda_lungo     # se è lungo arriva come file .md
+    await manda_lungo(context.bot, update.effective_chat.id, testo, "watch")
 
 
 # ── /dev_rfa ──────────────────────────────────────────────────────────────────
@@ -175,19 +153,8 @@ async def dev_rfa(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
     testo = "\n".join(righe)
-    if len(testo) <= 4096:
-        await update.effective_message.reply_text(testo, parse_mode="HTML")
-    else:
-        chunk = ""
-        for riga in righe:
-            candidato = chunk + ("\n" if chunk else "") + riga
-            if len(candidato) > 4096:
-                await update.effective_message.reply_text(chunk, parse_mode="HTML")
-                chunk = riga
-            else:
-                chunk = candidato
-        if chunk:
-            await update.effective_message.reply_text(chunk, parse_mode="HTML")
+    from shared.messaggi import manda_lungo     # se è lungo arriva come file .md
+    await manda_lungo(context.bot, update.effective_chat.id, testo, "rfa")
 
 
 # ── /dev_firme ────────────────────────────────────────────────────────────────
@@ -219,19 +186,8 @@ async def dev_firme(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
     testo = "\n".join(righe)
-    if len(testo) <= 4096:
-        await update.effective_message.reply_text(testo, parse_mode="HTML")
-    else:
-        chunk = ""
-        for riga in righe:
-            candidato = chunk + ("\n" if chunk else "") + riga
-            if len(candidato) > 4096:
-                await update.effective_message.reply_text(chunk, parse_mode="HTML")
-                chunk = riga
-            else:
-                chunk = candidato
-        if chunk:
-            await update.effective_message.reply_text(chunk, parse_mode="HTML")
+    from shared.messaggi import manda_lungo     # se è lungo arriva come file .md
+    await manda_lungo(context.bot, update.effective_chat.id, testo, "firme")
 
 
 # ── /dev_cap ──────────────────────────────────────────────────────────────────
@@ -282,19 +238,8 @@ async def dev_cap(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
     testo = "\n".join(righe)
-    if len(testo) <= 4096:
-        await update.effective_message.reply_text(testo, parse_mode="HTML")
-    else:
-        chunk = ""
-        for riga in righe:
-            candidato = chunk + ("\n" if chunk else "") + riga
-            if len(candidato) > 4096:
-                await update.effective_message.reply_text(chunk, parse_mode="HTML")
-                chunk = riga
-            else:
-                chunk = candidato
-        if chunk:
-            await update.effective_message.reply_text(chunk, parse_mode="HTML")
+    from shared.messaggi import manda_lungo     # se è lungo arriva come file .md
+    await manda_lungo(context.bot, update.effective_chat.id, testo, "cap")
 
 
 async def dev_version(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -375,19 +320,8 @@ async def job_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
     testo = "\n".join(righe)
-    if len(testo) <= 4096:
-        await update.effective_message.reply_text(testo, parse_mode="HTML")
-    else:
-        chunk = ""
-        for riga in righe:
-            candidato = chunk + ("\n" if chunk else "") + riga
-            if len(candidato) > 4096:
-                await update.effective_message.reply_text(chunk, parse_mode="HTML")
-                chunk = riga
-            else:
-                chunk = candidato
-        if chunk:
-            await update.effective_message.reply_text(chunk, parse_mode="HTML")
+    from shared.messaggi import manda_lungo     # se è lungo arriva come file .md
+    await manda_lungo(context.bot, update.effective_chat.id, testo, "job")
 
 
 # ── /broadcast ────────────────────────────────────────────────────────────────

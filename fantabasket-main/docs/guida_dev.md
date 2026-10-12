@@ -116,13 +116,15 @@ Costanti in `settings.py`, da usare sempre (non scrivere liste di fasi a mano):
 | `FASI_DPE` (in `dpe.py`) | da `offseason-rinnovi` a `regular-season-deadline` |
 | `FASI_RUOLI_RS` (in `shared/ruoli_core.py`) | regular season e playoff: cambi ruolo, dichiarazioni post-trade |
 
-**Cambio fase.** `admin_panel._esegui_cambio_fase`:
+**Cambio fase.** `admin_panel.cb_fase_set` → `_esegui_cambio_fase`:
 
+0. se il passaggio tocca i contratti (`stagione.anteprima_fase`: stagione nuova, inizio FA) mostra l'anteprima e aspetta `fase_conferma:`;
 1. scrive `fase` e `mercato_aperto`;
-2. entrando in `offseason-rinnovi` incrementa `stagione_corrente`;
-3. ri-registra i comandi (`comandi.registra_comandi`);
-4. annuncia sul canale (`testo_annuncio_fase()` + `FASI_INDICAZIONI`, da tenere allineate al regolamento);
-5. lancia i report di fine fase (ruoli mancanti, vincoli ruoli all'ingresso in RS).
+2. incrementa `stagione_corrente` solo se `stagione.nuova_stagione(vecchia, nuova)`: si entra in `offseason-rinnovi` da RS, playoff o break (tornando indietro da draft/RFA/FA/ruoli no);
+3. `stagione.dopo_cambio_fase()`: i passaggi automatici sui contratti (sezione 4, "Stagioni e contratti finiti"). Se falliscono la fase resta cambiata, l'errore va nel messaggio e nel log, e `/dev_stagione rifai` li ripete;
+4. ri-registra i comandi (`comandi.registra_comandi`);
+5. annuncia sul canale (`testo_annuncio_fase()` + `FASI_INDICAZIONI`, da tenere allineate al regolamento);
+6. lancia i report di fine fase (ruoli mancanti, vincoli ruoli all'ingresso in RS).
 
 Il bot aste vede la fase nuova entro 5 minuti.
 
@@ -146,6 +148,8 @@ Il bot aste vede la fase nuova entro 5 minuti.
 | `transazioni` | **registro unico** di tutto quello che si muove in lega: giocatori, diritti, pick (vedi sotto) |
 | `impatto_taglio` | rate delle spalmature: una riga per squadra, giocatore e stagione |
 | `dpe` | DPE approvate: `importo_originale`, `importo_dpe`, `pre_deadline`, `stagione`, `team_id` (segue il giocatore in trade) |
+| `rfa_dichiarati` | RFA dichiarati nella fase dei rinnovi: `stagione`, `team_id` (segue il giocatore in trade), `giocatore_id`, `contratto_id` (l'x0), `stato` attiva/revocata, `da` |
+| `migrazioni` | migrazioni una tantum già fatte (`_migrazione_fatta(nome)`) |
 
 **Trade, pick e rookie**
 
@@ -190,9 +194,9 @@ Ogni riga ha un `oggetto` che dice di cosa parla:
 
 | `oggetto` | Colonne | Esempi di `tipo` |
 |---|---|---|
-| `giocatore` | `giocatore_id` (+ `contratto_id`) | `signed`, `traded`, `cut`, `decadimento`, `rookie_firma`, `expired` |
+| `giocatore` | `giocatore_id` (+ `contratto_id`) | `signed`, `traded`, `cut`, `decadimento`, `rookie_firma`, `expired`, `renewed`, `rookie_scala`, `rookie_fine_scala` |
 | `diritti` | `giocatore_id` (diritti di una 2nd non firmata) | `iniziale`, `traded`, `rookie_firma` (attivati), `rookie_diritti_scaduti` |
-| `pick` | `pick_id` | `iniziale`, `traded` (in futuro `draft`) |
+| `pick` | `pick_id` | `iniziale`, `traded`, `creata` (pick dell'anno +6, v3.11) |
 | `squadra` | nessuna delle due | `cut` gratuito pre-bot (conta nei tagli gratuiti, non sposta nessuno) |
 
 Il controllo `transazioni_oggetto_check` impedisce combinazioni sbagliate (una pick senza `pick_id`, un giocatore senza `giocatore_id`).
@@ -213,9 +217,44 @@ Finché lo storico non esiste (`storico_pick_diritti_presente()`), trade e attiv
 **Controllo notturno** (`handlers/coerenza.py`, all'01:00, o `/dev_coerenza`). Confronta stato e registro:
 - per ogni giocatore, la squadra del contratto attivo con quella dell'ultimo movimento;
 - per ogni pick e diritto, il proprietario di oggi con l'ultimo movimento;
-- nessun giocatore con due contratti attivi.
+- nessun giocatore con due contratti attivi;
+- nessun x0 attivo (non RFA) fuori da rinnovi, draft e RFA, nessun contratto `rookie` oltre il IV anno (v3.11).
 
 Se trova qualcosa scrive al dev. Di solito è una modifica fatta a mano sul DB: si sistema **aggiungendo il movimento mancante**, non cancellando righe.
+
+### Stagioni e contratti finiti (v3.11.0, `handlers/stagione.py`)
+
+**Anni residui, sempre calcolati:** `db.anni_residui(c, stagione) = anni_originali − (stagione − stagione_firma)`, anche per i rookie, senza minimo. In SQL: `db.SQL_IN_CORSO` (≥ 1) e `db.SQL_RFA` (dichiarazione attiva sul contratto), parametri `(stagione, stagione)`.
+
+- **x0** (≤ 0) = contratto finito: resta attivo e in squadra fino all'inizio della FA, si può scambiare, ma **non pesa su cap né slot**. Unica eccezione l'RFA dichiarato: cap sì, slot no.
+- Cap: `cap_occupato_team` (in corso o RFA), `peso_cap_giocatore`, `cap_roster(roster)` per le immagini. Slot: `slot_occupati(roster)`, `occupa_slot`. Il bot aste fa gli stessi conti in `pg_client`.
+- `get_roster_team` dà per ogni riga `anni_residui`, `x0`, `rfa`, `contratto_id`, `anni_scala` (= stagione − `rookie.anno_firma`: 0 = I anno … 3 = IV anno). `get_roster_team_at` li calcola sulla stagione di quella data.
+
+**Ogni cambio di importo è un contratto nuovo:** il vecchio va a `attivo = FALSE` e si scrive il movimento. I contratti non si cancellano mai.
+
+**Rookie scale** (`rookie_scale` di settings, per fascia di pick: I x2, II x1, III x2, IV x1). Entrando nella stagione S (`applica_stagione(S)`, in un'unica transazione, rilanciabile), con k = S − `anno_firma`:
+
+| k | Condizione | Cosa fa | Movimento |
+|---|---|---|---|
+| 1 | contratto del I anno (`stagione_firma = anno_firma`) e importo del II diverso | contratto nuovo II anno x1 | `rookie_scala` |
+| 2 | x0 | niente: attende rinnovo rookie, RFA o scadenza | — |
+| 3 | rinnovo di scala (x2 firmato in S−1, importo = scala III) e importo del IV diverso | contratto nuovo IV anno x1 | `rookie_scala` |
+| 4 | x0 | contratto `normale` x0, importo max(attuale, Doncic sul III-IV) | `rookie_fine_scala` |
+
+Rinnovo rookie a fine II anno (`esegui_rinnovo_rookie`): `tipo = 'rookie'` x2, importo max(scala III, Doncic), movimento `renewed` con `rookie_scale = TRUE`. Doncic: `doncic(fm)` con X = ⌊max fantamedia delle due stagioni⌋ e risultato per eccesso in aritmetica intera; `fantamedia_max(gid, stagioni_lega)` legge bref alla stagione + 1.
+
+**La migrazione `rookie_pezzi_v3_11`** (una volta sola, tabella `migrazioni`): fino alla v3.10 i pezzi II, III e IV avevano `stagione_firma = anno_firma`; li ha portati alla stagione in corso.
+
+**Passaggi automatici** (`dopo_cambio_fase`, tutti rilanciabili, ognuno a sé: se uno fallisce gli altri vanno avanti):
+
+| Entrando in | Cosa |
+|---|---|
+| `offseason-rinnovi` | `applica_stagione`, dettaglio nel gruppo admin; `crea_pick_anno(S + 6)` con movimento `creata` (fino al draft di S le annate sono 7) |
+| `offseason-rfa` | niente qui: le aste RFA le apre il bot aste (`handlers/rfa.py`) |
+| `offseason-fa` | `scadenza_x0`: gli x0 non RFA → `attivo = FALSE` + `expired`, elenco sul canale |
+| `regular-season-fa` | `testo_report_inizio_rs`: sotto il floor (con `/set_cap_penalizzato` già scritto, 2M per milione) o sopra il tetto → gruppo admin |
+
+**RFA dichiarati.** Uno per squadra e stagione (indici unici parziali). La dichiarazione vale finché il suo contratto x0 è attivo: quando l'asta si conclude il bot aste chiude quel contratto e lei smette di pesare da sola (`rfa_squadra`, `rfa_dichiarato`; `rfa_usata` la vede anche dopo). In trade la sposta `db.sposta_rfa_trade` dentro `_scrivi_trade` (anche nell'annullamento). La regola delle trade è `validators.trade._errori_rfa`: dopo la trade ogni squadra ha al massimo un RFA.
 
 ### Due cose da ricordare
 
@@ -280,6 +319,14 @@ ORDER BY t.timestamp, t.id;
 | `tagli.py` | `/taglia`: anteprima, spalmature, limiti |
 | `dpe.py` | `/dpe` e `_importo_dpe()` |
 | `rookie.py` | `/attiva_diritti`, scadenza diritti |
+| `stagione.py` | cambio di stagione (rookie scale, Doncic, x0), `/rinnovo_rookie`, `/dichiara_rfa`, passaggi di fase, `/dev_stagione` |
+
+**shared/** (montata in sola lettura in tutti e due i container: una modifica richiede il riavvio di entrambi)
+
+| File | Contenuto |
+|---|---|
+| `ruoli_core.py` | regole dei ruoli (sezione 6) |
+| `messaggi.py` | `manda_lungo(bot, chat_id, testo_html, nome_file, riassunto=None)`: messaggio se sta in Telegram, altrimenti riassunto + file `.md` generato in memoria (`html_a_markdown`). Da usare per ogni report o elenco amministrativo che può crescere |
 | `decadimento.py` | `/decadimento`, motivi, `/ritiro_fa` |
 | `spalmature.py` | report mensile e `/report_spalmature` |
 | `coerenza.py` | controllo notturno contratti/pick/diritti contro il registro, `/dev_coerenza` |
@@ -318,6 +365,7 @@ Utile per capire chi risponde a un bottone. In grassetto quelli citati più spes
 | `nascite.py` | `nasc:` |
 | `dev_player.py` | `dp:` |
 | `menu.py` | `menu:`, `roster_sq:`, `assets_sq:` |
+| `stagione.py` | **`sg:`** (GM: `rr`, `rrg`, `rrok`, `rfa`, `rfag`, `rfaok`, `rfano`), **`sga:<team>:`** (admin, stesse azioni), `sga:scegli:`, `sga:elenco` |
 
 Attenzione: `mt:` è usato da due file. Funziona perché gli handler di `trade.py` sono registrati prima e hanno un pattern più stretto. Se aggiungi un `mt:` nuovo, controlla che non si pestino.
 
@@ -443,6 +491,7 @@ Gli errori dei job vanno a `log_job_error`: canale log e privato del dev. `/job_
 | `/dev_player <nome>` | anagrafica e contratto con bottoni per modificare ogni campo (i campi contrattuali loggano un avviso); `/annulla_dev` per uscire |
 | `/nuovo_giocatore <nome> \| <nome_bref> [AAAA-MM-GG]` | crea un giocatore |
 | `/dev_coerenza` | controllo di coerenza contratti/pick/diritti contro il registro, subito |
+| `/dev_stagione` | anteprima del prossimo cambio di stagione (sola lettura); `/dev_stagione rifai` ripete i passaggi automatici della fase in corso |
 | `/job_status` | job e prossima esecuzione |
 | `/broadcast <testo>` | messaggio a tutti i GM |
 | `/sync_sheets` | sync completo dei fogli |
@@ -469,6 +518,7 @@ Gli errori dei job vanno a `log_job_error`: canale log e privato del dev. `/job_
 | menu e squadra | `/menu` (anche `/start`), `/roster`, `/assets`, `/team_diff`, `/palette`, `/my_team` |
 | trade | `/build_trade`, `/import_trade`, `/bozze_trade`, `/my_trades` (alias `/mie_trade`), `/edit_trade` |
 | roster | `/taglia`, `/dpe`, `/attiva_diritti`, `/decadimento` |
+| rinnovi (fase rinnovi) | `/rinnovo_rookie`, `/dichiara_rfa` |
 | ruoli | `/dichiarazione_ruoli`, `/cambio_ruolo` |
 | varie | `/guida`, `/annulla`, `/annulla_trade` (`/salta` dentro i flussi per saltare la nota) |
 

@@ -29,25 +29,6 @@ def _is_dev(user_id: int) -> bool:
     return user_id == settings.dev_id()
 
 
-def _send_chunked(chunks: list[str]):
-    """Helper per costruire messaggi chunked."""
-    testo = "\n".join(chunks)
-    if len(testo) <= 4096:
-        return [testo]
-    parts = []
-    chunk = ""
-    for riga in chunks:
-        candidato = chunk + ("\n" if chunk else "") + riga
-        if len(candidato) > 4096:
-            parts.append(chunk)
-            chunk = riga
-        else:
-            chunk = candidato
-    if chunk:
-        parts.append(chunk)
-    return parts
-
-
 # ── /dev ──────────────────────────────────────────────────────────────────────
 
 async def cmd_dev(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -65,6 +46,7 @@ async def cmd_dev(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/nuovo_giocatore &lt;nome&gt; | &lt;nome_bref&gt; [AAAA-MM-GG] — crea un giocatore in anagrafica\n"
         "/sync_sheets — sincronizza tutti i roster su Google Sheets\n"
         "/dev_coerenza — contratti, pick e diritti contro il registro delle transazioni\n"
+        "/dev_stagione — anteprima del prossimo cambio di stagione (rookie, x0); <code>rifai</code> riapplica quello in corso\n"
         "/job_status — job attivi nella JobQueue\n"
         "/broadcast &lt;testo&gt; — manda messaggio a tutti i GM\n"
         "/backup — backup manuale al canale log\n"
@@ -135,8 +117,8 @@ async def cmd_dev_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
         data = format_dt(t["aggiornato"]) if t.get("aggiornato") else "—"
         righe.append(f"<b>{t['trade_ref']}</b> — {data}\n  {t.get('descrizione', '')}")
 
-    for parte in _send_chunked(righe):
-        await update.effective_message.reply_text(parte, parse_mode="HTML")
+    from shared.messaggi import manda_lungo
+    await manda_lungo(update.get_bot(), update.effective_chat.id, "\n".join(righe), "dev")
 
 
 # ── /dev_pg ───────────────────────────────────────────────────────────────────
@@ -174,8 +156,8 @@ async def cmd_dev_roster(update: Update, context: ContextTypes.DEFAULT_TYPE):
         righe.append(
             f"{r['nome_common']} — {r.get('importo', '?')}M × {anni_res} [{flag}]"
         )
-    for parte in _send_chunked(righe):
-        await update.effective_message.reply_text(parte, parse_mode="HTML")
+    from shared.messaggi import manda_lungo
+    await manda_lungo(update.get_bot(), update.effective_chat.id, "\n".join(righe), "dev")
 
 
 # ── /job_status ───────────────────────────────────────────────────────────────
@@ -199,8 +181,8 @@ async def cmd_job_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             prossima = "—"
         righe.append(f"• <code>{job.name or 'senza nome'}</code>\n  ↳ {prossima}")
-    for parte in _send_chunked(righe):
-        await update.effective_message.reply_text(parte, parse_mode="HTML")
+    from shared.messaggi import manda_lungo
+    await manda_lungo(update.get_bot(), update.effective_chat.id, "\n".join(righe), "dev")
 
 
 # ── /broadcast ────────────────────────────────────────────────────────────────

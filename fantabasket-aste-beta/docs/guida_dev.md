@@ -87,10 +87,12 @@ cap_limite − contratti (con DPE ridotta) − spalmature della stagione − pen
 
 `pg_client.get_cap_totale` è la stessa cosa senza la parte virtuale (la usa `/me`).
 
+**Contratti finiti (v58, bot principale v3.11).** Anni residui = `anni_originali − (stagione − stagione_firma)`; un x0 non pesa né su cap né su slot, tranne l'RFA dichiarato nel bot principale (tabella `rfa_dichiarati`), che pesa sul cap. `get_cap_contratti` e `get_roster_count` usano gli stessi frammenti SQL del bot principale (`_SQL_IN_CORSO`, `_sql_rfa()`) e, senza `stagione`, prendono quella corrente.
+
 **Slot** (`pg_client.get_slot_totale` → `teams.check_slot_virtuale`):
 
 ```
-roster_max − roster (contratti attivi, esclusi i DPE)
+roster_max − roster (contratti attivi in corso, esclusi i DPE)
           + RFA della squadra con asta in corso      (l'RFA occupa cap ma non slot)
           + slot anticipato                           (/autoslot, 48 ore)
           − slot virtuali
@@ -172,7 +174,14 @@ Se va bene registra l'offerta, porta `scade_at` a ora + `durata_asta_ore` (18), 
 
 ### RFA
 
-**Apertura.** `/nuova_rfa <giocatore> <team_id> <vecchio_compenso>` (admin), con il giocatore cercato nel roster della squadra (`pg_client.nomi_roster`).
+**Apertura automatica (v58).** I GM dichiarano l'RFA nel bot principale (`rfa_dichiarati`). `handlers/rfa.job_rfa`, ogni 5 minuti:
+
+1. per ogni asta RFA in corso, il proprietario è la squadra del contratto **x0** del giocatore (`pg_client.squadra_x0`): se è stato scambiato, `set_squadra_proprietaria` + canale aggiornato + avviso nel log. Il contratto nuovo di chi vince è in corso e non conta mai;
+2. nella fase `offseason-rfa`, apre con `pubblica_asta_rfa` l'asta di ogni dichiarato in vigore (`pg_client.rfa_dichiarati`) che non l'ha ancora avuta in questa stagione (`rfa_giocatore_stagione`), con il vecchio compenso dal contratto. I GM del proprietario seguono l'asta e vengono avvisati.
+
+La dichiarazione smette di pesare quando l'asta chiude il contratto x0 (firma, pareggio o rilascio): il bot aste non deve toccarla.
+
+**Apertura a mano.** `/nuova_rfa <giocatore> <team_id> <vecchio_compenso>` (admin), con il giocatore cercato nel roster della squadra (`pg_client.nomi_roster`). Usa la stessa `pubblica_asta_rfa`.
 
 - Una sola RFA per squadra per stagione (`team_ha_rfa_stagione`, sulla `stagione_corrente` condivisa).
 - Durante l'asta il proprietario non può offrire (`_check_partecipazione` + `_esegui_offerta`).
@@ -215,6 +224,7 @@ Se va bene registra l'offerta, porta `scade_at` a ora + `durata_asta_ore` (18), 
 | ogni 60 s | `check_scadenze` | chiusure e avvisi a 15 minuti |
 | 5 s dopo l'avvio | `recupera_stati_pendenti` | riprende firme e pareggi |
 | ogni 5 min | `job_aggiorna_comandi` | se cambiano fase, mercato o presenza di aste aperte, ri-registra il menu "/" |
+| ogni 5 min | `rfa.job_rfa` | proprietario delle aste RFA allineato alle trade; in fase RFA apre le aste dei dichiarati |
 | ogni 5 min | `ping_healthcheck` | solo con `HEALTHCHECK_URL` |
 | 13:00 | `check_cap_stagionale` | solo offseason |
 | una tantum | `firma_automatica`, `pareggio_automatico` | `run_once` alle scadenze di firma e pareggio |
@@ -302,6 +312,8 @@ Visibilità:
 | `handlers/firma.py` | firma, RFA, pareggio, pre-impostazioni, lascio andare |
 | `handlers/user.py` | `/me`, `/watch`, `/watched`, `/lista_fa`, `/silenzia`, `/offerta`, `/team_detail`, `/guida` |
 | `handlers/admin.py` | tutti i comandi admin, `/team`, `/listteams`, `/autocap`, `/autoslot` |
+| `handlers/rfa.py` | `pubblica_asta_rfa`, `job_rfa` (RFA dichiarati nel bot principale) |
+| `../shared/messaggi.py` | `manda_lungo`: elenchi admin e dev (`/all_aste`, `/firme`, comandi dev) che, se non stanno in un messaggio, arrivano come file `.md` |
 | `handlers/helpers.py` | `aggiorna_canale`, `notifica_watchers`, `notifica_admin_group`, `log_warn`, `log_job_error` |
 | `handlers/dev.py` | comandi dev |
 | `flowchart.mermaid` | schema dei flussi GM (può essere indietro rispetto al codice) |

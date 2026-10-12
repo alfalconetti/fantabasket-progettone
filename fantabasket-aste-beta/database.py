@@ -261,6 +261,27 @@ def get_slot_virtuali(team_id: str) -> int:
         return row["totale"] if row else 0
 
 
+def aste_rfa_in_corso() -> list:
+    """Aste RFA non ancora concluse (APERTA/CHIUSA/PAREGGIO)."""
+    with get_conn() as conn:
+        return conn.execute("SELECT * FROM aste WHERE tipo='RFA' AND stato IN ('APERTA','CHIUSA','PAREGGIO')").fetchall()
+
+
+def set_squadra_proprietaria(asta_id: int, team_id: str) -> None:
+    """RFA scambiato durante l'asta (v58): i diritti passano alla squadra che lo riceve."""
+    with get_conn() as conn:
+        conn.execute("UPDATE aste SET squadra_proprietaria=? WHERE id=?", (team_id, asta_id))
+
+
+def rfa_giocatore_stagione(giocatore_id: int | None, giocatore: str, stagione: str) -> bool:
+    """True se il giocatore ha già avuto un'asta RFA in questa stagione (qualsiasi stato)."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT id FROM aste WHERE tipo='RFA' AND stagione=? AND (giocatore_id=? OR giocatore=?)",
+            (stagione, giocatore_id, giocatore)).fetchone()
+        return row is not None
+
+
 def get_rfa_proprietario(team_id: str) -> list:
     """RFA attive (APERTA/CHIUSA/PAREGGIO) di cui il team è proprietario."""
     with get_conn() as conn:

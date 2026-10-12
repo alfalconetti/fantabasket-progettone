@@ -84,7 +84,8 @@ def migrate_db():
     _allinea_check("transazioni", (
         "signed", "traded", "cut", "renewed", "expired", "decadimento", "decaduto",
         "dpe_attivata", "10day_firma", "10day_scadenza", "rookie_firma", "rookie_diritti_scaduti",
-        "firma", "taglio", "trade", "rookie", "dpe", "iniziale"))
+        "firma", "taglio", "trade", "rookie", "dpe", "iniziale",
+        "rookie_scala", "rookie_fine_scala", "creata"))
     _allinea_check("cambi_ruolo", (
         "iniziale", "ordinario", "erminio", "saedro", "forzato_admin",
         "post_trade", "post_firma", "dpe_extra"))
@@ -214,6 +215,8 @@ def migrate_db():
 
     # v3.10.0 — registro unico: anche pick e diritti in transazioni
     _migra_registro_unico()
+    # v3.11.0 — cambio di stagione: dichiarazioni RFA, contratti rookie "a pezzi"
+    _migra_stagioni()
 
 
 # ── registro unico (v3.10.0) ──────────────────────────────────────────────────
@@ -286,6 +289,116 @@ def _migra_registro_unico() -> None:
         crea_storico_pick_diritti()
     except Exception as e:
         logger.error("Storico pick e diritti NON creato (nessuna modifica): %s", e)
+
+
+# ── anni dei contratti e cambio di stagione (v3.11.0) ─────────────────────────
+#
+# Gli anni residui si CALCOLANO: anni_originali − (stagione − stagione_firma), senza minimo.
+# Un contratto finito è x0: resta attivo durante l'offseason (si vede, si può scambiare,
+# dichiarare RFA, rinnovare se è un rookie), ma NON pesa: né cap né slot. L'unico x0 che
+# pesa è l'RFA dichiarato, sul cap e non sugli slot. Scade all'inizio della FA.
+# Ogni cambio di importo (rookie al II e al IV anno, rinnovi) = contratto nuovo.
+
+def anni_residui(contratto: dict, stagione) -> int:
+    """Anni residui di un contratto nella stagione data (0 o meno = finito, x0)."""
+    return int(contratto["anni_originali"]) - (int(stagione) - int(contratto["stagione_firma"]))
+
+
+# frammenti SQL sul contratto `c` (parametri: stagione, stagione)
+SQL_IN_CORSO = "(c.anni_originali - (%s::int - c.stagione_firma::int)) >= 1"
+SQL_RFA = ("EXISTS (SELECT 1 FROM rfa_dichiarati rd WHERE rd.contratto_id = c.id "
+           "AND rd.stagione = %s AND rd.stato = 'attiva')")
+
+
+def _migrazione_fatta(nome: str) -> bool:
+    return bool(_qval("SELECT 1 FROM migrazioni WHERE nome = %s", (nome,)))
+
+
+def _migra_stagioni() -> None:
+    _q("""CREATE TABLE IF NOT EXISTS migrazioni (
+            nome     TEXT PRIMARY KEY,
+            eseguita TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
+    # dichiarazioni RFA: una per squadra e stagione; segue il giocatore nelle trade
+    _q("""CREATE TABLE IF NOT EXISTS rfa_dichiarati (
+            id            SERIAL PRIMARY KEY,
+            stagione      TEXT NOT NULL,
+            team_id       TEXT NOT NULL,
+            giocatore_id  INT  NOT NULL REFERENCES giocatori(id),
+            contratto_id  INT  NOT NULL REFERENCES contratti(id),
+            stato         TEXT NOT NULL DEFAULT 'attiva' CHECK (stato IN ('attiva', 'revocata')),
+            da            TEXT,
+            creato        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            chiuso        TIMESTAMPTZ)""")
+    _q("CREATE UNIQUE INDEX IF NOT EXISTS idx_rfa_squadra ON rfa_dichiarati (stagione, team_id) WHERE stato = 'attiva'")
+    _q("CREATE UNIQUE INDEX IF NOT EXISTS idx_rfa_giocatore ON rfa_dichiarati (stagione, giocatore_id) WHERE stato = 'attiva'")
+    # contratti rookie: fino alla v3.10 stagione_firma era l'anno di firma della scala per
+    # tutti i "pezzi" (II, III, IV anno), con gli anni del pezzo in corso. Con gli anni
+    # calcolati un II anno risulterebbe già x0: stagione_firma = stagione in corso per i
+    # pezzi successivi al I anno. Una volta sola.
+    if not _migrazione_fatta("rookie_pezzi_v3_11"):
+        from settings import stagione_corrente
+        st = stagione_corrente()
+        righe = _q("""UPDATE contratti c SET stagione_firma = %s
+                      FROM rookie r
+                      WHERE c.tipo = 'rookie' AND c.attivo AND r.giocatore_id = c.giocatore_id AND r.firmato
+                        AND r.anno_firma IS NOT NULL AND c.stagione_firma = r.anno_firma
+                        AND %s::int - r.anno_firma::int BETWEEN 1 AND 3
+                      RETURNING c.id""", (st, st), many=True) or []
+        _q("INSERT INTO migrazioni (nome) VALUES ('rookie_pezzi_v3_11') ON CONFLICT DO NOTHING")
+        logger.warning("Contratti rookie: %d pezzi successivi al I anno portati alla stagione %s.", len(righe), st)
+
+
+# Una dichiarazione vale finché il contratto x0 a cui si riferisce è attivo: quando l'asta
+# RFA si conclude il bot aste lo chiude (firma del vincitore, pareggio o rilascio) e la
+# dichiarazione smette di pesare da sola, senza che il bot aste debba toccarla.
+
+def rfa_dichiarato(giocatore_id: int, stagione: str) -> dict | None:
+    """La dichiarazione RFA in vigore del giocatore in quella stagione, se c'è."""
+    return _q("""SELECT rd.* FROM rfa_dichiarati rd JOIN contratti c ON c.id = rd.contratto_id AND c.attivo
+                 WHERE rd.giocatore_id = %s AND rd.stagione = %s AND rd.stato = 'attiva'""",
+              (giocatore_id, stagione), one=True)
+
+
+def rfa_squadra(team_id: str, stagione: str) -> dict | None:
+    """L'RFA dichiarato dalla squadra in quella stagione e ancora in vigore (con il nome)."""
+    return _q("""SELECT rd.*, g.nome_common, c.importo FROM rfa_dichiarati rd
+                 JOIN giocatori g ON g.id = rd.giocatore_id
+                 JOIN contratti c ON c.id = rd.contratto_id AND c.attivo
+                 WHERE rd.team_id = %s AND rd.stagione = %s AND rd.stato = 'attiva'""",
+              (team_id, stagione), one=True)
+
+
+def rfa_usata(team_id: str, stagione: str) -> dict | None:
+    """La dichiarazione della squadra nella stagione anche se l'asta è già conclusa (una sola
+    RFA a stagione)."""
+    return _q("""SELECT rd.*, g.nome_common FROM rfa_dichiarati rd JOIN giocatori g ON g.id = rd.giocatore_id
+                 WHERE rd.team_id = %s AND rd.stagione = %s AND rd.stato = 'attiva'""",
+              (team_id, stagione), one=True)
+
+
+def sposta_rfa_trade(cur, giocatore_id: int, team_da: str, team_a: str, stagione: str) -> None:
+    """Trade: la dichiarazione RFA segue il giocatore (dentro la transazione della trade)."""
+    cur.execute("UPDATE rfa_dichiarati SET team_id = %s WHERE giocatore_id = %s AND team_id = %s "
+                "AND stagione = %s AND stato = 'attiva'", (team_a, giocatore_id, team_da, stagione))
+
+
+def peso_cap_giocatore(giocatore_id: int, stagione: str) -> int:
+    """Quanto pesa sul cap il contratto attivo del giocatore: importo (o DPE) se è in corso
+    o è un RFA dichiarato, 0 se è un x0 non dichiarato o non c'è contratto."""
+    r = _q(f"""SELECT COALESCE((SELECT d.importo_dpe FROM dpe d WHERE d.giocatore_id = c.giocatore_id
+                                  AND d.team_id = c.team_id AND d.stagione = %s), c.importo) AS imp,
+                      {SQL_IN_CORSO} AS in_corso, {SQL_RFA} AS rfa
+               FROM contratti c WHERE c.giocatore_id = %s AND c.attivo = TRUE""",
+           (stagione, stagione, stagione, giocatore_id), one=True)
+    if not r:
+        return 0
+    return int(r["imp"]) if (r["in_corso"] or r["rfa"]) else 0
+
+
+def occupa_slot(giocatore_id: int, stagione: str) -> bool:
+    """Il contratto attivo del giocatore occupa uno slot (in corso; DPE escluse a parte)."""
+    return bool(_qval(f"SELECT {SQL_IN_CORSO} FROM contratti c WHERE c.giocatore_id = %s AND c.attivo",
+                      (stagione, giocatore_id)))
 
 
 class StoricoNonCoerente(Exception):
@@ -461,7 +574,30 @@ def controlli_coerenza() -> list[str]:
                 problemi += _verifica_storico_asset(cur)
             else:
                 problemi.append("storico di pick e diritti non ancora creato (vedi log di avvio)")
+            problemi += _verifica_contratti_stagione(cur)
     return problemi
+
+
+FASI_CON_X0 = ("offseason-rinnovi", "offseason-draft", "offseason-rfa")
+
+
+def _verifica_contratti_stagione(cur) -> list[str]:
+    """v3.11: contratti finiti (x0) ancora attivi fuori dalle fasi in cui possono esserci
+    (rinnovi, draft, RFA: all'inizio della FA scadono) e rookie oltre il IV anno di scala."""
+    import settings
+    s = settings.stagione_corrente()
+    errori = []
+    if settings.fase() not in FASI_CON_X0:
+        cur.execute(f"""SELECT g.nome_common, c.team_id FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
+                        WHERE c.attivo AND NOT ({SQL_IN_CORSO}) AND NOT {SQL_RFA} ORDER BY c.team_id""", (s, s))
+        errori += [f"{r['nome_common']} ({r['team_id']}): contratto finito (x0) ancora attivo" for r in cur.fetchall()]
+    cur.execute("""SELECT g.nome_common, c.team_id, r.anno_firma FROM contratti c
+                   JOIN rookie r ON r.giocatore_id = c.giocatore_id AND r.firmato
+                   JOIN giocatori g ON g.id = c.giocatore_id
+                   WHERE c.attivo AND c.tipo = 'rookie' AND %s::int - r.anno_firma::int >= 4""", (s,))
+    errori += [f"{r['nome_common']} ({r['team_id']}): contratto rookie oltre il IV anno (firma {r['anno_firma']}): "
+               f"manca il passaggio di fine scala (/dev_stagione rifai)" for r in cur.fetchall()]
+    return errori
 
 
 def _stagione_di(ts) -> str:
@@ -541,20 +677,38 @@ def get_roster_team(team_id: str) -> list:
     L'importo tiene conto della DPE attiva per la stagione corrente."""
     from settings import stagione_corrente
     stagione = stagione_corrente()
-    return _q(
-        """SELECT g.id AS giocatore_id, g.nome_common, g.nome_norm, g.data_nascita,
+    righe = _q(
+        f"""SELECT g.id AS giocatore_id, g.nome_common, g.nome_norm, g.data_nascita,
                   COALESCE(d.importo_dpe, c.importo) AS importo,
-                  c.importo AS importo_originale,
+                  c.importo AS importo_originale, c.id AS contratto_id,
                   c.anni_originali, c.stagione_firma, c.tipo AS tipo_contratto,
-                  COALESCE(r.anni_scala, 0) AS anni_scala,
+                  CASE WHEN c.tipo = 'rookie' AND r.anno_firma IS NOT NULL
+                       THEN %s::int - r.anno_firma::int ELSE 0 END AS anni_scala,
+                  (c.anni_originali - (%s::int - c.stagione_firma::int)) AS anni_residui,
+                  {SQL_RFA} AS rfa,
                   (d.id IS NOT NULL) AS ha_dpe
            FROM contratti c
            JOIN giocatori g ON g.id = c.giocatore_id
            LEFT JOIN rookie r ON r.giocatore_id = g.id AND r.firmato = TRUE
            LEFT JOIN dpe d ON d.giocatore_id = g.id AND d.team_id = c.team_id AND d.stagione = %s
            WHERE c.team_id = %s AND c.attivo = TRUE""",
-        (stagione, team_id), many=True
+        (stagione, stagione, stagione, stagione, team_id), many=True
     ) or []
+    for r in righe:
+        r["x0"] = r["anni_residui"] <= 0
+    return righe
+
+
+def cap_roster(roster: list) -> int:
+    """Cap dei contratti di un roster di get_roster_team / get_roster_team_at: niente x0,
+    tranne gli RFA dichiarati (come cap_occupato_team, senza l'impatto dei tagli)."""
+    return sum(int(r.get("importo") or 0) for r in roster if not r.get("x0") or r.get("rfa"))
+
+
+def slot_occupati(roster: list, pre_deadline: bool = True) -> int:
+    """Quanti slot occupa un roster di get_roster_team: niente x0 (anche RFA), niente DPE
+    prima della deadline."""
+    return sum(1 for r in roster if not r.get("x0") and not (pre_deadline and r.get("ha_dpe")))
 
 
 # ── contratti ─────────────────────────────────────────────────────────────────
@@ -573,17 +727,18 @@ def get_contratti_team(team_id: str) -> list:
     )
 
 def cap_occupato_team(team_id: str, stagione: str) -> int:
-    """Cap totale occupato = contratti attivi (con DPE) + impatto taglio della stagione."""
-    # Contratti attivi: se esiste DPE per questa stagione usa importo_dpe, altrimenti importo normale
+    """Cap totale occupato = contratti che pesano (in corso, o x0 dichiarati RFA), con la DPE
+    della stagione, + impatto taglio della stagione. Gli x0 non dichiarati non pesano (v3.11)."""
     contratti = _qval(
-        """SELECT COALESCE(SUM(
+        f"""SELECT COALESCE(SUM(
             COALESCE((SELECT d.importo_dpe FROM dpe d
                       WHERE d.giocatore_id = c.giocatore_id
                         AND d.team_id = c.team_id
                         AND d.stagione = %s), c.importo)
         ), 0)
-        FROM contratti c WHERE c.team_id = %s AND c.attivo = TRUE""",
-        (stagione, team_id)
+        FROM contratti c WHERE c.team_id = %s AND c.attivo = TRUE
+          AND ({SQL_IN_CORSO} OR {SQL_RFA})""",
+        (stagione, team_id, stagione, stagione)
     ) or 0
     spalmato = _qval(
         "SELECT COALESCE(SUM(importo), 0) FROM impatto_taglio WHERE team_id = %s AND stagione = %s",
@@ -680,7 +835,7 @@ def get_items_trade(trade_id: int) -> list:
                   c.anni_originali AS giocatore_anni,
                   c.stagione_firma AS giocatore_stagione_firma,
                   c.tipo AS giocatore_tipo_contratto,
-                  r.anni_scala AS giocatore_anni_scala,
+                  r.anno_firma AS giocatore_anno_firma,
                   p.anno AS pick_anno, p.round AS pick_round,
                   p.proprietario_orig AS pick_orig
            FROM trade_items ti
@@ -1163,7 +1318,7 @@ def get_roster_team_at(team_id: str, timestamp_iso: str) -> list:
     Prende l'ultima transazione per ogni giocatore <= timestamp_iso,
     poi filtra su team_id_a = team_id.
     """
-    return _q(
+    righe = _q(
         """SELECT * FROM (
                SELECT DISTINCT ON (t.giocatore_id)
                    g.id AS giocatore_id,
@@ -1171,7 +1326,7 @@ def get_roster_team_at(team_id: str, timestamp_iso: str) -> list:
                    t.tipo AS ultimo_movimento, t.team_id_a, t.timestamp,
                    c.id AS contratto_id,
                    c.importo, c.anni_originali, c.stagione_firma, c.tipo AS tipo_contratto,
-                   COALESCE(r.anni_scala, 0) AS anni_scala
+                   r.anno_firma
                FROM movimenti_giocatori t
                JOIN giocatori g ON g.id = t.giocatore_id
                LEFT JOIN contratti c ON c.id = t.contratto_id
@@ -1182,6 +1337,21 @@ def get_roster_team_at(team_id: str, timestamp_iso: str) -> list:
            WHERE team_id_a = %s""",
         (timestamp_iso, team_id), many=True
     ) or []
+    # anno di scala dei rookie calcolato sulla stagione di quella data (v3.11.0)
+    from datetime import datetime as _dt
+    t = _dt.fromisoformat(timestamp_iso)
+    stagione_at = t.year if t.month >= 7 else t.year - 1
+    rfa = {x["contratto_id"] for x in _q(
+        """SELECT contratto_id FROM rfa_dichiarati WHERE stagione = %s AND creato <= %s
+           AND (stato = 'attiva' OR chiuso > %s)""", (str(stagione_at), timestamp_iso, timestamp_iso), many=True) or []}
+    for r in righe:
+        r["anni_scala"] = (stagione_at - int(r["anno_firma"])) if (r.get("tipo_contratto") == "rookie"
+                                                                    and r.get("anno_firma")) else 0
+        if r.get("anni_originali") is not None:
+            r["anni_residui"] = anni_residui(r, stagione_at)
+            r["x0"] = r["anni_residui"] <= 0
+            r["rfa"] = r.get("contratto_id") in rfa
+    return righe
 
 
 def get_dpe_at(team_id: str, stagione: str, timestamp_iso: str) -> dict:

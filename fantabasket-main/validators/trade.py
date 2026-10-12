@@ -14,10 +14,8 @@ def _cap_post_team(team_id: str, items: list, stagione: str) -> tuple[int, int]:
     (`_scrivi_trade` sposta anche la riga dpe): conta all'importo ridotto sia per chi
     lo cede sia per chi lo riceve."""
     def _importo(giocatore_id):
-        dpe = db.get_dpe_attiva(giocatore_id, stagione)
-        if dpe:
-            return dpe["importo_dpe"]
-        return (db.get_contratto_attivo(giocatore_id) or {}).get("importo", 0)
+        # DPE ridotta; x0 non dichiarato = 0; RFA dichiarato = importo (v3.11.0)
+        return db.peso_cap_giocatore(giocatore_id, stagione)
     cap_attuale = db.cap_occupato_team(team_id, stagione)
     cap_out = sum(_importo(i["giocatore_id"]) for i in items
                   if i["team_id_da"] == team_id and i["tipo"] == "giocatore")
@@ -97,6 +95,29 @@ def _errori_struttura(trade: dict, items: list, squadre: list) -> list[str]:
     return errori
 
 
+def _errori_rfa(items: list, squadre: list, stagione: str) -> list[str]:
+    """RFA dichiarati (regolamento + Luca, 12/10/2026): dalla dichiarazione alla fine delle
+    aste RFA un RFA si scambia solo se ogni squadra, dopo la trade, ha al massimo un RFA:
+    RFA contro RFA, oppure RFA a una squadra che non ne ha dichiarati (anche insieme ad
+    altri asset). Il cap lo controlla già _cap_post_team (l'RFA pesa all'importo pieno)."""
+    rfa = {i["giocatore_id"]: db.rfa_dichiarato(i["giocatore_id"], stagione)
+           for i in items if i["tipo"] == "giocatore"}
+    rfa = {g: r for g, r in rfa.items() if r}
+    if not rfa:
+        return []
+    errori = []
+    for team_id in squadre:
+        attuale = db.rfa_squadra(team_id, stagione)
+        n = 1 if attuale else 0
+        n -= sum(1 for i in items if i["tipo"] == "giocatore" and i["giocatore_id"] in rfa and i["team_id_da"] == team_id)
+        n += sum(1 for i in items if i["tipo"] == "giocatore" and i["giocatore_id"] in rfa and i["team_id_a"] == team_id)
+        if n > 1:
+            team = tm.get_team_by_id(team_id)
+            errori.append(f"❌ {team['nome'] if team else team_id}: dopo la trade avrebbe {n} RFA dichiarati "
+                          f"(massimo 1: un RFA si scambia solo con un altro RFA o verso chi non ne ha)")
+    return errori
+
+
 def valida_trade(trade_id: int) -> tuple[bool, list[str]]:
     """
     Valida una trade completa:
@@ -115,6 +136,7 @@ def valida_trade(trade_id: int) -> tuple[bool, list[str]]:
     squadre = [s["team_id"] for s in db.get_squadre_trade(trade_id)]
 
     errori += _errori_struttura(trade, items, squadre)
+    errori += _errori_rfa(items, squadre, stagione)
 
     for team_id in squadre:
         # Asset che escono da questo team
@@ -197,11 +219,13 @@ def valida_trade(trade_id: int) -> tuple[bool, list[str]]:
         fase = settings.fase()
         pre_deadline = (fase != "regular-season-deadline")
         # Giocatori con DPE in fase pre-deadline non occupano slot
-        slot_dpe_liberati = sum(1 for r in roster if r.get("ha_dpe") and pre_deadline)
-        roster_count = len(roster) - slot_dpe_liberati
-        # chi ha una DPE non occupa slot né prima né dopo la trade (la DPE lo segue)
+        roster_count = db.slot_occupati(roster, pre_deadline)
+        # chi ha una DPE non occupa slot né prima né dopo la trade (la DPE lo segue);
+        # un x0 (anche RFA) non occupa slot (v3.11.0)
         def _slot(lista):
-            return sum(1 for i in lista if not (pre_deadline and db.get_dpe_attiva(i["giocatore_id"], stagione)))
+            return sum(1 for i in lista
+                       if db.occupa_slot(i["giocatore_id"], stagione)
+                       and not (pre_deadline and db.get_dpe_attiva(i["giocatore_id"], stagione)))
         roster_post = roster_count - _slot(out_g) + _slot(in_g)
         if roster_post > settings.max_roster():
             errori.append(

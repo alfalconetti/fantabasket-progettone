@@ -37,9 +37,9 @@ AZIONI_FASE = [
     ("🏥 DPE",            "menu:dpe",     _fasi_dpe),
     ("🏁 Decadimento",    "dec_start",    lambda: FASI_TRADE_APERTE),
     ("🔁 Cambio ruolo",   "cr:home",      lambda: settings.FASI_RUOLI_RS),
-    # Prossime (da implementare):
-    # ("📝 Rinnovi",       "menu:rinnovi",      lambda: {"offseason-rinnovi"}),
-    # ("🔒 Dichiara RFA",  "menu:rfa",          lambda: {"offseason-rinnovi"}),
+    ("🔁 Rinnovi rookie", "sg:rr",        lambda: {"offseason-rinnovi"}),
+    ("🔒 Dichiara RFA",   "sg:rfa",       lambda: {"offseason-rinnovi"}),
+    # Prossima: ("📝 Rinnovi", …) per i rinnovi normali
 ]
 
 AZIONI_SEMPRE = [

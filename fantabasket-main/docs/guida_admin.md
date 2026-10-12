@@ -26,7 +26,7 @@ A ogni cambio di fase il bot:
 - aggiorna i menu di entrambi i bot (quello delle aste entro 5 minuti);
 - apre o chiude da solo il mercato FA del bot aste.
 
-Entrando in **offseason-rinnovi** la stagione avanza di uno, per tutti e due i bot.
+Entrando in **offseason-rinnovi** la stagione avanza di uno, per tutti e due i bot. Solo arrivando dalla stagione prima (regular season, playoff o break): se torni ai rinnovi da draft, RFA, FA o ruoli con "Salta a…", la stagione resta quella.
 
 **La fase si cambia solo da qui.** Il `/set_fase` del bot aste non fa più niente: rimanda a questo.
 
@@ -36,6 +36,38 @@ Per orientarsi:
 - **Free agency:** aperta in `regular-season-fa`, `offseason-fa` e `offseason-ruoli`.
 - **Cap in offseason:** 165M per tutti.
 - **Cap in regular season:** 150M meno le eventuali penalità della squadra, con salary floor a 115M. La penalità si imposta con `/set_cap_penalizzato team07 5` (0 per toglierla); vale per tutti e due i bot.
+
+---
+
+## Il cambio di stagione
+
+Alcuni passaggi di fase toccano i contratti. Per questi, anche con "Avanza", il bot prima ti mostra cosa succederà e aspetta **✅ Confermo**.
+
+**Entrando in offseason-rinnovi** (stagione nuova). Tutti i contratti scalano di un anno; quelli finiti diventano **x0**: restano in squadra, ma non pesano su cap e slot. Il bot aggiorna la rookie scale:
+
+- rookie al II anno: contratto nuovo con l'importo della tabella (per le pick basse l'importo è lo stesso e non cambia niente);
+- rookie al IV anno con il contratto di scala: importo del IV anno. Con un rinnovo Doncic l'importo resta quello;
+- fine del IV anno: Doncic d'ufficio sulla fantamedia migliore del III e IV anno, se è più alta del contratto. Il contratto diventa un x0 normale, rinnovabile come gli altri;
+- rookie a fine II anno: x0, in attesa di rinnovo rookie, RFA o scadenza.
+
+Il dettaglio, giocatore per giocatore, arriva nel gruppo admin come file (vedi sotto, "Messaggi lunghi"). Nello stesso passaggio il bot crea le pick del draft di 6 anni dopo per tutte le squadre (nel 2027 quelle del 2033): fino al draft dell'anno le annate scambiabili sono quindi 7.
+
+**Durante i rinnovi (e il draft)**, dal pannello:
+
+- **🔁 Rinnovi rookie** → squadra → giocatore: rinnovo rookie per conto del GM (scala III o Doncic, x2);
+- **🔒 RFA squadre** → squadra: dichiara, cambia o toglie l'RFA. Da **📋 RFA dichiarati** vedi quelli di tutte le squadre.
+
+Il GM viene avvisato e l'annuncio sul canale riporta il tuo nome.
+
+**Entrando in offseason-rfa.** Il bot aste apre da solo, entro 5 minuti, le aste degli RFA dichiarati. Se un RFA viene scambiato durante l'asta, i diritti passano alla nuova squadra.
+
+**Entrando in offseason-fa.** Gli x0 non rinnovati e non dichiarati RFA scadono e tornano free agent; l'elenco esce sul canale. Gli RFA restano finché la loro asta non è conclusa.
+
+**Entrando in regular-season-fa.** Se una squadra è sotto il salary floor ti arriva nel gruppo il comando già pronto con la penalità (2M per ogni milione sotto), per esempio `/set_cap_penalizzato team07 6`. Non scatta niente in automatico: decidi tu. Lo stesso messaggio segnala chi è sopra il tetto.
+
+Se uno di questi passaggi fallisce, la fase resta cambiata e il messaggio di conferma te lo dice. Il dev lo ripete con `/dev_stagione rifai`: quello che era già stato fatto non si rifà.
+
+**Messaggi lunghi.** Report ed elenchi per admin e dev (cambio di stagione, ruoli mancanti a fine dichiarazione, spalmature, controllo di coerenza, anteprime) arrivano come messaggio se sono corti. Se superano un messaggio di Telegram arriva un riassunto con allegato un file `.md` con il testo completo, creato al momento e non salvato da nessuna parte. Vale anche per gli elenchi admin e dev del bot aste.
 
 ---
 

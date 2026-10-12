@@ -111,7 +111,8 @@ CREATE TABLE transazioni (
         'decadimento', 'decaduto', 'dpe_attivata',
         '10day_firma', '10day_scadenza',
         'rookie_firma', 'rookie_diritti_scaduti',
-        'firma', 'taglio', 'trade', 'rookie', 'dpe', 'iniziale'
+        'firma', 'taglio', 'trade', 'rookie', 'dpe', 'iniziale',
+        'rookie_scala', 'rookie_fine_scala', 'creata'   -- v3.11.0
     )),
     -- registro unico (v3.10.0): giocatore | diritti | pick | squadra
     oggetto         TEXT NOT NULL DEFAULT 'giocatore',
@@ -218,6 +219,33 @@ CREATE TABLE penalita (
 
 CREATE INDEX idx_penalita_team ON penalita (team_id, stagione);
 
+
+-- ============================================================
+-- STAGIONI (v3.11.0)
+-- ============================================================
+
+-- Migrazioni una tantum già eseguite (migrate_db le salta)
+CREATE TABLE migrazioni (
+    nome     TEXT PRIMARY KEY,
+    eseguita TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- RFA dichiarati nella fase dei rinnovi: uno per squadra e stagione. Il contratto è l'x0
+-- del giocatore: la dichiarazione vale finché quel contratto è attivo (l'asta RFA lo
+-- chiude) e segue il giocatore nelle trade.
+CREATE TABLE rfa_dichiarati (
+    id            SERIAL PRIMARY KEY,
+    stagione      TEXT NOT NULL,
+    team_id       TEXT NOT NULL,
+    giocatore_id  INT  NOT NULL REFERENCES giocatori(id),
+    contratto_id  INT  NOT NULL REFERENCES contratti(id),
+    stato         TEXT NOT NULL DEFAULT 'attiva' CHECK (stato IN ('attiva', 'revocata')),
+    da            TEXT,
+    creato        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    chiuso        TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX idx_rfa_squadra   ON rfa_dichiarati (stagione, team_id)      WHERE stato = 'attiva';
+CREATE UNIQUE INDEX idx_rfa_giocatore ON rfa_dichiarati (stagione, giocatore_id) WHERE stato = 'attiva';
 
 -- ============================================================
 -- VISTE

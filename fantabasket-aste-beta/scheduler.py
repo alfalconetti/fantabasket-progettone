@@ -188,7 +188,7 @@ async def check_cap_stagionale(context):
         for team in tutti_team:
             cap_pen = team.get("cap_penalizzato", 0)
             if _pg.pg_disponibile():
-                cap_occ = _pg.get_cap_contratti(team["id"]) + _pg.get_impatto_taglio(team["id"], stagione) + cap_pen
+                cap_occ = _pg.get_cap_contratti(team["id"], stagione) + _pg.get_impatto_taglio(team["id"], stagione) + cap_pen
             else:
                 cap_occ = cap_offseason - team.get("cap_disponibile", 0)
             cap_occupato_totale += cap_occ
@@ -245,7 +245,7 @@ async def pulizia_anticipati_scaduti(context):
             cap_pen = settings.penalita_cap(team)  # 0 in offseason: tetto 165 per tutti
             if tipo == "cap":
                 pg_client.reset_cap_anticipato(team_id)
-                cap_occ = (pg_client.get_cap_contratti(team_id)
+                cap_occ = (pg_client.get_cap_contratti(team_id, stagione)
                            + pg_client.get_impatto_taglio(team_id, stagione)
                            + cap_pen)
                 cap_virt = db_aste.get_cap_virtuale(team_id)

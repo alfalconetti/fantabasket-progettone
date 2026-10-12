@@ -344,9 +344,7 @@ async def cb_dec_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ── Helper ─────────────────────────────────────────────────────────────────────
 
 def _anni_residui(r: dict, stagione: str) -> int:
-    if r.get("tipo_contratto") == "rookie":
-        return 2 if int(r.get("anni_scala") or 0) in (0, 2) else 1
-    return max(1, r["anni_originali"] - (int(stagione) - int(r.get("stagione_firma") or stagione)))
+    return db.anni_residui(r, stagione)
 
 
 # ── /ritiro_fa: free agent ritirato o andato in un'altra lega ──────────────────

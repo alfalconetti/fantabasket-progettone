@@ -201,6 +201,45 @@ Attenzione: i diritti delle seconde scelte al secondo anno **scadono 10 giorni p
 
 ---
 
+## Cambio di stagione: contratti finiti, rookie e RFA
+
+Quando inizia la fase dei rinnovi parte la stagione nuova e tutti i contratti scalano di un anno: un 10x3 diventa 10x2, un 10x1 diventa **10x0**.
+
+**Un x0 è un contratto finito.** Il giocatore resta nella tua squadra fino all'inizio della free agency, ma **non pesa né sul cap né sugli slot**. Lo vedi nel roster con la durata a 0. Nel frattempo puoi:
+
+- dichiararlo RFA (vedi sotto);
+- scambiarlo: per esempio lo cedi a una squadra che vuole dichiararlo RFA lei;
+- lasciarlo andare: all'inizio della free agency scade da solo e torna free agent.
+
+**La rookie scale la aggiorna il bot.** Al II e al IV anno l'importo passa a quello della tabella (per esempio la pick 1 va da 12 a 13). Alla fine del IV anno il bot applica la Doncic, se spetta, e il contratto diventa un x0 normale: da lì si rinnova come tutti gli altri.
+
+### Rinnovare un rookie a fine II anno
+
+`/rinnovo_rookie` (o 🔁 Rinnovi rookie nel menu). Il bot ti propone già il contratto per il III e il IV anno, x2:
+
+- l'importo della rookie scale del III anno;
+- oppure la **Doncic**, se è più alta.
+
+La Doncic si calcola sulla fantamedia migliore delle ultime due stagioni, presa per difetto (24,99 conta 24):
+
+- da 20 a 24: 12 + 0,6 per ogni punto sopra 20;
+- da 25 in su: 15 + 0,4 per ogni punto sopra 25;
+- il risultato si arrotonda per eccesso.
+
+Esempio: fantamedia 24,95 → conta 24 → 12 + 2,4 = 14,4 → **15**. Se la scala del III anno è 14, il rinnovo è 15x2.
+
+I rinnovi dei rookie non hanno limite e non contano nei 2 rinnovi normali. Servono cap e uno slot liberi.
+
+### Dichiarare l'RFA
+
+`/dichiara_rfa` (o 🔒 Dichiara RFA nel menu), nella fase dei rinnovi. Puoi scegliere **un solo** giocatore tra i tuoi contratti finiti (x0); se cambi idea lo sostituisci o lo togli.
+
+- L'RFA **pesa sul cap** con il suo vecchio contratto, ma **non occupa uno slot**.
+- Nella fase RFA il bot delle aste apre da solo la sua asta. Alla fine puoi pareggiare l'offerta vincente.
+- Fino alla fine della sua asta un RFA si scambia solo con un altro RFA, oppure verso una squadra che non ne ha dichiarati (anche insieme ad altri giocatori o pick).
+
+---
+
 ## Decadimento: il contratto si chiude senza contare come taglio
 
 `/decadimento` (o menu → Decadimento), poi scegli il giocatore e il motivo. Decidono gli admin.
@@ -272,6 +311,8 @@ I cambi che ti lascerebbero sotto i minimi (4 G, 4 F, 2 C) vengono bloccati. Ogn
 | tagliare | menu → Tagli (`/taglia`) |
 | chiedere una DPE | `/dpe` |
 | attivare un rookie | `/attiva_diritti` |
+| rinnovare un rookie a fine II anno | `/rinnovo_rookie` |
+| dichiarare l'RFA | `/dichiara_rfa` |
 | chiudere un contratto (ritiro, altra lega, Cam Thomas) | `/decadimento` |
 | dichiarare o cambiare ruoli | `/dichiarazione_ruoli`, `/cambio_ruolo` |
 | uscire da un'operazione bloccata | `/annulla` |

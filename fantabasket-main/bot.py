@@ -35,6 +35,7 @@ from handlers.bref        import get_handlers as bref_handlers
 from handlers.nascite     import get_handlers as nascite_handlers
 from handlers.spalmature  import get_handlers as spalmature_handlers
 from handlers.coerenza    import get_handlers as coerenza_handlers
+from handlers.stagione    import get_handlers as stagione_handlers
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -420,6 +421,8 @@ def main():
     for h in spalmature_handlers():
         app.add_handler(h)
     for h in coerenza_handlers():
+        app.add_handler(h)
+    for h in stagione_handlers():
         app.add_handler(h)
 
     for h in dev_handlers():

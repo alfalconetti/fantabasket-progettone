@@ -663,7 +663,9 @@ async def report_fine_fase(bot) -> None:
               "Giocatori senza ruolo ufficiale (regolamento: ruolo casuale tra quelli disponibili):\n"
               + "\n".join(righe) + "\n\nImpostabili da /admin_menu → 🎽 Ruoli squadre."))
     try:
-        await bot.send_message(chat_id=gruppo, text=testo, parse_mode="HTML")
+        from shared.messaggi import manda_lungo     # con tante squadre incomplete supera i 4096 caratteri
+        await manda_lungo(bot, gruppo, testo, "ruoli-mancanti",
+                          riassunto=f"🎽 <b>Fine dichiarazione ruoli</b>: {len(righe)} squadre con ruoli mancanti")
     except Exception as e:
         logger.warning("report_fine_fase ruoli: %s", e)
 
@@ -694,7 +696,8 @@ async def report_vincoli_inizio_rs(bot) -> None:
               "dei ruoli mancanti:\n" + "\n".join(righe) +
               "\n\nSi sistemano con un cambio forzato (/admin_menu → 🔁 Cambi ruolo) o sul mercato."))
     try:
-        await bot.send_message(chat_id=gruppo, text=testo, parse_mode="HTML")
+        from shared.messaggi import manda_lungo
+        await manda_lungo(bot, gruppo, testo, "vincoli-ruoli")
     except Exception as e:
         logger.warning("report_vincoli_inizio_rs: %s", e)
 

@@ -970,3 +970,54 @@ Registro unico e controlli, provati prima su una copia del database di produzion
 ### Controllo di coerenza
 - Ogni notte all'01:00 (`handlers/coerenza.py`): squadra del contratto attivo = ultimo movimento per ogni giocatore, un solo contratto attivo, proprietario di pick e diritti = ultimo movimento. Scrive al dev solo se trova qualcosa; `/dev_coerenza` (dev) lo lancia subito
 
+
+## v3.11.0 (2026-10-12)
+
+Rookie scale e cambio di stagione. Provato su una copia del database di produzione: migrazione (solo i 66 contratti rookie dal II al IV anno cambiano `stagione_firma`, cap, slot, pick e roster a ogni data identici) e simulazione di tutti i passaggi fino alla free agency 2027.
+
+### Anni dei contratti e x0
+- Gli anni residui si calcolano sempre, rookie compresi: `anni_originali − (stagione − stagione_firma)`. **0 = x0, contratto finito**
+- Un x0 resta in squadra fino all'inizio della free agency e si può scambiare, ma **non pesa né sul cap né sugli slot**. Unica eccezione l'RFA dichiarato: pesa sul cap, non sugli slot. Vale ovunque: cap e slot dei due bot, trade, tagli (un x0 non si taglia), DPE, attivazione diritti, situazione cap, immagini di roster e assets, fogli Google (gli x0 non dichiarati non ci vanno, l'RFA ha il flag A)
+- Migrazione una tantum (tabella `migrazioni`): i contratti rookie dal II al IV anno avevano `stagione_firma` = anno della prima firma; ora partono dalla stagione in corso, così gli anni calcolati tornano
+
+### Cambio di stagione (`handlers/stagione.py`)
+- Entrando in **offseason-rinnovi** (solo arrivando da regular season, playoff o break: tornare indietro ai rinnovi non fa più avanzare la stagione), il bot aggiorna la rookie scale con contratti nuovi (`attivo = FALSE` sul vecchio, movimenti `rookie_scala` / `rookie_fine_scala`):
+  - II anno: importo della tabella (niente se è uguale, come per le pick basse);
+  - IV anno: importo della tabella solo per i rinnovi di scala, con la Doncic l'importo resta;
+  - fine IV anno: Doncic d'ufficio sulla fantamedia migliore del III e IV anno, se più alta; il contratto diventa un x0 normale
+- **Doncic**: fantamedia migliore delle ultime due stagioni per difetto (24,99 → 24); 12 + 0,6 per punto da 20 a 24, 15 + 0,4 per punto da 25; importo per eccesso
+- Il passaggio ai rinnovi e l'inizio della FA mostrano prima un'anteprima e chiedono conferma; il dettaglio va nel gruppo admin
+- Entrando in **offseason-rfa**: pick del draft di 6 anni dopo per tutte le squadre (movimento `creata`)
+- Entrando in **offseason-fa**: gli x0 non rinnovati e non RFA scadono (`expired`), elenco sul canale
+- Entrando in **regular-season-fa**: squadre sotto il salary floor o sopra il tetto nel gruppo admin, con il `/set_cap_penalizzato` già scritto. Nessun automatismo
+- Annunci di fase aggiornati (rinnovi, RFA, FA)
+
+### Rinnovi rookie e RFA (GM e admin)
+- **`/rinnovo_rookie`** (o 🔁 nel /menu, fase rinnovi): rookie a fine II anno, scala del III anno o Doncic se più alta, x2. Illimitati, non contano nei 2 rinnovi
+- **`/dichiara_rfa`** (o 🔒 nel /menu, fase rinnovi): un RFA per squadra tra gli x0, sostituibile o revocabile. Tabella `rfa_dichiarati`; la dichiarazione vale finché il contratto x0 è attivo (l'asta RFA la chiude da sola)
+- Pannello admin, fasi rinnovi e draft: 🔁 Rinnovi rookie e 🔒 RFA squadre per conto dei GM, con 📋 elenco dei dichiarati
+- **Trade con RFA**: dopo la trade ogni squadra può avere al massimo un RFA (RFA contro RFA, o verso chi non ne ha), e l'RFA pesa sul cap di chi lo riceve. La dichiarazione segue il giocatore (anche nell'annullamento)
+
+### Controlli
+- Controllo notturno: x0 attivi fuori da rinnovi/draft/RFA e contratti rookie oltre il IV anno
+- `/dev_stagione` (dev): anteprima del prossimo cambio di stagione; `/dev_stagione rifai` ripete i passaggi della fase in corso se al cambio di fase sono falliti (sono tutti rilanciabili)
+- `/team_diff`: contratti finiti mostrati come x0, pick nuove con motivo "Nuova"
+- Prove nuove: `tests/main/stagione.py`, `tests/main/stagione_ui.py`, `tests/aste/rfa_dichiarati.py`
+
+### Bot aste (v58)
+- Cap e slot con gli x0 e gli RFA dichiarati, aste RFA aperte da sole (vedi CHANGELOG del bot aste)
+
+## v3.11.1 (2026-10-12)
+
+### Messaggi lunghi come file
+- Nuovo `shared/messaggi.py`, per tutti e due i bot: i report e gli elenchi per admin e dev che non stanno in un messaggio di Telegram arrivano come riassunto più un file `.md` col testo completo, creato in memoria (niente su disco). Quelli corti restano messaggi normali
+- Qui: dettaglio del cambio di stagione e `/dev_stagione`, report di inizio regular season (cap e vincoli dei ruoli), ruoli mancanti a fine dichiarazione (con molte squadre incomplete superava i 4096 caratteri e Telegram lo rifiutava), spalmature, controllo di coerenza, `/dev_trade`, `/dev_roster`, `/job_status`. L'elenco delle date di nascita mancanti resta in messaggi, perché si copia e si rimanda al bot
+- Gli x0 scaduti a inizio FA escono sul canale raggruppati per squadra
+
+### Cambio di stagione
+- Le pick dell'anno +6 si creano entrando nei rinnovi, cioè al cambio di stagione (prima all'inizio della fase RFA). Fino al draft dell'anno le annate scambiabili sono quindi 7
+- I passaggi automatici di una fase sono indipendenti: se fallisce la rookie scale, le pick nuove vengono create lo stesso (e viceversa); `/dev_stagione rifai` ripete quello che manca
+- Il dettaglio del cambio di stagione riporta anche quanti contratti sono x0 dopo il passaggio
+
+### Bot aste (v59)
+- `/all_aste`, `/firme` e i comandi dev lunghi arrivano come file (vedi CHANGELOG del bot aste)

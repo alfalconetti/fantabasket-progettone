@@ -585,3 +585,15 @@ Comandi riservati al solo `dev_id` (non visibili in /admin), per osservare lo st
 - Regola dei 30 giorni e Cam Thomas leggono la vista `movimenti_giocatori` (registro unico del bot principale v3.10.0)
 - Tolto codice irraggiungibile in `database.py` (resto di un copia-incolla dopo `get_rifiuto_preimpostato`)
 
+
+## v58 — Contratti finiti, RFA dichiarati
+
+Insieme al bot principale v3.11.0.
+
+- **Cap e slot con i contratti finiti (x0)**: `get_cap_contratti` conta i contratti in corso più gli RFA dichiarati nel bot principale (tabella `rfa_dichiarati`), `get_roster_count` solo quelli in corso. Senza stagione usano quella corrente (prima alcuni conti la saltavano e ignoravano le DPE)
+- **Aste RFA aperte da sole** (`handlers/rfa.py`, ogni 5 minuti): nella fase RFA il bot apre l'asta di ogni giocatore dichiarato RFA, col vecchio contratto preso dal database; i GM del proprietario la seguono e vengono avvisati. `/nuova_rfa` resta per i casi a mano e usa lo stesso codice
+- **RFA scambiato durante l'asta**: i diritti passano alla squadra che ha il contratto x0, con il messaggio del canale aggiornato e un avviso nel log
+
+## v59 — Elenchi lunghi come file
+
+- `/all_aste`, `/firme`, `/dev_aste_stato`, `/dev_watched`, `/dev_rfa`, `/dev_firme`, `/dev_cap` e `/job_status`: se non stanno in un messaggio arrivano come riassunto più file `.md` col testo completo (`shared/messaggi.py`, in comune col bot principale), invece di più messaggi spezzati. `/aste` e `/listteams`, che usano anche i GM, restano messaggi

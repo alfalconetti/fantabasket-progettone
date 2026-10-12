@@ -54,7 +54,8 @@ def _nome_team(team_id: str) -> str:
 
 
 def testi_report() -> list[str]:
-    """Messaggi del report (spezzati se lunghi). Lista vuota se non c'è nessuno."""
+    """Il report in un testo unico (se è lungo lo manda come file `manda_lungo`). Lista vuota
+    se non c'è nessuno."""
     righe = _righe_report()
     if not righe:
         return []
@@ -72,22 +73,16 @@ def testi_report() -> list[str]:
     testa = (f"🧾 <b>Spalmature di free agent</b> — {len(righe)} giocatori\n"
              f"<i>Se qualcuno si è ritirato o gioca in un'altra lega: /ritiro_fa nome "
              f"(le sue spalmature smettono di pesare).</i>\n\n")
-    out, corrente = [], testa
-    for b in blocchi:
-        if len(corrente) + len(b) > 3800:
-            out.append(corrente)
-            corrente = ""
-        corrente += b + "\n"
-    out.append(corrente)
-    return out
+    return [testa + "\n".join(blocchi)]
 
 
 async def cmd_report_spalmature(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not settings.is_admin(update.effective_user.id):
         await update.effective_message.reply_text("⛔ Solo admin.")
         return
+    from shared.messaggi import manda_lungo
     for t in testi_report() or ["🧾 Nessun free agent con spalmature attive."]:
-        await update.effective_message.reply_text(t, parse_mode="HTML")
+        await manda_lungo(update.get_bot(), update.effective_chat.id, t, "spalmature")
 
 
 async def job_report_spalmature(context: ContextTypes.DEFAULT_TYPE):
@@ -96,8 +91,9 @@ async def job_report_spalmature(context: ContextTypes.DEFAULT_TYPE):
         gruppo = settings.admin_group_id()
         if not gruppo:
             return
+        from shared.messaggi import manda_lungo
         for t in testi_report():
-            await context.bot.send_message(chat_id=gruppo, text=t, parse_mode="HTML")
+            await manda_lungo(context.bot, gruppo, t, "spalmature")
     except Exception as e:
         logger.warning("Report spalmature: %s", e)
 

@@ -57,7 +57,9 @@ L'asta compare sul canale con la scritta "aperta da admin per conto di", e i GM 
 
 Stessi controlli di un'offerta normale. L'azione finisce sul canale log col tuo nome.
 
-**Aprire una RFA.** Nella fase RFA:
+**Le RFA si aprono da sole.** I GM dichiarano il loro RFA nel bot principale durante i rinnovi (menu → 🔒 Dichiara RFA, o un admin dal pannello → 🔒 RFA squadre). Quando la fase diventa RFA, entro 5 minuti questo bot apre l'asta di ogni giocatore dichiarato, col vecchio contratto preso dal database, e i GM proprietari la seguono in automatico. Se un RFA viene scambiato durante l'asta, il bot passa i diritti alla nuova squadra e lo scrive sul canale log.
+
+**Aprire una RFA a mano** (solo se serve, per esempio per un giocatore non dichiarato):
 
 ```
 /nuova_rfa Doncic team12 28
@@ -125,6 +127,7 @@ Rimanda il messaggio e riattiva le scadenze automatiche. Non cambia niente nel d
 
 - Un'asta che una squadra sta vincendo **impegna cap e slot** dal primo rilancio fino alla firma. Questo vale anche dopo la chiusura, mentre il GM sceglie anni e ruolo, e durante il pareggio di una RFA.
 - **Un RFA** occupa cap ma non slot del proprietario, finché la sua asta non è conclusa.
+- **I contratti finiti (x0)**, dai rinnovi all'inizio della FA, non pesano né sul cap né sugli slot (tranne l'RFA dichiarato, sul cap). Cap e slot li calcola il bot principale allo stesso modo.
 - **L'offerta massima** su una singola asta si calcola da sola: il cap di regular season meno 1M per ognuno degli altri 9 giocatori che servono ad arrivare al minimo di 10 (oggi 150 − 9 = 141M). Chi la offre chiude l'asta all'istante.
 - **Se il bot si riavvia**, firme e pareggi in sospeso ripartono da soli dopo pochi secondi.
 - **Gli avvisi importanti** finiscono sul canale log: cap negativi, errori nei job automatici, messaggi del canale che non si aggiornano. Gli errori arrivano anche in privato al dev.

@@ -43,12 +43,9 @@ def _snapshot_contratti(team_id: str, at: datetime) -> dict[int, dict]:
     dpe = db.get_dpe_at(team_id, str(stagione), at.isoformat())
     out = {}
     for r in db.get_roster_team_at(team_id, at.isoformat()):
-        if r.get("tipo_contratto") == "rookie":
-            scala = int(r.get("anni_scala") or 0)
-            anni = 2 if scala in (0, 2) else 1
-        elif r.get("anni_originali"):
+        if r.get("anni_originali") is not None:
             s_firma = int(r.get("stagione_firma") or stagione)
-            anni = max(1, int(r["anni_originali"]) - (stagione - s_firma))
+            anni = int(r["anni_originali"]) - (stagione - s_firma)   # anche i rookie, 0 = x0
         else:
             anni = None
         importo = r.get("importo")
@@ -65,7 +62,7 @@ def _fmt_contratto(c: dict | None) -> str:
     """'20x2', con DPE '15x2 (DPE, era 20)', '?' se non ricostruibile."""
     if not c or c.get("importo") is None:
         return "?"
-    testo = f"{c['importo']}x{c['anni'] if c.get('anni') else '?'}"
+    testo = f"{c['importo']}x{max(c['anni'], 0) if c.get('anni') is not None else '?'}"   # x0 = contratto finito
     if c.get("importo_orig") is not None and c["importo"] != c["importo_orig"]:
         testo += f" (DPE, era {c['importo_orig']})"
     return testo
@@ -86,7 +83,7 @@ def _snapshot_diritti(team_id: str, at: datetime) -> set[int]:
 # ── etichetta motivo movimento ────────────────────────────────────────────────
 
 _ETICHETTE_ASSET = {"traded": "Trade", "rookie_firma": "Attivati", "rookie_diritti_scaduti": "Scaduti",
-                    "draft": "Draft", "iniziale": "—"}
+                    "draft": "Draft", "iniziale": "—", "creata": "Nuova"}
 
 
 def _motivo_asset(oggetto: str, chiave: int, da: datetime, a: datetime, predefinito: str) -> str:

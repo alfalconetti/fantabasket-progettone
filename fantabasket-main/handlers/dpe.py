@@ -59,7 +59,7 @@ async def cmd_dpe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Filtra giocatori che non hanno già una DPE attiva questa stagione
     eligibili = [
         r for r in roster
-        if not db.get_dpe_attiva(r["giocatore_id"], stagione)
+        if not db.get_dpe_attiva(r["giocatore_id"], stagione) and not r.get("x0")   # x0: contratto finito
     ]
     if not eligibili:
         await update.effective_message.reply_text(

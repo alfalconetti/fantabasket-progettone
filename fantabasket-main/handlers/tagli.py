@@ -80,18 +80,9 @@ def calcola_impatto_taglio(importo: int, anni_residui: int, stagione_taglio: str
 
 
 def _anni_residui(contratto: dict, stagione_corrente: str) -> int:
-    """
-    Anni residui del contratto.
-    - Rookie: derivato da anni_scala (0,2 → 2 anni; 1,3 → 1 anno)
-    - Normale: anni_originali usato direttamente (stagione_firma=2026 dalla migrazione)
-    """
-    if contratto.get("tipo_contratto") == "rookie" or contratto.get("tipo") == "rookie":
-        scala = int(contratto.get("anni_scala") or 0)
-        return 2 if scala in (0, 2) else 1
-    anni_orig = contratto["anni_originali"]
-    s_firma   = int(contratto.get("stagione_firma") or stagione_corrente)
-    s_corr    = int(stagione_corrente)
-    return max(1, anni_orig - (s_corr - s_firma))
+    """Anni residui del contratto, uguali per tutti (anche i rookie, v3.11.0: ogni pezzo
+    della scala è un contratto suo). 0 = contratto finito (x0)."""
+    return db.anni_residui(contratto, stagione_corrente)
 
 
 # ── /taglia <giocatore_id> ────────────────────────────────────────────────────
@@ -107,7 +98,7 @@ async def cmd_taglia(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not context.args:
         # Mostra roster con bottoni
-        roster = db.get_roster_team(team["id"])
+        roster = [r for r in db.get_roster_team(team["id"]) or [] if not r.get("x0")]   # x0 scadono da soli
         if not roster:
             await update.effective_message.reply_text("Il tuo roster è vuoto.")
             return
@@ -155,6 +146,9 @@ def _valuta_taglio(team: dict, gid: int) -> dict:
         raise TaglioNonEseguibile("❌ Giocatore non trovato nel tuo roster.")
     stagione = settings.stagione_corrente()
     anni_res = _anni_residui(contratto, stagione)
+    if anni_res <= 0:
+        raise TaglioNonEseguibile("❌ Il contratto è finito (x0): non si taglia, scade da solo all'inizio "
+                                  "della free agency (oppure lo dichiari RFA).")
     usati = db.get_tagli_gratuiti_usati(team["id"], stagione)
     # 1x1: gratuito solo entro i 3 a stagione; dal 4° è un taglio normale (spalmatura 1x1).
     # Prima il 4° 1x1 era vietato, ma il regolamento consente tagli illimitati.
@@ -163,7 +157,7 @@ def _valuta_taglio(team: dict, gid: int) -> dict:
     avviso = None
     if settings.fase() in settings.FASI_RUOLI_RS:
         roster = db.get_roster_team(team["id"]) or []
-        dopo = len(roster) - sum(1 for r in roster if r.get("ha_dpe")) - 1
+        dopo = db.slot_occupati(roster) - 1
         if dopo < settings.min_roster():
             raise TaglioNonEseguibile(
                 f"❌ Dopo il taglio il roster scenderebbe a {dopo} giocatori, sotto il minimo di "

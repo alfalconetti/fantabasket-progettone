@@ -6,6 +6,7 @@ Menu dinamico per fase. Regola: ogni azione che può fare un GM ha qui il suo
 equivalente "per conto di" una squadra (trade, tagli, diritti, decadimento, DPE,
 ruoli, cambi ruolo) + situazione cap di tutte le squadre.
 """
+import html
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -41,6 +42,7 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
     """Menu admin dinamico per fase, come il /menu dei GM. Regola: ogni azione che può
     fare un GM ha qui il suo equivalente "per conto di" una squadra."""
     from handlers.dpe import FASI_DPE
+    from handlers.stagione import FASI_ADMIN_RINNOVI
     fase = settings.fase()
     voci = [
         ("🔄 Trade",            "adm:trade",   True),
@@ -51,6 +53,8 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
         ("🎽 Ruoli squadre",    "rladm:list",  True),   # dichiarazione per conto dei GM, anche fuori fase
         ("⏳ Ruoli in sospeso", "rpadm:list",  fase in settings.FASI_RUOLI_RS),
         ("🔁 Cambi ruolo",      "cradm:teams", fase in settings.FASI_RUOLI_RS),
+        ("🔁 Rinnovi rookie",   "sga:scegli:rr",  fase in FASI_ADMIN_RINNOVI),
+        ("🔒 RFA squadre",      "sga:scegli:rfa", fase in FASI_ADMIN_RINNOVI),
         ("📊 Situazione cap",   "adm:cap",     True),
     ]
     bottoni = [InlineKeyboardButton(l, callback_data=cb) for l, cb, ok in voci if ok]
@@ -71,7 +75,7 @@ def _testo_cap() -> str:
         cap = db.cap_occupato_team(t["id"], stagione)
         limite = settings.cap_limite_team(t)
         cap_rs = settings.cap_massimo() - int(t.get("cap_penalizzato") or 0)
-        n = len(db.get_roster_team(t["id"]) or [])
+        n = db.slot_occupati(db.get_roster_team(t["id"]) or [])
         if cap > limite:
             segno = "🔴"
         elif offseason and cap > cap_rs:
@@ -606,9 +610,11 @@ FASI_INDICAZIONI = {
         "Pausa di fine stagione: a breve la riunione di lega per proporre e votare modifiche al regolamento",
     ],
     "offseason-rinnovi": [
-        "Nuova stagione: la durata di tutti i contratti scala di un anno",
+        "Nuova stagione: la durata di tutti i contratti scala di un anno. I contratti finiti (x0) restano in squadra ma non pesano su cap e slot; se non vengono rinnovati o dichiarati RFA scadono all'inizio della free agency",
+        "Rookie scale aggiornata dal bot: importo del II e del IV anno dalla tabella, Doncic d'ufficio alla fine del IV anno se spetta",
+        "Rinnovo dei rookie a fine II anno con /rinnovo_rookie (o 🔁 nel /menu): scala del III anno o Doncic, x2",
+        "RFA: al massimo uno tra i contratti finiti, con /dichiara_rfa (o 🔒 nel /menu). Pesa sul cap ma non sugli slot",
         "Rinnovi: fino a 2 giocatori all'ultimo anno (+1/4 il primo, +1/2 il secondo, con i minimi da tabella)",
-        "Rinnovi rookie e indicazione di massimo 1 RFA",
         "In offseason il cap può arrivare a 165M, ma va riportato in regola entro l'inizio della regular season",
     ],
     "offseason-draft": [
@@ -616,10 +622,12 @@ FASI_INDICAZIONI = {
         "I diritti delle seconde si possono tenere per due anni: per firmarle /attiva_diritti (contratto dalla rookie scale)",
     ],
     "offseason-rfa": [
-        "Aste RFA: chi ha indicato il giocatore come RFA ha 24h dalla fine dell'asta per pareggiare",
+        "Aste RFA: si aprono da sole per i giocatori dichiarati; chi l'ha dichiarato ha 24h dalla fine dell'asta per pareggiare",
+        "Fino alla fine della sua asta un RFA si scambia solo con un altro RFA o verso chi non ne ha dichiarati, e continua a pesare sul cap",
     ],
     "offseason-fa": [
         "Aste di free agency: si chiudono 18 ore dopo l'ultimo rilancio",
+        "I contratti finiti (x0) non rinnovati e non RFA sono scaduti: quei giocatori sono free agent",
     ],
     "offseason-ruoli": [
         "Dichiarate il ruolo di tutti i vostri giocatori con /dichiarazione_ruoli (o 🎽 nel /menu), entro {deadline}",
@@ -712,21 +720,36 @@ async def cb_fase_set(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _, nuova_fase, tipo = query.data.split(":")
     fase_vecchia = settings.fase()
 
-    if tipo == "skip":
-        warning = (
-            f"⚠️ <b>Attenzione!</b> Stai saltando direttamente a:\n"
-            f"<b>{FASI_LABEL.get(nuova_fase, nuova_fase)}</b>\n\n"
-            f"Dalla fase: <b>{FASI_LABEL.get(fase_vecchia, fase_vecchia)}</b>\n\n"
-            f"Sei sicuro?"
-        )
+    # v3.11: i passaggi che cambiano i contratti (nuova stagione, scadenza degli x0)
+    # mostrano prima cosa succederà e chiedono conferma, anche nell'avanzamento normale
+    try:
+        from handlers.stagione import anteprima_fase
+        anteprima = anteprima_fase(fase_vecchia, nuova_fase)
+    except Exception as e:
+        logger.exception("Anteprima cambio fase")
+        anteprima = f"⚠️ Anteprima non disponibile: {html.escape(str(e))}"
+
+    if tipo == "skip" or anteprima:
+        if tipo == "skip":
+            warning = (
+                f"⚠️ <b>Attenzione!</b> Stai saltando direttamente a:\n"
+                f"<b>{FASI_LABEL.get(nuova_fase, nuova_fase)}</b>\n\n"
+                f"Dalla fase: <b>{FASI_LABEL.get(fase_vecchia, fase_vecchia)}</b>\n\n"
+                f"Sei sicuro?"
+            )
+        else:
+            warning = (f"<b>{FASI_LABEL.get(fase_vecchia, fase_vecchia)}</b> → "
+                       f"<b>{FASI_LABEL.get(nuova_fase, nuova_fase)}</b>")
+        if anteprima:
+            warning += "\n\n" + anteprima
         kb = InlineKeyboardMarkup([[
             InlineKeyboardButton("✅ Confermo", callback_data=f"fase_conferma:{nuova_fase}"),
             InlineKeyboardButton("❌ No", callback_data="fase_annulla"),
         ]])
-        await query.edit_message_text(warning, parse_mode="HTML", reply_markup=kb)
+        await query.edit_message_text(warning[:4000], parse_mode="HTML", reply_markup=kb)
         return
 
-    # Avanzamento normale — conferma diretta
+    # Avanzamento normale senza effetti sui contratti — conferma diretta
     await _esegui_cambio_fase(query, fase_vecchia, nuova_fase)
 
 
@@ -780,14 +803,22 @@ async def _esegui_cambio_fase(query, fase_vecchia: str, nuova_fase: str):
     g["fase"] = nuova_fase
     g["mercato_aperto"] = nuova_fase in settings.FASI_MERCATO_APERTO
 
-    # Incrementa stagione_corrente quando si entra in offseason-rinnovi
+    # Incrementa stagione_corrente quando si entra in offseason-rinnovi dalla stagione prima
+    # (v3.11: non tornando indietro da draft/RFA/FA/ruoli, vedi stagione.nuova_stagione)
+    from handlers.stagione import nuova_stagione
     nota_stagione = ""
-    if nuova_fase == "offseason-rinnovi" and fase_vecchia != "offseason-rinnovi":
+    if nuova_stagione(fase_vecchia, nuova_fase):
         stagione_nuova = int(g.get("stagione_corrente", 2026)) + 1
         g["stagione_corrente"] = str(stagione_nuova)
         nota_stagione = f"\n📅 Stagione aggiornata: <b>{stagione_nuova}</b>"
 
     json.dump(g, open(globals_path, "w"), indent=2, ensure_ascii=False)
+
+    # v3.11: passaggi automatici sui contratti (nuova stagione → rookie scale; FA → x0
+    # scaduti; RFA → pick nuove; regular season → report cap). Dopo aver scritto la fase:
+    # se falliscono, la fase resta cambiata e /dev_stagione rifai li ripete.
+    from handlers.stagione import dopo_cambio_fase
+    nota_passaggi = await dopo_cambio_fase(query.get_bot(), fase_vecchia, nuova_fase)
 
     testo = (
         f"✅ Fase aggiornata:\n"
@@ -795,7 +826,7 @@ async def _esegui_cambio_fase(query, fase_vecchia: str, nuova_fase: str):
         f"<b>{FASI_LABEL.get(nuova_fase, nuova_fase)}</b>"
         f"{nota_stagione}"
     )
-    await query.edit_message_text(testo, parse_mode="HTML")
+    await query.edit_message_text(testo + nota_passaggi, parse_mode="HTML")
 
     # Menu comandi di Telegram allineato alla nuova fase
     try:
@@ -985,7 +1016,7 @@ def _avviso_cap_slot(team: dict, stagione: str) -> str:
     if cap > tetto:
         righe.append(f"⚠️ Cap {cap}M oltre il tetto di {tetto}M.")
     roster = db.get_roster_team(team["id"]) or []
-    occupati = len(roster) - sum(1 for x in roster if x.get("ha_dpe"))
+    occupati = db.slot_occupati(roster)
     if occupati > settings.max_roster():
         righe.append(f"⚠️ Roster a {occupati} giocatori, oltre il massimo di {settings.max_roster()}.")
     return ("\n\n" + "\n".join(righe)) if righe else ""

@@ -208,15 +208,16 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
         ha_dpe       = r.get("ha_dpe", False)
         tipo         = r.get("tipo_contratto", "normale")
 
-        if tipo == "rookie":
-            scala    = int(r.get("anni_scala") or 0)
-            anni_res = 2 if scala in (0, 2) else 1
-            flag     = f"R{min(scala, 3)}"
+        # anni calcolati per tutti, anche i rookie (v3.11.0): 0 = contratto finito (x0)
+        anni_orig = r.get("anni_originali", 1)
+        s_firma   = int(r.get("stagione_firma") or stagione_int)
+        anni_res  = max(0, anni_orig - (stagione_int - s_firma))
+        if anni_res == 0 and r.get("rfa"):
+            flag = "A"                                   # RFA dichiarato
+        elif tipo == "rookie":
+            flag = f"R{min(max(int(r.get('anni_scala') or 0), 0), 3)}"
         else:
-            anni_orig = r.get("anni_originali", 1)
-            s_firma   = int(r.get("stagione_firma") or stagione_int)
-            anni_res  = max(1, anni_orig - (stagione_int - s_firma))
-            flag      = "N"
+            flag = "N"
 
         nome = r["nome_common"].replace("|", " ").replace(";", " ")
         # Badge: calcolato sulla riga specifica dove finisce il giocatore
@@ -266,7 +267,7 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
                                          ruoli=ruoli, posizioni=posizioni, fm=fm)
 
     # Salary cap
-    cap_contratti = sum(r.get("importo", 0) for r in roster)
+    cap_contratti = db.cap_roster(roster)          # x0 esclusi, RFA dichiarati inclusi (v3.11)
     impatti       = db.get_impatto_taglio_team(team_id, stagione)
     cap_impatto   = sum(i.get("importo", 0) for i in impatti)
     cap_totale    = cap_contratti + cap_impatto
@@ -491,7 +492,7 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
     picks_str     = _build_picks_str(picks, team_id)
     diritti_str   = _build_diritti_str(diritti)
 
-    cap_contratti = sum(r.get("importo", 0) for r in roster)
+    cap_contratti = db.cap_roster(roster)          # x0 esclusi, RFA dichiarati inclusi (v3.11)
     impatti       = db.get_impatto_taglio_team(team_id, stagione)
     cap_impatto   = sum(i.get("importo", 0) for i in impatti)
     cap_totale    = cap_contratti + cap_impatto

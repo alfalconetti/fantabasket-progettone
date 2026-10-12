@@ -36,7 +36,8 @@ async def job_coerenza(context: ContextTypes.DEFAULT_TYPE):
         logger.info("Controllo di coerenza: %d problemi.", len(problemi))
         dev = settings.dev_id()
         if problemi and dev:
-            await context.bot.send_message(chat_id=dev, text=_testo(problemi), parse_mode="HTML")
+            from shared.messaggi import manda_lungo
+            await manda_lungo(context.bot, dev, _testo(problemi), "coerenza")
     except Exception as e:
         from handlers.helpers import log_job_error
         await log_job_error(context, "job_coerenza", e)
@@ -46,8 +47,9 @@ async def cmd_dev_coerenza(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != settings.dev_id():
         return
     problemi = db.controlli_coerenza()
-    await update.effective_message.reply_text(
-        _testo(problemi) if problemi else "🧭 Controllo di coerenza: tutto a posto ✅", parse_mode="HTML")
+    from shared.messaggi import manda_lungo
+    await manda_lungo(update.get_bot(), update.effective_chat.id,
+                      _testo(problemi) if problemi else "🧭 Controllo di coerenza: tutto a posto ✅", "coerenza")
 
 
 def get_handlers() -> list:
