@@ -1171,26 +1171,30 @@ async def auto_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_team(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Mostra la situazione completa di una squadra.
-    Disponibile a tutti. Uso: /team <team_id>
+    Mostra la situazione completa di una squadra. Disponibile a tutti.
+    Uso: /team [squadra] — id, nome della squadra o del GM, anche solo l'inizio o con un
+    errore di battitura (stessa ricerca di /roster nel bot principale). Senza argomento:
+    la propria squadra.
     """
-    if not context.args:
-        await update.effective_message.reply_text(
-            "Uso: /team &lt;team_id&gt;\n"
-            "Esempio: /team team07\n\n"
-            "Usa /listteams per vedere tutti gli ID squadra.",
-            parse_mode="HTML",
-        )
-        return
-
-    team_id = context.args[0]
-    team = tm.get_team_by_id(team_id)
-    if team is None:
-        await update.effective_message.reply_text(
-            f"❌ Team ID '<code>{team_id}</code>' non trovato. Usa /listteams per la lista completa.",
-            parse_mode="HTML",
-        )
-        return
+    if context.args:
+        testo = " ".join(context.args)
+        team = tm.get_team_by_query(testo)
+        if team is None:
+            await update.effective_message.reply_text(
+                f"❌ Nessuna squadra trovata per «{html.escape(testo)}». Usa /listteams per la lista.",
+                parse_mode="HTML",
+            )
+            return
+    else:
+        team = tm.get_team_by_gm(update.effective_user.id)
+        if team is None:
+            await update.effective_message.reply_text(
+                "Uso: /team &lt;squadra&gt; — id, nome della squadra o del GM\n"
+                "Esempio: /team team07 oppure /team Rossi",
+                parse_mode="HTML",
+            )
+            return
+    team_id = team["id"]
 
     stagione       = utils.load_globals().get("stagione_corrente", "2025")
     cap_tot, slot_tot = utils.cap_slot_display(team, stagione)

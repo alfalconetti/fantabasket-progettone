@@ -608,3 +608,7 @@ Insieme al bot principale v3.11.0.
 
 - `get_cap_contratti`, `get_impatto_taglio` e `get_roster_count` chiamano `shared/cap.py`, la stessa implementazione del bot principale: i due bot fanno per forza gli stessi conti
 - La DPE libera lo slot solo se approvata prima della deadline (come da regolamento; prima bastava una DPE qualsiasi della stagione)
+
+## v62 — /team come /roster
+
+- `/team` trova la squadra con la stessa ricerca di `/roster` del bot principale (`shared/squadre.py`): id, nome della squadra o del GM, anche solo l'inizio o con un errore di battitura (`/team team07`, `/team Rossi`, `/team buf`). Senza argomento mostra la propria squadra. Prima accettava solo l'id esatto

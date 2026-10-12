@@ -1061,3 +1061,11 @@ Passata sulla documentazione dopo la 3.11.
 
 ### Bot aste (v61)
 - Cap e slot da `shared/cap.py` (vedi CHANGELOG del bot aste)
+
+## v3.12.1 (2026-10-12)
+
+- La ricerca di una squadra da testo (id, nome della squadra o del GM, inizio del nome, errore di battitura) passa in `shared/squadre.py`: `/roster`, `/assets`, `/team_diff` qui e `/team` nel bot aste usano la stessa
+- `deploy.sh`: l'output di build e avvio di Docker finisce in un file e si vede solo se qualcosa va storto
+
+### Bot aste (v62)
+- `/team` come `/roster` (vedi CHANGELOG del bot aste)

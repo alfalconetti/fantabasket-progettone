@@ -113,11 +113,17 @@ print("\n".join(map(str, v)) if isinstance(v, list) else ("" if v is None else s
 
     # 5. riavvio e controlli
     local INIZIO; INIZIO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    [ "$FERMA" = "true" ] && docker compose stop bot-aste-beta
+    [ "$FERMA" = "true" ] && docker compose stop bot-aste-beta >/dev/null 2>&1
     local S
     for S in "${RIAVVIA[@]}"; do
         echo "🔄 $S…"
-        docker compose up --build -d "$S" >/dev/null
+        # l'output di build e avvio (le rotelline) va in un file: si vede solo se qualcosa va storto
+        local OUT; OUT="$(mktemp)"
+        if ! docker compose up --build -d "$S" >"$OUT" 2>&1; then
+            echo "❌ Build o avvio di $S non riusciti:"; tail -30 "$OUT"; rm -f "$OUT"
+            torna_indietro; exit 1
+        fi
+        rm -f "$OUT"
         if [ "$S" = "bot-main" ]; then sleep "$ATTESA"; else sleep 10; fi
         if ! docker compose ps --status running --services | grep -qx "$S"; then
             echo "❌ $S non è partito. Ultime righe di log:"

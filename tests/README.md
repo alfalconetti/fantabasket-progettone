@@ -66,6 +66,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `apri_asta_admin` | aste (isolato) | `/apri_asta`: nome esatto/omonimi/fuzzy, cap, squadra, importo, mercato chiuso |
 | `apertura_gm` | aste (isolato) | apertura del GM passata dalla funzione comune |
 | `cap_asta_chiusa` | aste (isolato) | un'asta chiusa e non firmata impegna ancora cap e slot |
+| `team_ricerca` | aste (isolato) | `/team` trova la squadra come `/roster` (id, nome, GM, inizio, errore di battitura), senza argomento la propria |
 | `rfa_proprietario` | aste (isolato) | il proprietario non offre sul proprio RFA neanche con `/offerta` |
 | `menu_e_listteams` | aste + PG | menu "/" per fase e ruolo, `/listteams` compatto, `/reset_rfa` disattivato |
 | `autoslot` | aste + PG | `/autoslot` e `/autocap` contano davvero negli slot e nel cap |

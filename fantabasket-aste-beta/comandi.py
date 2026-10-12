@@ -29,7 +29,7 @@ def _stato() -> tuple:
 
 def liste_comandi(fase: str, mercato_fa: bool, offerte: bool) -> dict:
     gm = [BotCommand("me", "Il tuo cap e i tuoi slot"),
-          BotCommand("team", "Cap e slot di una squadra: /team <id>")]
+          BotCommand("team", "Cap e slot di una squadra [id, nome o GM]")]
     if mercato_fa:
         gm += [BotCommand("lista_fa", "Free agent disponibili"),
                BotCommand("nuova_fa", "Apri l'asta per un FA: /nuova_fa <giocatore>")]
@@ -84,7 +84,7 @@ def liste_comandi(fase: str, mercato_fa: bool, offerte: bool) -> dict:
         BotCommand("broadcast", "Messaggio a tutti i GM"),
         BotCommand("reboot", "Riavvia il bot aste"),
     ]
-    gruppi = [BotCommand("team", "Cap e slot di una squadra: /team <id>"),
+    gruppi = [BotCommand("team", "Cap e slot di una squadra [id, nome o GM]"),
               BotCommand("listteams", "Cap e slot di tutte le squadre")]
     return {"gm": gm, "admin": admin, "dev": dev, "gruppi": gruppi}
 

@@ -18,7 +18,7 @@ Il menu dei comandi (il tasto `/`) segue la fase. A mercato chiuso, per esempio,
 
 In offseason ti mostra anche come saresti messo col cap di regular season, e quanto pesa il tuo eventuale RFA.
 
-Per vedere un'altra squadra: **`/team team07`**, con l'id della squadra. Gli id li trovi in `/listteams`, che mostra anche cap e slot di tutti in una riga a testa.
+Per vedere un'altra squadra: **`/team`** seguito dall'id, dal nome della squadra o del GM, anche solo l'inizio o con un errore di battitura: `/team team07`, `/team Rossi`, `/team buf`. È la stessa ricerca del roster nel bot principale. Senza niente ti mostra la tua. `/listteams` mostra cap e slot di tutti in una riga a testa.
 
 Il bot fa sempre questi conti prima di accettare un'offerta. Se non hai cap o slot te lo dice subito e l'offerta non parte.
 
@@ -168,7 +168,7 @@ Se il bot sembra bloccato ad aspettare una tua risposta: **`/annulla`**.
 | Voglio… | Comando |
 |---|---|
 | sapere quanto posso spendere | `/me` |
-| vedere un'altra squadra | `/team team07` |
+| vedere un'altra squadra | `/team team07`, `/team Rossi` |
 | vedere i free agent | `/lista_fa` |
 | aprire un'asta | `/nuova_fa Nome` |
 | rilanciare | `/offri` oppure `/offerta asta 42 15` |

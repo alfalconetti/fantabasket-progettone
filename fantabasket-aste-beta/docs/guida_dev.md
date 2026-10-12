@@ -315,6 +315,7 @@ Visibilità:
 | `handlers/admin.py` | tutti i comandi admin, `/team`, `/listteams`, `/autocap`, `/autoslot` |
 | `handlers/rfa.py` | `pubblica_asta_rfa`, `job_rfa` (RFA dichiarati nel bot principale) |
 | `../shared/cap.py` | cap e slot, gli stessi del bot principale |
+| `../shared/squadre.py` | ricerca di una squadra da testo (`teams.get_team_by_query`, per `/team`), la stessa di `/roster` nel bot principale |
 | `../shared/messaggi.py` | `manda_lungo`: elenchi admin e dev (`/all_aste`, `/firme`, comandi dev) che, se non stanno in un messaggio, arrivano come file `.md` |
 | `handlers/helpers.py` | `aggiorna_canale`, `notifica_watchers`, `notifica_admin_group`, `log_warn`, `log_job_error` |
 | `handlers/dev.py` | comandi dev |

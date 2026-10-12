@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v3.12.0, bot aste v61)
+# Messaggio di migrazione — Fantabasket Progettone (stato v3.12.1, bot aste v62)
 
 ---
 
@@ -23,7 +23,7 @@ Ecosistema Fantabasket su server domestico Ubuntu. Bot aste v48 standalone SPENT
     ├── README.md              ← in inglese, linkato nella richiesta di accesso a Yahoo
     ├── docs/RECOVERY.md       ← guida UNICA backup e ripristino (dev + emergenza admin)
     ├── scripts/cifra_secrets.sh ← cifra secrets/ per il backup (da rilanciare a ogni modifica dei secrets)
-    ├── shared/                ← in comune ai due bot (ruoli_core.py, cap.py, messaggi.py), montata :ro in entrambi
+    ├── shared/                ← in comune ai due bot (ruoli_core.py, cap.py, squadre.py, messaggi.py), montata :ro in entrambi
     ├── scripts/prova_generale/ ← foto e confronto delle squadre su una copia del DB (per le modifiche strutturali)
     ├── tests/                 ← prove locali (TRUNCATE: mai sul server)
     ├── fantabasket-aste-beta/
@@ -331,7 +331,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 
 ---
 
-**Stato attuale: v3.12.0 / aste v61**
+**Stato attuale: v3.12.1 / aste v62**
 
 Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v2.1.19** — `/attiva_diritti` propone il contratto della rookie scale (anno I) e chiede solo conferma
@@ -375,6 +375,7 @@ Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v3.9.3 / aste v54** — guide GM e admin dei due bot riscritte, discorsive e con esempi; `/admin` del bot aste riordinato; `/reset_rfa` del bot aste disattivato (la stagione la avanza il bot principale); tolto `/approva_trade` inesistente dal menu; prova `tests/docs/guide_e_menu.py` (comandi citati in guide, aiuti e menu devono esistere)
 - **v3.9.4 / aste v55** — guide dev dei due bot (`docs/guida_dev.md`, `/guida_dev`): sono il promemoria tecnico per Luca, da aggiornare quando cambia qualcosa di strutturale; `/set_cap_penalizzato` spostato nel bot principale (nel bot aste config è `:ro`); `/autoslot` ora conta negli slot (`get_slot_totale` + slot anticipato); benvenuto del bot aste corretto. Codice non schedulato nel bot aste: `scheduler.backup_*` e `pulizia_anticipati_scaduti`
 - **v3.9.5 / aste v56** — foglio Roster sempre per tutte le 24 squadre (`gas_client.sync_teams` ignora l'elenco; decisione di Luca); offerta massima di nuovo 141 = `cap_regular − (roster_min_regular − 1)` (usava `roster_max` → 136)
+- **v3.12.1 / aste v62** — `/team` del bot aste con la ricerca di `/roster` (id, nome, GM, inizio, somiglianza) in `shared/squadre.py`; senza argomento la propria squadra; `deploy.sh` più silenzioso (output di Docker solo se qualcosa va storto)
 - **v3.12.0 / aste v61** — cap e slot in `shared/cap.py`, un'implementazione sola per i due bot (prima due copie delle stesse query); la DPE libera lo slot solo se approvata prima della deadline (`dpe.pre_deadline`, come da regolamento: prima bastava una DPE qualsiasi); prova generale: foto delle 24 squadre identiche prima e dopo, conti dei due bot uguali per tutte le squadre oggi, ai rinnovi 2027 con x0 e RFA e con DPE prima e dopo la deadline; `deploy.sh` dentro lo zip
 - **v3.11.0–v3.11.5 / aste v58–v60** — rookie scale e cambio di stagione (`handlers/stagione.py`): anni residui calcolati per tutti e x0 (contratti finiti: non pesano tranne l'RFA dichiarato), migrazione una tantum dei 66 contratti rookie dal II al IV anno, passaggi automatici ai rinnovi (rookie scale, Doncic d'ufficio a fine IV anno, pick dell'anno +6), all'inizio FA (x0 scaduti) e della RS (report floor/tetto); `/rinnovo_rookie`, `/dichiara_rfa` e pannello admin; regola delle trade RFA; aste RFA aperte da sole dal bot aste; anteprima e conferma dei passaggi di fase, `/dev_stagione`, `/trade_deadline`; report e elenchi lunghi come file `.md` (`shared/messaggi.py`); report di stagione con tutti i rookie e la stima del rinnovo
 - **v3.10.0 / aste v57** — registro unico in `transazioni` (pick, diritti, eventi di squadra), vista `movimenti_giocatori`, storico di pick e diritti, `/team_diff` con pick e diritti, roster del bot aste dai contratti attivi, `aste.giocatore_id`, controllo di coerenza notturno; bug corretti: tagli pre-bot agganciati a Jokić, `roster_attuale` con i tagliati, TRADE-2026-021, scadenza diritti TEXT/int, taglio admin (ora `tagli.esegui_taglio` come i GM)

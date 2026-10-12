@@ -40,6 +40,13 @@ def get_team_by_id(team_id: str) -> dict | None:
     return None
 
 
+def get_team_by_query(query: str) -> dict | None:
+    """Squadra da testo libero: id, nome, GM, inizio del nome, somiglianza. La stessa ricerca
+    di /roster nel bot principale (shared/squadre.py)."""
+    from shared.squadre import cerca_squadra
+    return cerca_squadra(query, get_all_teams())
+
+
 def get_team_by_gm(gm_telegram_id: int) -> dict | None:
     for t in get_all_teams():
         if gm_telegram_id in t["gm_ids"]:

@@ -29,7 +29,7 @@ Anche la **penalità** sul cap si imposta dal bot principale: `/set_cap_penalizz
   - ⚠️ in offseason, chi sta sopra il cap che avrà in regular season;
   - ⚠️ in regular season, chi sta sotto il salary floor;
   - 🔴 cap o slot liberi negativi.
-- **`/team team07`** — una squadra nel dettaglio: la stessa vista che il GM ha con `/me`.
+- **`/team team07`** (o `/team Rossi`, `/team buf`: id, nome della squadra o del GM, come il roster nel bot principale) — una squadra nel dettaglio: la stessa vista che il GM ha con `/me`.
 - **`/aste`** — le aste aperte, con il loro numero (l'id).
 - **`/all_aste`** — anche quelle finite (le ultime 30). Si può filtrare per stato: `/all_aste chiusa`, `pareggio`, `conclusa`, `annullata`. Serve per ritrovare l'id di un'asta che non è più in `/aste`.
 - **`/firme`** — le ultime 10 firme (`/firme 30` per vederne di più).

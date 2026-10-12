@@ -528,7 +528,7 @@ async def start_deep_link(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 f"/offri — le aste aperte, con il bottone per rilanciare\n"
                 f"/offerta asta &lt;id&gt; &lt;importo&gt; — rilancio diretto (anche programmato)\n"
                 f"/watch · /watched · /silenzia &lt;id&gt; — seguire le aste\n"
-                f"/team &lt;team_id&gt; · /listteams — le altre squadre\n"
+                f"/team &lt;squadra&gt; · /listteams — le altre squadre\n"
                 f"/annulla — esci da un'operazione bloccata\n\n"
                 f"Ogni offerta fa ripartire il timer da 18 ore. Se vinci ti arriva un messaggio per "
                 f"scegliere gli anni: 48 ore per le FA, 12 per le RFA.\n\n"

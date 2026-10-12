@@ -12,7 +12,7 @@ fantabasket-progettone/
 ├── config/             globals.json, teams.json, settings.json, divisions.json, loghi/ …  (NON in git)
 ├── secrets/            token, password, URL dei fogli, *.env                            (NON in git)
 │   └── cifrati/        secrets.tar.gpg per il backup (scripts/cifra_secrets.sh)
-├── shared/              in comune ai due bot: ruoli_core.py (ruoli), cap.py (cap e slot), messaggi.py (report lunghi)
+├── shared/              in comune ai due bot: ruoli_core.py (ruoli), cap.py (cap e slot), squadre.py (ricerca squadra), messaggi.py (report lunghi)
 ├── fantabasket-main/      ← questo bot
 ├── fantabasket-aste-beta/ bot aste
 ├── gas-router/            ponte verso Google Apps Script (fogli)
@@ -301,7 +301,7 @@ ORDER BY t.timestamp, t.id;
 | `bot.py` | avvio: registra gli handler, i job, l'error handler (errori al canale log e al dev), la versione dal CHANGELOG |
 | `settings.py` | lettura config, costanti di fase, `is_admin`, decoratori `@solo_privato` e `@richiede_fase` |
 | `database.py` | tutte le query (`_q(sql, params, one=, many=)`), `migrate_db()`, transazioni atomiche (trade, tagli, decadimenti) |
-| `teams.py` | `get_team_by_id`, `get_team_by_gm`, `get_team_by_query` (fuzzy: id → nome esatto → prefisso → difflib 0.6), `set_campo_team` |
+| `teams.py` | `get_team_by_id`, `get_team_by_gm`, `get_team_by_query` (fuzzy: id → nome esatto → prefisso → difflib 0.6, in `shared/squadre.py`, la stessa di `/team` nel bot aste), `set_campo_team` |
 | `comandi.py` | menu "/" di Telegram per scope e fase (`_fasi_comando`) |
 | `scheduler.py` | backup, sync fogli, coda GAS, scadenza diritti |
 | `gas_client.py` | payload dei fogli Roster e Scelte, `sync_after_*`, `sync_bref_raw` |
@@ -330,6 +330,7 @@ ORDER BY t.timestamp, t.id;
 |---|---|
 | `ruoli_core.py` | regole dei ruoli (sezione 6) |
 | `cap.py` | cap e slot di una squadra (v3.12.0): `cap_occupato`, `cap_contratti`, `impatto_taglio`, `giocatori_in_slot`, `peso_cap`, `occupa_slot`, i frammenti SQL (`SQL_IN_CORSO`, `sql_rfa`, `SQL_OCCUPA_SLOT`) e `anni_residui`. Prova: `tests/main/cap_condiviso.py` |
+| `squadre.py` | `cerca_squadra(query, squadre)`: la ricerca di /roster, /assets, /team_diff e di /team nel bot aste |
 | `messaggi.py` | `manda_lungo(bot, chat_id, testo_html, nome_file, riassunto=None)`: messaggio se sta in Telegram, altrimenti riassunto + file `.md` generato in memoria (`html_a_markdown`). Da usare per ogni report o elenco amministrativo che può crescere |
 | `decadimento.py` | `/decadimento`, motivi, `/ritiro_fa` |
 | `spalmature.py` | report mensile e `/report_spalmature` |
