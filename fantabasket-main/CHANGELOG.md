@@ -1111,3 +1111,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v4.0.2 (2026-10-12)
 
 - loucabot v3: canale log suo (`log_channel_id_louca` in `globals.json`) con import, sincronizzazioni ed errori; al gruppo admin solo i cambi del calendario
+
+## v4.1.0 (2026-10-12)
+
+- loucabot v4: tabellini ESPN e fantapunti del regolamento, foto degli infortunati, abbinamento dei giocatori con l'id ESPN, calcolo del punteggio di giocatore e squadra (FADD) e dell'esito con i supplementari, `/fantapunti`. Mancano i quintetti e le panchine (bot a parte)

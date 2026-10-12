@@ -15,7 +15,8 @@ from zoneinfo import ZoneInfo
 logger = logging.getLogger(__name__)
 
 import os
-URL = os.environ.get("ESPN_URL", "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard")
+BASE = os.environ.get("ESPN_BASE", "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/")
+URL = os.environ.get("ESPN_URL", BASE + "scoreboard")
 ET = ZoneInfo("America/New_York")
 
 # sigle di ESPN → sigle NBA (quelle che usiamo nel calendario: GSW, NOP, NYK, SAS, UTA, WAS)
@@ -111,3 +112,187 @@ async def sincronizza(giorni: list[date] | None = None, scarica=None, pausa: flo
 def giorni_vicini(oggi: date | None = None, prima: int = 3, dopo: int = 14) -> list[date]:
     oggi = oggi or datetime.now(ET).date()
     return [oggi + timedelta(days=d) for d in range(-prima, dopo + 1)]
+
+
+# ── tabellini (box score) e fantapunti ─────────────────────────────────────────
+
+def _client():
+    import httpx                      # arriva con python-telegram-bot
+    return httpx.AsyncClient(timeout=30, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True)
+
+
+async def _get(client, url: str, params: dict | None = None) -> dict:
+    r = await client.get(url, params=params)
+    r.raise_for_status()
+    return r.json()
+
+
+def _coppia(v: str) -> tuple[int, int]:
+    a, _, b = str(v).partition("-")
+    return int(a or 0), int(b or 0)
+
+
+def fantapunti(t: dict) -> float:
+    """Regolamento: punto +0,5, assist +2, rimbalzo offensivo +2, difensivo +1,25, tripla segnata +1,5,
+    tiro dal campo tentato −0,5 e segnato +1, libero tentato −0,75 e segnato +1, recupero +2,
+    stoppata +2, palla persa −2."""
+    return round(0.5 * t["pts"] + 2 * t["ast"] + 2 * t["oreb"] + 1.25 * t["dreb"] + 1.5 * t["tpm"]
+                 - 0.5 * t["fga"] + t["fgm"] - 0.75 * t["fta"] + t["ftm"]
+                 + 2 * t["stl"] + 2 * t["blk"] - 2 * t["tov"], 2)
+
+
+def leggi_tabellino(dati: dict, partita: str) -> list[dict]:
+    """Una riga per giocatore a referto. `giocato` = è entrato in campo (ha le statistiche): chi è a
+    referto senza entrare (DNP) ha giocato False; gli infortunati non sono proprio nel tabellino."""
+    out = []
+    for squadra in (dati.get("boxscore") or {}).get("players", []):
+        sigla_sq = sigla(squadra["team"]["abbreviation"])
+        for st in squadra.get("statistics", [])[:1]:
+            chiavi = st.get("keys") or []
+            for a in st.get("athletes", []):
+                riga = {"partita": partita, "atleta": str(a["athlete"]["id"]), "nome": a["athlete"]["displayName"],
+                        "squadra": sigla_sq, "titolare": bool(a.get("starter")), "giocato": False, "minuti": 0,
+                        "pts": 0, "fgm": 0, "fga": 0, "tpm": 0, "tpa": 0, "ftm": 0, "fta": 0, "oreb": 0,
+                        "dreb": 0, "ast": 0, "stl": 0, "blk": 0, "tov": 0, "pf": 0, "fp": 0.0}
+                valori = a.get("stats") or []
+                if valori and not a.get("didNotPlay"):
+                    k = dict(zip(chiavi, valori))
+                    n = lambda x: int(k.get(x) or 0) if str(k.get(x) or "0").lstrip("-").isdigit() else 0
+                    riga["fgm"], riga["fga"] = _coppia(k.get("fieldGoalsMade-fieldGoalsAttempted", "0-0"))
+                    riga["tpm"], riga["tpa"] = _coppia(k.get("threePointFieldGoalsMade-threePointFieldGoalsAttempted", "0-0"))
+                    riga["ftm"], riga["fta"] = _coppia(k.get("freeThrowsMade-freeThrowsAttempted", "0-0"))
+                    riga.update(giocato=True, minuti=n("minutes"), pts=n("points"), oreb=n("offensiveRebounds"),
+                                dreb=n("defensiveRebounds"), ast=n("assists"), stl=n("steals"), blk=n("blocks"),
+                                tov=n("turnovers"), pf=n("fouls"))
+                    riga["fp"] = fantapunti(riga)
+                out.append(riga)
+    return out
+
+
+async def scarica_tabellini(partite: list[str], scarica=None, pausa: float = 1.0) -> dict:
+    """Scarica e salva i tabellini delle partite indicate (id ESPN). `scarica(id)` si può sostituire
+    nelle prove. Una partita va scaricata una volta sola: chi chiama passa solo quelle finite e
+    senza tabellino (db.partite_senza_tabellino)."""
+    import db
+    client = None
+    if scarica is None:
+        client = _client()
+
+        async def scarica(pid):
+            return await _get(client, BASE + "summary", {"event": pid})
+    salvate, righe, errori = 0, 0, []
+    try:
+        for pid in partite:
+            try:
+                tab = leggi_tabellino(await scarica(pid), pid)
+                if not tab:
+                    raise ValueError("tabellino vuoto")
+                db.salva_tabellino(pid, tab)
+                salvate += 1
+                righe += len(tab)
+            except Exception as e:
+                errori.append(f"{pid}: {e}")
+                logger.warning("Tabellino %s: %s", pid, e)
+            if pausa:
+                await asyncio.sleep(pausa)
+    finally:
+        if client:
+            await client.aclose()
+    return {"partite": salvate, "giocatori": righe, "errori": errori}
+
+
+# ── infortunati ────────────────────────────────────────────────────────────────
+
+def leggi_infortuni(dati) -> list[dict]:
+    """Ogni voce con un giocatore e uno stato, ovunque sia nella risposta (la struttura di ESPN
+    cambia tra endpoint). L'id del giocatore viene dal campo id o dal link /id/NNN/."""
+    import re
+    out, visti = [], set()
+
+    def visita(x, squadra=None):
+        if isinstance(x, dict):
+            sq = x.get("abbreviation") or squadra
+            if isinstance(x.get("team"), dict):
+                sq = x["team"].get("abbreviation") or sq
+            a = x.get("athlete")
+            if isinstance(a, dict) and isinstance(x.get("status"), str):
+                aid = a.get("id")
+                if not aid:
+                    for link in a.get("links") or []:
+                        m = re.search(r"/id/(\d+)", str(link.get("href", "")))
+                        if m:
+                            aid = m.group(1)
+                            break
+                if aid and str(aid) not in visti:
+                    visti.add(str(aid))
+                    det = x.get("details") or {}
+                    out.append({"atleta": str(aid), "nome": a.get("displayName") or "",
+                                "squadra": sigla(sq) if sq else None, "stato": x["status"],
+                                "dettaglio": " ".join(str(v) for v in (det.get("type"), det.get("detail"),
+                                                                        x.get("shortComment")) if v)[:300]})
+            for k, v in x.items():
+                if k != "athlete":
+                    visita(v, sq)
+        elif isinstance(x, list):
+            for v in x:
+                visita(v, squadra)
+    visita(dati)
+    return out
+
+
+async def scarica_infortuni(scarica=None) -> dict:
+    """Foto della lista infortunati di ESPN, salvata per il giorno di oggi (costa est)."""
+    import db
+    client = None
+    if scarica is None:
+        client = _client()
+
+        async def scarica():
+            return await _get(client, BASE + "injuries")
+    try:
+        voci = leggi_infortuni(await scarica())
+    finally:
+        if client:
+            await client.aclose()
+    if not voci:
+        raise ValueError("nessun infortunato nella risposta (struttura cambiata?)")
+    giorno = datetime.now(ET).date()
+    db.salva_infortuni(giorno, voci)
+    return {"giorno": giorno, "giocatori": len(voci)}
+
+
+# ── giocatori NBA (per l'abbinamento con l'anagrafica prima che ci siano tabellini) ──
+
+SIGLE_ESPN = {v: k for k, v in SIGLE.items() if k not in ("PHO", "BRK")}
+
+
+def leggi_roster(dati: dict, squadra: str) -> list[dict]:
+    out = []
+    for a in dati.get("athletes", []):
+        voci = a.get("items") if isinstance(a, dict) and "items" in a else [a]
+        for x in voci:
+            if isinstance(x, dict) and x.get("id") and x.get("displayName"):
+                out.append({"atleta": str(x["id"]), "nome": x["displayName"], "squadra": squadra})
+    return out
+
+
+async def scarica_giocatori(scarica=None, pausa: float = 1.0) -> list[dict]:
+    client = None
+    if scarica is None:
+        client = _client()
+
+        async def scarica(sq):
+            return await _get(client, BASE + f"teams/{SIGLE_ESPN.get(sq, sq).lower()}/roster")
+    out = []
+    try:
+        for sq in sorted(NBA):
+            try:
+                out += leggi_roster(await scarica(sq), sq)
+            except Exception as e:
+                logger.warning("Roster ESPN %s: %s", sq, e)
+            if pausa:
+                await asyncio.sleep(pausa)
+    finally:
+        if client:
+            await client.aclose()
+    return out

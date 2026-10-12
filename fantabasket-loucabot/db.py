@@ -84,6 +84,43 @@ def migra():
             stato       TEXT NOT NULL,                          -- STATUS_SCHEDULED, STATUS_FINAL, STATUS_POSTPONED…
             aggiornato  TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
     q("CREATE INDEX IF NOT EXISTS idx_nba_partite_data ON nba_partite (data_et)")
+    q("ALTER TABLE nba_partite ADD COLUMN IF NOT EXISTS tabellino TIMESTAMPTZ")   # quando è stato scaricato
+    q("""CREATE TABLE IF NOT EXISTS nba_tabellini (
+            partita   TEXT NOT NULL REFERENCES nba_partite(espn_id),
+            atleta    TEXT NOT NULL,                            -- id ESPN del giocatore
+            nome      TEXT NOT NULL,
+            squadra   TEXT NOT NULL,                            -- sigla NBA in quella partita
+            titolare  BOOLEAN NOT NULL DEFAULT FALSE,
+            giocato   BOOLEAN NOT NULL,                         -- entrato in campo (FALSE = a referto, DNP)
+            minuti    INT NOT NULL DEFAULT 0,
+            pts INT NOT NULL DEFAULT 0, fgm INT NOT NULL DEFAULT 0, fga INT NOT NULL DEFAULT 0,
+            tpm INT NOT NULL DEFAULT 0, tpa INT NOT NULL DEFAULT 0, ftm INT NOT NULL DEFAULT 0,
+            fta INT NOT NULL DEFAULT 0, oreb INT NOT NULL DEFAULT 0, dreb INT NOT NULL DEFAULT 0,
+            ast INT NOT NULL DEFAULT 0, stl INT NOT NULL DEFAULT 0, blk INT NOT NULL DEFAULT 0,
+            tov INT NOT NULL DEFAULT 0, pf INT NOT NULL DEFAULT 0,
+            fp        NUMERIC(6,2) NOT NULL DEFAULT 0,          -- fantapunti (regolamento)
+            PRIMARY KEY (partita, atleta))""")
+    q("CREATE INDEX IF NOT EXISTS idx_nba_tabellini_atleta ON nba_tabellini (atleta)")
+    q("""CREATE TABLE IF NOT EXISTS nba_infortuni (
+            giorno    DATE NOT NULL,                            -- giorno della costa est della foto
+            atleta    TEXT NOT NULL,
+            nome      TEXT NOT NULL,
+            squadra   TEXT,
+            stato     TEXT NOT NULL,                            -- Out, Day-To-Day, Questionable…
+            dettaglio TEXT,
+            preso     TIMESTAMPTZ NOT NULL DEFAULT NOW(),       -- l'ultima foto del giorno vince
+            PRIMARY KEY (giorno, atleta))""")
+    q("""CREATE TABLE IF NOT EXISTS nba_atleti (
+            atleta     TEXT PRIMARY KEY,                        -- id ESPN
+            nome       TEXT NOT NULL,
+            squadra    TEXT,
+            aggiornato TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
+    q("""CREATE TABLE IF NOT EXISTS lega_espn (
+            giocatore_id INT PRIMARY KEY,                       -- giocatori.id del bot principale
+            atleta       TEXT NOT NULL UNIQUE,                  -- id ESPN
+            nome_espn    TEXT NOT NULL,
+            metodo       TEXT NOT NULL,                         -- auto (nome uguale) / admin
+            aggiornato   TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
 
 
 # ── calendario della lega ──────────────────────────────────────────────────────
@@ -152,3 +189,126 @@ def squadre_nba(stagione: str) -> set[str]:
               "SELECT trasferta FROM nba_partite WHERE stagione = %s AND tipo = 2", (stagione, stagione), many=True) or []
     import nba
     return {r["s"] for r in righe} & nba.NBA          # senza i segnaposto (TBD)
+
+
+# ── tabellini ──────────────────────────────────────────────────────────────────
+
+_COLONNE_TAB = ("partita", "atleta", "nome", "squadra", "titolare", "giocato", "minuti", "pts", "fgm", "fga",
+                "tpm", "tpa", "ftm", "fta", "oreb", "dreb", "ast", "stl", "blk", "tov", "pf", "fp")
+
+
+def salva_tabellino(partita: str, righe: list[dict]) -> None:
+    """Sostituisce il tabellino di una partita (ESPN a volte corregge le statistiche) e segna la partita."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM nba_tabellini WHERE partita = %s", (partita,))
+            for r in righe:
+                cur.execute(f"INSERT INTO nba_tabellini ({', '.join(_COLONNE_TAB)}) VALUES "
+                            f"({', '.join('%(' + c + ')s' for c in _COLONNE_TAB)})", r)
+            cur.execute("UPDATE nba_partite SET tabellino = NOW() WHERE espn_id = %s", (partita,))
+
+
+def partite_senza_tabellino(fino=None) -> list[str]:
+    """Partite finite (regular season, play-in, playoff) senza tabellino, dalla più vecchia."""
+    righe = q("SELECT espn_id FROM nba_partite WHERE stato = 'STATUS_FINAL' AND tabellino IS NULL "
+              "AND tipo = ANY(%s) AND (%s::date IS NULL OR data_et <= %s) ORDER BY inizio",
+              ([2, 3, 5], fino, fino), many=True) or []
+    return [r["espn_id"] for r in righe]
+
+
+def tabellini_atleti(atleti: list[str], dal, al) -> list[dict]:
+    """Righe di tabellino dei giocatori nei giorni indicati, con giorno e stato della partita."""
+    return q("""SELECT t.*, p.data_et, p.stato AS stato_partita, p.inizio FROM nba_tabellini t
+                JOIN nba_partite p ON p.espn_id = t.partita
+                WHERE t.atleta = ANY(%s) AND p.data_et BETWEEN %s AND %s AND p.tipo = ANY(%s)
+                ORDER BY p.inizio""", (list(atleti), dal, al, [2, 3, 5]), many=True) or []
+
+
+def medie_stagione(atleti: list[str], stagione: str, prima_del) -> dict[str, dict]:
+    """{atleta: {media, partite}} sulle partite giocate della stagione prima del giorno indicato."""
+    righe = q("""SELECT t.atleta, AVG(t.fp)::float AS media, COUNT(*) AS partite FROM nba_tabellini t
+                 JOIN nba_partite p ON p.espn_id = t.partita
+                 WHERE t.atleta = ANY(%s) AND p.stagione = %s AND p.tipo = ANY(%s) AND p.data_et < %s
+                   AND t.giocato GROUP BY t.atleta""", (list(atleti), stagione, [2, 5], prima_del), many=True) or []
+    return {r["atleta"]: {"media": round(r["media"], 2), "partite": r["partite"]} for r in righe}
+
+
+def ultima_squadra(atleti: list[str], prima_del) -> dict[str, str]:
+    """La squadra NBA dell'ultimo tabellino di ogni giocatore prima del giorno indicato."""
+    righe = q("""SELECT DISTINCT ON (t.atleta) t.atleta, t.squadra FROM nba_tabellini t
+                 JOIN nba_partite p ON p.espn_id = t.partita
+                 WHERE t.atleta = ANY(%s) AND p.data_et < %s ORDER BY t.atleta, p.inizio DESC""",
+              (list(atleti), prima_del), many=True) or []
+    return {r["atleta"]: r["squadra"] for r in righe}
+
+
+# ── infortunati ────────────────────────────────────────────────────────────────
+
+def salva_infortuni(giorno, voci: list[dict]) -> None:
+    """La foto di adesso sostituisce quella precedente dello stesso giorno."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM nba_infortuni WHERE giorno = %s", (giorno,))
+            for v in voci:
+                cur.execute("INSERT INTO nba_infortuni (giorno, atleta, nome, squadra, stato, dettaglio) "
+                            "VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                            (giorno, v["atleta"], v["nome"], v.get("squadra"), v["stato"], v.get("dettaglio")))
+
+
+def infortuni(atleti: list[str], giorni: list) -> dict[tuple, str]:
+    """{(atleta, giorno): stato} per i giorni con una foto. I giorni senza foto non ci sono:
+    chi chiama sa distinguere "sano" da "nessuna foto" con giorni_con_foto."""
+    righe = q("SELECT atleta, giorno, stato FROM nba_infortuni WHERE atleta = ANY(%s) AND giorno = ANY(%s)",
+              (list(atleti), list(giorni)), many=True) or []
+    return {(r["atleta"], r["giorno"]): r["stato"] for r in righe}
+
+
+def giorni_con_foto(giorni: list) -> set:
+    righe = q("SELECT DISTINCT giorno FROM nba_infortuni WHERE giorno = ANY(%s)", (list(giorni),), many=True) or []
+    return {r["giorno"] for r in righe}
+
+
+# ── abbinamento con l'anagrafica del bot principale ────────────────────────────
+
+def giocatori_anagrafica() -> list[dict]:
+    return q("SELECT id, nome_common, nome_bref, nome_yahoo FROM giocatori", many=True) or []
+
+
+def giocatori_a_roster(stagione: str) -> list[dict]:
+    """Giocatori con contratto attivo: squadra, ruolo della stagione, id ESPN se abbinato."""
+    return q("""SELECT c.team_id, g.id AS giocatore_id, g.nome_common, r.ruolo, e.atleta
+                FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
+                LEFT JOIN ruolo_attuale r ON r.giocatore_id = g.id AND r.stagione = %s
+                LEFT JOIN lega_espn e ON e.giocatore_id = g.id
+                WHERE c.attivo ORDER BY c.team_id, g.nome_common""", (stagione,), many=True) or []
+
+
+def abbinamenti() -> dict[int, str]:
+    return {r["giocatore_id"]: r["atleta"] for r in (q("SELECT giocatore_id, atleta FROM lega_espn", many=True) or [])}
+
+
+def abbina(giocatore_id: int, atleta: str, nome_espn: str, metodo: str) -> None:
+    """Un giocatore ↔ un id ESPN: un abbinamento nuovo toglie quelli vecchi di entrambi."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM lega_espn WHERE giocatore_id = %s OR atleta = %s", (giocatore_id, atleta))
+            cur.execute("INSERT INTO lega_espn (giocatore_id, atleta, nome_espn, metodo) VALUES (%s, %s, %s, %s)",
+                        (giocatore_id, atleta, nome_espn, metodo))
+
+
+def salva_atleti(atleti: list[dict]) -> None:
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            for a in atleti:
+                cur.execute("INSERT INTO nba_atleti (atleta, nome, squadra) VALUES (%(atleta)s, %(nome)s, %(squadra)s) "
+                            "ON CONFLICT (atleta) DO UPDATE SET nome = EXCLUDED.nome, squadra = EXCLUDED.squadra, "
+                            "aggiornato = NOW()", a)
+
+
+def atleti_espn_visti() -> dict[str, str]:
+    """{atleta: nome} di tutti i giocatori ESPN conosciuti (roster, tabellini, infortunati)."""
+    righe = q("SELECT DISTINCT ON (atleta) atleta, nome FROM ("
+              " SELECT atleta, nome, 1 AS o FROM nba_atleti UNION ALL"
+              " SELECT atleta, nome, 2 FROM nba_tabellini UNION ALL"
+              " SELECT atleta, nome, 3 FROM nba_infortuni) x ORDER BY atleta, o", many=True) or []
+    return {r["atleta"]: r["nome"] for r in righe}

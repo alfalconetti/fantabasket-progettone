@@ -72,6 +72,8 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `rfa_proprietario` | aste (isolato) | il proprietario non offre sul proprio RFA neanche con `/offerta` |
 | `menu_e_listteams` | aste + PG | menu "/" per fase e ruolo, `/listteams` compatto, `/reset_rfa` disattivato |
 | `autoslot` | aste + PG | `/autoslot` e `/autocap` contano davvero negli slot e nel cap |
+| `louca_calendario` | loucabot | CSV del calendario, import, partite NBA da ESPN (risposta vera ridotta), TBD, squadre a media e scadenze, cambi, `/calendario`, canale log |
+| `louca_calcolo` | loucabot | tabellino ESPN vero ridotto (NYK-SAS 1/3/2026) e formula dei fantapunti, infortunati, punteggio nella giornata (partite, media, zero, rinviate), FADD, supplementari e bonus casa, abbinamento ESPN |
 | `giocatore_id` | aste + PG | l'asta ricorda l'id del giocatore: la firma non crea doppioni se il nome cambia |
 | `rfa_dichiarati` | aste + PG | x0 fuori da cap e slot, RFA dichiarato sul cap; aste RFA aperte da sole nella fase RFA, una volta sola; proprietario allineato dopo una trade; il contratto nuovo di chi vince non cambia il proprietario; DPE prima e dopo la deadline |
 | `guide_e_menu` | — | ogni comando citato in guide, `/admin`, `/dev` e menu "/" esiste nel suo bot (nessun database) |

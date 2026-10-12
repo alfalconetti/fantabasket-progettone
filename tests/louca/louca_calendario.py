@@ -5,7 +5,7 @@ import asyncio, json, os, types
 from datetime import date, datetime, timezone
 import db, nba, calendario as cal, handlers as H
 db.init_db()
-db.q("TRUNCATE lega_giornate, lega_partite, nba_partite")
+db.q("TRUNCATE lega_giornate, lega_partite, nba_partite, nba_tabellini")
 ok = lambda c, m: print(("✅" if c else "❌ FAIL"), m)
 QUI = os.path.dirname(os.path.abspath(__file__))
 

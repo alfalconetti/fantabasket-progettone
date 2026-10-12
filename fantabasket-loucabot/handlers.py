@@ -197,8 +197,12 @@ async def job_sync(context: ContextTypes.DEFAULT_TYPE):
             return
         r = await nba.sincronizza(nba.giorni_vicini())
         cambi = cal.ricalcola()
+        import handlers_calcolo as hc
+        tab = await hc.aggiorna_tabellini()
+        inf = await hc.foto_infortuni()
         await log(context.bot, f"🔄 Sincronizzazione delle 8:30: {_esito_sync(r)}"
-                               + (f", {len(cambi)} cambi (avviso al gruppo admin)" if cambi else ", nessun cambio"))
+                               + (f", {len(cambi)} cambi (avviso al gruppo admin)" if cambi else ", nessun cambio")
+                               + f"; {hc.testo_tabellini(tab)}; {inf}")
         if cambi and config.gruppo_admin():
             await context.bot.send_message(
                 chat_id=config.gruppo_admin(), parse_mode="HTML",
@@ -221,12 +225,18 @@ async def cmd_guida(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if config.is_admin(update.effective_user.id):
         testo += ("\n\n<b>Admin</b>\n/importa_calendario — col CSV allegato (sostituisce quello della stagione)\n"
                   "/calendario_check — scadenze e squadre a media, confronto col calendario\n"
-                  "/nba_sync — riscarica le partite NBA della stagione da ESPN")
+                  "/nba_sync — riscarica le partite NBA della stagione da ESPN\n\n"
+                  "<b>Calcolo</b>\n/fantapunti [N] — fantapunti della giornata dei giocatori a roster\n"
+                  "/tabellini — scarica i tabellini delle partite finite che mancano\n"
+                  "/espn_giocatori — roster NBA da ESPN e abbinamento con l'anagrafica\n"
+                  "/espn_mancanti — giocatori a roster senza id ESPN\n"
+                  "/espn_abbina ID_GIOCATORE ID_ESPN — abbinamento a mano")
     await update.effective_message.reply_text(testo, parse_mode="HTML")
 
 
 def get_handlers() -> list:
-    return [
+    import handlers_calcolo
+    return handlers_calcolo.get_handlers() + [
         CommandHandler(["start", "guida"], cmd_guida),
         CommandHandler("calendario", cmd_calendario),
         CommandHandler("giornata", cmd_giornata),

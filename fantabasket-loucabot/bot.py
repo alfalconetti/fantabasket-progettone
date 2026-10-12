@@ -1,5 +1,5 @@
 """
-loucabot — il bot del campionato: calendario (v1), poi classifica, playoff e calcolo automatico.
+loucabot — il bot del campionato: calendario, tabellini e calcolo dei fantapunti; poi formazioni, classifica e playoff.
 Stesso PostgreSQL e stessa config del progettone; legge le tabelle degli altri bot, scrive
 solo le sue (lega_*, nba_*).
 """
@@ -15,6 +15,7 @@ from telegram.ext import ApplicationBuilder, ContextTypes
 import config
 import db
 from handlers import get_handlers, job_sync
+from handlers_calcolo import job_infortuni
 
 logging.basicConfig(format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", level=logging.INFO)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -75,7 +76,9 @@ def main():
     for h in get_handlers():
         app.add_handler(h)
     app.add_error_handler(error_handler)
-    app.job_queue.run_daily(job_sync, time=dtime(8, 30, tzinfo=ROME))
+    app.job_queue.run_daily(job_sync, time=dtime(8, 30, tzinfo=ROME))        # partite, tabellini, infortunati
+    for ora in (dtime(17, 30, tzinfo=ROME), dtime(23, 30, tzinfo=ROME)):       # infortunati prima delle partite
+        app.job_queue.run_daily(job_infortuni, time=ora)
     logger.info("loucabot %s avviato.", BOT_VERSION)
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
