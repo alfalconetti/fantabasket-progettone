@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v4.1.0, bot aste v63, loucabot v4)
+# Messaggio di migrazione — Fantabasket Progettone (stato v4.1.1, bot aste v63, loucabot v5)
 
 ---
 
@@ -331,7 +331,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 
 ---
 
-**Stato attuale: v4.1.0 / aste v63 / loucabot v4**
+**Stato attuale: v4.1.1 / aste v63 / loucabot v5**
 
 Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v2.1.19** — `/attiva_diritti` propone il contratto della rookie scale (anno I) e chiede solo conferma
@@ -379,6 +379,7 @@ Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v4.0.1 / loucabot v2** — TBD (partite della NBA Cup da decidere) non è una squadra: contano solo le 30 sigle NBA. Prima `/calendario_check` del 12/10: le note a media del CSV sono incomplete (in più per ESPN: G8 BKN, CHI, MIN; G12 MIA; G15 DAL; G16 ORL; G17 GSW, HOU; verificato BKN e MIA su una seconda fonte). Vale il calcolo dalle partite NBA, che è quello mostrato ai GM; CSV con le note corrette mandato a Luca
 - **v4.0.2 / loucabot v3** — come gli altri bot: canale log suo (`log_channel_id_louca`, ripiego `log_channel_id_main`) per la parte tecnica (avvio, errori, import, `/nba_sync`, sync delle 8:30), gruppo admin solo per i cambi del calendario
 - **v4.1.0 / loucabot v4** — calcolo: Yahoo potrebbe non tornare, i punteggi si calcolano dai tabellini ESPN (`summary?event=ID`, una richiesta per partita finita; bref solo riserva, limite circa 20 richieste al minuto). Formula del regolamento verificata sul vecchio foglio (17/01/2026, 141/141). Foto infortunati 3 volte al giorno (ESPN dà solo lo stato attuale; servono per FADD e per lo 0 a chi è a media ma indisponibile). Abbinamento per id ESPN (`lega_espn`). Deciso con Luca: Yahoo servirebbe solo per i quintetti, quindi il prossimo è il bot delle panchine con anche il quintetto. Da decidere: media punti e differenza punti della classifica con o senza bonus casa; "indisponibile" per chi è a media = stato non Probable in tutte le foto della giornata
+- **v4.1.1 / loucabot v5** — deciso con Luca: id e nome ESPN in anagrafica (`giocatori.espn_id`, `nome_espn`), non in una tabella di loucabot; colonne create da entrambi i bot, scritte solo da loucabot. Abbinati a mano il 12/10 (non nei roster ESPN): Konchar 3134932, Lonzo Ball 4066421, Juzang 4432817, Cam Thomas 4432174
 - **v3.13.3** — RFA sui canali: una riga per evento (dichiarazione, cambio, ritiro, trade) sul canale log; sul canale principale un solo riepilogo per stagione con gli RFA di tutte le squadre, modificato a ogni cambio (tabella `messaggi_fissi`). Prima ogni dichiarazione era un messaggio sul canale principale
 - **v3.13.2** — l'RFA si dichiara e si cambia quante volte si vuole fino alle aste RFA: `/dichiara_rfa` e il menu anche nella fase draft (deciso con Luca)
 - **v3.13.1** — RFA in trade (deciso con Luca il 12/10/2026): prima delle aste RFA (rinnovi, draft) un RFA scambiato perde la dichiarazione (`rfa_dichiarati.stato = 'revocata'`, `nota = 'trade <id>'`), chi lo cede può dichiararne un altro, per chi lo riceve è un x0 che non pesa, nessun limite; dalla fase RFA la dichiarazione segue il giocatore e vale al massimo un RFA per squadra; l'annullamento la rimette dov'era. Avviso nel riepilogo e ai GM. Decisioni sul regolamento: luxury 165 per tutti e Stepien a 4 anni sulle proprie 1st (il bot è giusto, va corretto il testo), offerta massima 141 = conseguenza di cap e minimo giocatori, floor nelle trade confermato (prova aggiunta). Testi proposti in `docs/regolamento_e_codice.md`

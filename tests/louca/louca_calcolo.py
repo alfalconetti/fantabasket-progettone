@@ -6,7 +6,7 @@ import asyncio, json, os
 from datetime import date, datetime, timezone
 import db, nba, calcolo
 db.init_db()
-db.q("TRUNCATE nba_tabellini, nba_infortuni, nba_atleti, lega_espn, lega_giornate, lega_partite, nba_partite")
+db.q("TRUNCATE nba_tabellini, nba_infortuni, nba_atleti, lega_giornate, lega_partite, nba_partite")
 ok = lambda c, m: print(("✅" if c else "❌ FAIL"), m)
 QUI = os.path.dirname(os.path.abspath(__file__))
 vero = json.load(open(os.path.join(QUI, "espn-summary-20260301.json")))
@@ -126,6 +126,16 @@ ok(calcolo.esito(sq(100), sq(102), bonus=5)["vince"] == "trasferta" and calcolo.
 
 # ── abbinamento con l'anagrafica ──
 if db.q("SELECT to_regclass('giocatori') AS t", one=True)["t"]:
+    # migrazione dalla v4: lega_espn → giocatori.espn_id
+    gv = db.q("INSERT INTO giocatori (nome_bref, nome_common, nome_norm) VALUES ('Vecchio Abb', 'Vecchio Abb', 'vecchio abb') "
+              "RETURNING id", one=True)["id"]
+    db.q("CREATE TABLE lega_espn (giocatore_id INT PRIMARY KEY, atleta TEXT NOT NULL UNIQUE, nome_espn TEXT NOT NULL, "
+         "metodo TEXT NOT NULL, aggiornato TIMESTAMPTZ NOT NULL DEFAULT NOW())")
+    db.q("INSERT INTO lega_espn VALUES (%s, '777', 'Vecchio Abb ESPN', 'admin')", (gv,))
+    db.migra()
+    ok(db.abbinamenti().get(gv) == "777" and db.q("SELECT to_regclass('lega_espn') AS t", one=True)["t"] is None,
+       "migrazione: gli abbinamenti della v4 passano in giocatori.espn_id, lega_espn eliminata")
+    db.q("DELETE FROM giocatori WHERE id = %s", (gv,))
     ids = [db.q("INSERT INTO giocatori (nome_bref, nome_common, nome_norm) VALUES (%s, %s, %s) RETURNING id",
                 (n, n, n.lower()), one=True)["id"] for n in ("Zyxw Testone Jr.", "Ábcd Pròva", "Dupl Icato", "Dupl Icato")]
     r = calcolo.abbina_auto({"901": "Zyxw Testone", "902": "Abcd Prova", "903": "Dupl Icato"})
@@ -135,10 +145,11 @@ if db.q("SELECT to_regclass('giocatori') AS t", one=True)["t"]:
     db.abbina(ids[2], "903", "Dupl Icato", "admin")
     db.abbina(ids[3], "903", "Dupl Icato", "admin")
     ok(db.abbinamenti().get(ids[3]) == "903" and ids[2] not in db.abbinamenti(), "abbinamento a mano: l'ultimo sostituisce")
-    db.q("DELETE FROM lega_espn WHERE giocatore_id = ANY(%s)", (ids,))
+    nomi = {r["id"]: r["nome_espn"] for r in db.q("SELECT id, nome_espn FROM giocatori WHERE id = ANY(%s)", (ids,), many=True)}
+    ok(nomi[ids[0]] == "Zyxw Testone" and nomi[ids[2]] is None, "id e nome ESPN nell'anagrafica (giocatori.espn_id, nome_espn)")
     db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (ids,))
 else:
     print("ℹ️ tabella giocatori assente (lancia prima le prove del bot principale): abbinamento non provato")
 ok(calcolo.norm("Nikola Đurišić") == calcolo.norm("Nikola Durisic") and calcolo.norm("Kelly Oubre Jr.") == "kellyoubre",
    "nomi normalizzati")
-db.q("TRUNCATE nba_tabellini, nba_infortuni, nba_atleti, lega_espn, nba_partite")
+db.q("TRUNCATE nba_tabellini, nba_infortuni, nba_atleti, nba_partite")

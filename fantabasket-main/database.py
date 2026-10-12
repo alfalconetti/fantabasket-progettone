@@ -163,6 +163,10 @@ def migrate_db():
     _q("ALTER TABLE giocatori ADD COLUMN IF NOT EXISTS yahoo_id INTEGER")
     _q("CREATE UNIQUE INDEX IF NOT EXISTS idx_giocatori_yahoo_id "
        "ON giocatori (yahoo_id) WHERE yahoo_id IS NOT NULL")
+    # v4.1.1 — id e nome ESPN (li scrive loucabot: abbinamento per i tabellini e il calcolo)
+    _q("ALTER TABLE giocatori ADD COLUMN IF NOT EXISTS espn_id TEXT")
+    _q("ALTER TABLE giocatori ADD COLUMN IF NOT EXISTS nome_espn TEXT")
+    _q("CREATE UNIQUE INDEX IF NOT EXISTS idx_giocatori_espn_id ON giocatori (espn_id) WHERE espn_id IS NOT NULL")
     _q("""
         CREATE TABLE IF NOT EXISTS posizioni_eleggibili (
             id            SERIAL PRIMARY KEY,

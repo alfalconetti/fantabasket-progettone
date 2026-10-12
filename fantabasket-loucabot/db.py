@@ -115,12 +115,18 @@ def migra():
             nome       TEXT NOT NULL,
             squadra    TEXT,
             aggiornato TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
-    q("""CREATE TABLE IF NOT EXISTS lega_espn (
-            giocatore_id INT PRIMARY KEY,                       -- giocatori.id del bot principale
-            atleta       TEXT NOT NULL UNIQUE,                  -- id ESPN
-            nome_espn    TEXT NOT NULL,
-            metodo       TEXT NOT NULL,                         -- auto (nome uguale) / admin
-            aggiornato   TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
+    # id e nome ESPN nell'anagrafica del bot principale (giocatori.espn_id, nome_espn): è l'unica
+    # cosa che loucabot scrive fuori dalle sue tabelle. Le colonne le crea anche il bot principale.
+    if q("SELECT to_regclass('giocatori') AS t", one=True)["t"]:
+        q("ALTER TABLE giocatori ADD COLUMN IF NOT EXISTS espn_id TEXT")
+        q("ALTER TABLE giocatori ADD COLUMN IF NOT EXISTS nome_espn TEXT")
+        q("CREATE UNIQUE INDEX IF NOT EXISTS idx_giocatori_espn_id ON giocatori (espn_id) WHERE espn_id IS NOT NULL")
+        if q("SELECT to_regclass('lega_espn') AS t", one=True)["t"]:       # v4: tabella separata → anagrafica
+            q("""UPDATE giocatori g SET espn_id = e.atleta, nome_espn = e.nome_espn FROM lega_espn e
+                 WHERE g.id = e.giocatore_id AND g.espn_id IS NULL
+                   AND NOT EXISTS (SELECT 1 FROM giocatori x WHERE x.espn_id = e.atleta)""")
+            q("DROP TABLE lega_espn")
+            logger.info("Abbinamenti ESPN spostati in giocatori.espn_id")
 
 
 # ── calendario della lega ──────────────────────────────────────────────────────
@@ -276,24 +282,26 @@ def giocatori_anagrafica() -> list[dict]:
 
 def giocatori_a_roster(stagione: str) -> list[dict]:
     """Giocatori con contratto attivo: squadra, ruolo della stagione, id ESPN se abbinato."""
-    return q("""SELECT c.team_id, g.id AS giocatore_id, g.nome_common, r.ruolo, e.atleta
+    return q("""SELECT c.team_id, g.id AS giocatore_id, g.nome_common, r.ruolo, g.espn_id AS atleta
                 FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
                 LEFT JOIN ruolo_attuale r ON r.giocatore_id = g.id AND r.stagione = %s
-                LEFT JOIN lega_espn e ON e.giocatore_id = g.id
                 WHERE c.attivo ORDER BY c.team_id, g.nome_common""", (stagione,), many=True) or []
 
 
 def abbinamenti() -> dict[int, str]:
-    return {r["giocatore_id"]: r["atleta"] for r in (q("SELECT giocatore_id, atleta FROM lega_espn", many=True) or [])}
+    return {r["id"]: r["espn_id"] for r in (q("SELECT id, espn_id FROM giocatori WHERE espn_id IS NOT NULL",
+                                                many=True) or [])}
 
 
 def abbina(giocatore_id: int, atleta: str, nome_espn: str, metodo: str) -> None:
-    """Un giocatore ↔ un id ESPN: un abbinamento nuovo toglie quelli vecchi di entrambi."""
+    """Un giocatore ↔ un id ESPN, in giocatori.espn_id e nome_espn: se l'id era di un altro
+    giocatore, lì si toglie (un id ESPN è di un solo giocatore). `metodo` (auto, admin) va nel log."""
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM lega_espn WHERE giocatore_id = %s OR atleta = %s", (giocatore_id, atleta))
-            cur.execute("INSERT INTO lega_espn (giocatore_id, atleta, nome_espn, metodo) VALUES (%s, %s, %s, %s)",
-                        (giocatore_id, atleta, nome_espn, metodo))
+            cur.execute("UPDATE giocatori SET espn_id = NULL, nome_espn = NULL WHERE espn_id = %s AND id <> %s",
+                        (atleta, giocatore_id))
+            cur.execute("UPDATE giocatori SET espn_id = %s, nome_espn = %s WHERE id = %s", (atleta, nome_espn, giocatore_id))
+    logger.info("ESPN %s ↔ giocatore %s (%s, %s)", atleta, giocatore_id, nome_espn, metodo)
 
 
 def salva_atleti(atleti: list[dict]) -> None:

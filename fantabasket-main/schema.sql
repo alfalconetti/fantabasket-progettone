@@ -8,7 +8,9 @@ CREATE TABLE giocatori (
     nome_yahoo      TEXT,
     nome_common     TEXT NOT NULL,
     nome_norm       TEXT NOT NULL,
-    data_nascita    DATE
+    data_nascita    DATE,
+    espn_id         TEXT,                       -- id ESPN (scritto da loucabot)
+    nome_espn       TEXT
 );
 
 CREATE INDEX idx_giocatori_nome_norm ON giocatori (nome_norm);

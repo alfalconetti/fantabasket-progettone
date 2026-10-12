@@ -1115,3 +1115,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v4.1.0 (2026-10-12)
 
 - loucabot v4: tabellini ESPN e fantapunti del regolamento, foto degli infortunati, abbinamento dei giocatori con l'id ESPN, calcolo del punteggio di giocatore e squadra (FADD) e dell'esito con i supplementari, `/fantapunti`. Mancano i quintetti e le panchine (bot a parte)
+
+## v4.1.1 (2026-10-12)
+
+- Anagrafica: `giocatori.espn_id` e `nome_espn` (indice unico sull'id), scritti da loucabot v5; gli abbinamenti della v4.1.0 passano lì da soli

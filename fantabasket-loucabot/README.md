@@ -6,7 +6,8 @@ dei playoff dalla classifica e risultati automatici, quando ci saranno quintetti
 
 Fa parte del progettone: stesso PostgreSQL e stessa `config/` dei due bot (in sola lettura),
 moduli condivisi in `../shared/`. Legge le tabelle degli altri bot, scrive solo le sue
-(`lega_giornate`, `lega_partite`, `lega_espn`, `nba_partite`, `nba_tabellini`, `nba_infortuni`, `nba_atleti`).
+(`lega_giornate`, `lega_partite`, `nba_partite`, `nba_tabellini`, `nba_infortuni`, `nba_atleti`), più id e nome ESPN nell'anagrafica
+(`giocatori.espn_id`, `nome_espn`).
 
 Sviluppato con [Claude](https://claude.ai) (Anthropic).
 
@@ -84,7 +85,8 @@ foto, decide un admin. **Partita** (`calcolo.esito`): vince chi ha almeno 5 punt
 casa compreso (3, playoff 5); altrimenti supplementari con i panchinari in ordine; pari fino al
 decimo uomo → vince la trasferta. Restano agli admin le 72 ore delle partite rinviate e le penalità.
 
-**Abbinamento con l'anagrafica.** Il calcolo lavora con l'id ESPN dei giocatori (`lega_espn`):
+**Abbinamento con l'anagrafica.** Il calcolo lavora con l'id ESPN dei giocatori, in anagrafica
+(`giocatori.espn_id` e `nome_espn`):
 niente errori da nomi simili. `/espn_giocatori` scarica i roster delle 30 squadre e abbina da
 solo i nomi uguali (senza accenti, punteggiatura e Jr./III) quando il nome è di un solo
 giocatore; ogni giorno lo stesso con i giocatori nuovi dei tabellini. Gli altri: `/espn_mancanti`

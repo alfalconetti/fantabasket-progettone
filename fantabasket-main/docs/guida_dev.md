@@ -147,7 +147,7 @@ Il bot aste vede la fase nuova entro 5 minuti.
 
 | Tabella | Contenuto |
 |---|---|
-| `giocatori` | anagrafica: `nome_common`, `nome_bref`, `nome_yahoo`, `nome_norm`, `yahoo_id`, `data_nascita` |
+| `giocatori` | anagrafica: `nome_common`, `nome_bref`, `nome_yahoo`, `nome_norm`, `yahoo_id`, `espn_id` e `nome_espn` (scritti da loucabot, per tabellini e calcolo), `data_nascita` |
 | `contratti` | `importo`, `anni_originali`, `stagione_firma` (da quando parte il contratto, o il pezzo di rookie scale), `tipo` (normale/rookie/10day), `attivo`. Mai cancellati: un contratto chiuso ha `attivo = FALSE` |
 | `transazioni` | **registro unico** di tutto quello che si muove in lega: giocatori, diritti, pick (vedi sotto) |
 | `impatto_taglio` | rate delle spalmature: una riga per squadra, giocatore e stagione |
