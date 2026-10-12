@@ -98,14 +98,11 @@ def q(sql: str, params=(), one: bool = False, many: bool = False):
         _putconn(conn)
 
 
-# ── cap ───────────────────────────────────────────────────────────────────────
+# ── cap e slot ────────────────────────────────────────────────────────────────
+# v61 (bot principale v3.12): i conti sono in shared/cap.py, gli stessi del bot principale.
+# Qui solo i controlli di disponibilità di PostgreSQL e la stagione di default.
 
-# v58 (main v3.11): anni residui = anni_originali − (stagione − stagione_firma); 0 = x0.
-# Un x0 (contratto finito, in attesa di rinnovo) non pesa su cap né slot, tranne l'RFA
-# dichiarato nel bot principale (tabella rfa_dichiarati), che pesa sul cap ma non sugli slot.
-_SQL_IN_CORSO = "(c.anni_originali - (%s::int - c.stagione_firma::int)) >= 1"
-_SQL_RFA = ("EXISTS (SELECT 1 FROM rfa_dichiarati rd WHERE rd.contratto_id = c.id "
-            "AND rd.stagione = %s AND rd.stato = 'attiva')")
+from shared import cap as _cap   # noqa: E402
 
 
 def _stagione(stagione: str | None) -> str:
@@ -115,91 +112,31 @@ def _stagione(stagione: str | None) -> str:
     return str(utils.get_stagione_corrente())
 
 
-def get_cap_contratti(team_id: str, stagione: str = None) -> int:
-    """Cap dei contratti come nel bot principale (cap_occupato_team): contratti attivi in
-    corso o RFA dichiarati, con la DPE della stagione. Senza `stagione` usa quella corrente."""
+def _sicuro(nome: str, funzione, *args) -> int:
     if not pg_disponibile():
         return 0
-    stagione = _stagione(stagione)
-    sql_rfa = _sql_rfa()
-    conn = _conn()
     try:
-        with conn.cursor() as cur:
-            cur.execute(
-                f"""SELECT COALESCE(SUM(
-                    COALESCE(
-                        (SELECT d.importo_dpe FROM dpe d
-                         WHERE d.giocatore_id = c.giocatore_id
-                           AND d.team_id = c.team_id
-                           AND d.stagione = %s),
-                        c.importo)
-                ), 0)
-                FROM contratti c WHERE c.team_id = %s AND c.attivo = TRUE
-                  AND ({_SQL_IN_CORSO} OR {sql_rfa})""",
-                (stagione, team_id, stagione, stagione)
-            )
-            return cur.fetchone()[0]
+        return funzione(q, *args)
     except Exception as e:
-        logger.error("get_cap_contratti(%s): %s", team_id, e)
+        logger.error("%s%s: %s", nome, args, e)
         return 0
-    finally:
-        conn.rollback()
-        _putconn(conn)
 
 
-_rfa_tabella = None
-_SQL_RFA_ASSENTE = "(%s IS NULL AND FALSE)"
-
-
-def _sql_rfa() -> str:
-    """Il frammento RFA solo se la tabella esiste (il bot aste può partire prima che il
-    bot principale abbia fatto la migrazione v3.11): altrimenti FALSE con lo stesso numero
-    di parametri."""
-    global _rfa_tabella
-    if not _rfa_tabella:
-        r = q("SELECT to_regclass('public.rfa_dichiarati') IS NOT NULL AS c", one=True)
-        if not (r and r["c"]):
-            return _SQL_RFA_ASSENTE
-        _rfa_tabella = True
-    return _SQL_RFA
+def get_cap_contratti(team_id: str, stagione: str = None) -> int:
+    """Contratti che pesano sul cap (in corso o RFA dichiarati), con la DPE della stagione.
+    Senza `stagione` usa quella corrente."""
+    return _sicuro("get_cap_contratti", _cap.cap_contratti, team_id, _stagione(stagione))
 
 
 def get_impatto_taglio(team_id: str, stagione: str) -> int:
-    """SUM delle spalmate attive per questa stagione."""
-    if not pg_disponibile():
-        return 0
-    conn = _conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT COALESCE(SUM(importo), 0) FROM impatto_taglio "
-                "WHERE team_id = %s AND stagione = %s",
-                (team_id, stagione)
-            )
-            return cur.fetchone()[0]
-    except Exception as e:
-        logger.error("get_impatto_taglio(%s, %s): %s", team_id, stagione, e)
-        return 0
-    finally:
-        conn.rollback()
-        _putconn(conn)
+    """Spalmature dei tagli che pesano nella stagione."""
+    return _sicuro("get_impatto_taglio", _cap.impatto_taglio, team_id, _stagione(stagione))
 
-
-# ── slot ──────────────────────────────────────────────────────────────────────
 
 def get_roster_count(team_id: str, stagione: str = None) -> int:
-    """Giocatori che occupano uno slot, come nel bot principale (slot_occupati): contratti
-    ATTIVI e in corso della squadra (gli x0, RFA compresi, non occupano slot), meno i
-    giocatori con DPE della stagione (slot liberato). Senza `stagione` usa quella corrente."""
-    if not pg_disponibile():
-        return 0
-    stagione = _stagione(stagione)
-    r = q(f"""SELECT COUNT(*) AS n FROM contratti c
-              WHERE c.team_id = %s AND c.attivo = TRUE AND {_SQL_IN_CORSO}
-                AND NOT EXISTS (SELECT 1 FROM dpe d WHERE d.giocatore_id = c.giocatore_id
-                                  AND d.team_id = %s AND d.stagione = %s)""",
-          (team_id, stagione, team_id, stagione), one=True)
-    return int(r["n"]) if r else 0
+    """Giocatori che occupano uno slot: contratti attivi in corso (gli x0, RFA compresi, no),
+    senza chi ha una DPE approvata prima della deadline. Senza `stagione` usa quella corrente."""
+    return _sicuro("get_roster_count", _cap.giocatori_in_slot, team_id, _stagione(stagione))
 
 
 # ── giocatori ─────────────────────────────────────────────────────────────────
@@ -478,7 +415,7 @@ def rfa_fuori_slot(team_id: str, nomi_rfa: list[str]) -> int:
     if not pg_disponibile() or not nomi_rfa:
         return 0
     r = q(f"""SELECT count(*) AS n FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
-              WHERE c.team_id = %s AND c.attivo = TRUE AND g.nome_norm = ANY(%s) AND {_SQL_IN_CORSO}""",
+              WHERE c.team_id = %s AND c.attivo = TRUE AND g.nome_norm = ANY(%s) AND {_cap.SQL_IN_CORSO}""",
           (team_id, [_normalizza(n) for n in nomi_rfa], _stagione(None)), one=True)
     return int(r["n"]) if r else 0
 
@@ -488,7 +425,7 @@ def rfa_dichiarati(stagione: str) -> list[dict]:
     proprietario di oggi (la dichiarazione segue il giocatore nelle trade)."""
     if not pg_disponibile():
         return []
-    if _sql_rfa() == _SQL_RFA_ASSENTE:
+    if not _cap.tabella_rfa(q):
         return []
     return q("""SELECT rd.giocatore_id, c.team_id, c.importo, g.nome_common
                 FROM rfa_dichiarati rd
@@ -505,7 +442,7 @@ def squadra_x0(giocatore_id: int | None, stagione: str) -> str | None:
     if not pg_disponibile() or not giocatore_id:
         return None
     r = q(f"""SELECT c.team_id FROM contratti c WHERE c.giocatore_id = %s AND c.attivo = TRUE
-              AND NOT {_SQL_IN_CORSO}""", (giocatore_id, str(stagione)), one=True)
+              AND NOT {_cap.SQL_IN_CORSO}""", (giocatore_id, str(stagione)), one=True)
     return r["team_id"] if r else None
 
 

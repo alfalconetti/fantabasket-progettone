@@ -12,7 +12,7 @@ fantabasket-progettone/
 ├── config/             globals.json, teams.json, settings.json, divisions.json, loghi/ …  (NON in git)
 ├── secrets/            token, password, URL dei fogli, *.env                            (NON in git)
 │   └── cifrati/        secrets.tar.gpg per il backup (scripts/cifra_secrets.sh)
-├── shared/              in comune ai due bot: ruoli_core.py (regole dei ruoli), messaggi.py (report lunghi)
+├── shared/              in comune ai due bot: ruoli_core.py (ruoli), cap.py (cap e slot), messaggi.py (report lunghi)
 ├── fantabasket-main/      ← questo bot
 ├── fantabasket-aste-beta/ bot aste
 ├── gas-router/            ponte verso Google Apps Script (fogli)
@@ -228,7 +228,7 @@ Se trova qualcosa scrive al dev. Di solito è una modifica fatta a mano sul DB: 
 **Anni residui, sempre calcolati:** `db.anni_residui(c, stagione) = anni_originali − (stagione − stagione_firma)`, anche per i rookie, senza minimo. In SQL: `db.SQL_IN_CORSO` (≥ 1) e `db.SQL_RFA` (dichiarazione attiva sul contratto), parametri `(stagione, stagione)`.
 
 - **x0** (≤ 0) = contratto finito: resta attivo e in squadra fino all'inizio della FA, si può scambiare, ma **non pesa su cap né slot**. Unica eccezione l'RFA dichiarato: cap sì, slot no.
-- Cap: `cap_occupato_team` (in corso o RFA), `peso_cap_giocatore`, `cap_roster(roster)` per le immagini. Slot: `slot_occupati(roster)`, `occupa_slot`. Il bot aste fa gli stessi conti in `pg_client`.
+- Cap e slot: **un'implementazione sola in `shared/cap.py`** (v3.12.0), usata dai due bot con la loro funzione di query. Qui `cap_occupato_team`, `peso_cap_giocatore`, `occupa_slot` la chiamano; `get_roster_team` ha per ogni riga `pesa_cap` e `occupa_slot` calcolati da lì, e `slot_occupati(roster)` / `cap_roster(roster)` li sommano. Nel bot aste `pg_client.get_cap_contratti`, `get_impatto_taglio`, `get_roster_count`. Una regola nuova su cosa pesa si cambia solo lì.
 - `get_roster_team` dà per ogni riga `anni_residui`, `x0`, `rfa`, `contratto_id`, `anni_scala` (= stagione − `rookie.anno_firma`: 0 = I anno … 3 = IV anno). `get_roster_team_at` li calcola sulla stagione di quella data.
 
 **Ogni cambio di importo è un contratto nuovo:** il vecchio va a `attivo = FALSE` e si scrive il movimento. I contratti non si cancellano mai.
@@ -329,6 +329,7 @@ ORDER BY t.timestamp, t.id;
 | File | Contenuto |
 |---|---|
 | `ruoli_core.py` | regole dei ruoli (sezione 6) |
+| `cap.py` | cap e slot di una squadra (v3.12.0): `cap_occupato`, `cap_contratti`, `impatto_taglio`, `giocatori_in_slot`, `peso_cap`, `occupa_slot`, i frammenti SQL (`SQL_IN_CORSO`, `sql_rfa`, `SQL_OCCUPA_SLOT`) e `anni_residui`. Prova: `tests/main/cap_condiviso.py` |
 | `messaggi.py` | `manda_lungo(bot, chat_id, testo_html, nome_file, riassunto=None)`: messaggio se sta in Telegram, altrimenti riassunto + file `.md` generato in memoria (`html_a_markdown`). Da usare per ogni report o elenco amministrativo che può crescere |
 | `decadimento.py` | `/decadimento`, motivi, `/ritiro_fa` |
 | `spalmature.py` | report mensile e `/report_spalmature` |
@@ -413,7 +414,7 @@ Attenzione: `mt:` è usato da due file. Funziona perché gli handler di `trade.p
 
 - `_importo_dpe`: contratto − ceil(25%).
 - `pre_deadline = fase != "regular-season-deadline"`, valutato **all'approvazione**.
-- Pre-deadline: il giocatore non occupa slot. Post-deadline: niente slot, ma un cambio ruolo `dpe_extra` gratuito.
+- Approvata prima della deadline: il giocatore non occupa slot. Approvata dopo: lo slot resta occupato, ma c'è un cambio ruolo `dpe_extra` gratuito. Conta `dpe.pre_deadline` (il momento dell'approvazione), non la fase di oggi (`shared/cap.py`).
 - La DPE vale per la stagione corrente e segue il giocatore in trade.
 
 ### Decadimento (`decadimento.py`)
@@ -615,7 +616,9 @@ PostgreSQL 16 locale, database `fbt` (fb/fb), config finta in `tests/config/`. `
 1. voce `## vX.Y.Z (data)` nel CHANGELOG (la versione del bot si legge da lì);
 2. voce `## vNN` nel CHANGELOG del bot aste, se lo tocchi;
 3. riga in `MIGRATION.md`;
-4. zip con i percorsi del repo (si scompatta con `unzip -o -d` nella cartella del repo), senza `config/`, `secrets/`, `.db`, `gas/globals.gs`.
+4. zip con i percorsi del repo, senza `config/`, `secrets/`, `.db`, `gas/globals.gs`, più alla radice `deploy.sh` (copia di `scripts/deploy.sh`) e `rilascio.json` (`versione`, `messaggio` di commit, `elimina`, `riavvia`, `ferma_aste_prima`, `attesa_main`, `log_attesi`).
+
+Deploy di uno zip, da `~/bots`: `Z=fantabasket-progettone-vX.Y.Z.zip; bash <(unzip -p $Z deploy.sh) $Z`. Controlla zip e versione, chiede conferma, fa il dump del database in `archivio/backup-deploy/`, scompatta, cancella i file tolti, riavvia controllando i log, fa commit e push e archivia gli zip oltre gli ultimi 5. Se un bot non parte non fa il commit e stampa come tornare indietro.
 
 Per le modifiche strutturali (schema, migrazioni, conti di cap e roster) prima la prova generale su una copia del database di produzione: `scripts/prova_generale/README.md`.
 

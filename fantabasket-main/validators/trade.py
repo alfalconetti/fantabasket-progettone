@@ -217,15 +217,11 @@ def valida_trade(trade_id: int) -> tuple[bool, list[str]]:
         # ── 2. Roster size ────────────────────────────────────────────────
         roster = db.get_roster_team(team_id)
         fase = settings.fase()
-        pre_deadline = (fase != "regular-season-deadline")
-        # Giocatori con DPE in fase pre-deadline non occupano slot
-        roster_count = db.slot_occupati(roster, pre_deadline)
-        # chi ha una DPE non occupa slot né prima né dopo la trade (la DPE lo segue);
-        # un x0 (anche RFA) non occupa slot (v3.11.0)
+        roster_count = db.slot_occupati(roster)
+        # stessa regola per chi entra ed esce (shared/cap.py): un x0 (anche RFA) non occupa
+        # slot; chi ha una DPE approvata prima della deadline nemmeno, e la DPE lo segue
         def _slot(lista):
-            return sum(1 for i in lista
-                       if db.occupa_slot(i["giocatore_id"], stagione)
-                       and not (pre_deadline and db.get_dpe_attiva(i["giocatore_id"], stagione)))
+            return sum(1 for i in lista if db.occupa_slot(i["giocatore_id"], stagione))
         roster_post = roster_count - _slot(out_g) + _slot(in_g)
         if roster_post > settings.max_roster():
             errori.append(

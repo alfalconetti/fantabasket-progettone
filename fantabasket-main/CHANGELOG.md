@@ -1047,3 +1047,17 @@ Passata sulla documentazione dopo la 3.11.
 
 - **`/trade_deadline [AAAA-MM-GG]`** (admin): senza data mostra la trade deadline e quando scadono i diritti delle seconde (10 giorni prima); con la data la imposta, solo se cade nella stagione in corso. Prima si poteva cambiare solo a mano in `globals.json`
 - Entrando nei rinnovi, se la trade deadline è ancora quella della stagione prima, promemoria nel gruppo admin con il comando
+
+## v3.12.0 (2026-10-12)
+
+### Cap e slot in un posto solo
+- Nuovo **`shared/cap.py`**: cap occupato, contratti che pesano, spalmature, giocatori che occupano uno slot, peso e slot del singolo giocatore, frammenti SQL e anni residui. I due bot lo chiamano con la loro funzione di query, come per i ruoli: prima avevano ciascuno la sua copia delle stesse query, e una regola nuova andava ricordata in due posti
+- Qui: `cap_occupato_team`, `peso_cap_giocatore`, `occupa_slot` chiamano il modulo condiviso; `get_roster_team` ha per ogni giocatore `pesa_cap` e `occupa_slot`, che `slot_occupati` e `cap_roster` sommano. Validazione delle trade con la stessa regola per chi entra e chi esce
+- **DPE e slot come da regolamento**: libera lo slot solo una DPE approvata prima della deadline (`dpe.pre_deadline`). Prima bastava una DPE qualsiasi della stagione, in tutti e due i bot. Oggi non cambia niente (l'unica DPE della stagione è pre-deadline)
+- Prova generale sulla copia del database: foto delle 24 squadre identiche prima e dopo; conti di cap e slot dei due bot uguali per tutte le squadre oggi, ai rinnovi 2027 con x0, rinnovi rookie e RFA, e con una DPE prima e una dopo la deadline. Prova nuova `tests/main/cap_condiviso.py`
+
+### Deploy
+- Da questa versione ogni zip contiene `deploy.sh` e `rilascio.json`: `Z=…zip; bash <(unzip -p $Z deploy.sh) $Z` controlla zip e versione (avvisa se è già installata o più vecchia), mostra un riepilogo e chiede conferma, fa il dump del database, scompatta, cancella i file tolti, riavvia i bot nell'ordine giusto controllando che partano senza errori, fa commit e push e sposta in archivio gli zip oltre gli ultimi 5. Se un bot non parte non fa il commit e dice come tornare indietro. Lo stesso script è in `scripts/deploy.sh`
+
+### Bot aste (v61)
+- Cap e slot da `shared/cap.py` (vedi CHANGELOG del bot aste)

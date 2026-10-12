@@ -69,3 +69,9 @@ pg.q("INSERT INTO contratti (giocatore_id,team_id,importo,anni_originali,stagion
 asyncio.run(job_rfa(ctx))
 ok(db.get_asta(aste[0]["id"])["squadra_proprietaria"] == "team03", "contratto nuovo del vincitore: ignorato")
 ok(pg.get_cap_contratti("team03") == 0, "dopo l'asta la dichiarazione non pesa più")
+
+# v61: cap e slot da shared/cap.py anche qui. DPE dopo la deadline: importo ridotto, lo slot resta
+pg.q("INSERT INTO dpe (giocatore_id,team_id,stagione,importo_originale,importo_dpe,pre_deadline) VALUES (%s,'team01','2027',10,7,FALSE)", (c,))
+ok(pg.get_cap_contratti("team01") == 7 and pg.get_roster_count("team01") == 1, "DPE dopo la deadline: cap ridotto, slot occupato")
+pg.q("UPDATE dpe SET pre_deadline = TRUE WHERE giocatore_id = %s", (c,))
+ok(pg.get_cap_contratti("team01") == 7 and pg.get_roster_count("team01") == 0, "DPE prima della deadline: slot liberato")

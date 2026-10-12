@@ -299,15 +299,10 @@ def _migra_registro_unico() -> None:
 # pesa è l'RFA dichiarato, sul cap e non sugli slot. Scade all'inizio della FA.
 # Ogni cambio di importo (rookie al II e al IV anno, rinnovi) = contratto nuovo.
 
-def anni_residui(contratto: dict, stagione) -> int:
-    """Anni residui di un contratto nella stagione data (0 o meno = finito, x0)."""
-    return int(contratto["anni_originali"]) - (int(stagione) - int(contratto["stagione_firma"]))
-
-
-# frammenti SQL sul contratto `c` (parametri: stagione, stagione)
-SQL_IN_CORSO = "(c.anni_originali - (%s::int - c.stagione_firma::int)) >= 1"
-SQL_RFA = ("EXISTS (SELECT 1 FROM rfa_dichiarati rd WHERE rd.contratto_id = c.id "
-           "AND rd.stagione = %s AND rd.stato = 'attiva')")
+# Anni residui, frammenti SQL e conti di cap e slot: un'implementazione sola per i due bot
+# in shared/cap.py (v3.12.0). Qui restano i nomi che il resto del bot usa già.
+from shared import cap as _cap                                   # noqa: E402
+from shared.cap import anni_residui, SQL_IN_CORSO, SQL_RFA       # noqa: E402,F401  (riesportati)
 
 
 def _migrazione_fatta(nome: str) -> bool:
@@ -385,20 +380,12 @@ def sposta_rfa_trade(cur, giocatore_id: int, team_da: str, team_a: str, stagione
 def peso_cap_giocatore(giocatore_id: int, stagione: str) -> int:
     """Quanto pesa sul cap il contratto attivo del giocatore: importo (o DPE) se è in corso
     o è un RFA dichiarato, 0 se è un x0 non dichiarato o non c'è contratto."""
-    r = _q(f"""SELECT COALESCE((SELECT d.importo_dpe FROM dpe d WHERE d.giocatore_id = c.giocatore_id
-                                  AND d.team_id = c.team_id AND d.stagione = %s), c.importo) AS imp,
-                      {SQL_IN_CORSO} AS in_corso, {SQL_RFA} AS rfa
-               FROM contratti c WHERE c.giocatore_id = %s AND c.attivo = TRUE""",
-           (stagione, stagione, stagione, giocatore_id), one=True)
-    if not r:
-        return 0
-    return int(r["imp"]) if (r["in_corso"] or r["rfa"]) else 0
+    return _cap.peso_cap(_q, giocatore_id, stagione)
 
 
 def occupa_slot(giocatore_id: int, stagione: str) -> bool:
-    """Il contratto attivo del giocatore occupa uno slot (in corso; DPE escluse a parte)."""
-    return bool(_qval(f"SELECT {SQL_IN_CORSO} FROM contratti c WHERE c.giocatore_id = %s AND c.attivo",
-                      (stagione, giocatore_id)))
+    """Il contratto attivo del giocatore occupa uno slot (in corso, senza DPE pre-deadline)."""
+    return _cap.occupa_slot(_q, giocatore_id, stagione)
 
 
 class StoricoNonCoerente(Exception):
@@ -685,14 +672,15 @@ def get_roster_team(team_id: str) -> list:
                   CASE WHEN c.tipo = 'rookie' AND r.anno_firma IS NOT NULL
                        THEN %s::int - r.anno_firma::int ELSE 0 END AS anni_scala,
                   (c.anni_originali - (%s::int - c.stagione_firma::int)) AS anni_residui,
-                  {SQL_RFA} AS rfa,
+                  {_cap.sql_rfa(_q)} AS rfa,
+                  {_cap.colonne_roster(_q)},
                   (d.id IS NOT NULL) AS ha_dpe
            FROM contratti c
            JOIN giocatori g ON g.id = c.giocatore_id
            LEFT JOIN rookie r ON r.giocatore_id = g.id AND r.firmato = TRUE
            LEFT JOIN dpe d ON d.giocatore_id = g.id AND d.team_id = c.team_id AND d.stagione = %s
            WHERE c.team_id = %s AND c.attivo = TRUE""",
-        (stagione, stagione, stagione, stagione, team_id), many=True
+        (stagione, stagione, stagione) + (stagione,) * 5 + (stagione, team_id), many=True
     ) or []
     for r in righe:
         r["x0"] = r["anni_residui"] <= 0
@@ -700,15 +688,18 @@ def get_roster_team(team_id: str) -> list:
 
 
 def cap_roster(roster: list) -> int:
-    """Cap dei contratti di un roster di get_roster_team / get_roster_team_at: niente x0,
-    tranne gli RFA dichiarati (come cap_occupato_team, senza l'impatto dei tagli)."""
-    return sum(int(r.get("importo") or 0) for r in roster if not r.get("x0") or r.get("rfa"))
+    """Cap dei contratti di un roster di get_roster_team / get_roster_team_at (senza l'impatto
+    dei tagli): le righe di get_roster_team hanno già `pesa_cap` da shared/cap.py; per i
+    roster a una data vale la stessa regola sui campi della riga (niente x0 tranne gli RFA)."""
+    return sum(int(r.get("importo") or 0) for r in roster
+               if (r["pesa_cap"] if "pesa_cap" in r else (not r.get("x0") or r.get("rfa"))))
 
 
-def slot_occupati(roster: list, pre_deadline: bool = True) -> int:
-    """Quanti slot occupa un roster di get_roster_team: niente x0 (anche RFA), niente DPE
-    prima della deadline."""
-    return sum(1 for r in roster if not r.get("x0") and not (pre_deadline and r.get("ha_dpe")))
+def slot_occupati(roster: list, pre_deadline: bool | None = None) -> int:
+    """Quanti slot occupa un roster di get_roster_team: `occupa_slot` di ogni riga, calcolato
+    da shared/cap.py (in corso, senza DPE approvata prima della deadline). `pre_deadline` non
+    serve più (conta il momento dell'approvazione della DPE) e resta per compatibilità."""
+    return sum(1 for r in roster if r.get("occupa_slot"))
 
 
 # ── contratti ─────────────────────────────────────────────────────────────────
@@ -728,23 +719,9 @@ def get_contratti_team(team_id: str) -> list:
 
 def cap_occupato_team(team_id: str, stagione: str) -> int:
     """Cap totale occupato = contratti che pesano (in corso, o x0 dichiarati RFA), con la DPE
-    della stagione, + impatto taglio della stagione. Gli x0 non dichiarati non pesano (v3.11)."""
-    contratti = _qval(
-        f"""SELECT COALESCE(SUM(
-            COALESCE((SELECT d.importo_dpe FROM dpe d
-                      WHERE d.giocatore_id = c.giocatore_id
-                        AND d.team_id = c.team_id
-                        AND d.stagione = %s), c.importo)
-        ), 0)
-        FROM contratti c WHERE c.team_id = %s AND c.attivo = TRUE
-          AND ({SQL_IN_CORSO} OR {SQL_RFA})""",
-        (stagione, team_id, stagione, stagione)
-    ) or 0
-    spalmato = _qval(
-        "SELECT COALESCE(SUM(importo), 0) FROM impatto_taglio WHERE team_id = %s AND stagione = %s",
-        (team_id, stagione)
-    ) or 0
-    return contratti + spalmato
+    della stagione, + impatto dei tagli della stagione. Calcolo in shared/cap.py, lo stesso
+    del bot aste (v3.12.0)."""
+    return _cap.cap_occupato(_q, team_id, stagione)
 
 
 # ── trade ─────────────────────────────────────────────────────────────────────

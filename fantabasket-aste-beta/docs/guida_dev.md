@@ -87,12 +87,12 @@ cap_limite − contratti (con DPE ridotta) − spalmature della stagione − pen
 
 `pg_client.get_cap_totale` è la stessa cosa senza la parte virtuale (la usa `/me`).
 
-**Contratti finiti (v58, bot principale v3.11).** Anni residui = `anni_originali − (stagione − stagione_firma)`; un x0 non pesa né su cap né su slot, tranne l'RFA dichiarato nel bot principale (tabella `rfa_dichiarati`), che pesa sul cap. `get_cap_contratti` e `get_roster_count` usano gli stessi frammenti SQL del bot principale (`_SQL_IN_CORSO`, `_sql_rfa()`) e, senza `stagione`, prendono quella corrente.
+**Cap e slot da `shared/cap.py` (v61).** `get_cap_contratti`, `get_impatto_taglio` e `get_roster_count` chiamano le stesse funzioni del bot principale, quindi i due bot fanno per forza gli stessi conti. Regole: anni residui = `anni_originali − (stagione − stagione_firma)`; un x0 non pesa né su cap né su slot, tranne l'RFA dichiarato nel bot principale (`rfa_dichiarati`), che pesa sul cap; la DPE riduce l'importo e libera lo slot solo se approvata prima della deadline. Senza `stagione` usano quella corrente.
 
 **Slot** (`pg_client.get_slot_totale` → `teams.check_slot_virtuale`):
 
 ```
-roster_max − roster (contratti attivi in corso, esclusi i DPE)
+roster_max − roster (contratti attivi in corso, esclusi i DPE approvati prima della deadline)
           + RFA con asta in corso e contratto non finito  (aste aperte a mano: l'RFA occupa cap ma non slot;
                                                             gli x0 sono già fuori dal roster)
           + slot anticipato                           (/autoslot, 48 ore)
@@ -314,6 +314,7 @@ Visibilità:
 | `handlers/user.py` | `/me`, `/watch`, `/watched`, `/lista_fa`, `/silenzia`, `/offerta`, `/team_detail`, `/guida` |
 | `handlers/admin.py` | tutti i comandi admin, `/team`, `/listteams`, `/autocap`, `/autoslot` |
 | `handlers/rfa.py` | `pubblica_asta_rfa`, `job_rfa` (RFA dichiarati nel bot principale) |
+| `../shared/cap.py` | cap e slot, gli stessi del bot principale |
 | `../shared/messaggi.py` | `manda_lungo`: elenchi admin e dev (`/all_aste`, `/firme`, comandi dev) che, se non stanno in un messaggio, arrivano come file `.md` |
 | `handlers/helpers.py` | `aggiorna_canale`, `notifica_watchers`, `notifica_admin_group`, `log_warn`, `log_job_error` |
 | `handlers/dev.py` | comandi dev |
@@ -372,5 +373,5 @@ docker compose exec bot-aste-beta python3 -c "import sqlite3; c=sqlite3.connect(
 - Lancio: `tests/run.sh` dalla radice del progetto, in locale, mai sul server.
 - Schema SQLite: solo `ALTER TABLE … ADD COLUMN` in `_migrate()`, con default.
 - Ogni rilascio che tocca questo bot aggiunge una voce `## vNN — titolo` al suo CHANGELOG (nello zip `CHANGELOG_aste.md`).
-- Rebuild: `docker compose up --build -d bot-aste-beta`. Se cambia `shared/` (`ruoli_core.py`, `messaggi.py`), anche `bot-main`.
-- Cap e slot devono restare uguali a quelli del bot principale: se cambia una regola su cosa pesa (x0, RFA, DPE), va cambiata in tutti e due (`database.cap_occupato_team` / `slot_occupati` e `pg_client.get_cap_contratti` / `get_roster_count`). La prova `rfa_dichiarati` e la prova generale sulla copia del database lo controllano.
+- Rebuild: `docker compose up --build -d bot-aste-beta`. Se cambia `shared/` (`ruoli_core.py`, `cap.py`, `messaggi.py`), anche `bot-main`.
+- Cap e slot stanno in `shared/cap.py`: una regola nuova su cosa pesa (x0, RFA, DPE) si cambia lì e vale per tutti e due i bot. Prove: `cap_condiviso` (bot principale) e `rfa_dichiarati` (qui).
