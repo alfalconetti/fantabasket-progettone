@@ -6,7 +6,7 @@ import database as db
 import settings
 db.init_db(); db.migrate_db()
 db._q("TRUNCATE giocatori, contratti, pick, rookie, trade, trade_items, trade_squadre, trade_voti, transazioni, dpe, "
-      "impatto_taglio, rfa_dichiarati, migrazioni RESTART IDENTITY CASCADE")
+      "impatto_taglio, rfa_dichiarati, migrazioni, messaggi_fissi RESTART IDENTITY CASCADE")
 db._q("DELETE FROM bref_stats")
 ok = lambda c, m: print(("✅" if c else "❌ FAIL"), m)
 
@@ -187,13 +187,18 @@ S.revoca_rfa("team03")
 # esecuzione vera: i GM vengono avvisati
 inviati = []
 class BotT:
-    async def send_message(self, chat_id, text, **k): inviati.append((chat_id, text))
+    async def send_message(self, chat_id, text, **k):
+        inviati.append((chat_id, text)); return __import__("types").SimpleNamespace(message_id=len(inviati))
+    async def edit_message_text(self, **k): inviati.append(("modifica", k.get("text")))
 t4 = trade_di(v1, "team01", "team04")
 asyncio.run(TE._esegui_trade(__import__("types").SimpleNamespace(bot=BotT()), t4, "TRADE-2027-004", "adm"))
 gm = lambda team: set(__import__("teams").get_team_by_id(team)["gm_ids"])
 ok(any(c in gm("team01") and "era il tuo RFA dichiarato" in x and "/dichiara_rfa" in x for c, x in inviati)
    and any(c in gm("team04") and "senza dichiarazione RFA" in x for c, x in inviati),
    "notifiche: chi lo cede sa che può dichiararne un altro, chi lo riceve che non pesa")
+ok(any(c == -3 and "la dichiarazione decade" in x for c, x in inviati)
+   and any(c in (-1, "modifica") and "RFA dichiarati" in x and "Veterano Uno" not in x for c, x in inviati),
+   "v3.13.3: riga sul canale log e riepilogo RFA senza il giocatore ceduto")
 TE._scrivi_trade(t4, "TRADE-2027-004", None, inverti=True)
 ok(db.rfa_squadra("team01", "2027")["giocatore_id"] == v1, "annullamento della trade eseguita: la dichiarazione torna")
 

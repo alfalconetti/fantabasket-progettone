@@ -2,7 +2,7 @@
 
 Per ogni regola del regolamento: se il bot la applica, dove sta nel codice e quale prova la
 controlla. Riferimento: *FANTA NBA – REGOLAMENTO UFFICIALE*, versione dell'11/10/2026 (18 pagine).
-Stato del codice: v3.13.1, bot aste v63.
+Stato del codice: v3.13.3, bot aste v63.
 
 | Segno | Significato |
 |---|---|
@@ -48,7 +48,8 @@ alla fine della fase RFA e l'ultimo che si scambia solo tra RFA. Regola decisa (
 v3.13.1), al posto della frase "Un giocatore dichiarato RFA non può essere incluso in trade…" e
 dell'ultimo paragrafo del capitolo:
 
-> Un giocatore dichiarato RFA può essere scambiato. Se la trade avviene prima dell'inizio delle
+> Fino all'inizio delle aste RFA ogni franchigia può dichiarare, cambiare o togliere il proprio
+> RFA quante volte vuole. Un giocatore dichiarato RFA può essere scambiato. Se la trade avviene prima dell'inizio delle
 > aste RFA, il giocatore perde la dichiarazione: per la squadra che lo riceve è un normale
 > contratto x0, mentre la squadra che lo cede può dichiarare un altro RFA. Se la trade avviene ad
 > aste RFA aperte, la dichiarazione segue il giocatore e la squadra che lo riceve diventa
@@ -194,7 +195,7 @@ per fantapunti** (0–10,99 → 1 … 45+ → 35), in `settings.json` `tabella_m
 
 | Regola | Stato | Dove | Prova |
 |---|---|---|---|
-| Al massimo un x0 dichiarato RFA, nella fase dei rinnovi | ✅ `/dichiara_rfa` | `stagione.dichiara_rfa`, tabella `rfa_dichiarati` | `stagione`, `stagione_ui` |
+| Al massimo un x0 dichiarato RFA; si dichiara e si cambia quante volte si vuole fino alle aste RFA | ✅ `/dichiara_rfa` nei rinnovi e nel draft (v3.13.2) | `stagione.dichiara_rfa`, tabella `rfa_dichiarati` | `stagione`, `stagione_ui` |
 | Non occupa slot, occupa cap | ✅ | `shared/cap.py` (`sql_rfa`) | `cap_condiviso`, `rfa_dichiarati` |
 | In trade: prima delle aste RFA perde la dichiarazione (chi lo cede ne dichiara un altro); con le aste aperte la dichiarazione lo segue e ogni squadra ne ha al massimo uno | ✅ 📝 dalla v3.13.1 (correzione 3), con avviso nel riepilogo e ai GM | `settings.FASI_RFA_PRIMA_DELLE_ASTE`; `trade_esegui._scrivi_trade` (`db.revoca_rfa_trade`, `sposta_rfa_trade`, `ripristina_rfa_trade`); `validators/trade._errori_rfa`, `_cap_post_team`; bot aste: `rfa._allinea_proprietari` | `stagione`, `rfa_dichiarati` |
 | Asta RFA, il proprietario non rilancia | ✅ aperte da sole nella fase RFA | `aste/handlers/rfa.job_rfa`; `offerte._check_partecipazione` | `rfa_dichiarati`, `rfa_proprietario` |

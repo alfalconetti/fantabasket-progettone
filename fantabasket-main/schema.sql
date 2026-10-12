@@ -248,6 +248,13 @@ CREATE TABLE rfa_dichiarati (
 CREATE UNIQUE INDEX idx_rfa_squadra   ON rfa_dichiarati (stagione, team_id)      WHERE stato = 'attiva';
 CREATE UNIQUE INDEX idx_rfa_giocatore ON rfa_dichiarati (stagione, giocatore_id) WHERE stato = 'attiva';
 
+CREATE TABLE messaggi_fissi (            -- messaggi sul canale aggiornati dal bot (riepilogo RFA)
+    chiave      TEXT PRIMARY KEY,
+    chat_id     BIGINT NOT NULL,
+    message_id  BIGINT NOT NULL,
+    aggiornato  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ============================================================
 -- VISTE
 -- ============================================================

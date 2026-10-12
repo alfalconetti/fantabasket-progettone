@@ -59,7 +59,7 @@ Se la trade deadline è ancora quella della stagione prima, nello stesso passagg
 **Durante i rinnovi (e il draft)**, dal pannello:
 
 - **🔁 Rinnovi rookie** → squadra → giocatore: rinnovo rookie per conto del GM (scala III o Doncic, x2);
-- **🔒 RFA squadre** → squadra: dichiara, cambia o toglie l'RFA. Da **📋 RFA dichiarati** vedi quelli di tutte le squadre. Un RFA scambiato prima delle aste perde la dichiarazione e chi l'ha ceduto può dichiararne un altro: nei rinnovi lo fa il GM, nella fase draft solo un admin da qui.
+- **🔒 RFA squadre** → squadra: dichiara, cambia o toglie l'RFA. Da **📋 RFA dichiarati** vedi quelli di tutte le squadre. I GM lo dichiarano e lo cambiano da soli fino all'inizio delle aste RFA (rinnovi e draft). Ogni dichiarazione, cambio, ritiro o trade di un RFA arriva come riga sul **canale log**; sul **canale principale** c'è un solo messaggio con gli RFA dichiarati di tutte le squadre, che il bot modifica a ogni cambio. Un RFA scambiato prima delle aste perde la dichiarazione e chi l'ha ceduto può dichiararne un altro.
 
 Il GM viene avvisato e l'annuncio sul canale riporta il tuo nome.
 

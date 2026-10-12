@@ -22,7 +22,8 @@ Rookie scale (tabella `rookie_scale` di settings, per pick: I x2, II x1, III x2,
 Passaggi di fase:
   offseason-rinnovi  stagione +1 (admin_panel), applica_stagione(): rookie al II/IV anno
                      e fine scala (da qui gli x0 smettono di pesare); pick dell'anno +6
-  durante i rinnovi  /rinnovo_rookie e /dichiara_rfa (GM; admin dal pannello)
+  durante i rinnovi  /rinnovo_rookie (GM; admin dal pannello)
+  rinnovi e draft    /dichiara_rfa: si dichiara e si cambia fino alle aste RFA (GM; admin dal pannello)
   offseason-rfa      le aste RFA dei dichiarati le apre il bot aste
   offseason-fa       scadenza_x0(): gli x0 non RFA scadono (attivo=FALSE + 'expired')
   regular-season-fa  report_inizio_rs(): sotto il floor / sopra il tetto → gruppo admin
@@ -683,6 +684,65 @@ async def _annuncia(bot, testo: str):
             logger.warning("Annuncio canale: %s", e)
 
 
+# ── RFA sui canali (v3.13.3): una riga per evento sul canale log, un riepilogo unico ─────
+# sul canale principale che si aggiorna a ogni cambio (al massimo 24 righe)
+
+def _nome_squadra(team_id: str) -> str:
+    t = tm.get_team_by_id(team_id)
+    return html.escape(t["nome"] if t else team_id)
+
+
+async def log_rfa(bot, testo: str) -> None:
+    ch = settings.load_globals().get("log_channel_id_main")
+    if not ch:
+        return
+    try:
+        await bot.send_message(chat_id=ch, text=testo, parse_mode="HTML")
+    except Exception as e:
+        logger.warning("Log RFA: %s", e)
+
+
+def testo_riepilogo_rfa(stagione: str) -> str:
+    righe = [f"🔒 <b>RFA dichiarati — stagione {stagione}</b>", ""]
+    dich = db.rfa_stagione(stagione)
+    for r in dich:
+        righe.append(f"• {_nome_squadra(r['team_id'])}: <b>{html.escape(r['nome_common'])}</b> ({r['importo']}M)")
+    if not dich:
+        righe.append("<i>Nessuno, per ora.</i>")
+    from utils import format_dt, ROME
+    from datetime import datetime
+    righe += ["", f"<i>{len(dich)} squadre su {len(tm.get_all_teams())} · aggiornato {format_dt(datetime.now(ROME))}. "
+                  f"Si possono cambiare fino all'inizio delle aste RFA.</i>"]
+    return "\n".join(righe)
+
+
+async def aggiorna_riepilogo_rfa(bot) -> None:
+    """Il riepilogo sul canale principale: modifica sempre lo stesso messaggio della stagione,
+    ne manda uno nuovo solo la prima volta o se quello vecchio non si può più modificare."""
+    ch = settings.load_globals().get("main_channel_id")
+    if not ch:
+        return
+    s = settings.stagione_corrente()
+    chiave = f"riepilogo_rfa:{s}"
+    testo = testo_riepilogo_rfa(s)
+    msg = db.get_messaggio_fisso(chiave)
+    if msg and int(msg["chat_id"]) == int(ch):
+        try:
+            await bot.edit_message_text(chat_id=ch, message_id=msg["message_id"], text=testo, parse_mode="HTML")
+            return
+        except Exception as e:
+            if "not modified" in str(e).lower():
+                return
+            logger.warning("Riepilogo RFA non modificabile (%s): ne mando uno nuovo", e)
+    elif not db.rfa_stagione(s):
+        return                           # niente da dire e nessun messaggio da aggiornare
+    try:
+        nuovo = await bot.send_message(chat_id=ch, text=testo, parse_mode="HTML")
+        db.set_messaggio_fisso(chiave, int(ch), nuovo.message_id)
+    except Exception as e:
+        logger.warning("Riepilogo RFA: %s", e)
+
+
 def _sync(team_id: str):
     try:
         import gas_client
@@ -710,8 +770,8 @@ async def cmd_dichiara_rfa(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not team:
         await update.effective_message.reply_text("⛔ Non sei registrato come GM.")
         return
-    if settings.fase() != FASE_RINNOVI:
-        await update.effective_message.reply_text("❌ L'RFA si dichiara nella fase dei rinnovi.")
+    if settings.fase() not in settings.FASI_RFA_PRIMA_DELLE_ASTE:
+        await update.effective_message.reply_text("❌ L'RFA si dichiara (e si cambia) dai rinnovi fino all'inizio delle aste RFA.")
         return
     testo, kb = _testo_rfa(team, None)
     await update.effective_message.reply_text(testo, parse_mode="HTML", reply_markup=kb)
@@ -761,8 +821,12 @@ async def cb_stagione(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not team:
             await query.answer("⛔ Non sei registrato come GM.", show_alert=True)
             return
-        if settings.fase() != FASE_RINNOVI:
-            await query.answer("❌ Solo nella fase dei rinnovi.", show_alert=True)
+        # l'RFA si cambia quante volte si vuole fino alle aste RFA (Luca, 12/10/2026);
+        # i rinnovi rookie solo nella fase dei rinnovi
+        fasi_ok = settings.FASI_RFA_PRIMA_DELLE_ASTE if parti[1].startswith("rfa") else {FASE_RINNOVI}
+        if settings.fase() not in fasi_ok:
+            await query.answer("❌ Solo nella fase dei rinnovi." if parti[1].startswith("rr")
+                               else "❌ Solo dai rinnovi all'inizio delle aste RFA.", show_alert=True)
             return
         chi = None
     await query.answer()
@@ -815,11 +879,15 @@ async def cb_stagione(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 + f"\nPeserà {c['importo_originale']}M sul cap finché la sua asta non è conclusa.",
                 parse_mode="HTML", reply_markup=kb)
         elif azione == "rfaok":
+            prima = db.rfa_squadra(team["id"], settings.stagione_corrente())
             c = dichiara_rfa(team["id"], int(resto[0]), chi or f"GM {user.id}")
             await query.edit_message_text(f"✅ <b>{html.escape(c['nome_common'])}</b> dichiarato RFA.", parse_mode="HTML")
-            await _annuncia(bot, f"🔒 <b>{html.escape(team.get('gm_nome', team['nome']))}</b> dichiara RFA "
-                                 f"<b>{html.escape(c['nome_common'])}</b> ({c['importo_originale']}M)"
-                                 + (f"\n<i>Registrato da {chi}</i>" if chi else ""))
+            cambio = (f" al posto di {html.escape(prima['nome_common'])}"
+                      if prima and prima["giocatore_id"] != c["giocatore_id"] else "")
+            await log_rfa(bot, f"🔒 <b>RFA — {html.escape(team['nome'])}</b>: dichiara "
+                               f"<b>{html.escape(c['nome_common'])}</b> ({c['importo_originale']}M){cambio}"
+                               + (f"\n<i>Registrato da {chi}</i>" if chi else ""))
+            await aggiorna_riepilogo_rfa(bot)
             if chi:
                 await _avvisa_gm(bot, team, f"🛠 {chi} ha dichiarato RFA <b>{html.escape(c['nome_common'])}</b>.")
             _sync(team["id"])
@@ -827,8 +895,10 @@ async def cb_stagione(update: Update, context: ContextTypes.DEFAULT_TYPE):
             prima = revoca_rfa(team["id"])
             await query.edit_message_text("✅ Nessun RFA dichiarato.")
             if prima:
-                await _annuncia(bot, f"🔓 <b>{html.escape(team.get('gm_nome', team['nome']))}</b> ritira la "
-                                     f"dichiarazione RFA di <b>{html.escape(prima['nome_common'])}</b>")
+                await log_rfa(bot, f"🔓 <b>RFA — {html.escape(team['nome'])}</b>: ritira "
+                                   f"<b>{html.escape(prima['nome_common'])}</b>"
+                                   + (f"\n<i>Registrato da {chi}</i>" if chi else ""))
+                await aggiorna_riepilogo_rfa(bot)
             _sync(team["id"])
     except StagioneErrore as e:
         await query.edit_message_text(str(e))

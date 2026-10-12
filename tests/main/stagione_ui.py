@@ -5,7 +5,7 @@ import asyncio, types
 import database as db
 import settings
 db.init_db(); db.migrate_db()
-db._q("TRUNCATE giocatori, contratti, pick, rookie, transazioni, dpe, impatto_taglio, rfa_dichiarati RESTART IDENTITY CASCADE")
+db._q("TRUNCATE giocatori, contratti, pick, rookie, transazioni, dpe, impatto_taglio, rfa_dichiarati, messaggi_fissi RESTART IDENTITY CASCADE")
 db._q("DELETE FROM bref_stats")
 ok = lambda c, m: print(("✅" if c else "❌ FAIL"), m)
 
@@ -32,9 +32,14 @@ def gioc(n, team, imp, anni, sf, tipo="normale", pick=None, anno_firma=None):
 msgs = []
 
 
+modifiche = []
+
+
 class Bot:
     username = "bot"
-    async def send_message(self, chat_id=None, text=None, **k): msgs.append((chat_id, text))
+    async def send_message(self, chat_id=None, text=None, **k):
+        msgs.append((chat_id, text)); return types.SimpleNamespace(message_id=len(msgs))
+    async def edit_message_text(self, chat_id=None, message_id=None, text=None, **k): modifiche.append((chat_id, message_id, text))
     async def set_my_commands(self, *a, **k): pass
     async def delete_my_commands(self, *a, **k): pass
 
@@ -82,16 +87,31 @@ ok(f"sg:rfag:{vx}" in bottoni(q) and f"sg:rfag:{rk}" not in bottoni(q), "GM: RFA
 q = tap(S.cb_stagione, f"sg:rfag:{vx}", GM1)
 ok(f"sg:rfaok:{vx}" in bottoni(q) and "18M sul cap" in q.t, "GM: conferma RFA con il peso sul cap")
 msgs.clear(); q = tap(S.cb_stagione, f"sg:rfaok:{vx}", GM1)
-ok(db.rfa_squadra("team01", "2027")["giocatore_id"] == vx and any("dichiara RFA" in t for _, t in msgs), "GM: dichiarato e annunciato")
+ok(db.rfa_squadra("team01", "2027")["giocatore_id"] == vx, "GM: dichiarato")
+ok([t for c, t in msgs if c == -3 and "RFA — Alfa" in t and "dichiara" in t and "Vecchio X0" in t],
+   "v3.13.3: sul canale log una riga per la dichiarazione")
+riep = [t for c, t in msgs if c == -1]
+ok(len(riep) == 1 and "RFA dichiarati — stagione 2027" in riep[0] and "Alfa: <b>Vecchio X0</b>" in riep[0] and "1 squadre su 4" in riep[0],
+   "v3.13.3: sul canale principale il riepilogo, una riga per squadra")
 q = tap(S.cb_stagione, "sg:rfa", GM1)
 ok("sg:rfano" in bottoni(q) and "Vecchio X0" in q.t, "GM: si vede il dichiarato e si può togliere")
 msgs.clear(); q = tap(S.cb_stagione, "sg:rfano", GM1)
-ok(db.rfa_squadra("team01", "2027") is None and any("ritira" in t for _, t in msgs), "GM: tolto")
+ok(db.rfa_squadra("team01", "2027") is None and any(c == -3 and "ritira" in t for c, t in msgs), "GM: tolto, riga sul canale log")
+ok(not [1 for c, _ in msgs if c == -1] and modifiche and modifiche[-1][0] == -1 and "Nessuno" in modifiche[-1][2],
+   "v3.13.3: il riepilogo si modifica, niente messaggi nuovi sul canale principale")
 
 # fuori fase e permessi
 fase("offseason-draft")
 q = tap(S.cb_stagione, f"sg:rfaok:{vx}", GM1)
-ok(q.alert and "rinnovi" in q.alert and db.rfa_squadra("team01", "2027") is None, "GM fuori dalla fase dei rinnovi: niente")
+ok(db.rfa_squadra("team01", "2027")["giocatore_id"] == vx, "v3.13.2: nel draft il GM dichiara ancora l'RFA (fino alle aste)")
+q = tap(S.cb_stagione, "sg:rfano", GM1)
+ok(db.rfa_squadra("team01", "2027") is None, "v3.13.2: e lo può togliere")
+q = tap(S.cb_stagione, "sg:rr", GM1)
+ok(q.alert and "rinnovi" in q.alert, "rinnovi rookie solo nella fase dei rinnovi")
+fase("offseason-rfa")
+q = tap(S.cb_stagione, f"sg:rfaok:{vx}", GM1)
+ok(q.alert and "aste RFA" in q.alert and db.rfa_squadra("team01", "2027") is None, "con le aste RFA partite: niente")
+fase("offseason-draft")
 q = tap(S.cb_stagione, f"sga:team02:rfaok:{v2}", GM1)
 ok(q.alert and "admin" in q.alert.lower() and db.rfa_squadra("team02", "2027") is None, "callback admin da un GM: rifiutata")
 q = tap(S.cb_stagione, "sga:scegli:rfa", ADMIN)

@@ -325,7 +325,13 @@ def _migra_stagioni() -> None:
             da            TEXT,
             creato        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             chiuso        TIMESTAMPTZ)""")
-    _q("ALTER TABLE rfa_dichiarati ADD COLUMN IF NOT EXISTS nota TEXT")    # v3.13.1: "trade <id>" se decaduta con una trade
+    _q("ALTER TABLE rfa_dichiarati ADD COLUMN IF NOT EXISTS nota TEXT")
+    # messaggi sul canale che il bot aggiorna invece di riscrivere (v3.13.3: riepilogo RFA)
+    _q("""CREATE TABLE IF NOT EXISTS messaggi_fissi (
+            chiave      TEXT PRIMARY KEY,
+            chat_id     BIGINT NOT NULL,
+            message_id  BIGINT NOT NULL,
+            aggiornato  TIMESTAMPTZ NOT NULL DEFAULT NOW())""")    # v3.13.1: "trade <id>" se decaduta con una trade
     _q("CREATE UNIQUE INDEX IF NOT EXISTS idx_rfa_squadra ON rfa_dichiarati (stagione, team_id) WHERE stato = 'attiva'")
     _q("CREATE UNIQUE INDEX IF NOT EXISTS idx_rfa_giocatore ON rfa_dichiarati (stagione, giocatore_id) WHERE stato = 'attiva'")
     # contratti rookie: fino alla v3.10 stagione_firma era l'anno di firma della scala per
@@ -378,6 +384,23 @@ def sposta_rfa_trade(cur, giocatore_id: int, team_da: str, team_a: str, stagione
     della trade; il bot aste allinea da solo il proprietario dell'asta)."""
     cur.execute("UPDATE rfa_dichiarati SET team_id = %s WHERE giocatore_id = %s AND team_id = %s "
                 "AND stagione = %s AND stato = 'attiva'", (team_a, giocatore_id, team_da, stagione))
+
+
+def get_messaggio_fisso(chiave: str) -> dict | None:
+    return _q("SELECT * FROM messaggi_fissi WHERE chiave = %s", (chiave,), one=True)
+
+
+def set_messaggio_fisso(chiave: str, chat_id: int, message_id: int) -> None:
+    _q("""INSERT INTO messaggi_fissi (chiave, chat_id, message_id) VALUES (%s, %s, %s)
+          ON CONFLICT (chiave) DO UPDATE SET chat_id = EXCLUDED.chat_id, message_id = EXCLUDED.message_id,
+                                             aggiornato = NOW()""", (chiave, chat_id, message_id))
+
+
+def rfa_stagione(stagione: str) -> list[dict]:
+    """Dichiarazioni RFA in vigore della stagione (anche ad asta conclusa), con nome e importo."""
+    return _q("""SELECT rd.*, g.nome_common, c.importo FROM rfa_dichiarati rd
+                 JOIN giocatori g ON g.id = rd.giocatore_id JOIN contratti c ON c.id = rd.contratto_id
+                 WHERE rd.stagione = %s AND rd.stato = 'attiva' ORDER BY rd.team_id""", (stagione,), many=True) or []
 
 
 def revoca_rfa_trade(cur, giocatore_id: int, team_da: str, stagione: str, trade_id: int) -> bool:

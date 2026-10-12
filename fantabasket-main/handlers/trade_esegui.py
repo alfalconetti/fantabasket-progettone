@@ -122,6 +122,8 @@ async def _esegui_trade(context, trade_id: int, trade_ref: str, approvata_da: st
     fase_corrente = settings.fase()
     from validators.trade import rfa_che_decadono
     rfa_persi = rfa_che_decadono(items, settings.stagione_corrente())   # prima di scrivere: dopo non lo sono più
+    rfa_coinvolti = [i for i in items if i["tipo"] == "giocatore"
+                     and db.rfa_dichiarato(i["giocatore_id"], settings.stagione_corrente())]
 
     _scrivi_trade(trade_id, trade_ref, approvata_da or trade.get("approvata_da"))
     logger.info("Trade %s eseguita.", trade_ref)
@@ -143,10 +145,8 @@ async def _esegui_trade(context, trade_id: int, trade_ref: str, approvata_da: st
         for i in rfa_persi:
             nome_g = html.escape(i.get("nome_common") or str(i["giocatore_id"]))
             if i["team_id_da"] == team_id:
-                come = ("con /dichiara_rfa" if fase_corrente == "offseason-rinnovi"
-                        else "chiedendo a un admin (dal pannello, 🔒 RFA squadre)")
                 testo += (f"\n🔓 <b>{nome_g}</b> era il tuo RFA dichiarato: con la trade la dichiarazione decade. "
-                          f"Se vuoi puoi dichiararne un altro {come}.")
+                          f"Se vuoi puoi dichiararne un altro con /dichiara_rfa.")
             elif i["team_id_a"] == team_id:
                 testo += (f"\nℹ️ <b>{nome_g}</b> arriva con il contratto finito (x0) e senza dichiarazione RFA: "
                           f"non pesa sul cap.")
@@ -157,6 +157,22 @@ async def _esegui_trade(context, trade_id: int, trade_ref: str, approvata_da: st
                 )
             except Exception as e:
                 logger.warning("Notifica GM %d fallita: %s", gm_id, e)
+
+    # RFA: una riga per giocatore sul canale log e riepilogo aggiornato sul canale principale
+    if rfa_coinvolti:
+        from handlers.stagione import log_rfa, aggiorna_riepilogo_rfa
+        persi = {i["giocatore_id"] for i in rfa_persi}
+        for i in rfa_coinvolti:
+            nome_g = html.escape(i.get("nome_common") or str(i["giocatore_id"]))
+            da = html.escape((tm.get_team_by_id(i["team_id_da"]) or {}).get("nome", i["team_id_da"]))
+            a = html.escape((tm.get_team_by_id(i["team_id_a"]) or {}).get("nome", i["team_id_a"]))
+            if i["giocatore_id"] in persi:
+                await log_rfa(context.bot, f"🔓 <b>RFA — {da}</b>: <b>{nome_g}</b> ceduto a {a} con la "
+                                           f"{trade_ref}, la dichiarazione decade")
+            else:
+                await log_rfa(context.bot, f"➡️ <b>RFA</b>: <b>{nome_g}</b> passa da {da} a {a} con la "
+                                           f"{trade_ref}, insieme alla dichiarazione")
+        await aggiorna_riepilogo_rfa(context.bot)
 
     # Sync GAS — roster e scelte
     try:
@@ -313,6 +329,12 @@ async def cmd_annulla_trade_admin(update: Update, context: ContextTypes.DEFAULT_
     admin_nome = user.first_name or str(user.id)
     from datetime import datetime
     ora = format_dt(datetime.now(ROME))
+    # se la trade aveva toccato un RFA, la dichiarazione è tornata: riepilogo aggiornato
+    try:
+        from handlers.stagione import aggiorna_riepilogo_rfa
+        await aggiorna_riepilogo_rfa(context.bot)
+    except Exception as e:
+        logger.warning("Riepilogo RFA dopo l'annullamento: %s", e)
 
     # Annuncio canale
     main_channel = load_globals().get("main_channel_id")

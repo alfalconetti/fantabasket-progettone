@@ -620,6 +620,7 @@ FASI_INDICAZIONI = {
     "offseason-draft": [
         "Le prime scelte vanno firmate obbligatoriamente",
         "I diritti delle seconde si possono tenere per due anni: per firmarle /attiva_diritti (contratto dalla rookie scale)",
+        "L'RFA si può ancora dichiarare o cambiare con /dichiara_rfa, fino all'inizio delle aste RFA",
     ],
     "offseason-rfa": [
         "Aste RFA: si aprono da sole per i giocatori dichiarati; chi l'ha dichiarato ha 24h dalla fine dell'asta per pareggiare",

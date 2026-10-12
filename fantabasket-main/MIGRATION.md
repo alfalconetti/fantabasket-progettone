@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v3.13.1, bot aste v63)
+# Messaggio di migrazione — Fantabasket Progettone (stato v3.13.3, bot aste v63)
 
 ---
 
@@ -331,7 +331,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 
 ---
 
-**Stato attuale: v3.13.1 / aste v63**
+**Stato attuale: v3.13.3 / aste v63**
 
 Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v2.1.19** — `/attiva_diritti` propone il contratto della rookie scale (anno I) e chiede solo conferma
@@ -375,6 +375,8 @@ Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v3.9.3 / aste v54** — guide GM e admin dei due bot riscritte, discorsive e con esempi; `/admin` del bot aste riordinato; `/reset_rfa` del bot aste disattivato (la stagione la avanza il bot principale); tolto `/approva_trade` inesistente dal menu; prova `tests/docs/guide_e_menu.py` (comandi citati in guide, aiuti e menu devono esistere)
 - **v3.9.4 / aste v55** — guide dev dei due bot (`docs/guida_dev.md`, `/guida_dev`): sono il promemoria tecnico per Luca, da aggiornare quando cambia qualcosa di strutturale; `/set_cap_penalizzato` spostato nel bot principale (nel bot aste config è `:ro`); `/autoslot` ora conta negli slot (`get_slot_totale` + slot anticipato); benvenuto del bot aste corretto. Codice non schedulato nel bot aste: `scheduler.backup_*` e `pulizia_anticipati_scaduti`
 - **v3.9.5 / aste v56** — foglio Roster sempre per tutte le 24 squadre (`gas_client.sync_teams` ignora l'elenco; decisione di Luca); offerta massima di nuovo 141 = `cap_regular − (roster_min_regular − 1)` (usava `roster_max` → 136)
+- **v3.13.3** — RFA sui canali: una riga per evento (dichiarazione, cambio, ritiro, trade) sul canale log; sul canale principale un solo riepilogo per stagione con gli RFA di tutte le squadre, modificato a ogni cambio (tabella `messaggi_fissi`). Prima ogni dichiarazione era un messaggio sul canale principale
+- **v3.13.2** — l'RFA si dichiara e si cambia quante volte si vuole fino alle aste RFA: `/dichiara_rfa` e il menu anche nella fase draft (deciso con Luca)
 - **v3.13.1** — RFA in trade (deciso con Luca il 12/10/2026): prima delle aste RFA (rinnovi, draft) un RFA scambiato perde la dichiarazione (`rfa_dichiarati.stato = 'revocata'`, `nota = 'trade <id>'`), chi lo cede può dichiararne un altro, per chi lo riceve è un x0 che non pesa, nessun limite; dalla fase RFA la dichiarazione segue il giocatore e vale al massimo un RFA per squadra; l'annullamento la rimette dov'era. Avviso nel riepilogo e ai GM. Decisioni sul regolamento: luxury 165 per tutti e Stepien a 4 anni sulle proprie 1st (il bot è giusto, va corretto il testo), offerta massima 141 = conseguenza di cap e minimo giocatori, floor nelle trade confermato (prova aggiunta). Testi proposti in `docs/regolamento_e_codice.md`
 - **v3.13.0 / aste v63** — file giganti divisi senza cambiare codice: `trade.py` (2.200 righe) in `trade.py` (registrazione) + `trade_comune`, `trade_crea`, `trade_modifica`, `trade_voto`, `trade_esegui`, `trade_liste`; nel bot aste `admin.py` (2.400) in `admin.py` + `admin_comune`, `admin_squadre`, `admin_aste`, `admin_riapri`, `admin_offerte`, e `firma.py` (1.750) in `firma.py` + `firma_comune`, `firma_preimpostazioni`, `firma_pareggio`. Verifiche: ogni funzione spostata identica (AST), handler e job registrati identici, prove, prova sulla copia dei dati veri con trade, aste FA e RFA fatte coi bottoni e foto finali identiche tra v3.12.1 e v3.13.0. Nuova prova `nomi_importati` (import dentro le funzioni e `modulo.nome`): ha trovato un import rotto nel taglio admin (scelta della squadra → ImportError), corretto. Specchietto regolamento ↔ codice ↔ prove in `docs/regolamento_e_codice.md`, con le differenze da decidere; prove `regolamento_numeri` e `regolamento_numeri_aste` coi numeri del regolamento ricopiati a mano. Tolte due funzioni mai chiamate del bot aste (`_check_cap_virtuale_negativo`, `_notifica_gm_cap_slot`)
 - **v3.12.1 / aste v62** — `/team` del bot aste con la ricerca di `/roster` (id, nome, GM, inizio, somiglianza) in `shared/squadre.py`; senza argomento la propria squadra; `deploy.sh` più silenzioso (output di Docker solo se qualcosa va storto)

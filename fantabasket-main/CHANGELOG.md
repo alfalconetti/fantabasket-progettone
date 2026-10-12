@@ -1089,3 +1089,11 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - **RFA in trade**, regola decisa il 12/10/2026. Prima delle aste RFA (fasi rinnovi e draft) un RFA dichiarato si può scambiare e perde la dichiarazione: per chi lo riceve è un x0 che non pesa sul cap, chi lo cede può dichiararne un altro (nei rinnovi da solo con `/dichiara_rfa`, nel draft tramite un admin). Il riepilogo della trade lo avvisa e dopo l'esecuzione i GM delle due squadre ricevono un messaggio. Con le aste aperte (dalla fase RFA) resta com'era: la dichiarazione segue il giocatore e dopo la trade ogni squadra ha al massimo un RFA. Annullando una trade la dichiarazione torna dov'era, se intanto la squadra non ne ha dichiarato un altro. Colonna nuova `rfa_dichiarati.nota`
 - Specchietto `docs/regolamento_e_codice.md`: al posto delle cose da decidere, le correzioni da fare al regolamento con il testo proposto (luxury 165 per tutti, Stepien, RFA in trade, floor nelle trade)
 - Prova `regolamento_numeri`: anche il salary floor nelle trade in stagione
+
+## v3.13.2 (2026-10-12)
+
+- L'RFA si dichiara e si cambia quante volte si vuole fino all'inizio delle aste RFA: `/dichiara_rfa` (e 🔒 nel menu) funziona anche nella fase draft, non più solo nei rinnovi. Dopo una trade che fa decadere la dichiarazione, il GM che ha ceduto l'RFA ne dichiara un altro da solo
+
+## v3.13.3 (2026-10-12)
+
+- RFA sui canali: ogni dichiarazione, cambio, ritiro e ogni trade di un RFA è una riga sul canale log (chi, cosa, al posto di chi, registrato da un admin). Sul canale principale non arriva più un messaggio per ogni dichiarazione: c'è un solo riepilogo della stagione con gli RFA di tutte le squadre, che il bot modifica a ogni cambio (anche dopo una trade o il suo annullamento). Se il messaggio viene cancellato, al cambio successivo ne manda uno nuovo. Tabella nuova `messaggi_fissi`
