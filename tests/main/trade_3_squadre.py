@@ -40,6 +40,7 @@ db._q("INSERT INTO rookie (giocatore_id,team_id,round,pick_numero,anno_draft) VA
 def pick(t,anno,rnd): return db._qval("SELECT id FROM pick WHERE proprietario_orig=%s AND anno=%s AND round=%s",(t,str(anno),rnd))
 
 import handlers.trade as T
+import handlers.trade_crea as TC   # v3.13.0: trade.py spezzato
 from validators.trade import valida_trade
 async def main():
     ok=lambda c,m: print(("✅" if c else "❌ FAIL"), m)
@@ -49,7 +50,7 @@ async def main():
     q=await go(T.cb_seleziona_squadra,"trade_sq:team02",101); ok(q.ret==T.TRADE_SELEZIONA_SQUADRE and ud["trade_squadre_ordine"]==["team01","team02"],"doppio tap squadra ignorato")
     q=await go(T.cb_seleziona_squadra,"trade_sq:team03",101); ok(q.ret==T.TRADE_ASSET_MENU,"3 squadre → asset")
     await go(T.cb_toggle_giocatore,f"trade_gi:{tid}:team01:{G['team01_p0']}",101)
-    await go(T.cb_squadra_confermata.__wrapped__ if hasattr(T.cb_squadra_confermata,'__wrapped__') else T.cb_asset_menu, f"trade_am:ok:{tid}:team01",101)
+    await go(TC.cb_squadra_confermata.__wrapped__ if hasattr(TC.cb_squadra_confermata,'__wrapped__') else T.cb_asset_menu, f"trade_am:ok:{tid}:team01",101)
     await go(T.cb_toggle_pick,f"trade_pi:{tid}:team02:{pick('team02',2028,2)}",101)
     await go(T.cb_asset_menu,f"trade_am:ok:{tid}:team02",101)
     rid=db._qval("SELECT id FROM rookie WHERE giocatore_id=%s",(rk,)); rid2=db._qval("SELECT id FROM rookie WHERE giocatore_id=%s",(rk2,))

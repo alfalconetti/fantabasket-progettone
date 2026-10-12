@@ -1069,3 +1069,23 @@ Passata sulla documentazione dopo la 3.11.
 
 ### Bot aste (v62)
 - `/team` come `/roster` (vedi CHANGELOG del bot aste)
+
+## v3.13.0 (2026-10-12)
+
+Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
+
+- `handlers/trade.py` (2.200 righe) diviso per fase della trade, spostando il codice senza cambiarlo: `trade_comune.py` (stati, riepilogo, tastiere, permessi sulla bozza, annuncio, notifiche), `trade_crea.py` (`/build_trade`, `/import_trade`), `trade_modifica.py` (`/edit_trade`), `trade_voto.py` (proposta, voti, approvazione admin), `trade_esegui.py` (`_scrivi_trade`, `/annulla_trade_admin`), `trade_liste.py` (`/my_trades`, `/bozze_trade`). `trade.py` registra gli handler e in testa ha l'indice
+- Corretto: nel pannello admin, ✂️ Taglia → scelta della squadra non si apriva (importava una funzione che non esiste più). Trovato dalla prova nuova qui sotto
+- Prova `tests/docs/nomi_importati.py`: ogni `from modulo import nome`, anche dentro le funzioni (pyflakes non li controlla), e ogni `db.funzione` puntano a un nome che esiste; le sostituzioni fatte dalle prove devono colpire il modulo dove la funzione è definita
+- Specchietto `docs/regolamento_e_codice.md`: ogni regola del regolamento con il codice che la applica, la prova che la controlla e le differenze da decidere (luxury dei penalizzati, Stepien e RFA in trade scritti in due modi nel regolamento, offerta massima 141, floor nelle trade)
+- Prova `regolamento_numeri`: i numeri del regolamento ricopiati a mano (roster, cap, tempi, Stepien anche nella logica, tabella dei minimi, tagli, DPE, rookie scale, Doncic, fantapunti, ruoli) contro quelli del bot
+- Prova `taglio_admin`: anche la scelta della squadra
+
+### Bot aste (v63)
+- `admin.py` e `firma.py` divisi allo stesso modo (vedi CHANGELOG del bot aste)
+
+## v3.13.1 (2026-10-12)
+
+- **RFA in trade**, regola decisa il 12/10/2026. Prima delle aste RFA (fasi rinnovi e draft) un RFA dichiarato si può scambiare e perde la dichiarazione: per chi lo riceve è un x0 che non pesa sul cap, chi lo cede può dichiararne un altro (nei rinnovi da solo con `/dichiara_rfa`, nel draft tramite un admin). Il riepilogo della trade lo avvisa e dopo l'esecuzione i GM delle due squadre ricevono un messaggio. Con le aste aperte (dalla fase RFA) resta com'era: la dichiarazione segue il giocatore e dopo la trade ogni squadra ha al massimo un RFA. Annullando una trade la dichiarazione torna dov'era, se intanto la squadra non ne ha dichiarato un altro. Colonna nuova `rfa_dichiarati.nota`
+- Specchietto `docs/regolamento_e_codice.md`: al posto delle cose da decidere, le correzioni da fare al regolamento con il testo proposto (luxury 165 per tutti, Stepien, RFA in trade, floor nelle trade)
+- Prova `regolamento_numeri`: anche il salary floor nelle trade in stagione

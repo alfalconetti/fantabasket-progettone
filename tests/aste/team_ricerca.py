@@ -19,7 +19,7 @@ class Msg:
 
 def team(args, uid=101):
     m = Msg()
-    asyncio.run(__import__("handlers.admin", fromlist=["cmd_team"]).cmd_team(
+    asyncio.run(__import__("handlers.admin_squadre", fromlist=["cmd_team"]).cmd_team(
         types.SimpleNamespace(effective_user=types.SimpleNamespace(id=uid), effective_message=m),
         types.SimpleNamespace(args=args)))
     return m.t[-1]

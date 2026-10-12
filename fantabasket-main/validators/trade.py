@@ -16,12 +16,27 @@ def _cap_post_team(team_id: str, items: list, stagione: str) -> tuple[int, int]:
     def _importo(giocatore_id):
         # DPE ridotta; x0 non dichiarato = 0; RFA dichiarato = importo (v3.11.0)
         return db.peso_cap_giocatore(giocatore_id, stagione)
+    perde_rfa = settings.rfa_perso_in_trade()
+
+    def _importo_dopo(giocatore_id):
+        # prima delle aste RFA un RFA scambiato perde la dichiarazione: per chi lo riceve è
+        # un x0 qualsiasi, non pesa (v3.13.1)
+        if perde_rfa and db.rfa_dichiarato(giocatore_id, stagione):
+            return 0
+        return _importo(giocatore_id)
     cap_attuale = db.cap_occupato_team(team_id, stagione)
     cap_out = sum(_importo(i["giocatore_id"]) for i in items
                   if i["team_id_da"] == team_id and i["tipo"] == "giocatore")
-    cap_in  = sum(_importo(i["giocatore_id"]) for i in items
+    cap_in  = sum(_importo_dopo(i["giocatore_id"]) for i in items
                   if i["team_id_a"] == team_id and i["tipo"] == "giocatore")
     return cap_attuale, cap_attuale - cap_out + cap_in
+
+
+def rfa_che_decadono(items: list, stagione: str) -> list[dict]:
+    """Giocatori della trade che sono RFA dichiarati e la perdono (prima delle aste RFA)."""
+    if not settings.rfa_perso_in_trade():
+        return []
+    return [i for i in items if i["tipo"] == "giocatore" and db.rfa_dichiarato(i["giocatore_id"], stagione)]
 
 
 def avvisi_trade(trade_id: int) -> list[str]:
@@ -34,6 +49,12 @@ def avvisi_trade(trade_id: int) -> list[str]:
         return []
     items = db.get_items_trade(trade_id)
     avvisi = []
+    # prima delle aste RFA: chi perde la dichiarazione (v3.13.1)
+    for i in rfa_che_decadono(items, trade["stagione"]):
+        da = tm.get_team_by_id(i["team_id_da"])
+        avvisi.append(f"ℹ️ {i.get('nome_common') or i['giocatore_id']} è l'RFA dichiarato di "
+                      f"{da['nome'] if da else i['team_id_da']}: con la trade perde la dichiarazione "
+                      f"(chi lo cede può dichiararne un altro, chi lo riceve lo ha come x0 qualsiasi)")
     for s in db.get_squadre_trade(trade_id):
         team_id = s["team_id"]
         _, cap_post = _cap_post_team(team_id, items, trade["stagione"])
@@ -96,10 +117,13 @@ def _errori_struttura(trade: dict, items: list, squadre: list) -> list[str]:
 
 
 def _errori_rfa(items: list, squadre: list, stagione: str) -> list[str]:
-    """RFA dichiarati (regolamento + Luca, 12/10/2026): dalla dichiarazione alla fine delle
-    aste RFA un RFA si scambia solo se ogni squadra, dopo la trade, ha al massimo un RFA:
-    RFA contro RFA, oppure RFA a una squadra che non ne ha dichiarati (anche insieme ad
-    altri asset). Il cap lo controlla già _cap_post_team (l'RFA pesa all'importo pieno)."""
+    """RFA dichiarati (Luca, 12/10/2026). Prima delle aste RFA nessun limite: chi riceve un RFA
+    lo riceve senza dichiarazione (vedi settings.rfa_perso_in_trade). Con le aste aperte un RFA si
+    scambia solo se ogni squadra, dopo la trade, ha al massimo un RFA: RFA contro RFA, oppure
+    RFA a una squadra che non ne ha dichiarati (anche insieme ad altri asset). Il cap lo
+    controlla già _cap_post_team (l'RFA pesa all'importo pieno)."""
+    if settings.rfa_perso_in_trade():
+        return []
     rfa = {i["giocatore_id"]: db.rfa_dichiarato(i["giocatore_id"], stagione)
            for i in items if i["tipo"] == "giocatore"}
     rfa = {g: r for g, r in rfa.items() if r}

@@ -25,6 +25,9 @@ class Bot:
 def tap(cb, data):
     q=Q(data); asyncio.run(cb(types.SimpleNamespace(callback_query=q, effective_user=types.SimpleNamespace(id=900,first_name="Adm",username="adm")),
                              types.SimpleNamespace(bot=Bot()))); return q
+# v3.13.0: la scelta della squadra importava una funzione che non esiste più (ImportError)
+q=tap(A.cb_adm_taglia_team, "adm_taglia_team:team01")
+ok(q.kb and any(r[0].callback_data==f"adm_taglia_ok:{grosso}:team01" for r in q.kb.inline_keyboard), "scelta della squadra: il roster con i bottoni")
 fase("regular-season-fa")
 q=tap(A.cb_adm_taglia_conferma, f"adm_taglia_ok:{grosso}:team01")
 ok("sotto il minimo" in (q.t or "") and db._qval("SELECT attivo FROM contratti WHERE giocatore_id=%s",(grosso,)),

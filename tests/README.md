@@ -56,9 +56,10 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `penalita_cap` | main | `/set_cap_penalizzato`: solo admin, scrive teams.json, tetto RS ridotto e offseason a 165 |
 | `sync_fogli` | main | il foglio Roster si aggiorna sempre per tutte le squadre |
 | `registro_unico` | main | migrazione al registro unico (tagli pre-bot, trade rimesse approvate, storico di pick e diritti con trade annullate e pre-bot), movimenti scritti da trade/annullamento/attivazione/scadenza, `roster_attuale`, controllo di coerenza, ricostruzione che si ferma su dati incoerenti |
-| `taglio_admin` | main | il taglio dal pannello admin usa lo stesso codice dei GM: anteprima, minimi di regular season, scrittura atomica, avviso al GM |
+| `taglio_admin` | main | il taglio dal pannello admin usa lo stesso codice dei GM: scelta della squadra, anteprima, minimi di regular season, scrittura atomica, avviso al GM |
 | `team_diff` | main | contratti nei due momenti, DPE, cambio contratto, niente falsi cambi tra stagioni |
-| `stagione` | main | cambio di stagione: Doncic (arrotondamenti), migrazione dei contratti rookie, anteprima completa (anche chi resta uguale, stima del rinnovo), II e IV anno, fine scala con Doncic d'ufficio, x0 fuori da cap e slot, rinnovo rookie, RFA dichiarati (cap sì, slot no, uno per squadra), regola delle trade RFA, pick dell'anno +6 ai rinnovi, scadenza degli x0 a inizio FA, report di inizio RS, coerenza a ogni passo, report lunghi come file `.md` |
+| `stagione` | main | cambio di stagione: Doncic (arrotondamenti), migrazione dei contratti rookie, anteprima completa (anche chi resta uguale, stima del rinnovo), II e IV anno, fine scala con Doncic d'ufficio, x0 fuori da cap e slot, rinnovo rookie, RFA dichiarati (cap sì, slot no, uno per squadra), RFA in trade (prima delle aste la dichiarazione decade, chi lo cede ne dichiara un altro, notifiche ai GM; con le aste aperte lo segue, al massimo uno per squadra; annullamento), pick dell'anno +6 ai rinnovi, scadenza degli x0 a inizio FA, report di inizio RS, coerenza a ogni passo, report lunghi come file `.md` |
+| `regolamento_numeri` | main | i numeri del regolamento ricopiati a mano contro quelli del bot: roster, cap, floor, tempi, anni minimi, Stepien (anche la logica), tabella dei minimi, tagli (tabella fino a 5M e percentuali), DPE, rookie scale, Doncic, fantapunti, minimi e costanti dei ruoli, salary floor nelle trade in stagione. Lo specchietto completo è in `docs/regolamento_e_codice.md` |
 | `cap_condiviso` | main | `shared/cap.py`: peso sul cap e slot per in corso, x0, RFA dichiarato, DPE prima e dopo la deadline; cap con le spalmature; il bot principale dà gli stessi numeri |
 | `stagione_ui` | main | bottoni di rinnovo rookie e RFA (GM e admin, fuori fase, permessi), conferma con anteprima del cambio fase, doppio tap, ritorno ai rinnovi senza far avanzare la stagione |
 | `pg_rfa_30giorni_dpe` | aste + PG | RFA: cap sì slot no, lascio andare con movimento; regola dei 30 giorni; DPE nel cap per offrire; rifirma dopo taglio |
@@ -67,6 +68,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `apertura_gm` | aste (isolato) | apertura del GM passata dalla funzione comune |
 | `cap_asta_chiusa` | aste (isolato) | un'asta chiusa e non firmata impegna ancora cap e slot |
 | `team_ricerca` | aste (isolato) | `/team` trova la squadra come `/roster` (id, nome, GM, inizio, errore di battitura), senza argomento la propria |
+| `regolamento_numeri_aste` | aste (isolato) | i numeri del regolamento nel bot aste: durata dell'asta, tempi di firma e pareggio, anni minimi, soglie del pareggio RFA |
 | `rfa_proprietario` | aste (isolato) | il proprietario non offre sul proprio RFA neanche con `/offerta` |
 | `menu_e_listteams` | aste + PG | menu "/" per fase e ruolo, `/listteams` compatto, `/reset_rfa` disattivato |
 | `autoslot` | aste + PG | `/autoslot` e `/autocap` contano davvero negli slot e nel cap |
@@ -74,6 +76,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `rfa_dichiarati` | aste + PG | x0 fuori da cap e slot, RFA dichiarato sul cap; aste RFA aperte da sole nella fase RFA, una volta sola; proprietario allineato dopo una trade; il contratto nuovo di chi vince non cambia il proprietario; DPE prima e dopo la deadline |
 | `guide_e_menu` | — | ogni comando citato in guide, `/admin`, `/dev` e menu "/" esiste nel suo bot (nessun database) |
 | `letture_transazioni` | — | nessuno legge `transazioni` fuori dalle funzioni ammesse (i roster si ricostruiscono da `movimenti_giocatori`) |
+| `nomi_importati` | — | ogni nome preso da un altro modulo esiste: `from x import y` anche dentro le funzioni (pyflakes non li guarda), `db.funzione`, le sostituzioni delle prove (`modulo.f = ...` vale solo dove `f` è definita). Legge i sorgenti, non li esegue |
 
 "Isolato" = bot aste senza PostgreSQL (`PG_URL` vuoto): cap e slot dal JSON.
 

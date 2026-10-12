@@ -234,7 +234,6 @@ async def cb_adm_taglia_team(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
     team_id = query.data.split(":")[1]
     import database as db
-    from handlers.tagli import _anni_residui, _e_taglio_gratuito, calcola_spalmate, MAX_TAGLI_GRATUITI
     roster = db.get_roster_team(team_id)
     team   = tm.get_team_by_id(team_id)
     if not roster:
@@ -452,7 +451,7 @@ async def cb_adm_seleziona_squadra(update: Update, context: ContextTypes.DEFAULT
         return ADMIN_TRADE_BUILD_SQ
 
     # Tutte selezionate → vai ad asset con il builder standard
-    from handlers.trade import _vai_ad_asset
+    from handlers.trade_crea import _vai_ad_asset
     context.user_data["trade_id"]               = trade_id
     context.user_data["trade_squadre_ordine"]    = ordine
     context.user_data["trade_squadra_corrente_idx"] = 0
@@ -483,7 +482,7 @@ async def admin_import_ricevi_testo(update: Update, context: ContextTypes.DEFAUL
     ok, errori_val = valida_trade(trade_id)
 
     trade_obj = db.get_trade(trade_id)
-    from handlers.trade import _label_bozza
+    from handlers.trade_comune import _label_bozza
     risposta = [f"📋 <b>Bozza {_label_bozza(trade_obj)}</b>\n", formatta_trade(squadre)]
     if ok:
         risposta.append("\n✅ <b>Validazione OK</b>")
@@ -512,7 +511,8 @@ async def cb_ufficializza(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     trade_id = int(query.data.split(":")[1])
     # Delega al callback admin già esistente in trade.py
-    from handlers.trade import _esegui_trade, _formatta_annuncio_canale, _label_bozza, TradeNonEseguibile
+    from handlers.trade_esegui import _esegui_trade, TradeNonEseguibile
+    from handlers.trade_comune import _formatta_annuncio_canale, _label_bozza
     import database as db
     from datetime import datetime
 
@@ -613,7 +613,7 @@ FASI_INDICAZIONI = {
         "Nuova stagione: la durata di tutti i contratti scala di un anno. I contratti finiti (x0) restano in squadra ma non pesano su cap e slot; se non vengono rinnovati o dichiarati RFA scadono all'inizio della free agency",
         "Rookie scale aggiornata dal bot: importo del II e del IV anno dalla tabella, Doncic d'ufficio alla fine del IV anno se spetta",
         "Rinnovo dei rookie a fine II anno con /rinnovo_rookie (o 🔁 nel /menu): scala del III anno o Doncic, x2",
-        "RFA: al massimo uno tra i contratti finiti, con /dichiara_rfa (o 🔒 nel /menu). Pesa sul cap ma non sugli slot",
+        "RFA: al massimo uno tra i contratti finiti, con /dichiara_rfa (o 🔒 nel /menu). Pesa sul cap ma non sugli slot. Se lo scambiate prima delle aste RFA perde la dichiarazione e ne potete dichiarare un altro",
         "Rinnovi: fino a 2 giocatori all'ultimo anno (+1/4 il primo, +1/2 il secondo, con i minimi da tabella)",
         "In offseason il cap può arrivare a 165M, ma va riportato in regola entro l'inizio della regular season",
     ],

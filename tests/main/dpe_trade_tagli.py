@@ -19,12 +19,13 @@ items=db.get_items_trade(t)
 c1,p1=_cap_post_team("team01",items,"2026"); c2,p2=_cap_post_team("team02",items,"2026")
 ok(p1==c1-15+5 and p2==c2-5+15, f"validazione: Klay pesa 15 (DPE) per entrambe ({c2}→{p2})")
 import handlers.trade as T
+import handlers.trade_esegui as TE   # v3.13.0: trade.py spezzato
 db._q("UPDATE trade SET stato='in_approvazione' WHERE id=%s",(t,))
-T._scrivi_trade(t,"TRADE-2026-001","adm")
+TE._scrivi_trade(t,"TRADE-2026-001","adm")
 ok(db._qval("SELECT team_id FROM dpe WHERE giocatore_id=%s",(klay,))=="team02", "dopo la trade la DPE è dei Lakers")
 ok(db.cap_occupato_team("team02","2026")==p2, f"cap reale team02 = validato ({db.cap_occupato_team('team02','2026')})")
 ok(any(r["ha_dpe"] for r in db.get_roster_team("team02") if r["giocatore_id"]==klay), "roster team02: Klay con DPE (slot libero)")
-T._scrivi_trade(t,"TRADE-2026-001",None,inverti=True)
+TE._scrivi_trade(t,"TRADE-2026-001",None,inverti=True)
 ok(db._qval("SELECT team_id FROM dpe WHERE giocatore_id=%s",(klay,))=="team01", "annullamento: la DPE torna a team01")
 # taglio che rompe i ruoli in RS
 import handlers.tagli as TG, validators.ruoli as VR

@@ -110,6 +110,8 @@ roster_max − roster (contratti attivi in corso, esclusi i DPE approvati prima 
 
 ## 4. I flussi
 
+Quale regola del regolamento sta dove (anche nel bot principale) e quale prova la controlla: [`docs/regolamento_e_codice.md`](../../docs/regolamento_e_codice.md).
+
 ### Apertura FA
 
 - **Dal GM:** `/nuova_fa` oppure il bottone di `/lista_fa` (`fa_avvia:`). Dal canale c'è il deep link `/start offri_…` o `nuova_fa_…`.
@@ -163,7 +165,7 @@ Se va bene registra l'offerta, porta `scade_at` a ora + `durata_asta_ore` (18), 
 
 1. **Anni.** Bottoni `firma:` → in regular season scelta del ruolo `firma_ruolo:` (regole in `shared/ruoli_core`, regola dei 60 giorni) → conferma `firma_confirm:`.
 2. **Timeout di 48 ore.** `firma_automatica` (job `run_once`) firma 3 anni di penale e, in regular season, estrae il ruolo.
-3. **Registrazione.** `_registra_firma_finale` è l'unico punto che chiude:
+3. **Registrazione.** `_registra_firma_finale` (`firma_comune.py`) è l'unico punto che chiude:
    - `pg_client.registra_firma` (contratto + `signed` in un'unica transazione), sul `giocatore_id` dell'asta: niente più riabbinamento per nome, che con un nome cambiato creava un giocatore doppione (`pg_client.id_giocatore_asta`; le aste vecchie senza id cercano per nome senza mai creare);
    - ruolo su PostgreSQL;
    - copia nel `contratti` locale;
@@ -189,13 +191,13 @@ La dichiarazione smette di pesare quando l'asta chiude il contratto x0 (firma, p
 
 **Il vincitore sceglie gli anni.** Ha 12 ore; al timeout prende gli anni minimi. Da 35 anni = 3, e si salta direttamente al pareggio.
 
-**Pareggio.** Dopo la scelta l'asta va in PAREGGIO: il proprietario ha 24 ore **dalla chiusura** (`_chiedi_pareggio`, `pareggio:` / `pareggio_anni:` / `pareggio_confirm:`; timeout → `pareggio_automatico` = passa al vincitore).
+**Pareggio** (`firma_pareggio.py`). Dopo la scelta l'asta va in PAREGGIO: il proprietario ha 24 ore **dalla chiusura** (`_chiedi_pareggio`, `pareggio:` / `pareggio_anni:` / `pareggio_confirm:`; timeout → `pareggio_automatico` = passa al vincitore).
 
 - `soglia_pareggio(vecchio)`: fino a `fascia_bassa_max` (20) basta 1, fino a 34 ⌊vecchio/3⌋, oltre ⌊vecchio/2⌋.
 - `importo_minimo_pareggio = max(offerta, soglia)`.
 - Anni: sopra soglia ≥ quelli del vincitore; sotto soglia liberi.
 
-**Pre-impostazioni del proprietario.** Bottoni `pre_par_*` / `pre_rifiuto_*`, salvati in `pareggio_preimpostato` / `rifiuto_preimpostato`. Quando il vincitore sceglie gli anni, `_esegui_pre_pareggio_se_compatibile` decide da solo.
+**Pre-impostazioni del proprietario** (`firma_preimpostazioni.py`). Bottoni `pre_par_*` / `pre_rifiuto_*`, salvati in `pareggio_preimpostato` / `rifiuto_preimpostato`. Quando il vincitore sceglie gli anni, `_esegui_pre_pareggio_se_compatibile` decide da solo.
 
 **Senza offerte.** Il proprietario può:
 
@@ -310,9 +312,17 @@ Visibilità:
 | `comandi.py` | menu "/" |
 | `scheduler.py` | `check_scadenze`, `check_cap_stagionale`, healthcheck |
 | `handlers/offerte.py` | apertura, offerta, deep link, `/offri` |
-| `handlers/firma.py` | firma, RFA, pareggio, pre-impostazioni, lascio andare |
+| `handlers/firma.py` | scelta degli anni del vincitore (e del ruolo in regular season), firma automatica allo scadere, registrazione dei bottoni di tutta la firma; in testa il flusso e l'indice dei moduli `firma_*` |
+| `handlers/firma_comune.py` | anni minimi e soglie RFA, validazione degli anni, ruolo da scegliere, `_registra_firma_finale`, `_concludi_rfa_senza_contratto` |
+| `handlers/firma_preimpostazioni.py` | pre-impostazioni del proprietario di un RFA alla chiusura dell'asta e loro applicazione |
+| `handlers/firma_pareggio.py` | pareggio (24 ore, `pareggio_automatico`), RFA senza offerte: il proprietario firma o lascia andare |
 | `handlers/user.py` | `/me`, `/watch`, `/watched`, `/lista_fa`, `/silenzia`, `/offerta`, `/team_detail`, `/guida` |
-| `handlers/admin.py` | tutti i comandi admin, `/team`, `/listteams`, `/autocap`, `/autoslot` |
+| `handlers/admin.py` | `/admin`, `/guida_admin`, `/backup_ora`, `/apri_mercato`, `/chiudi_mercato`, i comandi che rimandano al bot principale, registrazione dei comandi admin; in testa l'indice dei moduli `admin_*` |
+| `handlers/admin_comune.py` | `is_admin`, `_admin_label`, conferma degli admin quando un'operazione manda il cap in negativo |
+| `handlers/admin_squadre.py` | `/list`, `/listteams`, `/team`, `/firme`, `/autocap`, `/autoslot` (questi tre registrati in `user.py`) |
+| `handlers/admin_aste.py` | `/aste`, `/all_aste`, `/stato_asta`, `/chiudi_asta`, `/annulla_asta`, `/ripubblica_asta`, `/forza_aggiornamento`, `/force_esito` |
+| `handlers/admin_riapri.py` | `/riapri_asta`, `/estendi_asta`, `/sposta_asta` |
+| `handlers/admin_offerte.py` | `/apri_asta`, `/crea_offerta`, `/nuova_rfa`, `/annulla_offerta` |
 | `handlers/rfa.py` | `pubblica_asta_rfa`, `job_rfa` (RFA dichiarati nel bot principale) |
 | `../shared/cap.py` | cap e slot, gli stessi del bot principale |
 | `../shared/squadre.py` | ricerca di una squadra da testo (`teams.get_team_by_query`, per `/team`), la stessa di `/roster` nel bot principale |
@@ -326,9 +336,17 @@ Visibilità:
 | File | Prefissi |
 |---|---|
 | `offerte.py` | `conferma_offerta:`, `fa_conferma:`, `fa_omonimo:`, `offri_page:`, `annulla` |
-| `firma.py` | `firma*`, `pareggio*`, `pre_par_*`, `pre_rifiuto*`, `firma_prop*`, `lascia:` |
+| `firma.py` | `firma:`, `firma_ruolo:`, `firma_confirm:`, `firma_indietro:` |
+| `firma_pareggio.py` | `pareggio*`, `firma_prop*`, `lascia:` |
+| `firma_preimpostazioni.py` | `pre_par_*`, `pre_rifiuto*` |
 | `user.py` | `watch:`, `fa_page:`, `fa_avvia:`, `td:`, `td_back` |
-| `admin.py` | `admin_annulla:`, `admin_chiudi:`, `admin_noop`, `annulla_off_cap:`, `riapri_cap:`, `riapri_annullata:`, `reset_cap_ant:`, `reset_slot_ant:`, `reset_rfa:` (disattivato) |
+| `admin_aste.py` | `admin_annulla:`, `admin_chiudi:`, `admin_noop` |
+| `admin_riapri.py` | `riapri_cap:`, `riapri_annullata:` |
+| `admin_offerte.py` | `annulla_off_cap:` |
+| `admin_squadre.py` | `reset_cap_ant:`, `reset_slot_ant:` |
+| `admin.py` | `reset_rfa:` (disattivato) |
+
+I bottoni di `firma_*` e `admin_*` sono registrati in `firma.py` e `admin.py` (`get_handlers`).
 
 ---
 

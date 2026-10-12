@@ -612,3 +612,12 @@ Insieme al bot principale v3.11.0.
 ## v62 — /team come /roster
 
 - `/team` trova la squadra con la stessa ricerca di `/roster` del bot principale (`shared/squadre.py`): id, nome della squadra o del GM, anche solo l'inizio o con un errore di battitura (`/team team07`, `/team Rossi`, `/team buf`). Senza argomento mostra la propria squadra. Prima accettava solo l'id esatto
+
+## v63 — File divisi
+
+Niente cambia per chi usa il bot: codice spostato senza modifiche.
+
+- `handlers/admin.py` (2.400 righe): restano `/admin`, `/guida_admin`, `/backup_ora`, mercato, i comandi che rimandano al bot principale e la registrazione; il resto in `admin_comune.py` (`is_admin`, conferma per cap negativo), `admin_squadre.py` (`/list`, `/listteams`, `/team`, `/firme`, `/autocap`, `/autoslot`), `admin_aste.py` (guardare e correggere le aste), `admin_riapri.py` (`/riapri_asta`, `/estendi_asta`, `/sposta_asta`), `admin_offerte.py` (`/apri_asta`, `/crea_offerta`, `/nuova_rfa`, `/annulla_offerta`)
+- `handlers/firma.py` (1.750 righe): restano la scelta degli anni e del ruolo, la firma automatica e la registrazione dei bottoni; il resto in `firma_comune.py` (soglie, validazione, `_registra_firma_finale`, `_concludi_rfa_senza_contratto`), `firma_preimpostazioni.py`, `firma_pareggio.py` (pareggio, RFA senza offerte, lascia andare)
+- Tolte `_check_cap_virtuale_negativo` e `_notifica_gm_cap_slot`, che nessuno chiamava
+- Prova `regolamento_numeri_aste`: durata dell'asta, tempi di firma e pareggio, anni minimi, soglie del pareggio RFA come nel regolamento

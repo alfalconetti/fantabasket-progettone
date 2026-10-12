@@ -13,7 +13,7 @@ import utils
 import settings
 import pg_client
 from handlers.helpers import teams_map
-from handlers.admin import autocap as _autocap_from_user, auto_slot as _auto_slot_from_user, cmd_team
+from handlers.admin_squadre import autocap as _autocap_from_user, auto_slot as _auto_slot_from_user, cmd_team
 
 logger = logging.getLogger(__name__)
 

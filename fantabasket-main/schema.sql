@@ -242,7 +242,8 @@ CREATE TABLE rfa_dichiarati (
     stato         TEXT NOT NULL DEFAULT 'attiva' CHECK (stato IN ('attiva', 'revocata')),
     da            TEXT,
     creato        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    chiuso        TIMESTAMPTZ
+    chiuso        TIMESTAMPTZ,
+    nota          TEXT                -- "trade <id>": decaduta con una trade prima delle aste RFA
 );
 CREATE UNIQUE INDEX idx_rfa_squadra   ON rfa_dichiarati (stagione, team_id)      WHERE stato = 'attiva';
 CREATE UNIQUE INDEX idx_rfa_giocatore ON rfa_dichiarati (stagione, giocatore_id) WHERE stato = 'attiva';

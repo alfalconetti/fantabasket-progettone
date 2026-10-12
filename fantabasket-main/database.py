@@ -313,7 +313,8 @@ def _migra_stagioni() -> None:
     _q("""CREATE TABLE IF NOT EXISTS migrazioni (
             nome     TEXT PRIMARY KEY,
             eseguita TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
-    # dichiarazioni RFA: una per squadra e stagione; segue il giocatore nelle trade
+    # dichiarazioni RFA: una per squadra e stagione; nelle trade decade prima delle aste RFA,
+    # segue il giocatore con le aste aperte (settings.rfa_perso_in_trade)
     _q("""CREATE TABLE IF NOT EXISTS rfa_dichiarati (
             id            SERIAL PRIMARY KEY,
             stagione      TEXT NOT NULL,
@@ -324,6 +325,7 @@ def _migra_stagioni() -> None:
             da            TEXT,
             creato        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             chiuso        TIMESTAMPTZ)""")
+    _q("ALTER TABLE rfa_dichiarati ADD COLUMN IF NOT EXISTS nota TEXT")    # v3.13.1: "trade <id>" se decaduta con una trade
     _q("CREATE UNIQUE INDEX IF NOT EXISTS idx_rfa_squadra ON rfa_dichiarati (stagione, team_id) WHERE stato = 'attiva'")
     _q("CREATE UNIQUE INDEX IF NOT EXISTS idx_rfa_giocatore ON rfa_dichiarati (stagione, giocatore_id) WHERE stato = 'attiva'")
     # contratti rookie: fino alla v3.10 stagione_firma era l'anno di firma della scala per
@@ -372,9 +374,32 @@ def rfa_usata(team_id: str, stagione: str) -> dict | None:
 
 
 def sposta_rfa_trade(cur, giocatore_id: int, team_da: str, team_a: str, stagione: str) -> None:
-    """Trade: la dichiarazione RFA segue il giocatore (dentro la transazione della trade)."""
+    """Trade con le aste RFA aperte: la dichiarazione segue il giocatore (dentro la transazione
+    della trade; il bot aste allinea da solo il proprietario dell'asta)."""
     cur.execute("UPDATE rfa_dichiarati SET team_id = %s WHERE giocatore_id = %s AND team_id = %s "
                 "AND stagione = %s AND stato = 'attiva'", (team_a, giocatore_id, team_da, stagione))
+
+
+def revoca_rfa_trade(cur, giocatore_id: int, team_da: str, stagione: str, trade_id: int) -> bool:
+    """Trade prima delle aste RFA: la dichiarazione decade. Resta alla squadra che l'aveva fatta,
+    revocata e segnata con la trade (per l'annullamento): quella squadra può dichiararne un altro."""
+    cur.execute("UPDATE rfa_dichiarati SET stato = 'revocata', chiuso = NOW(), nota = %s "
+                "WHERE giocatore_id = %s AND team_id = %s AND stagione = %s AND stato = 'attiva'",
+                (f"trade {trade_id}", giocatore_id, team_da, stagione))
+    return cur.rowcount > 0
+
+
+def ripristina_rfa_trade(cur, giocatore_id: int, team_id: str, stagione: str, trade_id: int) -> bool:
+    """Annullamento di una trade che aveva fatto decadere la dichiarazione: torna in vigore, se
+    intanto la squadra non ne ha dichiarato un altro e nessuno ha dichiarato il giocatore."""
+    cur.execute("""UPDATE rfa_dichiarati rd SET stato = 'attiva', chiuso = NULL,
+                          nota = 'tornata con l''annullamento della trade ' || %s
+                   WHERE rd.giocatore_id = %s AND rd.team_id = %s AND rd.stagione = %s
+                     AND rd.stato = 'revocata' AND rd.nota = %s
+                     AND NOT EXISTS (SELECT 1 FROM rfa_dichiarati x WHERE x.stagione = rd.stagione
+                                     AND x.stato = 'attiva' AND (x.team_id = rd.team_id OR x.giocatore_id = rd.giocatore_id))""",
+                (str(trade_id), giocatore_id, team_id, stagione, f"trade {trade_id}"))
+    return cur.rowcount > 0
 
 
 def peso_cap_giocatore(giocatore_id: int, stagione: str) -> int:

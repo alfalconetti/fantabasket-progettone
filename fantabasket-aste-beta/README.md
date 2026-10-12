@@ -31,10 +31,13 @@ fantabasket-aste-beta/
 ├── utils.py          globals, ricerca giocatori, messaggi del canale
 ├── handlers/
 │   ├── offerte.py    apertura FA, offerte, deep link
-│   ├── firma.py      firma, RFA, pareggio, lascio andare
+│   ├── firma.py      firma del vincitore (anni, ruolo, firma automatica); firma_comune.py,
+│   │                 firma_preimpostazioni.py, firma_pareggio.py: soglie e scrittura, pre-impostazioni,
+│   │                 pareggio e lascio andare
 │   ├── rfa.py        aste RFA aperte da sole per i dichiarati, proprietario allineato alle trade
 │   ├── user.py       /me, /watch, /lista_fa, /team_detail, /autocap, /autoslot…
-│   ├── admin.py      comandi admin
+│   ├── admin.py      /admin e registrazione; admin_squadre.py (/listteams, /team, /autocap…),
+│   │                 admin_aste.py (guardare e correggere), admin_riapri.py, admin_offerte.py, admin_comune.py
 │   ├── dev.py        comandi dev
 │   └── helpers.py    canale, notifiche, log
 └── docs/             guide (GM, admin, dev)

@@ -149,7 +149,7 @@ Il bot aste vede la fase nuova entro 5 minuti.
 | `transazioni` | **registro unico** di tutto quello che si muove in lega: giocatori, diritti, pick (vedi sotto) |
 | `impatto_taglio` | rate delle spalmature: una riga per squadra, giocatore e stagione |
 | `dpe` | DPE approvate: `importo_originale`, `importo_dpe`, `pre_deadline`, `stagione`, `team_id` (segue il giocatore in trade) |
-| `rfa_dichiarati` | RFA dichiarati nella fase dei rinnovi: `stagione`, `team_id` (segue il giocatore in trade), `giocatore_id`, `contratto_id` (l'x0), `stato` attiva/revocata, `da` |
+| `rfa_dichiarati` | RFA dichiarati nella fase dei rinnovi: `stagione`, `team_id` (segue il giocatore nelle trade con le aste aperte), `giocatore_id`, `contratto_id` (l'x0), `stato` attiva/revocata, `da`, `nota` (`trade <id>` se decaduta con una trade prima delle aste) |
 | `migrazioni` | migrazioni una tantum già fatte (`_migrazione_fatta(nome)`) |
 
 **Trade, pick e rookie**
@@ -257,7 +257,7 @@ Rinnovo rookie a fine II anno (`esegui_rinnovo_rookie`): `tipo = 'rookie'` x2, i
 
 **Il piano** (`_calcola_piano`, la stessa funzione per l'anteprima e per il passaggio vero) elenca tutti i rookie che cambiano anno di scala: `secondo_anno` / `quarto_anno` (importo nuovo), `secondo_anno_uguali` / `quarto_anno_uguali` (restano, con il `motivo`: stesso importo in tabella o Doncic sopra la tabella), `fine_scala`, `da_rinnovare` (con la `proposta` del rinnovo rookie, stima con le fantamedie del momento), `anomalie` (contratti rookie con una forma che non torna col loro anno: finiscono in "Da controllare", non vengono toccati), `x0` per squadra. Nel passaggio vero si scrivono solo `secondo_anno`, `quarto_anno` e `fine_scala`.
 
-**RFA dichiarati.** Uno per squadra e stagione (indici unici parziali). La dichiarazione vale finché il suo contratto x0 è attivo: quando l'asta si conclude il bot aste chiude quel contratto e lei smette di pesare da sola (`rfa_squadra`, `rfa_dichiarato`; `rfa_usata` la vede anche dopo). In trade la sposta `db.sposta_rfa_trade` dentro `_scrivi_trade` (anche nell'annullamento). La regola delle trade è `validators.trade._errori_rfa`: dopo la trade ogni squadra ha al massimo un RFA.
+**RFA dichiarati.** Uno per squadra e stagione (indici unici parziali). La dichiarazione vale finché il suo contratto x0 è attivo: quando l'asta si conclude il bot aste chiude quel contratto e lei smette di pesare da sola (`rfa_squadra`, `rfa_dichiarato`; `rfa_usata` la vede anche dopo). **RFA e trade** (deciso con Luca il 12/10/2026, v3.13.1), in `_scrivi_trade`: prima delle aste RFA (`settings.FASI_RFA_PRIMA_DELLE_ASTE`: rinnovi e draft) la dichiarazione decade (`db.revoca_rfa_trade`: resta revocata alla squadra che l'aveva fatta, con `nota = 'trade <id>'`), chi lo cede può dichiararne un altro, per chi lo riceve è un x0 che non pesa (`_cap_post_team`), nessun limite sul numero; riepilogo (`avvisi_trade`) e notifiche lo dicono. Dalla fase RFA in poi la dichiarazione segue il giocatore (`db.sposta_rfa_trade`, il bot aste allinea il proprietario dell'asta) e vale `validators.trade._errori_rfa`: dopo la trade ogni squadra ha al massimo un RFA. L'annullamento di una trade rimette la dichiarazione dov'era (`db.ripristina_rfa_trade`, se intanto la squadra non ne ha dichiarato un altro).
 
 ### Due cose da ricordare
 
@@ -317,21 +317,19 @@ ORDER BY t.timestamp, t.id;
 | File | Cosa contiene |
 |---|---|
 | `menu.py` | `/menu` per fase (`AZIONI_FASE`, `AZIONI_SEMPRE`), `/guida`, `/guida_admin` |
-| `trade.py` | builder, import, editor, bozze, voto, invio, esecuzione e rollback (`_scrivi_trade`), `/my_trades` |
+| `trade.py` | registrazione di comandi, bottoni e conversazioni delle trade (`get_handlers`), `/annulla_trade`; in testa l'indice dei moduli `trade_*` |
+| `trade_comune.py` | stati delle conversazioni, `_STATI`, testo del riepilogo, tastiere, chi può toccare una bozza, annuncio sul canale, notifiche alle squadre |
+| `trade_crea.py` | `/build_trade` e `/import_trade`: squadre, asset, destinazioni a 3+ squadre, riepilogo, nota, invio, salva bozza |
+| `trade_modifica.py` | `/edit_trade` e "Modifica" dal riepilogo |
+| `trade_voto.py` | proposta ai GM, voti, rifiuto con nota, approvazione degli admin |
+| `trade_esegui.py` | `_scrivi_trade` (l'unico punto che sposta gli asset; `inverti=True` per annullare), `_esegui_trade`, `/annulla_trade_admin` |
+| `trade_liste.py` | `/my_trades` (= `/mie_trade`), `/bozze_trade` |
 | `trade_parser.py` | parser del testo delle trade |
 | `tagli.py` | `/taglia`: anteprima, spalmature, limiti |
 | `dpe.py` | `/dpe` e `_importo_dpe()` |
 | `rookie.py` | `/attiva_diritti`, scadenza diritti |
 | `stagione.py` | cambio di stagione (rookie scale, Doncic, x0), `/rinnovo_rookie`, `/dichiara_rfa`, passaggi di fase, `/dev_stagione`, `/trade_deadline` |
 
-**shared/** (montata in sola lettura in tutti e due i container: una modifica richiede il riavvio di entrambi)
-
-| File | Contenuto |
-|---|---|
-| `ruoli_core.py` | regole dei ruoli (sezione 6) |
-| `cap.py` | cap e slot di una squadra (v3.12.0): `cap_occupato`, `cap_contratti`, `impatto_taglio`, `giocatori_in_slot`, `peso_cap`, `occupa_slot`, i frammenti SQL (`SQL_IN_CORSO`, `sql_rfa`, `SQL_OCCUPA_SLOT`) e `anni_residui`. Prova: `tests/main/cap_condiviso.py` |
-| `squadre.py` | `cerca_squadra(query, squadre)`: la ricerca di /roster, /assets, /team_diff e di /team nel bot aste |
-| `messaggi.py` | `manda_lungo(bot, chat_id, testo_html, nome_file, riassunto=None)`: messaggio se sta in Telegram, altrimenti riassunto + file `.md` generato in memoria (`html_a_markdown`). Da usare per ogni report o elenco amministrativo che può crescere |
 | `decadimento.py` | `/decadimento`, motivi, `/ritiro_fa` |
 | `spalmature.py` | report mensile e `/report_spalmature` |
 | `coerenza.py` | controllo notturno contratti/pick/diritti contro il registro, `/dev_coerenza` |
@@ -348,13 +346,25 @@ ORDER BY t.timestamp, t.id;
 | `dev.py`, `dev_player.py` | comandi dev |
 | `helpers.py` | `log_job_error`, `log_warn` |
 
+**shared/** (montata in sola lettura in tutti e due i container: una modifica richiede il riavvio di entrambi)
+
+| File | Contenuto |
+|---|---|
+| `ruoli_core.py` | regole dei ruoli (sezione 6) |
+| `cap.py` | cap e slot di una squadra (v3.12.0): `cap_occupato`, `cap_contratti`, `impatto_taglio`, `giocatori_in_slot`, `peso_cap`, `occupa_slot`, i frammenti SQL (`SQL_IN_CORSO`, `sql_rfa`, `SQL_OCCUPA_SLOT`) e `anni_residui`. Prova: `tests/main/cap_condiviso.py` |
+| `squadre.py` | `cerca_squadra(query, squadre)`: la ricerca di /roster, /assets, /team_diff e di /team nel bot aste |
+| `messaggi.py` | `manda_lungo(bot, chat_id, testo_html, nome_file, riassunto=None)`: messaggio se sta in Telegram, altrimenti riassunto + file `.md` generato in memoria (`html_a_markdown`). Da usare per ogni report o elenco amministrativo che può crescere |
+
 ### Prefissi dei bottoni (callback_data)
 
 Utile per capire chi risponde a un bottone. In grassetto quelli citati più spesso.
 
 | File | Prefissi |
 |---|---|
-| `trade.py` | `trade_*`, `edit_*`, `menu_trade_*`, `mt:` (solo `mt:l` e `mt:v/r/c:<id>`) |
+| `trade_crea.py` | `menu_trade_build`, `menu_trade_import`, `trade_n:`, `trade_sq:`, `trade_am:`, `trade_gi:`, `trade_pi:`, `trade_di:`, `trade_dest:`, `trade_send:`, `trade_nota:`, `trade_salva:`, `trade_del:` |
+| `trade_modifica.py` | `edit_*` (`edit_back:` dal riepilogo è di `trade_crea.py`) |
+| `trade_voto.py` | `trade_vedi:`, `trade_voto:`, `trade_rifiuta_conf:`, `trade_admin:` |
+| `trade_liste.py` | `mt:` (solo `mt:l` e `mt:v/r/c:<id>`) |
 | `admin_panel.py` | `adm*`, `fase_*`, `rfirma:` |
 | `rookie.py` | `att_r*`, **`attadm:`**, `scadi_diritti:` |
 | `decadimento.py` | `dec_*`, **`decadm:`** |
@@ -372,11 +382,15 @@ Utile per capire chi risponde a un bottone. In grassetto quelli citati più spes
 | `menu.py` | `menu:`, `roster_sq:`, `assets_sq:` |
 | `stagione.py` | **`sg:`** (GM: `rr`, `rrg`, `rrok`, `rfa`, `rfag`, `rfaok`, `rfano`), **`sga:<team>:`** (admin, stesse azioni), `sga:scegli:`, `sga:elenco` |
 
-Attenzione: `mt:` è usato da due file. Funziona perché gli handler di `trade.py` sono registrati prima e hanno un pattern più stretto. Se aggiungi un `mt:` nuovo, controlla che non si pestino.
+Tutti i bottoni delle trade sono registrati in `trade.py` (`get_handlers`), anche quelli dei moduli `trade_*`.
+
+Attenzione: `mt:` è usato da due file. Funziona perché gli handler delle trade sono registrati prima e hanno un pattern più stretto. Se aggiungi un `mt:` nuovo, controlla che non si pestino.
 
 ---
 
 ## 6. Le regole, dove stanno
+
+Lo specchietto completo, regola per regola del regolamento con il codice e la prova che la controlla (e le differenze da decidere), è in [`docs/regolamento_e_codice.md`](../../docs/regolamento_e_codice.md). Qui i dettagli di come funzionano.
 
 ### Trade
 
@@ -385,7 +399,7 @@ Attenzione: `mt:` è usato da due file. Funziona perché gli handler di `trade.p
 - percorso normale: `bozza → proposta → in_approvazione → approvata`;
 - uscite: `rifiutata_gm`, `rifiutata_admin`, `annullata`.
 
-**Esecuzione e rollback.** `_scrivi_trade` fa tutto in un'unica transazione DB: approvazione, spostamento di giocatori, pick e diritti, transazioni, `dpe.team_id`, stato. Se un pezzo non torna solleva `TradeNonEseguibile` e non scrive niente. `trade_ref` viene assegnato prima dell'esecuzione.
+**Esecuzione e rollback.** `_scrivi_trade` (`trade_esegui.py`) fa tutto in un'unica transazione DB: approvazione, spostamento di giocatori, pick e diritti, transazioni, `dpe.team_id`, stato. Se un pezzo non torna solleva `TradeNonEseguibile` e non scrive niente. `trade_ref` viene assegnato prima dell'esecuzione.
 
 **Validazione** (`validators/trade.valida_trade`):
 
@@ -396,9 +410,9 @@ Attenzione: `mt:` è usato da due file. Funziona perché gli handler di `trade.p
 - salary floor in stagione;
 - Stepien (`anni_coperti_stepien`, finestre di `stepien_anni`; gli anni ≤ 2026 sono coperti d'ufficio);
 - in RS, i ruoli (`deficit_minimo`);
-- RFA dichiarati: dopo la trade al massimo uno per squadra (`_errori_rfa`). Cap e slot usano `peso_cap_giocatore` e `occupa_slot`: un x0 non pesa, l'RFA dichiarato pesa sul cap.
+- RFA dichiarati: prima delle aste RFA nessun limite (la dichiarazione decade), con le aste aperte al massimo uno per squadra dopo la trade (`_errori_rfa`). Cap e slot usano `peso_cap_giocatore` e `occupa_slot`: un x0 non pesa, l'RFA dichiarato pesa sul cap.
 
-**Notifiche.** `_notifica_squadre(context, trade_id, testo, escludi=())` scrive a tutte le squadre (e al gruppo admin se la trade è degli admin). `_notifica_proponente` solo per l'avanzamento dei voti.
+**Notifiche** (`trade_comune.py`). `_notifica_squadre(context, trade_id, testo, escludi=())` scrive a tutte le squadre (e al gruppo admin se la trade è degli admin). `_notifica_proponente` solo per l'avanzamento dei voti.
 
 **Bozze.** `_bozza_non_modificabile` / `_puo_gestire_bozza`: si toccano solo in stato `bozza`, solo dal proponente o da un admin.
 
@@ -600,6 +614,8 @@ La prova `tests/docs/guide_e_menu.py` si accorge se una guida o il menu cita un 
 - ConversationHandler con `per_message=False`. `/annulla` globale (group −1) pulisce `user_data` e chiude tutto.
 - Le scritture che toccano più tabelle vanno in un'unica transazione: vedi `_scrivi_trade`, i tagli, `registra_decadimento`.
 - Un solo file per modulo, import sempre `handlers.xxx`. In passato si sono corretti bug sulla copia morta.
+- Un file che passa le mille righe si divide per argomento, come `trade_*.py` qui e `admin_*.py`/`firma_*.py` nel bot aste: un modulo `*_comune.py` con quello che serve a tutti, i moduli per fase, e il file originale che tiene la registrazione degli handler e in testa l'indice. Si sposta il codice senza cambiarlo, nello stesso rilascio niente altro.
+- Gli import dentro le funzioni (`from handlers.x import y`) pyflakes non li controlla: lo fa `tests/docs/nomi_importati.py`, che verifica anche `db.funzione` e le sostituzioni fatte dalle prove.
 - Fasi sempre con i trattini.
 - Testi con `parse_mode="HTML"`: passare i nomi in `html.escape`.
 

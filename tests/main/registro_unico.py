@@ -58,16 +58,17 @@ db._migra_registro_unico(); ok(db._qval("SELECT count(*) FROM transazioni")==n, 
 
 # da qui il registro si aggiorna da solo
 import handlers.trade as T
+import handlers.trade_esegui as TE   # v3.13.0: trade.py spezzato
 te=db.crea_trade_bozza("team02",2,"2026"); db.aggiungi_squadra_trade(te,"team02",1); db.aggiungi_squadra_trade(te,"team01",2)
 db.aggiungi_item_trade(te,"pick","team02","team01",pick_id=p1); db.aggiungi_item_trade(te,"diritti","team01","team02",giocatore_id=rk)
 db._q("UPDATE trade SET stato='in_approvazione' WHERE id=%s",(te,))
-T._scrivi_trade(te,"TRADE-2026-005","adm")
+TE._scrivi_trade(te,"TRADE-2026-005","adm")
 ok(db._qval("SELECT count(*) FROM transazioni WHERE trade_id=%s AND oggetto IN ('pick','diritti')",(te,))==2, "trade nuova: movimento della pick e dei diritti nel registro")
 ok(db.controlli_coerenza()==[], "coerenza dopo la trade")
 from handlers import team_diff as TD
 ora=datetime.now(Z)
 ok(TD._motivo_asset("pick",p1,ora-timedelta(hours=1),ora+timedelta(minutes=1),"?")=="Trade", "team_diff: la pick entra 'Trade'")
-T._scrivi_trade(te,"TRADE-2026-005",None,inverti=True)
+TE._scrivi_trade(te,"TRADE-2026-005",None,inverti=True)
 ok(p1 in {p["id"] for p in db.get_pick_at("team02",(datetime.now(Z)+timedelta(seconds=1)).isoformat())}, "annullamento: la pick torna a team02 anche nello storico")
 ok(TD._motivo_asset("pick",p1,ora-timedelta(hours=1),datetime.now(Z)+timedelta(minutes=1),"?")=="Trade annullata", "team_diff: 'Trade annullata'")
 # attivazione e scadenza

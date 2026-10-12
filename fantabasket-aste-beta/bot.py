@@ -108,7 +108,8 @@ async def recupera_stati_pendenti(context: ContextTypes.DEFAULT_TYPE):
     """
     from handlers.firma import (chiedi_anni, _chiedi_pareggio,
                                 _chiedi_firma_proprietario_senza_offerte,
-                                firma_automatica, pareggio_automatico)
+                                firma_automatica)
+    from handlers.firma_pareggio import pareggio_automatico
     from handlers.helpers import aggiorna_canale, log_job_error
 
     try:

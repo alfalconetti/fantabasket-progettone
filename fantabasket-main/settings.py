@@ -171,6 +171,18 @@ FASI_MERCATO_APERTO = {
 }
 
 
+# RFA dichiarati e trade (Luca, 12/10/2026). Prima che partano le aste RFA un RFA scambiato
+# perde la dichiarazione: chi lo cede può dichiararne un altro, chi lo riceve ha un x0 qualsiasi.
+# Con le aste aperte (dalla fase RFA) la dichiarazione segue il giocatore e dopo la trade ogni
+# squadra può averne al massimo uno.
+FASI_RFA_PRIMA_DELLE_ASTE = {"offseason-rinnovi", "offseason-draft"}
+
+
+def rfa_perso_in_trade() -> bool:
+    """Un RFA dichiarato scambiato adesso perde la dichiarazione."""
+    return fase() in FASI_RFA_PRIMA_DELLE_ASTE
+
+
 def trade_aperte() -> bool:
     return fase() in FASI_TRADE_APERTE
 

@@ -49,3 +49,8 @@ for bot, testi in {
     menu |= set(re.findall(r'BotCommand\(\s*"(\w+)" if', leggi(bot, "comandi.py")))
     menu |= set(re.findall(r'else "(\w+)"', leggi(bot, "comandi.py")))
     ok(not (menu - reg), f"{bot} menu '/': tutti i comandi esistono {sorted(menu - reg) or ''}")
+
+# v3.13.0: lo specchietto regolamento ↔ codice cita comandi dei due bot
+tutti = registrati("fantabasket-main") | registrati("fantabasket-aste-beta")
+mancanti = sorted(citati(leggi("docs/regolamento_e_codice.md")) - tutti)
+ok(not mancanti, f"docs/regolamento_e_codice.md: comandi citati tutti esistenti {mancanti or ''}")

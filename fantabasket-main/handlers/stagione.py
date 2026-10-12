@@ -660,8 +660,8 @@ def _testo_rfa(team: dict, admin_team: str | None) -> tuple[str, InlineKeyboardM
     cand = candidati_rfa(team["id"])
     righe = [f"🔒 <b>RFA — {html.escape(team['nome'])}</b>",
              "<i>Massimo un giocatore con il contratto finito (x0). L'RFA pesa sul cap (non sugli slot) e "
-             "va all'asta nella fase RFA. Fino alla fine delle aste si scambia solo con un altro RFA o verso "
-             "chi non ne ha.</i>", ""]
+             "va all'asta nella fase RFA. Se lo scambi prima delle aste perde la dichiarazione (e ne puoi "
+             "dichiarare un altro); con le aste aperte si scambia solo con un altro RFA o verso chi non ne ha.</i>", ""]
     righe.append(f"Dichiarato: <b>{html.escape(att['nome_common'])}</b> ({att['importo']}M)" if att
                  else "Dichiarato: <b>nessuno</b>")
     kb = [[InlineKeyboardButton(("✅ " if att and att["giocatore_id"] == c["giocatore_id"] else "")

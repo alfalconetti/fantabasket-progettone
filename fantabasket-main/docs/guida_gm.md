@@ -238,7 +238,8 @@ I rinnovi dei rookie non hanno limite e non contano nei 2 rinnovi normali. Servo
 
 - L'RFA **pesa sul cap** con il suo vecchio contratto, ma **non occupa uno slot**.
 - Nella fase RFA il bot delle aste apre da solo la sua asta. Alla fine puoi pareggiare l'offerta vincente.
-- Fino alla fine della sua asta un RFA si scambia solo con un altro RFA, oppure verso una squadra che non ne ha dichiarati (anche insieme ad altri giocatori o pick).
+- **Scambiarlo prima delle aste RFA** (rinnovi e draft): perde la dichiarazione. Chi lo riceve ha un x0 qualsiasi, che non pesa sul cap; tu puoi dichiarare un altro RFA (nei rinnovi con `/dichiara_rfa`, nel draft tramite un admin). Il riepilogo della trade te lo ricorda.
+- **Scambiarlo con le aste aperte** (dalla fase RFA): la dichiarazione segue il giocatore e chi lo riceve decide sul pareggio. Si può solo se dopo la trade ogni squadra ha al massimo un RFA: RFA contro RFA, oppure verso una squadra che non ne ha dichiarati (anche insieme ad altri giocatori o pick).
 
 ---
 

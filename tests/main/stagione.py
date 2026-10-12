@@ -146,27 +146,76 @@ S.revoca_rfa("team03")
 ok(db.rfa_squadra("team03", "2027") is None, "revoca")
 S.dichiara_rfa("team02", v2, "test")
 
-# ── regola delle trade RFA ──────────────────────────────────────────────────────
-from validators.trade import _errori_rfa
+# ── RFA e trade (Luca, 12/10/2026) ──────────────────────────────────────────────
+from validators.trade import _errori_rfa, _cap_post_team, avvisi_trade
+import handlers.trade_esegui as TE   # v3.13.0: trade.py spezzato
 it = lambda gid, da, a: {"tipo": "giocatore", "giocatore_id": gid, "team_id_da": da, "team_id_a": a}
+
+
+def trade_di(gid, da, a):
+    t = db.crea_trade_bozza(da, 2, "2027"); db.aggiungi_squadra_trade(t, da, 1); db.aggiungi_squadra_trade(t, a, 2)
+    db.aggiungi_item_trade(t, "giocatore", da, a, giocatore_id=gid)
+    db._q("UPDATE trade SET stato='in_approvazione' WHERE id=%s", (t,))
+    return t
+
+
+# prima delle aste RFA (siamo nei rinnovi): la dichiarazione decade con la trade
+ok(_errori_rfa([it(v1, "team01", "team02")], ["team01", "team02"], "2027") == [],
+   "prima delle aste: nessun limite di RFA per squadra")
+ok(_cap_post_team("team04", [it(v1, "team01", "team04")], "2027")[1] == 10
+   and _cap_post_team("team01", [it(v1, "team01", "team04")], "2027")[1] == 28,
+   "prima delle aste: chi riceve l'RFA non lo paga (x0 qualsiasi), chi lo cede libera il cap")
+t = trade_di(v1, "team01", "team04")
+ok(any("perde la dichiarazione" in a for a in avvisi_trade(t)), "riepilogo: avviso che la dichiarazione decade")
+TE._scrivi_trade(t, "TRADE-2027-001", "adm")
+ok(db.rfa_squadra("team01", "2027") is None and db.rfa_usata("team01", "2027") is None
+   and db.rfa_squadra("team04", "2027") is None,
+   "trade nei rinnovi: la dichiarazione decade, chi lo cede può dichiararne un altro")
+ok(db.cap_occupato_team("team04", "2027") == 10 and db.cap_occupato_team("team01", "2027") == 28,
+   "cap dopo la trade: per chi lo riceve è un x0 che non pesa")
+TE._scrivi_trade(t, "TRADE-2027-001", None, inverti=True)
+ok(db.rfa_squadra("team01", "2027")["giocatore_id"] == v1 and db.cap_occupato_team("team01", "2027") == 58,
+   "annullamento: la dichiarazione torna")
+S.dichiara_rfa("team03", r5, "test")
+t2 = trade_di(r5, "team03", "team04"); TE._scrivi_trade(t2, "TRADE-2027-002", "adm")
+S.dichiara_rfa("team03", r6, "test")
+TE._scrivi_trade(t2, "TRADE-2027-002", None, inverti=True)
+ok(db.rfa_squadra("team03", "2027")["giocatore_id"] == r6 and not db.rfa_dichiarato(r5, "2027")
+   and db.get_contratto_attivo(r5)["team_id"] == "team03",
+   "annullamento dopo una nuova dichiarazione: resta la nuova, il giocatore torna senza")
+S.revoca_rfa("team03")
+# esecuzione vera: i GM vengono avvisati
+inviati = []
+class BotT:
+    async def send_message(self, chat_id, text, **k): inviati.append((chat_id, text))
+t4 = trade_di(v1, "team01", "team04")
+asyncio.run(TE._esegui_trade(__import__("types").SimpleNamespace(bot=BotT()), t4, "TRADE-2027-004", "adm"))
+gm = lambda team: set(__import__("teams").get_team_by_id(team)["gm_ids"])
+ok(any(c in gm("team01") and "era il tuo RFA dichiarato" in x and "/dichiara_rfa" in x for c, x in inviati)
+   and any(c in gm("team04") and "senza dichiarazione RFA" in x for c, x in inviati),
+   "notifiche: chi lo cede sa che può dichiararne un altro, chi lo riceve che non pesa")
+TE._scrivi_trade(t4, "TRADE-2027-004", None, inverti=True)
+ok(db.rfa_squadra("team01", "2027")["giocatore_id"] == v1, "annullamento della trade eseguita: la dichiarazione torna")
+
+# con le aste aperte: la dichiarazione segue il giocatore, al massimo un RFA per squadra
+fase("offseason-rfa")
 ok(_errori_rfa([it(v1, "team01", "team02"), it(v2, "team02", "team01")], ["team01", "team02"], "2027") == [],
-   "RFA contro RFA: ok")
+   "aste aperte: RFA contro RFA ok")
 ok(len(_errori_rfa([it(v1, "team01", "team02")], ["team01", "team02"], "2027")) == 1,
-   "RFA a chi ne ha già uno: no")
+   "aste aperte: RFA a chi ne ha già uno no")
 ok(_errori_rfa([it(v1, "team01", "team04")], ["team01", "team04"], "2027") == [],
-   "RFA a chi non ne ha: ok")
+   "aste aperte: RFA a chi non ne ha ok")
 ok(_errori_rfa([it(r6, "team03", "team04")], ["team03", "team04"], "2027") == [],
    "x0 non dichiarato: si scambia liberamente")
-import handlers.trade as T
-t = db.crea_trade_bozza("team01", 2, "2027"); db.aggiungi_squadra_trade(t, "team01", 1); db.aggiungi_squadra_trade(t, "team04", 2)
-db.aggiungi_item_trade(t, "giocatore", "team01", "team04", giocatore_id=v1)
-db._q("UPDATE trade SET stato='in_approvazione' WHERE id=%s", (t,))
-T._scrivi_trade(t, "TRADE-2027-001", "adm")
+t3 = trade_di(v1, "team01", "team04")
+ok(not any("perde la dichiarazione" in a for a in avvisi_trade(t3)), "aste aperte: nessun avviso di decadenza")
+TE._scrivi_trade(t3, "TRADE-2027-003", "adm")
 ok(db.rfa_squadra("team04", "2027")["giocatore_id"] == v1 and db.rfa_squadra("team01", "2027") is None,
-   "trade: la dichiarazione segue il giocatore")
+   "aste aperte: la dichiarazione segue il giocatore")
 ok(db.cap_occupato_team("team04", "2027") == 40, "chi lo riceve: l'RFA pesa sul suo cap (10 + 30)")
-T._scrivi_trade(t, "TRADE-2027-001", None, inverti=True)
+TE._scrivi_trade(t3, "TRADE-2027-003", None, inverti=True)
 ok(db.rfa_squadra("team01", "2027")["giocatore_id"] == v1, "annullamento: la dichiarazione torna indietro")
+fase("offseason-rinnovi")
 
 # ── pick dell'anno +6 ───────────────────────────────────────────────────────────
 for t in ("team01", "team02", "team03", "team04"):
