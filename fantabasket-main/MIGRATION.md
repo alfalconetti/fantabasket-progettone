@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v4.1.2, bot aste v63, loucabot v6)
+# Messaggio di migrazione — Fantabasket Progettone (stato v4.2.0, bot aste v63, loucabot v7)
 
 ---
 
@@ -331,7 +331,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 
 ---
 
-**Stato attuale: v4.1.2 / aste v63 / loucabot v6**
+**Stato attuale: v4.2.0 / aste v63 / loucabot v7**
 
 Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v2.1.19** — `/attiva_diritti` propone il contratto della rookie scale (anno I) e chiede solo conferma
@@ -381,6 +381,7 @@ Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v4.1.0 / loucabot v4** — calcolo: Yahoo potrebbe non tornare, i punteggi si calcolano dai tabellini ESPN (`summary?event=ID`, una richiesta per partita finita; bref solo riserva, limite circa 20 richieste al minuto). Formula del regolamento verificata sul vecchio foglio (17/01/2026, 141/141). Foto infortunati 3 volte al giorno (ESPN dà solo lo stato attuale; servono per FADD e per lo 0 a chi è a media ma indisponibile). Abbinamento per id ESPN (`lega_espn`). Deciso con Luca: Yahoo servirebbe solo per i quintetti, quindi il prossimo è il bot delle panchine con anche il quintetto. Da decidere: media punti e differenza punti della classifica con o senza bonus casa; "indisponibile" per chi è a media = stato non Probable in tutte le foto della giornata
 - **v4.1.1 / loucabot v5** — deciso con Luca: id e nome ESPN in anagrafica (`giocatori.espn_id`, `nome_espn`), non in una tabella di loucabot; colonne create da entrambi i bot, scritte solo da loucabot. Abbinati a mano il 12/10 (non nei roster ESPN): Konchar 3134932, Lonzo Ball 4066421, Juzang 4432817, Cam Thomas 4432174
 - **v4.1.2 / loucabot v6** — come gli altri bot (richiesta di Luca): menu `/` per scope (`comandi.py`) e guide GM/admin/dev in `fantabasket-loucabot/docs/` (`/guida`, `/guida_admin`, `/guida_dev`). Prossimo da fare (Luca, 12/10): il calendario sui fogli Google tramite gas-router, aggiornato di giornata in giornata
+- **v4.2.0 / loucabot v7** — foglio Calendario (Luca, 13/10: stesso file del Roster, per ora un foglio parallelo di test; la formattazione non va cambiata; intestazione di giornata su A:E unite; B e D = punteggi, regolamentari nella riga delle squadre e supplementari subito sotto). Il CSV importato è la mappa delle righe; lo script scrive solo le celle che cambiano (`gas/calendario.gs`). Deploy: zip (riavvia gas-router e loucabot), poi `clasp push` e Nuova versione
 - **v3.13.3** — RFA sui canali: una riga per evento (dichiarazione, cambio, ritiro, trade) sul canale log; sul canale principale un solo riepilogo per stagione con gli RFA di tutte le squadre, modificato a ogni cambio (tabella `messaggi_fissi`). Prima ogni dichiarazione era un messaggio sul canale principale
 - **v3.13.2** — l'RFA si dichiara e si cambia quante volte si vuole fino alle aste RFA: `/dichiara_rfa` e il menu anche nella fase draft (deciso con Luca)
 - **v3.13.1** — RFA in trade (deciso con Luca il 12/10/2026): prima delle aste RFA (rinnovi, draft) un RFA scambiato perde la dichiarazione (`rfa_dichiarati.stato = 'revocata'`, `nota = 'trade <id>'`), chi lo cede può dichiararne un altro, per chi lo riceve è un x0 che non pesa, nessun limite; dalla fase RFA la dichiarazione segue il giocatore e vale al massimo un RFA per squadra; l'annullamento la rimette dov'era. Avviso nel riepilogo e ai GM. Decisioni sul regolamento: luxury 165 per tutti e Stepien a 4 anni sulle proprie 1st (il bot è giusto, va corretto il testo), offerta massima 141 = conseguenza di cap e minimo giocatori, floor nelle trade confermato (prova aggiunta). Testi proposti in `docs/regolamento_e_codice.md`

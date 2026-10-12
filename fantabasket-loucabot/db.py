@@ -110,6 +110,22 @@ def migra():
             dettaglio TEXT,
             preso     TIMESTAMPTZ NOT NULL DEFAULT NOW(),       -- l'ultima foto del giorno vince
             PRIMARY KEY (giorno, atleta))""")
+    q("""CREATE TABLE IF NOT EXISTS lega_calendario_csv (
+            stagione   TEXT PRIMARY KEY,
+            testo      TEXT NOT NULL,                           -- il CSV importato, tale e quale: è la mappa
+            importato  TIMESTAMPTZ NOT NULL DEFAULT NOW())""")   # delle righe del foglio Calendario
+    q("""CREATE TABLE IF NOT EXISTS lega_risultati (
+            stagione         TEXT NOT NULL,
+            giornata         INT  NOT NULL,
+            casa             TEXT NOT NULL,                     -- team_id
+            trasferta        TEXT NOT NULL,
+            punti_casa       NUMERIC(7,2),                      -- regolamentari, bonus casa compreso
+            punti_trasferta  NUMERIC(7,2),
+            supp_casa        NUMERIC(7,2),                      -- dopo i supplementari (se ci sono stati)
+            supp_trasferta   NUMERIC(7,2),
+            vince            TEXT,                              -- casa / trasferta
+            convalidato      TIMESTAMPTZ,
+            PRIMARY KEY (stagione, giornata, casa))""")
     q("""CREATE TABLE IF NOT EXISTS nba_atleti (
             atleta     TEXT PRIMARY KEY,                        -- id ESPN
             nome       TEXT NOT NULL,
@@ -320,3 +336,21 @@ def atleti_espn_visti() -> dict[str, str]:
               " SELECT atleta, nome, 2 FROM nba_tabellini UNION ALL"
               " SELECT atleta, nome, 3 FROM nba_infortuni) x ORDER BY atleta, o", many=True) or []
     return {r["atleta"]: r["nome"] for r in righe}
+
+
+# ── calendario per il foglio Google ────────────────────────────────────────────
+
+def salva_csv_calendario(stagione: str, testo: str) -> None:
+    q("INSERT INTO lega_calendario_csv (stagione, testo) VALUES (%s, %s) "
+      "ON CONFLICT (stagione) DO UPDATE SET testo = EXCLUDED.testo, importato = NOW()", (stagione, testo))
+
+
+def csv_calendario(stagione: str) -> str | None:
+    r = q("SELECT testo FROM lega_calendario_csv WHERE stagione = %s", (stagione,), one=True)
+    return r["testo"] if r else None
+
+
+def risultati(stagione: str) -> dict[tuple, dict]:
+    """{(giornata, casa, trasferta): riga} dei risultati della stagione."""
+    righe = q("SELECT * FROM lega_risultati WHERE stagione = %s", (stagione,), many=True) or []
+    return {(r["giornata"], r["casa"], r["trasferta"]): r for r in righe}

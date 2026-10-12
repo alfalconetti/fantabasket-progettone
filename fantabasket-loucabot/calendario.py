@@ -114,6 +114,7 @@ def importa(testo: str, stagione: str | None = None) -> dict:
     if errori:
         raise ErroreCalendario("\n".join(errori))
     db.sostituisci_calendario(stagione, giornate, partite)
+    db.salva_csv_calendario(stagione, testo)
     return {"stagione": stagione, "giornate": len(giornate), "partite": len(partite), "dubbi": dubbi,
             "dal": giornate[0]["dal"], "al": giornate[-1]["al"]}
 

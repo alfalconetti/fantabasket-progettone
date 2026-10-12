@@ -87,9 +87,12 @@ services:
       TEAMS_PATH: /config/teams.json
       DATABASE_URL: postgresql://fantabasket@postgres/fantabasket
       PG_PASSWORD_FILE: /run/secrets/pg_password
+      GAS_ROUTER_URL: http://gas-router:8000          # foglio Calendario
+      GAS_ROUTER_TOKEN_FILE: /run/secrets/gas_router_token
     secrets:
       - bot_token_loucabot
       - pg_password
+      - gas_router_token
     volumes:
       - ./config:/config:ro
       - ./shared:/app/shared:ro

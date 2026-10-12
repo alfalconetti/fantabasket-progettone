@@ -35,3 +35,8 @@ Il calcolo dei fantapunti.
 - Menu `/` per scope come negli altri bot (`comandi.py`): nei gruppi calendario e giornata, in privato anche la guida, agli admin (in privato e nel gruppo admin) i comandi admin, al dev quelli dev
 - Documentazione a più livelli: `docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md`, inviate come file da `/guida`, `/guida_admin`, `/guida_dev`; `/start` con i comandi in breve
 - Comandi dev: `/dev`, `/dev_version`, `/job_status`
+
+## v7 (2026-10-13)
+
+- Il calendario sul foglio Google Calendario (stesso file del Roster), tramite gas-router (`/gas/calendario`) e la nuova azione `calendario` dello script (`gas/calendario.gs`): all'import il CSV si conserva tale e quale (`lega_calendario_csv`) come mappa delle righe del foglio; il bot scrive le intestazioni con le squadre a media calcolate e i punteggi in B e D (regolamentari, supplementari subito sotto) da `lega_risultati` (nuova, si riempirà con la convalida delle giornate). Lo script trova ogni giornata da "Week N" nella colonna A e scrive solo le celle che cambiano: formattazione, celle unite, nomi e valori scritti a mano senza risultato non si toccano (provato con node su un foglio simulato)
+- Quando: all'import, quando cambiano le squadre a media (sync delle 8:30), `/calendario_foglio`

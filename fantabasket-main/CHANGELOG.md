@@ -1123,3 +1123,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v4.1.2 (2026-10-12)
 
 - loucabot v6: menu dei comandi per scope (gruppi, privato, admin, dev) e guide GM, admin e dev come gli altri bot
+
+## v4.2.0 (2026-10-13)
+
+- loucabot v7: il calendario sul foglio Google Calendario. gas-router: endpoint `/gas/calendario` (timeout lungo). Script: `gas/calendario.gs` e azione `calendario` in `main.gs` (serve `clasp push` e una Nuova versione della web app)

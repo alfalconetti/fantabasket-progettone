@@ -15,6 +15,7 @@ function doPost(e) {
       case "roster":  return handleRoster(payload);
       case "scelte":  return handleScelte(payload);
       case "bref_raw": return handleBrefRaw(payload);
+      case "calendario": return handleCalendario(payload);
       default:        return respond({ error: "Unknown action: " + payload.action });
     }
 

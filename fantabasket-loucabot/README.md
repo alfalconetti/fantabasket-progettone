@@ -6,7 +6,7 @@ dei playoff dalla classifica e risultati automatici, quando ci saranno quintetti
 
 Fa parte del progettone: stesso PostgreSQL e stessa `config/` dei due bot (in sola lettura),
 moduli condivisi in `../shared/`. Legge le tabelle degli altri bot, scrive solo le sue
-(`lega_giornate`, `lega_partite`, `nba_partite`, `nba_tabellini`, `nba_infortuni`, `nba_atleti`), più id e nome ESPN nell'anagrafica
+(`lega_giornate`, `lega_partite`, `lega_calendario_csv`, `lega_risultati`, `nba_partite`, `nba_tabellini`, `nba_infortuni`, `nba_atleti`), più id e nome ESPN nell'anagrafica
 (`giocatori.espn_id`, `nome_espn`).
 
 Sviluppato con [Claude](https://claude.ai) (Anthropic).
@@ -59,6 +59,19 @@ Se in una giornata non ancora finita cambia la prima partita o cambiano le squad
 gruppo admin riceve un avviso. `/calendario_check` confronta le squadre a media calcolate con
 quelle scritte nel calendario.
 
+## Il foglio Calendario
+
+Il calendario sta anche sul foglio Google **Calendario** (stesso file del Roster), con una
+formattazione sua che non va toccata. All'import loucabot conserva il CSV tale e quale
+(`lega_calendario_csv`): è la mappa delle righe del foglio (intestazione "Week N" su A:E unite,
+poi per ogni partita la riga delle squadre, subito sotto quella dei supplementari, due vuote).
+`foglio.py` manda allo script, tramite gas-router (`/gas/calendario` → `gas/calendario.gs`), le
+intestazioni con le squadre a media calcolate e i punteggi in B e D (regolamentari nella riga
+delle squadre, supplementari sotto) da `lega_risultati`; lo script trova ogni giornata cercando
+"Week N" nella colonna A e scrive **solo le celle che cambiano** (nomi, V e formattazione mai
+toccati). Quando: all'import, quando cambiano le squadre a media, con `/calendario_foglio`, e
+quando ci saranno risultati convalidati.
+
 ## Il calcolo
 
 **Tabellini.** A partita finita (sincronizzazione delle 8:30, o `/tabellini`) il bot scarica da ESPN
@@ -105,6 +118,7 @@ giocatore; ogni giorno lo stesso con i giocatori nuovi dei tabellini. Gli altri:
 | `/importa_calendario` | admin | con il CSV allegato, o in risposta al messaggio con il CSV |
 | `/calendario_check` | admin | scadenze, squadre a media, confronto con il calendario |
 | `/nba_sync` | admin | riscarica tutte le partite NBA della stagione |
+| `/calendario_foglio` | admin | riscrive squadre a media e punteggi sul foglio Calendario |
 | `/fantapunti [N]` | admin | fantapunti della giornata dei giocatori a roster, per squadra |
 | `/tabellini` | admin | scarica i tabellini delle partite finite che mancano e fa una foto degli infortunati |
 | `/espn_giocatori` | admin | roster NBA da ESPN e abbinamento automatico con l'anagrafica |
@@ -119,6 +133,7 @@ giocatore; ogni giorno lo stesso con i giocatori nuovi dei tabellini. Gli altri:
 | `comandi.py` | menu `/` per scope: gruppi, privato, admin (privato e gruppo admin), dev |
 | `handlers.py` | i comandi del calendario, il canale log, la sincronizzazione delle 8:30 |
 | `handlers_calcolo.py` | i comandi del calcolo e la foto degli infortunati |
+| `foglio.py` | il calendario sul foglio Google (blocchi da scrivere, invio al gas-router) |
 | `calcolo.py` | punteggio del giocatore, della squadra (FADD), esito con supplementari, abbinamento ESPN |
 | `calendario.py` | lettura del CSV, controlli, import, scadenze e squadre a media |
 | `nba.py` | ESPN: partite, tabellini e fantapunti, infortunati, roster |
@@ -126,7 +141,7 @@ giocatore; ogni giorno lo stesso con i giocatori nuovi dei tabellini. Gli altri:
 | `config.py` | `globals.json` e `teams.json` in sola lettura, versione dal CHANGELOG |
 | `docs/` | `guida_gm.md`, `guida_admin.md`, `guida_dev.md` (anche da Telegram: `/guida`, `/guida_admin`, `/guida_dev`) |
 
-Prove: `tests/run.sh louca_calendario louca_calcolo` (calendario; tabellino vero ridotto di
+Prove: `tests/run.sh louca_calendario louca_calcolo louca_foglio` (calendario; tabellino vero ridotto di
 NYK-SAS del 1/3/2026, formula, infortunati, partite/media/zero, FADD, supplementari, abbinamento).
 
 ## Da fare

@@ -33,6 +33,7 @@ class GASPayload(BaseModel):
     teams: Optional[list[Any]] = None
     anni:  Optional[list[int]] = None
     csv:   Optional[str] = None
+    blocchi: Optional[list[Any]] = None
 
 
 def _get_gas_scelte_url(): return _read_secret("GAS_SCELTE_URL_FILE")
@@ -74,14 +75,27 @@ async def bref(payload: GASPayload, authorization: str = Header(...)):
     return await _forward(_get_gas_roster_url(), gas_payload)
 
 
+@app.post("/gas/calendario")
+async def calendario(payload: GASPayload, authorization: str = Header(...)):
+    """Foglio Calendario (loucabot): intestazioni e punteggi, solo le celle che cambiano.
+    Stessa web app del Roster (doPost smista per action)."""
+    _check_auth(authorization)
+    gas_payload = {
+        "token":   _get_gas_token(),
+        "action":  "calendario",
+        "blocchi": payload.blocchi or [],
+    }
+    return await _forward(_get_gas_roster_url(), gas_payload, timeout=170.0)
+
+
 def _check_auth(authorization: str):
     if authorization != f"Bearer {_get_router_token()}":
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
-async def _forward(url: str, payload: dict) -> dict:
+async def _forward(url: str, payload: dict, timeout: float = 30.0) -> dict:
     try:
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
             resp = await client.post(url, json=payload)
             resp.raise_for_status()
             return resp.json()

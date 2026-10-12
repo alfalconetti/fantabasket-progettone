@@ -139,12 +139,16 @@ async def cmd_importa_calendario(update: Update, context: ContextTypes.DEFAULT_T
         righe += ["", "Partite NBA non ancora scaricate: lancia /nba_sync, poi /calendario_check."]
     else:
         righe += ["", "Controllo con le partite NBA: /calendario_check."]
+    import foglio
+    esito_foglio = await foglio.aggiorna(r["stagione"])
+    righe += ["", e(esito_foglio[:1].upper() + esito_foglio[1:]) + "."]
     await msg.reply_text("\n".join(righe), parse_mode="HTML")
     logger.info("Calendario importato da %s: %s (%d cambi)", update.effective_user.id, r, len(cambi))
     await log(context.bot, f"📅 Calendario {r['stagione']} importato da {_chi(update)}: {r['giornate']} giornate, "
                            f"{r['partite']} partite ({e(doc.file_name or 'csv')})"
                            + (f"\nDifferenze con le partite NBA: {len(cal.differenze_file(r['stagione']))} giornate"
-                              if db.squadre_nba(r["stagione"]) and cal.differenze_file(r["stagione"]) else ""))
+                              if db.squadre_nba(r["stagione"]) and cal.differenze_file(r["stagione"]) else "")
+                           + f"\n{e(esito_foglio)}")
 
 
 async def cmd_calendario_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -174,6 +178,18 @@ async def cmd_calendario_check(update: Update, context: ContextTypes.DEFAULT_TYP
                       riassunto="\n".join(righe[:3]))
 
 
+async def cmd_calendario_foglio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Riscrive sul foglio Google Calendario intestazioni (squadre a media) e punteggi."""
+    if not config.is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ Solo admin.")
+        return
+    import foglio
+    await update.effective_message.reply_text("⏳ Aggiorno il foglio Calendario…")
+    esito = await foglio.aggiorna(config.stagione())
+    await update.effective_message.reply_text(("✅ " if not esito.startswith("⚠️") else "") + esito[:1].upper() + esito[1:])
+    await log(context.bot, f"📄 /calendario_foglio di {_chi(update)}: {e(esito)}")
+
+
 async def cmd_nba_sync(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not config.is_admin(update.effective_user.id):
         await update.effective_message.reply_text("⛔ Solo admin.")
@@ -201,6 +217,9 @@ async def job_sync(context: ContextTypes.DEFAULT_TYPE):
         import handlers_calcolo as hc
         tab = await hc.aggiorna_tabellini()
         inf = await hc.foto_infortuni()
+        if cambi:
+            import foglio
+            inf += "; " + await foglio.aggiorna(config.stagione())
         await log(context.bot, f"🔄 Sincronizzazione delle 8:30: {_esito_sync(r)}"
                                + (f", {len(cambi)} cambi (avviso al gruppo admin)" if cambi else ", nessun cambio")
                                + f"; {hc.testo_tabellini(tab)}; {inf}")
@@ -226,7 +245,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if config.is_admin(update.effective_user.id):
         testo += ("\n\n<b>Admin</b>\n/importa_calendario — col CSV allegato (sostituisce quello della stagione)\n"
                   "/calendario_check — scadenze e squadre a media, confronto col calendario\n"
-                  "/nba_sync — riscarica le partite NBA della stagione da ESPN\n\n"
+                  "/nba_sync — riscarica le partite NBA della stagione da ESPN\n"
+                  "/calendario_foglio — riscrive squadre a media e punteggi sul foglio Calendario\n\n"
                   "<b>Calcolo</b>\n/fantapunti [N] — fantapunti della giornata dei giocatori a roster\n"
                   "/tabellini — scarica i tabellini delle partite finite che mancano\n"
                   "/espn_giocatori — roster NBA da ESPN e abbinamento con l'anagrafica\n"
@@ -310,4 +330,5 @@ def get_handlers() -> list:
         MessageHandler(filters.Document.ALL & filters.CaptionRegex(r"^/importa_calendario"), cmd_importa_calendario),
         CommandHandler("calendario_check", cmd_calendario_check),
         CommandHandler("nba_sync", cmd_nba_sync),
+        CommandHandler("calendario_foglio", cmd_calendario_foglio),
     ]
