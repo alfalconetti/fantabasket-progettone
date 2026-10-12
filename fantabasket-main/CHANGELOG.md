@@ -1028,3 +1028,8 @@ Rookie scale e cambio di stagione. Provato su una copia del database di produzio
 - **Report del cambio di stagione completo**: elenca tutti i rookie che cambiano anno di scala, anche quelli che restano com'erano, con il motivo. Dal I al II anno: importo nuovo oppure "stesso importo in tabella" (pick basse). Dal III al IV anno: importo nuovo oppure "Doncic, la tabella dice N" o "stesso importo in tabella". Prima l'anteprima mostrava solo chi cambiava importo, e un passaggio senza cambi (come il III → IV del 2027) non compariva per niente. Nei rookie a fine II anno c'è anche il contratto che finisce
 - Contratti rookie con una forma inattesa per il loro anno di scala (per esempio un II anno con anni ancora da giocare) finiscono in "⚠️ Da controllare" invece di essere saltati in silenzio. Sui dati veri: nessuno
 - Il riepilogo nella conferma del cambio fase e la didascalia del file riportano anche gli invariati
+
+## v3.11.3 (2026-10-12)
+
+- Report del cambio di stagione: per ogni rookie a fine II anno c'è anche la **stima del rinnovo rookie** (scala del III anno, o Doncic se più alta, con la fantamedia usata). Il rinnovo resta una scelta del GM: la Doncic d'ufficio c'è solo a fine IV anno
+- `/dev_stagione` avvisa che Doncic e rinnovi sono stime con le fantamedie di oggi; al cambio di stagione si usano quelle di fine stagione

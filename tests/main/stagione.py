@@ -89,6 +89,9 @@ ok(uguali == {r7: "stesso importo in tabella", r8: "stesso importo in tabella", 
    and not anteprima["anomalie"], f"anteprima: anche chi resta uguale, col motivo {uguali}")
 testo = S.testo_piano(anteprima, "x")
 ok("Primo Basso" in testo and "Terzo Doncic" in testo and "resta" in testo, "il report elenca anche gli invariati")
+p2 = anteprima["da_rinnovare"][0]["proposta"]
+ok((p2["importo_nuovo"], p2["doncic"]) == (15, True) and "rinnovo <b>15x2</b> <i>Doncic</i> (fantamedia 24,95)" in testo,
+   "rookie a fine II anno: stima del rinnovo (Doncic 15 contro scala III 14)")
 fase("offseason-rinnovi", 2027)
 S.applica_stagione(2027)
 c1 = attivo(r1); c3 = attivo(r3); c4 = attivo(r4); c5 = attivo(r5); c6 = attivo(r6)

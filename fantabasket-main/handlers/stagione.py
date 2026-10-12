@@ -149,7 +149,8 @@ def _calcola_piano(cur, stagione: int) -> dict:
                                               "a": _contratto_str(imp, 1), "nota": f"Rookie scale: II anno {imp}x1"})
         elif k == 2:
             if residui <= 0:
-                piano["da_rinnovare"].append(base)
+                # proposta del rinnovo rookie (la decide il GM): scala III o Doncic se più alta
+                piano["da_rinnovare"].append({**base, "proposta": proposta_rinnovo_rookie(c, stagione)})
             else:
                 piano["anomalie"].append(strano)
         elif k == 3:
@@ -277,6 +278,17 @@ def testo_piano_breve(piano: dict, titolo: str) -> str:
     return "\n".join(righe)
 
 
+def _testo_proposta(v: dict) -> str:
+    p = v.get("proposta") or {}
+    if not p:
+        return "?"
+    fm = p.get("fantamedia")
+    fm_txt = f"fantamedia {fm:.2f}".replace(".", ",") if fm is not None else "nessuna fantamedia"
+    if p.get("doncic"):
+        return f"<b>{p['importo_nuovo']}x2</b> <i>Doncic</i> ({fm_txt})"
+    return f"{p['importo_nuovo']}x2 di scala ({fm_txt})"
+
+
 def testo_piano(piano: dict, titolo: str) -> str:
     """Dettaglio completo: ogni rookie che cambia anno di scala, anche se l'importo resta."""
     righe = [titolo, ""]
@@ -303,7 +315,10 @@ def testo_piano(piano: dict, titolo: str) -> str:
         righe.append("")
     if piano.get("da_rinnovare"):
         righe.append(f"<b>🔁 Rookie a fine II anno (x0: rinnovo rookie, RFA o FA)</b> ({len(piano['da_rinnovare'])})")
-        righe += [f"  • {html.escape(v['nome'])} ({_nome_team(v['team_id'])}): {v['da']}" for v in piano["da_rinnovare"]]
+        righe.append("  <i>Rinnovo proposto: scala del III anno, o Doncic se più alta (sulla fantamedia migliore del "
+                     "I e II anno). Lo decide il GM.</i>")
+        righe += [f"  • {html.escape(v['nome'])} ({_nome_team(v['team_id'])}): {v['da']} → rinnovo {_testo_proposta(v)}"
+                  for v in piano["da_rinnovare"]]
         righe.append("")
     if piano.get("x0"):
         tot = sum(int(r["n"]) for r in piano["x0"])
@@ -837,7 +852,9 @@ async def cmd_dev_stagione(update: Update, context: ContextTypes.DEFAULT_TYPE):
     piano = piano_stagione(s + 1)
     from shared.messaggi import manda_lungo
     await manda_lungo(bot, update.effective_chat.id,
-                      testo_piano(piano, f"🔮 <b>Anteprima stagione {s + 1}</b> (niente viene scritto)"),
+                      testo_piano(piano, f"🔮 <b>Anteprima stagione {s + 1}</b> (niente viene scritto)\n"
+                                         f"<i>Doncic e rinnovi sono stime con le fantamedie di oggi: al cambio di "
+                                         f"stagione si usano quelle di fine stagione.</i>"),
                       f"anteprima-stagione-{s + 1}",
                       riassunto=riassunto_piano(piano, s + 1).replace("contratti aggiornati", "anteprima, niente viene scritto"))
 
