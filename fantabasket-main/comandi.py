@@ -88,6 +88,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("dev_pg",       "Stato connessione PostgreSQL"),
         BotCommand("dev_roster",   "Dump roster raw [team_id]"),
         BotCommand("dev_player",   "Anagrafica giocatore [nome]"),
+        BotCommand("dev_coerenza", "Controllo contratti/registro"),
         BotCommand("nuovo_giocatore", "Crea giocatore [nome] | [nome_bref] [data]"),
         BotCommand("job_status",   "Job attivi nella JobQueue"),
         BotCommand("broadcast",    "Messaggio a tutti i GM"),

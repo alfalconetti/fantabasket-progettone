@@ -85,6 +85,21 @@ def _snapshot_diritti(team_id: str, at: datetime) -> set[int]:
 
 # ── etichetta motivo movimento ────────────────────────────────────────────────
 
+_ETICHETTE_ASSET = {"traded": "Trade", "rookie_firma": "Attivati", "rookie_diritti_scaduti": "Scaduti",
+                    "draft": "Draft", "iniziale": "—"}
+
+
+def _motivo_asset(oggetto: str, chiave: int, da: datetime, a: datetime, predefinito: str) -> str:
+    """Perché una pick o dei diritti sono entrati/usciti nel periodo (dal registro, v3.10.0)."""
+    m = db.movimento_asset_periodo(oggetto, chiave, da.isoformat(), a.isoformat())
+    if not m:
+        return predefinito
+    if (m.get("note") or "").startswith("ANNULLAMENTO"):
+        return "Trade annullata"
+    return _ETICHETTE_ASSET.get(m["tipo"], m["tipo"])
+
+
+
 def _motivo_giocatore(team_id: str, giocatore_id: int,
                        da: datetime, a: datetime, verso: str) -> str:
     """
@@ -223,13 +238,15 @@ async def cmd_team_diff(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 rnd  = "1st" if p["round"] == 1 else "2nd"
                 orig = (tm.get_team_by_id(p["proprietario_orig"]) or {}).get("nome", p["proprietario_orig"])
                 prot = f" — {p['protezioni']}" if p.get("protezioni") else ""
-                righe.append(f"  • {rnd} pick {p['anno']} by {orig}{prot} <i>(Trade)</i>")
+                m = _motivo_asset("pick", pid, data_da, data_a, "Trade")
+                righe.append(f"  • {rnd} pick {p['anno']} by {orig}{prot} <i>({m})</i>")
         for did in d_in:
             r = db.get_rookie(did)
             if r:
                 g = db.get_giocatore(r["giocatore_id"])
                 nome = g["nome_common"] if g else f"#{r['giocatore_id']}"
-                righe.append(f"  • Diritti di {nome} <i>(Draft)</i>")
+                m = _motivo_asset("diritti", r["giocatore_id"], data_da, data_a, "Draft")
+                righe.append(f"  • Diritti di {nome} <i>({m})</i>")
         righe.append("")
 
     if g_out or p_out or d_out:
@@ -244,13 +261,15 @@ async def cmd_team_diff(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if p:
                 rnd  = "1st" if p["round"] == 1 else "2nd"
                 orig = (tm.get_team_by_id(p["proprietario_orig"]) or {}).get("nome", p["proprietario_orig"])
-                righe.append(f"  • {rnd} pick {p['anno']} by {orig} <i>(Trade)</i>")
+                m = _motivo_asset("pick", pid, data_da, data_a, "Trade")
+                righe.append(f"  • {rnd} pick {p['anno']} by {orig} <i>({m})</i>")
         for did in d_out:
             r = db.get_rookie(did)
             if r:
                 g = db.get_giocatore(r["giocatore_id"])
                 nome = g["nome_common"] if g else f"#{r['giocatore_id']}"
-                righe.append(f"  • Diritti di {nome} <i>(—)</i>")
+                m = _motivo_asset("diritti", r["giocatore_id"], data_da, data_a, "—")
+                righe.append(f"  • Diritti di {nome} <i>({m})</i>")
         righe.append("")
 
     if g_cambiati:

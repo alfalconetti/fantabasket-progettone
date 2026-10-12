@@ -48,7 +48,7 @@ Il bot lavora su **due database**.
 
 | Tabella | Contenuto |
 |---|---|
-| `aste` | `tipo` (FA/RFA), `giocatore` (nome, non id), `squadra_proprietaria` e `vecchio_compenso` (RFA), `stato`, `offerta_corrente`, `offerente_team_id`, `anni_offerti`/`anni_contratto`, `creata_at`/`scade_at`/`conclusa_at`/`firmato_at` (ISO UTC), `stagione`, `canale_msg_id`, `notifica_15min`, `pareggio_preimpostato` (JSON), `rifiuto_preimpostato` |
+| `aste` | `tipo` (FA/RFA), `giocatore` (nome, per messaggi e ricerca), `giocatore_id` (id su PostgreSQL deciso all'apertura, v57), `squadra_proprietaria` e `vecchio_compenso` (RFA), `stato`, `offerta_corrente`, `offerente_team_id`, `anni_offerti`/`anni_contratto`, `creata_at`/`scade_at`/`conclusa_at`/`firmato_at` (ISO UTC), `stagione`, `canale_msg_id`, `notifica_15min`, `pareggio_preimpostato` (JSON), `rifiuto_preimpostato` |
 | `offerte` | storico: `asta_id`, `team_id`, `importo`, `timestamp` |
 | `aste_watch` | chi segue cosa: `asta_id`, `gm_id` |
 | `contratti` | copia locale delle firme (eredità dello standalone; la verità è su PostgreSQL) |
@@ -90,7 +90,7 @@ cap_limite − contratti (con DPE ridotta) − spalmature della stagione − pen
 **Slot** (`pg_client.get_slot_totale` → `teams.check_slot_virtuale`):
 
 ```
-roster_max − roster (ultimo movimento = squadra, esclusi i DPE)
+roster_max − roster (contratti attivi, esclusi i DPE)
           + RFA della squadra con asta in corso      (l'RFA occupa cap ma non slot)
           + slot anticipato                           (/autoslot, 48 ore)
           − slot virtuali
@@ -161,7 +161,7 @@ Se va bene registra l'offerta, porta `scade_at` a ora + `durata_asta_ore` (18), 
 1. **Anni.** Bottoni `firma:` → in regular season scelta del ruolo `firma_ruolo:` (regole in `shared/ruoli_core`, regola dei 60 giorni) → conferma `firma_confirm:`.
 2. **Timeout di 48 ore.** `firma_automatica` (job `run_once`) firma 3 anni di penale e, in regular season, estrae il ruolo.
 3. **Registrazione.** `_registra_firma_finale` è l'unico punto che chiude:
-   - `pg_client.registra_firma` (contratto + `signed` in un'unica transazione);
+   - `pg_client.registra_firma` (contratto + `signed` in un'unica transazione), sul `giocatore_id` dell'asta: niente più riabbinamento per nome, che con un nome cambiato creava un giocatore doppione (`pg_client.id_giocatore_asta`; le aste vecchie senza id cercano per nome senza mai creare);
    - ruolo su PostgreSQL;
    - copia nel `contratti` locale;
    - asta CONCLUSA;
@@ -328,13 +328,13 @@ Visibilità:
 **Cap o slot sbagliati in `/me`:**
 
 1. `/dev_cap` per vedere quali aste stanno impegnando cap e slot.
-2. Poi guarda i contratti attivi e i movimenti su PostgreSQL. Spesso è una firma o un taglio fatti a mano senza transazione: il bot aste conta il roster dall'**ultimo movimento**.
+2. Poi guarda i contratti attivi su PostgreSQL: dalla v57 il bot aste conta il roster dai **contratti attivi**, come il bot principale. `/dev_coerenza` del bot principale dice se contratti e movimenti sono d'accordo.
 
 ```sql
--- roster secondo il bot aste
-SELECT g.nome_common, t.tipo, t.timestamp FROM giocatori g
-JOIN LATERAL (SELECT * FROM transazioni WHERE giocatore_id = g.id ORDER BY timestamp DESC LIMIT 1) t ON TRUE
-WHERE t.team_id_a = 'team07';
+-- roster secondo entrambi i bot
+SELECT g.nome_common, c.importo, c.anni_originali FROM contratti c
+JOIN giocatori g ON g.id = c.giocatore_id
+WHERE c.team_id = 'team07' AND c.attivo ORDER BY c.importo DESC;
 ```
 
 **Firma non arrivata su PostgreSQL.** Nei log c'è `Firma PG fallita per …`: registrala con `/registra_firma` dal bot principale.

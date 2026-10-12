@@ -832,10 +832,12 @@ async def apri_asta_fa(context, team: dict, giocatore: str, importo: int,
 
     now   = datetime.now(timezone.utc)
     scade = now + timedelta(hours=settings.durata_asta_ore())
+    import pg_client
     asta_id = db.crea_asta(
         tipo="FA", giocatore=giocatore, squadra_proprietaria=None,
         creata_at=now.isoformat(), scade_at=scade.isoformat(),
         stagione=utils.load_globals().get("stagione_corrente"),
+        giocatore_id=pg_client.trova_giocatore(giocatore),
     )
     db.registra_offerta(asta_id, team["id"], importo, now.isoformat())
     db.aggiorna_offerta(asta_id, team["id"], importo, scade.isoformat())

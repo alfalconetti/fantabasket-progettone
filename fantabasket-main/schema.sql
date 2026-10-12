@@ -111,9 +111,12 @@ CREATE TABLE transazioni (
         'decadimento', 'decaduto', 'dpe_attivata',
         '10day_firma', '10day_scadenza',
         'rookie_firma', 'rookie_diritti_scaduti',
-        'firma', 'taglio', 'trade', 'rookie', 'dpe'
+        'firma', 'taglio', 'trade', 'rookie', 'dpe', 'iniziale'
     )),
-    giocatore_id    INT NOT NULL REFERENCES giocatori(id),
+    -- registro unico (v3.10.0): giocatore | diritti | pick | squadra
+    oggetto         TEXT NOT NULL DEFAULT 'giocatore',
+    giocatore_id    INT REFERENCES giocatori(id),
+    pick_id         INT,                            -- FK su pick.id (aggiunta dopo la tabella pick)
     team_id_da      TEXT,
     team_id_a       TEXT,
     stagione        TEXT NOT NULL,
@@ -121,7 +124,12 @@ CREATE TABLE transazioni (
     trade_id        INT REFERENCES trade(id),
     rookie_scale    BOOLEAN NOT NULL DEFAULT FALSE,
     gratuito        BOOLEAN NOT NULL DEFAULT FALSE,  -- taglio 1x1 gratuito (max 3/stagione)
-    note            TEXT
+    note            TEXT,
+    CONSTRAINT transazioni_oggetto_check CHECK (
+        (oggetto = 'giocatore' AND giocatore_id IS NOT NULL AND pick_id IS NULL) OR
+        (oggetto = 'diritti'   AND giocatore_id IS NOT NULL AND pick_id IS NULL) OR
+        (oggetto = 'pick'      AND pick_id IS NOT NULL AND giocatore_id IS NULL) OR
+        (oggetto = 'squadra'   AND giocatore_id IS NULL AND pick_id IS NULL))
 );
 
 CREATE INDEX idx_transazioni_giocatore ON transazioni (giocatore_id, timestamp DESC);
@@ -141,6 +149,8 @@ CREATE TABLE pick (
 );
 
 ALTER TABLE trade_items ADD CONSTRAINT fk_trade_items_pick
+    FOREIGN KEY (pick_id) REFERENCES pick(id);
+ALTER TABLE transazioni ADD CONSTRAINT fk_transazioni_pick
     FOREIGN KEY (pick_id) REFERENCES pick(id);
 
 CREATE INDEX idx_pick_proprietario ON pick (proprietario_att) WHERE scattata = FALSE;
@@ -213,23 +223,19 @@ CREATE INDEX idx_penalita_team ON penalita (team_id, stagione);
 -- VISTE
 -- ============================================================
 
+-- Movimenti dei soli giocatori con contratto: TUTTE le query che ricostruiscono un roster
+-- leggono questa vista, mai transazioni (dove ci sono anche pick e diritti).
+CREATE VIEW movimenti_giocatori AS SELECT * FROM transazioni WHERE oggetto = 'giocatore';
+
+-- Roster di oggi = contratti attivi (v3.10.0), con l'ultimo movimento del giocatore
 CREATE VIEW roster_attuale AS
-SELECT DISTINCT ON (g.id)
-    g.id            AS giocatore_id,
-    g.nome_common,
-    g.nome_norm,
-    t.team_id_a     AS team_id,
-    t.tipo          AS ultimo_movimento,
-    t.timestamp,
-    c.importo,
-    c.anni_originali,
-    c.stagione_firma,
-    c.tipo          AS tipo_contratto
-FROM transazioni t
-JOIN giocatori g ON g.id = t.giocatore_id
-LEFT JOIN contratti c ON c.id = t.contratto_id AND c.attivo = TRUE
-WHERE t.team_id_a IS NOT NULL
-ORDER BY g.id, t.timestamp DESC;
+SELECT g.id AS giocatore_id, g.nome_common, g.nome_norm, c.team_id,
+       u.tipo AS ultimo_movimento, u.timestamp, c.importo, c.anni_originali,
+       c.stagione_firma, c.tipo AS tipo_contratto
+FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
+LEFT JOIN LATERAL (SELECT m.tipo, m.timestamp FROM movimenti_giocatori m
+                   WHERE m.giocatore_id = g.id ORDER BY m.timestamp DESC, m.id DESC LIMIT 1) u ON TRUE
+WHERE c.attivo = TRUE;
 
 CREATE VIEW ruolo_attuale AS
 SELECT DISTINCT ON (giocatore_id, stagione)
@@ -239,7 +245,7 @@ ORDER BY giocatore_id, stagione, timestamp DESC;
 
 CREATE VIEW firme AS
 SELECT t.*, g.nome_common, g.nome_norm, c.importo, c.anni_originali
-FROM transazioni t
+FROM movimenti_giocatori t
 JOIN giocatori g ON g.id = t.giocatore_id
 LEFT JOIN contratti c ON c.id = t.contratto_id
 WHERE t.tipo IN ('signed', 'rookie_firma', '10day_firma');

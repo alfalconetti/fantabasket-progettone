@@ -252,70 +252,38 @@ async def cb_adm_taglia_team(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def cb_adm_taglia_conferma(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin conferma il taglio diretto."""
+    """Admin sceglie il giocatore → la stessa anteprima dei GM, con conferma (v3.10.0: prima il
+    tap tagliava subito, senza anteprima né controlli di regular season)."""
     query = update.callback_query
     await query.answer()
     if not is_admin(update.effective_user.id):
         return
     _, gid_s, team_id = query.data.split(":")
-    gid = int(gid_s)
+    from handlers.tagli import _mostra_anteprima_taglio
+    team = tm.get_team_by_id(team_id)
+    await _mostra_anteprima_taglio(query, team, int(gid_s),
+                                   cb_ok=f"adm_taglia_si:{gid_s}:{team_id}", cb_no=f"adm_taglia_team:{team_id}")
 
-    import database as db
-    from handlers.tagli import (
-        _anni_residui, _e_taglio_gratuito, calcola_spalmate, MAX_TAGLI_GRATUITI,
-        calcola_impatto_taglio,
-    )
-    import settings
 
-    contratto = db.get_contratto_attivo(gid)
-    if not contratto:
-        await query.edit_message_text("❌ Nessun contratto attivo trovato.")
+async def cb_adm_taglia_esegui(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin conferma: stesso taglio dei GM (regole, atomicità), più avviso al GM."""
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(update.effective_user.id):
         return
-
-    giocatore = db.get_giocatore(gid)
-    stagione  = settings.stagione_corrente()
-    anni_res  = _anni_residui(contratto, stagione)
-    gratuito  = _e_taglio_gratuito(contratto["importo"], anni_res)
-
-    if gratuito:
-        usati = db.get_tagli_gratuiti_usati(team_id, stagione)
-        gratuito = usati < MAX_TAGLI_GRATUITI
-
-    from database import _q
-    _q("UPDATE contratti SET attivo = FALSE WHERE id = %s", (contratto["id"],))
-
-    if gratuito:
-        db.registra_transazione(
-            "cut", gid, team_id, None, stagione,
-            contratto_id=contratto["id"], gratuito=True,
-            note=f"Taglio admin senza impatto — {giocatore['nome_common']}"
-        )
-        usati_now = db.get_tagli_gratuiti_usati(team_id, stagione)
-        await query.edit_message_text(
-            f"✅ <b>{giocatore['nome_common']}</b> tagliato senza impatto.\n"
-            f"Tagli senza impatto usati: <b>{usati_now}/{MAX_TAGLI_GRATUITI}</b>",
-            parse_mode="HTML",
-        )
-    else:
-        rate = calcola_impatto_taglio(contratto["importo"], anni_res, stagione)
-        trans_id = db.registra_transazione(
-            "cut", gid, team_id, None, stagione,
-            contratto_id=contratto["id"], gratuito=False,
-            note=f"Taglio admin — {giocatore['nome_common']} {contratto['importo']}M x{anni_res}"
-        )
-        for r in rate:
-            _q(
-                "INSERT INTO impatto_taglio (team_id, giocatore_id, stagione_taglio, stagione, importo, transazione_id) "
-                "VALUES (%s, %s, %s, %s, %s, %s)",
-                (team_id, gid, stagione, r["stagione"], r["importo"], trans_id)
-            )
-        righe = "\n".join(f"  • {r['stagione']}: {r['importo']}M" for r in rate)
-        await query.edit_message_text(
-            f"✅ <b>{giocatore['nome_common']}</b> tagliato.\n\nImpatto taglio:\n{righe}",
-            parse_mode="HTML",
-        )
-    logger.info("Taglio admin: team=%s giocatore=%d admin=%d",
-                team_id, gid, update.effective_user.id)
+    _, gid_s, team_id = query.data.split(":")
+    from handlers.tagli import esegui_taglio, testi_taglio, dopo_taglio, TaglioNonEseguibile
+    team = tm.get_team_by_id(team_id)
+    try:
+        v = esegui_taglio(team, int(gid_s))
+    except TaglioNonEseguibile as e:
+        await query.edit_message_text(str(e))
+        return
+    risposta, _ = testi_taglio(team, v)
+    await query.edit_message_text(risposta, parse_mode="HTML")
+    admin = update.effective_user
+    await dopo_taglio(context.bot, team, v, admin_nome=admin.first_name or admin.username or str(admin.id))
+    logger.info("Taglio admin: team=%s giocatore=%s admin=%d", team_id, gid_s, admin.id)
 
 
 # ── Admin DPE diretta ────────────────────────────────────────────────────────
@@ -1194,6 +1162,7 @@ def get_handlers() -> list:
         CallbackQueryHandler(cb_ufficializza,        pattern=r"^adm_uff:\d+$"),
         CallbackQueryHandler(cb_adm_taglia_team,     pattern=r"^adm_taglia_team:.+$"),
         CallbackQueryHandler(cb_adm_taglia_conferma, pattern=r"^adm_taglia_ok:\d+:.+$"),
+        CallbackQueryHandler(cb_adm_taglia_esegui,   pattern=r"^adm_taglia_si:\d+:.+$"),
         CallbackQueryHandler(cb_adm_dpe_team,        pattern=r"^adm_dpe_team:.+$"),
         CallbackQueryHandler(cb_adm_dpe_giocatore,   pattern=r"^adm_dpe_gi:\d+:.+$"),
         CallbackQueryHandler(cb_adm_dpe_conferma,    pattern=r"^adm_dpe_ok:\d+:.+:\d+:\d+:[01]$"),

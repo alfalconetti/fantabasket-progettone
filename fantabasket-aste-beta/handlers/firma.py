@@ -48,7 +48,7 @@ def _info_ruolo(asta: dict, team_id: str) -> dict:
     import pg_client
     from shared import ruoli_core as core
     stagione = utils.load_globals().get("stagione_corrente", "2025")
-    gid = pg_client.trova_o_crea_giocatore(asta["giocatore"])
+    gid = pg_client.id_giocatore_asta(asta)
     if gid is None:
         return {"gid": None, "eleggibili": [], "fisso": None, "validi": []}
     eleg = core.eleggibili(pg_client.q, gid)
@@ -168,7 +168,8 @@ async def _concludi_rfa_senza_contratto(context, asta_id: int):
         # contratto disattivato + movimento di uscita (prima libera_cap veniva chiamata
         # senza il nome del giocatore: su PG non succedeva niente e l'RFA restava in squadra)
         stagione = utils.load_globals().get("stagione_corrente", "2025")
-        if not pg_client.rilascia_rfa(asta["squadra_proprietaria"], asta["giocatore"], stagione):
+        if not pg_client.rilascia_rfa(asta["squadra_proprietaria"], asta["giocatore"], stagione,
+                                      giocatore_id=pg_client.id_giocatore_asta(asta)):
             await _log_warn(context, f"RFA {asta['giocatore']} lasciato andare ma contratto non trovato su PG "
                                      f"({asta['squadra_proprietaria']}): verificare a mano.")
         pg_client.accoda_sync_gas(f"RFA lasciato andare {asta['giocatore']}")
@@ -1602,14 +1603,16 @@ async def _registra_firma_finale(
     else:
         # RFA: libera sempre il vecchio compenso dal proprietario
         if asta["vecchio_compenso"]:
+            import pg_client as _pg
             tm.libera_cap(asta["squadra_proprietaria"], asta["vecchio_compenso"],
-                          nome_giocatore=asta["giocatore"])
+                          nome_giocatore=asta["giocatore"], giocatore_id=_pg.id_giocatore_asta(asta))
         # scala cap e slot a chi firma (il giocatore RFA non occupava slot)
         tm.scala_cap_slot(team_id, importo)
 
     # Scrivi firma su PostgreSQL
     import pg_client
-    ok_pg = pg_client.registra_firma(team_id, asta["giocatore"], importo, anni, stagione)
+    ok_pg = pg_client.registra_firma(team_id, asta["giocatore"], importo, anni, stagione,
+                                     giocatore_id=pg_client.id_giocatore_asta(asta))
     if not ok_pg:
         logger.warning("Firma PG fallita per %s — verificare manualmente.", asta["giocatore"])
 
@@ -1619,7 +1622,7 @@ async def _registra_firma_finale(
     if ok_pg and _ruoli_attivi(asta):
         try:
             from shared import ruoli_core as core
-            gid = pg_client.trova_o_crea_giocatore(asta["giocatore"])
+            gid = pg_client.id_giocatore_asta(asta) or pg_client.trova_o_crea_giocatore(asta["giocatore"])
             nota = ""
             fisso = core.ruolo_riacquisto(pg_client.q, gid, team_id)
             if fisso:

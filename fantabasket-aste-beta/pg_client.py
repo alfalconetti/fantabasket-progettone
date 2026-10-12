@@ -159,45 +159,22 @@ def get_impatto_taglio(team_id: str, stagione: str) -> int:
 # ── slot ──────────────────────────────────────────────────────────────────────
 
 def get_roster_count(team_id: str, stagione: str = None) -> int:
-    """Numero di giocatori nel roster. Esclude giocatori con DPE attiva (slot liberato)."""
+    """Numero di giocatori nel roster = contratti ATTIVI della squadra, come nel bot
+    principale (v57: prima si contava dall'ultimo movimento in transazioni e un movimento
+    sbagliato o mancante faceva divergere i due bot). Con `stagione` esclude i giocatori
+    con DPE di quella stagione (slot liberato)."""
     if not pg_disponibile():
         return 0
-    conn = _conn()
-    try:
-        with conn.cursor() as cur:
-            if stagione:
-                cur.execute(
-                    """SELECT COUNT(*) FROM (
-                           SELECT DISTINCT ON (giocatore_id) giocatore_id, team_id_a
-                           FROM transazioni
-                           WHERE giocatore_id IS NOT NULL
-                           ORDER BY giocatore_id, timestamp DESC
-                       ) sub
-                       WHERE team_id_a = %s
-                         AND giocatore_id NOT IN (
-                             SELECT giocatore_id FROM dpe
-                             WHERE team_id = %s AND stagione = %s
-                         )""",
-                    (team_id, team_id, stagione)
-                )
-            else:
-                cur.execute(
-                    """SELECT COUNT(*) FROM (
-                           SELECT DISTINCT ON (giocatore_id) team_id_a
-                           FROM transazioni
-                           WHERE giocatore_id IS NOT NULL
-                           ORDER BY giocatore_id, timestamp DESC
-                       ) sub
-                       WHERE team_id_a = %s""",
-                    (team_id,)
-                )
-            return cur.fetchone()[0]
-    except Exception as e:
-        logger.error("get_roster_count(%s): %s", team_id, e)
-        return 0
-    finally:
-        conn.rollback()
-        _putconn(conn)
+    if stagione:
+        r = q("""SELECT COUNT(*) AS n FROM contratti c
+                 WHERE c.team_id = %s AND c.attivo = TRUE
+                   AND NOT EXISTS (SELECT 1 FROM dpe d WHERE d.giocatore_id = c.giocatore_id
+                                     AND d.team_id = %s AND d.stagione = %s)""",
+              (team_id, team_id, stagione), one=True)
+    else:
+        r = q("SELECT COUNT(*) AS n FROM contratti WHERE team_id = %s AND attivo = TRUE",
+              (team_id,), one=True)
+    return int(r["n"]) if r else 0
 
 
 # ── giocatori ─────────────────────────────────────────────────────────────────
@@ -337,7 +314,8 @@ def cancella_spalmate_future(team_id: str, giocatore_id: int, stagione_corrente:
         _putconn(conn)
 
 def registra_firma(team_id: str, nome_giocatore: str, importo: int,
-                    anni: int, stagione: str, tipo: str = "normale") -> bool:
+                    anni: int, stagione: str, tipo: str = "normale",
+                    giocatore_id: int | None = None) -> bool:
     """
     Scrive contratto + transazione 'signed' su PostgreSQL, nella stessa transazione.
     Rifirma dopo un taglio: contratto = quello firmato, le spalmature restano (v52).
@@ -347,7 +325,8 @@ def registra_firma(team_id: str, nome_giocatore: str, importo: int,
         logger.warning("PG non disponibile — firma di %s non registrata su PG.", nome_giocatore)
         return False
 
-    gid = trova_o_crea_giocatore(nome_giocatore)
+    # v57: l'id deciso all'apertura dell'asta; il nome serve solo per le aste vecchie
+    gid = giocatore_id or trova_o_crea_giocatore(nome_giocatore)
     if gid is None:
         return False
 
@@ -384,7 +363,8 @@ def registra_firma(team_id: str, nome_giocatore: str, importo: int,
         _putconn(conn)
 
 
-def deattiva_contratto(team_id: str, importo: int, nome_giocatore: str) -> bool:
+def deattiva_contratto(team_id: str, importo: int, nome_giocatore: str,
+                       giocatore_id: int | None = None) -> bool:
     """
     Deattiva il contratto attivo di importo specifico per questo team.
     Usato per libera_cap nelle aste RFA.
@@ -392,8 +372,9 @@ def deattiva_contratto(team_id: str, importo: int, nome_giocatore: str) -> bool:
     if not pg_disponibile():
         return False
 
-    gid = trova_o_crea_giocatore(nome_giocatore)
+    gid = giocatore_id or trova_giocatore(nome_giocatore)
     if gid is None:
+        logger.warning("deattiva_contratto: '%s' non in anagrafica — gestire manualmente.", nome_giocatore)
         return False
 
     conn = _conn()
@@ -431,14 +412,14 @@ def trova_giocatore(nome: str) -> int | None:
     return r["id"] if r else None
 
 
-def rilascia_rfa(team_id: str, nome_giocatore: str, stagione: str) -> bool:
+def rilascia_rfa(team_id: str, nome_giocatore: str, stagione: str, giocatore_id: int | None = None) -> bool:
     """RFA lasciato andare: contratto disattivato E movimento di uscita ('expired',
     team_id_a NULL) nella stessa transazione. Senza il movimento il roster calcolato
     dalle transazioni (slot del bot aste, roster a una data, team_diff) continuava a
     contarlo nella squadra."""
     if not pg_disponibile():
         return False
-    gid = trova_giocatore(nome_giocatore)
+    gid = giocatore_id or trova_giocatore(nome_giocatore)
     if gid is None:
         logger.warning("rilascia_rfa: '%s' non in anagrafica — gestire manualmente.", nome_giocatore)
         return False
@@ -477,7 +458,7 @@ def rfa_fuori_slot(team_id: str, nomi_rfa: list[str]) -> int:
     return int(r["n"]) if r else 0
 
 
-def squadre_regola_30_giorni(nome_giocatore: str) -> set[str]:
+def squadre_regola_30_giorni(nome_giocatore: str, giocatore_id: int | None = None) -> set[str]:
     """Regolamento (Tagli): se un giocatore è stato tagliato, ogni franchigia che l'ha
     avuto negli ultimi 30 giorni non può firmarlo in FA né rilanciare.
     Vale se l'ultimo movimento del giocatore è un taglio: restituisce le squadre che lo
@@ -485,23 +466,43 @@ def squadre_regola_30_giorni(nome_giocatore: str) -> set[str]:
     + chi l'ha ceduto o ricevuto da allora)."""
     if not pg_disponibile():
         return set()
-    gid = trova_giocatore(nome_giocatore)
+    gid = giocatore_id or trova_giocatore(nome_giocatore)
     if gid is None:
         return set()
-    ultimo = q("""SELECT tipo FROM transazioni WHERE giocatore_id = %s
+    ultimo = q("""SELECT tipo FROM movimenti_giocatori WHERE giocatore_id = %s
                   ORDER BY timestamp DESC, id DESC LIMIT 1""", (gid,), one=True)
     if not ultimo or ultimo["tipo"] not in ("cut", "taglio"):
         return set()
     squadre = set()
-    prima = q("""SELECT team_id_a FROM transazioni WHERE giocatore_id = %s
+    prima = q("""SELECT team_id_a FROM movimenti_giocatori WHERE giocatore_id = %s
                  AND timestamp <= NOW() - INTERVAL '30 days'
                  ORDER BY timestamp DESC, id DESC LIMIT 1""", (gid,), one=True)
     if prima and prima["team_id_a"]:
         squadre.add(prima["team_id_a"])
-    for r in q("""SELECT team_id_da, team_id_a FROM transazioni WHERE giocatore_id = %s
+    for r in q("""SELECT team_id_da, team_id_a FROM movimenti_giocatori WHERE giocatore_id = %s
                   AND timestamp > NOW() - INTERVAL '30 days'""", (gid,), many=True) or []:
         squadre.update(t for t in (r["team_id_da"], r["team_id_a"]) if t)
     return squadre
+
+
+def id_giocatore_asta(asta: dict) -> int | None:
+    """Id del giocatore di un'asta: quello salvato all'apertura (v57); per le aste aperte
+    prima, ricerca per nome (senza mai creare giocatori)."""
+    if not asta:
+        return None
+    chiavi = asta.keys()   # dict o sqlite3.Row
+    gid = asta["giocatore_id"] if "giocatore_id" in chiavi else None
+    return gid or trova_giocatore(asta["giocatore"] if "giocatore" in chiavi else "")
+
+
+def id_in_roster(team_id: str, nome_common: str) -> int | None:
+    """Id del giocatore con contratto attivo nella squadra e quel nome (per /nuova_rfa)."""
+    if not pg_disponibile():
+        return None
+    r = q("""SELECT g.id FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
+             WHERE c.team_id = %s AND c.attivo = TRUE AND g.nome_common = %s LIMIT 1""",
+          (team_id, nome_common), one=True)
+    return r["id"] if r else None
 
 
 def nomi_roster(team_id: str) -> list[str]:
@@ -514,15 +515,15 @@ def nomi_roster(team_id: str) -> list[str]:
         (team_id,), many=True) or []]
 
 
-def minimo_cam_thomas(nome_giocatore: str, team_id: str) -> int | None:
+def minimo_cam_thomas(nome_giocatore: str, team_id: str, giocatore_id: int | None = None) -> int | None:
     """Cam Thomas exception: se `team_id` ha fatto decadere il giocatore con questa
     regola nell'ultimo anno, il contratto di allora è il minimo per rifirmarlo."""
     if not pg_disponibile():
         return None
-    gid = trova_giocatore(nome_giocatore)
+    gid = giocatore_id or trova_giocatore(nome_giocatore)
     if gid is None:
         return None
-    r = q("""SELECT c.importo FROM transazioni t JOIN contratti c ON c.id = t.contratto_id
+    r = q("""SELECT c.importo FROM movimenti_giocatori t JOIN contratti c ON c.id = t.contratto_id
              WHERE t.tipo = 'decadimento' AND t.giocatore_id = %s AND t.team_id_da = %s
                AND t.note LIKE '%%Cam Thomas%%' AND t.timestamp > NOW() - INTERVAL '1 year'
              ORDER BY t.timestamp DESC LIMIT 1""", (gid, team_id), one=True)

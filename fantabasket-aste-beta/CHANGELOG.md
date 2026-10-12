@@ -577,3 +577,11 @@ Comandi riservati al solo `dev_id` (non visibili in /admin), per osservare lo st
 ## v56 — Offerta massima 141
 
 - **Offerta massima di nuovo 141** (150 − 9, per arrivare al minimo di 10 giocatori a 1M): `settings.offerta_massima` usava `roster_max` (15) e dava 136, quindi rifiutava le offerte da 137 a 141 e chiudeva subito l'asta già a 136. Guide e README corretti
+
+## v57 — Roster dai contratti attivi, id del giocatore nelle aste
+
+- **Roster = contratti attivi** (`pg_client.get_roster_count`), come nel bot principale: prima si contava dall'ultimo movimento in `transazioni` e un movimento sbagliato faceva divergere i due bot (team21 aveva uno slot fantasma per un taglio pre-bot agganciato a Jokić)
+- **`aste.giocatore_id`** (colonna SQLite nuova, additiva): l'id su PostgreSQL deciso all'apertura (FA dalla lista, RFA dal roster della squadra). Firma, rilascio e chiusura del vecchio contratto RFA usano l'id invece di riabbinare per nome: con un nome cambiato in anagrafica o un omonimo veniva creato un giocatore doppione. Le aste vecchie senza id cercano per nome senza mai creare
+- Regola dei 30 giorni e Cam Thomas leggono la vista `movimenti_giocatori` (registro unico del bot principale v3.10.0)
+- Tolto codice irraggiungibile in `database.py` (resto di un copia-incolla dopo `get_rifiuto_preimpostato`)
+

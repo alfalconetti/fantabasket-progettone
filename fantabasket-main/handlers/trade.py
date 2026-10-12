@@ -1256,6 +1256,8 @@ def _scrivi_trade(trade_id: int, trade_ref: str, approvata_da: str | None, inver
                 raise TradeNonEseguibile(f"la trade è in stato '{stato}'")
             cur.execute("SELECT team_id FROM trade_squadre WHERE trade_id = %s", (trade_id,))
             squadre = {r[0] for r in cur.fetchall()}
+            # registro unico (v3.10.0): pick e diritti hanno il loro movimento, se lo storico esiste
+            registra_asset = db.storico_pick_diritti_presente(cur)
             for item in items:
                 if item["team_id_a"] not in squadre or item["team_id_da"] not in squadre \
                         or item["team_id_a"] == item["team_id_da"]:
@@ -1284,12 +1286,20 @@ def _scrivi_trade(trade_id: int, trade_ref: str, approvata_da: str | None, inver
                                 (a, item["pick_id"], da))
                     if cur.rowcount != 1:
                         raise TradeNonEseguibile(f"pick #{item['pick_id']} non più della squadra che la cede")
+                    if registra_asset:
+                        cur.execute("INSERT INTO transazioni (oggetto, tipo, pick_id, team_id_da, team_id_a, stagione, "
+                                    "trade_id, note) VALUES ('pick', 'traded', %s, %s, %s, %s, %s, %s)",
+                                    (item["pick_id"], da, a, stagione, trade_id, nota_tx))
                 elif item["tipo"] == "diritti":
                     cur.execute("UPDATE rookie SET team_id = %s WHERE giocatore_id = %s AND team_id = %s "
                                 "AND firmato = FALSE AND diritti_scaduti = FALSE",
                                 (a, item["giocatore_id"], da))
                     if cur.rowcount != 1:
                         raise TradeNonEseguibile(f"diritti di {_nome_item(item)} non più attivi nella squadra che li cede")
+                    if registra_asset:
+                        cur.execute("INSERT INTO transazioni (oggetto, tipo, giocatore_id, team_id_da, team_id_a, stagione, "
+                                    "trade_id, note) VALUES ('diritti', 'traded', %s, %s, %s, %s, %s, %s)",
+                                    (item["giocatore_id"], da, a, stagione, trade_id, nota_tx))
             if inverti:
                 cur.execute("UPDATE trade SET stato = 'annullata', aggiornato = NOW() WHERE id = %s", (trade_id,))
             else:

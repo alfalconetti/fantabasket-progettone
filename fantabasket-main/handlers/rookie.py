@@ -83,6 +83,11 @@ def esegui_attivazione(rookie_id: int, team_id: str, importo: int, anni: int) ->
                         "contratto_id, rookie_scale, note) VALUES ('rookie_firma', %s, NULL, %s, %s, %s, TRUE, %s)",
                         (r["giocatore_id"], team_id, stagione, contratto_id,
                          f"Attivazione diritti 2nd — pick #{r['pick_numero']} {r['anno_draft']}"))
+            # registro unico (v3.10.0): i diritti si chiudono con l'attivazione
+            if db.storico_pick_diritti_presente(cur):
+                cur.execute("INSERT INTO transazioni (oggetto, tipo, giocatore_id, team_id_da, team_id_a, stagione, note) "
+                            "VALUES ('diritti', 'rookie_firma', %s, %s, NULL, %s, 'Diritti attivati')",
+                            (r["giocatore_id"], team_id, stagione))
     return dict(r)
 
 

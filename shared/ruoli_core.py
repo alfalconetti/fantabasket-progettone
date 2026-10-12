@@ -86,7 +86,7 @@ def scelta_valida(q, team_id: str, stagione: str, gid: int, ruolo: str, in_arriv
 
 def ruolo_riacquisto(q, gid: int, team_id: str) -> str | None:
     """Regola dei 60 giorni: il vecchio ruolo, se la squadra ha avuto il giocatore di recente."""
-    uscito = q("""SELECT 1 AS x FROM transazioni WHERE giocatore_id = %s AND team_id_da = %s
+    uscito = q("""SELECT 1 AS x FROM movimenti_giocatori WHERE giocatore_id = %s AND team_id_da = %s
                   AND timestamp >= NOW() - (%s || ' days')::interval LIMIT 1""",
                (gid, team_id, str(GIORNI_RIACQUISTO)), one=True)
     if not uscito:

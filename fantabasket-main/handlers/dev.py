@@ -64,6 +64,7 @@ async def cmd_dev(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/dev_player &lt;nome&gt; — anagrafica e contratto di un giocatore, modificabili (/annulla_dev per uscire)\n"
         "/nuovo_giocatore &lt;nome&gt; | &lt;nome_bref&gt; [AAAA-MM-GG] — crea un giocatore in anagrafica\n"
         "/sync_sheets — sincronizza tutti i roster su Google Sheets\n"
+        "/dev_coerenza — contratti, pick e diritti contro il registro delle transazioni\n"
         "/job_status — job attivi nella JobQueue\n"
         "/broadcast &lt;testo&gt; — manda messaggio a tutti i GM\n"
         "/backup — backup manuale al canale log\n"

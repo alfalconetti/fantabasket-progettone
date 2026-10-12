@@ -84,7 +84,7 @@ def migrate_db():
     _allinea_check("transazioni", (
         "signed", "traded", "cut", "renewed", "expired", "decadimento", "decaduto",
         "dpe_attivata", "10day_firma", "10day_scadenza", "rookie_firma", "rookie_diritti_scaduti",
-        "firma", "taglio", "trade", "rookie", "dpe"))
+        "firma", "taglio", "trade", "rookie", "dpe", "iniziale"))
     _allinea_check("cambi_ruolo", (
         "iniziale", "ordinario", "erminio", "saedro", "forzato_admin",
         "post_trade", "post_firma", "dpe_extra"))
@@ -211,6 +211,284 @@ def migrate_db():
             PRIMARY KEY (team_id, stagione, giocatore_id)
         )
     """)
+
+    # v3.10.0 — registro unico: anche pick e diritti in transazioni
+    _migra_registro_unico()
+
+
+# ── registro unico (v3.10.0) ──────────────────────────────────────────────────
+#
+# `transazioni` registra TUTTO quello che si muove in lega, con la colonna `oggetto`:
+#   giocatore  movimento di un giocatore con contratto (firma, trade, taglio, …)
+#   diritti    diritti di una 2nd non firmata (trade, attivazione, scadenza)
+#   pick       una pick (trade, draft)
+#   squadra    evento della sola squadra (es. tagli gratuiti pre-bot da contare)
+# Il roster si ricostruisce SOLO dalla vista `movimenti_giocatori`: un diritto ceduto
+# non deve mai sembrare un giocatore in rosa. La prova tests/docs/letture_transazioni.py
+# vieta di leggere `transazioni` fuori dalle funzioni ammesse.
+
+def _migra_registro_unico() -> None:
+    _q("ALTER TABLE transazioni ADD COLUMN IF NOT EXISTS oggetto TEXT NOT NULL DEFAULT 'giocatore'")
+    _q("ALTER TABLE transazioni ADD COLUMN IF NOT EXISTS pick_id INT REFERENCES pick(id)")
+    _q("ALTER TABLE transazioni ALTER COLUMN giocatore_id DROP NOT NULL")
+    # tagli gratuiti pre-bot inseriti a mano agganciandoli a un giocatore qualsiasi (il primo
+    # id): per il bot aste quel giocatore risultava tagliato → evento della sola squadra
+    righe = _q("""UPDATE transazioni SET oggetto = 'squadra', giocatore_id = NULL
+                  WHERE oggetto = 'giocatore' AND tipo = 'cut' AND gratuito AND contratto_id IS NULL
+                    AND note LIKE 'Taglio gratuito registrato manualmente%%'
+                  RETURNING id, team_id_da""", many=True) or []
+    if righe:
+        logger.warning("Registro unico: %d tagli gratuiti pre-bot staccati dal giocatore (%s)",
+                       len(righe), ", ".join(r["team_id_da"] for r in righe))
+    _q("""DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'transazioni_oggetto_check') THEN
+              ALTER TABLE transazioni ADD CONSTRAINT transazioni_oggetto_check CHECK (
+                (oggetto = 'giocatore' AND giocatore_id IS NOT NULL AND pick_id IS NULL) OR
+                (oggetto = 'diritti'   AND giocatore_id IS NOT NULL AND pick_id IS NULL) OR
+                (oggetto = 'pick'      AND pick_id IS NOT NULL AND giocatore_id IS NULL) OR
+                (oggetto = 'squadra'   AND giocatore_id IS NULL AND pick_id IS NULL));
+            END IF;
+          END $$""")
+    _q("CREATE INDEX IF NOT EXISTS idx_transazioni_pick ON transazioni (pick_id, timestamp DESC) "
+       "WHERE pick_id IS NOT NULL")
+    _q("CREATE OR REPLACE VIEW movimenti_giocatori AS SELECT * FROM transazioni WHERE oggetto = 'giocatore'")
+    # roster_attuale (usata dai ruoli: minimi, regola 60 giorni, posizioni) prendeva l'ultimo
+    # movimento CON una squadra di arrivo: chi era stato tagliato o era decaduto restava nel
+    # roster della squadra di prima. Ora = contratti attivi, come tutto il resto.
+    _q("""CREATE OR REPLACE VIEW roster_attuale AS
+          SELECT g.id AS giocatore_id, g.nome_common, g.nome_norm, c.team_id,
+                 u.tipo AS ultimo_movimento, u.timestamp, c.importo, c.anni_originali,
+                 c.stagione_firma, c.tipo AS tipo_contratto
+          FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
+          LEFT JOIN LATERAL (SELECT m.tipo, m.timestamp FROM movimenti_giocatori m
+                             WHERE m.giocatore_id = g.id ORDER BY m.timestamp DESC, m.id DESC LIMIT 1) u ON TRUE
+          WHERE c.attivo = TRUE""")
+    _q("DROP VIEW IF EXISTS firme")
+    _q("""CREATE VIEW firme AS
+          SELECT t.*, g.nome_common, g.nome_norm, c.importo, c.anni_originali
+          FROM movimenti_giocatori t
+          JOIN giocatori g ON g.id = t.giocatore_id
+          LEFT JOIN contratti c ON c.id = t.contratto_id
+          WHERE t.tipo IN ('signed', 'rookie_firma', '10day_firma')""")
+    # trade eseguite ma rimaste 'annullata' (vecchio /annulla_trade_admin che andava in errore
+    # a metà): movimenti di esecuzione presenti, nessun annullamento → era ed è approvata
+    corrette = _q("""UPDATE trade t SET stato = 'approvata'
+                     WHERE t.stato = 'annullata' AND t.approvata_at IS NOT NULL AND t.trade_ref IS NOT NULL
+                       AND EXISTS (SELECT 1 FROM transazioni x WHERE x.trade_id = t.id AND x.oggetto = 'giocatore'
+                                     AND COALESCE(x.note, '') NOT LIKE 'ANNULLAMENTO%%')
+                       AND NOT EXISTS (SELECT 1 FROM transazioni x WHERE x.trade_id = t.id
+                                         AND x.note LIKE 'ANNULLAMENTO%%')
+                     RETURNING trade_ref""", many=True) or []
+    if corrette:
+        logger.warning("Registro unico: trade eseguite ma segnate annullate, rimesse approvate: %s",
+                       ", ".join(r["trade_ref"] for r in corrette))
+    try:
+        crea_storico_pick_diritti()
+    except Exception as e:
+        logger.error("Storico pick e diritti NON creato (nessuna modifica): %s", e)
+
+
+class StoricoNonCoerente(Exception):
+    """Lo storico ricostruito non porta allo stato di oggi: non si scrive niente."""
+
+
+def storico_pick_diritti_presente(cur=None) -> bool:
+    """Lo storico di pick e diritti esiste (righe 'iniziale'). Finché non c'è, trade,
+    attivazioni e scadenze NON scrivono righe di pick/diritti: lo storico si crea tutto
+    insieme con crea_storico_pick_diritti(), mai a metà."""
+    sql = "SELECT 1 FROM transazioni WHERE tipo = 'iniziale' AND oggetto IN ('pick', 'diritti') LIMIT 1"
+    if cur is not None:
+        cur.execute(sql)
+        return cur.fetchone() is not None
+    return bool(_qval(sql))
+
+
+def _eventi_trade_asset(cur) -> dict:
+    """{('pick', pick_id) | ('diritti', giocatore_id): [eventi]} dalle trade eseguite.
+    Evento = (timestamp, da, a, trade_id, nota). Una trade annullata con /annulla_trade_admin
+    ha i movimenti 'ANNULLAMENTO …' dei giocatori: lì c'è l'ora dell'annullamento."""
+    cur.execute("""SELECT t.id, t.trade_ref, t.stato, t.approvata_at, t.aggiornato,
+                          (SELECT MIN(x.timestamp) FROM transazioni x WHERE x.trade_id = t.id
+                             AND x.note LIKE 'ANNULLAMENTO%%') AS annullata_at
+                   FROM trade t WHERE t.approvata_at IS NOT NULL""")
+    trade = {r["id"]: r for r in cur.fetchall()}
+    cur.execute("SELECT * FROM trade_items WHERE tipo IN ('pick', 'diritti') ORDER BY id")
+    eventi = {}
+    for i in cur.fetchall():
+        t = trade.get(i["trade_id"])
+        if not t:
+            continue
+        chiave = ("pick", i["pick_id"]) if i["tipo"] == "pick" else ("diritti", i["giocatore_id"])
+        lista = eventi.setdefault(chiave, [])
+        lista.append([t["approvata_at"], i["team_id_da"], i["team_id_a"], t["id"], t["trade_ref"], t])
+        if t["annullata_at"]:
+            lista.append([t["annullata_at"], i["team_id_a"], i["team_id_da"], t["id"],
+                          f"ANNULLAMENTO {t['trade_ref']}", t])
+    return eventi
+
+
+def crea_storico_pick_diritti(forza: bool = False) -> dict:
+    """Crea lo storico di pick e diritti in `transazioni` (una volta sola), ricostruendolo
+    dalle trade eseguite, in un'unica transazione DB:
+      1. per ogni pick e diritto si parte dal proprietario di OGGI e si annullano all'indietro
+         le trade che l'hanno mosso → proprietario all'inizio del bot;
+      2. riga 'iniziale' a quella data + una riga per ogni trade (e annullamento);
+      3. si VERIFICA che rigiocando tutto si arrivi al proprietario di oggi.
+    Se un solo pick/diritto non torna → StoricoNonCoerente e nessuna riga scritta.
+    Una trade di sole pick annullata non lascia movimenti con l'ora: se lo stato di oggi
+    dice che è stata annullata, si considera annullata all'ora di `aggiornato`."""
+    import psycopg2.extras
+    if storico_pick_diritti_presente() and not forza:
+        return {"gia_presente": True}
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            if forza:
+                cur.execute("DELETE FROM transazioni WHERE oggetto IN ('pick', 'diritti')")
+            cur.execute("SELECT MIN(timestamp) AS t0 FROM transazioni")
+            t0 = (cur.fetchone() or {}).get("t0")
+            cur.execute("SELECT NOW() AS ora")
+            ora = cur.fetchone()["ora"]
+            t0 = t0 or ora
+            cur.execute("SELECT id, proprietario_att, scattata FROM pick")
+            pick = {r["id"]: r for r in cur.fetchall()}
+            cur.execute("SELECT giocatore_id, team_id, firmato, diritti_scaduti FROM rookie WHERE round = 2")
+            diritti = {r["giocatore_id"]: r for r in cur.fetchall()}
+            eventi = _eventi_trade_asset(cur)
+
+            def oggi(chiave):
+                if chiave[0] == "pick":
+                    p = pick.get(chiave[1])
+                    return None if (not p or p["scattata"]) else p["proprietario_att"]
+                d = diritti.get(chiave[1])
+                return None if (not d or d["firmato"] or d["diritti_scaduti"]) else d["team_id"]
+
+            # asset da ricostruire: tutte le pick, i diritti attivi e quelli mossi in trade
+            chiavi = {("pick", pid) for pid in pick}
+            chiavi |= {("diritti", g) for g, d in diritti.items() if not d["firmato"] and not d["diritti_scaduti"]}
+            chiavi |= set(eventi)
+            # diritti chiusi dopo l'inizio del bot (attivati/scaduti): riga di chiusura
+            chiusure = {}
+            cur.execute("""SELECT giocatore_id, MIN(timestamp) AS ts, MIN(team_id_a) AS team FROM transazioni
+                           WHERE oggetto = 'giocatore' AND tipo = 'rookie_firma' GROUP BY giocatore_id""")
+            for r in cur.fetchall():
+                if ("diritti", r["giocatore_id"]) in chiavi:
+                    chiusure[("diritti", r["giocatore_id"])] = (r["ts"], "rookie_firma")
+
+            righe, problemi = [], []
+            for chiave in sorted(chiavi, key=str):
+                ev = sorted(eventi.get(chiave, []), key=lambda e: e[0])
+                proprietario = oggi(chiave)
+                chiusura = chiusure.get(chiave)
+                if chiusura:
+                    # chiuso con l'attivazione: prima dell'attivazione era di chi l'ha attivato
+                    proprietario = diritti[chiave[1]]["team_id"]
+                elif proprietario is None and chiave[0] == "diritti":
+                    problemi.append(f"{chiave}: diritti chiusi senza attivazione registrata")
+                    continue
+                aggiunti = []
+                for e in reversed(ev):
+                    ts, da, a, tid, nota, t = e
+                    if proprietario == a:
+                        proprietario = da
+                    elif proprietario == da and t["stato"] != "approvata" and not t["annullata_at"] \
+                            and not nota.startswith("ANNULLAMENTO"):
+                        # eseguita e poi annullata senza lasciare l'ora: annullata a `aggiornato`
+                        aggiunti.append([t["aggiornato"], a, da, tid, f"ANNULLAMENTO {t['trade_ref']}", t])
+                    else:
+                        problemi.append(f"{chiave}: {nota} sposta {da}→{a}, ma il proprietario risulta {proprietario}")
+                        break
+                ev = sorted(ev + aggiunti, key=lambda e: e[0])
+                if any(e[0] < t0 for e in ev):
+                    problemi.append(f"{chiave}: trade precedente all'inizio del registro")
+                righe.append((chiave, proprietario, ev, chiusura))
+            if problemi:
+                raise StoricoNonCoerente("; ".join(problemi[:20]))
+
+            nuove = 0
+            for (oggetto, ident), iniziale, ev, chiusura in righe:
+                col = "pick_id" if oggetto == "pick" else "giocatore_id"
+                def ins(ts, tipo, da, a, trade_id=None, nota=None):
+                    cur.execute(f"INSERT INTO transazioni (oggetto, {col}, tipo, team_id_da, team_id_a, "
+                                f"stagione, trade_id, note, timestamp) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                                (oggetto, ident, tipo, da, a, _stagione_di(ts), trade_id, nota, ts))
+                if iniziale is not None:
+                    ins(t0, "iniziale", None, iniziale, nota="Situazione all'avvio del registro (v3.10.0)")
+                    nuove += 1
+                for ts, da, a, tid, nota, _t in ev:
+                    ins(ts, "traded", da, a, tid, nota)
+                    nuove += 1
+                if chiusura:
+                    ins(chiusura[0], chiusura[1], diritti[ident]["team_id"], None,
+                        nota="Diritti attivati")
+                    nuove += 1
+
+            # verifica: l'ultimo movimento di ogni pick/diritto = proprietario di oggi
+            errori = _verifica_storico_asset(cur)
+            if errori:
+                raise StoricoNonCoerente("verifica finale: " + "; ".join(errori[:20]))
+    if righe:
+        logger.warning("Registro unico: storico di pick e diritti creato (%d righe, %d asset).", nuove, len(righe))
+    return {"righe": nuove, "asset": len(righe)}
+
+
+def controlli_coerenza() -> list[str]:
+    """Controllo notturno (v3.10.0): stato di oggi e registro devono dire la stessa cosa.
+      - ogni giocatore: squadra del contratto attivo = squadra dell'ultimo movimento;
+      - nessun giocatore con due contratti attivi;
+      - pick e diritti: proprietario di oggi = ultimo movimento (se lo storico esiste).
+    Restituisce i problemi trovati (lista vuota = tutto a posto)."""
+    import psycopg2.extras
+    problemi = []
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                WITH ult AS (SELECT DISTINCT ON (giocatore_id) giocatore_id, team_id_a, tipo
+                             FROM movimenti_giocatori ORDER BY giocatore_id, timestamp DESC, id DESC),
+                     att AS (SELECT giocatore_id, team_id FROM contratti WHERE attivo = TRUE)
+                SELECT g.nome_common, att.team_id AS contratto, ult.team_id_a AS movimento, ult.tipo
+                FROM giocatori g LEFT JOIN att ON att.giocatore_id = g.id LEFT JOIN ult ON ult.giocatore_id = g.id
+                WHERE att.team_id IS DISTINCT FROM ult.team_id_a
+                  AND (att.team_id IS NOT NULL OR ult.team_id_a IS NOT NULL)
+                ORDER BY g.nome_common""")
+            for r in cur.fetchall():
+                problemi.append(f"{r['nome_common']}: contratto {r['contratto'] or 'nessuno'}, "
+                                f"ultimo movimento {r['movimento'] or 'fuori squadra'} ({r['tipo'] or '—'})")
+            cur.execute("""SELECT g.nome_common, count(*) AS n FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
+                           WHERE c.attivo = TRUE GROUP BY g.nome_common HAVING count(*) > 1""")
+            for r in cur.fetchall():
+                problemi.append(f"{r['nome_common']}: {r['n']} contratti attivi")
+            if storico_pick_diritti_presente(cur):
+                problemi += _verifica_storico_asset(cur)
+            else:
+                problemi.append("storico di pick e diritti non ancora creato (vedi log di avvio)")
+    return problemi
+
+
+def _stagione_di(ts) -> str:
+    """Stagione della lega a una data: da luglio quella che inizia."""
+    return str(ts.year if ts.month >= 7 else ts.year - 1)
+
+
+def _verifica_storico_asset(cur) -> list[str]:
+    """Pick e diritti il cui ultimo movimento non porta al proprietario di oggi."""
+    cur.execute("""SELECT p.id, p.proprietario_orig, p.anno, p.round, p.proprietario_att, p.scattata, u.team_id_a
+                   FROM pick p LEFT JOIN LATERAL (
+                       SELECT team_id_a FROM transazioni t WHERE t.oggetto = 'pick' AND t.pick_id = p.id
+                       ORDER BY t.timestamp DESC, t.id DESC LIMIT 1) u ON TRUE
+                   WHERE u.team_id_a IS DISTINCT FROM (CASE WHEN p.scattata THEN NULL ELSE p.proprietario_att END)""")
+    errori = [f"pick {r['anno']} r{r['round']} di {r['proprietario_orig']}: oggi {r['proprietario_att']}, "
+              f"storico {r['team_id_a']}" for r in cur.fetchall()]
+    cur.execute("""SELECT r.giocatore_id, g.nome_common, r.team_id, r.firmato, r.diritti_scaduti, u.team_id_a, u.c
+                   FROM rookie r JOIN giocatori g ON g.id = r.giocatore_id
+                   LEFT JOIN LATERAL (
+                       SELECT team_id_a, 1 AS c FROM transazioni t WHERE t.oggetto = 'diritti' AND t.giocatore_id = r.giocatore_id
+                       ORDER BY t.timestamp DESC, t.id DESC LIMIT 1) u ON TRUE
+                   WHERE r.round = 2 AND (
+                     (NOT r.firmato AND NOT r.diritti_scaduti AND u.team_id_a IS DISTINCT FROM r.team_id)
+                     OR ((r.firmato OR r.diritti_scaduti) AND u.c IS NOT NULL AND u.team_id_a IS NOT NULL))""")
+    errori += [f"diritti di {r['nome_common']}: oggi {r['team_id'] if not (r['firmato'] or r['diritti_scaduti']) else 'chiusi'}, "
+               f"storico {r['team_id_a']}" for r in cur.fetchall()]
+    return errori
 
 
 @contextmanager
@@ -620,24 +898,36 @@ def get_pick(pick_id: int) -> dict | None:
 # ── rookie ────────────────────────────────────────────────────────────────────
 
 def scadi_diritti_anno(anno_draft: int) -> list:
-    """Marca come scaduti tutti i diritti 2nd non firmati del draft indicato.
+    """Marca come scaduti tutti i diritti 2nd non firmati del draft indicato, con il loro
+    movimento nel registro (v3.10.0), in un'unica istruzione. anno_draft è TEXT nel DB:
+    prima l'intero mandava in errore la conferma della scadenza.
     Restituisce le righe scadute (giocatore_id, team_id, nome_common)."""
+    from settings import stagione_corrente
+    registra = storico_pick_diritti_presente()
     return _q(
-        """UPDATE rookie r SET diritti_scaduti = TRUE
-           FROM giocatori g
-           WHERE g.id = r.giocatore_id
-             AND r.round = 2 AND r.anno_draft = %s
-             AND r.firmato = FALSE AND r.diritti_scaduti = FALSE
-           RETURNING r.giocatore_id, r.team_id, g.nome_common""",
-        (anno_draft,), many=True
+        """WITH s AS (
+               UPDATE rookie r SET diritti_scaduti = TRUE
+               FROM giocatori g
+               WHERE g.id = r.giocatore_id
+                 AND r.round = 2 AND r.anno_draft = %s
+                 AND r.firmato = FALSE AND r.diritti_scaduti = FALSE
+               RETURNING r.giocatore_id, r.team_id, g.nome_common),
+           m AS (
+               INSERT INTO transazioni (oggetto, tipo, giocatore_id, team_id_da, team_id_a, stagione, note)
+               SELECT 'diritti', 'rookie_diritti_scaduti', giocatore_id, team_id, NULL, %s,
+                      'Diritti 2nd scaduti (draft ' || %s || ')'
+               FROM s WHERE %s)
+           SELECT * FROM s""",
+        (str(anno_draft), stagione_corrente(), str(anno_draft), registra), many=True
     ) or []
 
 
 def conta_diritti_attivi_anno(anno_draft: int) -> int:
+    # anno_draft è TEXT nel DB: con l'intero la query andava in errore (v3.10.0)
     return _qval(
         "SELECT count(*) FROM rookie WHERE round = 2 AND anno_draft = %s "
         "AND firmato = FALSE AND diritti_scaduti = FALSE",
-        (anno_draft,)
+        (str(anno_draft),)
     ) or 0
 
 
@@ -865,7 +1155,7 @@ def cancella_spalmate_ritirato(giocatore_id: int, stagione: str) -> list[dict]:
 
 def get_prima_transazione() -> str | None:
     """Timestamp della prima transazione presente nel DB (ISO format)."""
-    return _qval("SELECT MIN(timestamp) FROM transazioni WHERE giocatore_id IS NOT NULL")
+    return _qval("SELECT MIN(timestamp) FROM movimenti_giocatori")
 
 
 def get_roster_team_at(team_id: str, timestamp_iso: str) -> list:
@@ -882,13 +1172,12 @@ def get_roster_team_at(team_id: str, timestamp_iso: str) -> list:
                    c.id AS contratto_id,
                    c.importo, c.anni_originali, c.stagione_firma, c.tipo AS tipo_contratto,
                    COALESCE(r.anni_scala, 0) AS anni_scala
-               FROM transazioni t
+               FROM movimenti_giocatori t
                JOIN giocatori g ON g.id = t.giocatore_id
                LEFT JOIN contratti c ON c.id = t.contratto_id
                LEFT JOIN rookie r ON r.giocatore_id = g.id AND r.firmato = TRUE
-               WHERE t.giocatore_id IS NOT NULL
-                 AND t.timestamp <= %s
-               ORDER BY t.giocatore_id, t.timestamp DESC
+               WHERE t.timestamp <= %s
+               ORDER BY t.giocatore_id, t.timestamp DESC, t.id DESC
            ) last_tx
            WHERE team_id_a = %s""",
         (timestamp_iso, team_id), many=True
@@ -911,7 +1200,7 @@ def get_contratti_team_at(team_id: str, timestamp_iso: str) -> list:
            WHERE c.team_id = %s
              AND c.attivo = TRUE
              AND EXISTS (
-                 SELECT 1 FROM transazioni t
+                 SELECT 1 FROM movimenti_giocatori t
                  WHERE t.contratto_id = c.id
                    AND t.timestamp <= %s
              )
@@ -923,44 +1212,55 @@ def get_contratti_team_at(team_id: str, timestamp_iso: str) -> list:
 # ── query per team_diff ───────────────────────────────────────────────────────
 
 def get_pick_at(team_id: str, timestamp_iso: str) -> list:
-    """Pick possedute da team_id a una certa data."""
+    """Pick possedute da team_id a una certa data: ultimo movimento della pick nel registro
+    fino a quella data. Senza storico (registro non ancora creato) ricade sul proprietario
+    di oggi, come prima della v3.10.0."""
+    if not storico_pick_diritti_presente():
+        return _q("SELECT * FROM pick WHERE proprietario_att = %s AND scattata = FALSE",
+                  (team_id,), many=True) or []
     return _q(
-        """SELECT * FROM pick
-           WHERE proprietario_att = %s
-             AND scattata = FALSE
-             AND id NOT IN (
-                 SELECT ti.pick_id FROM trade_items ti
-                 JOIN trade t ON t.id = ti.trade_id
-                 WHERE ti.team_id_da = %s
-                   AND t.stato = 'approvata'
-                   AND t.approvata_at <= %s
-                   AND ti.pick_id IS NOT NULL
-             )""",
-        (team_id, team_id, timestamp_iso), many=True
+        """SELECT p.* FROM pick p
+           JOIN LATERAL (SELECT t.team_id_a FROM transazioni t
+                         WHERE t.oggetto = 'pick' AND t.pick_id = p.id AND t.timestamp <= %s
+                         ORDER BY t.timestamp DESC, t.id DESC LIMIT 1) u ON TRUE
+           WHERE u.team_id_a = %s""",
+        (timestamp_iso, team_id), many=True
     ) or []
 
 
 def get_diritti_at(team_id: str, timestamp_iso: str) -> list:
-    """Diritti rookie posseduti da team_id a una certa data."""
+    """Diritti di 2nd posseduti da team_id a una certa data (ultimo movimento dei diritti)."""
+    if not storico_pick_diritti_presente():
+        return _q("SELECT * FROM rookie WHERE team_id = %s AND firmato = FALSE AND diritti_scaduti = FALSE",
+                  (team_id,), many=True) or []
     return _q(
-        """SELECT * FROM rookie
-           WHERE team_id = %s
-             AND firmato = FALSE
-             AND diritti_scaduti = FALSE
-             AND (scadenza_diritti IS NULL OR scadenza_diritti > %s)""",
-        (team_id, timestamp_iso), many=True
+        """SELECT r.* FROM rookie r
+           JOIN LATERAL (SELECT t.team_id_a FROM transazioni t
+                         WHERE t.oggetto = 'diritti' AND t.giocatore_id = r.giocatore_id AND t.timestamp <= %s
+                         ORDER BY t.timestamp DESC, t.id DESC LIMIT 1) u ON TRUE
+           WHERE r.round = 2 AND u.team_id_a = %s""",
+        (timestamp_iso, team_id), many=True
     ) or []
+
+
+def movimento_asset_periodo(oggetto: str, chiave: int, da_iso: str, a_iso: str) -> dict | None:
+    """Ultimo movimento di una pick (oggetto 'pick', chiave pick_id) o di diritti
+    ('diritti', giocatore_id) nel periodo: per l'etichetta di /team_diff."""
+    col = "pick_id" if oggetto == "pick" else "giocatore_id"
+    return _q(f"""SELECT * FROM transazioni WHERE oggetto = %s AND {col} = %s
+                  AND timestamp > %s AND timestamp <= %s ORDER BY timestamp DESC, id DESC LIMIT 1""",
+              (oggetto, chiave, da_iso, a_iso), one=True)
 
 
 def get_transazioni_giocatore_periodo(giocatore_id: int,
                                        da_iso: str, a_iso: str) -> list:
     """Transazioni di un giocatore in un periodo, ordinate per timestamp."""
     return _q(
-        """SELECT * FROM transazioni
+        """SELECT * FROM movimenti_giocatori
            WHERE giocatore_id = %s
              AND timestamp >= %s
              AND timestamp <= %s
-           ORDER BY timestamp""",
+           ORDER BY timestamp, id""",
         (giocatore_id, da_iso, a_iso), many=True
     ) or []
 
@@ -1112,8 +1412,8 @@ def stagione_fantamedia(as_of=None) -> str:
                                AND b.stagione = %s AND b.timestamp <= %s
                          )) AS con_fm
                   FROM (SELECT DISTINCT ON (t.giocatore_id) t.giocatore_id, t.team_id_a
-                        FROM transazioni t WHERE t.timestamp <= %s
-                        ORDER BY t.giocatore_id, t.timestamp DESC) ultimo
+                        FROM movimenti_giocatori t WHERE t.timestamp <= %s
+                        ORDER BY t.giocatore_id, t.timestamp DESC, t.id DESC) ultimo
                   JOIN giocatori g ON g.id = ultimo.giocatore_id
                   WHERE ultimo.team_id_a IS NOT NULL""",
                (corrente, as_of, as_of), one=True) or {}
@@ -1138,7 +1438,7 @@ def fantamedie(gids: list[int], stagione_bref: str, as_of=None) -> dict[int, flo
 def minimo_cam_thomas(giocatore_id: int, team_id: str) -> int | None:
     """Cam Thomas exception: se `team_id` ha fatto decadere il giocatore con questa
     regola nell'ultimo anno, l'importo del contratto di allora (minimo per rifirmarlo)."""
-    return _qval("""SELECT c.importo FROM transazioni t JOIN contratti c ON c.id = t.contratto_id
+    return _qval("""SELECT c.importo FROM movimenti_giocatori t JOIN contratti c ON c.id = t.contratto_id
                     WHERE t.tipo = 'decadimento' AND t.giocatore_id = %s AND t.team_id_da = %s
                       AND t.note LIKE '%%Cam Thomas%%' AND t.timestamp > NOW() - INTERVAL '1 year'
                     ORDER BY t.timestamp DESC LIMIT 1""", (giocatore_id, team_id))

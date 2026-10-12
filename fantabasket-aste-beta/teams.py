@@ -85,7 +85,7 @@ def scala_cap_slot(team_id: str, importo: int):
             _save(data)
 
 
-def libera_cap(team_id: str, importo: int, nome_giocatore: str = ""):
+def libera_cap(team_id: str, importo: int, nome_giocatore: str = "", giocatore_id: int | None = None):
     """
     v49: deattiva il contratto in PG. Il cap si libera automaticamente.
     In modalità isolata aggiorna il JSON.
@@ -93,7 +93,7 @@ def libera_cap(team_id: str, importo: int, nome_giocatore: str = ""):
     import pg_client
     if pg_client.pg_disponibile():
         if nome_giocatore:
-            ok = pg_client.deattiva_contratto(team_id, importo, nome_giocatore)
+            ok = pg_client.deattiva_contratto(team_id, importo, nome_giocatore, giocatore_id=giocatore_id)
             if not ok:
                 logger.warning("libera_cap(%s, %d): contratto non trovato su PG — verificare manualmente.", team_id, importo)
         else:

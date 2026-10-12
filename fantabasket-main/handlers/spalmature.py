@@ -39,7 +39,7 @@ def _righe_report() -> list[dict]:
         LEFT JOIN LATERAL (SELECT timestamp AS ultima, stagione AS stagione_bref, team AS team_bref
                            FROM bref_stats WHERE nome_bref = g.nome_bref
                            ORDER BY timestamp DESC LIMIT 1) b ON TRUE
-        LEFT JOIN LATERAL (SELECT MAX(timestamp) AS data_ct FROM transazioni
+        LEFT JOIN LATERAL (SELECT MAX(timestamp) AS data_ct FROM movimenti_giocatori
                            WHERE giocatore_id = g.id AND tipo = 'decadimento'
                              AND note LIKE '%%Cam Thomas%%') ct ON TRUE
         WHERE NOT EXISTS (SELECT 1 FROM contratti c WHERE c.giocatore_id = g.id AND c.attivo = TRUE)

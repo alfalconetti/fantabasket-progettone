@@ -123,6 +123,7 @@ async def nuova_rfa(update: Update, context: ContextTypes.DEFAULT_TYPE):
         creata_at=now.isoformat(),
         scade_at=scade.isoformat(),
         stagione=stagione,
+        giocatore_id=pg_client.id_in_roster(team_id, giocatore),
     )
 
     admin_label = _admin_label(update.effective_user)

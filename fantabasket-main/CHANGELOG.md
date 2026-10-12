@@ -948,3 +948,25 @@ Revisione del codice contro il regolamento.
 
 ### Bot aste (v56)
 - Offerta massima di nuovo 141 (vedi CHANGELOG del bot aste)
+
+## v3.10.0 (2026-10-12)
+
+Registro unico e controlli, provati prima su una copia del database di produzione (foto di tutte le 24 squadre prima e dopo, differenze tutte volute).
+
+### Registro unico in `transazioni`
+- Colonna `oggetto` (`giocatore` | `diritti` | `pick` | `squadra`) e `pick_id`; `giocatore_id` facoltativo; controllo `transazioni_oggetto_check`. Tipo nuovo `iniziale`
+- Vista **`movimenti_giocatori`**: tutte le query che ricostruiscono un roster (roster a una data, `/team_diff`, regola dei 60 giorni, fantamedie, Cam Thomas, report spalmature, regola dei 30 giorni del bot aste) leggono la vista e non la tabella; a parità di orario vince l'ultima riga (`timestamp DESC, id DESC`). Prova `tests/docs/letture_transazioni.py`: vieta di leggere `transazioni` fuori dalle funzioni ammesse
+- **Storico di pick e diritti** creato una volta sola all'avvio (`crea_storico_pick_diritti`): proprietari all'avvio del bot ricostruiti all'indietro dalle trade, riga `iniziale` + una riga per ogni trade e annullamento, verifica che tutto torni con lo stato di oggi (altrimenti non scrive niente). Da qui in poi trade, annullamenti, attivazione e scadenza dei diritti scrivono il loro movimento
+- **`/team_diff` mostra finalmente pick e diritti** scambiati (prima `get_pick_at`/`get_diritti_at` usavano il proprietario di oggi: le pick passate di mano non comparivano mai), con il motivo (Trade, Trade annullata, Attivati, Scaduti)
+
+### Bug trovati sui dati veri
+- **Jokić "tagliato"**: i due tagli gratuiti pre-bot di team08 e team09 erano agganciati al giocatore con id 1. Per il bot aste team21 aveva uno slot fantasma e per roster a una data e `/team_diff` Jokić era fuori squadra dal 30/09. Ora sono eventi di squadra (`oggetto = 'squadra'`): contano ancora come tagli gratuiti, non spostano nessuno
+- **`roster_attuale`** (usata dai ruoli: minimi, regola dei 60 giorni, posizioni "sotto contratto") prendeva l'ultimo movimento con una squadra di arrivo: chi era stato tagliato o era decaduto restava nella squadra di prima (5 casi). Ora = contratti attivi
+- **TRADE-2026-021** risultava "annullata" ma era stata eseguita (vecchio `/annulla_trade_admin` che andava in errore a metà): rimessa "approvata" (regola: movimenti di esecuzione presenti, nessun annullamento)
+- **Scadenza dei diritti 2nd**: `conta_diritti_attivi_anno` e `scadi_diritti_anno` confrontavano l'anno (TEXT) con un intero: il promemoria dei 3 giorni e il bottone "Conferma scadenza" sarebbero andati in errore a gennaio
+
+- **Taglio dal pannello admin**: aveva un percorso suo, rimasto indietro: il tap sul giocatore tagliava subito (niente anteprima), senza i controlli di regular season (minimo 10, minimi dei ruoli), senza annuncio sul canale né avviso al GM, e scriveva contratto, movimento e spalmature in passi separati. Ora usa lo stesso codice dei GM (`tagli.esegui_taglio`): anteprima con conferma, stesse regole, tutto in un'unica transazione DB, annuncio "registrato da un admin" e avviso al GM
+
+### Controllo di coerenza
+- Ogni notte all'01:00 (`handlers/coerenza.py`): squadra del contratto attivo = ultimo movimento per ogni giocatore, un solo contratto attivo, proprietario di pick e diritti = ultimo movimento. Scrive al dev solo se trova qualcosa; `/dev_coerenza` (dev) lo lancia subito
+

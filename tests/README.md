@@ -55,6 +55,8 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `report_spalmature` | main | report mensile: free agent con spalmature, ultima partita bref, Cam Thomas, esclusi i sotto contratto e le stagioni passate |
 | `penalita_cap` | main | `/set_cap_penalizzato`: solo admin, scrive teams.json, tetto RS ridotto e offseason a 165 |
 | `sync_fogli` | main | il foglio Roster si aggiorna sempre per tutte le squadre |
+| `registro_unico` | main | migrazione al registro unico (tagli pre-bot, trade rimesse approvate, storico di pick e diritti con trade annullate e pre-bot), movimenti scritti da trade/annullamento/attivazione/scadenza, `roster_attuale`, controllo di coerenza, ricostruzione che si ferma su dati incoerenti |
+| `taglio_admin` | main | il taglio dal pannello admin usa lo stesso codice dei GM: anteprima, minimi di regular season, scrittura atomica, avviso al GM |
 | `team_diff` | main | contratti nei due momenti, DPE, cambio contratto, niente falsi cambi tra stagioni |
 | `pg_rfa_30giorni_dpe` | aste + PG | RFA: cap sì slot no, lascio andare con movimento; regola dei 30 giorni; DPE nel cap per offrire; rifirma dopo taglio |
 | `rfa_lascio_andare` | aste + PG | "Lascio andare": solo proprietario, una volta sola |
@@ -64,7 +66,9 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `rfa_proprietario` | aste (isolato) | il proprietario non offre sul proprio RFA neanche con `/offerta` |
 | `menu_e_listteams` | aste + PG | menu "/" per fase e ruolo, `/listteams` compatto, `/reset_rfa` disattivato |
 | `autoslot` | aste + PG | `/autoslot` e `/autocap` contano davvero negli slot e nel cap |
+| `giocatore_id` | aste + PG | l'asta ricorda l'id del giocatore: la firma non crea doppioni se il nome cambia |
 | `guide_e_menu` | — | ogni comando citato in guide, `/admin`, `/dev` e menu "/" esiste nel suo bot (nessun database) |
+| `letture_transazioni` | — | nessuno legge `transazioni` fuori dalle funzioni ammesse (i roster si ricostruiscono da `movimenti_giocatori`) |
 
 "Isolato" = bot aste senza PostgreSQL (`PG_URL` vuoto): cap e slot dal JSON.
 

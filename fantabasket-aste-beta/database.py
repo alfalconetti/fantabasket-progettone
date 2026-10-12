@@ -79,6 +79,8 @@ def _migrate():
         "ALTER TABLE aste ADD COLUMN notifica_15min INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE aste ADD COLUMN pareggio_preimpostato TEXT",  # JSON {importo, anni}
         "ALTER TABLE aste ADD COLUMN rifiuto_preimpostato INTEGER NOT NULL DEFAULT 0",
+        # v57: id del giocatore su PostgreSQL, deciso all'apertura (il nome resta per i messaggi)
+        "ALTER TABLE aste ADD COLUMN giocatore_id INTEGER",
     ]
     with get_conn() as conn:
         for sql in migrazioni:
@@ -90,13 +92,14 @@ def _migrate():
 
 # ── aste ──────────────────────────────────────────────────────────────────────
 
-def crea_asta(tipo, giocatore, squadra_proprietaria, creata_at, scade_at, vecchio_compenso=None, stagione=None):
+def crea_asta(tipo, giocatore, squadra_proprietaria, creata_at, scade_at, vecchio_compenso=None, stagione=None,
+              giocatore_id=None):
     with get_conn() as conn:
         cur = conn.execute(
             """INSERT INTO aste
-               (tipo, giocatore, squadra_proprietaria, vecchio_compenso, creata_at, scade_at, stagione)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (tipo, giocatore, squadra_proprietaria, vecchio_compenso, creata_at, scade_at, stagione),
+               (tipo, giocatore, squadra_proprietaria, vecchio_compenso, creata_at, scade_at, stagione, giocatore_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (tipo, giocatore, squadra_proprietaria, vecchio_compenso, creata_at, scade_at, stagione, giocatore_id),
         )
         return cur.lastrowid
 
@@ -528,13 +531,7 @@ def get_rifiuto_preimpostato(asta_id: int) -> int:
             "SELECT rifiuto_preimpostato FROM aste WHERE id=?", (asta_id,)
         ).fetchone()
         return row[0] if row else 0
-    """Salva il pre-pareggio del proprietario RFA."""
-    import json
-    with get_conn() as conn:
-        conn.execute(
-            "UPDATE aste SET pareggio_preimpostato=? WHERE id=?",
-            (json.dumps({"importo": importo, "anni": anni}), asta_id),
-        )
+
 
 def set_pareggio_preimpostato(asta_id: int, importo: int, anni: int):
     """Salva il pre-pareggio del proprietario RFA."""

@@ -143,7 +143,7 @@ Il bot aste vede la fase nuova entro 5 minuti.
 |---|---|
 | `giocatori` | anagrafica: `nome_common`, `nome_bref`, `nome_yahoo`, `nome_norm`, `yahoo_id`, `data_nascita` |
 | `contratti` | `importo`, `anni_originali`, `stagione_firma`, `tipo` (normale/rookie/10day), `attivo` |
-| `transazioni` | **event log** di ogni movimento (vedi sotto) |
+| `transazioni` | **registro unico** di tutto quello che si muove in lega: giocatori, diritti, pick (vedi sotto) |
 | `impatto_taglio` | rate delle spalmature: una riga per squadra, giocatore e stagione |
 | `dpe` | DPE approvate: `importo_originale`, `importo_dpe`, `pre_deadline`, `stagione`, `team_id` (segue il giocatore in trade) |
 
@@ -176,15 +176,52 @@ Il bot aste vede la fase nuova entro 5 minuti.
 | `bref_nuovi` | giocatori bref non in anagrafica, con decisione del dev |
 | `penalita` | nello schema, non usata (la penalità è in teams.json) |
 
-**Viste:** `roster_attuale`, `firme`.
+**Viste:**
 
-### Tre cose da ricordare
+| Vista | Contenuto |
+|---|---|
+| `movimenti_giocatori` | le righe di `transazioni` con `oggetto = 'giocatore'`: è da qui che si ricostruisce qualsiasi roster |
+| `roster_attuale` | contratti attivi con l'ultimo movimento del giocatore (usata dai ruoli) |
+| `firme` | firme dei giocatori, per la dashboard |
 
-**1. Roster = contratti attivi, ma il bot aste conta i movimenti.** Il bot aste conta il roster dall'**ultimo movimento** in `transazioni` (`team_id_a`). Quindi ogni chiusura di contratto (taglio, decadimento, scadenza, rilascio RFA) deve avere anche la sua transazione, altrimenti i due bot non sono d'accordo.
+### Il registro unico (`transazioni`, v3.10.0)
 
-**2. I CHECK dei tipi.** `migrate_db()` (all'avvio) ricrea i CHECK di `transazioni` e `cambi_ruolo` con `_allinea_check` come **unione** dei valori. Un tipo nuovo va aggiunto lì **e** in `schema.sql`.
+Ogni riga ha un `oggetto` che dice di cosa parla:
 
-**3. Lo schema cresce da solo.** `schema.sql` crea il DB solo la prima volta (initdb del container). Le tabelle e colonne successive le crea `migrate_db()` a ogni avvio, sempre con `IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS`.
+| `oggetto` | Colonne | Esempi di `tipo` |
+|---|---|---|
+| `giocatore` | `giocatore_id` (+ `contratto_id`) | `signed`, `traded`, `cut`, `decadimento`, `rookie_firma`, `expired` |
+| `diritti` | `giocatore_id` (diritti di una 2nd non firmata) | `iniziale`, `traded`, `rookie_firma` (attivati), `rookie_diritti_scaduti` |
+| `pick` | `pick_id` | `iniziale`, `traded` (in futuro `draft`) |
+| `squadra` | nessuna delle due | `cut` gratuito pre-bot (conta nei tagli gratuiti, non sposta nessuno) |
+
+Il controllo `transazioni_oggetto_check` impedisce combinazioni sbagliate (una pick senza `pick_id`, un giocatore senza `giocatore_id`).
+
+**Le quattro regole:**
+
+1. **Lo stato di oggi** sta nelle tabelle: `contratti` attivi (roster e cap di entrambi i bot), `pick.proprietario_att`, `rookie.team_id`.
+2. **Il registro** dice come ci si è arrivati. Ogni operazione scrive tutte e due le cose nella stessa transazione DB: trade, tagli, firme, attivazioni, scadenze, rilasci RFA.
+3. **Chi ricostruisce un roster** (a una data, 30 giorni, 60 giorni, fantamedie) legge `movimenti_giocatori`, mai `transazioni`. La prova `tests/docs/letture_transazioni.py` fallisce se qualcuno legge `transazioni` fuori dalle funzioni ammesse.
+4. **"Ultimo movimento"** = `ORDER BY timestamp DESC, id DESC`: a parità di orario vince l'ultima riga scritta.
+
+**Lo storico di pick e diritti** l'ha creato `crea_storico_pick_diritti()` la prima volta, rigiocando all'indietro le trade e verificando che tutto tornasse con lo stato di oggi:
+- una riga `iniziale` alla data della prima transazione, cioè l'avvio del bot;
+- poi una riga per ogni trade e annullamento.
+
+Finché lo storico non esiste (`storico_pick_diritti_presente()`), trade e attivazioni non scrivono righe di pick e diritti: lo storico nasce tutto insieme o niente.
+
+**Controllo notturno** (`handlers/coerenza.py`, all'01:00, o `/dev_coerenza`). Confronta stato e registro:
+- per ogni giocatore, la squadra del contratto attivo con quella dell'ultimo movimento;
+- per ogni pick e diritto, il proprietario di oggi con l'ultimo movimento;
+- nessun giocatore con due contratti attivi.
+
+Se trova qualcosa scrive al dev. Di solito è una modifica fatta a mano sul DB: si sistema **aggiungendo il movimento mancante**, non cancellando righe.
+
+### Due cose da ricordare
+
+**1. I CHECK dei tipi.** `migrate_db()` (all'avvio) ricrea i CHECK di `transazioni` e `cambi_ruolo` con `_allinea_check` come **unione** dei valori. Un tipo nuovo va aggiunto lì **e** in `schema.sql`.
+
+**2. Lo schema cresce da solo.** `schema.sql` crea il DB solo la prima volta (initdb del container). Le tabelle e colonne successive le crea `migrate_db()` a ogni avvio, sempre con `IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS`.
 
 ### Accesso a mano
 
@@ -198,8 +235,17 @@ Esempio: tutti i movimenti di un giocatore.
 
 ```sql
 SELECT t.timestamp, t.tipo, t.team_id_da, t.team_id_a, t.note
-FROM transazioni t JOIN giocatori g ON g.id = t.giocatore_id
-WHERE g.nome_common ILIKE '%durant%' ORDER BY t.timestamp;
+FROM movimenti_giocatori t JOIN giocatori g ON g.id = t.giocatore_id
+WHERE g.nome_common ILIKE '%durant%' ORDER BY t.timestamp, t.id;
+```
+
+Esempio: la storia di una pick.
+
+```sql
+SELECT t.timestamp, t.tipo, t.team_id_da, t.team_id_a, t.note
+FROM transazioni t JOIN pick p ON p.id = t.pick_id
+WHERE p.proprietario_orig = 'team04' AND p.anno = '2031' AND p.round = 1
+ORDER BY t.timestamp, t.id;
 ```
 
 ---
@@ -236,6 +282,7 @@ WHERE g.nome_common ILIKE '%durant%' ORDER BY t.timestamp;
 | `rookie.py` | `/attiva_diritti`, scadenza diritti |
 | `decadimento.py` | `/decadimento`, motivi, `/ritiro_fa` |
 | `spalmature.py` | report mensile e `/report_spalmature` |
+| `coerenza.py` | controllo notturno contratti/pick/diritti contro il registro, `/dev_coerenza` |
 | `ruoli.py` | dichiarazione di inizio stagione, `/deadline_ruoli` |
 | `ruoli_rs.py` | dichiarazioni post-trade/firma in RS |
 | `cambi_ruolo.py` | `/cambio_ruolo`: ordinario, Erminio, Saedro, forzato, Extra DPE |
@@ -308,7 +355,7 @@ Attenzione: `mt:` è usato da due file. Funziona perché gli handler di `trade.p
 - **Gratuito:** 1M x1 con meno di 3 tagli gratuiti già fatti nella stagione (`MAX_TAGLI_GRATUITI`). Dal quarto, spalmatura 1x1.
 - **Sopra i 5M:** percentuali per anni residui (x1: 50-30-20; x2: 60-50-50-40; x3: 70-70-60-50-50), arrotondate per eccesso, con l'eccedenza tolta dal fondo senza scendere sotto 1 (7x1 → 4-2-1).
 - **Fino a 5M:** tabella fissa `_TABELLA_SPALMATA_BASSA`.
-- **Controlli e scrittura:** `_valuta_taglio` / `TaglioNonEseguibile` bloccano in RS sotto i 10 e se si scopre un ruolo. Contratto, transazione e rate vengono scritti in un'unica transazione.
+- **Controlli e scrittura:** `_valuta_taglio` / `TaglioNonEseguibile` bloccano in RS sotto i 10 e se si scopre un ruolo. `esegui_taglio` scrive contratto, transazione e rate in un'unica transazione; `dopo_taglio` annuncia e sincronizza. GM e pannello admin passano entrambi da qui (v3.10.0).
 
 ### DPE (`dpe.py`)
 
@@ -361,6 +408,7 @@ Le richieste nuove vanno fatte così.
 | Quando | Job | Cosa fa |
 |---|---|---|
 | ogni 60 s | `processa_coda_gas` | svuota `gas_sync_queue` (firme del bot aste) → fogli |
+| 01:00 | `coerenza.job_coerenza` | contratti, pick e diritti contro il registro → dev, solo se trova qualcosa |
 | ogni 5 min | `_ping_healthcheck` | solo con `HEALTHCHECK_URL` |
 | ogni 15 min | `ruoli_rs.job_scadenze` | estrae il ruolo delle dichiarazioni oltre le 48 ore |
 | ogni 15 min | `cambi_ruolo.job_fine_saedro` | chiude le Saedro scadute |
@@ -394,6 +442,7 @@ Gli errori dei job vanno a `log_job_error`: canale log e privato del dev. `/job_
 | `/dev_roster <team_id>` | roster grezzo dal DB |
 | `/dev_player <nome>` | anagrafica e contratto con bottoni per modificare ogni campo (i campi contrattuali loggano un avviso); `/annulla_dev` per uscire |
 | `/nuovo_giocatore <nome> \| <nome_bref> [AAAA-MM-GG]` | crea un giocatore |
+| `/dev_coerenza` | controllo di coerenza contratti/pick/diritti contro il registro, subito |
 | `/job_status` | job e prossima esecuzione |
 | `/broadcast <testo>` | messaggio a tutti i GM |
 | `/sync_sheets` | sync completo dei fogli |
