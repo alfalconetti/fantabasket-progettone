@@ -150,4 +150,5 @@ def partite_nba(dal, al, tipi=(2, 3, 5)) -> list[dict]:
 def squadre_nba(stagione: str) -> set[str]:
     righe = q("SELECT casa AS s FROM nba_partite WHERE stagione = %s AND tipo = 2 UNION "
               "SELECT trasferta FROM nba_partite WHERE stagione = %s AND tipo = 2", (stagione, stagione), many=True) or []
-    return {r["s"] for r in righe}
+    import nba
+    return {r["s"] for r in righe} & nba.NBA          # senza i segnaposto (TBD)

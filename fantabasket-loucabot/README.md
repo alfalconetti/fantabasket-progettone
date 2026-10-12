@@ -42,7 +42,10 @@ dal server risponde 403; Basketball-Reference ha le stesse informazioni in HTML 
 **Per ogni giornata** il bot calcola:
 - la **scadenza della formazione**: l'ora della prima partita NBA della giornata;
 - le **squadre a media**: quelle senza partite nella giornata (regolamento: prendono la media);
-  le partite rinviate non contano.
+  le partite rinviate non contano. Contano solo le 30 squadre NBA: le partite della NBA Cup con
+  le squadre ancora da decidere ("TBD" su ESPN) valgono per la scadenza ma TBD non è una squadra.
+
+Se il calendario e il calcolo non coincidono vale il calcolo, che è quello che vedono i GM.
 
 Se in una giornata non ancora finita cambia la prima partita o cambiano le squadre a media, il
 gruppo admin riceve un avviso. `/calendario_check` confronta le squadre a media calcolate con

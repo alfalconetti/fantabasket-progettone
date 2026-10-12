@@ -123,7 +123,7 @@ def importa(testo: str, stagione: str | None = None) -> dict:
 def calcola(g: dict, squadre_nba: set[str]) -> dict:
     """Prima partita (scadenza della formazione) e squadre senza partite (a media)."""
     partite = [p for p in db.partite_nba(g["dal"], g["al"]) if p["stato"] not in ("STATUS_POSTPONED", "STATUS_CANCELED")]
-    giocano = {s for p in partite for s in (p["casa"], p["trasferta"])}
+    giocano = {s for p in partite for s in (p["casa"], p["trasferta"])} & nba.NBA
     return {"prima_partita": min((p["inizio"] for p in partite), default=None),
             "media": sorted(squadre_nba - giocano) if partite else None,
             "partite_nba": len(partite)}

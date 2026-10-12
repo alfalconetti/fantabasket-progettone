@@ -1103,3 +1103,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - **loucabot**, il terzo bot del progettone (`fantabasket-loucabot/`, servizio `loucabot`): il campionato. La v1 è il calendario: import del CSV delle giornate, partite NBA da ESPN, scadenza della formazione e squadre a media per ogni giornata, avvisi agli admin se cambiano, `/calendario` per i GM. Prima del deploy va creato il token in `secrets/bot_token_loucabot.txt` (istruzioni in `fantabasket-loucabot/README.md`)
 - `deploy.sh`: prima di toccare qualcosa controlla che ci siano tutti i file di `secrets/` richiesti dal `docker-compose.yml` della versione, e se ne manca uno si ferma dicendo quale
 - `deploy.sh`: prima del commit toglie dallo staging tutto quello che sta in `secrets/`, `config/`, i `.db` e `globals.gs`, così non finiscono su GitHub anche se il `.gitignore` non li escludesse
+
+## v4.0.1 (2026-10-12)
+
+- loucabot v2: le partite della NBA Cup da decidere ("TBD" su ESPN) non contano più come una squadra a media

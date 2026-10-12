@@ -21,11 +21,17 @@ ET = ZoneInfo("America/New_York")
 # sigle di ESPN → sigle NBA (quelle che usiamo nel calendario: GSW, NOP, NYK, SAS, UTA, WAS)
 SIGLE = {"GS": "GSW", "NO": "NOP", "NY": "NYK", "SA": "SAS", "UTAH": "UTA", "WSH": "WAS", "PHO": "PHX", "BRK": "BKN"}
 
+# le 30 squadre: tutto il resto (le partite della NBA Cup ancora da decidere, "TBD") è un segnaposto
+NBA = frozenset("ATL BOS BKN CHA CHI CLE DAL DEN DET GSW HOU IND LAC LAL MEM MIA MIL MIN NOP NYK "
+                "OKC ORL PHI PHX POR SAC SAS TOR UTA WAS".split())
+SEGNAPOSTO = "TBD"
+
 NON_GIOCATE = {"STATUS_POSTPONED", "STATUS_CANCELED", "STATUS_SUSPENDED"}
 
 
 def sigla(abbr: str) -> str:
-    return SIGLE.get(abbr, abbr)
+    s = SIGLE.get(abbr, abbr)
+    return s if s in NBA else SEGNAPOSTO
 
 
 def stagione_lega(anno_espn: int) -> str:

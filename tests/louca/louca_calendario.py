@@ -61,7 +61,9 @@ def evento(i, giorno, ora_utc, casa, trasf, stato="STATUS_SCHEDULED"):
                                               {"homeAway": "away", "team": {"abbreviation": trasf}}],
                               "status": {"type": {"name": stato}}}]}
 GIORNI = {
-    date(2026, 10, 20): [evento(1, "2026-10-20", "23:00", "PHI", "CLE"), evento(2, "2026-10-20", "23:30", "OKC", "DEN")],
+    date(2026, 10, 20): [evento(1, "2026-10-20", "23:00", "PHI", "CLE"), evento(2, "2026-10-20", "23:30", "OKC", "DEN"),
+                         # NBA Cup: partite con squadre ancora da decidere, non sono squadre NBA
+                         evento(8, "2026-10-21", "02:00", "TBD", "TBD"), evento(9, "2026-10-21", "03:00", "OKC", "W12")],
     date(2026, 10, 23): [evento(3, "2026-10-23", "23:00", "DEN", "CLE")],
     date(2026, 10, 24): [evento(4, "2026-10-24", "18:00", "PHI", "CLE", "STATUS_POSTPONED"),
                          evento(5, "2026-10-25", "00:00", "PHI", "DEN")],
@@ -70,7 +72,9 @@ GIORNI = {
 async def finto(g):
     return {"leagues": [{"calendar": [f"{d}T07:00Z" for d in GIORNI]}], "events": GIORNI.get(g, [])}
 r = asyncio.run(nba.sincronizza(list(GIORNI), scarica=finto, pausa=0))
-ok(r["partite"] == 6 and db.squadre_nba("2026") == {"PHI", "CLE", "OKC", "DEN"}, "sincronizzazione: partite salvate")
+ok(r["partite"] == 8 and db.squadre_nba("2026") == {"PHI", "CLE", "OKC", "DEN"},
+   "sincronizzazione: partite salvate; TBD e sigle sconosciute non contano come squadre")
+ok(nba.sigla("W12") == "TBD" and nba.sigla("TBD") == "TBD" and len(nba.NBA) == 30, "segnaposto della NBA Cup → TBD")
 cal.ricalcola("2026", oggi=date(2026, 10, 1))
 g1, g2, g3 = (db.giornata("2026", n) for n in (1, 2, 3))
 ok(g1["media"] == [] and g1["prima_partita"] == datetime(2026, 10, 20, 23, 0, tzinfo=timezone.utc),
