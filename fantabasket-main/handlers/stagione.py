@@ -480,9 +480,17 @@ async def dopo_cambio_fase(bot, fase_vecchia: str, nuova_fase: str) -> str:
             from shared.messaggi import manda_lungo
             await manda_lungo(bot, gruppo, testo, "inizio-regular-season")
 
+    async def promemoria_deadline():
+        avviso = avviso_trade_deadline(stagione)
+        if avviso:
+            note.append("\n" + avviso)
+            if gruppo:
+                await bot.send_message(chat_id=gruppo, text=avviso, parse_mode="HTML")
+
     if nuova_fase == FASE_RINNOVI:
         await passo("rookie scale", rookie)
         await passo("pick nuove", pick)
+        await passo("promemoria trade deadline", promemoria_deadline)
     elif nuova_fase == "offseason-fa":
         await passo("scadenza degli x0", scadenze)
     elif nuova_fase == "regular-season-fa":
@@ -859,10 +867,80 @@ async def cmd_dev_stagione(update: Update, context: ContextTypes.DEFAULT_TYPE):
                       riassunto=riassunto_piano(piano, s + 1).replace("contratti aggiornati", "anteprima, niente viene scritto"))
 
 
+# ── trade deadline ─────────────────────────────────────────────────────────────
+
+def _finestra_stagione(stagione: int):
+    """Date in cui cade la stagione di lega (2026 = dal 1/7/2026 al 30/6/2027)."""
+    from datetime import date
+    return date(stagione, 7, 1), date(stagione + 1, 6, 30)
+
+
+def avviso_trade_deadline(stagione: int) -> str | None:
+    """Avviso se la trade deadline in globals.json manca o non è della stagione `stagione`."""
+    from datetime import date
+    raw = settings.load_globals().get("trade_deadline")
+    inizio, fine = _finestra_stagione(stagione)
+    try:
+        d = date.fromisoformat(raw) if raw else None
+    except ValueError:
+        d = None
+    if d and inizio <= d <= fine:
+        return None
+    return (f"⚠️ Trade deadline della stagione {stagione}-{str(stagione + 1)[-2:]} da impostare"
+            + (f" (ora c'è {html.escape(str(raw))})" if raw else "")
+            + ": <code>/trade_deadline AAAA-MM-GG</code>. Serve alla scadenza dei diritti delle seconde.")
+
+
+async def cmd_trade_deadline(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/trade_deadline [AAAA-MM-GG] (admin): mostra o imposta la trade deadline della stagione
+    (globals.json). I diritti 2nd al secondo anno scadono 10 giorni prima."""
+    from datetime import date, timedelta
+    if not settings.is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ Solo admin.")
+        return
+    s = int(settings.stagione_corrente())
+    inizio, fine = _finestra_stagione(s)
+    g = settings.load_globals()
+    if not context.args:
+        raw = g.get("trade_deadline")
+        info = db.info_scadenza_diritti()
+        righe = [f"📅 Trade deadline: <b>{html.escape(str(raw)) if raw else 'non impostata'}</b>"]
+        if info:
+            righe.append(f"Diritti delle seconde del draft {info['anno_draft']}: scadono il "
+                         f"{info['scadenza'].strftime('%d/%m/%Y')} (10 giorni prima)")
+        avviso = avviso_trade_deadline(s)
+        if avviso:
+            righe.append(avviso)
+        righe.append("\nPer cambiarla: <code>/trade_deadline AAAA-MM-GG</code>")
+        await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
+        return
+    try:
+        d = date.fromisoformat(context.args[0])
+    except ValueError:
+        await update.effective_message.reply_text("❌ Formato non valido. Es: /trade_deadline 2027-02-05")
+        return
+    if not inizio <= d <= fine:
+        await update.effective_message.reply_text(
+            f"❌ La data deve cadere nella stagione {s}-{str(s + 1)[-2:]} "
+            f"({inizio.strftime('%d/%m/%Y')} – {fine.strftime('%d/%m/%Y')}).")
+        return
+    prima = g.get("trade_deadline")
+    g["trade_deadline"] = d.isoformat()
+    settings.save_globals(g)
+    scadenza = d - timedelta(days=10)
+    await update.effective_message.reply_text(
+        f"✅ Trade deadline: <b>{d.strftime('%d/%m/%Y')}</b>"
+        + (f" (prima {html.escape(str(prima))})" if prima and prima != d.isoformat() else "")
+        + f"\nI diritti delle seconde del draft {s - 1} scadono il <b>{scadenza.strftime('%d/%m/%Y')}</b>: "
+          f"avviso nel gruppo admin 3 giorni prima, poi il bottone di conferma.", parse_mode="HTML")
+    logger.info("trade_deadline: %s → %s da %d", prima, d.isoformat(), update.effective_user.id)
+
+
 def get_handlers() -> list:
     return [
         CommandHandler("rinnovo_rookie", cmd_rinnovo_rookie),
         CommandHandler("dichiara_rfa",   cmd_dichiara_rfa),
         CommandHandler("dev_stagione",   cmd_dev_stagione),
+        CommandHandler("trade_deadline", cmd_trade_deadline),
         CallbackQueryHandler(cb_stagione, pattern=r"^sga?:"),
     ]

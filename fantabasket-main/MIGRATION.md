@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v3.11.4, bot aste v60)
+# Messaggio di migrazione — Fantabasket Progettone (stato v3.11.5, bot aste v60)
 
 ---
 
@@ -331,7 +331,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 
 ---
 
-**Stato attuale: v3.11.4 / aste v60**
+**Stato attuale: v3.11.5 / aste v60**
 
 Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v2.1.19** — `/attiva_diritti` propone il contratto della rookie scale (anno I) e chiede solo conferma
@@ -375,7 +375,7 @@ Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v3.9.3 / aste v54** — guide GM e admin dei due bot riscritte, discorsive e con esempi; `/admin` del bot aste riordinato; `/reset_rfa` del bot aste disattivato (la stagione la avanza il bot principale); tolto `/approva_trade` inesistente dal menu; prova `tests/docs/guide_e_menu.py` (comandi citati in guide, aiuti e menu devono esistere)
 - **v3.9.4 / aste v55** — guide dev dei due bot (`docs/guida_dev.md`, `/guida_dev`): sono il promemoria tecnico per Luca, da aggiornare quando cambia qualcosa di strutturale; `/set_cap_penalizzato` spostato nel bot principale (nel bot aste config è `:ro`); `/autoslot` ora conta negli slot (`get_slot_totale` + slot anticipato); benvenuto del bot aste corretto. Codice non schedulato nel bot aste: `scheduler.backup_*` e `pulizia_anticipati_scaduti`
 - **v3.9.5 / aste v56** — foglio Roster sempre per tutte le 24 squadre (`gas_client.sync_teams` ignora l'elenco; decisione di Luca); offerta massima di nuovo 141 = `cap_regular − (roster_min_regular − 1)` (usava `roster_max` → 136)
-- **v3.11.0–v3.11.4 / aste v58–v60** — rookie scale e cambio di stagione (`handlers/stagione.py`): anni residui calcolati per tutti e x0 (contratti finiti: non pesano tranne l'RFA dichiarato), migrazione una tantum dei 66 contratti rookie dal II al IV anno, passaggi automatici ai rinnovi (rookie scale, Doncic d'ufficio a fine IV anno, pick dell'anno +6), all'inizio FA (x0 scaduti) e della RS (report floor/tetto); `/rinnovo_rookie`, `/dichiara_rfa` e pannello admin; regola delle trade RFA; aste RFA aperte da sole dal bot aste; anteprima e conferma dei passaggi di fase, `/dev_stagione`; report e elenchi lunghi come file `.md` (`shared/messaggi.py`); report di stagione con tutti i rookie e la stima del rinnovo
+- **v3.11.0–v3.11.5 / aste v58–v60** — rookie scale e cambio di stagione (`handlers/stagione.py`): anni residui calcolati per tutti e x0 (contratti finiti: non pesano tranne l'RFA dichiarato), migrazione una tantum dei 66 contratti rookie dal II al IV anno, passaggi automatici ai rinnovi (rookie scale, Doncic d'ufficio a fine IV anno, pick dell'anno +6), all'inizio FA (x0 scaduti) e della RS (report floor/tetto); `/rinnovo_rookie`, `/dichiara_rfa` e pannello admin; regola delle trade RFA; aste RFA aperte da sole dal bot aste; anteprima e conferma dei passaggi di fase, `/dev_stagione`, `/trade_deadline`; report e elenchi lunghi come file `.md` (`shared/messaggi.py`); report di stagione con tutti i rookie e la stima del rinnovo
 - **v3.10.0 / aste v57** — registro unico in `transazioni` (pick, diritti, eventi di squadra), vista `movimenti_giocatori`, storico di pick e diritti, `/team_diff` con pick e diritti, roster del bot aste dai contratti attivi, `aste.giocatore_id`, controllo di coerenza notturno; bug corretti: tagli pre-bot agganciati a Jokić, `roster_attuale` con i tagliati, TRADE-2026-021, scadenza diritti TEXT/int, taglio admin (ora `tagli.esegui_taglio` come i GM)
 - **v3.9.1** — report mensile spalmature di free agent (`handlers/spalmature.py`, `run_monthly` giorno 1 alle 9:45, `/report_spalmature`)
 - **v3.9.0 / aste v52** — revisione contro il regolamento: aste chiuse nel cap virtuale, RFA (cap sì slot no, proprietario non offre, lascio andare), regola dei 30 giorni, tagli, ritiro, slot rookie

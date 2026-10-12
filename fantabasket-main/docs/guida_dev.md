@@ -70,7 +70,7 @@ fantabasket-progettone/
 | `log_channel_id_main` | log del bot e backup |
 | `log_channel_id` | log del bot aste |
 | `channel_id` | canale aste (usato dal bot aste) |
-| `trade_deadline` | data; i diritti 2nd scadono 10 giorni prima. **Va aggiornata a mano ogni stagione** |
+| `trade_deadline` | data; i diritti 2nd scadono 10 giorni prima. Ogni stagione con `/trade_deadline AAAA-MM-GG` (admin, controlla che cada nella stagione); entrando nei rinnovi, se è vecchia, promemoria al gruppo admin |
 | `deadline_ruoli` | scadenza della dichiarazione ruoli (`/deadline_ruoli`) |
 | `repo_url` | link alla guida di ripristino nella didascalia dei backup |
 
@@ -322,7 +322,7 @@ ORDER BY t.timestamp, t.id;
 | `tagli.py` | `/taglia`: anteprima, spalmature, limiti |
 | `dpe.py` | `/dpe` e `_importo_dpe()` |
 | `rookie.py` | `/attiva_diritti`, scadenza diritti |
-| `stagione.py` | cambio di stagione (rookie scale, Doncic, x0), `/rinnovo_rookie`, `/dichiara_rfa`, passaggi di fase, `/dev_stagione` |
+| `stagione.py` | cambio di stagione (rookie scale, Doncic, x0), `/rinnovo_rookie`, `/dichiara_rfa`, passaggi di fase, `/dev_stagione`, `/trade_deadline` |
 
 **shared/** (montata in sola lettura in tutti e due i container: una modifica richiede il riavvio di entrambi)
 
@@ -508,7 +508,7 @@ Gli errori dei job vanno a `log_job_error`: canale log e privato del dev. `/job_
 | Area | Comandi |
 |---|---|
 | pannello e squadre | `/admin_menu`, `/list` |
-| fasi | `/set_fase` |
+| fasi e date | `/set_fase`, `/trade_deadline` |
 | trade e firme | `/annulla_trade_admin`, `/registra_firma` |
 | spalmature | `/ritiro_fa`, `/report_spalmature` |
 | cap e config | `/set_cap_penalizzato`, `/settings` |
@@ -636,7 +636,7 @@ docker compose logs -f --tail 100 bot-main            # log
 - **rinnovi normali**: sui contratti x1 e sugli ex rookie x0 a fine scala, max 2 a stagione, +¼ e +½ per eccesso, minimi da `tabella_minimo_contratto`;
 - **draft**: le pick dell'anno diventano posizioni al draft (pick `scattata`, riga `draft` nel registro), righe `rookie` importate dagli admin, firma obbligatoria delle 1st.
 
-**Ogni stagione, a mano:** `trade_deadline` in `globals.json` (scadenza dei diritti 2nd).
+**Ogni stagione:** `/trade_deadline` (scadenza dei diritti 2nd); il bot lo ricorda entrando nei rinnovi.
 
 **10-day contract.** Non c'è: si gestisce a mano. Non va registrato con `/registra_firma`, perché peserebbe sul cap.
 

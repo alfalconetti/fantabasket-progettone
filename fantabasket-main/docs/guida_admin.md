@@ -54,6 +54,8 @@ Il dettaglio arriva nel gruppo admin come file (vedi sotto, "Messaggi lunghi"). 
 
 **Prima del passaggio**, il dev può vedere lo stesso report con `/dev_stagione`, senza che venga scritto niente. Durante la stagione Doncic e rinnovi sono stime con le fantamedie di quel momento. Nello stesso passaggio il bot crea le pick del draft di 6 anni dopo per tutte le squadre (nel 2027 quelle del 2033): fino al draft dell'anno le annate scambiabili sono quindi 7.
 
+Se la trade deadline è ancora quella della stagione prima, nello stesso passaggio ti arriva il promemoria con il comando da usare.
+
 **Durante i rinnovi (e il draft)**, dal pannello:
 
 - **🔁 Rinnovi rookie** → squadra → giocatore: rinnovo rookie per conto del GM (scala III o Doncic, x2);
@@ -123,7 +125,7 @@ Il bot rifiuta gli anni sbagliati (da 20M almeno 2 anni, da 35M obbligatori 3) e
 
 **Rookie:** pannello → **🏀 Attiva diritti** → squadra → giocatore. Il contratto è quello della rookie scale, in qualsiasi fase.
 
-I diritti delle seconde al secondo anno scadono 10 giorni prima della `trade_deadline` scritta in `globals.json`:
+I diritti delle seconde al secondo anno scadono 10 giorni prima della trade deadline, che si imposta ogni stagione con `/trade_deadline 2027-02-05` (senza data ti mostra quella attuale e quando scadono i diritti). La data deve cadere nella stagione in corso:
 
 - nei 3 giorni prima ti arriva un avviso nel gruppo;
 - il giorno della scadenza arriva il bottone **Conferma scadenza**, che libera i giocatori e lo annuncia.

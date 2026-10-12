@@ -123,3 +123,23 @@ q = tap(A.cb_fase_set, "fase_set:offseason-rinnovi:skip", ADMIN)
 ok("stagione 2029" not in q.t, "salto indietro ai rinnovi: nessuna anteprima di stagione nuova")
 q = tap(A.cb_fase_conferma, "fase_conferma:offseason-rinnovi", ADMIN)
 ok(settings.stagione_corrente() == "2028" and settings.fase() == "offseason-rinnovi", "salto indietro ai rinnovi: la stagione non avanza")
+
+# /trade_deadline: mostra, imposta nella stagione giusta, rifiuta le date fuori stagione
+class Msg:
+    def __init__(s): s.t = []
+    async def reply_text(s, t, **k): s.t.append(t)
+def comando(cmd, args, uid=ADMIN):
+    m = Msg()
+    asyncio.run(cmd(types.SimpleNamespace(effective_user=types.SimpleNamespace(id=uid), effective_message=m,
+                                          effective_chat=types.SimpleNamespace(id=uid)),
+                    types.SimpleNamespace(args=args, bot=Bot())))
+    return m.t[-1] if m.t else ""
+g = settings.load_globals(); g.pop("trade_deadline", None); settings.save_globals(g)
+ok("non impostata" in comando(S.cmd_trade_deadline, []) and S.avviso_trade_deadline(2028), "senza deadline: lo dice e c'è il promemoria")
+ok("Solo admin" in comando(S.cmd_trade_deadline, ["2029-02-05"], uid=GM1), "solo admin")
+ok("❌" in comando(S.cmd_trade_deadline, ["2028-02-05"]) and "trade_deadline" not in settings.load_globals(),
+   "data fuori dalla stagione 2028-29: rifiutata")
+t = comando(S.cmd_trade_deadline, ["2029-02-05"])
+ok(settings.load_globals()["trade_deadline"] == "2029-02-05" and "26/01/2029" in t and "draft 2027" in t,
+   "impostata: diritti delle seconde del draft 2027 il 26/01/2029")
+ok(S.avviso_trade_deadline(2028) is None and S.avviso_trade_deadline(2029), "promemoria solo se la deadline è di un'altra stagione")

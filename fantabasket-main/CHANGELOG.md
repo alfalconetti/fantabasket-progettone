@@ -1042,3 +1042,8 @@ Passata sulla documentazione dopo la 3.11.
 - README del bot aste riscritto (era fermo a quando contratti e cap stavano nel JSON); README principale con il cambio di stagione; `tests/README.md` con le prove nuove; MIGRATION aggiornato
 - Tolte le vecchie guide di emergenza (`docs/DEV_RECOVERY.md`, `docs/emergency_recovery_progettone.md` del bot principale, `docs/emergency_recovery.md` del bot aste): erano state sostituite da `docs/RECOVERY.md` già nella v3.5.0 ma i file erano rimasti, con istruzioni ormai sbagliate
 - Bot aste: aiuto `/admin` e menu "/" dicono che `/nuova_rfa` serve solo per le RFA a mano
+
+## v3.11.5 (2026-10-12)
+
+- **`/trade_deadline [AAAA-MM-GG]`** (admin): senza data mostra la trade deadline e quando scadono i diritti delle seconde (10 giorni prima); con la data la imposta, solo se cade nella stagione in corso. Prima si poteva cambiare solo a mano in `globals.json`
+- Entrando nei rinnovi, se la trade deadline è ancora quella della stagione prima, promemoria nel gruppo admin con il comando
