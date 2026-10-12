@@ -54,3 +54,11 @@ for bot, testi in {
 tutti = registrati("fantabasket-main") | registrati("fantabasket-aste-beta")
 mancanti = sorted(citati(leggi("docs/regolamento_e_codice.md")) - tutti)
 ok(not mancanti, f"docs/regolamento_e_codice.md: comandi citati tutti esistenti {mancanti or ''}")
+
+# v4.0.0: loucabot (README e /guida) e i suoi comandi del menu
+reg = registrati("fantabasket-loucabot")
+testi = leggi("fantabasket-loucabot/README.md") + funzione("fantabasket-loucabot/handlers.py", "cmd_guida")
+mancanti = sorted(citati(testi) - reg)
+ok(not mancanti, f"loucabot README e /guida: comandi citati tutti esistenti {mancanti or ''}")
+menu = set(re.findall(r'BotCommand\(\s*"(\w+)"', leggi("fantabasket-loucabot", "bot.py")))
+ok(menu and not (menu - reg), f"loucabot menu '/': tutti i comandi esistono {sorted(menu - reg) or ''}")

@@ -22,6 +22,8 @@ ZONE = {
     "tests/main": ["fantabasket-main", ".", "tests"],
     "tests/aste": ["fantabasket-aste-beta", ".", "tests"],
     "scripts/prova_generale": ["fantabasket-main", "."],
+    "fantabasket-loucabot": ["fantabasket-loucabot", "."],
+    "tests/louca": ["fantabasket-loucabot", ".", "tests"],
 }
 # file che girano in un'altra cartella rispetto alla loro zona
 ZONE_FILE = {"scripts/prova_generale/foto_aste.py": ["fantabasket-aste-beta", "."]}

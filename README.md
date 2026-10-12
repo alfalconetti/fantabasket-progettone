@@ -55,6 +55,7 @@ Everything runs with Docker Compose on a small home server.
 |----------------|-----------------------------------------------------------------|
 | `bot-main`     | League management bot (contracts, trades, draft, rosters)       |
 | `bot-aste-beta` | Free agency / RFA auction bot                                 |
+| `loucabot`     | Season bot: league schedule synced with the NBA calendar (standings and automatic scoring next) |
 | `gas-router`   | Internal proxy to the Google Apps Script web app                |
 | `yahoo-router` | Internal proxy to the Yahoo Fantasy API (OAuth2, token refresh) |
 | `postgres`     | League database                                                 |

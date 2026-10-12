@@ -7,8 +7,9 @@
 #   Z=fantabasket-progettone-vX.Y.Z.zip; bash <(unzip -p $Z deploy.sh) $Z
 #
 # Cosa fa, fermandosi al primo problema:
-#   1. controlli: zip integro e senza config/secrets/.db, versione rispetto a quella
-#      installata (avvisa se è uguale o più vecchia), modifiche locali non salvate nel repo;
+#   1. controlli: zip integro e senza config/secrets/.db, secrets richiesti dal compose presenti,
+#      versione rispetto a quella installata (avvisa se è uguale o più vecchia), modifiche locali
+#      non salvate nel repo;
 #   2. riepilogo e conferma;
 #   3. dump del database in archivio/backup-deploy/ (tiene gli ultimi 10);
 #   4. scompatta lo zip nel repo e cancella i file tolti dal rilascio (git rm);
@@ -50,6 +51,17 @@ print("\n".join(map(str, v)) if isinstance(v, list) else ("" if v is None else s
     # 1. controlli
     if unzip -Z1 "$Z" | grep -qE '(^|/)(config|secrets)/|\.db$|globals\.gs$'; then
         echo "❌ Lo zip contiene config/, secrets/, database o globals.gs: non lo installo"; exit 1
+    fi
+    # i secrets che il docker-compose.yml nuovo si aspetta (un bot nuovo vuole il suo token)
+    local MANCANTI f
+    MANCANTI="$( { unzip -p "$Z" docker-compose.yml 2>/dev/null || cat "$R/docker-compose.yml"; } \
+                 | grep -oE 'file: \./secrets/[^[:space:]]+' | sed 's#^file: \./##' \
+                 | while read -r f; do [ -e "$R/$f" ] || echo "$f"; done )" || true
+    if [ -n "$MANCANTI" ]; then
+        echo "❌ Mancano questi file, servono al docker-compose.yml di questa versione:"
+        echo "$MANCANTI" | sed "s#^#   $R/#"
+        echo "   Creali prima (istruzioni nel CHANGELOG della versione), poi rilancia il deploy: non ho toccato niente."
+        exit 1
     fi
     local ATTUALE
     ATTUALE="$(grep -oE '^## v[0-9]+\.[0-9]+\.[0-9]+' "$R/fantabasket-main/CHANGELOG.md" | tail -1 | sed 's/^## v//')" || true
@@ -147,6 +159,14 @@ print("\n".join(map(str, v)) if isinstance(v, list) else ("" if v is None else s
 
     # 6. commit, push, zip vecchi in archivio
     git add -A
+    # rete di sicurezza: token, config e database non vanno mai su GitHub, anche senza .gitignore
+    local SENSIBILI
+    SENSIBILI="$(git diff --cached --name-only | grep -E '^(secrets|config)/|\.db$|globals\.gs$' || true)"
+    if [ -n "$SENSIBILI" ]; then
+        printf '%s\n' "$SENSIBILI" | while read -r f; do git reset -q -- "$f"; done
+        echo "🔒 Tenuti fuori dal commit ($(printf '%s\n' "$SENSIBILI" | wc -l) file in secrets/, config/, .db, globals.gs)."
+        echo "   Controlla che .gitignore li escluda:  grep -nE 'secrets|config' .gitignore"
+    fi
     if git diff --cached --quiet; then
         echo "ℹ️  Niente da salvare in git (versione già committata)."
     else

@@ -73,6 +73,27 @@ services:
       - ./shared:/app/shared:ro      # regole condivise col bot aste (ruoli)
       - ./secrets/cifrati:/secrets_cifrati:ro   # solo il file cifrato da scripts/cifra_secrets.sh, finisce nel backup
 
+  # loucabot (v4.0.0): calendario, poi classifica, playoff e calcolo automatico. Prima di
+  # avviarlo: token di BotFather in secrets/bot_token_loucabot.txt (fantabasket-loucabot/README.md)
+  loucabot:
+    build: ./fantabasket-loucabot
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      BOT_TOKEN_FILE: /run/secrets/bot_token_loucabot
+      GLOBALS_PATH: /config/globals.json
+      TEAMS_PATH: /config/teams.json
+      DATABASE_URL: postgresql://fantabasket@postgres/fantabasket
+      PG_PASSWORD_FILE: /run/secrets/pg_password
+    secrets:
+      - bot_token_loucabot
+      - pg_password
+    volumes:
+      - ./config:/config:ro
+      - ./shared:/app/shared:ro
+
   gas-router:
     build: ./gas-router
     restart: unless-stopped
@@ -142,6 +163,8 @@ secrets:
     file: ./secrets/bot_token_aste_beta.txt
   bot_token_main:
     file: ./secrets/bot_token_main.txt
+  bot_token_loucabot:
+    file: ./secrets/bot_token_loucabot.txt
   pg_password:
     file: ./secrets/pg_password.txt
   gas_token:

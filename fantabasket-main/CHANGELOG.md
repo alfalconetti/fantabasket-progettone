@@ -1097,3 +1097,9 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v3.13.3 (2026-10-12)
 
 - RFA sui canali: ogni dichiarazione, cambio, ritiro e ogni trade di un RFA è una riga sul canale log (chi, cosa, al posto di chi, registrato da un admin). Sul canale principale non arriva più un messaggio per ogni dichiarazione: c'è un solo riepilogo della stagione con gli RFA di tutte le squadre, che il bot modifica a ogni cambio (anche dopo una trade o il suo annullamento). Se il messaggio viene cancellato, al cambio successivo ne manda uno nuovo. Tabella nuova `messaggi_fissi`
+
+## v4.0.0 (2026-10-12)
+
+- **loucabot**, il terzo bot del progettone (`fantabasket-loucabot/`, servizio `loucabot`): il campionato. La v1 è il calendario: import del CSV delle giornate, partite NBA da ESPN, scadenza della formazione e squadre a media per ogni giornata, avvisi agli admin se cambiano, `/calendario` per i GM. Prima del deploy va creato il token in `secrets/bot_token_loucabot.txt` (istruzioni in `fantabasket-loucabot/README.md`)
+- `deploy.sh`: prima di toccare qualcosa controlla che ci siano tutti i file di `secrets/` richiesti dal `docker-compose.yml` della versione, e se ne manca uno si ferma dicendo quale
+- `deploy.sh`: prima del commit toglie dallo staging tutto quello che sta in `secrets/`, `config/`, i `.db` e `globals.gs`, così non finiscono su GitHub anche se il `.gitignore` non li escludesse

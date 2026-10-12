@@ -15,6 +15,7 @@ fantabasket-progettone/
 ├── shared/              in comune ai due bot: ruoli_core.py (ruoli), cap.py (cap e slot), squadre.py (ricerca squadra), messaggi.py (report lunghi)
 ├── fantabasket-main/      ← questo bot
 ├── fantabasket-aste-beta/ bot aste
+├── fantabasket-loucabot/  loucabot: calendario (poi classifica e calcolo automatico), README suo
 ├── gas-router/            ponte verso Google Apps Script (fogli)
 ├── gas/                   codice Apps Script (clasp)
 ├── yahoo-router/          OAuth Yahoo (in attesa di abilitazione)
@@ -30,6 +31,7 @@ fantabasket-progettone/
 | `postgres` | PostgreSQL 16, database `fantabasket`, utente `fantabasket` |
 | `bot-main` | questo bot |
 | `bot-aste-beta` | bot aste |
+| `loucabot` | calendario della lega sincronizzato con quello NBA (v4.0.0); tabelle sue `lega_*`, `nba_*` |
 | `gas-router` | riceve i dati dal bot e li gira alla web app Apps Script |
 | `yahoo-router` | OAuth e chiamate Yahoo (per ora inutilizzato) |
 | `nocodb` | dashboard in LAN sulla 8090, di solito spenta |
