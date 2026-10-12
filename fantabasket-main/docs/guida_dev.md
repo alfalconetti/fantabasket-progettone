@@ -238,7 +238,7 @@ Se trova qualcosa scrive al dev. Di solito è una modifica fatta a mano sul DB: 
 |---|---|---|---|
 | 1 | contratto del I anno (`stagione_firma = anno_firma`) e importo del II diverso | contratto nuovo II anno x1 | `rookie_scala` |
 | 2 | x0 | niente: attende rinnovo rookie, RFA o scadenza | — |
-| 3 | rinnovo di scala (x2 firmato in S−1, importo = scala III) e importo del IV diverso | contratto nuovo IV anno x1 | `rookie_scala` |
+| 3 | rinnovo III-IV (x2 firmato in S−1) con importo sotto la scala del IV anno | contratto nuovo IV anno x1 (una Doncic è già più alta e resta) | `rookie_scala` |
 | 4 | x0 | contratto `normale` x0, importo max(attuale, Doncic sul III-IV) | `rookie_fine_scala` |
 
 Rinnovo rookie a fine II anno (`esegui_rinnovo_rookie`): `tipo = 'rookie'` x2, importo max(scala III, Doncic), movimento `renewed` con `rookie_scale = TRUE`. Doncic: `doncic(fm)` con X = ⌊max fantamedia delle due stagioni⌋ e risultato per eccesso in aritmetica intera; `fantamedia_max(gid, stagioni_lega)` legge bref alla stagione + 1.

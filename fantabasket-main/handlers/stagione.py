@@ -11,8 +11,8 @@ Rookie scale (tabella `rookie_scale` di settings, per pick: I x2, II x1, III x2,
   - entrata nel II anno: contratto nuovo con l'importo del II anno, x1 (automatico; se
     l'importo è lo stesso, come per le pick basse, resta il contratto x2 del I anno);
   - fine II anno: x0 → rinnovo rookie a scala III o Doncic (GM), oppure RFA o FA;
-  - entrata nel IV anno: contratto nuovo con l'importo del IV anno, x1, solo se il
-    contratto III-IV è quello di scala; con la Doncic l'importo resta (nessuno scalino);
+  - entrata nel IV anno: se il contratto III-IV è sotto l'importo del IV anno (rinnovo
+    di scala), contratto nuovo con quell'importo, x1; una Doncic è più alta e resta;
   - fine IV anno: Doncic d'ufficio sulla fantamedia del III/IV anno → contratto x0
     "normale" (max tra importo attuale e Doncic): da lì rinnovo normale, RFA o FA.
   Doncic: X = massima fantamedia delle due stagioni, per difetto all'intero;
@@ -138,11 +138,12 @@ def _calcola_piano(cur, stagione: int) -> dict:
         elif k == 2 and residui <= 0:
             piano["da_rinnovare"].append(base)
         elif k == 3 and int(c["stagione_firma"]) == stagione - 1 and int(c["anni_originali"]) == 2:
-            scala_iii, scala_iv = importo_scala(c["pick_numero"], 2), importo_scala(c["pick_numero"], 3)
-            if scala_iii is not None and int(c["importo"]) == scala_iii and scala_iv not in (None, scala_iii):
+            # IV anno: mai sotto la tabella (Luca, 12/10/2026). Il rinnovo di scala sale
+            # all'importo del IV anno; una Doncic è già più alta e resta com'è (x1)
+            scala_iv = importo_scala(c["pick_numero"], 3)
+            if scala_iv is not None and int(c["importo"]) < scala_iv:
                 piano["quarto_anno"].append({**base, "importo_nuovo": scala_iv, "anni_nuovi": 1, "tipo": "rookie",
                                              "a": _contratto_str(scala_iv, 1), "nota": f"Rookie scale: IV anno {scala_iv}x1"})
-            # altrimenti contratto Doncic (nessuno scalino) o stesso importo: resta com'è (x1)
         elif k == 4 and residui <= 0:
             fm = fantamedia_max(c["giocatore_id"], [stagione - 2, stagione - 1])
             d = doncic(fm)
@@ -499,7 +500,8 @@ def proposta_rinnovo_rookie(c: dict, stagione: int) -> dict:
     if d and d > scala_iii:
         return {"importo_nuovo": d, "anni_nuovi": 2, "doncic": True, "fantamedia": fm,
                 "spiegazione": f"Doncic: fantamedia {fm:.2f} → {math.floor(fm)} → {d}M (scala {scala_iii}M)"}
-    spieg = f"scala III anno {scala_iii}M" + (f" (fantamedia {fm:.2f}, sotto la Doncic)" if fm is not None else "")
+    spieg = f"scala III anno {scala_iii}M" + (f" (fantamedia {fm:.2f}: la Doncic non supera la scala)"
+                                              if fm is not None else " (nessuna fantamedia)")
     return {"importo_nuovo": scala_iii, "anni_nuovi": 2, "doncic": False, "fantamedia": fm, "spiegazione": spieg}
 
 

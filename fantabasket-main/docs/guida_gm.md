@@ -211,7 +211,7 @@ Quando inizia la fase dei rinnovi parte la stagione nuova e tutti i contratti sc
 - scambiarlo: per esempio lo cedi a una squadra che vuole dichiararlo RFA lei;
 - lasciarlo andare: all'inizio della free agency scade da solo e torna free agent.
 
-**La rookie scale la aggiorna il bot.** Al II e al IV anno l'importo passa a quello della tabella (per esempio la pick 1 va da 12 a 13). Alla fine del IV anno il bot applica la Doncic, se spetta, e il contratto diventa un x0 normale: da lì si rinnova come tutti gli altri.
+**La rookie scale la aggiorna il bot.** Al II e al IV anno l'importo passa a quello della tabella (per esempio la pick 1 va da 12 a 13), a meno che il giocatore non abbia già una Doncic più alta. Alla fine del IV anno il bot applica la Doncic, se spetta, e il contratto diventa un x0 normale: da lì si rinnova come tutti gli altri.
 
 ### Rinnovare un rookie a fine II anno
 

@@ -46,7 +46,7 @@ Alcuni passaggi di fase toccano i contratti. Per questi, anche con "Avanza", il 
 **Entrando in offseason-rinnovi** (stagione nuova). Tutti i contratti scalano di un anno; quelli finiti diventano **x0**: restano in squadra, ma non pesano su cap e slot. Il bot aggiorna la rookie scale:
 
 - rookie al II anno: contratto nuovo con l'importo della tabella (per le pick basse l'importo è lo stesso e non cambia niente);
-- rookie al IV anno con il contratto di scala: importo del IV anno. Con un rinnovo Doncic l'importo resta quello;
+- rookie al IV anno: se il rinnovo era all'importo di scala sale a quello del IV anno; un rinnovo Doncic è già più alto e resta;
 - fine del IV anno: Doncic d'ufficio sulla fantamedia migliore del III e IV anno, se è più alta del contratto. Il contratto diventa un x0 normale, rinnovabile come gli altri;
 - rookie a fine II anno: x0, in attesa di rinnovo rookie, RFA o scadenza.
 

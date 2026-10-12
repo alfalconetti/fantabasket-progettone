@@ -1018,6 +1018,7 @@ Rookie scale e cambio di stagione. Provato su una copia del database di produzio
 - Le pick dell'anno +6 si creano entrando nei rinnovi, cioè al cambio di stagione (prima all'inizio della fase RFA). Fino al draft dell'anno le annate scambiabili sono quindi 7
 - I passaggi automatici di una fase sono indipendenti: se fallisce la rookie scale, le pick nuove vengono create lo stesso (e viceversa); `/dev_stagione rifai` ripete quello che manca
 - Il dettaglio del cambio di stagione riporta anche quanti contratti sono x0 dopo il passaggio
+- IV anno di scala: la regola è "mai sotto la tabella" (confermata da Luca). Un rinnovo III-IV sotto l'importo del IV anno sale a quello; una Doncic è già più alta e resta. Con la tabella di oggi il risultato è lo stesso della 3.11.0, ma regge anche se la tabella cambia
 
 ### Bot aste (v59)
 - `/all_aste`, `/firme` e i comandi dev lunghi arrivano come file (vedi CHANGELOG del bot aste)
