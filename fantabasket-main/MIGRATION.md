@@ -1,4 +1,4 @@
-# Messaggio di migrazione — Fantabasket Progettone (stato v4.0.1, bot aste v63, loucabot v2)
+# Messaggio di migrazione — Fantabasket Progettone (stato v4.0.2, bot aste v63, loucabot v3)
 
 ---
 
@@ -331,7 +331,7 @@ git add -A && git commit -m "vX.Y.Z: descrizione" && git push origin main
 
 ---
 
-**Stato attuale: v4.0.1 / aste v63 / loucabot v2**
+**Stato attuale: v4.0.2 / aste v63 / loucabot v3**
 
 Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v2.1.19** — `/attiva_diritti` propone il contratto della rookie scale (anno I) e chiede solo conferma
@@ -376,7 +376,8 @@ Novità v2.1.19–v3.0.7 (sessione 04-06/10/2026):
 - **v3.9.4 / aste v55** — guide dev dei due bot (`docs/guida_dev.md`, `/guida_dev`): sono il promemoria tecnico per Luca, da aggiornare quando cambia qualcosa di strutturale; `/set_cap_penalizzato` spostato nel bot principale (nel bot aste config è `:ro`); `/autoslot` ora conta negli slot (`get_slot_totale` + slot anticipato); benvenuto del bot aste corretto. Codice non schedulato nel bot aste: `scheduler.backup_*` e `pulizia_anticipati_scaduti`
 - **v3.9.5 / aste v56** — foglio Roster sempre per tutte le 24 squadre (`gas_client.sync_teams` ignora l'elenco; decisione di Luca); offerta massima di nuovo 141 = `cap_regular − (roster_min_regular − 1)` (usava `roster_max` → 136)
 - **v4.0.0 / loucabot v1** — terzo bot, `fantabasket-loucabot` (servizio `loucabot`, token in `secrets/bot_token_loucabot.txt`): il campionato. v1 = calendario: import del CSV degli admin (`/importa_calendario`, nomi esatti di teams.json), partite NBA da ESPN (`site.api.espn.com`, NBA.com dal server dà 403, bref di riserva), per ogni giornata scadenza della formazione (prima partita NBA) e squadre a media (senza partite, regolamento), avviso agli admin se cambiano, `/calendario`, `/giornata`, `/calendario_check`, `/nba_sync`. Deciso con Luca: classifica, playoff dalla classifica e calcolo automatico andranno qui; formazioni e panchine in un bot a parte. `deploy.sh` controlla che ci siano i file di `secrets/` richiesti dal compose. Il calendario 2026-27 (38 giornate, generato da un admin con seme 77) è stato verificato: struttura come da regolamento, squadre a media giuste nelle giornate di ottobre
-- **v4.0.1 / loucabot v2** — TBD (partite della NBA Cup da decidere) non è una squadra: contano solo le 30 sigle NBA. Prima `/calendario_check` del 12/10: le note a media del CSV sono incomplete (in più per ESPN: G8 BKN, CHI, MIN; G12 MIA; G15 DAL; G16 ORL; G17 GSW, HOU; verificato BKN e MIA su una seconda fonte). Vale il calcolo dalle partite NBA, che è quello mostrato ai GM
+- **v4.0.1 / loucabot v2** — TBD (partite della NBA Cup da decidere) non è una squadra: contano solo le 30 sigle NBA. Prima `/calendario_check` del 12/10: le note a media del CSV sono incomplete (in più per ESPN: G8 BKN, CHI, MIN; G12 MIA; G15 DAL; G16 ORL; G17 GSW, HOU; verificato BKN e MIA su una seconda fonte). Vale il calcolo dalle partite NBA, che è quello mostrato ai GM; CSV con le note corrette mandato a Luca
+- **v4.0.2 / loucabot v3** — come gli altri bot: canale log suo (`log_channel_id_louca`, ripiego `log_channel_id_main`) per la parte tecnica (avvio, errori, import, `/nba_sync`, sync delle 8:30), gruppo admin solo per i cambi del calendario
 - **v3.13.3** — RFA sui canali: una riga per evento (dichiarazione, cambio, ritiro, trade) sul canale log; sul canale principale un solo riepilogo per stagione con gli RFA di tutte le squadre, modificato a ogni cambio (tabella `messaggi_fissi`). Prima ogni dichiarazione era un messaggio sul canale principale
 - **v3.13.2** — l'RFA si dichiara e si cambia quante volte si vuole fino alle aste RFA: `/dichiara_rfa` e il menu anche nella fase draft (deciso con Luca)
 - **v3.13.1** — RFA in trade (deciso con Luca il 12/10/2026): prima delle aste RFA (rinnovi, draft) un RFA scambiato perde la dichiarazione (`rfa_dichiarati.stato = 'revocata'`, `nota = 'trade <id>'`), chi lo cede può dichiararne un altro, per chi lo riceve è un x0 che non pesa, nessun limite; dalla fase RFA la dichiarazione segue il giocatore e vale al massimo un RFA per squadra; l'annullamento la rimette dov'era. Avviso nel riepilogo e ai GM. Decisioni sul regolamento: luxury 165 per tutti e Stepien a 4 anni sulle proprie 1st (il bot è giusto, va corretto il testo), offerta massima 141 = conseguenza di cap e minimo giocatori, floor nelle trade confermato (prova aggiunta). Testi proposti in `docs/regolamento_e_codice.md`

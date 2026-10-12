@@ -34,7 +34,9 @@ def gruppo_admin():
 
 
 def canale_log():
-    return globali().get("log_channel_id_main")
+    """Il canale log di loucabot; finché non c'è, quello del bot principale."""
+    g = globali()
+    return g.get("log_channel_id_louca") or g.get("log_channel_id_main")
 
 
 def squadre() -> list[dict]:

@@ -111,3 +111,25 @@ ok("A media" in t and "CLE, DEN" in t, "/calendario: squadre a media")
 t = comando(H.cmd_giornata, 999, ["2"])
 ok("Delta – Alfa" in t and "Beta – Gamma" in t, "/giornata: tutte le partite")
 ok("Solo admin" in comando(H.cmd_importa_calendario, 101), "/importa_calendario solo admin")
+
+# canale log di loucabot: chiave sua, altrimenti quello del bot principale
+import json as _json, config
+_g = _json.load(open(config.GLOBALS_PATH))
+ok(config.canale_log() == _g["log_channel_id_main"], "canale log: senza log_channel_id_louca usa quello del bot principale")
+_json.dump({**_g, "log_channel_id_louca": -77}, open(config.GLOBALS_PATH, "w"))
+ok(config.canale_log() == -77, "canale log: log_channel_id_louca")
+class _Bot:
+    def __init__(s): s.m = []
+    async def send_message(s, **k): s.m.append(k)
+_b = _Bot()
+import handlers as _h
+asyncio.run(_h.log(_b, "prova"))
+ok(_b.m and _b.m[0]["chat_id"] == -77, "riga di log mandata al canale di loucabot")
+async def _sync_finto(giorni=None, **k):
+    return {"giorni": 18, "partite": 0, "errori": []}
+_h.nba.sincronizza = _sync_finto
+_ctx = types.SimpleNamespace(bot=_Bot())
+asyncio.run(_h.job_sync(_ctx))
+ok(any(x["chat_id"] == -77 and "8:30" in x["text"] for x in _ctx.bot.m),
+   f"sincronizzazione delle 8:30 annotata sul canale log {_ctx.bot.m}")
+_json.dump(_g, open(config.GLOBALS_PATH, "w"))

@@ -18,6 +18,28 @@ logger = logging.getLogger(__name__)
 e = html.escape
 
 
+async def log(bot, testo: str):
+    """Una riga sul canale log di loucabot (la parte tecnica: import, sincronizzazioni, errori)."""
+    if not config.canale_log():
+        return
+    try:
+        await bot.send_message(chat_id=config.canale_log(), text=testo, parse_mode="HTML",
+                               disable_web_page_preview=True)
+    except Exception as err:
+        logger.warning("Canale log: %s", err)
+
+
+def _chi(update) -> str:
+    u = update.effective_user
+    return e(u.full_name or str(u.id)) if u else "?"
+
+
+def _esito_sync(r: dict) -> str:
+    return (f"{r['giorni']} giorni, {r['partite']} partite"
+            + (f", ⚠️ {len(r['errori'])} giorni non scaricati ({', '.join(x.split(':')[0] for x in r['errori'][:5])})"
+               if r["errori"] else ""))
+
+
 def _numero(args) -> int | None:
     try:
         return int(args[0]) if args else None
@@ -118,6 +140,10 @@ async def cmd_importa_calendario(update: Update, context: ContextTypes.DEFAULT_T
         righe += ["", "Controllo con le partite NBA: /calendario_check."]
     await msg.reply_text("\n".join(righe), parse_mode="HTML")
     logger.info("Calendario importato da %s: %s (%d cambi)", update.effective_user.id, r, len(cambi))
+    await log(context.bot, f"📅 Calendario {r['stagione']} importato da {_chi(update)}: {r['giornate']} giornate, "
+                           f"{r['partite']} partite ({e(doc.file_name or 'csv')})"
+                           + (f"\nDifferenze con le partite NBA: {len(cal.differenze_file(r['stagione']))} giornate"
+                              if db.squadre_nba(r["stagione"]) and cal.differenze_file(r["stagione"]) else ""))
 
 
 async def cmd_calendario_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -154,6 +180,8 @@ async def cmd_nba_sync(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text("⏳ Scarico le partite NBA della stagione da ESPN (qualche minuto)…")
     r = await nba.sincronizza()
     cambi = cal.ricalcola()
+    await log(context.bot, f"🏀 /nba_sync di {_chi(update)}: {_esito_sync(r)}"
+                           + ("\nCambi: " + "; ".join(e(c) for c in cambi) if cambi else ""))
     await update.effective_message.reply_text(
         f"✅ {r['giorni']} giorni, {r['partite']} partite salvate."
         + (f"\n⚠️ {len(r['errori'])} giorni non scaricati: {', '.join(x.split(':')[0] for x in r['errori'][:10])}"
@@ -167,14 +195,17 @@ async def job_sync(context: ContextTypes.DEFAULT_TYPE):
     try:
         if not db.giornate(config.stagione()):
             return
-        await nba.sincronizza(nba.giorni_vicini())
+        r = await nba.sincronizza(nba.giorni_vicini())
         cambi = cal.ricalcola()
+        await log(context.bot, f"🔄 Sincronizzazione delle 8:30: {_esito_sync(r)}"
+                               + (f", {len(cambi)} cambi (avviso al gruppo admin)" if cambi else ", nessun cambio"))
         if cambi and config.gruppo_admin():
             await context.bot.send_message(
                 chat_id=config.gruppo_admin(), parse_mode="HTML",
                 text="📅 <b>Calendario: cambi dalle partite NBA</b>\n\n" + "\n".join(f"• {e(c)}" for c in cambi))
     except Exception as err:
         logger.exception("job_sync")
+        await log(context.bot, f"⚠️ Sincronizzazione delle 8:30 fallita: {e(str(err))[:500]}")
         if config.dev_id():
             try:
                 await context.bot.send_message(chat_id=config.dev_id(), text=f"⚠️ loucabot job_sync: {err}")

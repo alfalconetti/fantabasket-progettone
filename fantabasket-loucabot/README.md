@@ -20,7 +20,14 @@ Sviluppato con [Claude](https://claude.ai) (Anthropic).
    ```
    Il token va creato **prima** del deploy della v4.0.0: `deploy.sh` controlla che ci siano tutti
    i file di `secrets/` richiesti dal `docker-compose.yml` e si ferma se ne manca uno.
-3. Dopo il deploy, a un admin:
+3. Canali, in `config/globals.json` (si rilegge a ogni messaggio, non serve riavviare):
+   - aggiungi loucabot al **gruppo admin** (`admin_group_id`): lì arrivano solo i cambi di
+     scadenze e squadre a media;
+   - crea un **canale log** per loucabot, aggiungi il bot come amministratore che può pubblicare e
+     metti l'id in `"log_channel_id_louca"`. Lì vanno avvio, errori, import del calendario, ogni
+     `/nba_sync` e la sincronizzazione delle 8:30. Finché la chiave non c'è, usa il canale log del
+     bot principale (`log_channel_id_main`).
+4. Dopo il deploy, a un admin:
    - manda il CSV del calendario con didascalia `/importa_calendario`;
    - `/nba_sync` scarica da ESPN le partite NBA della stagione (qualche minuto);
    - `/calendario_check` mostra scadenze e squadre a media e le confronta con il calendario.

@@ -71,6 +71,7 @@ fantabasket-progettone/
 | `main_channel_id` | canale principale: annunci |
 | `log_channel_id_main` | log del bot e backup |
 | `log_channel_id` | log del bot aste |
+| `log_channel_id_louca` | log di loucabot (senza: usa `log_channel_id_main`) |
 | `channel_id` | canale aste (usato dal bot aste) |
 | `trade_deadline` | data; i diritti 2nd scadono 10 giorni prima. Ogni stagione con `/trade_deadline AAAA-MM-GG` (admin, controlla che cada nella stagione); entrando nei rinnovi, se è vecchia, promemoria al gruppo admin |
 | `deadline_ruoli` | scadenza della dichiarazione ruoli (`/deadline_ruoli`) |

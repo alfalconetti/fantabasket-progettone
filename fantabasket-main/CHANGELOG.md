@@ -1107,3 +1107,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v4.0.1 (2026-10-12)
 
 - loucabot v2: le partite della NBA Cup da decidere ("TBD" su ESPN) non contano più come una squadra a media
+
+## v4.0.2 (2026-10-12)
+
+- loucabot v3: canale log suo (`log_channel_id_louca` in `globals.json`) con import, sincronizzazioni ed errori; al gruppo admin solo i cambi del calendario
