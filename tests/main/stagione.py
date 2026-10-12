@@ -63,6 +63,8 @@ r3 = rookie("Terzo Scala", "team02", 2, 2024, 12, 2)       # III anno di scala (
 r4 = rookie("Terzo Doncic", "team02", 1, 2024, 20, 2)      # III anno con Doncic: niente scalino
 r5 = rookie("Quarto Bravo", "team03", 4, 2023, 11, 1)      # IV anno (pick 4: 8/9/10/11), fantamedia alta
 r6 = rookie("Quarto Normale", "team03", 4, 2023, 11, 1)    # IV anno senza fantamedia
+r7 = rookie("Primo Basso", "team03", 20, 2026, 3, 2)        # I anno, pick 11-24: 3 anche al II anno
+r8 = rookie("Terzo Basso", "team03", 20, 2024, 4, 2)        # III anno, pick 11-24: 4 anche al IV anno
 fm("Quarto Bravo", 2025, 22.5); fm("Quarto Bravo", 2026, 27.95)   # max 27.95 → 27 → 15+⌈0,8⌉ = 16
 fm("Secondo Anno", 2025, 21.0); fm("Secondo Anno", 2026, 24.95)   # per il rinnovo: 24 → 12+⌈2,4⌉ = 15 > scala III 14
 v1 = gioc("Veterano Uno"); contratto(v1, "team01", 30, 1, 2026)   # x1 nel 2026 → x0 nel 2027
@@ -82,6 +84,11 @@ ok([v["giocatore_id"] for v in anteprima["secondo_anno"]] == [r1] and [v["giocat
    and {v["giocatore_id"] for v in anteprima["fine_scala"]} == {r5, r6} and [v["giocatore_id"] for v in anteprima["da_rinnovare"]] == [r2],
    "anteprima 2027: I→II, III→IV solo di scala, fine scala, II a fine anno da rinnovare")
 ok(db._qval("SELECT count(*) FROM contratti") == n, "anteprima: niente scritto")
+uguali = {v["giocatore_id"]: v["motivo"] for v in anteprima["secondo_anno_uguali"] + anteprima["quarto_anno_uguali"]}
+ok(uguali == {r7: "stesso importo in tabella", r8: "stesso importo in tabella", r4: "Doncic, la tabella dice 15"}
+   and not anteprima["anomalie"], f"anteprima: anche chi resta uguale, col motivo {uguali}")
+testo = S.testo_piano(anteprima, "x")
+ok("Primo Basso" in testo and "Terzo Doncic" in testo and "resta" in testo, "il report elenca anche gli invariati")
 fase("offseason-rinnovi", 2027)
 S.applica_stagione(2027)
 c1 = attivo(r1); c3 = attivo(r3); c4 = attivo(r4); c5 = attivo(r5); c6 = attivo(r6)

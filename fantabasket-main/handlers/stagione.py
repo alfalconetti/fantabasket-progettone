@@ -118,38 +118,66 @@ def _rookie_attivi(cur) -> list[dict]:
 
 
 def _calcola_piano(cur, stagione: int) -> dict:
-    """Cosa succede ai rookie entrando nella stagione `stagione` (già incrementata)."""
-    piano = {"secondo_anno": [], "quarto_anno": [], "fine_scala": [], "da_rinnovare": [], "anomalie": []}
+    """Cosa succede ai rookie entrando nella stagione `stagione` (già incrementata). Elenca
+    tutti i rookie che cambiano anno di scala, anche quelli che restano com'erano (con il
+    motivo), così il report si controlla giocatore per giocatore."""
+    piano = {"secondo_anno": [], "secondo_anno_uguali": [], "quarto_anno": [], "quarto_anno_uguali": [],
+             "fine_scala": [], "da_rinnovare": [], "anomalie": []}
     for c in _rookie_attivi(cur):
         k = stagione - int(c["anno_firma"])          # 0 = I anno … 3 = IV anno
         residui = db.anni_residui(c, stagione)
+        sf, anni, imp_ora = int(c["stagione_firma"]), int(c["anni_originali"]), int(c["importo"])
         base = {"contratto_id": c["id"], "giocatore_id": c["giocatore_id"], "nome": c["nome_common"],
-                "team_id": c["team_id"], "pick": c["pick_numero"], "importo": c["importo"],
-                "da": _contratto_str(c["importo"], max(residui, 0))}
-        if k == 1 and str(c["stagione_firma"]) == str(c["anno_firma"]):
+                "team_id": c["team_id"], "pick": c["pick_numero"], "importo": imp_ora,
+                "da": _contratto_str(imp_ora, max(residui, 0))}
+        strano = (f"{c['nome_common']} ({c['team_id']}): contratto rookie {imp_ora}x{anni} firmato nel {sf} "
+                  f"non riconosciuto al {k + 1}° anno di scala")
+        if k == 1:
+            if sf == stagione and anni == 1:
+                continue                          # già passato al II anno (passaggio ripetuto)
+            if sf != int(c["anno_firma"]):
+                piano["anomalie"].append(strano)
+                continue
             imp = importo_scala(c["pick_numero"], 1)
             if imp is None:
                 piano["anomalie"].append(f"{c['nome_common']}: pick {c['pick_numero']} fuori dalla rookie scale")
+            elif imp == imp_ora:
+                # pick basse: stesso importo, il contratto x2 del I anno vale anche per il II
+                piano["secondo_anno_uguali"].append({**base, "motivo": "stesso importo in tabella"})
+            else:
+                piano["secondo_anno"].append({**base, "importo_nuovo": imp, "anni_nuovi": 1, "tipo": "rookie",
+                                              "a": _contratto_str(imp, 1), "nota": f"Rookie scale: II anno {imp}x1"})
+        elif k == 2:
+            if residui <= 0:
+                piano["da_rinnovare"].append(base)
+            else:
+                piano["anomalie"].append(strano)
+        elif k == 3:
+            if sf == stagione and anni == 1:
+                continue                          # già passato al IV anno (passaggio ripetuto)
+            if not (sf == stagione - 1 and anni == 2):
+                piano["anomalie"].append(strano)
                 continue
-            if imp == int(c["importo"]):
-                continue      # stesso importo (pick basse): il contratto x2 del I anno vale anche per il II
-            piano["secondo_anno"].append({**base, "importo_nuovo": imp, "anni_nuovi": 1, "tipo": "rookie",
-                                          "a": _contratto_str(imp, 1), "nota": f"Rookie scale: II anno {imp}x1"})
-        elif k == 2 and residui <= 0:
-            piano["da_rinnovare"].append(base)
-        elif k == 3 and int(c["stagione_firma"]) == stagione - 1 and int(c["anni_originali"]) == 2:
             # IV anno: mai sotto la tabella (Luca, 12/10/2026). Il rinnovo di scala sale
             # all'importo del IV anno; una Doncic è già più alta e resta com'è (x1)
             scala_iv = importo_scala(c["pick_numero"], 3)
-            if scala_iv is not None and int(c["importo"]) < scala_iv:
+            if scala_iv is None:
+                piano["anomalie"].append(f"{c['nome_common']}: pick {c['pick_numero']} fuori dalla rookie scale")
+            elif imp_ora < scala_iv:
                 piano["quarto_anno"].append({**base, "importo_nuovo": scala_iv, "anni_nuovi": 1, "tipo": "rookie",
                                              "a": _contratto_str(scala_iv, 1), "nota": f"Rookie scale: IV anno {scala_iv}x1"})
-        elif k == 4 and residui <= 0:
+            else:
+                motivo = (f"Doncic, la tabella dice {scala_iv}" if imp_ora > scala_iv else "stesso importo in tabella")
+                piano["quarto_anno_uguali"].append({**base, "motivo": motivo})
+        elif k == 4:
+            if residui > 0:
+                piano["anomalie"].append(strano)
+                continue
             fm = fantamedia_max(c["giocatore_id"], [stagione - 2, stagione - 1])
             d = doncic(fm)
-            imp = max(int(c["importo"]), d or 0)
+            imp = max(imp_ora, d or 0)
             nota = (f"Fine rookie scale: Doncic d'ufficio (fantamedia {math.floor(fm)}) {imp}x0"
-                    if d and d > int(c["importo"]) else f"Fine rookie scale: {imp}x0")
+                    if d and d > imp_ora else f"Fine rookie scale: {imp}x0")
             piano["fine_scala"].append({**base, "importo_nuovo": imp, "anni_nuovi": 0, "tipo": "normale",
                                         "a": _contratto_str(imp, 0), "nota": nota, "fantamedia": fm})
         elif k >= 5 or k < 0:
@@ -225,15 +253,21 @@ def _nome_team(team_id: str) -> str:
     return html.escape(t["nome"] if t else team_id)
 
 
+def _n(piano: dict, chiave: str) -> int:
+    return len(piano.get(chiave) or [])
+
+
 def testo_piano_breve(piano: dict, titolo: str) -> str:
     """Riassunto per la conferma del cambio di fase (il messaggio deve stare in 4096 caratteri)."""
     doncic_fine = [v for v in piano.get("fine_scala", []) if "Doncic" in v.get("nota", "")]
     righe = [titolo, "",
-             f"📈 Rookie al II anno: <b>{len(piano.get('secondo_anno', []))}</b>",
-             f"📈 Rookie al IV anno (scala): <b>{len(piano.get('quarto_anno', []))}</b>",
-             f"🎓 Fine rookie scale → x0 normali: <b>{len(piano.get('fine_scala', []))}</b>"
+             f"📈 Rookie al II anno: <b>{_n(piano, 'secondo_anno') + _n(piano, 'secondo_anno_uguali')}</b> "
+             f"({_n(piano, 'secondo_anno')} con l'importo nuovo, {_n(piano, 'secondo_anno_uguali')} uguali)",
+             f"📈 Rookie al IV anno: <b>{_n(piano, 'quarto_anno') + _n(piano, 'quarto_anno_uguali')}</b> "
+             f"({_n(piano, 'quarto_anno')} con l'importo nuovo, {_n(piano, 'quarto_anno_uguali')} uguali)",
+             f"🎓 Fine rookie scale → x0 normali: <b>{_n(piano, 'fine_scala')}</b>"
              + (f" (Doncic d'ufficio: {', '.join(html.escape(v['nome']) for v in doncic_fine)})" if doncic_fine else ""),
-             f"🔁 Rookie a fine II anno da rinnovare: <b>{len(piano.get('da_rinnovare', []))}</b>"]
+             f"🔁 Rookie a fine II anno da rinnovare: <b>{_n(piano, 'da_rinnovare')}</b>"]
     if piano.get("x0"):
         righe.append(f"⏳ Contratti x0 dopo il passaggio: <b>{sum(int(r['n']) for r in piano['x0'])}</b> "
                      f"(non pesano su cap e slot finché non vengono rinnovati o dichiarati RFA)")
@@ -244,19 +278,32 @@ def testo_piano_breve(piano: dict, titolo: str) -> str:
 
 
 def testo_piano(piano: dict, titolo: str) -> str:
+    """Dettaglio completo: ogni rookie che cambia anno di scala, anche se l'importo resta."""
     righe = [titolo, ""]
-    sezioni = [("📈 Rookie al II anno", "secondo_anno"), ("📈 Rookie al IV anno", "quarto_anno"),
-               ("🎓 Fine rookie scale (x0, da rinnovare come normali)", "fine_scala")]
-    for etichetta, chiave in sezioni:
-        voci = piano.get(chiave) or []
-        if voci:
-            righe.append(f"<b>{etichetta}</b> ({len(voci)})")
-            righe += [f"  • {html.escape(v['nome'])} ({_nome_team(v['team_id'])}): {v['da']} → {v['a']}"
-                      + (" <i>Doncic</i>" if "Doncic" in v.get("nota", "") else "") for v in voci]
+
+    def cambi(voci):
+        return [f"  • {html.escape(v['nome'])} ({_nome_team(v['team_id'])}): {v['da']} → {v['a']}"
+                + (" <i>Doncic</i>" if "Doncic" in v.get("nota", "") else "") for v in voci]
+
+    def uguali(voci):
+        return [f"  • {html.escape(v['nome'])} ({_nome_team(v['team_id'])}): {v['da']}, resta "
+                f"<i>({html.escape(v['motivo'])})</i>" for v in voci]
+
+    for etichetta, k_nuovi, k_uguali in (("📈 Rookie dal I al II anno", "secondo_anno", "secondo_anno_uguali"),
+                                         ("📈 Rookie dal III al IV anno", "quarto_anno", "quarto_anno_uguali")):
+        nuovi, stessi = piano.get(k_nuovi) or [], piano.get(k_uguali) or []
+        if nuovi or stessi:
+            righe.append(f"<b>{etichetta}</b> ({len(nuovi) + len(stessi)}: {len(nuovi)} con l'importo nuovo, "
+                         f"{len(stessi)} uguali)")
+            righe += cambi(nuovi) + uguali(stessi)
             righe.append("")
+    if piano.get("fine_scala"):
+        righe.append(f"<b>🎓 Fine rookie scale (x0, da rinnovare come normali)</b> ({len(piano['fine_scala'])})")
+        righe += cambi(piano["fine_scala"])
+        righe.append("")
     if piano.get("da_rinnovare"):
         righe.append(f"<b>🔁 Rookie a fine II anno (x0: rinnovo rookie, RFA o FA)</b> ({len(piano['da_rinnovare'])})")
-        righe += [f"  • {html.escape(v['nome'])} ({_nome_team(v['team_id'])})" for v in piano["da_rinnovare"]]
+        righe += [f"  • {html.escape(v['nome'])} ({_nome_team(v['team_id'])}): {v['da']}" for v in piano["da_rinnovare"]]
         righe.append("")
     if piano.get("x0"):
         tot = sum(int(r["n"]) for r in piano["x0"])
@@ -380,8 +427,9 @@ async def dopo_cambio_fase(bot, fase_vecchia: str, nuova_fase: str) -> str:
         piano = applica_stagione(stagione)       # rilanciabile: tornando ai rinnovi non rifà niente
         cambiati = len(piano["secondo_anno"]) + len(piano["quarto_anno"]) + len(piano["fine_scala"])
         if cambiati or nuova_stagione(fase_vecchia, nuova_fase):
-            note.append(f"\n📈 Rookie: {len(piano['secondo_anno'])} al II anno, {len(piano['quarto_anno'])} al IV, "
-                        f"{len(piano['fine_scala'])} a fine scala")
+            note.append(f"\n📈 Rookie: importo nuovo per {_n(piano, 'secondo_anno')} al II anno e "
+                        f"{_n(piano, 'quarto_anno')} al IV, {_n(piano, 'fine_scala')} a fine scala, "
+                        f"{_n(piano, 'da_rinnovare')} da rinnovare")
             if gruppo:
                 from shared.messaggi import manda_lungo
                 await manda_lungo(bot, gruppo, testo_piano(piano, f"📅 <b>Stagione {stagione}: contratti aggiornati</b>"),
@@ -432,9 +480,10 @@ def riassunto_piano(piano: dict, stagione: int) -> str:
     doncic_fine = sum(1 for v in piano.get("fine_scala", []) if "Doncic" in v.get("nota", ""))
     x0 = sum(int(r["n"]) for r in piano.get("x0") or [])
     return (f"📅 <b>Stagione {stagione}: contratti aggiornati</b>\n"
-            f"📈 {len(piano['secondo_anno'])} rookie al II anno · {len(piano['quarto_anno'])} al IV · "
-            f"{len(piano['fine_scala'])} a fine scala ({doncic_fine} con Doncic) · "
-            f"{len(piano['da_rinnovare'])} da rinnovare · {x0} contratti x0")
+            f"📈 II anno: {_n(piano, 'secondo_anno')} importi nuovi, {_n(piano, 'secondo_anno_uguali')} uguali · "
+            f"IV anno: {_n(piano, 'quarto_anno')} importi nuovi, {_n(piano, 'quarto_anno_uguali')} uguali · "
+            f"{_n(piano, 'fine_scala')} a fine scala ({doncic_fine} con Doncic) · "
+            f"{_n(piano, 'da_rinnovare')} da rinnovare · {x0} contratti x0")
 
 
 def testo_scaduti(scaduti: list[dict]) -> str:
