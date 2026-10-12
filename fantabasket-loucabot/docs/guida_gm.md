@@ -1,0 +1,39 @@
+# Guida GM — loucabot
+
+loucabot è il bot del campionato: il calendario della lega, le scadenze per la formazione, le squadre NBA a media e, man mano, i punteggi. Roster, trade e tagli restano nel bot principale, le aste nel bot delle aste.
+
+Funziona in privato e nei gruppi. In privato ti riconosce come GM della tua squadra.
+
+---
+
+## La tua giornata: `/calendario`
+
+Scrivi `/calendario` e vedi la giornata in corso, o la prossima se non ne è in corso nessuna:
+
+- **le date** della giornata (giorni NBA, cioè della costa est americana);
+- **⏰ entro quando mettere formazione e panchina**: l'ora della prima partita NBA della giornata, in ora italiana. È la scadenza del regolamento: la panchina va inserita prima dell'inizio della prima partita;
+- **📉 le squadre NBA a media**: quelle che nella giornata non giocano. I loro giocatori prendono la media (ma chi è infortunato o squalificato prende 0);
+- **🏀 il tuo avversario**, e se giochi in casa (+3 punti) o in trasferta;
+- **le prossime tre giornate**: 🏠 in casa, ✈️ in trasferta.
+
+`/calendario 12` mostra la giornata 12.
+
+## Tutte le partite: `/giornata`
+
+`/giornata` elenca le 12 partite della giornata in corso (o la prossima), `/giornata 12` quelle della 12. Va bene anche nei gruppi.
+
+---
+
+## Da dove vengono questi dati
+
+Il calendario della lega lo importano gli admin. Le partite NBA il bot le scarica da ESPN e le ricontrolla ogni mattina: se l'NBA sposta una partita, la scadenza o le squadre a media di una giornata possono cambiare, e il bot si aggiorna da solo (gli admin ricevono un avviso).
+
+Se le squadre a media scritte nel calendario pubblicato e quelle del bot non coincidono, vale il bot: le calcola dalle partite NBA vere.
+
+## I punteggi
+
+Il bot scarica ogni mattina i tabellini delle partite della notte e calcola i fantapunti di ogni giocatore con la formula del regolamento (punto +0,5, assist +2, rimbalzo offensivo +2, difensivo +1,25, tripla +1,5, tiro dal campo tentato −0,5 e segnato +1, libero tentato −0,75 e segnato +1, recupero +2, stoppata +2, palla persa −2). Per ora i punteggi li vedono gli admin; quando ci saranno quintetti e panchine nel bot arriveranno anche risultati e classifica.
+
+---
+
+Se qualcosa non torna, scrivi a un admin.

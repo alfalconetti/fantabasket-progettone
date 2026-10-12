@@ -1,7 +1,8 @@
 """Comandi di loucabot.
 
-GM e tutti:  /calendario [N], /giornata [N], /guida
-Admin:       /importa_calendario (con il CSV allegato), /calendario_check, /nba_sync
+GM e tutti:  /start, /calendario [N], /giornata [N], /guida (file)
+Admin:       /importa_calendario (con il CSV allegato), /calendario_check, /nba_sync, /guida_admin
+Dev:         /dev, /guida_dev, /dev_version, /job_status
 """
 import html
 import logging
@@ -217,8 +218,8 @@ async def job_sync(context: ContextTypes.DEFAULT_TYPE):
                 pass
 
 
-async def cmd_guida(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    testo = ("<b>loucabot</b> — calendario della lega\n\n"
+async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    testo = ("<b>loucabot</b> — calendario e punteggi della lega. Guida completa: /guida\n\n"
              "/calendario — la tua giornata: avversario, casa o trasferta, entro quando mettere la formazione, "
              "chi è a media, le prossime giornate. /calendario N per un'altra giornata\n"
              "/giornata [N] — tutte le partite di una giornata")
@@ -230,14 +231,79 @@ async def cmd_guida(update: Update, context: ContextTypes.DEFAULT_TYPE):
                   "/tabellini — scarica i tabellini delle partite finite che mancano\n"
                   "/espn_giocatori — roster NBA da ESPN e abbinamento con l'anagrafica\n"
                   "/espn_mancanti — giocatori a roster senza id ESPN\n"
-                  "/espn_abbina ID_GIOCATORE ID_ESPN — abbinamento a mano")
+                  "/espn_abbina ID_GIOCATORE ID_ESPN — abbinamento a mano\n\n"
+                  "Guida admin completa: /guida_admin")
     await update.effective_message.reply_text(testo, parse_mode="HTML")
+
+
+# ── guide e comandi dev ────────────────────────────────────────────────────────
+
+async def _manda_guida(update, context, file: str, titolo: str):
+    import os
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", file)
+    try:
+        with open(path, "rb") as f:
+            await context.bot.send_document(chat_id=update.effective_user.id, document=f,
+                                            filename=f"loucabot_{file}", caption=titolo)
+    except Exception as err:
+        await update.effective_message.reply_text(f"❌ Guida non inviata: {err} (hai mai scritto al bot in privato?)")
+
+
+async def cmd_guida(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await _manda_guida(update, context, "guida_gm.md", "📖 Guida GM — loucabot")
+
+
+async def cmd_guida_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not config.is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ Solo admin.")
+        return
+    await _manda_guida(update, context, "guida_admin.md", "📖 Guida admin — loucabot")
+
+
+def _is_dev(uid) -> bool:
+    return bool(config.dev_id()) and int(uid) == config.dev_id()
+
+
+async def cmd_guida_dev(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if _is_dev(update.effective_user.id):
+        await _manda_guida(update, context, "guida_dev.md", "🛠 Guida dev — loucabot")
+
+
+async def cmd_dev(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _is_dev(update.effective_user.id):
+        return
+    await update.effective_message.reply_text(
+        "<b>Comandi dev — loucabot</b>\n\n"
+        "/guida_dev — la guida tecnica (file .md)\n"
+        "/dev_version — versione del bot\n"
+        "/job_status — job programmati e prossima esecuzione\n\n"
+        "Tutti i comandi admin: /guida_admin", parse_mode="HTML")
+
+
+async def cmd_dev_version(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if _is_dev(update.effective_user.id):
+        await update.effective_message.reply_text(f"📅 loucabot {config.versione()}")
+
+
+async def cmd_job_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _is_dev(update.effective_user.id):
+        return
+    jobs = [j for j in (context.job_queue.jobs() if context.job_queue else []) if j.next_t]
+    righe = [f"• {j.name}: {cal.ora(j.next_t)}" for j in sorted(jobs, key=lambda j: j.next_t)]
+    await update.effective_message.reply_text("⏱ <b>Job</b>\n" + ("\n".join(e(r) for r in righe) or "nessuno"),
+                                              parse_mode="HTML")
 
 
 def get_handlers() -> list:
     import handlers_calcolo
     return handlers_calcolo.get_handlers() + [
-        CommandHandler(["start", "guida"], cmd_guida),
+        CommandHandler("start", cmd_start),
+        CommandHandler("guida", cmd_guida),
+        CommandHandler("guida_admin", cmd_guida_admin),
+        CommandHandler("guida_dev", cmd_guida_dev),
+        CommandHandler("dev", cmd_dev),
+        CommandHandler("dev_version", cmd_dev_version),
+        CommandHandler("job_status", cmd_job_status),
         CommandHandler("calendario", cmd_calendario),
         CommandHandler("giornata", cmd_giornata),
         CommandHandler("importa_calendario", cmd_importa_calendario),

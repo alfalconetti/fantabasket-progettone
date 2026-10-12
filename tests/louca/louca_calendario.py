@@ -133,3 +133,19 @@ asyncio.run(_h.job_sync(_ctx))
 ok(any(x["chat_id"] == -77 and "8:30" in x["text"] for x in _ctx.bot.m),
    f"sincronizzazione delle 8:30 annotata sul canale log {_ctx.bot.m}")
 _json.dump(_g, open(config.GLOBALS_PATH, "w"))
+
+# menu "/" per scope, come gli altri bot
+import comandi
+L = comandi.liste_comandi()
+nomi = {k: [c.command for c in v] for k, v in L.items()}
+ok(set(nomi["gruppi"]) <= set(nomi["gm"]) <= set(nomi["admin"]) <= set(nomi["dev"])
+   and "fantapunti" not in nomi["gm"] and "fantapunti" in nomi["admin"] and "dev" in nomi["dev"] and "dev" not in nomi["admin"],
+   "menu: gruppi ⊂ privato ⊂ admin ⊂ dev, i comandi admin solo agli admin")
+class _BotC:
+    def __init__(s): s.v = []
+    async def set_my_commands(s, cmds, scope=None): s.v.append((type(scope).__name__, getattr(scope, "chat_id", None), len(cmds)))
+_bc = _BotC()
+asyncio.run(comandi.registra_comandi(_bc))
+_gl = _json.load(open(config.GLOBALS_PATH))
+ok(("BotCommandScopeChat", _gl["admin_group_id"], len(L["admin"])) in _bc.v and ("BotCommandScopeChat", _gl["dev_id"], len(L["dev"])) in _bc.v
+   and ("BotCommandScopeAllGroupChats", None, len(L["gruppi"])) in _bc.v, f"registrazione per scope {_bc.v}")

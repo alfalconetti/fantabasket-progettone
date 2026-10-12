@@ -98,7 +98,10 @@ giocatore; ogni giorno lo stesso con i giocatori nuovi dei tabellini. Gli altri:
 |---|---|---|
 | `/calendario [N]` | GM | la tua giornata (avversario, casa o trasferta, scadenza, squadre a media) e le prossime |
 | `/giornata [N]` | tutti | le partite di una giornata |
-| `/guida` | tutti | l'elenco dei comandi |
+| `/start` | tutti | i comandi in breve |
+| `/guida` | tutti | la guida GM (file) |
+| `/guida_admin` | admin | la guida admin (file) |
+| `/dev`, `/guida_dev`, `/dev_version`, `/job_status` | dev | comandi dev, guida tecnica, versione, job |
 | `/importa_calendario` | admin | con il CSV allegato, o in risposta al messaggio con il CSV |
 | `/calendario_check` | admin | scadenze, squadre a media, confronto con il calendario |
 | `/nba_sync` | admin | riscarica tutte le partite NBA della stagione |
@@ -112,14 +115,16 @@ giocatore; ogni giorno lo stesso con i giocatori nuovi dei tabellini. Gli altri:
 
 | File | Contenuto |
 |---|---|
-| `bot.py` | avvio, comandi del menu, job (8:30; infortunati 17:30 e 23:30), errori al canale log e al dev |
+| `bot.py` | avvio, job (8:30; infortunati 17:30 e 23:30), errori al canale log e al dev |
+| `comandi.py` | menu `/` per scope: gruppi, privato, admin (privato e gruppo admin), dev |
 | `handlers.py` | i comandi del calendario, il canale log, la sincronizzazione delle 8:30 |
 | `handlers_calcolo.py` | i comandi del calcolo e la foto degli infortunati |
 | `calcolo.py` | punteggio del giocatore, della squadra (FADD), esito con supplementari, abbinamento ESPN |
 | `calendario.py` | lettura del CSV, controlli, import, scadenze e squadre a media |
 | `nba.py` | ESPN: partite, tabellini e fantapunti, infortunati, roster |
 | `db.py` | PostgreSQL: tabelle di loucabot e query |
-| `config.py` | `globals.json` e `teams.json` in sola lettura |
+| `config.py` | `globals.json` e `teams.json` in sola lettura, versione dal CHANGELOG |
+| `docs/` | `guida_gm.md`, `guida_admin.md`, `guida_dev.md` (anche da Telegram: `/guida`, `/guida_admin`, `/guida_dev`) |
 
 Prove: `tests/run.sh louca_calendario louca_calcolo` (calendario; tabellino vero ridotto di
 NYK-SAS del 1/3/2026, formula, infortunati, partite/media/zero, FADD, supplementari, abbinamento).

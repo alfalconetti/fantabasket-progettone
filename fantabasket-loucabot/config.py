@@ -55,3 +55,14 @@ def squadra_del_gm(uid: int) -> dict | None:
 def nome(team_id: str) -> str:
     t = squadra(team_id)
     return t["nome"] if t else team_id
+
+
+def versione() -> str:
+    """L'ultima versione del CHANGELOG di loucabot."""
+    import re
+    try:
+        t = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "CHANGELOG.md"), encoding="utf-8").read()
+        v = re.findall(r"^## (v[0-9][0-9A-Za-z.\-]*)", t, re.M)
+        return v[-1] if v else "sconosciuta"
+    except Exception:
+        return "sconosciuta"

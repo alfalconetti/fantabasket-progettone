@@ -29,3 +29,9 @@ Il calcolo dei fantapunti.
 ## v5 (2026-10-12)
 
 - Id e nome ESPN nell'anagrafica (`giocatori.espn_id`, `nome_espn`, deciso con Luca) invece della tabella `lega_espn`: all'avvio gli abbinamenti già fatti vengono copiati e la tabella eliminata. È l'unica cosa che loucabot scrive fuori dalle sue tabelle
+
+## v6 (2026-10-12)
+
+- Menu `/` per scope come negli altri bot (`comandi.py`): nei gruppi calendario e giornata, in privato anche la guida, agli admin (in privato e nel gruppo admin) i comandi admin, al dev quelli dev
+- Documentazione a più livelli: `docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md`, inviate come file da `/guida`, `/guida_admin`, `/guida_dev`; `/start` con i comandi in breve
+- Comandi dev: `/dev`, `/dev_version`, `/job_status`

@@ -57,8 +57,13 @@ ok(not mancanti, f"docs/regolamento_e_codice.md: comandi citati tutti esistenti 
 
 # v4.0.0: loucabot (README e /guida) e i suoi comandi del menu
 reg = registrati("fantabasket-loucabot")
-testi = leggi("fantabasket-loucabot/README.md") + funzione("fantabasket-loucabot/handlers.py", "cmd_guida")
-mancanti = sorted(citati(testi) - reg)
-ok(not mancanti, f"loucabot README e /guida: comandi citati tutti esistenti {mancanti or ''}")
-menu = set(re.findall(r'BotCommand\(\s*"(\w+)"', leggi("fantabasket-loucabot", "bot.py")))
+for nome, t in [("README", leggi("fantabasket-loucabot/README.md")),
+                ("guida GM", leggi("fantabasket-loucabot/docs/guida_gm.md")),
+                ("guida admin", leggi("fantabasket-loucabot/docs/guida_admin.md")),
+                ("guida dev", leggi("fantabasket-loucabot/docs/guida_dev.md")),
+                ("/start e /dev", funzione("fantabasket-loucabot/handlers.py", "cmd_start")
+                 + funzione("fantabasket-loucabot/handlers.py", "cmd_dev"))]:
+    mancanti = sorted(citati(t) - reg)
+    ok(not mancanti, f"loucabot {nome}: comandi citati tutti esistenti {mancanti or ''}")
+menu = set(re.findall(r'BotCommand\(\s*"(\w+)"', leggi("fantabasket-loucabot", "comandi.py")))
 ok(menu and not (menu - reg), f"loucabot menu '/': tutti i comandi esistono {sorted(menu - reg) or ''}")

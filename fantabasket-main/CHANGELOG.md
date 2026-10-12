@@ -1119,3 +1119,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v4.1.1 (2026-10-12)
 
 - Anagrafica: `giocatori.espn_id` e `nome_espn` (indice unico sull'id), scritti da loucabot v5; gli abbinamenti della v4.1.0 passano lì da soli
+
+## v4.1.2 (2026-10-12)
+
+- loucabot v6: menu dei comandi per scope (gruppi, privato, admin, dev) e guide GM, admin e dev come gli altri bot

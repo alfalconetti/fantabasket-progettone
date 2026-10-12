@@ -5,11 +5,10 @@ solo le sue (lega_*, nba_*).
 """
 import logging
 import os
-import re
 from datetime import time as dtime
 from zoneinfo import ZoneInfo
 
-from telegram import BotCommand, Update
+from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes
 
 import config
@@ -23,22 +22,7 @@ logger = logging.getLogger(__name__)
 ROME = ZoneInfo("Europe/Rome")
 
 
-def _versione() -> str:
-    try:
-        t = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "CHANGELOG.md"), encoding="utf-8").read()
-        v = re.findall(r"^## (v[0-9][0-9A-Za-z.\-]*)", t, re.M)
-        return v[-1] if v else "sconosciuta"
-    except Exception:
-        return "sconosciuta"
-
-
-BOT_VERSION = _versione()
-
-COMANDI = [
-    BotCommand("calendario", "La tua giornata e le prossime"),
-    BotCommand("giornata", "Tutte le partite di una giornata"),
-    BotCommand("guida", "Cosa fa il bot"),
-]
+BOT_VERSION = config.versione()
 
 
 def _token() -> str:
@@ -59,10 +43,8 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def post_init(app):
-    try:
-        await app.bot.set_my_commands(COMANDI)
-    except Exception as e:
-        logger.warning("Comandi: %s", e)
+    from comandi import registra_comandi
+    await registra_comandi(app.bot)
     if config.canale_log():
         try:
             await app.bot.send_message(chat_id=config.canale_log(), text=f"📅 loucabot {BOT_VERSION} avviato")
