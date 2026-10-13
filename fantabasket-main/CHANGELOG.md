@@ -1127,3 +1127,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v4.2.0 (2026-10-13)
 
 - loucabot v7: il calendario sul foglio Google Calendario. gas-router: endpoint `/gas/calendario` (timeout lungo). Script: `gas/calendario.gs` e azione `calendario` in `main.gs` (serve `clasp push` e una Nuova versione della web app)
+
+## v4.2.1 (2026-10-13)
+
+- loucabot v8 e `gas/calendario.gs`: il foglio Calendario si ricarica tutto (colonne A:E) a ogni aggiornamento (serve di nuovo `clasp push` e Nuova versione)

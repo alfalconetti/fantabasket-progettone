@@ -1,16 +1,14 @@
 """
-Il calendario sul foglio Google "Calendario" (stesso file del Roster), tramite gas-router.
+Il calendario sul foglio Google "Calendario" (stesso file del Roster), tramite gas-router e la
+stessa web app del Roster (azione "calendario").
 
-Il foglio ha una formattazione sua che non va toccata. Il CSV importato è la mappa delle sue
-righe: per ogni giornata un'intestazione "Week N gg/mm - gg/mm (media …)" (celle unite A:E), poi
-per ogni partita la riga "Casa | punti | V | punti | Trasferta", subito sotto la riga dei
-supplementari e due righe vuote.
-
-loucabot manda allo script, giornata per giornata, le righe del blocco con i valori da scrivere
-e None per "non toccare": l'intestazione (squadre a media calcolate dalle partite NBA) e i
-punteggi in B e D (regolamentari nella riga delle squadre, supplementari subito sotto) dalla
-tabella lega_risultati. Lo script trova la giornata cercando "Week N" nella colonna A e scrive
-solo le celle che cambiano: niente si cancella, niente perde la formattazione.
+A ogni aggiornamento si ricarica tutta la pagina, colonne A:E: lo script svuota i valori di A:E
+(la formattazione resta) e scrive la griglia. La griglia è il CSV importato tale e quale (per
+ogni giornata l'intestazione "Week N gg/mm - gg/mm (media …)" su A:E unite, poi per ogni partita
+la riga "Casa | punti | V | punti | Trasferta", sotto quella dei supplementari e due vuote), con
+le squadre a media calcolate dalle partite NBA nelle intestazioni e i punteggi da lega_risultati
+in B e D. Si aggiorna all'import, quando cambiano le squadre a media, con /calendario_foglio e
+dopo ogni giornata convalidata.
 """
 import csv
 import io
@@ -38,8 +36,11 @@ def _num(x):
     return None if x is None else float(x)
 
 
-def blocchi(stagione: str) -> list[dict]:
-    """[{numero, righe: [[A, B, C, D, E] con None = non toccare]}] dal CSV importato."""
+def griglia(stagione: str) -> list[list]:
+    """Tutta la pagina Calendario, colonne A:E, dal CSV importato: intestazioni con le squadre a
+    media calcolate (testo tutto in A, il resto vuoto: A:E sono unite), squadre e V come nel CSV,
+    punteggi in B e D da lega_risultati (regolamentari nella riga delle squadre, supplementari
+    subito sotto). Le celle senza valore sono stringhe vuote."""
     testo = db.csv_calendario(stagione)
     if not testo:
         return []
@@ -48,21 +49,18 @@ def blocchi(stagione: str) -> list[dict]:
     mappa, _, _ = cal.abbina_squadre({n for n in nomi if not cal.RE_GIORNATA.match(n)})
     ris = db.risultati(stagione)
     gg = {g["numero"]: g for g in db.giornate(stagione)}
-    out, blocco, numero, sotto = [], None, None, None
+    out, numero, sotto = [], None, None
     for r in righe:
         celle = ([c.strip() for c in r] + [""] * 5)[:5]
         m = cal.RE_GIORNATA.match(",".join(r))
         if m:
             numero = int(m.group(1))
             g = gg.get(numero)
-            blocco = {"numero": numero, "righe": [[intestazione(",".join(r).strip().rstrip(",").strip(),
-                                                                 g["media"] if g else None), None, None, None, None]]}
-            out.append(blocco)
+            testo_int = ",".join(r).strip().rstrip(",").strip()
+            out.append([intestazione(testo_int, g["media"] if g else None), "", "", "", ""])
             sotto = None
             continue
-        if blocco is None:
-            continue
-        riga = [None] * 5
+        riga = list(celle)
         if celle[0] and celle[2].upper() == "V" and celle[4]:
             x = ris.get((numero, mappa.get(celle[0]), mappa.get(celle[4])))
             if x and x["punti_casa"] is not None:
@@ -72,10 +70,9 @@ def blocchi(stagione: str) -> list[dict]:
             if sotto["supp_casa"] is not None:
                 riga[1], riga[3] = _num(sotto["supp_casa"]), _num(sotto["supp_trasferta"])
             sotto = None
-        blocco["righe"].append(riga)
-    for b in out:                       # niente righe finali senza niente da scrivere
-        while len(b["righe"]) > 1 and all(v is None for v in b["righe"][-1]):
-            b["righe"].pop()
+        out.append(riga)
+    while out and all(v == "" for v in out[-1]):
+        out.pop()
     return out
 
 
@@ -83,9 +80,9 @@ def configurato() -> bool:
     return bool(os.environ.get("GAS_ROUTER_URL"))
 
 
-async def invia(blocchi_: list[dict], manda=None) -> dict:
+async def invia(righe: list[list], manda=None) -> dict:
     """POST al gas-router (/gas/calendario). `manda(payload)` si può sostituire nelle prove."""
-    payload = {"action": "calendario", "blocchi": blocchi_}
+    payload = {"action": "calendario", "righe": righe}
     if manda:
         return await manda(payload)
     import httpx
@@ -102,17 +99,14 @@ async def aggiorna(stagione: str, manda=None) -> str:
     """Aggiorna il foglio e restituisce una riga di esito per il canale log."""
     if not manda and not configurato():
         return "foglio non configurato (GAS_ROUTER_URL)"
-    b = blocchi(stagione)
-    if not b:
+    g = griglia(stagione)
+    if not g:
         return "nessun calendario importato"
     try:
-        r = await invia(b, manda)
+        r = await invia(g, manda)
     except Exception as err:
         logger.warning("Foglio Calendario: %s", err)
         return f"⚠️ foglio non aggiornato ({type(err).__name__}: {str(err)[:150]})"
     if r.get("error"):
         return f"⚠️ foglio non aggiornato: {str(r['error'])[:200]}"
-    esito = f"foglio Calendario: {r.get('celle', 0)} celle aggiornate"
-    if r.get("non_trovate"):
-        esito += f", ⚠️ giornate non trovate nel foglio: {', '.join(map(str, r['non_trovate']))}"
-    return esito
+    return f"foglio Calendario ricaricato ({r.get('righe', len(g))} righe)"

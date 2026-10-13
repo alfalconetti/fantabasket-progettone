@@ -15,7 +15,7 @@ Servizio `loucabot` del `docker-compose.yml` del progettone, cartella `fantabask
 | `handlers.py` | comandi del calendario, guide, dev; `log()` al canale log; `job_sync` delle 8:30 |
 | `handlers_calcolo.py` | comandi del calcolo (`/tabellini`, `/espn_giocatori`, `/espn_mancanti`, `/espn_abbina`, `/fantapunti`), foto degli infortunati |
 | `calendario.py` | CSV della lega: lettura, controlli, import; scadenze e squadre a media; `ora()` |
-| `foglio.py` | foglio Google Calendario: `blocchi()` dal CSV importato e da `lega_risultati`, `aggiorna()` via gas-router |
+| `foglio.py` | foglio Google Calendario: `griglia()` (tutta la pagina A:E) dal CSV importato e da `lega_risultati`, `aggiorna()` via gas-router |
 | `calcolo.py` | punteggio del giocatore, della squadra (FADD), `esito` con supplementari; abbinamento ESPN |
 | `nba.py` | ESPN: scoreboard, tabellini e `fantapunti()`, infortunati, roster; sigle; `NBA` (le 30) |
 | `db.py` | PostgreSQL: `migra()` e query |
@@ -67,7 +67,7 @@ Date ESPN in UTC → giorno della costa est (`ET`). Sigle ESPN → NBA (`SIGLE`:
 
 ## 3b. Foglio Calendario
 
-`foglio.blocchi(stagione)` rilegge il CSV importato riga per riga: per ogni giornata un blocco `{numero, righe}` con la prima riga = intestazione (testo originale con `(media …)` sostituito da quelle calcolate, `foglio.intestazione`), poi le righe del CSV con `None` dappertutto tranne B e D: punteggi regolamentari nella riga delle squadre, supplementari nella riga sotto. Righe finali tutte `None` tolte. `foglio.aggiorna` → POST `gas-router/gas/calendario` (timeout 170 s) → `gas/calendario.gs` `handleCalendario`: trova il foglio (`CONFIG.CALENDARIO_SHEET_NAME` o "Calendario", maiuscole libere), cerca `^(week|giornata)\s+N\b` nella colonna A, legge il blocco e scrive cella per cella solo dove il valore cambia (intestazione: solo A, celle unite A:E). Risponde `{ok, celle, non_trovate}`. Lo script si prova con node simulando il foglio (vedi la storia della v7 nel CHANGELOG). Modifiche a `gas/`: `clasp push` e Nuova versione della web app.
+`foglio.griglia(stagione)` rilegge il CSV importato (`lega_calendario_csv`) e costruisce tutta la pagina, 5 colonne: intestazioni con il testo intero in A (`foglio.intestazione`: `(media …)` sostituito con quelle calcolate, anche se nel CSV le virgole spezzavano la riga) e B:E vuote; partite come nel CSV, con i punteggi da `lega_risultati` in B e D (regolamentari nella riga delle squadre, supplementari nella riga sotto); righe vuote finali tolte. `foglio.aggiorna` → POST `gas-router/gas/calendario` (stessa web app del Roster, timeout 170 s) → `gas/calendario.gs` `handleCalendario`: trova il foglio (`CONFIG.CALENDARIO_SHEET_NAME` o "Calendario", maiuscole libere), `clearContent()` di A:E fino all'ultima riga (formattazione e celle unite restano) e `setValues` della griglia; rifiuta righe senza 5 colonne e griglie vuote. Risponde `{ok, righe}`. Lo script si prova con node simulando il foglio. Modifiche a `gas/`: `clasp push` e Nuova versione della web app.
 
 ## 4. Job
 

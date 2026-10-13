@@ -562,7 +562,7 @@ I comandi legati a una fase sono in `_fasi_comando`.
 
 **Google Sheets.**
 
-- **Percorso:** il bot manda a `gas-router` (POST `/gas/roster`, `/gas/scelte`, `/gas/bref`; loucabot `/gas/calendario` → `gas/calendario.gs`, foglio Calendario) e il router gira alla web app Apps Script con il suo token.
+- **Percorso:** il bot manda a `gas-router` (POST `/gas/roster`, `/gas/scelte`, `/gas/bref`; loucabot `/gas/calendario` → `gas/calendario.gs`, foglio Calendario ricaricato tutto in A:E) e il router gira alla web app Apps Script con il suo token.
 - **Fogli:** Roster (per squadra), Scelte (pick, diritti, Stepien, colori delle division da `config/divisions.json`), BrefRaw.
 - **Quando sincronizza:** `gas_client.sync_after_*` dopo ogni operazione, il periodico ogni 2 ore, la coda per le firme del bot aste. Il foglio Roster si manda **sempre per tutte le 24 squadre**: `sync_teams` ignora l'elenco che riceve, quindi non serve preoccuparsi di quali squadre passare.
 - **Deploy Apps Script:** `clasp push` dalla cartella `gas/` (escluso `globals.gs`, che ha la config vera e non va mai nello zip). La nuova versione si pubblica da Gestisci deployment → matita → Nuova versione. Un "Nuovo deployment" cambia l'URL: vanno aggiornati i secrets.

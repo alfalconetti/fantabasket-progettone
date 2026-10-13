@@ -33,7 +33,7 @@ class GASPayload(BaseModel):
     teams: Optional[list[Any]] = None
     anni:  Optional[list[int]] = None
     csv:   Optional[str] = None
-    blocchi: Optional[list[Any]] = None
+    righe: Optional[list[Any]] = None
 
 
 def _get_gas_scelte_url(): return _read_secret("GAS_SCELTE_URL_FILE")
@@ -77,13 +77,13 @@ async def bref(payload: GASPayload, authorization: str = Header(...)):
 
 @app.post("/gas/calendario")
 async def calendario(payload: GASPayload, authorization: str = Header(...)):
-    """Foglio Calendario (loucabot): intestazioni e punteggi, solo le celle che cambiano.
+    """Foglio Calendario (loucabot): tutta la pagina, colonne A:E.
     Stessa web app del Roster (doPost smista per action)."""
     _check_auth(authorization)
     gas_payload = {
         "token":   _get_gas_token(),
         "action":  "calendario",
-        "blocchi": payload.blocchi or [],
+        "righe":   payload.righe or [],
     }
     return await _forward(_get_gas_roster_url(), gas_payload, timeout=170.0)
 

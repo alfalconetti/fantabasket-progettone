@@ -25,7 +25,7 @@ Gli admin sono quelli di `admin_ids` in `globals.json`, gli stessi degli altri b
 
 **Squadre a media.** Vale il calcolo dalle partite NBA, che è quello che vedono i GM. Se `/calendario_check` mostra differenze, correggi le note nel CSV e reimportalo, così anche il calendario pubblicato torna giusto.
 
-**Il foglio Google Calendario** (stesso file del Roster) lo aggiorna il bot: all'import, quando cambiano le squadre a media, e con `/calendario_foglio`. Scrive solo le intestazioni delle giornate (squadre a media) e i punteggi in B e D (regolamentari nella riga delle squadre, supplementari subito sotto), e solo le celle che cambiano: nomi, formattazione e celle unite non si toccano. Trova ogni giornata cercando "Week N" nella colonna A: le intestazioni nel foglio devono restare così. I punteggi arriveranno con i risultati convalidati; quello che si scrive a mano in B e D non viene cancellato, ma un risultato convalidato lo sovrascrive.
+**Il foglio Google Calendario** (stesso file del Roster) lo ricarica il bot, tutto, nelle colonne A:E: all'import, quando cambiano le squadre a media, con `/calendario_foglio` e dopo ogni giornata convalidata. Scrive il calendario come nel CSV, con le squadre a media calcolate nelle intestazioni e i punteggi in B e D (regolamentari nella riga delle squadre, supplementari subito sotto). La formattazione, le celle unite e le altre colonne non si toccano; i valori di A:E invece sì: quello che si scrive lì a mano sparisce al primo aggiornamento.
 
 **Ogni mattina alle 8:30** il bot riscarica le partite dei giorni vicini (da 3 giorni fa a 2 settimane avanti) e ricalcola. Se in una giornata non ancora finita cambiano la prima partita o le squadre a media, arriva un avviso al gruppo admin.
 
@@ -63,7 +63,7 @@ Restano agli admin le 72 ore di attesa per le partite rinviate e le penalità.
 | `/importa_calendario` | importa il CSV (didascalia del file, o in risposta al file) |
 | `/calendario_check` | scadenze e squadre a media, confronto col CSV |
 | `/nba_sync` | riscarica le partite NBA della stagione |
-| `/calendario_foglio` | aggiorna il foglio Google Calendario |
+| `/calendario_foglio` | ricarica il foglio Google Calendario (A:E) |
 | `/tabellini` | tabellini mancanti e foto degli infortunati |
 | `/espn_giocatori` | roster NBA da ESPN e abbinamento automatico |
 | `/espn_mancanti` | giocatori a roster senza id ESPN |

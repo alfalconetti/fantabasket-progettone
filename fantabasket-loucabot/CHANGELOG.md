@@ -40,3 +40,7 @@ Il calcolo dei fantapunti.
 
 - Il calendario sul foglio Google Calendario (stesso file del Roster), tramite gas-router (`/gas/calendario`) e la nuova azione `calendario` dello script (`gas/calendario.gs`): all'import il CSV si conserva tale e quale (`lega_calendario_csv`) come mappa delle righe del foglio; il bot scrive le intestazioni con le squadre a media calcolate e i punteggi in B e D (regolamentari, supplementari subito sotto) da `lega_risultati` (nuova, si riempirà con la convalida delle giornate). Lo script trova ogni giornata da "Week N" nella colonna A e scrive solo le celle che cambiano: formattazione, celle unite, nomi e valori scritti a mano senza risultato non si toccano (provato con node su un foglio simulato)
 - Quando: all'import, quando cambiano le squadre a media (sync delle 8:30), `/calendario_foglio`
+
+## v8 (2026-10-13)
+
+- Foglio Calendario: a ogni aggiornamento si ricarica tutta la pagina, colonne A:E (richiesta di Luca), invece di scrivere solo le celle che cambiano: lo script svuota i valori di A:E (formattazione, celle unite e altre colonne restano) e scrive il calendario con le squadre a media calcolate e i punteggi. Da sincronizzare anche dopo ogni giornata convalidata
