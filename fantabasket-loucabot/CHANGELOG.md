@@ -102,3 +102,8 @@ Il calcolo dei fantapunti.
 - Live: finché qualcuno (titolari o panchina) deve ancora giocare, il messaggio dice chi è avanti e di quanto, non più l'esito e i supplementari ipotetici (prima della prima partita usciva "ai supplementari (5)" con tutti a zero); quando hanno finito tutti, chi vince, supplementari compresi. L'anteprima di `/live` mostra anche i primi avvisi del calcolo (quintetti incompleti, panchine mancanti)
 - **Squadra NBA di adesso dai roster ESPN**, aggiornati ogni mattina alle 8:30: per chi non ha ancora giocato nella giornata la squadra non è più quella del suo ultimo tabellino (per chi ha cambiato squadra d'estate o con una trade era quella vecchia). Conta per la media (squadra che non gioca), per la FADD e per il ⏳ del live
 
+## v20 (2026-10-14)
+
+- Anteprima di `/live`: tutti gli avvisi del calcolo, una riga per squadra ("quintetto vuoto", "manca SF", "senza panchina", giocatori senza id ESPN)
+- Live: se nessuna delle due squadre ha la panchina, "vince (nessuna delle due ha la panchina: niente supplementari)" invece di "ai supplementari (5)"
+

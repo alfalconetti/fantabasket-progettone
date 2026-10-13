@@ -178,6 +178,35 @@ def _da_giocare(c: dict, giocatori: list[dict]) -> tuple[int, int]:
     return live, poi
 
 
+def avvisi_brevi(c: dict) -> list[str]:
+    """Gli avvisi del calcolo, una riga per squadra (per l'anteprima agli admin)."""
+    import re
+    per: dict[str, list[str]] = {}
+    altri = []
+    for a in c.get("avvisi") or []:
+        nome, sep, resto = a.partition(": ")
+        if not sep:
+            altri.append(a)
+            continue
+        m = re.match(r"quintetto incompleto \(([^)]*)\)", resto)
+        if m:
+            posti = [x.strip() for x in m.group(1).split(",")]
+            breve = "quintetto vuoto" if len(posti) == 5 else "manca " + ", ".join(x.replace("Q-", "") for x in posti)
+        elif resto.startswith("panchina non mandata"):
+            breve = "senza panchina"
+        elif resto.startswith("senza id ESPN"):
+            breve = resto.split(" (")[0]
+        else:
+            breve = resto
+        per.setdefault(nome, []).append(breve)
+    if not per and not altri:
+        return ["", "✅ Nessun avviso: quintetti completi e panchine mandate."]
+    out = ["", f"⚠️ <b>Avvisi del calcolo</b> ({len(per)} squadre)"]
+    out += [f"• {e(n)}: {e('; '.join(v))}" for n, v in sorted(per.items())]
+    out += [f"• {e(a)}" for a in altri]
+    return out
+
+
 def esito_live(r: dict, casa: str, tr: str, aperti: bool) -> str:
     """Finché qualcuno (titolari o panchina) deve ancora giocare: chi è avanti e di quanto, bonus
     casa compreso. Quando tutti hanno finito: l'esito del calcolo, supplementari compresi."""
@@ -187,6 +216,8 @@ def esito_live(r: dict, casa: str, tr: str, aperti: bool) -> str:
             return "pari"
         return f"{e(casa if scarto > 0 else tr)} avanti di {tp(abs(scarto))}"
     chi = e(casa if r["vince"] == "casa" else tr)
+    if r["supplementari"] and not r["sc"]["panchina"] and not r["st"]["panchina"]:
+        return f"{chi} vince (nessuna delle due ha la panchina: niente supplementari)"
     if r["supplementari"]:
         return f"{chi} vince ai supplementari ({r['supplementari']}): {tp(r['esito']['casa'])} – {tp(r['esito']['trasferta'])}"
     return f"{chi} vince"
@@ -214,8 +245,7 @@ def testo(c: dict, ora: datetime, prova: bool = False) -> str:
                   f"Ultimo aggiornamento: {ora.astimezone(ROMA):%d/%m alle %H:%M}</i>"]
     if prova:
         righe.insert(0, "🧪 <b>PROVA</b> (non pubblicato sul canale)\n")
-        if c.get("avvisi"):
-            righe += ["", f"⚠️ {len(c['avvisi'])} avvisi del calcolo, per esempio:"] + [f"• {e(a)}" for a in c["avvisi"][:8]]
+        righe += avvisi_brevi(c)
     return "\n".join(righe)
 
 

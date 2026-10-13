@@ -1274,3 +1274,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - loucabot v19: la squadra NBA di chi non ha ancora giocato viene dai roster ESPN di adesso (aggiornati alle 8:30), non dall'ultimo tabellino: corregge media, FADD e ⏳ del live per chi ha cambiato squadra
 - MIGRATION: fonte dati di riserva al posto di ESPN (candidati e requisiti)
 
+## v5.3.2 (2026-10-14)
+
+- loucabot v20: anteprima del live con gli avvisi per squadra; niente supplementari finti senza panchine
+

@@ -312,6 +312,11 @@ db.q("UPDATE nba_partite SET stato = 'STATUS_FINAL' WHERE espn_id = 'g5'")
 tl = LV.testo(LV.calcolo(S, N), t0)
 ok("▶ Beta vince ai supplementari (1): " in tl and "▶ Gamma vince" in tl and "avanti di" not in tl,
    "tutti hanno finito: l'esito, supplementari compresi")
+av = LV.avvisi_brevi(LV.calcolo(S, N))
+ok(any(x.startswith("• Delta: ") and "manca SF" in x and "senza panchina" in x for x in av), f"anteprima: avvisi brevi per squadra {av}")
+rr = {"punti_casa": 3.0, "punti_trasferta": 0.0, "vince": "trasferta", "supplementari": 5, "esito": {"casa": 3.0, "trasferta": 0.0},
+      "sc": {"panchina": []}, "st": {"panchina": []}}
+ok(LV.esito_live(rr, "A", "B", False) == "B vince (nessuna delle due ha la panchina: niente supplementari)", "senza panchine: niente supplementari nel testo")
 
 # pulizia
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (list(gid.values()),))
