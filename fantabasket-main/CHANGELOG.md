@@ -1210,3 +1210,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v5.0.17 (2026-10-13)
 
 - IPanchinari v15: `/ripubblica_panchine` per mandare sul canale vero le panchine già inserite; modifiche solo sui messaggi del canale di oggi
+
+## v5.0.18 (2026-10-13)
+
+- IPanchinari v16: stato infortunati ESPN nei builder, nella scelta del quintetto, nell'anteprima e nel promemoria; `/soprannomi SQUADRA` anche per i GM (solo guardare); 🔁 solo in fondo alla panchina aggiornata
+- loucabot v12: stato attuale degli infortunati ogni 4 ore (`nba_status`), senza toccare la foto del calcolo

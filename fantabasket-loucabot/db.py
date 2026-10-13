@@ -110,6 +110,13 @@ def migra():
             dettaglio TEXT,
             preso     TIMESTAMPTZ NOT NULL DEFAULT NOW(),       -- l'ultima foto del giorno vince
             PRIMARY KEY (giorno, atleta))""")
+    q("""CREATE TABLE IF NOT EXISTS nba_status (
+            atleta    TEXT PRIMARY KEY,                         -- id ESPN; chi non c'è è sano
+            nome      TEXT NOT NULL,
+            squadra   TEXT,
+            stato     TEXT NOT NULL,
+            dettaglio TEXT,
+            aggiornato TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
     q("""CREATE TABLE IF NOT EXISTS lega_calendario_csv (
             stagione   TEXT PRIMARY KEY,
             testo      TEXT NOT NULL,                           -- il CSV importato, tale e quale: è la mappa
@@ -275,6 +282,16 @@ def salva_infortuni(giorno, voci: list[dict]) -> None:
                 cur.execute("INSERT INTO nba_infortuni (giorno, atleta, nome, squadra, stato, dettaglio) "
                             "VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
                             (giorno, v["atleta"], v["nome"], v.get("squadra"), v["stato"], v.get("dettaglio")))
+
+
+def salva_status(voci: list[dict]) -> None:
+    """Lo stato attuale degli infortunati (sostituisce tutto: chi è uscito dalla lista è sano)."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM nba_status")
+            for v in voci:
+                cur.execute("INSERT INTO nba_status (atleta, nome, squadra, stato, dettaglio) VALUES (%s, %s, %s, %s, %s) "
+                            "ON CONFLICT DO NOTHING", (v["atleta"], v["nome"], v.get("squadra"), v["stato"], v.get("dettaglio")))
 
 
 def infortuni(atleti: list[str], giorni: list) -> dict[tuple, str]:

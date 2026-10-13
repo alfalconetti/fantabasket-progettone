@@ -85,7 +85,7 @@ Ogni 5 minuti il bot confronta quintetti e panchine con le rose. Un giocatore ch
 
 ## Soprannomi
 
-`/soprannomi SQUADRA` mostra i soprannomi che il bot riconosce per i giocatori di una squadra e permette di cancellarli. Seguono il giocatore: dopo una trade valgono per la squadra nuova.
+`/soprannomi SQUADRA` mostra i soprannomi che il bot riconosce per i giocatori di una squadra e permette di cancellarli (i GM con lo stesso comando li possono solo guardare). Seguono il giocatore: dopo una trade valgono per la squadra nuova.
 
 ---
 

@@ -88,6 +88,23 @@ def testo_partite(sigla: str | None, partite: dict[str, list[dict]], media: list
     return f"{sigla}: " + ", ".join(pezzi)
 
 
+_SEGNI = {"out": "🔴", "suspension": "🔴", "doubtful": "🟠", "questionable": "🟡", "day-to-day": "🟡", "probable": "🟢"}
+
+
+def segno_stato(stato: str | None) -> str:
+    """" 🔴 Out", " 🟡 Day-To-Day"… per un nome nei bottoni e nei testi; "" se sano."""
+    if not stato:
+        return ""
+    return f" {_SEGNI.get(stato.strip().lower(), '⚪')} {stato}"
+
+
+def stati(ids) -> tuple[dict[int, str], str]:
+    """({giocatore: " 🔴 Out"}, riga "🩺 Stato ESPN delle …" o "") per i giocatori indicati."""
+    st, quando = db.stati_espn(list(ids))
+    return ({g: segno_stato(v["stato"]) for g, v in st.items()},
+            f"🩺 Infortunati da ESPN, aggiornati {ora(quando)}" if quando else "")
+
+
 async def log(bot, testo: str):
     """Una riga sul canale log (parte tecnica)."""
     if not config.canale_log():

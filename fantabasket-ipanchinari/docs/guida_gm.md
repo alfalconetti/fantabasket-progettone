@@ -26,7 +26,7 @@ Il bot ti risponde con l'anteprima: accanto a ogni riga il giocatore che ha capi
 - Se ha capito male, tocca ✏️ e il numero della riga per correggerla.
 - Quando è tutto giusto tocca **✅ Pubblica**: sul canale Panchinari escono **le tue righe come le hai scritte** (e il titolo), senza i nomi veri. In fondo al messaggio c'è chi l'ha inserita (GM, o quale admin) e il giorno e l'ora dell'ultima modifica.
 
-La panchina vale per **la prossima giornata**, quella la cui scadenza (la prima partita NBA) non è ancora passata. Fino alla scadenza puoi rimandarla quante volte vuoi: vale l'ultima, e sul canale il bot modifica il messaggio della tua panchina (con la scritta 🔁 aggiornata) invece di mandarne uno nuovo.
+La panchina vale per **la prossima giornata**, quella la cui scadenza (la prima partita NBA) non è ancora passata. Fino alla scadenza puoi rimandarla quante volte vuoi: vale l'ultima, e sul canale il bot modifica il messaggio della tua panchina (in fondo "🔁 ultima modifica" con l'ora) invece di mandarne uno nuovo.
 
 Il bot non prende una panchina con **righe duplicate** (la stessa riga scritta due volte, anche con maiuscole diverse): ogni panchinaro va scritto in modo diverso. Non pubblica se i giocatori non sono 5, se uno non è della tua squadra, se c'è due volte o se la scadenza è passata (anche mentre stavi confermando). Se un panchinaro risulta titolare nel quintetto del bot, te lo segnala ma pubblica lo stesso: per il quintetto fa fede Yahoo, quindi puoi aggiornarlo con `/quintetto` (non sei obbligato: è un favore agli admin) oppure lasciare che se ne occupi un admin.
 
@@ -34,9 +34,11 @@ Il bot non prende una panchina con **righe duplicate** (la stessa riga scritta d
 
 **😎 CAI mode.** Nell'anteprima del builder c'è il bottone 😎 CAI mode: il bot ti chiede il titolo e poi il soprannome di ogni panchinaro, uno alla volta. Scrivili come messaggio; ⏭️ Salta lascia quello che c'è, ✅ Fine torna subito all'anteprima. Sul canale escono titolo e soprannomi, e il bot se li ricorda anche per quando mandi la panchina come messaggio. Se a metà ci ripensi e mandi una panchina intera come messaggio, vale quella.
 
+**Infortunati.** Nei bottoni del builder, nella scelta del quintetto, nell'anteprima e nel promemoria accanto a ogni giocatore c'è il suo stato sulla lista infortunati di ESPN (🔴 Out, 🟠 Doubtful, 🟡 Questionable o Day-To-Day, 🟢 Probable; niente se è sano), con l'ora dell'ultimo aggiornamento (ogni 4 ore). È solo un aiuto: per il calcolo valgono le regole del regolamento.
+
 `/panchina` ti mostra la panchina che hai mandato, coi nomi veri.
 
-**I soprannomi.** Ogni riga che confermi diventa un soprannome che il bot riconosce da solo la volta dopo. `/soprannomi` te li mostra, giocatore per giocatore; con 🗑 cancelli quelli sbagliati o che non usi più. I soprannomi **seguono il giocatore**: se lo cedi valgono per la sua squadra nuova (accanto c'è scritto chi li ha inventati), se lo prendi tu valgono quelli che gli aveva dato il vecchio GM.
+**I soprannomi.** Ogni riga che confermi diventa un soprannome che il bot riconosce da solo la volta dopo. `/soprannomi` te li mostra, giocatore per giocatore; con 🗑 cancelli quelli sbagliati o che non usi più. `/soprannomi SQUADRA` ti fa vedere quelli di un'altra squadra, solo da guardare. I soprannomi **seguono il giocatore**: se lo cedi valgono per la sua squadra nuova (accanto c'è scritto chi li ha inventati), se lo prendi tu valgono quelli che gli aveva dato il vecchio GM.
 
 **Se cedi o tagli un giocatore** che avevi in panchina o nel quintetto del bot, il bot ti avvisa (e lo segna sul canale log):
 - era nella panchina della prossima giornata → **rimandala** con 5 giocatori della tua squadra prima della scadenza;

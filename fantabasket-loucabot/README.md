@@ -128,7 +128,7 @@ giocatore; ogni giorno lo stesso con i giocatori nuovi dei tabellini. Gli altri:
 
 | File | Contenuto |
 |---|---|
-| `bot.py` | avvio, job (8:30; infortunati 17:30 e 23:30), errori al canale log e al dev |
+| `bot.py` | avvio, job (8:30; infortunati 17:30 e 23:30; stato attuale ogni 4 ore per IPanchinari), errori al canale log e al dev |
 | `comandi.py` | menu `/` per scope: gruppi, privato, admin (privato e gruppo admin), dev |
 | `handlers.py` | i comandi del calendario, il canale log, la sincronizzazione delle 8:30 |
 | `handlers_calcolo.py` | i comandi del calcolo e la foto degli infortunati |

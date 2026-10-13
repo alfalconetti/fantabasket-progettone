@@ -4,7 +4,8 @@ Soprannomi (alias): le righe confermate nelle panchine, che la volta dopo si ric
 Seguono il giocatore, non la squadra: quando un giocatore cambia squadra i suoi soprannomi valgono
 per la squadra nuova (e non più per la vecchia, perché lì non è più a roster). /soprannomi li
 mostra per i giocatori della propria squadra, chiunque li abbia scritti, e coi bottoni si
-cancellano quelli sbagliati o vecchi. Gli admin: /soprannomi SQUADRA.
+cancellano quelli sbagliati o vecchi. /soprannomi SQUADRA mostra quelli di un'altra squadra: i GM
+li possono solo guardare (niente bottoni), gli admin anche cancellare.
 
 Callback: so:p:<team>:<pagina> · so:d:<team>:<id alias>:<pagina>.
 """
@@ -32,7 +33,8 @@ def elenco(team_id: str) -> tuple[list[dict], dict[int, str]]:
     return al, nomi
 
 
-def schermata(team_id: str, pagina: int = 0) -> tuple[str, K | None]:
+def schermata(team_id: str, pagina: int = 0, modifica: bool = True) -> tuple[str, K | None]:
+    """Il messaggio di /soprannomi; senza `modifica` (GM su un'altra squadra) solo il testo."""
     al, nomi = elenco(team_id)
     t = [f"🏷 <b>Soprannomi di {e(config.nome(team_id))}</b>", ""]
     if not al:
@@ -44,8 +46,10 @@ def schermata(team_id: str, pagina: int = 0) -> tuple[str, K | None]:
         per_gioc.setdefault(a["giocatore_id"], []).append(f"«{e(a['alias'])}»{da}")
     for gid, lista in per_gioc.items():
         t.append(f"<b>{e(nomi[gid])}</b>: " + " · ".join(lista))
-    t += ["", "Il bot riconosce queste righe senza chiedere. Seguono il giocatore anche se cambia squadra. "
-              "Tocca 🗑 per cancellarne uno (sbagliato o vecchio)."]
+    t += ["", "Il bot riconosce queste righe senza chiedere. Seguono il giocatore anche se cambia squadra."
+              + (" Tocca 🗑 per cancellarne uno (sbagliato o vecchio)." if modifica else "")]
+    if not modifica:
+        return "\n".join(t), None
     pagine = max(1, -(-len(al) // PER_PAGINA))
     pagina = max(0, min(pagina, pagine - 1))
     tasti = [[B(f"🗑 {a['alias'][:30]} → {nomi[a['giocatore_id']]}",        # nome intero: gli omonimi
@@ -64,19 +68,21 @@ def schermata(team_id: str, pagina: int = 0) -> tuple[str, K | None]:
 
 
 async def cmd_soprannomi(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/soprannomi (la propria squadra) · /soprannomi SQUADRA (admin)."""
+    """/soprannomi (la propria squadra) · /soprannomi SQUADRA (GM: solo guardare; admin: anche cancellare)."""
     uid = update.effective_user.id
-    team = None
-    if context.args and config.is_admin(uid):
+    mia = config.squadra_del_gm(uid)
+    if not mia and not config.is_admin(uid):
+        await update.effective_message.reply_text("Non risulti GM di nessuna squadra.")
+        return
+    team = mia
+    if context.args:
         from shared.squadre import cerca_squadra
         team = cerca_squadra(" ".join(context.args), config.squadre())
-    elif not context.args:
-        team = config.squadra_del_gm(uid)
     if not team:
-        await update.effective_message.reply_text(
-            "Uso: /soprannomi (la tua squadra)" + (" · /soprannomi SQUADRA" if config.is_admin(uid) else "") + ".")
+        await update.effective_message.reply_text("Uso: /soprannomi (la tua squadra) · /soprannomi SQUADRA (un'altra).")
         return
-    testo, tasti = schermata(team["id"])
+    modifica = config.is_admin(uid) or uid in config.gm_ids(team["id"])
+    testo, tasti = schermata(team["id"], modifica=modifica)
     await update.effective_message.reply_text(testo, parse_mode="HTML", reply_markup=tasti)
 
 

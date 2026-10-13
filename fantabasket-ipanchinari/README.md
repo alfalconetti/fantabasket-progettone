@@ -80,7 +80,7 @@ giornata per il calcolo) e al gruppo admin va l'elenco delle panchine mancanti.
 | `/build_panchina` | GM | la panchina coi bottoni: un panchinaro alla volta, solo giocatori non nel quintetto; con 😎 CAI mode titolo e soprannomi, sennò sul canale i nomi |
 | `/panchina` | GM | la panchina mandata, coi nomi veri |
 | `/quintetto` | GM | il quintetto: cambialo o confermalo (non obbligatorio, fa fede Yahoo) |
-| `/soprannomi` | GM | i soprannomi riconosciuti per i giocatori della squadra: vederli e cancellarli |
+| `/soprannomi [SQUADRA]` | GM | i soprannomi riconosciuti per i giocatori della squadra: vederli e cancellarli; di un'altra squadra solo guardarli |
 | `/start`, `/guida` | tutti | come si usa, la guida (file) |
 | `/stato [N]` | admin | conferme e panchine di una giornata |
 | `/quintetti [N]` | admin | tutti i quintetti, una riga per squadra; con N le formazioni della giornata N |

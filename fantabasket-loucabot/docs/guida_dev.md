@@ -40,7 +40,8 @@ Stesso PostgreSQL degli altri bot. loucabot legge tutto e scrive solo le sue tab
 | `lega_risultati` | stagione, giornata, casa | punteggi regolamentari (bonus casa compreso) e dopo i supplementari, vincitore, convalida (si riempirà con la convalida delle giornate) |
 | `nba_partite` | `espn_id` | partite NBA: stagione della lega (ESPN 2027 = 2026), tipo (1 pre, 2 RS, 3 playoff, 5 play-in), `data_et`, `inizio`, sigle, `stato`, `tabellino` (quando scaricato) |
 | `nba_tabellini` | partita, atleta | una riga per giocatore a referto: squadra, titolare, `giocato` (FALSE = DNP), minuti, statistiche della formula, `fp` |
-| `nba_infortuni` | giorno, atleta | foto ESPN degli infortunati: stato, dettaglio; vale l'ultima foto del giorno |
+| `nba_infortuni` | giorno, atleta | foto ESPN degli infortunati: stato, dettaglio; vale l'ultima foto del giorno (agli orari fissi: è quella del calcolo) |
+| `nba_status` | atleta | lo stato attuale degli infortunati (sostituito a ogni lettura, ogni 4 ore e agli orari fissi; chi non c'è è sano): lo leggono i builder di IPanchinari, il calcolo no |
 | `nba_atleti` | atleta | giocatori dai roster ESPN (per l'abbinamento prima dei tabellini) |
 | `giocatori.espn_id`, `nome_espn` | indice unico su espn_id | abbinamento con l'anagrafica (anche il bot principale crea le colonne) |
 
@@ -75,6 +76,7 @@ Date ESPN in UTC → giorno della costa est (`ET`). Sigle ESPN → NBA (`SIGLE`:
 |---|---|---|
 | 8:30 | `handlers.job_sync` | partite dei giorni vicini (−3, +14), ricalcolo di scadenze e squadre a media (cambi → gruppo admin), tabellini delle partite finite, abbinamento automatico dei giocatori nuovi, foto degli infortunati; riga sul canale log |
 | 17:30, 23:30 | `handlers_calcolo.job_infortuni` | foto degli infortunati (prima delle partite); sul canale log solo se fallisce |
+| ogni 4 ore | `handlers_calcolo.job_status` | solo `nba_status` (`scarica_infortuni(foto=False)`), per IPanchinari; nessun messaggio |
 
 Errori dei job: canale log e dev.
 

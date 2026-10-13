@@ -24,7 +24,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 import abbina
 import config
 import db
-from comune import (FAVORE, adesso, aperta, chi, e, giornata_in_corso, log, ora, ora_promemoria, partite_squadre_nba,
+from comune import (FAVORE, adesso, stati, aperta, chi, e, giornata_in_corso, log, ora, ora_promemoria, partite_squadre_nba,
                     prossima_giornata, testo_partite)
 
 logger = logging.getLogger(__name__)
@@ -98,13 +98,14 @@ def testo_quintetto(team_id: str, g: dict | None) -> str:
     partite = partite_squadre_nba(g) if g else {}
     media = (g.get("media") if g.get("media") is not None else g.get("media_file")) if g else None
     righe = []
+    st, _ = stati([g for g in q.values() if g])
     for ruolo in RUOLI:
         gid = q.get(ruolo)
         if not gid:
             righe.append(f"<b>{ruolo}</b> —")
             continue
         nome = roster.get(gid, {}).get("nome_common") or f"giocatore {gid} (non più in squadra)"
-        riga = f"<b>{ruolo}</b> {e(nome)}"
+        riga = f"<b>{ruolo}</b> {e(nome)}{st.get(gid, '')}"
         if g:
             riga += f"\n      {e(testo_partite(nba.get(gid), partite, media))}"
         righe.append(riga)
@@ -187,10 +188,13 @@ async def cb_quintetto(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await q.answer(f"Nessun {ruolo} in squadra.", show_alert=True)
             return
         att = db.quintetto(team_id).get(ruolo)
-        tasti = [[B(("• " if x["id"] == att else "") + x["nome_common"], callback_data=f"q:s:{team_id}:{ruolo}:{x['id']}")]
+        st, quando = stati([x["id"] for x in roster])
+        tasti = [[B(("• " if x["id"] == att else "") + x["nome_common"] + st.get(x["id"], ""),
+                    callback_data=f"q:s:{team_id}:{ruolo}:{x['id']}")]
                  for x in roster] + [[B("↩️ Indietro", callback_data=f"q:v:{team_id}")]]
         await q.answer()
-        await q.edit_message_text(f"Chi gioca da <b>{ruolo}</b>?", parse_mode="HTML", reply_markup=K(tasti))
+        await q.edit_message_text(f"Chi gioca da <b>{ruolo}</b>?" + (f"\n<i>{quando}</i>" if quando else ""),
+                                  parse_mode="HTML", reply_markup=K(tasti))
         return
     elif azione == "s":
         ruolo, gid = parti[3], int(parti[4])

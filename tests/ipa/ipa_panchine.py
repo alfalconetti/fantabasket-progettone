@@ -14,7 +14,7 @@ spec = importlib.util.spec_from_file_location("louca_db", os.path.join(ROOT, "fa
 ldb = importlib.util.module_from_spec(spec); spec.loader.exec_module(ldb); ldb.init_db()
 db.init_db()
 db.q("TRUNCATE ipa_quintetto, ipa_alias, ipa_cessioni, ipa_panchine, ipa_bozze, ipa_conferme, ipa_formazioni, ipa_stato_giornata, "
-     "lega_giornate, nba_tabellini, nba_partite, nba_atleti")
+     "lega_giornate, nba_tabellini, nba_partite, nba_atleti, nba_status")
 G = json.load(open(config.GLOBALS_PATH)); G["canale_panchinari_id"] = -500; json.dump(G, open(config.GLOBALS_PATH, "w"))
 
 S = config.stagione()
@@ -147,9 +147,10 @@ ok(any(f"pb:s:{bid}:0:{gids['Josh Hart']}" == b for b in bottoni(qb.testi[-1][1]
 premi(101, f"pb:s:{bid}:0:{gids['Josh Hart']}")
 premi(101, f"pb:ok:{bid}")
 canale = [x for x in BOT.mandati if x["chat_id"] == -500]
-ok(len(canale) == 2 and canale[1].get("modifica") and canale[1]["id"] == canale[0]["id"] and "aggiornata" in canale[1]["text"],
+ok(len(canale) == 2 and canale[1].get("modifica") and canale[1]["id"] == canale[0]["id"] and "🔁" in canale[1]["text"],
    "rimandata: modifica il messaggio di prima sul canale, niente messaggio nuovo")
-ok("✍️ GM · ultima modifica " in canale[1]["text"], "aggiornata: ora dell'ultima modifica")
+ok("✍️ GM · 🔁 ultima modifica " in canale[1]["text"] and "aggiornata" not in canale[1]["text"],
+   "aggiornata: solo in fondo, 🔁 e ora dell'ultima modifica (niente riga in più in cima)")
 m = manda(101, "lo sceriffo!\nBarlow\nClayton\nClifford\nLooney")
 ok("lo sceriffo! → <b>Josh Hart</b>" in m.risposte[0][0], "la volta dopo il soprannome si riconosce da solo (alias)")
 
@@ -201,6 +202,20 @@ ok(premi(102, "q:ok:team01:2").risposte[-1] == "Non è la tua squadra.", "il GM 
 ok(db.conferme(S, 2)["team01"]["stato"] == "confermato", "Confermo dal promemoria")
 ok(premi(101, "q:ok:team01:1").risposte[-1] == "La scadenza di questa giornata è passata.", "bottone di una giornata scaduta: rifiutato")
 
+# ── stato ESPN (nba_status di loucabot) nei builder, nell'anteprima e nel quintetto ──
+db.q("INSERT INTO nba_status (atleta, nome, squadra, stato) VALUES (%s, 'Kevon Looney', 'NOP', 'Out'), (%s, 'Devin Booker', 'PHX', 'Day-To-Day')",
+     (db.q("SELECT espn_id FROM giocatori WHERE id = %s", (gids["Kevon Looney"],), one=True)["espn_id"],
+      db.q("SELECT espn_id FROM giocatori WHERE id = %s", (gids["Devin Booker"],), one=True)["espn_id"]))
+m = manda(101, "Ja Morant\nBarlow\nClifford\nLooney\nBrunson")
+ok("→ <b>Kevon Looney</b> 🔴 Out" in m.risposte[0][0] and "Infortunati da ESPN, aggiornati" in m.risposte[0][0],
+   "anteprima: stato ESPN accanto al giocatore, con l'ora dell'aggiornamento")
+db.chiudi_bozza(int(bottoni(m.risposte[0][1]["reply_markup"])[-2].split(":")[2]))
+qb = premi(101, "q:c:team01:SG")
+ok(any("Devin Booker 🟡 Day-To-Day" in b.text for riga in qb.testi[-1][1]["reply_markup"].inline_keyboard for b in riga),
+   "scelta del quintetto: stato nei bottoni")
+ok("Devin Booker</b>" not in Q.testo_quintetto("team01", None) and "Devin Booker 🟡 Day-To-Day" in Q.testo_quintetto("team01", None),
+   "quintetto (promemoria, /quintetto): stato accanto al titolare")
+
 # ── builder coi bottoni ──
 m = Msg(); asyncio.run(P.cmd_build_panchina(upd(101, m), CTX))
 t, k = m.risposte[0]
@@ -209,6 +224,8 @@ bid = int(tasti[0].split(":")[2])
 tit = set(db.quintetto("team01").values())
 proposti = {int(x.split(":")[3]) for x in tasti if x.startswith("pb:b:")}
 ok(proposti and not (proposti & tit) and gids["Josh Hart"] in proposti, "builder: solo giocatori della squadra non nel quintetto")
+ok(any("Kevon Looney (C) 🔴 Out" in b.text for riga in k["reply_markup"].inline_keyboard for b in riga),
+   "builder: stato ESPN nei bottoni")
 qb = premi(101, f"pb:b:{bid}:{gids['Josh Hart']}")
 ok(f"pb:b:{bid}:{gids['Josh Hart']}" not in bottoni(qb.testi[-1][1]["reply_markup"]) and "1. Josh Hart" in qb.testi[-1][0],
    "builder: il giocatore scelto non si ripropone")
@@ -327,7 +344,7 @@ db.chiudi_bozza(bid)
 m = Msg("/panchina_admin Alfa\nJa Morant\nBarlow\nClifford\nLooney\nBrunson"); asyncio.run(P.cmd_panchina_admin(upd(900, m), CTX))
 bid = int(bottoni(m.risposte[-1][1]["reply_markup"])[-2].split(":")[2])
 BOT.mandati.clear(); premi(900, f"pb:ok:{bid}")
-ok(any(x["chat_id"] == -500 and "✍️ admin U900 · ultima modifica" in x["text"] for x in BOT.mandati),
+ok(any(x["chat_id"] == -500 and "✍️ admin U900 · 🔁 ultima modifica" in x["text"] for x in BOT.mandati),
    "panchina inserita da un admin: sul canale quale admin")
 
 # ── soprannomi: vederli, cancellarli, seguono il giocatore ──
@@ -339,6 +356,9 @@ ok(f"so:d:team01:{id_sc}:0" in bottoni(k["reply_markup"]), "un bottone 🗑 per 
 ok(any(b.text == "🗑 lo sceriffo → Josh Hart" for riga in k["reply_markup"].inline_keyboard for b in riga),
    "nel bottone il nome intero del giocatore (con gli omonimi il cognome non basta)")
 ok(premi(102, f"so:d:team01:{id_sc}:0").risposte == ["Non è la tua squadra."], "il GM di un'altra squadra non cancella")
+m = Msg("/soprannomi Alfa"); CTX.args = ["Alfa"]; asyncio.run(SO.cmd_soprannomi(upd(102, m), CTX)); CTX.args = []
+ok("«lo sceriffo»" in m.risposte[-1][0] and m.risposte[-1][1]["reply_markup"] is None and "🗑" not in m.risposte[-1][0],
+   "un GM guarda i soprannomi di un'altra squadra: solo testo, niente bottoni")
 BOT.mandati.clear()
 u = upd(101, cb=f"so:d:team01:{id_sc}:0"); asyncio.run(SO.cb_soprannomi(u, CTX))
 ok("lo sceriffo" not in db.alias("team01") and "«lo sceriffo»" not in u.callback_query.testi[-1][0]
@@ -417,5 +437,5 @@ db.q("DELETE FROM cambi_ruolo WHERE giocatore_id = ANY(%s)", (ids,))
 db.q("DELETE FROM contratti WHERE giocatore_id = ANY(%s)", (ids,))
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (ids,))
 db.q("TRUNCATE ipa_quintetto, ipa_alias, ipa_cessioni, ipa_panchine, ipa_bozze, ipa_conferme, ipa_formazioni, ipa_stato_giornata, "
-     "lega_giornate, nba_tabellini, nba_partite, nba_atleti")
+     "lega_giornate, nba_tabellini, nba_partite, nba_atleti, nba_status")
 _ = date

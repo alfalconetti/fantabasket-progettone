@@ -54,6 +54,14 @@ async def foto_infortuni() -> str:
         return f"⚠️ infortunati non scaricati ({type(err).__name__}: {e(str(err))[:150]})"
 
 
+async def job_status(context: ContextTypes.DEFAULT_TYPE):
+    """Ogni 4 ore: lo stato attuale degli infortunati per i builder di IPanchinari (senza foto)."""
+    try:
+        await nba.scarica_infortuni(foto=False)
+    except Exception as err:
+        logger.warning("Stato infortunati: %s", err)
+
+
 async def job_infortuni(context: ContextTypes.DEFAULT_TYPE):
     from handlers import log
     esito = await foto_infortuni()

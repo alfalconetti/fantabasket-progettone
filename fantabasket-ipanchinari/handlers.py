@@ -16,7 +16,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
              "confermi e la pubblico sul canale Panchinari con le tue righe. Vale per la prossima giornata, fino alla scadenza.\n"
              "/build_panchina — oppure componila coi bottoni\n"
              "/panchina — la panchina che hai mandato\n"
-             "/soprannomi — i soprannomi che riconosco: vedili o cancellali\n"
+             "/soprannomi — i soprannomi che riconosco: vedili o cancellali (/soprannomi SQUADRA per guardare quelli di un'altra)\n"
              "/quintetto — il tuo quintetto: cambialo o confermalo. Non è obbligatorio (fa fede Yahoo): "
              "tenerlo aggiornato qui è un favore agli admin")
     if team:

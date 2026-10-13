@@ -240,8 +240,10 @@ def leggi_infortuni(dati) -> list[dict]:
     return out
 
 
-async def scarica_infortuni(scarica=None) -> dict:
-    """Foto della lista infortunati di ESPN, salvata per il giorno di oggi (costa est)."""
+async def scarica_infortuni(scarica=None, foto: bool = True) -> dict:
+    """La lista infortunati di ESPN: sempre lo stato attuale (nba_status, per i builder di
+    IPanchinari); con `foto` anche la foto del giorno (nba_infortuni, quella che usa il calcolo:
+    solo agli orari fissi, così le regole di calcolo non cambiano)."""
     import db
     client = None
     if scarica is None:
@@ -257,7 +259,9 @@ async def scarica_infortuni(scarica=None) -> dict:
     if not voci:
         raise ValueError("nessun infortunato nella risposta (struttura cambiata?)")
     giorno = datetime.now(ET).date()
-    db.salva_infortuni(giorno, voci)
+    db.salva_status(voci)
+    if foto:
+        db.salva_infortuni(giorno, voci)
     return {"giorno": giorno, "giocatori": len(voci)}
 
 

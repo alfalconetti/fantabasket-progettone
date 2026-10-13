@@ -57,3 +57,7 @@ Il calcolo dei fantapunti.
 ## v11 (2026-10-13)
 
 - Error handler comune con IPanchinari (`shared/dev_comune.py`): "Message is not modified" non arriva più sul canale log, gli errori di rete sì (non al dev), gli errori veri dicono chi e quale bottone o comando
+
+## v12 (2026-10-13)
+
+- Stato attuale degli infortunati ESPN in `nba_status`, aggiornato ogni 4 ore (e a ogni foto delle 8:30, 17:30, 23:30), per mostrarlo in IPanchinari. La foto del giorno usata dal calcolo resta solo agli orari fissi, quindi le regole non cambiano

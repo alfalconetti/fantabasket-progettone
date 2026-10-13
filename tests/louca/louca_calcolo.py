@@ -50,7 +50,12 @@ async def finti_inf():
     return vero
 asyncio.run(nba.scarica_infortuni(scarica=finti_inf))
 ok(db.q("SELECT COUNT(*) AS n FROM nba_infortuni", one=True)["n"] == 5, "foto degli infortunati salvata")
-db.q("TRUNCATE nba_infortuni, nba_tabellini, nba_partite CASCADE")
+ok(db.q("SELECT COUNT(*) AS n FROM nba_status", one=True)["n"] == 5, "e anche lo stato attuale (per i builder di IPanchinari)")
+db.q("TRUNCATE nba_infortuni, nba_status")
+asyncio.run(nba.scarica_infortuni(scarica=finti_inf, foto=False))
+ok(db.q("SELECT COUNT(*) AS n FROM nba_status", one=True)["n"] == 5 and db.q("SELECT COUNT(*) AS n FROM nba_infortuni", one=True)["n"] == 0,
+   "aggiornamento ogni 4 ore: solo lo stato attuale, la foto del calcolo non cambia")
+db.q("TRUNCATE nba_infortuni, nba_tabellini, nba_partite, nba_status CASCADE")
 
 # ── punteggio del giocatore nella giornata ──
 def riga(pid, atleta, squadra, fp, giocato=True):

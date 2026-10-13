@@ -72,3 +72,9 @@ Primo rilascio: panchine e quintetti.
 - **`/ripubblica_panchine [N]`** (admin): tutte le panchine già mandate della prossima giornata (o della N) di nuovo sul canale Panchinari, con chi e quando, una ogni 3,5 secondi (limite di Telegram), senza bloccare il bot; avviso a fine lavoro e sul log. Serve per passare dal canale di prova a quello vero
 - Le modifiche di una panchina vanno sul suo messaggio solo se è nel canale di oggi (`ipa_panchine.canale_id`): dopo un cambio di canale il bot non rischia più di modificare, con lo stesso numero di messaggio, la panchina di un'altra squadra. Le panchine salvate prima di questa versione, alla prossima modifica, escono come messaggio nuovo
 - Salvati anche il nome di chi ha inserito la panchina e quante volte è stata mandata, per ripubblicarla com'era
+
+## v16 (2026-10-13)
+
+- Panchina aggiornata sul canale: niente più "· 🔁 aggiornata" accanto al nome della squadra; basta la riga in fondo, "✍️ GM · 🔁 ultima modifica 13/10 alle 16:00"
+- `/soprannomi SQUADRA` anche per i GM: i soprannomi di un'altra squadra, solo da guardare (senza bottoni); cancellarli resta al GM di quella squadra e agli admin
+- Stato infortunati di ESPN accanto ai giocatori nel builder della panchina, nella scelta del quintetto, nell'anteprima e nel promemoria (🔴 Out, 🟠 Doubtful, 🟡 Questionable/Day-To-Day, 🟢 Probable), con l'ora dell'aggiornamento: loucabot lo legge ogni 4 ore

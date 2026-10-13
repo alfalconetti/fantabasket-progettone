@@ -26,7 +26,7 @@ from telegram.ext import CallbackQueryHandler, ContextTypes, MessageHandler, fil
 import abbina
 import config
 import db
-from comune import FAVORE, ROMA, adesso, aperta, chi, e, log, ora, prossima_giornata
+from comune import FAVORE, ROMA, adesso, aperta, chi, e, log, ora, prossima_giornata, stati
 
 logger = logging.getLogger(__name__)
 
@@ -75,9 +75,13 @@ def anteprima(b: dict) -> tuple[str, K]:
              f"Scadenza: {ora(g['prima_partita']) if g else '?'}", ""]
     if d.get("titolo"):
         righe += [f"<i>{e(d['titolo'])}</i>", ""]
+    st, quando = stati(nomi)
     for i, r in enumerate(d["righe"], 1):
-        chi_ = f"<b>{e(nomi.get(r['scelto'], '?'))}</b>" if r.get("scelto") else "❓ <b>da scegliere</b>"
+        chi_ = (f"<b>{e(nomi.get(r['scelto'], '?'))}</b>{st.get(r['scelto'], '')}" if r.get("scelto")
+                else "❓ <b>da scegliere</b>")
         righe.append(f"{i}. {e(r['testo'])} → {chi_}")
+    if quando and any(r.get("scelto") in st for r in d["righe"]):
+        righe += ["", f"<i>{quando}</i>"]
     pb = problemi(b, roster)
     av = avvisi(b, roster)
     if pb:
@@ -227,7 +231,8 @@ async def cb_panchina(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             ids = [g["id"] for g in roster if g["id"] not in altri]
             extra = []
-        tasti = [[B(nomi[g] + (" (" + (next((x["ruolo"] for x in roster if x["id"] == g), "") or "") + ")"),
+        st, _ = stati(ids)
+        tasti = [[B(nomi[g] + (" (" + (next((x["ruolo"] for x in roster if x["id"] == g), "") or "") + ")") + st.get(g, ""),
                     callback_data=f"pb:s:{bid}:{i}:{g}")] for g in ids]
         tasti += extra + [[B("↩️ Indietro", callback_data=f"pb:v:{bid}")]]
         await q.answer()
@@ -259,13 +264,13 @@ def testo_canale(team_id: str, giornata: int, titolo: str | None, righe: list[di
                  fonte: str = "gm", admin: str | None = None, quando=None) -> str:
     """Il messaggio sul canale Panchinari: le righe del GM e, in fondo, chi l'ha inserita (GM o
     quale admin) e quando (l'ultima modifica, ora italiana)."""
-    out = [f"<b>{e(config.nome(team_id))}</b> · giornata {giornata}" + (" · 🔁 aggiornata" if aggiornata else "")]
+    out = [f"<b>{e(config.nome(team_id))}</b> · giornata {giornata}"]
     if titolo:
         out.append(f"<i>{e(titolo)}</i>")
     out += [f"{i}. {e(r['testo'])}" for i, r in enumerate(righe, 1)]
     t = (quando or adesso()).astimezone(ROMA)
     da = f"admin {e(admin)}" if fonte == "admin" else "GM"
-    out.append(f"\n<i>✍️ {da} · {'ultima modifica' if aggiornata else 'inserita'} {t:%d/%m} alle {t:%H:%M}</i>")
+    out.append(f"\n<i>✍️ {da} · {'🔁 ultima modifica' if aggiornata else 'inserita'} {t:%d/%m} alle {t:%H:%M}</i>")
     return "\n".join(out)
 
 
@@ -394,9 +399,13 @@ def builder(b: dict, roster: list[dict]) -> tuple[str, K]:
     g = db.giornata(b["stagione"], b["giornata"])
     righe = [f"🪑 <b>Panchina di {e(config.nome(b['team_id']))} per la giornata {b['giornata']}</b>",
              f"Scadenza: {ora(g['prima_partita']) if g else '?'}", ""]
-    righe += [f"{i}. {e(r['testo'])}" for i, r in enumerate(d["righe"], 1)] or ["(ancora nessuno)"]
+    st, quando = stati([x["id"] for x in liberi] + scelti)
+    righe += [f"{i}. {e(r['testo'])}{st.get(r['scelto'], '')}" for i, r in enumerate(d["righe"], 1)] or ["(ancora nessuno)"]
     righe += ["", f"Scegli il panchinaro n. {len(scelti) + 1}:" if len(scelti) < abbina.MAX_PANCHINA else ""]
-    tasti = [[B(f"{x['nome_common']}" + (f" ({x['ruolo']})" if x.get("ruolo") else "") + (" ⭐ titolare" if x["id"] in titolari else ""),
+    if quando:
+        righe.append(f"<i>{quando}</i>")
+    tasti = [[B(f"{x['nome_common']}" + (f" ({x['ruolo']})" if x.get("ruolo") else "") + (" ⭐ titolare" if x["id"] in titolari else "")
+                + st.get(x["id"], ""),
                 callback_data=f"pb:b:{b['id']}:{x['id']}")] for x in liberi]
     fondo = []
     if scelti:                                         # al quinto si passa da soli all'anteprima

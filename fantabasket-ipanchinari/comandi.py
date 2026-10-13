@@ -17,7 +17,7 @@ def liste_comandi() -> dict:
         BotCommand("panchina",  "La panchina che hai mandato (per cambiarla rimandala)"),
         BotCommand("build_panchina", "Componi la panchina coi bottoni"),
         BotCommand("quintetto", "Il tuo quintetto (aggiornarlo non è obbligatorio)"),
-        BotCommand("soprannomi", "I soprannomi che il bot riconosce: vedili o cancellali"),
+        BotCommand("soprannomi", "I soprannomi della tua squadra (o di SQUADRA): vedili o cancellali"),
         BotCommand("guida",     "Guida per i GM"),
     ]
     admin = gm + [
