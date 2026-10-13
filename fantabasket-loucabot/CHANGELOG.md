@@ -73,3 +73,7 @@ Il calcolo dei fantapunti.
 - **Convalida**: risultati in `lega_risultati` e foglio Calendario aggiornato (sotto la partita i soli punti dei supplementari). **`/ricalcola N`** e 🔄: riscarica i tabellini della giornata, ricalcola, riscrive il tab, proposta nuova (quella vecchia perde i bottoni)
 - **Controllo delle 10:00**: riscarica i tabellini delle giornate calcolate da poco o da convalidare; se ESPN ne ha cambiato uno di un giocatore schierato, avviso al gruppo admin con le differenze e 🔄 Ricalcola
 
+## v14 (2026-10-13)
+
+- `/dev_prova_calcolo GG/MM/AAAA GG/MM/AAAA` (dev): prova del calcolo prima dell'inizio della stagione, con gli accoppiamenti della prossima giornata, i quintetti di adesso e le panchine già mandate, sulle partite NBA vere di giorni già giocati; scrive il tab «Calcolo G0» e manda la proposta solo al dev, senza salvare niente
+

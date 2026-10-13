@@ -1232,3 +1232,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - `gas/calcolo.gs` (azione `calcolo`), gas-router `/gas/calcolo`; `CALCOLO_SPREADSHEET_ID` in `gas/globals.gs`. Prove: `tests/louca/louca_risultati.py` (il foglio ricalcolato con LibreOffice dà gli stessi numeri del bot), `tests/gas/` con node
 - Comprende tutta la 5.0.x
 
+## v5.1.1 (2026-10-13)
+
+- loucabot v14: `/dev_prova_calcolo` per provare calcolo e foglio prima del 20/10
+

@@ -113,6 +113,7 @@ Solo per `dev_id`, nel menu `/` del dev.
 | `/guida_dev` | questa guida, come file |
 | `/dev_version` | versione (ultima voce del CHANGELOG) |
 | `/job_status` | job programmati e prossima esecuzione |
+| `/dev_prova_calcolo GG/MM/AAAA GG/MM/AAAA` | prova del calcolo prima che si giochi: gli accoppiamenti della giornata corrente o prossima, i quintetti di adesso (`ipa_quintetto`) e le panchine già mandate, sulle partite NBA vere dei giorni indicati (1-5, già giocati: li scarica con i tabellini). Scrive il tab «Calcolo G0» sul foglio e manda la proposta solo al dev, senza bottoni; non salva niente in `lega_calcoli` né in `lega_risultati`. Le medie sono quelle della stagione NBA di quei giorni, sulle sole partite nel database |
 | `/dev_giornata [N]` | tutto su una giornata (la corrente senza N): date, scadenza, squadre a media calcolate e del calendario, partite NBA per stato con quante hanno il tabellino, snapshot degli infortunati per giorno, risultati salvati e convalidati |
 | `/dev_log [N]` | ultime N righe di log in memoria (30, massimo 100) |
 | `/dev_pg` | connessione a PostgreSQL (versione) |

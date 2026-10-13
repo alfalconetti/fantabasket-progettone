@@ -41,6 +41,7 @@ def liste_comandi() -> dict:
         BotCommand("dev_version", "Versione del bot"),
         BotCommand("job_status",  "Job programmati"),
         BotCommand("dev_giornata", "Stato di una giornata [N]"),
+        BotCommand("dev_prova_calcolo", "Prova del calcolo: GG/MM/AAAA GG/MM/AAAA"),
         BotCommand("dev_log",     "Ultime righe di log [N]"),
         BotCommand("dev_pg",      "Connessione a PostgreSQL"),
         BotCommand("reboot",      "Riavvia il bot"),

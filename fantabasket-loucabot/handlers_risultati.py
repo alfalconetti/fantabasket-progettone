@@ -233,5 +233,47 @@ async def cb_risultati(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _avvia(context, _ricalcola(context.bot, s, n, f"🔄 di {_chi(update)}", rispondi))
 
 
+async def cmd_dev_prova_calcolo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/dev_prova_calcolo GG/MM/AAAA GG/MM/AAAA (solo dev): prova del calcolo prima che si giochi.
+    Gli accoppiamenti della prossima giornata, i quintetti di adesso e le panchine già mandate,
+    sulle partite NBA vere dei giorni indicati (es. di marzo della stagione scorsa): tab «Calcolo G0»
+    sul foglio e la proposta solo al dev, senza bottoni. Non salva niente nei risultati."""
+    if not (config.dev_id() and update.effective_user.id == config.dev_id()):
+        return
+    import calendario as cal
+    import handlers_calcolo as hc
+    msg = update.effective_message
+    try:
+        dal, al = [datetime.strptime(x, "%d/%m/%Y").date() for x in (context.args or [])[:2]]
+        assert dal <= al <= dal + timedelta(days=4)
+    except Exception:
+        await msg.reply_text("Uso: /dev_prova_calcolo GG/MM/AAAA GG/MM/AAAA (da 1 a 5 giorni NBA già giocati, es. 01/03/2026 03/03/2026)")
+        return
+    s = config.stagione()
+    vera = cal.corrente(s)
+    if not vera:
+        await msg.reply_text("Nessuna giornata nel calendario da cui prendere gli accoppiamenti.")
+        return
+    await msg.reply_text(f"⏳ Prova: accoppiamenti della giornata {vera['numero']}, notti NBA {dal:%d/%m}–{al:%d/%m}. "
+                         "Scarico partite e tabellini (un secondo a partita)…")
+
+    async def lavoro():
+        try:
+            await nba.sincronizza([dal + timedelta(days=i) for i in range((al - dal).days + 1)])
+            await hc.aggiorna_tabellini()
+            stagione_nba = next((p["stagione"] for p in db.partite_nba(dal, al)), s)
+            finta = {**vera, "numero": 0, "dal": dal, "al": al, "media": None, "media_file": [], "tipo": "regular"}
+            c = R.calcola(s, 0, g=finta, sch=R.schieramenti_attuali(s, vera["numero"]), stagione_nba=stagione_nba,
+                          partite=db.partite_giornata(s, vera["numero"]))
+            foglio = await R.scrivi_foglio(c)
+            await context.bot.send_message(chat_id=update.effective_chat.id, parse_mode="HTML",
+                                           text="🧪 <b>PROVA</b> (niente è stato salvato)\n\n" + R.testo(c) + f"\n\n<i>{e(foglio)}</i>")
+        except Exception as err:
+            logger.exception("Prova del calcolo")
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=f"⚠️ Prova fallita: {err}")
+    await _avvia(context, lavoro())
+
+
 def get_handlers() -> list:
-    return [CommandHandler("ricalcola", cmd_ricalcola), CallbackQueryHandler(cb_risultati, pattern=r"^rc:")]
+    return [CommandHandler("ricalcola", cmd_ricalcola), CommandHandler("dev_prova_calcolo", cmd_dev_prova_calcolo),
+            CallbackQueryHandler(cb_risultati, pattern=r"^rc:")]

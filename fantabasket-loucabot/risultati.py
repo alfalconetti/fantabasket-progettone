@@ -70,12 +70,27 @@ def _riga(gid, ruolo, gioc: dict, posto: str) -> dict:
             "nome": x.get("nome_common") or ("—" if not gid else f"giocatore {gid}")}
 
 
-def calcola(stagione: str, n: int) -> dict:
-    g = db.giornata(stagione, n)
+def schieramenti_attuali(stagione: str, n: int) -> dict[str, dict]:
+    """Per la prova: i quintetti di adesso (ipa_quintetto) e le panchine mandate per la giornata n."""
+    out = {t: {"quintetto": {}, "panchina": None} for t in [s["id"] for s in config.squadre()]}
+    if _c_e("ipa_quintetto"):
+        for r in db.q("SELECT team_id, ruolo, giocatore_id FROM ipa_quintetto", many=True) or []:
+            out.setdefault(r["team_id"], {"quintetto": {}, "panchina": None})["quintetto"][r["ruolo"]] = r["giocatore_id"]
+    for t, s in schieramenti(stagione, n).items():
+        out.setdefault(t, {"quintetto": {}, "panchina": None})["panchina"] = s["panchina"]
+    return out
+
+
+def calcola(stagione: str, n: int, g: dict | None = None, sch: dict | None = None, stagione_nba: str | None = None,
+            partite: list | None = None) -> dict:
+    """Con g, sch e stagione_nba (solo /dev_prova_calcolo): una giornata finta, sulle partite NBA di
+    altri giorni e con gli schieramenti indicati; le medie dalla stagione NBA di quei giorni."""
+    stagione_nba = stagione_nba or stagione
+    g = g or db.giornata(stagione, n)
     if not g:
         raise ValueError(f"giornata {n} non trovata")
-    partite = db.partite_giornata(stagione, n)
-    sch = schieramenti(stagione, n)
+    partite = partite if partite is not None else db.partite_giornata(stagione, n)
+    sch = sch if sch is not None else schieramenti(stagione, n)
     ids = set()
     for s in sch.values():
         ids |= {x for x in s["quintetto"].values() if x}
@@ -99,7 +114,7 @@ def calcola(stagione: str, n: int) -> dict:
                 avvisi.append(f"{nome}: senza id ESPN, contano 0: {', '.join(senza)} (/espn_abbina)")
             squadre[t] = {"quintetto": q, "panchina": b}
     atleti = [x["atleta"] for s in squadre.values() for x in s["quintetto"] + s["panchina"] if x["atleta"]]
-    punti = calcolo.punteggio_giocatori(stagione, g, atleti)
+    punti = calcolo.punteggio_giocatori(stagione_nba, g, atleti)
     bonus = BONUS.get(g.get("tipo") or "regular", 3)
     risultati = []
     for p in partite:
@@ -114,7 +129,7 @@ def calcola(stagione: str, n: int) -> dict:
                           "supp_trasferta": es["punti_supplementari"][1] if es["punti_supplementari"] else None,
                           "supplementari": es["supplementari"], "vince": es["vince"]})
     return {"stagione": stagione, "giornata": g, "bonus": bonus, "squadre": squadre, "punti": punti,
-            "risultati": risultati, "avvisi": avvisi, "dettaglio": _dettaglio(stagione, g, atleti)}
+            "risultati": risultati, "avvisi": avvisi, "dettaglio": _dettaglio(stagione_nba, g, atleti)}
 
 
 def _dettaglio(stagione: str, g: dict, atleti: list[str]) -> dict:

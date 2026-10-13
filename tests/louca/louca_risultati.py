@@ -181,6 +181,29 @@ ok(len(avv) == 1 and "Prova 12" not in avv[0]["text"] and "r12: 21.0 → 25.0" i
    and [b.callback_data for r in avv[0]["reply_markup"].inline_keyboard for b in r] == [f"rc:re:{N}"],
    f"controllo delle 10: tabellino cambiato di uno schierato → avviso col bottone Ricalcola {avv[0]['text'] if avv else ''}")
 
+# ── /dev_prova_calcolo: la prova prima che si giochi (quintetti di adesso, panchine mandate, notti NBA indicate) ──
+db.q("DELETE FROM ipa_quintetto")
+db.q("INSERT INTO ipa_quintetto (team_id, ruolo, giocatore_id, fonte) SELECT team_id, ruolo, giocatore_id, 'import' "
+     "FROM ipa_formazioni WHERE stagione = %s AND giornata = %s AND giocatore_id IS NOT NULL", (S, N))
+async def _niente(*a, **k): return {"giorni": 0, "partite": 0, "errori": [], "giocatori": 0, "abbinamento": {}}
+import handlers_calcolo as HC2
+_s, _t = HR.nba.sincronizza, HC2.aggiorna_tabellini
+HR.nba.sincronizza, HC2.aggiorna_tabellini = _niente, _niente
+class Msg2:
+    def __init__(s): s.risposte = []
+    async def reply_text(s, t, **k): s.risposte.append(t)
+BOT.mandati.clear(); m2 = Msg2()
+u = types.SimpleNamespace(effective_user=types.SimpleNamespace(id=config.dev_id()), effective_message=m2,
+                          effective_chat=types.SimpleNamespace(id=config.dev_id()))
+asyncio.run(HR.cmd_dev_prova_calcolo(u, types.SimpleNamespace(bot=BOT, args=[f"{DAL:%d/%m/%Y}", f"{AL:%d/%m/%Y}"], application=None)))
+HR.nba.sincronizza, HC2.aggiorna_tabellini = _s, _t
+prova = [x for x in BOT.mandati if x.get("chat_id") == config.dev_id()]
+ok(prova and "PROVA" in prova[0]["text"] and "Giornata 0 calcolata" in prova[0]["text"] and "reply_markup" not in prova[0]
+   and f"{r1['punti_casa']:.2f}".replace(".", ",") in prova[0]["text"],
+   "/dev_prova_calcolo: stessi conti con i quintetti di adesso e le panchine mandate, solo al dev, senza bottoni")
+ok(db.q("SELECT COUNT(*) AS n FROM lega_calcoli WHERE giornata = 0", one=True)["n"] == 0, "la prova non salva niente")
+db.q("DELETE FROM ipa_quintetto")
+
 # pulizia
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (list(gid.values()),))
 db.q("TRUNCATE nba_tabellini, nba_infortuni, lega_giornate, lega_partite, nba_partite, lega_risultati, lega_calcoli")
