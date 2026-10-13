@@ -116,6 +116,18 @@ def migra():
         q("ALTER TABLE nba_infortuni DROP CONSTRAINT nba_infortuni_pkey")
         q("ALTER TABLE nba_infortuni ADD PRIMARY KEY (atleta, preso)")
     q("CREATE INDEX IF NOT EXISTS idx_nba_infortuni_giorno ON nba_infortuni (giorno, preso)")
+    q("""CREATE TABLE IF NOT EXISTS lega_calcoli (
+            stagione       TEXT NOT NULL,
+            giornata       INT  NOT NULL,
+            stato          TEXT NOT NULL DEFAULT 'da_convalidare',   -- da_convalidare / convalidata
+            versione       INT  NOT NULL DEFAULT 1,                  -- +1 a ogni ricalcolo
+            calcolato      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            risultati      JSONB NOT NULL,                           -- la proposta (risultati.risultati_json)
+            avvisi         JSONB,
+            messaggio      BIGINT,                                   -- il messaggio da convalidare nel gruppo admin
+            convalidato    TIMESTAMPTZ,
+            convalidato_da BIGINT,
+            PRIMARY KEY (stagione, giornata))""")
     q("""CREATE TABLE IF NOT EXISTS lega_status_validi (
             stagione   TEXT NOT NULL,
             giornata   INT  NOT NULL,
@@ -136,7 +148,7 @@ def migra():
             trasferta        TEXT NOT NULL,
             punti_casa       NUMERIC(7,2),                      -- regolamentari, bonus casa compreso
             punti_trasferta  NUMERIC(7,2),
-            supp_casa        NUMERIC(7,2),                      -- dopo i supplementari (se ci sono stati)
+            supp_casa        NUMERIC(7,2),                      -- i soli punti dei supplementari (se ci sono stati)
             supp_trasferta   NUMERIC(7,2),
             vince            TEXT,                              -- casa / trasferta
             convalidato      TIMESTAMPTZ,
@@ -266,7 +278,7 @@ def medie_stagione(atleti: list[str], stagione: str, prima_del) -> dict[str, dic
     righe = q("""SELECT t.atleta, AVG(t.fp)::float AS media, COUNT(*) AS partite FROM nba_tabellini t
                  JOIN nba_partite p ON p.espn_id = t.partita
                  WHERE t.atleta = ANY(%s) AND p.stagione = %s AND p.tipo = ANY(%s) AND p.data_et < %s
-                   AND t.giocato GROUP BY t.atleta""", (list(atleti), stagione, [2, 5], prima_del), many=True) or []
+                   AND t.giocato AND NOT (t.fp = 0 AND t.minuti = 0) GROUP BY t.atleta""", (list(atleti), stagione, [2, 5], prima_del), many=True) or []
     return {r["atleta"]: {"media": round(r["media"], 2), "partite": r["partite"]} for r in righe}
 
 

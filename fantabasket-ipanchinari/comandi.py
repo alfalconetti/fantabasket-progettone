@@ -25,7 +25,7 @@ def liste_comandi() -> dict:
         BotCommand("quintetti",        "Tutti i quintetti, una riga per squadra [N: giornata]"),
         BotCommand("quintetto_admin",  "Quintetto di una squadra: coi bottoni, o SQUADRA e sotto i 5"),
         BotCommand("quintetti_import", "Quintetti di tutte le squadre (testo o file)"),
-        BotCommand("panchina_admin",   "Panchina di una squadra: coi bottoni, o SQUADRA e sotto le righe"),
+        BotCommand("panchina_admin",   "Panchina di una squadra (GN: giornata chiusa): coi bottoni o le righe sotto"),
         BotCommand("soprannomi",       "Soprannomi della tua squadra, o di SQUADRA"),
         BotCommand("ripubblica_panchine", "Tutte le panchine della giornata [N] di nuovo sul canale"),
         BotCommand("guida_admin",      "Guida per gli admin"),

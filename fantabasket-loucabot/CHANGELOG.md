@@ -64,3 +64,12 @@ Il calcolo dei fantapunti.
 - `/dev_giornata` conta gli snapshot di ogni giorno
 - Snapshot solo dai ruoli dell'offseason ai playoff (`offseason-ruoli`, `regular-season-fa`, `regular-season-deadline`, `playoff`); nelle altre fasi i job non scaricano niente
 - **`/set_valid_status GIOCATORE N`** (admin): lo status di un giocatore che vale per il calcolo della giornata N, scelto coi bottoni tra quelli catturati dagli snapshot (con ★ quello che conterebbe); vince sugli snapshot per la media a 0 e per la FADD, "↩️ Torna agli snapshot" annulla, tutto sul canale log
+- Calcolo (deciso con Luca il 13/10): uno 0 con 0 minuti non fa media, uno 0 con dei minuti sì (anche nella media della stagione); FADD anche per il titolare indisponibile tutta la giornata la cui squadra non gioca; sul foglio Calendario e in `lega_risultati.supp_*` i soli punti dei supplementari
+
+## v13 (2026-10-13)
+
+- **Calcolo definitivo delle giornate** (`risultati.py`, `handlers_risultati.py`): alle 7:45 del giorno dopo l'ultima notte, coi tabellini definitivi, dai quintetti congelati e dalle panchine di IPanchinari. Proposta al gruppo admin (risultati, FADD, avvisi: panchina mancante → senza supplementari, quintetto incompleto, giocatori senza id ESPN) con ✅ Convalida e 🔄 Ricalcola
+- **Tab «Calcolo GN»** sul foglio di controllo del calcolo (via gas-router `/gas/calcolo`, `gas/calcolo.gs`): una riga per giocatore coi fantapunti di ogni notte, media, status, punteggio, in campo, ordine dei supplementari; totali, supplementari e vincitore come formule che rifanno i conti del bot (provato: il foglio ricalcolato dà gli stessi numeri). Riquadro dei risultati in cima
+- **Convalida**: risultati in `lega_risultati` e foglio Calendario aggiornato (sotto la partita i soli punti dei supplementari). **`/ricalcola N`** e 🔄: riscarica i tabellini della giornata, ricalcola, riscrive il tab, proposta nuova (quella vecchia perde i bottoni)
+- **Controllo delle 10:00**: riscarica i tabellini delle giornate calcolate da poco o da convalidare; se ESPN ne ha cambiato uno di un giocatore schierato, avviso al gruppo admin con le differenze e 🔄 Ricalcola
+

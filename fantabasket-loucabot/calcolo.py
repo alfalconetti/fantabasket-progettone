@@ -2,7 +2,8 @@
 Calcolo dei punteggi secondo il regolamento (capitolo PARTITA), dai tabellini di ESPN.
 
 Giocatore in una giornata (punteggio_giocatori):
-- ha giocato una o più partite della giornata → media matematica dei fantapunti delle partite giocate;
+- ha giocato una o più partite della giornata → media matematica dei fantapunti delle partite giocate
+  (uno 0 con 0 minuti non conta, uno 0 con dei minuti sì; lo stesso per la media della stagione);
 - non ha giocato e la sua squadra NBA nella giornata non ha partite (squadre a media), oppure ha
   solo partite rinviate → la sua media della stagione, ma 0 se è indisponibile (infortunato,
   squalificato: per tutti i giorni della giornata con uno snapshot degli infortunati);
@@ -10,8 +11,10 @@ Giocatore in una giornata (punteggio_giocatori):
 
 Squadra (punteggio_squadra): somma dei 5 titolari; FADD: un panchinaro dello stesso ruolo prende il
 posto di un titolare che non ha giocato nessuna partita e ha avuto il tag (O, INJ, GTD: per ESPN
-qualunque stato diverso da Probable) in tutti i giorni in cui la sua squadra ha giocato. Una sola
-sostituzione per giornata, il primo panchinaro in ordine che può entrare; la panchina scala.
+qualunque stato diverso da Probable) in tutti i giorni in cui la sua squadra ha giocato, o in tutti
+i giorni della giornata se la sua squadra non ha giocato (a media). Una sola sostituzione per
+giornata, il primo panchinaro in ordine che può entrare; la panchina scala e resta di 4: al quinto
+supplementare chi ha avuto la FADD aggiunge 0.
 
 Partita (esito): vince chi ha 5 o più punti di scarto, bonus casa compreso (3, nei playoff 5);
 altrimenti si aggiungono i panchinari uno alla volta, in ordine (supplementari); pari anche dopo
@@ -29,6 +32,12 @@ SCARTO = 5
 
 def indisponibile(stato: str | None) -> bool:
     return bool(stato) and stato.strip().lower() not in STATI_DISPONIBILE
+
+
+def conta(r: dict) -> bool:
+    """Una riga di tabellino fa media? Solo se è entrato, e uno 0 con 0 minuti no (deciso con
+    Luca il 13/10): uno 0 con dei minuti sì."""
+    return bool(r["giocato"]) and not (float(r["fp"] or 0) == 0 and int(r.get("minuti") or 0) == 0)
 
 
 def _giorni(dal, al) -> list:
@@ -62,7 +71,7 @@ def punteggio_giocatori(stagione: str, g: dict, atleti: list[str]) -> dict[str, 
     out = {}
     for a in atleti:
         righe = [r for r in tab if r["atleta"] == a]
-        giocate = [float(r["fp"]) for r in righe if r["giocato"]]
+        giocate = [float(r["fp"]) for r in righe if conta(r)]
         squadra = righe[-1]["squadra"] if righe else squadre_prima.get(a)
         if giocate:
             out[a] = {"fp": _media(giocate), "come": "partite", "partite": giocate, "squadra": squadra,
@@ -106,8 +115,8 @@ def _fadd_possibile(a: str, p: dict, g: dict) -> tuple[bool, str]:
         return False, ""
     giorni = sorted({x["data_et"] for x in db.partite_nba(g["dal"], g["al"])
                      if p["squadra"] in (x["casa"], x["trasferta"]) and x["stato"] == "STATUS_FINAL"})
-    if not giorni:
-        return False, ""
+    if not giorni:          # la sua squadra non ha giocato (a media, rinviate): conta tutta la giornata
+        giorni = _giorni(g["dal"], g["al"])
     if g.get("numero") and g.get("stagione"):
         deciso = db.status_validi(g["stagione"], g["numero"], [a])
         if a in deciso:                                       # deciso da un admin: vince sugli snapshot
@@ -162,8 +171,11 @@ def esito(casa: dict, trasferta: dict, bonus: float = 3) -> dict:
         vince = "casa" if c > t else "trasferta"
     else:
         vince = "trasferta"
+    reg_c, reg_t = casa["totale"] + bonus, trasferta["totale"]
     return {"vince": vince, "casa": round(c, 2), "trasferta": round(t, 2), "supplementari": supp,
-            "regolamentari": (round(casa["totale"] + bonus, 2), round(trasferta["totale"], 2))}
+            "regolamentari": (round(reg_c, 2), round(reg_t, 2)),
+            # i soli punti dei supplementari (sul foglio Calendario, sotto i regolamentari)
+            "punti_supplementari": (round(c - reg_c, 2), round(t - reg_t, 2)) if supp else None}
 
 
 # ── abbinamento giocatori ↔ ESPN ───────────────────────────────────────────────

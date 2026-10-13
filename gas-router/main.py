@@ -44,6 +44,13 @@ class GASPayload(BaseModel):
     anni:  Optional[list[int]] = None
     csv:   Optional[str] = None
     righe: Optional[list[Any]] = None
+    # tab "Calcolo GN" (loucabot)
+    nome:    Optional[str] = None
+    sfondi:  Optional[list[Any]] = None
+    testi:   Optional[list[Any]] = None
+    pesi:    Optional[list[Any]] = None
+    formati: Optional[list[Any]] = None
+    congela: Optional[dict] = None
 
 
 def _get_gas_scelte_url(): return _read_secret("GAS_SCELTE_URL_FILE")
@@ -94,6 +101,25 @@ async def calendario(payload: GASPayload, authorization: str = Header(...)):
         "token":   _get_gas_token(),
         "action":  "calendario",
         "righe":   payload.righe or [],
+    }
+    return await _forward(_get_gas_roster_url(), gas_payload, timeout=170.0)
+
+
+@app.post("/gas/calcolo")
+async def calcolo(payload: GASPayload, authorization: str = Header(...)):
+    """Tab "Calcolo GN" del foglio di controllo del calcolo (loucabot): riscritto tutto.
+    Stessa web app del Roster (doPost smista per action; il file lo sceglie il gas)."""
+    _check_auth(authorization)
+    gas_payload = {
+        "token":   _get_gas_token(),
+        "action":  "calcolo",
+        "nome":    payload.nome or "",
+        "righe":   payload.righe or [],
+        "sfondi":  payload.sfondi,
+        "testi":   payload.testi,
+        "pesi":    payload.pesi,
+        "formati": payload.formati or [],
+        "congela": payload.congela,
     }
     return await _forward(_get_gas_roster_url(), gas_payload, timeout=170.0)
 

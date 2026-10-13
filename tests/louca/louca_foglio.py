@@ -16,7 +16,7 @@ db.q("UPDATE lega_giornate SET media = %s WHERE stagione = '2026' AND numero = 2
 db.q("INSERT INTO lega_risultati (stagione, giornata, casa, trasferta, punti_casa, punti_trasferta, vince) "
      "VALUES ('2026', 1, 'team01', 'team02', 110.5, 98.25, 'casa')")
 db.q("INSERT INTO lega_risultati (stagione, giornata, casa, trasferta, punti_casa, punti_trasferta, supp_casa, supp_trasferta, vince) "
-     "VALUES ('2026', 2, 'team04', 'team01', 100, 103, 120.75, 131, 'trasferta')")
+     "VALUES ('2026', 2, 'team04', 'team01', 100, 103, 20.75, 28, 'trasferta')")
 G = foglio.griglia("2026")
 ok(len(G) == 15 and all(len(r) == 5 for r in G), f"tutta la pagina, 5 colonne, righe come il CSV (vuote finali tolte) {len(G)}")
 ok(G[0] == ["Week 1 20/10 - 22/10 (media OKC)", "", "", "", ""], f"intestazione con le squadre a media calcolate, testo in A {G[0]}")
@@ -24,8 +24,8 @@ ok(G[1] == ["Alfa", 110.5, "V", 98.25, "Beta"] and G[2] == ["", "", "", "", ""],
    "squadre e V dal CSV, punteggi regolamentari in B e D; senza supplementari la riga sotto resta vuota")
 ok(G[5] == ["Gamma", "", "V", "", "Delta"], "partita senza risultato: B e D vuote")
 ok(G[9] == ["Week 2 23/10 - 24/10", "", "", "", ""], "media calcolata vuota: la nota sparisce dall'intestazione (anche se era tra virgolette)")
-ok(G[10] == ["Delta", 100.0, "V", 103.0, "Alfa"] and G[11] == ["", 120.75, "", 131.0, ""],
-   "supplementari subito sotto la riga delle squadre")
+ok(G[10] == ["Delta", 100.0, "V", 103.0, "Alfa"] and G[11] == ["", 20.75, "", 28.0, ""],
+   "supplementari subito sotto la riga delle squadre: i soli punti dei supplementari")
 ok(foglio.intestazione("Week 3 1/1 - 2/1 (media cle, den)", None) == "Week 3 1/1 - 2/1 (media cle, den)",
    "giornata non ancora calcolata: intestazione com'è")
 db.q("INSERT INTO lega_calendario_csv (stagione, testo) VALUES ('2027', 'Week 3 1/1 - 2/1 (media cle, den),,,,\nAlfa,,V,,Beta\n')")

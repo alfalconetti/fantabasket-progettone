@@ -71,7 +71,8 @@ def anteprima(b: dict) -> tuple[str, K]:
     roster = db.roster(b["team_id"], b["stagione"])
     nomi = _nomi(roster)
     g = db.giornata(b["stagione"], b["giornata"])
-    righe = [f"🪑 <b>Panchina di {e(config.nome(b['team_id']))} per la giornata {b['giornata']}</b>",
+    righe = [f"🪑 <b>Panchina di {e(config.nome(b['team_id']))} per la giornata {b['giornata']}</b>"
+             + (" · ✏️ correzione (giornata chiusa)" if b["dati"].get("correzione") else ""),
              f"Scadenza: {ora(g['prima_partita']) if g else '?'}", ""]
     if d.get("titolo"):
         righe += [f"<i>{e(d['titolo'])}</i>", ""]
@@ -108,10 +109,25 @@ def anteprima(b: dict) -> tuple[str, K]:
     return "\n".join(righe), K(tasti)
 
 
-def crea_bozza(chat_id: int, team_id: str, testo: str, fonte: str = "gm") -> tuple[dict | None, str | None]:
-    """(bozza, errore)."""
+def _giornata_correzione(s: str, numero: int) -> tuple[dict | None, str | None]:
+    """La giornata N già chiusa da correggere (admin, per il calcolo). (giornata, errore)"""
+    g = db.giornata(s, numero)
+    if not g:
+        return None, f"Giornata {numero} non trovata."
+    if not db.stato_giornata(s, numero)["chiusa"]:
+        return None, f"La giornata {numero} non è ancora chiusa: la panchina si manda normalmente (senza G{numero})."
+    return g, None
+
+
+def crea_bozza(chat_id: int, team_id: str, testo: str, fonte: str = "gm", numero: int | None = None) -> tuple[dict | None, str | None]:
+    """(bozza, errore). Con `numero` (admin): correzione della panchina della giornata N, già chiusa."""
     s = config.stagione()
-    g = prossima_giornata(s)
+    if numero:
+        g, err = _giornata_correzione(s, numero)
+        if err:
+            return None, err
+    else:
+        g = prossima_giornata(s)
     if not g:
         return None, "Non c'è una giornata aperta: il calendario non è ancora caricato o la stagione è finita."
     titolo, righe, err = abbina.leggi_messaggio(testo)
@@ -129,7 +145,7 @@ def crea_bozza(chat_id: int, team_id: str, testo: str, fonte: str = "gm") -> tup
     if not roster:
         return None, "Nessun giocatore a roster per questa squadra."
     abbinate = abbina.abbina_panchina(righe, roster, db.alias(team_id, [g["id"] for g in roster]))
-    dati = {"titolo": titolo, "righe": abbinate}
+    dati = {"titolo": titolo, "righe": abbinate, "correzione": bool(numero)}
     bid = db.nuova_bozza(chat_id, team_id, s, g["numero"], dati, fonte)
     return db.bozza(bid), None
 
@@ -292,7 +308,7 @@ async def _scrivi_canale(bot, canale, testo: str, vecchio: int | None) -> int:
 async def pubblica(update, context, b: dict):
     q = update.callback_query
     g = db.giornata(b["stagione"], b["giornata"])
-    if not g or not aperta(g):
+    if not b["dati"].get("correzione") and (not g or not aperta(g)):
         db.chiudi_bozza(b["id"])
         await q.answer("La scadenza è passata.", show_alert=True)
         await q.edit_message_text("⏰ La scadenza di questa giornata è passata mentre confermavi: la panchina non è "
@@ -323,6 +339,8 @@ async def pubblica(update, context, b: dict):
     db.salva_panchina(b["stagione"], b["giornata"], b["team_id"], b["dati"].get("titolo"), righe,
                       da=update.effective_user.id, fonte=b["fonte"], messaggio_canale=mid,
                       canale_id=canale if mid else None, da_nome=(u.full_name or str(u.id)) if u else None)
+    if b["dati"].get("correzione"):                       # giornata già chiusa: i ruoli per la FADD
+        db.congela_ruoli_panchine(b["stagione"], b["giornata"], b["team_id"])
     rip = abbina.ripetute([r["testo"] for r in b["dati"]["righe"]])
     for r in b["dati"]["righe"]:
         if abbina.chiave(r["testo"]) in rip:          # "prova" ×5: non è il soprannome di nessuno
@@ -333,7 +351,11 @@ async def pubblica(update, context, b: dict):
     nomi = _nomi(roster)
     av = avvisi(b, roster)
     await q.answer("Pubblicata")
-    await q.edit_message_text(f"✅ Panchina della giornata {b['giornata']} pubblicata"
+    if b["dati"].get("correzione"):
+        await log(context.bot, f"✏️ Panchina G{b['giornata']} di {e(config.nome(b['team_id']))} corretta da {chi(update)} "
+                               f"a giornata chiusa: per il calcolo /ricalcola {b['giornata']} su loucabot")
+    await q.edit_message_text((f"✏️ Correzione: ora su loucabot /ricalcola {b['giornata']}.\n" if b["dati"].get("correzione") else "")
+                              + f"✅ Panchina della giornata {b['giornata']} pubblicata"
                               + (" (sostituisce la precedente)" if precedente else "") + ".\n\n"
                               + "\n".join(f"{i}. {e(r['testo'])} → {e(nomi.get(r['giocatore_id'], '?'))}"
                                           for i, r in enumerate(righe, 1))
@@ -397,7 +419,8 @@ def builder(b: dict, roster: list[dict]) -> tuple[str, K]:
     if len(liberi) < abbina.MAX_PANCHINA - len(scelti):    # rosa corta: si possono scegliere anche i titolari
         liberi += [g for g in roster if g["id"] in titolari and g["id"] not in scelti]
     g = db.giornata(b["stagione"], b["giornata"])
-    righe = [f"🪑 <b>Panchina di {e(config.nome(b['team_id']))} per la giornata {b['giornata']}</b>",
+    righe = [f"🪑 <b>Panchina di {e(config.nome(b['team_id']))} per la giornata {b['giornata']}</b>"
+             + (" · ✏️ correzione (giornata chiusa)" if b["dati"].get("correzione") else ""),
              f"Scadenza: {ora(g['prima_partita']) if g else '?'}", ""]
     st, quando = stati([x["id"] for x in liberi] + scelti)
     righe += [f"{i}. {e(r['testo'])}{st.get(r['scelto'], '')}" for i, r in enumerate(d["righe"], 1)] or ["(ancora nessuno)"]
@@ -414,13 +437,20 @@ def builder(b: dict, roster: list[dict]) -> tuple[str, K]:
     return "\n".join(righe), K(tasti + [fondo])
 
 
-async def apri_builder(msg, chat_id: int, team_id: str, fonte: str = "gm"):
+async def apri_builder(msg, chat_id: int, team_id: str, fonte: str = "gm", numero: int | None = None):
     s = config.stagione()
-    g = prossima_giornata(s)
+    if numero:
+        g, err = _giornata_correzione(s, numero)
+        if err:
+            await msg.reply_text(f"❌ {err}")
+            return
+    else:
+        g = prossima_giornata(s)
     if not g:
         await msg.reply_text("Non c'è una giornata aperta.")
         return
-    bid = db.nuova_bozza(chat_id, team_id, s, g["numero"], {"titolo": None, "righe": [], "builder": True}, fonte)
+    bid = db.nuova_bozza(chat_id, team_id, s, g["numero"], {"titolo": None, "righe": [], "builder": True,
+                                                            "correzione": bool(numero)}, fonte)
     testo, tasti = builder(db.bozza(bid), db.roster(team_id, s))
     await msg.reply_text(testo, parse_mode="HTML", reply_markup=tasti)
 
@@ -539,23 +569,31 @@ async def cmd_ripubblica_panchine(update: Update, context: ContextTypes.DEFAULT_
 
 
 async def cmd_panchina_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/panchina_admin SQUADRA e sotto le righe: la panchina per conto di una squadra."""
+    """/panchina_admin SQUADRA [GN] e sotto le righe: la panchina per conto di una squadra. Con GN
+    (es. G5) corregge la panchina della giornata 5, già chiusa (poi /ricalcola 5 su loucabot)."""
+    import re
     msg = update.effective_message
     if not config.is_admin(update.effective_user.id):
         await msg.reply_text("⛔ Solo admin.")
         return
     righe = (msg.text or "").split("\n")
     prima = righe[0].split(maxsplit=1)
+    numero = None
+    if len(prima) > 1:
+        m = re.search(r"\s+[Gg](\d{1,2})\s*$", prima[1])
+        if m:
+            numero, prima[1] = int(m.group(1)), prima[1][:m.start()]
     from shared.squadre import cerca_squadra
     team = cerca_squadra(prima[1], config.squadre()) if len(prima) > 1 else None
     if not team:
         await msg.reply_text("Uso: /panchina_admin SQUADRA (nome o id) nella prima riga, sotto le righe della panchina; "
-                             "senza righe si apre il builder coi bottoni.")
+                             "senza righe si apre il builder coi bottoni. Con G5 dopo la squadra corregge la panchina "
+                             "della giornata 5, già chiusa.")
         return
     if not [r for r in righe[1:] if r.strip()]:
-        await apri_builder(msg, update.effective_chat.id, team["id"], fonte="admin")
+        await apri_builder(msg, update.effective_chat.id, team["id"], fonte="admin", numero=numero)
         return
-    b, err = crea_bozza(update.effective_chat.id, team["id"], "\n".join(righe[1:]), fonte="admin")
+    b, err = crea_bozza(update.effective_chat.id, team["id"], "\n".join(righe[1:]), fonte="admin", numero=numero)
     if err:
         await msg.reply_text(f"❌ {err}")
         return

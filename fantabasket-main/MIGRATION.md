@@ -1,6 +1,6 @@
 # Messaggio di migrazione — Fantabasket Progettone
 
-**Stato: v5.0.20 · bot aste v65 · loucabot v12 · IPanchinari v16** (13/10/2026)
+**Stato: v5.1.0 · bot aste v65 · loucabot v13 · IPanchinari v17** (13/10/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 
@@ -117,7 +117,7 @@ Lo specchietto completo regolamento ↔ codice ↔ prove, con i testi proposti p
 - **Rookie e x0**: anni residui sempre calcolati; x0 = contratto finito, resta fino all'inizio FA e non pesa, tranne l'RFA dichiarato (cap sì, slot no). Doncic: max fantamedia delle ultime due stagioni per difetto, importo per eccesso, solo sopra la tabella; al IV anno il contratto non scende sotto la tabella. Tra rinnovi e draft le annate di pick sono 7.
 - **RFA**: si dichiara e si cambia quante volte si vuole fino all'inizio delle aste RFA (anche nel draft). In trade prima delle aste la dichiarazione decade (chi lo cede ne dichiara un altro, per chi lo riceve è un x0 che non pesa); dalle aste in poi segue il giocatore, massimo uno per squadra. Sui canali: una riga per evento sul log, un riepilogo unico aggiornato sul canale principale.
 - **Ruoli**: PG/SG/SF/PF/C tra le posizioni eleggibili; minimi 4G/4F/2C; dichiarazione a inizio stagione, in RS dichiarazioni post-trade/firma entro 48 h (poi estrazione) e regola dei 60 giorni; cambi ordinari 2 a stagione, Erminio (14 giorni dall'aggiunta della posizione), Saedro (10 giorni, una volta), forzati admin che non contano.
-- **Partita** (loucabot): fantapunti = punto +0,5, assist +2, rimb. off. +2, dif. +1,25, tripla +1,5, tiro tentato −0,5 e segnato +1, libero tentato −0,75 e segnato +1, recupero +2, stoppata +2, palla persa −2. Più partite nella giornata → media; squadre NBA senza partite → media della stagione, 0 se indisponibile; FADD; vince chi ha 5 o più punti di scarto bonus casa compreso (3, playoff 5), poi supplementari con la panchina, pari fino al decimo uomo → trasferta. Vale il calcolo delle squadre a media dalle partite NBA, non le note del calendario.
+- **Partita** (loucabot): fantapunti = punto +0,5, assist +2, rimb. off. +2, dif. +1,25, tripla +1,5, tiro tentato −0,5 e segnato +1, libero tentato −0,75 e segnato +1, recupero +2, stoppata +2, palla persa −2. Più partite nella giornata → media (uno 0 con 0 minuti non conta, uno 0 con dei minuti sì); squadre NBA senza partite → media della stagione, 0 se indisponibile; FADD anche quando la squadra del titolare non gioca (deciso con Luca il 13/10), poi la panchina scala e resta di 4; supplementari sul Calendario come soli punti dei supplementari; vince chi ha 5 o più punti di scarto bonus casa compreso (3, playoff 5), poi supplementari con la panchina, pari fino al decimo uomo → trasferta. Vale il calcolo delle squadre a media dalle partite NBA, non le note del calendario.
 
 ---
 
@@ -208,9 +208,9 @@ PostgreSQL 16 locale, database `fbt` (utente `fb`), configurazione finta in `tes
 
 **Prima dell'inizio della stagione (20/10/2026)**, in quest'ordine:
 1. **IPanchinari in produzione**: token, canale, quintetti di partenza (script da console sulla pagina Yahoo: serve una pagina di esempio), qualche giro di prova con 2-3 GM prima del 20.
-2. **Regole di calcolo complete** con quintetti e panchine: risultati in `lega_risultati`, convalida della giornata da un admin, poi sincronizzazione del foglio Calendario.
+2. ~~Regole di calcolo complete~~ **fatto nella v5.1.0**: calcolo alle 7:45 coi definitivi dai quintetti congelati e dalle panchine, tab «Calcolo GN» sul foglio di controllo (formule che rifanno i conti del bot), proposta al gruppo admin con Convalida/Ricalcola, correzioni dal bot (`/set_valid_status`, `/quintetto_admin SQUADRA GN`, `/panchina_admin SQUADRA GN`, `/ricalcola N`), controllo dei tabellini alle 10:00, alla convalida `lega_risultati` e foglio Calendario. Deciso con Luca il 13/10: il foglio di controllo è un file a parte (`CALCOLO_SPREADSHEET_ID` in `gas/globals.gs`); le correzioni si fanno sempre dal bot, mai sul foglio; nella classifica media e differenza punti col bonus casa; sul Calendario punti col bonus casa e sotto i soli punti dei supplementari; senza panchina si gioca senza supplementari (avviso agli admin); il giocatore ceduto a giornata in corso conta per la vecchia squadra fino a fine giornata.
    - Deciso con Luca il 13/10: la media vale solo sulla stagione in corso; chi non ha ancora partite quando serve la media prende 0, mai la media della stagione prima (alla prima giornata non si prende nessuna media). È già così in `calcolo.punteggio_giocatori`.
-3. **Risultati e classifica** nel bot (parità: scontri diretti, media punti, differenza punti). Da decidere: media e differenza punti con o senza bonus casa; conferma di "indisponibile" = stato diverso da Probable nello snapshot che conta di ogni giorno della giornata (l'ultimo prima della prima partita); punteggio sul foglio col bonus casa compreso.
+3. **Classifica** nel bot, `/classifica` come immagine Typst (parità: scontri diretti, media punti, differenza punti, col bonus casa; fa fede quella dei fogli). Da confermare: "indisponibile" = stato diverso da Probable nello snapshot che conta di ogni giorno della giornata (l'ultimo prima della prima partita).
 
 **Dopo**
 - Foglio Google pubblico di calcolo automatico: punteggi di ogni giornata e status (da vedere).

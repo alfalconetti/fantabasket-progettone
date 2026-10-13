@@ -451,6 +451,7 @@ async def job_giornate(context: ContextTypes.DEFAULT_TYPE):
             continue
         if ora_ >= scad:
             db.congela_quintetti(s, g["numero"], [t["id"] for t in config.squadre()])
+            db.congela_ruoli_panchine(s, g["numero"])                 # i ruoli dei panchinari per la FADD
             db.segna_stato(s, g["numero"], "chiusa")
             panche = db.panchine(s, g["numero"])
             mancanti = [t["nome"] for t in config.squadre() if t["id"] not in panche]

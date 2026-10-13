@@ -83,7 +83,8 @@ sul vecchio foglio: tutte le 141 righe del 17/01/2026 uguali al centesimo.
 **Infortunati.** ESPN dà solo lo stato di adesso, quindi il bot ne salva uno snapshot (dai ruoli dell'offseason ai playoff) ogni 4 ore, anche di notte (0:30, 4:30, 8:30, 12:30, 16:30, 20:30), più uno 30 minuti prima della prima partita NBA del giorno (il report subito prima delle partite). Per il calcolo, di ogni giorno conta lo snapshot subito prima della prima partita; il più recente è lo stato che IPanchinari mostra accanto ai giocatori. Si tengono tutti gli snapshot dell'ultima settimana; per i giorni più vecchi resta solo quello che conta.
 
 **Giocatore nella giornata** (`calcolo.punteggio_giocatori`):
-- ha giocato → media matematica delle partite giocate nella giornata;
+- ha giocato → media matematica delle partite giocate nella giornata (uno 0 con 0 minuti non
+  conta, uno 0 con dei minuti sì; lo stesso per la media della stagione);
 - non ha giocato, la sua squadra NBA non ha partite (squadre a media) o ha solo partite rinviate →
   media della stagione, ma 0 se era indisponibile (stato diverso da Probable nello snapshot
   che conta di ogni giorno della giornata); senza snapshot prende la media, con un avviso;
@@ -91,8 +92,9 @@ sul vecchio foglio: tutte le 141 righe del 17/01/2026 uguali al centesimo.
 
 **Squadra** (`calcolo.punteggio_squadra`): somma dei 5 titolari, con la FADD: il primo panchinaro
 dello stesso ruolo prende il posto di un titolare che non ha giocato e aveva il tag in tutti i
-giorni in cui la sua squadra ha giocato; una sola sostituzione, la panchina scala. Se manca una
-snapshot, decide un admin. **Partita** (`calcolo.esito`): vince chi ha almeno 5 punti di scarto, bonus
+giorni in cui la sua squadra ha giocato (o in tutta la giornata, se la sua squadra non ha giocato);
+una sola sostituzione, la panchina scala e resta di 4 (al quinto supplementare quella squadra
+aggiunge 0). Se manca uno snapshot, decide un admin. **Partita** (`calcolo.esito`): vince chi ha almeno 5 punti di scarto, bonus
 casa compreso (3, playoff 5); altrimenti supplementari con i panchinari in ordine; pari fino al
 decimo uomo → vince la trasferta. Restano agli admin le 72 ore delle partite rinviate e le penalità.
 
@@ -102,6 +104,16 @@ niente errori da nomi simili. `/espn_giocatori` scarica i roster delle 30 squadr
 solo i nomi uguali (senza accenti, punteggiatura e Jr./III) quando il nome è di un solo
 giocatore; ogni giorno lo stesso con i giocatori nuovi dei tabellini. Gli altri: `/espn_mancanti`
 (con i nomi ESPN più simili) e `/espn_abbina ID_GIOCATORE ID_ESPN`.
+
+## Calcolo della giornata
+
+Alle **7:45** del giorno dopo l'ultima notte il bot calcola la giornata coi tabellini definitivi, dai
+quintetti congelati e dalle panchine di IPanchinari; scrive il tab «Calcolo GN» del foglio di
+controllo (una riga per giocatore, formule che rifanno i conti del bot) e manda la proposta al
+gruppo admin con ✅ Convalida / 🔄 Ricalcola. Le correzioni si fanno dal bot
+(`/set_valid_status`, `/quintetto_admin SQUADRA GN`, `/panchina_admin SQUADRA GN`), poi Ricalcola.
+Alla convalida i risultati vanno in `lega_risultati` e sul foglio Calendario. Alle **10:00** il bot
+riscarica i tabellini: se ESPN ne ha corretto uno di un giocatore schierato, avvisa gli admin.
 
 ## Comandi
 
@@ -117,6 +129,7 @@ giocatore; ogni giorno lo stesso con i giocatori nuovi dei tabellini. Gli altri:
 | `/calendario_check` | admin | scadenze, squadre a media, confronto con il calendario |
 | `/nba_sync` | admin | riscarica tutte le partite NBA della stagione |
 | `/calendario_foglio` | admin | ricarica il foglio Calendario (A:E: calendario, squadre a media, punteggi) |
+| `/ricalcola N` | admin | riscarica i tabellini, ricalcola la giornata e la ripropone da convalidare |
 | `/fantapunti [N]` | admin | fantapunti della giornata dei giocatori a roster, per squadra |
 | `/set_valid_status GIOCATORE N` | admin | lo status che vale per il calcolo della giornata, scelto tra quelli degli snapshot |
 | `/tabellini` | admin | scarica i tabellini delle partite finite che mancano e fa uno snapshot degli infortunati |

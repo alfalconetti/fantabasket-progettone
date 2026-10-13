@@ -4,6 +4,8 @@
 
 const CONFIG = {
   SPREADSHEET_ID: "YOUR_SPREADSHEET_ID_HERE",
+  // Foglio di controllo del calcolo (tab "Calcolo GN" di loucabot); vuoto = lo stesso file
+  CALCOLO_SPREADSHEET_ID: "",
   ROSTER_SHEET_NAME: "Roster",
   SCELTE_SHEET_NAME: "Scelte",
   CONFERENCE_ROW_BASES: [3, 30],

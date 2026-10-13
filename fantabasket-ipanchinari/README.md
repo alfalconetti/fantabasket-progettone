@@ -86,7 +86,7 @@ giornata per il calcolo) e al gruppo admin va l'elenco delle panchine mancanti.
 | `/quintetti [N]` | admin | tutti i quintetti, una riga per squadra; con N le formazioni della giornata N |
 | `/quintetto_admin SQUADRA [GN]` | admin | senza righe il quintetto coi bottoni (parte dall'attuale), o sotto i 5 titolari (con o senza ruolo davanti); anche a giornata in corso; con GN corregge la formazione della giornata N |
 | `/quintetti_import` | admin | tutte le squadre: nome esatto o id, poi 5 titolari; squadre separate da una riga vuota (anche file .txt) |
-| `/panchina_admin SQUADRA` | admin | la panchina per conto di una squadra: senza righe col builder (e CAI mode), o le righe sotto |
+| `/panchina_admin SQUADRA [GN]` | admin | la panchina per conto di una squadra: senza righe col builder (e CAI mode), o le righe sotto; con GN corregge quella di una giornata già chiusa |
 | `/soprannomi SQUADRA` | admin | i soprannomi di una squadra |
 | `/ripubblica_panchine [N]` | admin | le panchine della giornata di nuovo sul canale (dopo un cambio di canale) |
 | `/guida_admin` | admin | la guida admin (file) |

@@ -55,10 +55,13 @@ def main():
     app = ApplicationBuilder().token(_token()).post_init(post_init).build()
     from handlers import _is_dev
     from shared import dev_comune
-    for h in get_handlers() + dev_comune.get_handlers(_is_dev, lambda: db.q("SELECT version() AS v", one=True)["v"]):
+    import handlers_risultati
+    for h in get_handlers() + handlers_risultati.get_handlers() + dev_comune.get_handlers(_is_dev, lambda: db.q("SELECT version() AS v", one=True)["v"]):
         app.add_handler(h)
     app.add_error_handler(dev_comune.error_handler("loucabot", config.canale_log, config.dev_id))
     app.job_queue.run_daily(job_sync, time=dtime(8, 30, tzinfo=ROME))        # partite, tabellini, infortunati
+    app.job_queue.run_daily(handlers_risultati.job_calcolo, time=dtime(7, 45, tzinfo=ROME))     # calcolo definitivo
+    app.job_queue.run_daily(handlers_risultati.job_controllo, time=dtime(10, 0, tzinfo=ROME))   # tabellini corretti da ESPN?
     # snapshot degli infortunati ogni 4 ore (anche di notte) e 30 minuti prima della prima partita
     # del giorno: per il calcolo conta quello subito prima delle partite, il più recente è lo
     # stato che IPanchinari mostra; dopo una settimana resta solo quello che conta (job_sync)

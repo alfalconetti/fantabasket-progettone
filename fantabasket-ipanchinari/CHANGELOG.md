@@ -78,3 +78,8 @@ Primo rilascio: panchine e quintetti.
 - Panchina aggiornata sul canale: niente più "· 🔁 aggiornata" accanto al nome della squadra; basta la riga in fondo, "✍️ GM · 🔁 ultima modifica 13/10 alle 16:00"
 - `/soprannomi SQUADRA` anche per i GM: i soprannomi di un'altra squadra, solo da guardare (senza bottoni); cancellarli resta al GM di quella squadra e agli admin
 - Stato infortunati di ESPN accanto ai giocatori nel builder della panchina, nella scelta del quintetto, nell'anteprima e nel promemoria (🔴 Out, 🟠 Doubtful, 🟡 Questionable/Day-To-Day, 🟢 Probable), con l'ora dell'aggiornamento: è l'ultimo snapshot degli infortunati di loucabot (ogni 4 ore e prima delle partite)
+
+## v17 (2026-10-13)
+
+- Per il calcolo di loucabot: alla scadenza si congela anche il **ruolo di ogni panchinaro** nella panchina della giornata (la FADD usa quello). `/panchina_admin SQUADRA GN` corregge la panchina di una giornata già chiusa (anche col builder): si pubblica a scadenza passata, i ruoli si ricongelano, invito a `/ricalcola N` su loucabot
+

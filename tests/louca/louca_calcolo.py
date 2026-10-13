@@ -180,12 +180,38 @@ for f, atteso in (("offseason-fa", False), ("offseason-ruoli", True), ("regular-
     _G["fase"] = f; _json.dump(_G, open(_cfg.GLOBALS_PATH, "w"))
     ok(_cfg.snapshot_attivi() == atteso, f"snapshot {'attivi' if atteso else 'fermi'} in {f}")
 
+# ── 0 con 0 minuti non fa media, 0 con dei minuti sì ──
+partita("pz", "2026-11-02", "PHX", "UTA"); partita("pz2", "2026-11-03", "PHX", "POR")
+riga("pz", "z1", "PHX", 0); riga("pz2", "z1", "PHX", 30)                 # 0 con 30 minuti: conta → 15
+riga("pz", "z2", "PHX", 20)
+db.salva_tabellino("pz2", db.q("SELECT * FROM nba_tabellini WHERE partita = 'pz2'", many=True) + [{
+    "partita": "pz2", "atleta": "z2", "nome": "Gioc z2", "squadra": "PHX", "titolare": False, "giocato": True, "minuti": 0,
+    "pts": 0, "fgm": 0, "fga": 0, "tpm": 0, "tpa": 0, "ftm": 0, "fta": 0, "oreb": 0, "dreb": 0, "ast": 0, "stl": 0, "blk": 0,
+    "tov": 0, "pf": 0, "fp": 0}])                                           # 0 con 0 minuti: non conta → 20
+PZ = calcolo.punteggio_giocatori("2026", G, ["z1", "z2"])
+ok(PZ["z1"]["fp"] == 15 and PZ["z2"]["fp"] == 20, f"0 con dei minuti fa media, 0 con 0 minuti no {PZ['z1']['fp']} {PZ['z2']['fp']}")
+
+# ── FADD anche se la squadra del titolare non ha giocato (a media) ──
+db.salva_infortuni(date(2026, 11, 2), [{"atleta": "5", "nome": "Gioc 5", "stato": "Out"}])
+db.salva_infortuni(date(2026, 11, 3), [{"atleta": "5", "nome": "Gioc 5", "stato": "Out"}])
+PM = calcolo.punteggio_giocatori("2026", G, ["5", "8", "9", "1", "2", "4", "6"])
+QM = [{"atleta": "5", "ruolo": "C", "nome": "Cinque"}] + [x for x in Q if x["atleta"] in ("1", "2", "4", "6")]
+SM = calcolo.punteggio_squadra(G, QM, [{"atleta": "9", "ruolo": "SF", "nome": "Nove"}, {"atleta": "8", "ruolo": "C", "nome": "Otto"},
+                                       {"atleta": "2", "ruolo": "PF", "nome": "Due bis"}], PM)
+ok(PM["5"]["come"] == "zero" and SM["fadd"] and SM["fadd"]["esce"]["atleta"] == "5" and SM["fadd"]["entra"]["atleta"] == "8",
+   "squadra a media e titolare indisponibile tutta la giornata: FADD")
+ok(len(SM["panchina"]) == 2, "dopo la FADD la panchina scala, senza buchi")
+
 # ── esito e supplementari ──
 sq = lambda tot, pan=(): {"totale": tot, "panchina": [{"fp": x} for x in pan]}
 ok(calcolo.esito(sq(100), sq(90))["vince"] == "casa", "scarto di 5 o più (bonus casa compreso): vince chi ha di più")
 e1 = calcolo.esito(sq(100), sq(104), bonus=3)
 ok(e1["regolamentari"] == (103, 104) and e1["supplementari"] >= 1, "scarto sotto 5 col bonus: supplementari")
 e2 = calcolo.esito(sq(100, (10, 20)), sq(102, (10, 10)))
+ok(e2["punti_supplementari"] == (30, 20), "sul foglio vanno i soli punti dei supplementari (30 e 20), non il totale")
+e4 = calcolo.esito(sq(100, (1, 1, 1, 1)), sq(102, (1, 1, 1, 1, 9)))
+ok(e4["supplementari"] == 5 and e4["punti_supplementari"] == (4, 13) and e4["vince"] == "trasferta",
+   "panchina di 4 dopo la FADD: al quinto supplementare aggiunge 0")
 ok((e2["vince"], e2["supplementari"], e2["casa"], e2["trasferta"]) == ("casa", 2, 133, 122),
    "supplementari: un panchinaro alla volta finché lo scarto è di almeno 5")
 e3 = calcolo.esito(sq(100), sq(103))

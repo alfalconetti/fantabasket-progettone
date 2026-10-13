@@ -74,6 +74,8 @@ Date ESPN in UTC → giorno della costa est (`ET`). Sigle ESPN → NBA (`SIGLE`:
 
 | Ora (Roma) | Job | Cosa |
 |---|---|---|
+| 7:45 | `handlers_risultati.job_calcolo` | giornate finite (ultima notte passata, non più di 7 giorni fa), chiuse su IPanchinari e non calcolate: `nba.sincronizza` dei giorni, tabellini, `pronta` (partite chiuse, tabellini), `esegui` (calcolo, `lega_calcoli`, tab «Calcolo GN», proposta al gruppo admin) |
+| 10:00 | `handlers_risultati.job_controllo` | giornate da convalidare o calcolate da meno di 2 giorni: riscarica i tabellini (`_riscarica`) e, se cambia quello di un giocatore schierato, avviso al gruppo admin con 🔄 Ricalcola |
 | 8:30 | `handlers.job_sync` | partite dei giorni vicini (−3, +14), ricalcolo di scadenze e squadre a media (cambi → gruppo admin), tabellini delle partite finite, abbinamento automatico dei giocatori nuovi, snapshot degli infortunati; riga sul canale log |
 | 0:30, 4:30, 12:30, 16:30, 20:30 | `handlers_calcolo.job_infortuni` (`bot.ORE_SNAPSHOT`) | snapshot degli infortunati, solo nelle fasi `config.FASI_SNAPSHOT` (offseason-ruoli, regular season, playoff): con quello delle 8:30 uno ogni 4 ore; sul canale log solo se fallisce |
 | ogni 10 minuti | `handlers_calcolo.job_prepartita` | uno snapshot 30-40 minuti prima della prima partita NBA del giorno, se non ce n'è già uno da 45 minuti prima |
@@ -84,14 +86,22 @@ Errori dei job: canale log e dev.
 
 ## 5. Calcolo (`calcolo.py`)
 
-- `punteggio_giocatori(stagione, giornata, atleti)` → `{atleta: {fp, come, partite, squadra, nota}}`, con `come` ∈ partite / media / zero. Squadra NBA del giocatore: quella dei suoi tabellini nella giornata, se no l'ultima prima (`db.ultima_squadra`). Media della stagione: partite giocate di RS e play-in prima della giornata (`db.medie_stagione`). Indisponibile: stato diverso da Probable/Active in tutti gli snapshot dei giorni della giornata; senza snapshot prende la media con un avviso.
-- `punteggio_squadra(giornata, quintetto, panchina, punteggi)`: quintetto e panchina sono `[{atleta, ruolo, nome}]`, panchina in ordine. FADD (`_fadd_possibile`): titolare a 0 per "non ha giocato", tag in tutti i giorni in cui la sua squadra ha giocato (manca uno snapshot → avviso, decide l'admin); entra il primo panchinaro dello stesso ruolo; una sola sostituzione; la panchina scala.
-- `esito(casa, trasferta, bonus=3)`: scarto minimo `SCARTO` = 5, supplementari con i panchinari (5, poi 0), pari → trasferta.
+- `punteggio_giocatori(stagione, giornata, atleti)` → `{atleta: {fp, come, partite, squadra, nota}}`, con `come` ∈ partite / media / zero. Squadra NBA del giocatore: quella dei suoi tabellini nella giornata, se no l'ultima prima (`db.ultima_squadra`). Media della stagione: partite giocate di RS e play-in prima della giornata (`db.medie_stagione`). Una riga conta (`calcolo.conta`) se è entrato, e uno 0 con 0 minuti no (vale anche per la media della stagione). Indisponibile: stato diverso da Probable/Active in tutti gli snapshot dei giorni della giornata; senza snapshot prende la media con un avviso.
+- `punteggio_squadra(giornata, quintetto, panchina, punteggi)`: quintetto e panchina sono `[{atleta, ruolo, nome}]`, panchina in ordine. FADD (`_fadd_possibile`): titolare a 0 per "non ha giocato", tag in tutti i giorni in cui la sua squadra ha giocato, o in tutti i giorni della giornata se non ha giocato (manca uno snapshot → avviso, decide l'admin); entra il primo panchinaro dello stesso ruolo; una sola sostituzione; la panchina scala.
+- `esito(casa, trasferta, bonus=3)`: scarto minimo `SCARTO` = 5, supplementari con i panchinari (5, poi 0), pari → trasferta. `punti_supplementari`: i soli punti dei supplementari, quelli che vanno in `lega_risultati.supp_*` e sul foglio Calendario sotto i regolamentari.
 - `abbina_auto({atleta: nome})`: `norm()` (senza accenti, Đ/ø/ł…, punteggiatura, Jr./Sr./II–V) uguale a uno e un solo giocatore dell'anagrafica (nome_common, nome_bref, nome_yahoo) e a un solo atleta ESPN; i già abbinati non si toccano.
 
 Non ancora: risultati dai quintetti e dalle panchine di IPanchinari (`ipa_formazioni` congelate alla scadenza, `ipa_panchine`), risultati congelati (`lega_punteggi`, `lega_risultati`, da scrivere alla convalida della giornata), classifica (parità: scontri diretti, media punti, differenza punti), playoff dalla classifica, 72 ore delle partite rinviate.
 
 ---
+
+## 5a. Calcolo della giornata (`risultati.py`, `handlers_risultati.py`)
+
+- `risultati.calcola(stagione, n)`: giornata, `lega_partite`, schieramenti di IPanchinari (`ipa_formazioni`: un giocatore per ruolo; `ipa_panchine.righe`: `giocatore_id`, testo e `ruolo` congelato alla scadenza; senza ruolo quello di `ruolo_attuale`), giocatore → `espn_id` → `calcolo.punteggio_giocatori`, `punteggio_squadra`, `esito` (bonus 3, 5 se `lega_giornate.tipo` = playoff). Avvisi: quintetto incompleto, panchina mancante (senza supplementari), giocatori senza id ESPN, avvisi della FADD. `_dettaglio`: fantapunti per notte (solo le righe che `calcolo.conta`), medie, status per notte (snapshot che conta o `lega_status_validi`).
+- `risultati.griglia(c)`: il tab «Calcolo GN» come matrici (righe, sfondi, testi, pesi, formati) della stessa forma; formule in inglese con le virgole (`SUMIFS`, `INDEX/MATCH`, `IFERROR`, `COUNTIF`, `ROUND`), come le vuole Apps Script. Punteggio = `IF(COUNT(notti)>0, ROUND(AVERAGE(notti),2), IF(AND(a media="sì", indisponibile="no"), media, 0))`: le colonne «a media» e «indisponibile» sono quelle che ha usato il bot. **Deve dare gli stessi numeri del bot**: `tests/louca/louca_risultati.py` lo verifica ricalcolando il foglio con LibreOffice.
+- `payload_foglio` / `scrivi_foglio` → `foglio.manda_gas("calcolo", …)` → gas-router `/gas/calcolo` → `gas/calcolo.gs` `handleCalcolo`: file `CONFIG.CALCOLO_SPREADSHEET_ID` (o quello del Roster), tab `Calcolo GN` creato se manca, `clear()`, valori, sfondi, colori, grassetti, formati (`[{range, formato}]`), righe e colonne bloccate; rifiuta nomi diversi da `Calcolo GN`.
+- `lega_calcoli` (stagione, giornata): la proposta (`risultati` JSON, avvisi), `versione` (+1 a ogni ricalcolo), `stato` da_convalidare / convalidata, `messaggio` nel gruppo admin. `risultati.convalida`: `lega_risultati` (con `convalidato`) dalla proposta, poi `foglio.aggiorna` del Calendario. `lega_risultati.supp_*` = i soli punti dei supplementari.
+- Callback `rc:ok:<N>:<versione>` (convalida, solo se la versione è quella di adesso e da convalidare) e `rc:re:<N>` (ricalcola); `/ricalcola N`. Ricalcolo e riscaricamento girano in un task (`application.create_task`).
 
 ## 5b. Comandi dev
 

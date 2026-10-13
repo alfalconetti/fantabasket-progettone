@@ -95,6 +95,20 @@ async def invia(righe: list[list], manda=None) -> dict:
         return r.json()
 
 
+async def manda_gas(endpoint: str, payload: dict, manda=None) -> dict:
+    """POST al gas-router (/gas/<endpoint>). `manda(payload)` si può sostituire nelle prove."""
+    if manda:
+        return await manda(payload)
+    import httpx
+    tok_file = os.environ.get("GAS_ROUTER_TOKEN_FILE", "")
+    token = open(tok_file).read().strip() if tok_file and os.path.exists(tok_file) else ""
+    async with httpx.AsyncClient(timeout=180) as client:
+        r = await client.post(os.environ["GAS_ROUTER_URL"].rstrip("/") + f"/gas/{endpoint}", json=payload,
+                              headers={"Authorization": f"Bearer {token}"})
+        r.raise_for_status()
+        return r.json()
+
+
 async def aggiorna(stagione: str, manda=None) -> str:
     """Aggiorna il foglio e restituisce una riga di esito per il canale log."""
     if not manda and not configurato():

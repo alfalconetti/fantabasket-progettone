@@ -24,6 +24,7 @@ def liste_comandi() -> dict:
     admin = gm + [
         BotCommand("fantapunti",         "Fantapunti della giornata, giocatori a roster [N]"),
         BotCommand("set_valid_status",   "Status di un giocatore per il calcolo: GIOCATORE N"),
+        BotCommand("ricalcola",          "Riscarica i tabellini e ricalcola la giornata N"),
         BotCommand("calendario_check",   "Scadenze e squadre a media, confronto col calendario"),
         BotCommand("importa_calendario", "Importa il CSV del calendario (didascalia del file)"),
         BotCommand("nba_sync",           "Riscarica le partite NBA della stagione"),

@@ -31,13 +31,39 @@ Gli admin sono quelli di `admin_ids` in `globals.json`, gli stessi degli altri b
 
 ---
 
+## Il calcolo della giornata
+
+**Alle 7:45** del giorno dopo l'ultima notte della giornata il bot calcola da solo, coi tabellini definitivi: riscarica partite e tabellini, prende i quintetti congelati alla scadenza e le panchine da IPanchinari e applica le regole qui sotto. Poi:
+- scrive il tab **«Calcolo GN»** del foglio di controllo del calcolo: una riga per giocatore coi fantapunti di ogni notte, la media della stagione, lo status di ogni notte, il punteggio, chi è in campo (FADD), l'ordine dei supplementari, e in cima il riquadro dei risultati. Punteggi, totali, supplementari e vincitore sono **formule** che rifanno i conti del bot: se tutto quadra sul foglio, quadra anche nel bot. I dati scritti dal bot sono in blu, le formule in nero, le righe della FADD in arancione;
+- manda al gruppo admin la proposta: risultati, FADD, avvisi (panchina mancante → senza supplementari, quintetto incompleto, giocatori senza id ESPN), con **✅ Convalida** e **🔄 Ricalcola**.
+
+Se a quell'ora la giornata non si può ancora calcolare (una partita non finita, un tabellino che manca, quintetti non congelati) lo dice sul canale log: quando è pronta, `/ricalcola N`.
+
+**Controlli e correzioni.** Si correggono sempre dal bot, mai a mano sul foglio (il bot riscrive il tab a ogni ricalcolo):
+- status di un giocatore: `/set_valid_status GIOCATORE N` (qui);
+- quintetto della giornata: `/quintetto_admin SQUADRA GN` (IPanchinari);
+- panchina della giornata: `/panchina_admin SQUADRA GN` (IPanchinari);
+- fantapunti sbagliati (ESPN corregge un tabellino): il ricalcolo li riscarica.
+
+Poi **🔄 Ricalcola** (o `/ricalcola N`): il bot riscarica i tabellini della giornata, ricalcola, riscrive il tab e manda una proposta nuova; quella vecchia perde i bottoni.
+
+**✅ Convalida**: solo allora i risultati si salvano e il foglio **Calendario** si aggiorna (punti col bonus casa nella riga della partita, i soli punti dei supplementari nella riga sotto). Il bottone di una proposta superata non convalida niente.
+
+**Alle 10:00** il bot riscarica i tabellini delle giornate calcolate da poco o ancora da convalidare: se ESPN ne ha corretto qualcuno di un giocatore schierato, avvisa il gruppo admin con le differenze e il bottone 🔄 Ricalcola. Vale anche per una giornata già convalidata: si ricalcola e si riconvalida.
+
+**Dopo la convalida**, se scopri un errore: correggi e `/ricalcola N`; alla nuova convalida il Calendario si riscrive.
+
+Il foglio di controllo è un file Google a parte (`CALCOLO_SPREADSHEET_ID` in `gas/globals.gs`; senza, il tab va nel file del Roster).
+
+---
+
 ## I punteggi
 
 **Tabellini.** A partita finita il bot scarica da ESPN il tabellino e salva statistiche e fantapunti di ogni giocatore NBA. Lo fa alle 8:30; `/tabellini` lo fa subito, per le partite finite che ancora non ce l'hanno.
 
 **Infortunati.** ESPN dà solo lo stato di adesso, quindi il bot ne salva uno snapshot (dai ruoli dell'offseason fino ai playoff; nelle altre fasi no) ogni 4 ore, anche di notte (0:30, 4:30, 8:30, 12:30, 16:30, 20:30), più uno 30 minuti prima della prima partita NBA del giorno (il report subito prima delle partite). Per il calcolo, di ogni giorno conta lo snapshot subito prima della prima partita; il più recente è lo stato che IPanchinari mostra accanto ai giocatori. Si tengono tutti gli snapshot dell'ultima settimana; per i giorni più vecchi resta solo quello che conta. Anche `/tabellini` ne salva uno. Servono per due regole:
 - chi è in una squadra a media prende 0 invece della media se nello snapshot che conta di ogni giorno della giornata risulta indisponibile (stato diverso da Probable);
-- la FADD (il panchinaro che entra al posto del titolare che non ha giocato): il titolare deve avere il tag in tutti i giorni in cui la sua squadra ha giocato. Se manca lo snapshot di uno di quei giorni il bot non sostituisce e lo segnala: decide un admin.
+- la FADD (il panchinaro che entra al posto del titolare che non ha giocato): il titolare deve avere il tag in tutti i giorni in cui la sua squadra ha giocato, o in tutta la giornata se la sua squadra non ha giocato. La panchina scala e resta di 4: al quinto supplementare quella squadra aggiunge 0. Se manca lo snapshot di uno di quei giorni il bot non sostituisce e lo segnala: decide un admin.
 
 **Giocatori e id ESPN.** Il calcolo collega i giocatori dell'anagrafica a ESPN con l'id ESPN, non col nome. L'abbinamento è automatico quando il nome è uguale (senza accenti, punteggiatura, Jr./III) e corrisponde a un solo giocatore.
 - `/espn_giocatori` scarica i roster delle 30 squadre e abbina. Si rifà ogni tanto, per esempio dopo il mercato NBA.
@@ -49,10 +75,10 @@ Gli admin sono quelli di `admin_ids` in `globals.json`, gli stessi degli altri b
 **`/fantapunti [N]`** mostra i fantapunti della giornata di tutti i giocatori a roster, divisi per squadra (📉 = ha preso la media). Serve per controllare il calcolo. Se è lungo arriva come file.
 
 **Come si calcola** (regolamento, capitolo Partita):
-- chi ha giocato una o più partite della giornata → media delle partite giocate;
+- chi ha giocato una o più partite della giornata → media delle partite giocate (uno 0 con 0 minuti non conta, uno 0 con dei minuti sì);
 - chi non ha giocato, se la sua squadra NBA non aveva partite (o solo partite rinviate) → la sua media della stagione, 0 se indisponibile;
 - chi non ha giocato mentre la sua squadra sì → 0;
-- squadra: somma dei 5 titolari, con la FADD; vince chi ha almeno 5 punti di scarto, bonus casa compreso (3, nei playoff 5); altrimenti supplementari con i panchinari in ordine; pari fino al decimo uomo → vince la trasferta.
+- squadra: somma dei 5 titolari, con la FADD; vince chi ha almeno 5 punti di scarto, bonus casa compreso (3, nei playoff 5); altrimenti supplementari con i panchinari in ordine; pari fino al decimo uomo → vince la trasferta. Sul Calendario: punti col bonus casa, e sotto i soli punti dei supplementari.
 
 Restano agli admin le 72 ore di attesa per le partite rinviate e le penalità.
 
@@ -70,6 +96,7 @@ Restano agli admin le 72 ore di attesa per le partite rinviate e le penalità.
 | `/espn_giocatori` | roster NBA da ESPN e abbinamento automatico |
 | `/espn_mancanti` | giocatori a roster senza id ESPN |
 | `/espn_abbina ID_GIOCATORE ID_ESPN` | abbinamento a mano |
+| `/ricalcola N` | riscarica i tabellini della giornata N, ricalcola, riscrive il tab «Calcolo GN» e ripropone la convalida |
 | `/fantapunti [N]` | fantapunti della giornata, per squadra |
 | `/set_valid_status GIOCATORE N` | lo status di un giocatore che vale per il calcolo della giornata N, scelto tra quelli degli snapshot |
 | `/calendario [N]`, `/giornata [N]` | come i GM |

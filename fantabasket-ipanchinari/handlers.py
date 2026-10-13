@@ -23,7 +23,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         testo = f"Ciao, GM di <b>{e(team['nome'])}</b>.\n\n" + testo
     if config.is_admin(update.effective_user.id):
         testo += ("\n\n<b>Admin</b>\n/quintetto_admin SQUADRA — coi bottoni, o sotto i 5 titolari\n"
-                  "/quintetti_import — tutte le squadre insieme\n/panchina_admin SQUADRA — coi bottoni, o sotto le righe\n"
+                  "/quintetti_import — tutte le squadre insieme\n/panchina_admin SQUADRA [GN] — coi bottoni, o sotto le righe (GN: correzione di una giornata chiusa)\n"
                   "/stato [N] — conferme e panchine della giornata\n/quintetti [N] — tutti i quintetti, una riga per squadra\n/soprannomi SQUADRA — soprannomi di una squadra\n"
                   "/ripubblica_panchine [N] — le panchine della giornata di nuovo sul canale (canale cambiato)\n"
                   "Guida admin: /guida_admin")

@@ -11,9 +11,9 @@ DATABASE_URL=$PGURL PG_URL=$PGURL python3 "$ROOT/tests/guardia.py" || exit 1
 MAIN=(trade_3_squadre revisione_regolamento dpe_trade_tagli team_diff report_spalmature penalita_cap sync_fogli registro_unico taglio_admin stagione stagione_ui cap_condiviso regolamento_numeri)
 ASTE_PG=(pg_rfa_30giorni_dpe rfa_lascio_andare menu_e_listteams autoslot giocatore_id rfa_dichiarati tempo_scaduto)
 ASTE_ISOLATO=(apri_asta_admin apertura_gm cap_asta_chiusa rfa_proprietario team_ricerca regolamento_numeri_aste)
-LOUCA=(louca_calendario louca_calcolo louca_foglio)
+LOUCA=(louca_calendario louca_calcolo louca_foglio louca_risultati)
 IPA=(ipa_panchine ipa_errori)
-DOCS=(guide_e_menu letture_transazioni nomi_importati router_health)
+DOCS=(guide_e_menu letture_transazioni nomi_importati router_health gas_node)
 scelti=("$@"); [ ${#scelti[@]} -eq 0 ] && scelti=("${MAIN[@]}" "${ASTE_PG[@]}" "${ASTE_ISOLATO[@]}" "${LOUCA[@]}" "${IPA[@]}" "${DOCS[@]}")
 in_lista() { local x=$1; shift; for y in "$@"; do [ "$x" = "$y" ] && return 0; done; return 1; }
 falliti=0

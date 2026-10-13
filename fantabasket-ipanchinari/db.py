@@ -324,6 +324,26 @@ def segna_messaggio(stagione: str, giornata_: int, team_id: str, messaggio: int,
       (messaggio, canale, stagione, giornata_, team_id))
 
 
+def congela_ruoli_panchine(stagione: str, giornata_: int, team_id: str | None = None) -> int:
+    """Alla scadenza (e dopo una correzione): il ruolo di ogni panchinaro, quello di adesso, si
+    scrive nella riga della panchina, così il calcolo della giornata (FADD) non cambia se il ruolo
+    cambia dopo. Restituisce le panchine aggiornate."""
+    panche = q("SELECT team_id, righe FROM ipa_panchine WHERE stagione = %s AND giornata = %s"
+               + (" AND team_id = %s" if team_id else ""), (stagione, giornata_) + ((team_id,) if team_id else ()), many=True) or []
+    n = 0
+    for p in panche:
+        righe = p["righe"] if isinstance(p["righe"], list) else json.loads(p["righe"])
+        ids = [r["giocatore_id"] for r in righe if r.get("giocatore_id")]
+        ruoli = {r["giocatore_id"]: r["ruolo"] for r in (q("SELECT giocatore_id, ruolo FROM ruolo_attuale WHERE stagione = %s "
+                                                             "AND giocatore_id = ANY(%s)", (stagione, ids), many=True) or [])}
+        for r in righe:
+            r["ruolo"] = ruoli.get(r.get("giocatore_id")) or r.get("ruolo")
+        q("UPDATE ipa_panchine SET righe = %s WHERE stagione = %s AND giornata = %s AND team_id = %s",
+          (json.dumps(righe), stagione, giornata_, p["team_id"]))
+        n += 1
+    return n
+
+
 # ── bozze (panchine in attesa di conferma: sopravvivono ai riavvii) ────────────
 
 def nuova_bozza(chat_id: int, team_id: str, stagione: str, giornata_: int, dati: dict, fonte="gm") -> int:

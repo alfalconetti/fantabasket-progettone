@@ -32,7 +32,7 @@ Se le squadre a media scritte nel calendario pubblicato e quelle del bot non coi
 
 ## I punteggi
 
-Il bot scarica ogni mattina i tabellini delle partite della notte e calcola i fantapunti di ogni giocatore con la formula del regolamento (punto +0,5, assist +2, rimbalzo offensivo +2, difensivo +1,25, tripla +1,5, tiro dal campo tentato −0,5 e segnato +1, libero tentato −0,75 e segnato +1, recupero +2, stoppata +2, palla persa −2). Per ora i punteggi li vedono gli admin. Quintetti e panchine li gestisce IPanchinari; quando il calcolo dei risultati sarà pronto arriveranno anche risultati e classifica.
+Il bot scarica ogni mattina i tabellini delle partite della notte e calcola i fantapunti di ogni giocatore con la formula del regolamento (punto +0,5, assist +2, rimbalzo offensivo +2, difensivo +1,25, tripla +1,5, tiro dal campo tentato −0,5 e segnato +1, libero tentato −0,75 e segnato +1, recupero +2, stoppata +2, palla persa −2). Il risultato di ogni giornata lo calcola il bot la mattina dopo l'ultima notte, dai quintetti e dalle panchine di IPanchinari: chi ha giocato più partite prende la media (uno 0 con 0 minuti non conta), chi è in una squadra NBA che non gioca prende la sua media della stagione (0 se è infortunato tutta la giornata), con la FADD e i supplementari del regolamento. Gli admin lo controllano sul foglio di calcolo e lo convalidano: solo allora finisce sul foglio Calendario.
 
 ---
 

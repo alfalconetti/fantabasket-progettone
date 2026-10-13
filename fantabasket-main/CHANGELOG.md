@@ -1223,3 +1223,12 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v5.0.20 (2026-10-13)
 
 - loucabot: snapshot solo dai ruoli dell'offseason ai playoff; `/set_valid_status GIOCATORE N` per decidere lo status che vale per il calcolo
+
+## v5.1.0 (2026-10-13)
+
+- **Calcolo definitivo delle giornate** (loucabot v13): alle 7:45 coi tabellini definitivi, dai quintetti congelati e dalle panchine di IPanchinari; tab «Calcolo GN» sul foglio di controllo (formule che rifanno i conti del bot); proposta al gruppo admin con ✅ Convalida e 🔄 Ricalcola; alla convalida `lega_risultati` e foglio Calendario; `/ricalcola N`; controllo dei tabellini alle 10:00
+- Regole decise con Luca: uno 0 con 0 minuti non fa media, uno 0 con dei minuti sì; FADD anche se la squadra del titolare non gioca; dopo la FADD la panchina scala e resta di 4; sul Calendario i soli punti dei supplementari
+- IPanchinari v17: ruoli dei panchinari congelati alla scadenza; `/panchina_admin SQUADRA GN` per correggere una giornata chiusa
+- `gas/calcolo.gs` (azione `calcolo`), gas-router `/gas/calcolo`; `CALCOLO_SPREADSHEET_ID` in `gas/globals.gs`. Prove: `tests/louca/louca_risultati.py` (il foglio ricalcolato con LibreOffice dà gli stessi numeri del bot), `tests/gas/` con node
+- Comprende tutta la 5.0.x
+

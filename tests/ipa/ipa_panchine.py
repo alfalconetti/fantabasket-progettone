@@ -433,6 +433,23 @@ db.q("UPDATE lega_giornate SET prima_partita = %s WHERE numero = 2", (datetime.n
 qb = premi(101, f"pb:ok:{bid}")
 ok(qb.risposte[-1] == "La scadenza è passata." and "non è stata pubblicata" in qb.testi[-1][0], "scaduta durante la conferma: non si pubblica")
 
+# ── chiusura: i ruoli dei panchinari si congelano; correzione a giornata chiusa ──
+asyncio.run(Q.job_giornate(CTX))
+p2 = db.panchina(S, 2, "team01")
+ok(db.stato_giornata(S, 2)["chiusa"] and p2 and all(r.get("ruolo") for r in p2["righe"]),
+   f"alla scadenza i ruoli dei panchinari si scrivono nella panchina (per la FADD) {p2['righe'] if p2 else ''}")
+m = Msg("/panchina_admin Alfa G2\nJa Morant\nBarlow\nClifford\nLooney\nBrunson"); asyncio.run(P.cmd_panchina_admin(upd(900, m), CTX))
+t, k = m.risposte[-1]
+bid = int(bottoni(k["reply_markup"])[-2].split(":")[2])
+ok("correzione (giornata chiusa)" in t and f"pb:ok:{bid}" in bottoni(k["reply_markup"]), "/panchina_admin SQUADRA G2: correzione di una giornata chiusa")
+BOT.mandati.clear(); qb = premi(900, f"pb:ok:{bid}")
+p2 = db.panchina(S, 2, "team01")
+ok([r["giocatore_id"] for r in p2["righe"]][-1] == gids["Jalen Brunson"] and all(r.get("ruolo") for r in p2["righe"])
+   and "/ricalcola 2" in qb.testi[-1][0] and any("/ricalcola 2" in x["text"] for x in BOT.mandati if x["chat_id"] == -3),
+   "correzione pubblicata anche a scadenza passata, ruoli congelati, invito a ricalcolare (al GM e sul log)")
+m = Msg("/panchina_admin Alfa G9\nJa Morant\nBarlow\nClifford\nLooney\nBrunson"); asyncio.run(P.cmd_panchina_admin(upd(900, m), CTX))
+ok("non trovata" in m.risposte[-1][0] or "non è ancora chiusa" in m.risposte[-1][0], "G di una giornata non chiusa o inesistente: rifiutato")
+
 # pulizia
 ids = list(gids.values())
 db.q("DELETE FROM cambi_ruolo WHERE giocatore_id = ANY(%s)", (ids,))

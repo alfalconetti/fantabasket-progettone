@@ -74,6 +74,10 @@ La panchina è sempre di 5 giocatori: con meno righe il bot non la prende, il bu
 
 Una panchina che arriva dopo la scadenza vale per la giornata successiva: per quella appena chiusa decidono gli admin.
 
+**Correggere la panchina di una giornata già chiusa** (per il calcolo): `/panchina_admin SQUADRA G5` e sotto le righe (o senza righe, col builder). Si pubblica anche a scadenza passata (sul canale si aggiorna il messaggio), i ruoli dei panchinari si congelano di nuovo, e il bot ricorda di lanciare `/ricalcola 5` su loucabot.
+
+Alla scadenza, insieme ai quintetti, si congela anche il **ruolo di ogni panchinaro** (quello di quel momento): la FADD della giornata usa quello, anche se poi il ruolo cambia.
+
 ---
 
 ## Trade e tagli
@@ -97,7 +101,7 @@ Ogni 5 minuti il bot confronta quintetti e panchine con le rose. Un giocatore ch
 | `/quintetti [N]` | tutti i quintetti attuali, una riga per squadra; con N le formazioni della giornata N |
 | `/quintetto_admin SQUADRA [GN]` | quintetto di una squadra: senza righe coi bottoni, o 5 righe sotto (anche a giornata in corso); con GN corregge la formazione della giornata N |
 | `/quintetti_import` | quintetti di tutte le squadre |
-| `/panchina_admin SQUADRA` | panchina per conto di una squadra: senza righe col builder, o le righe sotto |
+| `/panchina_admin SQUADRA [GN]` | panchina per conto di una squadra: senza righe col builder, o le righe sotto; con GN corregge quella della giornata N, già chiusa |
 | `/soprannomi SQUADRA` | soprannomi di una squadra, da vedere o cancellare |
 | `/ripubblica_panchine [N]` | tutte le panchine della prossima giornata (o della N) di nuovo sul canale, per esempio dopo un cambio di canale |
 | `/guida_admin` | questa guida |

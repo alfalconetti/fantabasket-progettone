@@ -252,6 +252,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                   "/calendario_foglio — riscrive squadre a media e punteggi sul foglio Calendario\n\n"
                   "<b>Calcolo</b>\n/fantapunti [N] — fantapunti della giornata dei giocatori a roster\n"
                   "/set_valid_status GIOCATORE N — lo status che vale per il calcolo, tra quelli degli snapshot\n"
+                  "/ricalcola N — riscarica i tabellini, ricalcola la giornata e la ripropone da convalidare\n"
                   "/tabellini — scarica i tabellini delle partite finite che mancano\n"
                   "/espn_giocatori — roster NBA da ESPN e abbinamento con l'anagrafica\n"
                   "/espn_mancanti — giocatori a roster senza id ESPN\n"
