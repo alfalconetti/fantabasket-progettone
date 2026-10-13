@@ -50,3 +50,19 @@ Primo rilascio: panchine e quintetti.
 ## v10 (2026-10-13)
 
 - Sul canale Panchinari, in fondo a ogni panchina: chi l'ha inserita (**✍️ GM** o **✍️ admin** col nome) e giorno e ora (ora italiana) dell'inserimento o dell'ultima modifica
+
+## v11 (2026-10-13)
+
+- `/soprannomi`: nei bottoni 🗑 il nome intero del giocatore, non solo il cognome (con gli omonimi, Grant e Mark Williams, non si capiva quale)
+
+## v12 (2026-10-13)
+
+- `/quintetti` (admin): tutti i quintetti attuali, una riga per squadra (PG · SG · SF · PF · C, nomi interi; ⚠️ chi non è più in squadra, — ruolo vuoto). `/quintetti N`: le formazioni congelate della giornata N, quelle del calcolo
+
+## v13 (2026-10-13)
+
+- Righe uguali nella stessa panchina ("prova" cinque volte): non usano i soprannomi e alla pubblicazione non diventano un soprannome
+
+## v14 (2026-10-13)
+
+- **Righe duplicate**: una panchina con la stessa riga scritta più volte ("prova" cinque volte, anche con maiuscole o punteggiatura diverse) viene rifiutata con "Righe duplicate"; anche due soprannomi uguali nella CAI mode bloccano Pubblica. Al posto della v13, che le accettava facendo scegliere i giocatori coi bottoni

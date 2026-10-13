@@ -43,6 +43,8 @@ Il ruolo di ogni titolare è quello di roster: un giocatore scritto in un ruolo 
 
 `/stato` (o `/stato N`) lo mostra quando vuoi.
 
+**`/quintetti`** mostra tutti i quintetti attuali, una riga per squadra (`PG … · SG … · SF … · PF … · C …`; ⚠️ accanto a un giocatore non più in squadra, — per un ruolo vuoto). **`/quintetti N`** mostra invece le formazioni congelate della giornata N, quelle che usa il calcolo.
+
 **Alla scadenza** i quintetti si congelano: sono quelli della giornata per il calcolo. Nel gruppo admin arriva l'elenco delle squadre senza panchina (penalità).
 
 **Non serve fare tutto prima della scadenza.** I quintetti si correggono anche a giornata in corso:
@@ -90,6 +92,7 @@ Ogni 5 minuti il bot confronta quintetti e panchine con le rose. Un giocatore ch
 | Comando | Cosa fa |
 |---|---|
 | `/stato [N]` | conferme dei quintetti e panchine della giornata |
+| `/quintetti [N]` | tutti i quintetti attuali, una riga per squadra; con N le formazioni della giornata N |
 | `/quintetto_admin SQUADRA [GN]` | quintetto di una squadra: senza righe coi bottoni, o 5 righe sotto (anche a giornata in corso); con GN corregge la formazione della giornata N |
 | `/quintetti_import` | quintetti di tutte le squadre |
 | `/panchina_admin SQUADRA` | panchina per conto di una squadra: senza righe col builder, o le righe sotto |

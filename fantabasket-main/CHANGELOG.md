@@ -1189,3 +1189,20 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v5.0.12 (2026-10-13)
 
 - IPanchinari v10: sul canale Panchinari chi ha inserito la panchina (GM o quale admin) e l'ora dell'ultima modifica
+
+## v5.0.13 (2026-10-13)
+
+- gas-router e yahoo-router: le richieste a `/health` dell'healthcheck di Docker non finiscono più nei log (filtro su `uvicorn.access`); prova `tests/docs/router_health.py`
+- IPanchinari v11: nome intero del giocatore nei bottoni di `/soprannomi`
+
+## v5.0.14 (2026-10-13)
+
+- IPanchinari v12: `/quintetti [N]` per gli admin, tutti i quintetti (o le formazioni della giornata N) una riga per squadra
+
+## v5.0.15 (2026-10-13)
+
+- IPanchinari v13: le righe ripetute in una panchina non usano e non creano soprannomi
+
+## v5.0.16 (2026-10-13)
+
+- IPanchinari v14: una panchina con righe duplicate viene rifiutata ("Righe duplicate"), anche due soprannomi uguali nella CAI mode

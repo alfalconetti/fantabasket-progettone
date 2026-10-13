@@ -112,9 +112,18 @@ def abbina_riga(riga: str, roster: list[dict], alias: dict[str, int] | None = No
     return {"testo": riga, "candidati": candidati, "scelto": buoni[0][1] if certo else None, "certo": certo}
 
 
+def ripetute(righe: list[str]) -> set[str]:
+    """Le righe (normalizzate) che compaiono più di una volta nella stessa panchina ("prova" ×5):
+    non indicano un giocatore preciso, quindi non usano e non diventano soprannomi."""
+    chiavi = [chiave(r) for r in righe]
+    return {k for k in chiavi if k and chiavi.count(k) > 1}
+
+
 def abbina_panchina(righe: list[str], roster: list[dict], alias: dict[str, int] | None = None) -> list[dict]:
-    """Abbina tutte le righe; un giocatore già scelto con certezza non si propone per le altre."""
-    out = [abbina_riga(r, roster, alias) for r in righe]
+    """Abbina tutte le righe; un giocatore già scelto con certezza non si propone per le altre.
+    Le righe ripetute non usano i soprannomi (darebbero lo stesso giocatore a tutte)."""
+    rip = ripetute(righe)
+    out = [abbina_riga(r, roster, None if chiave(r) in rip else alias) for r in righe]
     presi = {x["scelto"] for x in out if x["certo"]}
     for x in out:
         if not x["certo"]:

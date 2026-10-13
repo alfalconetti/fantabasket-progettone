@@ -28,7 +28,7 @@ Il bot ti risponde con l'anteprima: accanto a ogni riga il giocatore che ha capi
 
 La panchina vale per **la prossima giornata**, quella la cui scadenza (la prima partita NBA) non è ancora passata. Fino alla scadenza puoi rimandarla quante volte vuoi: vale l'ultima, e sul canale il bot modifica il messaggio della tua panchina (con la scritta 🔁 aggiornata) invece di mandarne uno nuovo.
 
-Il bot non pubblica se i giocatori non sono 5, se uno non è della tua squadra, se c'è due volte o se la scadenza è passata (anche mentre stavi confermando). Se un panchinaro risulta titolare nel quintetto del bot, te lo segnala ma pubblica lo stesso: per il quintetto fa fede Yahoo, quindi puoi aggiornarlo con `/quintetto` (non sei obbligato: è un favore agli admin) oppure lasciare che se ne occupi un admin.
+Il bot non prende una panchina con **righe duplicate** (la stessa riga scritta due volte, anche con maiuscole diverse): ogni panchinaro va scritto in modo diverso. Non pubblica se i giocatori non sono 5, se uno non è della tua squadra, se c'è due volte o se la scadenza è passata (anche mentre stavi confermando). Se un panchinaro risulta titolare nel quintetto del bot, te lo segnala ma pubblica lo stesso: per il quintetto fa fede Yahoo, quindi puoi aggiornarlo con `/quintetto` (non sei obbligato: è un favore agli admin) oppure lasciare che se ne occupi un admin.
 
 **Coi bottoni.** Se preferisci, `/build_panchina`: scegli i panchinari uno alla volta, in ordine. Ti propone solo i giocatori della tua squadra che non sono nel quintetto e non hai già scelto (i titolari, segnati ⭐, solo se non ne restano abbastanza); ↩️ toglie l'ultimo. Al quinto passa da solo all'anteprima con Pubblica. Sul canale escono i nomi dei giocatori, a meno che non usi la CAI mode.
 

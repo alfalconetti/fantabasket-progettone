@@ -51,7 +51,7 @@ cancellarli; seguono il giocatore se cambia squadra). Alla conferma, sul canale
 escono **solo le righe come le ha scritte il GM** e il titolo, con in fondo chi l'ha inserita (GM o
 quale admin) e l'ora dell'ultima modifica. Vale per la prossima giornata la
 cui scadenza (prima partita NBA) non è passata; si può rimandare fino alla scadenza, e sul canale
-si modifica il messaggio di prima. Non si pubblica se: i giocatori non sono 5 (mai meno), uno non è della squadra, è due volte, o la
+si modifica il messaggio di prima. Non si pubblica se: i giocatori non sono 5 (mai meno), ci sono righe duplicate, uno non è della squadra, è due volte, o la
 scadenza è passata. Un panchinaro che nel bot è titolare non blocca (per il quintetto fa fede
 Yahoo): avviso al GM e riga sul canale log.
 
@@ -83,6 +83,7 @@ giornata per il calcolo) e al gruppo admin va l'elenco delle panchine mancanti.
 | `/soprannomi` | GM | i soprannomi riconosciuti per i giocatori della squadra: vederli e cancellarli |
 | `/start`, `/guida` | tutti | come si usa, la guida (file) |
 | `/stato [N]` | admin | conferme e panchine di una giornata |
+| `/quintetti [N]` | admin | tutti i quintetti, una riga per squadra; con N le formazioni della giornata N |
 | `/quintetto_admin SQUADRA [GN]` | admin | senza righe il quintetto coi bottoni (parte dall'attuale), o sotto i 5 titolari (con o senza ruolo davanti); anche a giornata in corso; con GN corregge la formazione della giornata N |
 | `/quintetti_import` | admin | tutte le squadre: nome esatto o id, poi 5 titolari; squadre separate da una riga vuota (anche file .txt) |
 | `/panchina_admin SQUADRA` | admin | la panchina per conto di una squadra: senza righe col builder (e CAI mode), o le righe sotto |

@@ -1,6 +1,6 @@
 # Messaggio di migrazione — Fantabasket Progettone
 
-**Stato: v5.0.12 · bot aste v65 · loucabot v11 · IPanchinari v10** (13/10/2026)
+**Stato: v5.0.16 · bot aste v65 · loucabot v11 · IPanchinari v14** (13/10/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 
@@ -70,7 +70,7 @@ fantabasket-progettone/
 - Schema SQLite del bot aste solo additivo (deve restare leggibile dal v48).
 - Una modifica a `shared/` richiede il riavvio di tutti i bot che la usano.
 - Log: in ogni bot `httpx` e `httpcore` a WARNING, così le chiamate all'API di Telegram (col token nell'URL) non finiscono nei log. Un bot nuovo fa lo stesso.
-- Log: in ogni bot `httpx`, `httpcore`, `apscheduler` e il JobQueue a WARNING (niente riga per ogni chiamata a Telegram, che conterrebbe anche il token nell'URL, né per ogni job); nei router niente righe per `/health`. Un bot nuovo fa lo stesso.
+- Log: in ogni bot `httpx` e `httpcore` a WARNING (niente riga per ogni chiamata a Telegram, che conterrebbe anche il token nell'URL); nei router (`gas-router`, `yahoo-router`) un filtro su `uvicorn.access` toglie le richieste a `/health` dell'healthcheck di Docker (prova `tests/docs/router_health.py`). Un bot o un router nuovo fa lo stesso.
 - Prima di ogni zip: `pyflakes` e `tests/run.sh` con "Tutte le prove passate." (comprende `nomi_importati`, che trova gli import rotti dentro le funzioni).
 - Modifiche strutturali: prova generale su una copia del DB vero (`scripts/prova_generale/`: foto di tutte le squadre prima e dopo, confronto; differenze solo volute).
 

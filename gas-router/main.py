@@ -12,6 +12,16 @@ from typing import Any, Optional
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+class _SenzaHealth(logging.Filter):
+    """Le richieste a /health (healthcheck di Docker ogni pochi secondi) non vanno nei log."""
+    def filter(self, record):
+        return "/health" not in record.getMessage()
+
+
+# uvicorn configura i suoi logger prima di importare questo file: il filtro resta
+logging.getLogger("uvicorn.access").addFilter(_SenzaHealth())
+
 app = FastAPI(title="Fantabasket GAS Router")
 
 

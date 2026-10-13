@@ -48,6 +48,8 @@ def problemi(b: dict, roster: list[dict]) -> list[str]:
             out.append(f"riga {i}: giocatore da scegliere")
         elif r["scelto"] not in nomi:
             out.append(f"riga {i}: non è più nella tua squadra")
+    if abbina.ripetute([r["testo"] for r in d["righe"]]):           # es. due soprannomi uguali in CAI mode
+        out.append("righe duplicate: ogni panchinaro va scritto in modo diverso")
     doppi = {g for g in scelti if g and scelti.count(g) > 1}
     for g in doppi:
         out.append(f"{nomi.get(g, g)} è in panchina due volte")
@@ -114,6 +116,11 @@ def crea_bozza(chat_id: int, team_id: str, testo: str, fonte: str = "gm") -> tup
     if len(righe) < abbina.MAX_PANCHINA:
         return None, (f"La panchina è di {abbina.MAX_PANCHINA} giocatori, mai meno: ne ho letti {len(righe)}. "
                       f"Rimandamela con tutte e {abbina.MAX_PANCHINA} le righe (o usa /build_panchina).")
+    rip = abbina.ripetute(righe)
+    if rip:
+        doppie = sorted({r for r in righe if abbina.chiave(r) in rip})
+        return None, ("Righe duplicate: " + ", ".join(f"«{x}»" for x in doppie) + ". Ogni panchinaro va scritto in modo "
+                      "diverso, sennò non si capisce chi è chi: rimandamela.")
     roster = db.roster(team_id, s)
     if not roster:
         return None, "Nessun giocatore a roster per questa squadra."
@@ -307,7 +314,10 @@ async def pubblica(update, context, b: dict):
             return
     db.salva_panchina(b["stagione"], b["giornata"], b["team_id"], b["dati"].get("titolo"), righe,
                       da=update.effective_user.id, fonte=b["fonte"], messaggio_canale=mid)
+    rip = abbina.ripetute([r["testo"] for r in b["dati"]["righe"]])
     for r in b["dati"]["righe"]:
+        if abbina.chiave(r["testo"]) in rip:          # "prova" ×5: non è il soprannome di nessuno
+            continue
         if abbina.chiave(r["testo"]) != abbina.chiave(_nomi(roster).get(r["scelto"], "")):   # il nome vero non serve
             db.salva_alias(b["team_id"], abbina.chiave(r["testo"]), r["scelto"])
     db.chiudi_bozza(b["id"])

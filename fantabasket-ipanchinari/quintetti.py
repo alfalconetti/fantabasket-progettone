@@ -356,6 +356,40 @@ def testo_stato(g: dict) -> str:
     return "\n".join(righe)
 
 
+def testo_quintetti(n: int | None = None) -> str:
+    """Tutti i quintetti, una riga per squadra: quelli attuali, o con N le formazioni congelate
+    della giornata N (quelle del calcolo)."""
+    s = config.stagione()
+    titolo = (f"🏀 <b>Formazioni della giornata {n}</b> (congelate alla scadenza)" if n
+              else "🏀 <b>Quintetti attuali</b>")
+    righe = [titolo, ""]
+    for t in config.squadre():
+        q = db.formazione(s, n, t["id"]) if n else db.quintetto(t["id"])
+        rosa = {x["id"] for x in db.roster(t["id"], s)}
+        nomi = db.nomi_giocatori([g for g in q.values() if g])
+        pezzi = []
+        for ruolo in RUOLI:
+            gid = q.get(ruolo)
+            nome = e(nomi.get(gid, "?")) if gid else "—"
+            pezzi.append(f"{ruolo} {nome}" + (" ⚠️" if gid and gid not in rosa else ""))
+        righe.append(f"<b>{e(t['nome'])}</b>: " + " · ".join(pezzi))
+    righe += ["", "⚠️ non più in squadra · — ruolo vuoto"]
+    return "\n".join(righe)
+
+
+async def cmd_quintetti(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/quintetti [N] (admin): tutti i quintetti, una riga per squadra."""
+    if not config.is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ Solo admin.")
+        return
+    n = int(context.args[0]) if context.args and context.args[0].isdigit() else None
+    if n and not db.stato_giornata(config.stagione(), n)["chiusa"]:
+        await update.effective_message.reply_text(f"La giornata {n} non è ancora chiusa: i quintetti attuali con /quintetti.")
+        return
+    from shared.messaggi import manda_lungo
+    await manda_lungo(context.bot, update.effective_chat.id, testo_quintetti(n), f"quintetti-G{n}" if n else "quintetti")
+
+
 async def cmd_stato(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/stato [N]: conferme dei quintetti e panchine di una giornata (la prossima se manca N)."""
     if not config.is_admin(update.effective_user.id):
@@ -468,5 +502,6 @@ def get_handlers() -> list:
         CommandHandler("quintetti_import", cmd_quintetti_import),
         MessageHandler(filters.Document.ALL & filters.CaptionRegex(r"^/quintetti_import"), cmd_quintetti_import),
         CommandHandler("stato", cmd_stato),
+        CommandHandler("quintetti", cmd_quintetti),
         CallbackQueryHandler(cb_quintetto, pattern=r"^q:"),
     ]

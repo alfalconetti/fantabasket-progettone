@@ -48,7 +48,7 @@ def schermata(team_id: str, pagina: int = 0) -> tuple[str, K | None]:
               "Tocca 🗑 per cancellarne uno (sbagliato o vecchio)."]
     pagine = max(1, -(-len(al) // PER_PAGINA))
     pagina = max(0, min(pagina, pagine - 1))
-    tasti = [[B(f"🗑 {a['alias'][:30]} → {nomi[a['giocatore_id']].split()[-1]}",
+    tasti = [[B(f"🗑 {a['alias'][:30]} → {nomi[a['giocatore_id']]}",        # nome intero: gli omonimi
                 callback_data=f"so:d:{team_id}:{a['id']}:{pagina}")]
              for a in al[pagina * PER_PAGINA:(pagina + 1) * PER_PAGINA]]
     nav = []

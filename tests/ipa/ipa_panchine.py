@@ -299,6 +299,17 @@ ok(db.formazione(S, 1, "team01")["PG"] == gids["Jalen Brunson"] and db.quintetto
 ok("non è ancora chiusa" in admin("/quintetto_admin Alfa G2\nBrunson\nBooker\nBridges\nGrant Williams\nMark Williams"),
    "G di una giornata non chiusa: rifiutato")
 
+# ── /quintetti: una riga per squadra ──
+m = Msg("/quintetti"); CTX.args = []; asyncio.run(Q.cmd_quintetti(upd(900, m), CTX))
+tq = Q.testo_quintetti()
+ok("<b>Alfa</b>: PG Ja Morant · SG Devin Booker · SF Mikal Bridges · PF Grant Williams · C Mark Williams" in tq
+   and "<b>Beta</b>: PG — · SG —" in tq, f"/quintetti: una riga per squadra coi nomi interi\n{tq[:300]}")
+ok("<b>Alfa</b>: PG Jalen Brunson" in Q.testo_quintetti(1), "/quintetti 1: la formazione congelata della giornata 1")
+m = Msg("/quintetti 2"); CTX.args = ["2"]; asyncio.run(Q.cmd_quintetti(upd(900, m), CTX)); CTX.args = []
+ok("non è ancora chiusa" in m.risposte[-1][0], "/quintetti N di una giornata non chiusa: rifiutato")
+m = Msg("/quintetti"); asyncio.run(Q.cmd_quintetti(upd(101, m), CTX))
+ok(m.risposte[-1][0] == "⛔ Solo admin.", "/quintetti solo admin")
+
 # ── admin coi bottoni: quintetto (parte da quello attuale) e panchina di un'altra squadra ──
 m = Msg("/quintetto_admin Alfa"); asyncio.run(Q.cmd_quintetto_admin(upd(900, m), CTX))
 t, k = m.risposte[-1]
@@ -325,6 +336,8 @@ t, k = m.risposte[-1]
 ok("<b>Josh Hart</b>: " in t and "«lo sceriffo»" in t and "«ja the sniper morant»" in t, "/soprannomi: quelli della squadra, per giocatore")
 id_sc = next(a["id"] for a in db.alias_giocatori([gids["Josh Hart"]]) if a["alias"] == "lo sceriffo")
 ok(f"so:d:team01:{id_sc}:0" in bottoni(k["reply_markup"]), "un bottone 🗑 per soprannome")
+ok(any(b.text == "🗑 lo sceriffo → Josh Hart" for riga in k["reply_markup"].inline_keyboard for b in riga),
+   "nel bottone il nome intero del giocatore (con gli omonimi il cognome non basta)")
 ok(premi(102, f"so:d:team01:{id_sc}:0").risposte == ["Non è la tua squadra."], "il GM di un'altra squadra non cancella")
 BOT.mandati.clear()
 u = upd(101, cb=f"so:d:team01:{id_sc}:0"); asyncio.run(SO.cb_soprannomi(u, CTX))
@@ -358,6 +371,12 @@ ok(asyncio.run(CE.controlla(BOT)) == 1, "tornato e ceduto di nuovo: nuovo avviso
 m = Msg(); asyncio.run(P.cmd_panchina(upd(101, m), CTX))
 ok("Josh Hart (non più in squadra: rimandala)" in m.risposte[-1][0], "/panchina: il ceduto si vede")
 db.q("UPDATE contratti SET team_id = 'team01' WHERE giocatore_id = ANY(%s) AND attivo", ([gids["Josh Hart"], gids["Mikal Bridges"]],))
+
+# ── righe duplicate ("prova" ×5): rifiutata ──
+m = manda(101, "prova\nprova\nprova\nprova\nprova")
+ok("Righe duplicate: «prova»" in m.risposte[0][0] and "pb:" not in str(m.risposte[0][1]), "righe uguali: rifiutata, righe duplicate")
+m = manda(101, "Morant\nBarlow\nClifford\nlo Sceriffo!\nLO SCERIFFO")
+ok("Righe duplicate" in m.risposte[0][0], "duplicate anche con maiuscole e punteggiatura diverse")
 
 # ── scadenza passata mentre si conferma ──
 m = manda(101, "Ja Morant\nBarlow\nClayton\nClifford\nLooney")
