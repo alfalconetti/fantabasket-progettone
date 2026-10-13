@@ -259,7 +259,11 @@ def testo(c: dict, ora: datetime, prova: bool = False) -> str:
             stato_g.append(f"🏀 in campo {lc}–{lt}")
         if pc or pt:
             stato_g.append(f"⏳ da giocare {pc}–{pt}")
-        pezzi = ([] if lc + lt + pc + pt > MAX_DA_GIOCARE else [f"▶ {esito_live(r, casa, tr)}"]) + stato_g
+        vuoti = [n for n, sq in ((casa, r["sc"]), (tr, r["st"])) if not any(x.get("atleta") for x in sq["titolari"])]
+        if vuoti:                                  # senza giocatori non c'è niente da stimare
+            pezzi = [f"⚠️ quintetto vuoto: {e(', '.join(vuoti))}"] + stato_g
+        else:
+            pezzi = ([] if lc + lt + pc + pt > MAX_DA_GIOCARE else [f"▶ {esito_live(r, casa, tr)}"]) + stato_g
         if pezzi:
             righe.append("   " + " · ".join(pezzi))
     righe += ["", f"<i>Risultati provvisori, stimati sui tabellini live di ESPN con le regole del calcolo (bonus casa "

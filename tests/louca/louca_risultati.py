@@ -335,6 +335,11 @@ fil = [x for x in BD.mandati if x.get("file")]
 ok(len(msg_a) == 1 and len(msg_a[0]["text"]) <= 4096 and "file sul canale log" in msg_a[0]["text"]
    and fil and fil[0]["chat_id"] == -3 and fil[0]["file"] == f"avvisi-G{N}.md" and "Squadra 59" in fil[0]["contenuto"],
    "avvisi troppo lunghi: messaggio senza avvisi, file .md sul canale log")
+c_v = LV.calcolo(S, N)
+for x in c_v["risultati"][1]["st"]["titolari"]:
+    x["atleta"] = None
+ok("⚠️ quintetto vuoto: Delta" in LV.testo(c_v, t0) and "▶ al momento vince Gamma" not in LV.testo(c_v, t0),
+   "quintetto vuoto: nessun esito (non c'è niente da stimare)")
 rr = {"punti_casa": 3.0, "punti_trasferta": 0.0, "vince": "trasferta", "supplementari": 5, "esito": {"casa": 3.0, "trasferta": 0.0},
       "sc": {"panchina": []}, "st": {"panchina": []}}
 ok(LV.esito_live(rr, "A", "B") == "al momento vince B (nessuna delle due ha la panchina: niente supplementari)", "senza panchine: niente supplementari nel testo")

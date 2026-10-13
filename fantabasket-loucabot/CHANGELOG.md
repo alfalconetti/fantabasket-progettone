@@ -112,3 +112,7 @@ Il calcolo dei fantapunti.
 
 - Anteprima del live (`/live` fuori giornata, `/dev_prova_calcolo`): se con gli avvisi del calcolo il messaggio supera il limite di Telegram, l'anteprima esce senza avvisi e gli avvisi vanno in un file `avvisi-GN.md` sul canale log (prima: "Message is too long")
 
+## v22 (2026-10-14)
+
+- Live: con il quintetto di una squadra vuoto (nessun giocatore) niente esito, ma "⚠️ quintetto vuoto: SQUADRA" (prima, con tutti a zero, il regolamento dava vinta la trasferta: scarto sotto 5, niente panchine)
+
