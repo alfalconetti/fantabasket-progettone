@@ -1236,3 +1236,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - loucabot v14: `/dev_prova_calcolo` per provare calcolo e foglio prima del 20/10
 
+## v5.1.2 (2026-10-13)
+
+- `gas/calcolo.gs`: formule del tab «Calcolo GN» scritte con `setFormulas`, controllo degli #ERROR! e riscrittura col ";" per i fogli in italiano (loucabot v15 segnala le formule rimaste in errore)
+

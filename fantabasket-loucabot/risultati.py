@@ -362,7 +362,10 @@ async def scrivi_foglio(c: dict, manda=None) -> str:
         return f"⚠️ tab Calcolo G{c['giornata']['numero']} non scritto ({type(err).__name__}: {str(err)[:150]})"
     if r.get("error"):
         return f"⚠️ tab Calcolo G{c['giornata']['numero']} non scritto: {str(r['error'])[:200]}"
-    return f"tab «{r.get('tab')}» scritto ({r.get('righe')} righe)"
+    esito = f"tab «{r.get('tab')}» scritto ({r.get('righe')} righe)"
+    if r.get("errori"):
+        esito = f"⚠️ {esito}, ma {r['errori']} formule danno #ERROR! (sintassi provata: {r.get('sintassi')})"
+    return esito
 
 
 # ── stato del calcolo e convalida ──────────────────────────────────────────────

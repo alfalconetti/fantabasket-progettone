@@ -123,6 +123,15 @@ if shutil.which("soffice"):
 else:
     print("⚠️ LibreOffice non c'è: confronto col foglio saltato")
 
+async def _gas(payload):
+    return {"ok": True, "tab": payload["nome"], "righe": len(payload["righe"]), "errori": 3, "sintassi": "punto e virgola"}
+ok("3 formule danno #ERROR!" in asyncio.run(R.scrivi_foglio(c, manda=_gas)), "se il gas trova formule in errore, il bot lo dice")
+async def _gas_ok(payload):
+    ok(payload["action"] == "calcolo" and payload["nome"] == "Calcolo G7" and payload["formati"]
+       and all(f["range"][0].isalpha() for f in payload["formati"]), "payload per il gas: tab, formati come intervalli")
+    return {"ok": True, "tab": payload["nome"], "righe": len(payload["righe"]), "errori": 0, "sintassi": "virgole"}
+ok(asyncio.run(R.scrivi_foglio(c, manda=_gas_ok)).startswith("tab «Calcolo G7» scritto"), "tab scritto senza errori")
+
 # ── proposta e convalida ──
 v = R.salva_calcolo(c)
 ok(v == 1 and db.q("SELECT stato FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (S, N), one=True)["stato"] == "da_convalidare",

@@ -77,3 +77,7 @@ Il calcolo dei fantapunti.
 
 - `/dev_prova_calcolo GG/MM/AAAA GG/MM/AAAA` (dev): prova del calcolo prima dell'inizio della stagione, con gli accoppiamenti della prossima giornata, i quintetti di adesso e le panchine già mandate, sulle partite NBA vere di giorni già giocati; scrive il tab «Calcolo G0» e manda la proposta solo al dev, senza salvare niente
 
+## v15 (2026-10-13)
+
+- Tab «Calcolo GN»: le formule si scrivono con `setFormulas` e non più con `setValues` (che le leggeva nella lingua del foglio: in italiano il separatore è ";" e davano tutte #ERROR!). Dopo la scrittura il gas controlla le celle: se una formula dà #ERROR! le riscrive col ";" e ricontrolla; se restano errori, la proposta al gruppo admin lo dice
+
