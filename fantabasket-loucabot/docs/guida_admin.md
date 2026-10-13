@@ -35,9 +35,9 @@ Gli admin sono quelli di `admin_ids` in `globals.json`, gli stessi degli altri b
 
 **Tabellini.** A partita finita il bot scarica da ESPN il tabellino e salva statistiche e fantapunti di ogni giocatore NBA. Lo fa alle 8:30; `/tabellini` lo fa subito, per le partite finite che ancora non ce l'hanno.
 
-**Infortunati.** ESPN dà solo lo stato di adesso, quindi il bot ne salva una foto alle 8:30, alle 17:30 e alle 23:30 (anche con `/tabellini`). Servono per due regole:
-- chi è in una squadra a media prende 0 invece della media se in tutte le foto della giornata risulta indisponibile (stato diverso da Probable);
-- la FADD (il panchinaro che entra al posto del titolare che non ha giocato): il titolare deve avere il tag in tutti i giorni in cui la sua squadra ha giocato. Se manca la foto di uno di quei giorni il bot non sostituisce e lo segnala: decide un admin.
+**Infortunati.** ESPN dà solo lo stato di adesso, quindi il bot ne salva uno snapshot ogni 4 ore, anche di notte (0:30, 4:30, 8:30, 12:30, 16:30, 20:30), più uno 30 minuti prima della prima partita NBA del giorno (il report subito prima delle partite). Per il calcolo, di ogni giorno conta lo snapshot subito prima della prima partita; il più recente è lo stato che IPanchinari mostra accanto ai giocatori. Si tengono tutti gli snapshot dell'ultima settimana; per i giorni più vecchi resta solo quello che conta. Anche `/tabellini` ne salva uno. Servono per due regole:
+- chi è in una squadra a media prende 0 invece della media se nello snapshot che conta di ogni giorno della giornata risulta indisponibile (stato diverso da Probable);
+- la FADD (il panchinaro che entra al posto del titolare che non ha giocato): il titolare deve avere il tag in tutti i giorni in cui la sua squadra ha giocato. Se manca lo snapshot di uno di quei giorni il bot non sostituisce e lo segnala: decide un admin.
 
 **Giocatori e id ESPN.** Il calcolo collega i giocatori dell'anagrafica a ESPN con l'id ESPN, non col nome. L'abbinamento è automatico quando il nome è uguale (senza accenti, punteggiatura, Jr./III) e corrisponde a un solo giocatore.
 - `/espn_giocatori` scarica i roster delle 30 squadre e abbina. Si rifà ogni tanto, per esempio dopo il mercato NBA.
@@ -64,7 +64,7 @@ Restano agli admin le 72 ore di attesa per le partite rinviate e le penalità.
 | `/calendario_check` | scadenze e squadre a media, confronto col CSV |
 | `/nba_sync` | riscarica le partite NBA della stagione |
 | `/calendario_foglio` | ricarica il foglio Google Calendario (A:E) |
-| `/tabellini` | tabellini mancanti e foto degli infortunati |
+| `/tabellini` | tabellini mancanti e snapshot degli infortunati |
 | `/espn_giocatori` | roster NBA da ESPN e abbinamento automatico |
 | `/espn_mancanti` | giocatori a roster senza id ESPN |
 | `/espn_abbina ID_GIOCATORE ID_ESPN` | abbinamento a mano |

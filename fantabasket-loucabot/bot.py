@@ -14,7 +14,7 @@ from telegram.ext import ApplicationBuilder
 import config
 import db
 from handlers import get_handlers, job_sync
-from handlers_calcolo import job_infortuni, job_status
+from handlers_calcolo import job_infortuni, job_prepartita
 
 logging.basicConfig(format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", level=logging.INFO)
 # niente riga per ogni chiamata all'API di Telegram: contiene il token nell'URL e riempie i log
@@ -27,6 +27,7 @@ try:
 except ImportError:
     pass
 ROME = ZoneInfo("Europe/Rome")
+ORE_SNAPSHOT = [dtime(h, 30, tzinfo=ROME) for h in (0, 4, 12, 16, 20)]      # ogni 4 ore, con le 8:30 di job_sync
 
 
 BOT_VERSION = config.versione()
@@ -58,9 +59,12 @@ def main():
         app.add_handler(h)
     app.add_error_handler(dev_comune.error_handler("loucabot", config.canale_log, config.dev_id))
     app.job_queue.run_daily(job_sync, time=dtime(8, 30, tzinfo=ROME))        # partite, tabellini, infortunati
-    for ora in (dtime(17, 30, tzinfo=ROME), dtime(23, 30, tzinfo=ROME)):       # infortunati prima delle partite
+    # snapshot degli infortunati ogni 4 ore (anche di notte) e 30 minuti prima della prima partita
+    # del giorno: per il calcolo conta quello subito prima delle partite, il più recente è lo
+    # stato che IPanchinari mostra; dopo una settimana resta solo quello che conta (job_sync)
+    for ora in ORE_SNAPSHOT:
         app.job_queue.run_daily(job_infortuni, time=ora)
-    app.job_queue.run_repeating(job_status, interval=timedelta(hours=4), first=60)   # stato per i builder di IPanchinari
+    app.job_queue.run_repeating(job_prepartita, interval=timedelta(minutes=10), first=120)
     logger.info("loucabot %s avviato.", BOT_VERSION)
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 

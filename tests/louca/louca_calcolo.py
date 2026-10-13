@@ -49,13 +49,27 @@ ok(nba.leggi_infortuni(solo_link) == [{"atleta": "12345", "nome": "Prova Link", 
 async def finti_inf():
     return vero
 asyncio.run(nba.scarica_infortuni(scarica=finti_inf))
-ok(db.q("SELECT COUNT(*) AS n FROM nba_infortuni", one=True)["n"] == 5, "foto degli infortunati salvata")
-ok(db.q("SELECT COUNT(*) AS n FROM nba_status", one=True)["n"] == 5, "e anche lo stato attuale (per i builder di IPanchinari)")
-db.q("TRUNCATE nba_infortuni, nba_status")
-asyncio.run(nba.scarica_infortuni(scarica=finti_inf, foto=False))
-ok(db.q("SELECT COUNT(*) AS n FROM nba_status", one=True)["n"] == 5 and db.q("SELECT COUNT(*) AS n FROM nba_infortuni", one=True)["n"] == 0,
-   "aggiornamento ogni 4 ore: solo lo stato attuale, la foto del calcolo non cambia")
-db.q("TRUNCATE nba_infortuni, nba_tabellini, nba_partite, nba_status CASCADE")
+ok(db.q("SELECT COUNT(*) AS n FROM nba_infortuni", one=True)["n"] == 5, "snapshot degli infortunati salvato")
+asyncio.run(nba.scarica_infortuni(scarica=finti_inf))
+ok(db.q("SELECT COUNT(DISTINCT preso) AS n FROM nba_infortuni", one=True)["n"] == 2, "un secondo snapshot si aggiunge, non sostituisce")
+
+# quale snapshot conta per il calcolo: l'ultimo prima della prima partita del giorno; pulizia dopo 7 giorni
+from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+db.q("TRUNCATE nba_infortuni, nba_tabellini, nba_partite CASCADE")
+G1 = date(2026, 11, 10)
+def snap(quando, stato):
+    db.q("INSERT INTO nba_infortuni (giorno, atleta, nome, stato, preso) VALUES (%s, '77', 'Gioc 77', %s, %s)", (G1, stato, quando))
+inizio = _dt(2026, 11, 11, 0, 0, tzinfo=_tz.utc)                       # 19:00 a New York
+db.salva_partite_nba([{"espn_id": "s1", "stagione": "2026", "tipo": 2, "data_et": G1, "casa": "NYK", "trasferta": "BOS",
+                       "inizio": inizio, "stato": "STATUS_FINAL"}])
+snap(inizio - _td(hours=8), "Questionable"); snap(inizio - _td(minutes=30), "Out"); snap(inizio + _td(hours=3), "Day-To-Day")
+ok(db.snapshot_del_giorno([G1])[G1] == inizio - _td(minutes=30) and db.infortuni(["77"], [G1]) == {("77", G1): "Out"},
+   "conta lo snapshot subito prima della prima partita (quello di notte durante le partite no)")
+ok(db.pulisci_snapshot(G1 + _td(days=3)) == 0 and db.q("SELECT COUNT(*) AS n FROM nba_infortuni", one=True)["n"] == 3,
+   "nell'ultima settimana si tengono tutti")
+ok(db.pulisci_snapshot(G1 + _td(days=8)) == 2 and db.infortuni(["77"], [G1]) == {("77", G1): "Out"},
+   "più vecchi di una settimana: resta solo quello che conta, il calcolo non cambia")
+db.q("TRUNCATE nba_infortuni, nba_tabellini, nba_partite CASCADE")
 
 # ── punteggio del giocatore nella giornata ──
 def riga(pid, atleta, squadra, fp, giocato=True):
@@ -85,10 +99,10 @@ ok(P["6"]["fp"] == 18 and "rinviata" in P["6"]["nota"], "solo partita rinviata: 
 ok(P["ignoto"]["fp"] == 0 and "sconosciuta" in P["ignoto"]["nota"], "giocatore mai visto: 0")
 db.q("DELETE FROM nba_infortuni WHERE giorno = '2026-11-03'")
 P2 = calcolo.punteggio_giocatori("2026", G, ["5"])
-ok(P2["5"]["fp"] == 0, "indisponibile nell'unica foto della giornata: 0")
+ok(P2["5"]["fp"] == 0, "indisponibile nell'unico snapshot della giornata: 0")
 db.q("TRUNCATE nba_infortuni")
 P3 = calcolo.punteggio_giocatori("2026", G, ["5"])
-ok(P3["5"]["fp"] == 16 and "non verificata" in P3["5"]["nota"], "nessuna foto: media, con l'avviso")
+ok(P3["5"]["fp"] == 16 and "non verificata" in P3["5"]["nota"], "nessuno snapshot: media, con l'avviso")
 db.salva_infortuni(date(2026, 11, 2), [{"atleta": "5", "nome": "Gioc 5", "stato": "Out"},
                                        {"atleta": "3", "nome": "Gioc 3", "stato": "Questionable"}])
 db.salva_infortuni(date(2026, 11, 3), [{"atleta": "5", "nome": "Gioc 5", "stato": "Out"},
@@ -114,7 +128,7 @@ partita("p4", "2026-11-04", "NYK", "CHI")
 G3 = {**G, "al": date(2026, 11, 4)}
 db.salva_infortuni(date(2026, 11, 3), [{"atleta": "3", "nome": "Gioc 3", "stato": "Out"}])
 S3 = calcolo.punteggio_squadra(G3, Q, B, calcolo.punteggio_giocatori("2026", G3, ["1", "2", "3", "4", "6", "8", "9", "5"]))
-ok(S3["fadd"] is None and any("decide un admin" in a for a in S3["avvisi"]), "FADD: manca la foto di un giorno → decide un admin")
+ok(S3["fadd"] is None and any("decide un admin" in a for a in S3["avvisi"]), "FADD: manca lo snapshot di un giorno → decide un admin")
 
 # ── esito e supplementari ──
 sq = lambda tot, pan=(): {"totale": tot, "panchina": [{"fp": x} for x in pan]}

@@ -1,8 +1,8 @@
 """Comandi e job del calcolo: tabellini, infortunati, abbinamento con ESPN, fantapunti.
 
-Admin: /tabellini (anche foto degli infortunati), /espn_giocatori, /espn_mancanti, /espn_abbina ID_GIOCATORE ID_ESPN, /fantapunti [N]
+Admin: /tabellini (anche snapshot degli infortunati), /espn_giocatori, /espn_mancanti, /espn_abbina ID_GIOCATORE ID_ESPN, /fantapunti [N]
 Job:   tabellini e abbinamenti nella sincronizzazione delle 8:30 (handlers.job_sync),
-       foto degli infortunati alle 8:30, 17:30 e 23:30 (prima delle partite della sera).
+       snapshot degli infortunati ogni 4 ore e 30 minuti prima della prima partita del giorno.
 """
 import difflib
 import html
@@ -45,7 +45,7 @@ def testo_tabellini(r: dict) -> str:
     return t
 
 
-async def foto_infortuni() -> str:
+async def snapshot_infortuni() -> str:
     try:
         r = await nba.scarica_infortuni()
         return f"{r['giocatori']} infortunati"
@@ -54,19 +54,25 @@ async def foto_infortuni() -> str:
         return f"⚠️ infortunati non scaricati ({type(err).__name__}: {e(str(err))[:150]})"
 
 
-async def job_status(context: ContextTypes.DEFAULT_TYPE):
-    """Ogni 4 ore: lo stato attuale degli infortunati per i builder di IPanchinari (senza foto)."""
-    try:
-        await nba.scarica_infortuni(foto=False)
-    except Exception as err:
-        logger.warning("Stato infortunati: %s", err)
+async def job_prepartita(context: ContextTypes.DEFAULT_TYPE):
+    """Ogni 10 minuti: uno snapshot degli infortunati 30-40 minuti prima della prima partita NBA
+    del giorno (il report subito prima delle partite), una volta sola."""
+    from datetime import datetime, timedelta, timezone
+    ora_ = datetime.now(timezone.utc)
+    r = db.q("SELECT MIN(inizio) AS t FROM nba_partite WHERE inizio > %s AND inizio <= %s",
+             (ora_, ora_ + timedelta(minutes=40)), one=True)
+    if not r or not r["t"]:
+        return
+    gia = db.q("SELECT 1 FROM nba_infortuni WHERE preso >= %s LIMIT 1", (r["t"] - timedelta(minutes=45),), one=True)
+    if not gia:
+        await job_infortuni(context)
 
 
 async def job_infortuni(context: ContextTypes.DEFAULT_TYPE):
     from handlers import log
-    esito = await foto_infortuni()
+    esito = await snapshot_infortuni()
     if esito.startswith("⚠️"):
-        await log(context.bot, f"🩹 Foto infortunati: {esito}")
+        await log(context.bot, f"🩹 Snapshot infortunati: {esito}")
 
 
 async def cmd_tabellini(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -75,12 +81,12 @@ async def cmd_tabellini(update: Update, context: ContextTypes.DEFAULT_TYPE):
     da_fare = db.partite_senza_tabellino()
     await update.effective_message.reply_text(f"⏳ Scarico {len(da_fare)} tabellini da ESPN (circa un secondo l'uno)…")
     r = await aggiorna_tabellini()
-    inf = await foto_infortuni()
-    await update.effective_message.reply_text("✅ " + testo_tabellini(r) + f"; foto: {inf}"
+    inf = await snapshot_infortuni()
+    await update.effective_message.reply_text("✅ " + testo_tabellini(r) + f"; snapshot: {inf}"
                                               + ("\n" + "\n".join(e(x) for x in r["errori"][:10]) if r["errori"] else ""),
                                               parse_mode="HTML")
     from handlers import log, _chi
-    await log(context.bot, f"📊 /tabellini di {_chi(update)}: {testo_tabellini(r)}; foto: {inf}")
+    await log(context.bot, f"📊 /tabellini di {_chi(update)}: {testo_tabellini(r)}; snapshot: {inf}")
 
 
 async def cmd_espn_giocatori(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -194,8 +200,8 @@ async def cmd_dev_giornata(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     partite = db.q("SELECT stato, COUNT(*) AS n, COUNT(tabellino) AS t FROM nba_partite WHERE data_et BETWEEN %s AND %s "
                    "AND tipo = ANY(%s) GROUP BY stato ORDER BY stato", (g["dal"], g["al"], [2, 3, 5]), many=True) or []
-    foto = db.q("SELECT giorno, COUNT(*) AS n FROM nba_infortuni WHERE giorno BETWEEN %s AND %s GROUP BY giorno ORDER BY giorno",
-                (g["dal"], g["al"]), many=True) or []
+    snap = db.q("SELECT giorno, COUNT(DISTINCT preso) AS n FROM nba_infortuni WHERE giorno BETWEEN %s AND %s "
+                "GROUP BY giorno ORDER BY giorno", (g["dal"], g["al"]), many=True) or []
     ris = db.q("SELECT COUNT(*) AS n, COUNT(convalidato) AS c FROM lega_risultati WHERE stagione = %s AND giornata = %s",
                (s, g["numero"]), one=True)
     righe = [f"🔧 <b>Giornata {g['numero']}</b> ({g['tipo']}) · {g['dal']} → {g['al']} (giorni ET)",
@@ -204,7 +210,7 @@ async def cmd_dev_giornata(update: Update, context: ContextTypes.DEFAULT_TYPE):
              f"nel calendario: {', '.join(g['media_file']) or 'nessuno'}",
              "Partite NBA: " + (", ".join(f"{p['stato'].replace('STATUS_', '').lower()} {p['n']} (tabellini {p['t']})"
                                           for p in partite) or "nessuna"),
-             "Foto infortunati: " + (", ".join(f"{f['giorno']:%d/%m} {f['n']}" for f in foto) or "nessuna"),
+             "Snapshot infortunati: " + (", ".join(f"{f['giorno']:%d/%m} {f['n']}" for f in snap) or "nessuno"),
              f"Risultati: {ris['n']} (convalidati {ris['c']})"]
     await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
 

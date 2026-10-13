@@ -165,14 +165,16 @@ def squadre_nba_giocatori(ids: list[int]) -> dict[int, str]:
 
 
 def stati_espn(ids: list[int]) -> tuple[dict[int, dict], object]:
-    """({giocatore: {stato, dettaglio}}, quando) dalla lista infortunati di ESPN che loucabot
-    aggiorna ogni 4 ore (nba_status; chi non c'è è sano). Senza la tabella: ({}, None)."""
-    if not ids or not q("SELECT to_regclass('nba_status') AS t", one=True)["t"]:
+    """({giocatore: {stato, dettaglio}}, quando) dall'ultimo snapshot degli infortunati di ESPN
+    (nba_infortuni di loucabot, ogni 4 ore e prima delle partite; chi non c'è è sano)."""
+    if not ids or not q("SELECT to_regclass('nba_infortuni') AS t", one=True)["t"]:
         return {}, None
-    righe = q("""SELECT g.id, s.stato, s.dettaglio FROM giocatori g JOIN nba_status s ON s.atleta = g.espn_id
-                 WHERE g.id = ANY(%s)""", (list(ids),), many=True) or []
-    quando = q("SELECT MAX(aggiornato) AS t FROM nba_status", one=True)["t"]
-    return {r["id"]: {"stato": r["stato"], "dettaglio": r["dettaglio"]} for r in righe}, quando
+    ultimo = q("SELECT MAX(preso) AS t FROM nba_infortuni", one=True)["t"]
+    if not ultimo:
+        return {}, None
+    righe = q("""SELECT g.id, i.stato, i.dettaglio FROM giocatori g JOIN nba_infortuni i ON i.atleta = g.espn_id
+                 WHERE i.preso = %s AND g.id = ANY(%s)""", (ultimo, list(ids)), many=True) or []
+    return {r["id"]: {"stato": r["stato"], "dettaglio": r["dettaglio"]} for r in righe}, ultimo
 
 
 # ── quintetti ──────────────────────────────────────────────────────────────────

@@ -13,7 +13,7 @@ Servizio `loucabot` del `docker-compose.yml` del progettone, cartella `fantabask
 | `bot.py` | avvio: handler, error handler (canale log e dev), job, comandi del menu |
 | `comandi.py` | menu `/` per scope: gruppi, privato, admin (privato e gruppo admin), dev |
 | `handlers.py` | comandi del calendario, guide, dev; `log()` al canale log; `job_sync` delle 8:30 |
-| `handlers_calcolo.py` | comandi del calcolo (`/tabellini`, `/espn_giocatori`, `/espn_mancanti`, `/espn_abbina`, `/fantapunti`), foto degli infortunati |
+| `handlers_calcolo.py` | comandi del calcolo (`/tabellini`, `/espn_giocatori`, `/espn_mancanti`, `/espn_abbina`, `/fantapunti`), snapshot degli infortunati |
 | `calendario.py` | CSV della lega: lettura, controlli, import; scadenze e squadre a media; `ora()` |
 | `foglio.py` | foglio Google Calendario: `griglia()` (tutta la pagina A:E) dal CSV importato e da `lega_risultati`, `aggiorna()` via gas-router |
 | `calcolo.py` | punteggio del giocatore, della squadra (FADD), `esito` con supplementari; abbinamento ESPN |
@@ -40,8 +40,7 @@ Stesso PostgreSQL degli altri bot. loucabot legge tutto e scrive solo le sue tab
 | `lega_risultati` | stagione, giornata, casa | punteggi regolamentari (bonus casa compreso) e dopo i supplementari, vincitore, convalida (si riempirà con la convalida delle giornate) |
 | `nba_partite` | `espn_id` | partite NBA: stagione della lega (ESPN 2027 = 2026), tipo (1 pre, 2 RS, 3 playoff, 5 play-in), `data_et`, `inizio`, sigle, `stato`, `tabellino` (quando scaricato) |
 | `nba_tabellini` | partita, atleta | una riga per giocatore a referto: squadra, titolare, `giocato` (FALSE = DNP), minuti, statistiche della formula, `fp` |
-| `nba_infortuni` | giorno, atleta | foto ESPN degli infortunati: stato, dettaglio; vale l'ultima foto del giorno (agli orari fissi: è quella del calcolo) |
-| `nba_status` | atleta | lo stato attuale degli infortunati (sostituito a ogni lettura, ogni 4 ore e agli orari fissi; chi non c'è è sano): lo leggono i builder di IPanchinari, il calcolo no |
+| `nba_infortuni` | atleta, preso | snapshot ESPN degli infortunati (uno snapshot = le righe con lo stesso `preso`; `giorno` = giorno ET): stato, dettaglio. Per il calcolo conta, per ogni giorno, `db.snapshot_del_giorno`: l'ultimo preso prima dell'inizio della prima partita del giorno (senza partite, l'ultimo del giorno). `db.pulisci_snapshot` (alle 8:30) tiene tutto per `GIORNI_SNAPSHOT` = 7 giorni, poi solo quello che conta. IPanchinari legge il più recente |
 | `nba_atleti` | atleta | giocatori dai roster ESPN (per l'abbinamento prima dei tabellini) |
 | `giocatori.espn_id`, `nome_espn` | indice unico su espn_id | abbinamento con l'anagrafica (anche il bot principale crea le colonne) |
 
@@ -74,9 +73,9 @@ Date ESPN in UTC → giorno della costa est (`ET`). Sigle ESPN → NBA (`SIGLE`:
 
 | Ora (Roma) | Job | Cosa |
 |---|---|---|
-| 8:30 | `handlers.job_sync` | partite dei giorni vicini (−3, +14), ricalcolo di scadenze e squadre a media (cambi → gruppo admin), tabellini delle partite finite, abbinamento automatico dei giocatori nuovi, foto degli infortunati; riga sul canale log |
-| 17:30, 23:30 | `handlers_calcolo.job_infortuni` | foto degli infortunati (prima delle partite); sul canale log solo se fallisce |
-| ogni 4 ore | `handlers_calcolo.job_status` | solo `nba_status` (`scarica_infortuni(foto=False)`), per IPanchinari; nessun messaggio |
+| 8:30 | `handlers.job_sync` | partite dei giorni vicini (−3, +14), ricalcolo di scadenze e squadre a media (cambi → gruppo admin), tabellini delle partite finite, abbinamento automatico dei giocatori nuovi, snapshot degli infortunati; riga sul canale log |
+| 0:30, 4:30, 12:30, 16:30, 20:30 | `handlers_calcolo.job_infortuni` (`bot.ORE_SNAPSHOT`) | snapshot degli infortunati: con quello delle 8:30 uno ogni 4 ore; sul canale log solo se fallisce |
+| ogni 10 minuti | `handlers_calcolo.job_prepartita` | uno snapshot 30-40 minuti prima della prima partita NBA del giorno, se non ce n'è già uno da 45 minuti prima |
 
 Errori dei job: canale log e dev.
 
@@ -84,8 +83,8 @@ Errori dei job: canale log e dev.
 
 ## 5. Calcolo (`calcolo.py`)
 
-- `punteggio_giocatori(stagione, giornata, atleti)` → `{atleta: {fp, come, partite, squadra, nota}}`, con `come` ∈ partite / media / zero. Squadra NBA del giocatore: quella dei suoi tabellini nella giornata, se no l'ultima prima (`db.ultima_squadra`). Media della stagione: partite giocate di RS e play-in prima della giornata (`db.medie_stagione`). Indisponibile: stato diverso da Probable/Active in tutte le foto dei giorni della giornata; senza foto prende la media con un avviso.
-- `punteggio_squadra(giornata, quintetto, panchina, punteggi)`: quintetto e panchina sono `[{atleta, ruolo, nome}]`, panchina in ordine. FADD (`_fadd_possibile`): titolare a 0 per "non ha giocato", tag in tutti i giorni in cui la sua squadra ha giocato (manca una foto → avviso, decide l'admin); entra il primo panchinaro dello stesso ruolo; una sola sostituzione; la panchina scala.
+- `punteggio_giocatori(stagione, giornata, atleti)` → `{atleta: {fp, come, partite, squadra, nota}}`, con `come` ∈ partite / media / zero. Squadra NBA del giocatore: quella dei suoi tabellini nella giornata, se no l'ultima prima (`db.ultima_squadra`). Media della stagione: partite giocate di RS e play-in prima della giornata (`db.medie_stagione`). Indisponibile: stato diverso da Probable/Active in tutti gli snapshot dei giorni della giornata; senza snapshot prende la media con un avviso.
+- `punteggio_squadra(giornata, quintetto, panchina, punteggi)`: quintetto e panchina sono `[{atleta, ruolo, nome}]`, panchina in ordine. FADD (`_fadd_possibile`): titolare a 0 per "non ha giocato", tag in tutti i giorni in cui la sua squadra ha giocato (manca uno snapshot → avviso, decide l'admin); entra il primo panchinaro dello stesso ruolo; una sola sostituzione; la panchina scala.
 - `esito(casa, trasferta, bonus=3)`: scarto minimo `SCARTO` = 5, supplementari con i panchinari (5, poi 0), pari → trasferta.
 - `abbina_auto({atleta: nome})`: `norm()` (senza accenti, Đ/ø/ł…, punteggiatura, Jr./Sr./II–V) uguale a uno e un solo giocatore dell'anagrafica (nome_common, nome_bref, nome_yahoo) e a un solo atleta ESPN; i già abbinati non si toccano.
 
@@ -103,7 +102,7 @@ Solo per `dev_id`, nel menu `/` del dev.
 | `/guida_dev` | questa guida, come file |
 | `/dev_version` | versione (ultima voce del CHANGELOG) |
 | `/job_status` | job programmati e prossima esecuzione |
-| `/dev_giornata [N]` | tutto su una giornata (la corrente senza N): date, scadenza, squadre a media calcolate e del calendario, partite NBA per stato con quante hanno il tabellino, foto degli infortunati per giorno, risultati salvati e convalidati |
+| `/dev_giornata [N]` | tutto su una giornata (la corrente senza N): date, scadenza, squadre a media calcolate e del calendario, partite NBA per stato con quante hanno il tabellino, snapshot degli infortunati per giorno, risultati salvati e convalidati |
 | `/dev_log [N]` | ultime N righe di log in memoria (30, massimo 100) |
 | `/dev_pg` | connessione a PostgreSQL (versione) |
 | `/reboot` | riavvia il bot (il processo esce, Docker lo fa ripartire) |

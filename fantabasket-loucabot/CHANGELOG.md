@@ -60,4 +60,5 @@ Il calcolo dei fantapunti.
 
 ## v12 (2026-10-13)
 
-- Stato attuale degli infortunati ESPN in `nba_status`, aggiornato ogni 4 ore (e a ogni foto delle 8:30, 17:30, 23:30), per mostrarlo in IPanchinari. La foto del giorno usata dal calcolo resta solo agli orari fissi, quindi le regole non cambiano
+- **Snapshot** degli infortunati ESPN (prima "foto"): ogni 4 ore anche di notte (0:30, 4:30, 8:30, 12:30, 16:30, 20:30) e 30 minuti prima della prima partita NBA del giorno, per prendere i report che escono subito prima delle partite. Non si sostituiscono più: si tengono tutti quelli dell'ultima settimana; per i giorni più vecchi resta solo quello che conta per il calcolo (l'ultimo prima della prima partita del giorno). Il più recente è lo stato che IPanchinari mostra accanto ai giocatori
+- `/dev_giornata` conta gli snapshot di ogni giorno

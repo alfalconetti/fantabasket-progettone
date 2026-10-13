@@ -48,7 +48,7 @@ Legge: `contratti`, `giocatori` (anche `espn_id`), `ruolo_attuale` (bot principa
 
 **Cessioni** (`cessioni.py`, `job_cessioni` ogni 5 minuti): per ogni squadra confronta con la rosa il quintetto, la panchina della prossima giornata e formazione e panchina della giornata in corso (se chiusa); per ogni giocatore uscito avviso ai GM (con la squadra nuova, `db.squadra_attuale`) e riga sul log, una volta sola (`ipa_cessioni`).
 
-**Stato ESPN** (`comune.stati`, `db.stati_espn`): da `nba_status` di loucabot (ogni 4 ore) via `giocatori.espn_id`; bottoni del builder e di `pb:r`/`pb:t`, anteprima, scelta del ruolo nel quintetto, `testo_quintetto` (promemoria). Senza la tabella (loucabot vecchio) non mostra niente.
+**Stato ESPN** (`comune.stati`, `db.stati_espn`): dall'ultimo snapshot di `nba_infortuni` di loucabot (ogni 4 ore e prima delle partite) via `giocatori.espn_id`; bottoni del builder e di `pb:r`/`pb:t`, anteprima, scelta del ruolo nel quintetto, `testo_quintetto` (promemoria). Senza snapshot non mostra niente.
 
 Il testo "non è obbligatorio, fa fede Yahoo, è un favore agli admin" sta in `comune.FAVORE`: va in ogni messaggio che invita ad aggiornare il quintetto.
 

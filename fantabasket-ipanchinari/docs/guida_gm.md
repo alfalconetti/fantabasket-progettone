@@ -34,7 +34,7 @@ Il bot non prende una panchina con **righe duplicate** (la stessa riga scritta d
 
 **😎 CAI mode.** Nell'anteprima del builder c'è il bottone 😎 CAI mode: il bot ti chiede il titolo e poi il soprannome di ogni panchinaro, uno alla volta. Scrivili come messaggio; ⏭️ Salta lascia quello che c'è, ✅ Fine torna subito all'anteprima. Sul canale escono titolo e soprannomi, e il bot se li ricorda anche per quando mandi la panchina come messaggio. Se a metà ci ripensi e mandi una panchina intera come messaggio, vale quella.
 
-**Infortunati.** Nei bottoni del builder, nella scelta del quintetto, nell'anteprima e nel promemoria accanto a ogni giocatore c'è il suo stato sulla lista infortunati di ESPN (🔴 Out, 🟠 Doubtful, 🟡 Questionable o Day-To-Day, 🟢 Probable; niente se è sano), con l'ora dell'ultimo aggiornamento (ogni 4 ore). È solo un aiuto: per il calcolo valgono le regole del regolamento.
+**Infortunati.** Nei bottoni del builder, nella scelta del quintetto, nell'anteprima e nel promemoria accanto a ogni giocatore c'è il suo stato sulla lista infortunati di ESPN (🔴 Out, 🟠 Doubtful, 🟡 Questionable o Day-To-Day, 🟢 Probable; niente se è sano), con l'ora dell'ultimo aggiornamento (ogni 4 ore, e mezz'ora prima della prima partita del giorno). È solo un aiuto: per il calcolo valgono le regole del regolamento.
 
 `/panchina` ti mostra la panchina che hai mandato, coi nomi veri.
 

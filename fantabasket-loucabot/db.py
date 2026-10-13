@@ -102,21 +102,21 @@ def migra():
             PRIMARY KEY (partita, atleta))""")
     q("CREATE INDEX IF NOT EXISTS idx_nba_tabellini_atleta ON nba_tabellini (atleta)")
     q("""CREATE TABLE IF NOT EXISTS nba_infortuni (
-            giorno    DATE NOT NULL,                            -- giorno della costa est della foto
+            giorno    DATE NOT NULL,                            -- giorno della costa est dello snapshot
             atleta    TEXT NOT NULL,
             nome      TEXT NOT NULL,
             squadra   TEXT,
             stato     TEXT NOT NULL,                            -- Out, Day-To-Day, Questionable…
             dettaglio TEXT,
-            preso     TIMESTAMPTZ NOT NULL DEFAULT NOW(),       -- l'ultima foto del giorno vince
-            PRIMARY KEY (giorno, atleta))""")
-    q("""CREATE TABLE IF NOT EXISTS nba_status (
-            atleta    TEXT PRIMARY KEY,                         -- id ESPN; chi non c'è è sano
-            nome      TEXT NOT NULL,
-            squadra   TEXT,
-            stato     TEXT NOT NULL,
-            dettaglio TEXT,
-            aggiornato TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
+            preso     TIMESTAMPTZ NOT NULL DEFAULT NOW(),       -- quando: uno snapshot = tutte le righe con lo stesso preso
+            PRIMARY KEY (atleta, preso))""")
+    # v5.0.19: tutti gli snapshot, non più uno per giorno (prima la chiave era giorno, atleta)
+    pk = q("SELECT pg_get_constraintdef(oid) AS d FROM pg_constraint WHERE conname = 'nba_infortuni_pkey'", one=True)
+    if pk and "giorno" in pk["d"]:
+        q("ALTER TABLE nba_infortuni DROP CONSTRAINT nba_infortuni_pkey")
+        q("ALTER TABLE nba_infortuni ADD PRIMARY KEY (atleta, preso)")
+    q("CREATE INDEX IF NOT EXISTS idx_nba_infortuni_giorno ON nba_infortuni (giorno, preso)")
+    q("DROP TABLE IF EXISTS nba_status")                # v5.0.18, sostituita dall'ultimo snapshot di nba_infortuni
     q("""CREATE TABLE IF NOT EXISTS lega_calendario_csv (
             stagione   TEXT PRIMARY KEY,
             testo      TEXT NOT NULL,                           -- il CSV importato, tale e quale: è la mappa
@@ -273,38 +273,75 @@ def ultima_squadra(atleti: list[str], prima_del) -> dict[str, str]:
 
 # ── infortunati ────────────────────────────────────────────────────────────────
 
+# Snapshot della lista infortunati di ESPN: si tengono tutti quelli dell'ultima settimana (anche
+# quelli della notte, subito prima delle partite); per i giorni più vecchi resta solo quello che
+# conta per il calcolo (snapshot_del_giorno), gli altri si cancellano (pulisci_snapshot).
+GIORNI_SNAPSHOT = 7
+
+
 def salva_infortuni(giorno, voci: list[dict]) -> None:
-    """La foto di adesso sostituisce quella precedente dello stesso giorno."""
+    """Un nuovo snapshot (tutte le righe con lo stesso `preso`); i precedenti restano."""
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM nba_infortuni WHERE giorno = %s", (giorno,))
+            cur.execute("SELECT NOW() AS t")
+            r = cur.fetchone()
+            preso = r["t"] if isinstance(r, dict) else r[0]
             for v in voci:
-                cur.execute("INSERT INTO nba_infortuni (giorno, atleta, nome, squadra, stato, dettaglio) "
-                            "VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                            (giorno, v["atleta"], v["nome"], v.get("squadra"), v["stato"], v.get("dettaglio")))
+                cur.execute("INSERT INTO nba_infortuni (giorno, atleta, nome, squadra, stato, dettaglio, preso) "
+                            "VALUES (%s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                            (giorno, v["atleta"], v["nome"], v.get("squadra"), v["stato"], v.get("dettaglio"), preso))
 
 
-def salva_status(voci: list[dict]) -> None:
-    """Lo stato attuale degli infortunati (sostituisce tutto: chi è uscito dalla lista è sano)."""
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM nba_status")
-            for v in voci:
-                cur.execute("INSERT INTO nba_status (atleta, nome, squadra, stato, dettaglio) VALUES (%s, %s, %s, %s, %s) "
-                            "ON CONFLICT DO NOTHING", (v["atleta"], v["nome"], v.get("squadra"), v["stato"], v.get("dettaglio")))
+def snapshot_del_giorno(giorni: list) -> dict:
+    """{giorno: preso} dello snapshot che conta per il calcolo: l'ultimo preso prima dell'inizio
+    della prima partita NBA di quel giorno (il report subito prima delle partite); se il giorno
+    non ha partite, o non ce n'è nessuno prima, l'ultimo del giorno."""
+    giorni = list(giorni)
+    if not giorni:
+        return {}
+    snap = q("SELECT DISTINCT giorno, preso FROM nba_infortuni WHERE giorno = ANY(%s) ORDER BY giorno, preso",
+             (giorni,), many=True) or []
+    prime = q("SELECT data_et, MIN(inizio) AS inizio FROM nba_partite WHERE data_et = ANY(%s) GROUP BY data_et",
+              (giorni,), many=True) or []
+    prima = {r["data_et"]: r["inizio"] for r in prime}
+    per_giorno: dict = {}
+    for r in snap:
+        per_giorno.setdefault(r["giorno"], []).append(r["preso"])
+    out = {}
+    for d, tempi in per_giorno.items():
+        p = prima.get(d)
+        prima_delle_partite = [t for t in tempi if p is None or t < p]
+        out[d] = max(prima_delle_partite) if prima_delle_partite else max(tempi)
+    return out
 
 
 def infortuni(atleti: list[str], giorni: list) -> dict[tuple, str]:
-    """{(atleta, giorno): stato} per i giorni con una foto. I giorni senza foto non ci sono:
-    chi chiama sa distinguere "sano" da "nessuna foto" con giorni_con_foto."""
-    righe = q("SELECT atleta, giorno, stato FROM nba_infortuni WHERE atleta = ANY(%s) AND giorno = ANY(%s)",
-              (list(atleti), list(giorni)), many=True) or []
-    return {(r["atleta"], r["giorno"]): r["stato"] for r in righe}
+    """{(atleta, giorno): stato} nello snapshot che conta di ogni giorno (snapshot_del_giorno).
+    I giorni senza snapshot non ci sono: chi chiama distingue "sano" da "nessuno snapshot" con
+    giorni_con_snapshot."""
+    scelti = snapshot_del_giorno(giorni)
+    if not scelti:
+        return {}
+    righe = q("SELECT atleta, giorno, preso, stato FROM nba_infortuni WHERE atleta = ANY(%s) AND giorno = ANY(%s)",
+              (list(atleti), list(scelti)), many=True) or []
+    return {(r["atleta"], r["giorno"]): r["stato"] for r in righe if r["preso"] == scelti[r["giorno"]]}
 
 
-def giorni_con_foto(giorni: list) -> set:
-    righe = q("SELECT DISTINCT giorno FROM nba_infortuni WHERE giorno = ANY(%s)", (list(giorni),), many=True) or []
-    return {r["giorno"] for r in righe}
+def giorni_con_snapshot(giorni: list) -> set:
+    return set(snapshot_del_giorno(giorni))
+
+
+def pulisci_snapshot(oggi) -> int:
+    """Per i giorni più vecchi di GIORNI_SNAPSHOT tiene solo lo snapshot che conta. Righe cancellate."""
+    from datetime import timedelta
+    vecchi = [r["giorno"] for r in (q("SELECT DISTINCT giorno FROM nba_infortuni WHERE giorno < %s",
+                                      (oggi - timedelta(days=GIORNI_SNAPSHOT),), many=True) or [])]
+    tolte = 0
+    for d, t in snapshot_del_giorno(vecchi).items():
+        r = q("WITH x AS (DELETE FROM nba_infortuni WHERE giorno = %s AND preso <> %s RETURNING 1) SELECT COUNT(*) AS n FROM x",
+              (d, t), one=True)
+        tolte += r["n"] if r else 0
+    return tolte
 
 
 # ── abbinamento con l'anagrafica del bot principale ────────────────────────────

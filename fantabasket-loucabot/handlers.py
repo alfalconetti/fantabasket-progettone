@@ -216,7 +216,10 @@ async def job_sync(context: ContextTypes.DEFAULT_TYPE):
         cambi = cal.ricalcola()
         import handlers_calcolo as hc
         tab = await hc.aggiorna_tabellini()
-        inf = await hc.foto_infortuni()
+        inf = await hc.snapshot_infortuni()
+        tolte = db.pulisci_snapshot(nba.oggi_et())
+        if tolte:
+            inf += f" (snapshot più vecchi di {db.GIORNI_SNAPSHOT} giorni ridotti a uno per giorno: {tolte} righe tolte)"
         if cambi:
             import foglio
             inf += "; " + await foglio.aggiorna(config.stagione())
@@ -300,7 +303,7 @@ async def cmd_dev(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/dev_log [N] — ultime N righe di log in memoria (30)\n"
         "/dev_pg — connessione a PostgreSQL\n"
         "/dev_giornata [N] — stato di una giornata: date, scadenza, squadre a media, partite NBA, "
-        "tabellini, foto degli infortunati, risultati\n"
+        "tabellini, snapshot degli infortunati, risultati\n"
         "/reboot — riavvia il bot\n\n"
         "Tutti i comandi admin: /guida_admin", parse_mode="HTML")
 

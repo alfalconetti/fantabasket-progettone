@@ -14,7 +14,7 @@ spec = importlib.util.spec_from_file_location("louca_db", os.path.join(ROOT, "fa
 ldb = importlib.util.module_from_spec(spec); spec.loader.exec_module(ldb); ldb.init_db()
 db.init_db()
 db.q("TRUNCATE ipa_quintetto, ipa_alias, ipa_cessioni, ipa_panchine, ipa_bozze, ipa_conferme, ipa_formazioni, ipa_stato_giornata, "
-     "lega_giornate, nba_tabellini, nba_partite, nba_atleti, nba_status")
+     "lega_giornate, nba_tabellini, nba_partite, nba_atleti, nba_infortuni")
 G = json.load(open(config.GLOBALS_PATH)); G["canale_panchinari_id"] = -500; json.dump(G, open(config.GLOBALS_PATH, "w"))
 
 S = config.stagione()
@@ -202,8 +202,10 @@ ok(premi(102, "q:ok:team01:2").risposte[-1] == "Non è la tua squadra.", "il GM 
 ok(db.conferme(S, 2)["team01"]["stato"] == "confermato", "Confermo dal promemoria")
 ok(premi(101, "q:ok:team01:1").risposte[-1] == "La scadenza di questa giornata è passata.", "bottone di una giornata scaduta: rifiutato")
 
-# ── stato ESPN (nba_status di loucabot) nei builder, nell'anteprima e nel quintetto ──
-db.q("INSERT INTO nba_status (atleta, nome, squadra, stato) VALUES (%s, 'Kevon Looney', 'NOP', 'Out'), (%s, 'Devin Booker', 'PHX', 'Day-To-Day')",
+# ── stato ESPN (ultimo snapshot di nba_infortuni di loucabot) nei builder, nell'anteprima e nel quintetto ──
+db.q("INSERT INTO nba_infortuni (giorno, atleta, nome, squadra, stato, preso) VALUES (CURRENT_DATE - 3, %s, 'Kevon Looney', 'NOP', 'Day-To-Day', NOW() - INTERVAL '3 days')",
+     (db.q("SELECT espn_id FROM giocatori WHERE id = %s", (gids["Kevon Looney"],), one=True)["espn_id"],))   # snapshot vecchio: non conta
+db.q("INSERT INTO nba_infortuni (giorno, atleta, nome, squadra, stato) VALUES (CURRENT_DATE, %s, 'Kevon Looney', 'NOP', 'Out'), (CURRENT_DATE, %s, 'Devin Booker', 'PHX', 'Day-To-Day')",
      (db.q("SELECT espn_id FROM giocatori WHERE id = %s", (gids["Kevon Looney"],), one=True)["espn_id"],
       db.q("SELECT espn_id FROM giocatori WHERE id = %s", (gids["Devin Booker"],), one=True)["espn_id"]))
 m = manda(101, "Ja Morant\nBarlow\nClifford\nLooney\nBrunson")
@@ -437,5 +439,5 @@ db.q("DELETE FROM cambi_ruolo WHERE giocatore_id = ANY(%s)", (ids,))
 db.q("DELETE FROM contratti WHERE giocatore_id = ANY(%s)", (ids,))
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (ids,))
 db.q("TRUNCATE ipa_quintetto, ipa_alias, ipa_cessioni, ipa_panchine, ipa_bozze, ipa_conferme, ipa_formazioni, ipa_stato_giornata, "
-     "lega_giornate, nba_tabellini, nba_partite, nba_atleti, nba_status")
+     "lega_giornate, nba_tabellini, nba_partite, nba_atleti, nba_infortuni")
 _ = date

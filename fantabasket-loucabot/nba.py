@@ -19,6 +19,10 @@ BASE = os.environ.get("ESPN_BASE", "https://site.api.espn.com/apis/site/v2/sport
 URL = os.environ.get("ESPN_URL", BASE + "scoreboard")
 ET = ZoneInfo("America/New_York")
 
+
+def oggi_et():
+    return datetime.now(ET).date()
+
 # sigle di ESPN → sigle NBA (quelle che usiamo nel calendario: GSW, NOP, NYK, SAS, UTA, WAS)
 SIGLE = {"GS": "GSW", "NO": "NOP", "NY": "NYK", "SA": "SAS", "UTAH": "UTA", "WSH": "WAS", "PHO": "PHX", "BRK": "BKN"}
 
@@ -240,10 +244,10 @@ def leggi_infortuni(dati) -> list[dict]:
     return out
 
 
-async def scarica_infortuni(scarica=None, foto: bool = True) -> dict:
-    """La lista infortunati di ESPN: sempre lo stato attuale (nba_status, per i builder di
-    IPanchinari); con `foto` anche la foto del giorno (nba_infortuni, quella che usa il calcolo:
-    solo agli orari fissi, così le regole di calcolo non cambiano)."""
+async def scarica_infortuni(scarica=None) -> dict:
+    """Snapshot della lista infortunati di ESPN, salvato per il giorno di oggi (costa est). Per il
+    calcolo conta quello subito prima delle partite (db.snapshot_del_giorno); il più recente è lo
+    stato che IPanchinari mostra nei builder."""
     import db
     client = None
     if scarica is None:
@@ -259,9 +263,7 @@ async def scarica_infortuni(scarica=None, foto: bool = True) -> dict:
     if not voci:
         raise ValueError("nessun infortunato nella risposta (struttura cambiata?)")
     giorno = datetime.now(ET).date()
-    db.salva_status(voci)
-    if foto:
-        db.salva_infortuni(giorno, voci)
+    db.salva_infortuni(giorno, voci)
     return {"giorno": giorno, "giocatori": len(voci)}
 
 

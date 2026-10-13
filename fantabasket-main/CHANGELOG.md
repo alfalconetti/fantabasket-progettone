@@ -1215,3 +1215,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - IPanchinari v16: stato infortunati ESPN nei builder, nella scelta del quintetto, nell'anteprima e nel promemoria; `/soprannomi SQUADRA` anche per i GM (solo guardare); 🔁 solo in fondo alla panchina aggiornata
 - loucabot v12: stato attuale degli infortunati ogni 4 ore (`nba_status`), senza toccare la foto del calcolo
+
+## v5.0.19 (2026-10-13)
+
+- loucabot v12 rivisto: snapshot degli infortunati (non più "foto") ogni 4 ore anche di notte e 30 minuti prima della prima partita; tenuti tutti per una settimana, poi solo quello che conta per il calcolo; tolta la tabella `nba_status` della 5.0.18. IPanchinari mostra l'ultimo snapshot

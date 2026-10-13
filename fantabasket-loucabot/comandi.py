@@ -27,7 +27,7 @@ def liste_comandi() -> dict:
         BotCommand("importa_calendario", "Importa il CSV del calendario (didascalia del file)"),
         BotCommand("nba_sync",           "Riscarica le partite NBA della stagione"),
         BotCommand("calendario_foglio",  "Aggiorna il foglio Google Calendario"),
-        BotCommand("tabellini",          "Scarica i tabellini mancanti e foto infortunati"),
+        BotCommand("tabellini",          "Scarica i tabellini mancanti e snapshot infortunati"),
         BotCommand("espn_giocatori",     "Roster NBA da ESPN e abbinamento con l'anagrafica"),
         BotCommand("espn_mancanti",      "Giocatori a roster senza id ESPN"),
         BotCommand("espn_abbina",        "Abbina a mano [id_giocatore] [id_espn]"),

@@ -5,7 +5,7 @@ Giocatore in una giornata (punteggio_giocatori):
 - ha giocato una o più partite della giornata → media matematica dei fantapunti delle partite giocate;
 - non ha giocato e la sua squadra NBA nella giornata non ha partite (squadre a media), oppure ha
   solo partite rinviate → la sua media della stagione, ma 0 se è indisponibile (infortunato,
-  squalificato: per tutti i giorni della giornata con una foto degli infortunati);
+  squalificato: per tutti i giorni della giornata con uno snapshot degli infortunati);
 - non ha giocato e la sua squadra ha giocato → 0.
 
 Squadra (punteggio_squadra): somma dei 5 titolari; FADD: un panchinaro dello stesso ruolo prende il
@@ -57,7 +57,7 @@ def punteggio_giocatori(stagione: str, g: dict, atleti: list[str]) -> dict[str, 
     squadre_prima = db.ultima_squadra(atleti, al + timedelta(days=1))
     medie = db.medie_stagione(atleti, stagione, dal)
     stati = db.infortuni(atleti, giorni)
-    con_foto = db.giorni_con_foto(giorni)
+    con_snap = db.giorni_con_snapshot(giorni)
     out = {}
     for a in atleti:
         righe = [r for r in tab if r["atleta"] == a]
@@ -71,9 +71,9 @@ def punteggio_giocatori(stagione: str, g: dict, atleti: list[str]) -> dict[str, 
         senza_partite = squadra in media_giornata or (squadra and not sq["giocate"] and not sq["rinviate"])
         solo_rinviate = bool(sq["rinviate"]) and not sq["giocate"]
         if squadra and (senza_partite or solo_rinviate):
-            foto = sorted(d for d in giorni if d in con_foto)
-            ko = [stati.get((a, d)) for d in foto]
-            if foto and all(indisponibile(s) for s in ko):
+            snap = sorted(d for d in giorni if d in con_snap)
+            ko = [stati.get((a, d)) for d in snap]
+            if snap and all(indisponibile(s) for s in ko):
                 out[a] = {"fp": 0.0, "come": "zero", "partite": [], "squadra": squadra,
                           "nota": f"indisponibile ({ko[-1]}): niente media"}
                 continue
@@ -81,8 +81,8 @@ def punteggio_giocatori(stagione: str, g: dict, atleti: list[str]) -> dict[str, 
             perche = "partita rinviata" if solo_rinviate else "squadra senza partite"
             out[a] = {"fp": m["media"] if m else 0.0, "come": "media", "partite": [], "squadra": squadra,
                       "nota": f"{perche}: media su {m['partite']} partite" if m else f"{perche}: nessuna partita giocata, media 0"}
-            if not foto:
-                out[a]["nota"] += " (nessuna foto infortunati: disponibilità non verificata)"
+            if not snap:
+                out[a]["nota"] += " (nessuno snapshot infortunati: disponibilità non verificata)"
             continue
         out[a] = {"fp": 0.0, "come": "zero", "partite": [], "squadra": squadra,
                   "nota": "non ha giocato" if squadra else "nessun tabellino: squadra NBA sconosciuta"}
@@ -97,9 +97,9 @@ def _fadd_possibile(a: str, p: dict, g: dict) -> tuple[bool, str]:
                      if p["squadra"] in (x["casa"], x["trasferta"]) and x["stato"] == "STATUS_FINAL"})
     if not giorni:
         return False, ""
-    con_foto = db.giorni_con_foto(giorni)
-    if set(giorni) - con_foto:
-        return False, "manca la foto degli infortunati di qualche giorno: decide un admin"
+    con_snap = db.giorni_con_snapshot(giorni)
+    if set(giorni) - con_snap:
+        return False, "manca lo snapshot degli infortunati di qualche giorno: decide un admin"
     stati = db.infortuni([a], giorni)
     if all(indisponibile(stati.get((a, d))) for d in giorni):
         return True, "/".join(sorted({stati[(a, d)] for d in giorni}))
