@@ -70,13 +70,14 @@ giornata per il calcolo) e al gruppo admin va l'elenco delle panchine mancanti.
 | Comando | Chi | Cosa |
 |---|---|---|
 | (messaggio con le righe) | GM | la panchina della prossima giornata |
+| `/build_panchina` | GM | la panchina coi bottoni: un panchinaro alla volta, solo giocatori non nel quintetto; con 😎 CAI mode titolo e soprannomi, sennò sul canale i nomi |
 | `/panchina` | GM | la panchina mandata, coi nomi veri |
 | `/quintetto` | GM | il quintetto: cambialo o confermalo |
 | `/start`, `/guida` | tutti | come si usa, la guida (file) |
 | `/stato [N]` | admin | conferme e panchine di una giornata |
-| `/quintetto_admin SQUADRA [GN]` | admin | e sotto i 5 titolari (con o senza ruolo davanti), anche a giornata in corso; con GN corregge la formazione della giornata N; senza righe mostra il quintetto |
+| `/quintetto_admin SQUADRA [GN]` | admin | senza righe il quintetto coi bottoni (parte dall'attuale), o sotto i 5 titolari (con o senza ruolo davanti); anche a giornata in corso; con GN corregge la formazione della giornata N |
 | `/quintetti_import` | admin | tutte le squadre: nome esatto o id, poi 5 titolari; squadre separate da una riga vuota (anche file .txt) |
-| `/panchina_admin SQUADRA` | admin | e sotto le righe: la panchina per conto di una squadra |
+| `/panchina_admin SQUADRA` | admin | la panchina per conto di una squadra: senza righe col builder (e CAI mode), o le righe sotto |
 | `/guida_admin` | admin | la guida admin (file) |
 | `/dev`, `/guida_dev`, `/dev_version`, `/job_status` | dev | comandi dev |
 

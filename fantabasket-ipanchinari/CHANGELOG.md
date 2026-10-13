@@ -7,3 +7,15 @@ Primo rilascio: panchine e quintetti.
 - **Quintetti**: uno per squadra, un giocatore per ruolo nel suo ruolo di roster, restano finché si cambiano. `/quintetto_admin SQUADRA` con 5 righe (anche a giornata in corso: aggiorna anche la formazione della giornata; con `G5` corregge solo quella della giornata 5), `/quintetti_import` per tutte le squadre (nomi esatti), `/quintetto` per i GM coi bottoni
 - **Promemoria** alle 8 (Roma) dell'ultimo giorno prima della prima partita: quintetto, partite di ogni titolare nella giornata, Confermo / Modifico validi fino alla scadenza. **Riepilogo** agli admin 2 ore prima (conferme, panchine, incompatibilità; `/stato` quando si vuole). **Chiusura** alla scadenza: quintetti congelati in `ipa_formazioni` per il calcolo, panchine mancanti al gruppo admin
 - `/panchina_admin` per conto di una squadra; menu per scope e guide GM, admin e dev come gli altri bot; nei log niente chiamate all'API di Telegram
+
+## v2 (2026-10-13)
+
+- `/build_panchina`: la panchina anche coi bottoni, un panchinaro alla volta in ordine, proponendo solo i giocatori della squadra non nel quintetto e non già scelti; poi la stessa anteprima con Pubblica (sul canale i nomi dei giocatori)
+
+## v3 (2026-10-13)
+
+- 😎 CAI mode nel builder: dall'anteprima di `/build_panchina` il bot chiede il titolo e il soprannome di ogni panchinaro, uno alla volta (salta, fine); sul canale escono titolo e soprannomi, che diventano alias. Un messaggio di 3 o più righe durante la CAI mode è una panchina nuova; la CAI mode lasciata a metà scade dopo 6 ore
+
+## v4 (2026-10-13)
+
+- Admin coi bottoni sulle altre squadre: `/quintetto_admin SQUADRA` senza righe apre il quintetto di quella squadra coi bottoni (parte da quello attuale; anche a giornata in corso aggiorna la formazione della giornata), `/panchina_admin SQUADRA` senza righe apre il builder della panchina con la CAI mode. I bottoni del quintetto portano la squadra (un GM non tocca quelle degli altri)

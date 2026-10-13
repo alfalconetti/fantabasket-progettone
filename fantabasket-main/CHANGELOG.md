@@ -1137,3 +1137,15 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - **IPanchinari v1**, il quarto bot (`fantabasket-ipanchinari/`, servizio `ipanchinari`): panchine dai messaggi dei GM con i soprannomi (abbinamento tollerante, bottoni per i dubbi, alias ricordati) pubblicate sul canale Panchinari con le sole righe del GM; quintetti (import, admin anche a giornata in corso, `/quintetto` per i GM), promemoria alle 8 con le partite e Confermo/Modifico, riepilogo agli admin e chiusura alla scadenza con i quintetti congelati. Un titolare in panchina è solo segnalato: per il quintetto fa fede Yahoo. Prima del deploy va creato `secrets/bot_token_ipanchinari.txt`; in `globals.json` `canale_panchinari_id`
 - Nei log dei bot niente chiamate all'API di Telegram (contenevano il token): bot principale, bot aste v64, loucabot v9
 - `MIGRATION.md` riordinato per argomento, senza le cose superate
+
+## v5.0.1 (2026-10-13)
+
+- IPanchinari v2: `/build_panchina`, la panchina coi bottoni (solo giocatori non nel quintetto)
+
+## v5.0.2 (2026-10-13)
+
+- IPanchinari v3: 😎 CAI mode nel builder (titolo e soprannomi dei panchinari)
+
+## v5.0.3 (2026-10-13)
+
+- IPanchinari v4: quintetto e panchina coi bottoni anche per gli admin sulle altre squadre (`/quintetto_admin SQUADRA` e `/panchina_admin SQUADRA` senza righe)

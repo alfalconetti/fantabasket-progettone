@@ -12,8 +12,8 @@ Non si reinseriscono ogni giornata: restano quelli che sono finché qualcuno li 
   panchine mandate; incompatibilità). Alla scadenza i quintetti si congelano in ipa_formazioni
   (quelli che userà il calcolo) e agli admin va l'elenco di chi non ha mandato la panchina.
 
-Callback: q:c:<ruolo> scegli ruolo · q:s:<ruolo>:<gid> giocatore · q:ok:<giornata> confermo ·
-q:mod:<giornata> modifico · q:v torna al quintetto.
+Callback (con la squadra): q:c:<team>:<ruolo> scegli ruolo · q:s:<team>:<ruolo>:<gid> giocatore ·
+q:ok:<team>:<giornata> confermo · q:mod:<team>:<giornata> modifico · q:v:<team> torna al quintetto.
 """
 import logging
 from datetime import timedelta
@@ -111,18 +111,21 @@ def testo_quintetto(team_id: str, g: dict | None) -> str:
     return "\n".join(righe)
 
 
-# ── /quintetto (GM) ────────────────────────────────────────────────────────────
+# ── quintetto coi bottoni (/quintetto dei GM, /quintetto_admin SQUADRA senza righe) ──
+# Callback con la squadra: q:c:<team>:<ruolo> · q:s:<team>:<ruolo>:<gid> · q:ok:<team>:<N> ·
+# q:mod:<team>:<N> · q:v:<team>. Il GM agisce sulla sua squadra; un admin su qualsiasi, e le sue
+# modifiche valgono anche per la formazione della giornata in corso (come /quintetto_admin).
 
-def _tastiera(team_id: str, g: dict | None) -> K:
-    tasti = [[B(f"✏️ {r}", callback_data=f"q:c:{r}") for r in RUOLI[:3]],
-             [B(f"✏️ {r}", callback_data=f"q:c:{r}") for r in RUOLI[3:]]]
-    if g and aperta(g):
-        tasti.append([B(f"✅ Confermo per la giornata {g['numero']}", callback_data=f"q:ok:{g['numero']}")])
+def _tastiera(team_id: str, g: dict | None, admin: bool = False) -> K:
+    tasti = [[B(f"✏️ {r}", callback_data=f"q:c:{team_id}:{r}") for r in RUOLI[:3]],
+             [B(f"✏️ {r}", callback_data=f"q:c:{team_id}:{r}") for r in RUOLI[3:]]]
+    if g and aperta(g) and not admin:
+        tasti.append([B(f"✅ Confermo per la giornata {g['numero']}", callback_data=f"q:ok:{team_id}:{g['numero']}")])
     return K(tasti)
 
 
-def _testo_editor(team_id: str, g: dict | None) -> str:
-    t = [f"🏀 <b>Quintetto di {e(config.nome(team_id))}</b>"]
+def _testo_editor(team_id: str, g: dict | None, admin: bool = False) -> str:
+    t = [f"🏀 <b>Quintetto di {e(config.nome(team_id))}</b>" + (" (admin)" if admin else "")]
     if g:
         t.append(f"Giornata {g['numero']} · scadenza {ora(g['prima_partita'])}")
     t += ["", testo_quintetto(team_id, g)]
@@ -132,6 +135,10 @@ def _testo_editor(team_id: str, g: dict | None) -> str:
     if g:
         st = db.conferme(config.stagione(), g["numero"]).get(team_id)
         t += ["", f"Stato: {'✅ confermato' if st and st['stato'] == 'confermato' else '✏️ modificato' if st else 'non ancora confermato'}"]
+    if admin:
+        in_corso = giornata_in_corso()
+        if in_corso:
+            t.append(f"Le modifiche valgono anche per la giornata in corso ({in_corso['numero']}).")
     return "\n".join(t)
 
 
@@ -148,53 +155,63 @@ async def cmd_quintetto(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cb_quintetto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parti = q.data.split(":")
-    team = config.squadra_del_gm(update.effective_user.id)
-    if not team:
-        await q.answer("Non risulti GM di nessuna squadra.", show_alert=True)
+    azione, team_id = parti[1], parti[2]
+    uid = update.effective_user.id
+    suo = uid in config.gm_ids(team_id)
+    admin = config.is_admin(uid) and not suo
+    if not suo and not admin:
+        await q.answer("Non è la tua squadra.", show_alert=True)
         return
+    team = config.squadra(team_id)
     s = config.stagione()
     g = prossima_giornata(s)
-    azione = parti[1]
     if azione in ("ok", "mod"):
-        n = int(parti[2])
+        n = int(parti[3])
         gg = db.giornata(s, n)
         if not gg or not aperta(gg):
             await q.answer("La scadenza di questa giornata è passata.", show_alert=True)
             return
         if azione == "ok":
-            db.conferma(s, n, team["id"], "confermato", update.effective_user.id)
+            db.conferma(s, n, team_id, "confermato", uid)
             await q.answer("Confermato")
             await log(context.bot, f"✅ Quintetto G{n} {e(team['nome'])} confermato da {chi(update)}")
         else:
             await q.answer()
         g = gg
     elif azione == "c":
-        ruolo = parti[2]
-        roster = [x for x in db.roster(team["id"], s) if x.get("ruolo") == ruolo]
+        ruolo = parti[3]
+        roster = [x for x in db.roster(team_id, s) if x.get("ruolo") == ruolo]
         if not roster:
-            await q.answer(f"Nessun {ruolo} nella tua squadra.", show_alert=True)
+            await q.answer(f"Nessun {ruolo} in squadra.", show_alert=True)
             return
-        att = db.quintetto(team["id"]).get(ruolo)
-        tasti = [[B(("• " if x["id"] == att else "") + x["nome_common"], callback_data=f"q:s:{ruolo}:{x['id']}")]
-                 for x in roster] + [[B("↩️ Indietro", callback_data="q:v")]]
+        att = db.quintetto(team_id).get(ruolo)
+        tasti = [[B(("• " if x["id"] == att else "") + x["nome_common"], callback_data=f"q:s:{team_id}:{ruolo}:{x['id']}")]
+                 for x in roster] + [[B("↩️ Indietro", callback_data=f"q:v:{team_id}")]]
         await q.answer()
         await q.edit_message_text(f"Chi gioca da <b>{ruolo}</b>?", parse_mode="HTML", reply_markup=K(tasti))
         return
     elif azione == "s":
-        ruolo, gid = parti[2], int(parti[3])
-        roster = {x["id"]: x for x in db.roster(team["id"], s)}
+        ruolo, gid = parti[3], int(parti[4])
+        roster = {x["id"]: x for x in db.roster(team_id, s)}
         if gid not in roster or roster[gid].get("ruolo") != ruolo:
-            await q.answer("Non è un giocatore di quel ruolo nella tua squadra.", show_alert=True)
+            await q.answer("Non è un giocatore di quel ruolo in squadra.", show_alert=True)
             return
-        nuovo = {**db.quintetto(team["id"]), ruolo: gid}
-        db.salva_quintetto(team["id"], nuovo, "gm", update.effective_user.id)
+        nuovo = {**db.quintetto(team_id), ruolo: gid}
+        db.salva_quintetto(team_id, nuovo, "admin" if admin else "gm", uid)
         if g:
-            db.conferma(s, g["numero"], team["id"], "modificato", update.effective_user.id)
+            db.conferma(s, g["numero"], team_id, "modificato", uid)
+        extra = ""
+        if admin:
+            in_corso = giornata_in_corso(s)
+            if in_corso and db.stato_giornata(s, in_corso["numero"])["chiusa"]:
+                db.salva_formazione(s, in_corso["numero"], team_id, nuovo)
+                extra = f" · anche G{in_corso['numero']} in corso"
         await q.answer("Fatto")
-        await log(context.bot, f"✏️ Quintetto {e(team['nome'])}: {ruolo} {e(roster[gid]['nome_common'])} ({chi(update)})")
+        await log(context.bot, f"✏️ Quintetto {e(team['nome'])}: {ruolo} {e(roster[gid]['nome_common'])} ({chi(update)}"
+                               + (", admin" if admin else "") + f"){extra}")
     else:
         await q.answer()
-    await q.edit_message_text(_testo_editor(team["id"], g), parse_mode="HTML", reply_markup=_tastiera(team["id"], g))
+    await q.edit_message_text(_testo_editor(team_id, g, admin), parse_mode="HTML", reply_markup=_tastiera(team_id, g, admin))
 
 
 # ── admin ──────────────────────────────────────────────────────────────────────
@@ -223,7 +240,8 @@ async def cmd_quintetto_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
     if not [r for r in righe[1:] if r.strip()] and not solo_g:
         g = prossima_giornata()
-        await msg.reply_text(_testo_editor(team["id"], g), parse_mode="HTML")
+        await msg.reply_text(_testo_editor(team["id"], g, admin=True), parse_mode="HTML",
+                             reply_markup=_tastiera(team["id"], g, admin=True))
         return
     q, errori = leggi_quintetto(team["id"], righe[1:])
     if errori:
@@ -361,8 +379,8 @@ async def manda_promemoria(bot, g: dict) -> int:
         if inc:
             testo += "\n\n⚠️ " + "\n⚠️ ".join(e(x) for x in inc)
         testo += "\n\nVa bene così o vuoi cambiarlo? E ricordati la panchina: mandamela qui, una riga per giocatore."
-        tasti = K([[B("✅ Confermo", callback_data=f"q:ok:{g['numero']}"),
-                    B("✏️ Modifico", callback_data=f"q:mod:{g['numero']}")]])
+        tasti = K([[B("✅ Confermo", callback_data=f"q:ok:{t['id']}:{g['numero']}"),
+                    B("✏️ Modifico", callback_data=f"q:mod:{t['id']}:{g['numero']}")]])
         for uid in config.gm_ids(t["id"]):
             try:
                 await bot.send_message(chat_id=uid, text=testo, parse_mode="HTML", reply_markup=tasti)

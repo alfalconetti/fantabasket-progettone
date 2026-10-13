@@ -31,7 +31,7 @@ Alfa
 
 Per ogni squadra il nome esatto (o l'id) nella prima riga, poi i 5 titolari, con o senza il ruolo davanti; squadre separate da una riga vuota. Va bene anche un file .txt con didascalia `/quintetti_import`. Il nome della squadra deve essere esatto: in un import di tante squadre una ricerca tollerante potrebbe sbagliare squadra. Le squadre con un errore non si salvano, le altre sì, e il bot dice quali.
 
-**Una squadra alla volta**: `/quintetto_admin SQUADRA` e sotto i 5 titolari (qui il nome della squadra può essere approssimativo: il bot risponde col nome giusto). Senza righe mostra il quintetto attuale.
+**Una squadra alla volta**: `/quintetto_admin SQUADRA` e sotto i 5 titolari (qui il nome della squadra può essere approssimativo: il bot risponde col nome giusto). **Senza righe si apre il quintetto della squadra coi bottoni**, partendo da quello attuale: tocchi il ruolo e scegli il giocatore (solo quelli di quel ruolo). Vale come le righe: anche a giornata in corso aggiorna la formazione della giornata.
 
 Il ruolo di ogni titolare è quello di roster: un giocatore scritto in un ruolo diverso, due giocatori nello stesso ruolo o un ruolo mancante bloccano il salvataggio.
 
@@ -64,7 +64,7 @@ Dominik Arcade Boy Barlow
 ...
 ```
 
-Stessa anteprima e stessi bottoni del GM; sul canale esce come se l'avesse mandata lui (nel log risulta fatta da un admin).
+Stessa anteprima e stessi bottoni del GM; sul canale esce come se l'avesse mandata lui (nel log risulta fatta da un admin). **Senza righe** (`/panchina_admin SQUADRA`) si apre il builder coi bottoni di quella squadra, con la 😎 CAI mode.
 
 Una panchina che arriva dopo la scadenza vale per la giornata successiva: per quella appena chiusa decidono gli admin.
 
@@ -75,7 +75,7 @@ Una panchina che arriva dopo la scadenza vale per la giornata successiva: per qu
 | Comando | Cosa fa |
 |---|---|
 | `/stato [N]` | conferme dei quintetti e panchine della giornata |
-| `/quintetto_admin SQUADRA [GN]` | quintetto di una squadra (5 righe sotto; anche a giornata in corso) o, senza righe, quello attuale; con GN corregge la formazione della giornata N |
+| `/quintetto_admin SQUADRA [GN]` | quintetto di una squadra: senza righe coi bottoni, o 5 righe sotto (anche a giornata in corso); con GN corregge la formazione della giornata N |
 | `/quintetti_import` | quintetti di tutte le squadre |
-| `/panchina_admin SQUADRA` | panchina per conto di una squadra |
+| `/panchina_admin SQUADRA` | panchina per conto di una squadra: senza righe col builder, o le righe sotto |
 | `/guida_admin` | questa guida |

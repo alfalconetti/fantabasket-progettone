@@ -144,16 +144,64 @@ ok(any(x["chat_id"] == -3 and "titolare nel quintetto del bot" in x["text"] for 
 db.salva_panchina(S, 2, "team01", None, [{"giocatore_id": gids["Ja Morant"], "testo": "Ja"}])
 ok(any("anche in panchina" in x for x in Q.incompatibilita("team01", {**qq, "PG": gids["Ja Morant"]})),
    "titolare che è anche in panchina: segnalato")
-qb = premi(101, "q:c:PG")
-ok(set(bottoni(qb.testi[-1][1]["reply_markup"])) >= {f"q:s:PG:{gids['Ja Morant']}", f"q:s:PG:{gids['Walter Clayton Jr.']}"}
-   and f"q:s:PG:{gids['Devin Booker']}" not in bottoni(qb.testi[-1][1]["reply_markup"]), "cambio PG: solo i PG della squadra")
-qb = premi(101, f"q:s:PG:{gids['Walter Clayton Jr.']}")
+qb = premi(101, "q:c:team01:PG")
+ok(set(bottoni(qb.testi[-1][1]["reply_markup"])) >= {f"q:s:team01:PG:{gids['Ja Morant']}", f"q:s:team01:PG:{gids['Walter Clayton Jr.']}"}
+   and f"q:s:team01:PG:{gids['Devin Booker']}" not in bottoni(qb.testi[-1][1]["reply_markup"]), "cambio PG: solo i PG della squadra")
+qb = premi(101, f"q:s:team01:PG:{gids['Walter Clayton Jr.']}")
 ok(db.quintetto("team01")["PG"] == gids["Walter Clayton Jr."] and db.conferme(S, 2)["team01"]["stato"] == "modificato",
    "quintetto cambiato dal GM: segnato come modificato")
-ok(premi(101, f"q:s:PG:{gids['Devin Booker']}").risposte[-1].startswith("Non è un giocatore di quel ruolo"), "ruolo sbagliato rifiutato")
-premi(101, "q:ok:2")
+ok(premi(101, f"q:s:team01:PG:{gids['Devin Booker']}").risposte[-1].startswith("Non è un giocatore di quel ruolo"), "ruolo sbagliato rifiutato")
+premi(101, "q:ok:team01:2")
+ok(premi(102, "q:ok:team01:2").risposte[-1] == "Non è la tua squadra.", "il GM di un'altra squadra non tocca il quintetto")
 ok(db.conferme(S, 2)["team01"]["stato"] == "confermato", "Confermo dal promemoria")
-ok(premi(101, "q:ok:1").risposte[-1] == "La scadenza di questa giornata è passata.", "bottone di una giornata scaduta: rifiutato")
+ok(premi(101, "q:ok:team01:1").risposte[-1] == "La scadenza di questa giornata è passata.", "bottone di una giornata scaduta: rifiutato")
+
+# ── builder coi bottoni ──
+m = Msg(); asyncio.run(P.cmd_build_panchina(upd(101, m), CTX))
+t, k = m.risposte[0]
+tasti = bottoni(k["reply_markup"])
+bid = int(tasti[0].split(":")[2])
+tit = set(db.quintetto("team01").values())
+proposti = {int(x.split(":")[3]) for x in tasti if x.startswith("pb:b:")}
+ok(proposti and not (proposti & tit) and gids["Josh Hart"] in proposti, "builder: solo giocatori della squadra non nel quintetto")
+qb = premi(101, f"pb:b:{bid}:{gids['Josh Hart']}")
+ok(f"pb:b:{bid}:{gids['Josh Hart']}" not in bottoni(qb.testi[-1][1]["reply_markup"]) and "1. Josh Hart" in qb.testi[-1][0],
+   "builder: il giocatore scelto non si ripropone")
+premi(101, f"pb:b:{bid}:{gids['Kevon Looney']}")
+qb = premi(101, f"pb:u:{bid}")
+ok("Kevon Looney" not in qb.testi[-1][0], "builder: togli l'ultimo")
+premi(101, f"pb:b:{bid}:{gids['Ja Morant']}")
+qb = premi(101, f"pb:bv:{bid}")
+ok(f"pb:ok:{bid}" in bottoni(qb.testi[-1][1]["reply_markup"]) and "2. Ja Morant → <b>Ja Morant</b>" in qb.testi[-1][0],
+   "builder: anteprima e Pubblica come per il messaggio")
+BOT.mandati.clear(); premi(101, f"pb:ok:{bid}")
+ok(any(x["chat_id"] == -500 and "1. Josh Hart\n2. Ja Morant" in x["text"] for x in BOT.mandati), "builder: sul canale i nomi dei giocatori")
+
+# ── CAI mode dal builder: titolo e soprannomi ──
+m = Msg(); asyncio.run(P.cmd_build_panchina(upd(101, m), CTX))
+bid = int(bottoni(m.risposte[0][1]["reply_markup"])[0].split(":")[2])
+premi(101, f"pb:b:{bid}:{gids['Josh Hart']}"); premi(101, f"pb:b:{bid}:{gids['Kevon Looney']}")
+qb = premi(101, f"pb:bv:{bid}")
+ok(f"pb:cai:{bid}" in bottoni(qb.testi[-1][1]["reply_markup"]), "anteprima del builder: bottone CAI mode")
+qb = premi(101, f"pb:cai:{bid}")
+ok("titolo" in qb.testi[-1][0], "CAI mode: prima chiede il titolo")
+m = manda(101, "La panca dei sogni")
+ok("Soprannome per <b>Josh Hart</b> (1/2)" in m.risposte[-1][0], "poi il soprannome di ognuno, in ordine")
+m = manda(101, "Lo Sceriffo bis")
+ok("Kevon Looney</b> (2/2)" in m.risposte[-1][0], "avanti al prossimo")
+qb = premi(101, f"pb:cs:{bid}")
+ok("1. Lo Sceriffo bis → <b>Josh Hart</b>" in qb.testi[-1][0] and "2. Kevon Looney → <b>Kevon Looney</b>" in qb.testi[-1][0]
+   and "La panca dei sogni" in qb.testi[-1][0], "saltato l'ultimo: anteprima con titolo e soprannomi")
+BOT.mandati.clear(); premi(101, f"pb:ok:{bid}")
+ok(any(x["chat_id"] == -500 and "<i>La panca dei sogni</i>" in x["text"] and "1. Lo Sceriffo bis" in x["text"]
+       and "Josh Hart" not in x["text"] for x in BOT.mandati), "sul canale titolo e soprannomi, non i nomi")
+ok(db.alias("team01").get("lo sceriffo bis") == gids["Josh Hart"], "il soprannome della CAI mode si impara")
+m = Msg(); asyncio.run(P.cmd_build_panchina(upd(101, m), CTX))
+bid = int(bottoni(m.risposte[0][1]["reply_markup"])[0].split(":")[2])
+premi(101, f"pb:b:{bid}:{gids['Josh Hart']}"); premi(101, f"pb:bv:{bid}"); premi(101, f"pb:cai:{bid}")
+m = manda(101, "Ja the sniper Morant\nBarlow\nClayton")
+ok("Panchina di Alfa" in m.risposte[-1][0] and "Ja Morant" in m.risposte[-1][0] and db.bozza(bid)["chiusa"],
+   "CAI mode lasciata a metà: un messaggio di più righe è una panchina nuova")
 
 # ── testo con le partite ──
 tq = Q.testo_quintetto("team01", db.giornata(S, 2))
@@ -177,7 +225,7 @@ db.q("UPDATE lega_giornate SET prima_partita = %s WHERE numero = 2", (datetime.n
 BOT.mandati.clear()
 asyncio.run(Q.job_giornate(CTX))
 prom = [x for x in BOT.mandati if x["chat_id"] in (101, 111)]
-ok(len(prom) == 2 and "q:ok:2" in bottoni(prom[0]["reply_markup"]) and "vs BOS" in prom[0]["text"],
+ok(len(prom) == 2 and "q:ok:team01:2" in bottoni(prom[0]["reply_markup"]) and "vs BOS" in prom[0]["text"],
    "promemoria a tutti i GM della squadra con partite e Confermo/Modifico")
 ok(any(x["chat_id"] == -2 and "Panchine mancanti" in x["text"] for x in BOT.mandati), "riepilogo agli admin prima della scadenza")
 BOT.mandati.clear()
@@ -196,6 +244,21 @@ ok(db.formazione(S, 1, "team01")["PG"] == gids["Jalen Brunson"] and db.quintetto
    "con G1: corregge solo la formazione della giornata 1")
 ok("non è ancora chiusa" in admin("/quintetto_admin Alfa G2\nBrunson\nBooker\nBridges\nGrant Williams\nMark Williams"),
    "G di una giornata non chiusa: rifiutato")
+
+# ── admin coi bottoni: quintetto (parte da quello attuale) e panchina di un'altra squadra ──
+m = Msg("/quintetto_admin Alfa"); asyncio.run(Q.cmd_quintetto_admin(upd(900, m), CTX))
+t, k = m.risposte[-1]
+ok("(admin)" in t and "Ja Morant" in t and "q:c:team01:SG" in bottoni(k["reply_markup"])
+   and not any(b.startswith("q:ok") for b in bottoni(k["reply_markup"])), "quintetto_admin senza righe: bottoni, parte dall'attuale")
+premi(900, f"q:s:team01:PG:{gids['Walter Clayton Jr.']}")
+ok(db.quintetto("team01")["PG"] == gids["Walter Clayton Jr."] and db.formazione(S, 1, "team01")["PG"] == gids["Walter Clayton Jr."],
+   "admin coi bottoni a giornata in corso: aggiorna anche la formazione")
+m = Msg("/panchina_admin Alfa"); asyncio.run(P.cmd_panchina_admin(upd(900, m), CTX))
+t, k = m.risposte[-1]
+bid = int(bottoni(k["reply_markup"])[0].split(":")[2])
+ok("Panchina di Alfa" in t and db.bozza(bid)["fonte"] == "admin" and any(b.startswith(f"pb:b:{bid}:") for b in bottoni(k["reply_markup"])),
+   "panchina_admin senza righe: builder per conto della squadra")
+db.chiudi_bozza(bid)
 
 # ── scadenza passata mentre si conferma ──
 m = manda(101, "Ja Morant\nBarlow")

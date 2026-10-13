@@ -262,6 +262,13 @@ def aggiorna_bozza(id_: int, dati: dict) -> None:
     q("UPDATE ipa_bozze SET dati = %s WHERE id = %s", (json.dumps(dati), id_))
 
 
+def bozza_cai(chat_id: int) -> dict | None:
+    """La bozza di questa chat in CAI mode (in attesa di titolo o soprannomi), se c'è."""
+    return q("SELECT * FROM ipa_bozze WHERE chat_id = %s AND NOT chiusa AND dati ? 'cai_passo' "
+             "AND dati->>'cai_passo' IS NOT NULL AND creata > NOW() - INTERVAL '6 hours' ORDER BY id DESC LIMIT 1",
+             (chat_id,), one=True)
+
+
 def chiudi_bozza(id_: int) -> None:
     q("UPDATE ipa_bozze SET chiusa = TRUE WHERE id = %s", (id_,))
 

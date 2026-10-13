@@ -10,7 +10,10 @@ Le righe confermate diventano alias della squadra: la volta dopo si riconoscono 
 
 Callback: pb:r:<bozza>:<i> scegli la riga i · pb:s:<bozza>:<i>:<gid> giocatore scelto ·
 pb:t:<bozza>:<i> tutta la rosa per la riga i · pb:ok:<bozza> pubblica · pb:no:<bozza> annulla ·
-pb:v:<bozza> torna all'anteprima.
+pb:v:<bozza> torna all'anteprima. Builder (/build_panchina): pb:b:<bozza>:<gid> aggiungi ·
+pb:u:<bozza> togli l'ultimo · pb:bv:<bozza> all'anteprima. CAI mode (dall'anteprima del builder):
+pb:cai:<bozza> inizia (titolo, poi i soprannomi uno alla volta, risposte come messaggi) ·
+pb:cs:<bozza> salta · pb:cf:<bozza> fine.
 Un panchinaro che nel quintetto del bot è titolare non blocca: fa fede Yahoo, il bot lo segnala
 al GM (può aggiornare il quintetto, o ci pensa un admin) e sul canale log.
 """
@@ -83,6 +86,8 @@ def anteprima(b: dict) -> tuple[str, K]:
     fondo = [B("❌ Annulla", callback_data=f"pb:no:{b['id']}")]
     if not pb:
         fondo.insert(0, B("✅ Pubblica", callback_data=f"pb:ok:{b['id']}"))
+    if d.get("builder") and d["righe"]:
+        tasti.append([B("😎 CAI mode: titolo e soprannomi", callback_data=f"pb:cai:{b['id']}")])
     tasti.append(fondo)
     return "\n".join(righe), K(tasti)
 
@@ -113,8 +118,15 @@ async def manda_anteprima(msg, b: dict):
 # ── messaggio del GM ───────────────────────────────────────────────────────────
 
 async def msg_panchina(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Ogni messaggio di testo in privato di un GM con almeno 2 righe è una panchina."""
+    """Ogni messaggio di testo in privato di un GM con almeno 2 righe è una panchina (se non è la
+    risposta a una domanda della CAI mode)."""
     msg = update.effective_message
+    b = db.bozza_cai(update.effective_chat.id)
+    if b and len([r for r in (msg.text or "").splitlines() if r.strip()]) < 3:
+        await risposta_cai(msg, b)
+        return
+    if b:                                   # 3 righe o più: è una panchina nuova, la CAI mode finisce
+        db.chiudi_bozza(b["id"])
     team = config.squadra_del_gm(update.effective_user.id)
     if not team:
         if config.is_admin(update.effective_user.id):
@@ -154,6 +166,37 @@ async def cb_panchina(update: Update, context: ContextTypes.DEFAULT_TYPE):
     roster = db.roster(b["team_id"], b["stagione"])
     nomi = _nomi(roster)
     d = b["dati"]
+    if azione in ("cai", "cs", "cf"):                     # CAI mode
+        if azione == "cai":
+            d["cai_passo"] = 0
+            db.aggiorna_bozza(bid, d)
+            b = db.bozza(bid)
+        elif azione == "cs" and d.get("cai_passo") is not None:
+            b = avanza_cai(b)
+        else:
+            d["cai_passo"] = None
+            db.aggiorna_bozza(bid, d)
+            b = db.bozza(bid)
+        await q.answer()
+        testo, tasti = domanda_cai(b) if b["dati"].get("cai_passo") is not None else anteprima(b)
+        await q.edit_message_text(testo, parse_mode="HTML", reply_markup=tasti)
+        return
+    if azione in ("b", "u", "bv"):                        # builder
+        if azione == "b":
+            gid = int(parti[3])
+            if gid in nomi and gid not in {r["scelto"] for r in d["righe"]} and len(d["righe"]) < abbina.MAX_PANCHINA:
+                d["righe"].append({"testo": nomi[gid], "candidati": [gid], "scelto": gid, "certo": True})
+        elif azione == "u" and d["righe"]:
+            d["righe"].pop()
+        db.aggiorna_bozza(bid, d)
+        b = db.bozza(bid)
+        await q.answer()
+        if azione == "bv" or len(d["righe"]) >= abbina.MAX_PANCHINA:
+            testo, tasti = anteprima(b)
+        else:
+            testo, tasti = builder(b, roster)
+        await q.edit_message_text(testo, parse_mode="HTML", reply_markup=tasti)
+        return
     if azione in ("r", "t"):
         i = int(parti[3])
         r = d["righe"][i]
@@ -249,6 +292,89 @@ async def pubblica(update, context, b: dict):
                            + "".join(f"\n⚠️ {e(x.split(':')[0])}: titolare nel quintetto del bot" for x in av))
 
 
+# ── CAI mode: titolo e soprannomi per la panchina del builder ─────────────────
+# dati["cai_passo"]: 0 = si aspetta il titolo, i = il soprannome della riga i; None = finita.
+
+def domanda_cai(b: dict) -> tuple[str, K]:
+    d = b["dati"]
+    passo = d["cai_passo"]
+    if passo == 0:
+        testo = ("😎 <b>CAI mode</b>\n\nScrivimi il <b>titolo</b> della panchina"
+                 + (f" (ora: <i>{e(d['titolo'])}</i>)" if d.get("titolo") else "") + ".")
+    else:
+        r = d["righe"][passo - 1]
+        nome = _nomi(db.roster(b["team_id"], b["stagione"])).get(r["scelto"], "?")
+        testo = (f"😎 Soprannome per <b>{e(nome)}</b> ({passo}/{len(d['righe'])})"
+                 + (f"\nOra: <i>{e(r['testo'])}</i>" if r["testo"] != nome else "") + "\n\nScrivimelo qui.")
+    return testo, K([[B("⏭️ Salta", callback_data=f"pb:cs:{b['id']}"), B("✅ Fine", callback_data=f"pb:cf:{b['id']}")]])
+
+
+def avanza_cai(b: dict) -> dict:
+    d = b["dati"]
+    d["cai_passo"] = d["cai_passo"] + 1 if d["cai_passo"] < len(d["righe"]) else None
+    db.aggiorna_bozza(b["id"], d)
+    return db.bozza(b["id"])
+
+
+async def risposta_cai(msg, b: dict):
+    testo = (msg.text or "").strip()
+    d = b["dati"]
+    if testo:
+        if d["cai_passo"] == 0:
+            d["titolo"] = testo[:300]
+        else:
+            d["righe"][d["cai_passo"] - 1]["testo"] = " ".join(testo.split())[:100]
+        db.aggiorna_bozza(b["id"], d)
+    b = avanza_cai(db.bozza(b["id"]))
+    if b["dati"].get("cai_passo") is None:
+        await manda_anteprima(msg, b)
+    else:
+        t, k = domanda_cai(b)
+        await msg.reply_text(t, parse_mode="HTML", reply_markup=k)
+
+
+# ── builder coi bottoni (/build_panchina) ──────────────────────────────────────
+
+def builder(b: dict, roster: list[dict]) -> tuple[str, K]:
+    """Panchinari uno alla volta, in ordine: solo giocatori della squadra non nel quintetto e non
+    ancora scelti. Sul canale escono i loro nomi."""
+    d = b["dati"]
+    scelti = [r["scelto"] for r in d["righe"]]
+    titolari = set(db.quintetto(b["team_id"]).values())
+    liberi = [g for g in roster if g["id"] not in titolari and g["id"] not in scelti]
+    g = db.giornata(b["stagione"], b["giornata"])
+    righe = [f"🪑 <b>Panchina di {e(config.nome(b['team_id']))} per la giornata {b['giornata']}</b>",
+             f"Scadenza: {ora(g['prima_partita']) if g else '?'}", ""]
+    righe += [f"{i}. {e(r['testo'])}" for i, r in enumerate(d["righe"], 1)] or ["(ancora nessuno)"]
+    righe += ["", f"Scegli il panchinaro n. {len(scelti) + 1}:" if len(scelti) < abbina.MAX_PANCHINA else ""]
+    tasti = [[B(f"{x['nome_common']}" + (f" ({x['ruolo']})" if x.get("ruolo") else ""),
+                callback_data=f"pb:b:{b['id']}:{x['id']}")] for x in liberi]
+    fondo = []
+    if scelti:
+        fondo += [B("↩️ Togli l'ultimo", callback_data=f"pb:u:{b['id']}"), B("➡️ Anteprima", callback_data=f"pb:bv:{b['id']}")]
+    fondo.append(B("❌ Annulla", callback_data=f"pb:no:{b['id']}"))
+    return "\n".join(righe), K(tasti + [fondo])
+
+
+async def apri_builder(msg, chat_id: int, team_id: str, fonte: str = "gm"):
+    s = config.stagione()
+    g = prossima_giornata(s)
+    if not g:
+        await msg.reply_text("Non c'è una giornata aperta.")
+        return
+    bid = db.nuova_bozza(chat_id, team_id, s, g["numero"], {"titolo": None, "righe": [], "builder": True}, fonte)
+    testo, tasti = builder(db.bozza(bid), db.roster(team_id, s))
+    await msg.reply_text(testo, parse_mode="HTML", reply_markup=tasti)
+
+
+async def cmd_build_panchina(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    team = config.squadra_del_gm(update.effective_user.id)
+    if not team:
+        await update.effective_message.reply_text("Non risulti GM di nessuna squadra. Admin: /panchina_admin SQUADRA.")
+        return
+    await apri_builder(update.effective_message, update.effective_chat.id, team["id"])
+
+
 # ── comandi ────────────────────────────────────────────────────────────────────
 
 async def cmd_panchina(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -285,8 +411,12 @@ async def cmd_panchina_admin(update: Update, context: ContextTypes.DEFAULT_TYPE)
     prima = righe[0].split(maxsplit=1)
     from shared.squadre import cerca_squadra
     team = cerca_squadra(prima[1], config.squadre()) if len(prima) > 1 else None
-    if not team or len([r for r in righe[1:] if r.strip()]) < 1:
-        await msg.reply_text("Uso: /panchina_admin SQUADRA (nome o id) nella prima riga, sotto le righe della panchina.")
+    if not team:
+        await msg.reply_text("Uso: /panchina_admin SQUADRA (nome o id) nella prima riga, sotto le righe della panchina; "
+                             "senza righe si apre il builder coi bottoni.")
+        return
+    if not [r for r in righe[1:] if r.strip()]:
+        await apri_builder(msg, update.effective_chat.id, team["id"], fonte="admin")
         return
     b, err = crea_bozza(update.effective_chat.id, team["id"], "\n".join(righe[1:]), fonte="admin")
     if err:
@@ -299,6 +429,7 @@ def get_handlers() -> list:
     from telegram.ext import CommandHandler
     return [
         CommandHandler("panchina", cmd_panchina, filters=filters.ChatType.PRIVATE),
+        CommandHandler("build_panchina", cmd_build_panchina, filters=filters.ChatType.PRIVATE),
         CommandHandler("panchina_admin", cmd_panchina_admin),
         CallbackQueryHandler(cb_panchina, pattern=r"^pb:"),
         MessageHandler(filters.ChatType.PRIVATE & filters.TEXT & ~filters.COMMAND, msg_panchina),
