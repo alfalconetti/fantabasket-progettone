@@ -14,11 +14,13 @@ Regole:
   - occupa uno slot un contratto attivo in corso (gli x0 no, RFA compresi), tranne chi ha
     una DPE approvata prima della deadline (regolamento: la DPE dopo la deadline non libera
     lo slot, dà un cambio ruolo);
-  - cap occupato = contratti che pesano + impatto dei tagli (spalmature) della stagione.
+  - cap occupato = contratti che pesano + impatto dei tagli (spalmature) della stagione;
+  - il 10-day (tipo '10day') non pesa sul cap e non occupa uno slot (v5.2.0).
 """
 
 # frammenti SQL sul contratto `c`; ognuno prende un parametro: la stagione
 SQL_IN_CORSO = "(c.anni_originali - (%s::int - c.stagione_firma::int)) >= 1"
+SQL_NON_10DAY = "c.tipo <> '10day'"
 SQL_RFA = ("EXISTS (SELECT 1 FROM rfa_dichiarati rd WHERE rd.contratto_id = c.id "
            "AND rd.stagione = %s AND rd.stato = 'attiva')")
 SQL_IMPORTO = ("COALESCE((SELECT d.importo_dpe FROM dpe d WHERE d.giocatore_id = c.giocatore_id "
@@ -55,10 +57,10 @@ def sql_rfa(q) -> str:
 
 def sql_pesa_cap(q) -> str:
     """Condizione "pesa sul cap" (parametri: stagione, stagione)."""
-    return f"({SQL_IN_CORSO} OR {sql_rfa(q)})"
+    return f"({SQL_NON_10DAY} AND ({SQL_IN_CORSO} OR {sql_rfa(q)}))"
 
 
-SQL_OCCUPA_SLOT = f"({SQL_IN_CORSO} AND NOT {SQL_DPE_LIBERA_SLOT})"   # parametri: stagione, stagione
+SQL_OCCUPA_SLOT = f"({SQL_NON_10DAY} AND {SQL_IN_CORSO} AND NOT {SQL_DPE_LIBERA_SLOT})"   # parametri: stagione, stagione
 
 
 def cap_contratti(q, team_id: str, stagione) -> int:

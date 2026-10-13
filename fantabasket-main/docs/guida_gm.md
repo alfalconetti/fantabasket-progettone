@@ -245,6 +245,21 @@ I rinnovi dei rookie non hanno limite e non contano nei 2 rinnovi normali. Servo
 
 ---
 
+## 10-day contract
+
+In regular season, prima della chiusura della free agency, puoi prendere **un free agent per 10 giorni**, senza asta. **Una volta a stagione.**
+
+- Non pesa sul cap e non occupa uno slot.
+- Si chiede solo se nel ruolo da coprire **non hai nessun giocatore disponibile** (OUT o fuori dalle rotazioni). Decidono gli admin.
+- Dura 10 giorni dall'ora della firma. Se scade a giornata in corso, resta tuo **fino alla fine della giornata**: chi la inizia con te la finisce con te.
+- Ogni free agent può essere firmato con un 10-day al massimo da **due squadre** a stagione.
+- Alla scadenza torna free agent: per riprenderlo serve un'asta normale.
+- Non si taglia, non si scambia e non va in DPE.
+
+Come si chiede: `/firma_10day NOME` (o menu → ⏱ 10-day), scegli il giocatore e il ruolo che deve coprire. Il bot ti mostra i tuoi giocatori in quel ruolo con lo status ESPN, poi manda la richiesta agli admin. Quando approvano lo trovi nel roster (in verde petrolio, con la data di fine nella legenda), nel foglio Roster e su IPanchinari, dove lo puoi schierare come gli altri.
+
+---
+
 ## Decadimento: il contratto si chiude senza contare come taglio
 
 `/decadimento` (o menu → Decadimento), poi scegli il giocatore e il motivo. Decidono gli admin.
@@ -319,6 +334,7 @@ I cambi che ti lascerebbero sotto i minimi (4 G, 4 F, 2 C) vengono bloccati. Ogn
 | rinnovare un rookie a fine II anno | `/rinnovo_rookie` |
 | dichiarare l'RFA | `/dichiara_rfa` |
 | chiudere un contratto (ritiro, altra lega, Cam Thomas) | `/decadimento` |
+| prendere un free agent per 10 giorni | `/firma_10day` |
 | dichiarare o cambiare ruoli | `/dichiarazione_ruoli`, `/cambio_ruolo` |
 | uscire da un'operazione bloccata | `/annulla` |
 | ricevere questa guida | `/guida` |

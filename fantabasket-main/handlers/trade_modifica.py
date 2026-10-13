@@ -115,7 +115,7 @@ async def cb_edit_tipo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
     bottoni = []
     if tipo == "g":
-        roster = db.get_roster_team(team_id)
+        roster = db.get_roster_team(team_id, senza_10day=True)
         items_gi = [i["giocatore_id"] for i in db.get_items_trade(trade_id) if i["team_id_da"] == team_id and i["tipo"] == "giocatore"]
         for r in roster:
             if r["giocatore_id"] in items_gi:

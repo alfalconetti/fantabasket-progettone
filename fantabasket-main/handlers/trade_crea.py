@@ -124,7 +124,7 @@ async def cb_asset_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         return await cb_squadra_confermata(query, context, trade_id, team_id)
 
     if tipo == "g":
-        roster = db.get_roster_team(team_id)
+        roster = db.get_roster_team(team_id, senza_10day=True)
         if not roster:
             await query.answer("Nessun giocatore nel roster.", show_alert=True)
             return TRADE_ASSET_MENU
@@ -229,7 +229,7 @@ async def cb_toggle_giocatore(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 async def _ricarica_lista_giocatori(query, trade_id: int, team_id: str) -> int:
-    roster   = db.get_roster_team(team_id)
+    roster   = db.get_roster_team(team_id, senza_10day=True)
     items_gi = [
         i["giocatore_id"] for i in db.get_items_trade(trade_id)
         if i["team_id_da"] == team_id and i["tipo"] == "giocatore"

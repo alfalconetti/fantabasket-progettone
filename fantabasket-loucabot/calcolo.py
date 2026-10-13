@@ -25,6 +25,7 @@ Restano agli admin: i 72 ore di attesa per le partite rinviate, le penalità.
 from datetime import timedelta
 
 import db
+from numeri import ottavi
 
 STATI_DISPONIBILE = {"probable", "active", "available"}
 SCARTO = 5
@@ -45,7 +46,7 @@ def _giorni(dal, al) -> list:
 
 
 def _media(valori: list[float]) -> float:
-    return round(sum(valori) / len(valori), 2) if valori else 0.0
+    return ottavi(sum(valori) / len(valori)) if valori else 0.0
 
 
 def punteggio_giocatori(stagione: str, g: dict, atleti: list[str]) -> dict[str, dict]:
@@ -154,7 +155,7 @@ def punteggio_squadra(g: dict, quintetto: list[dict], panchina: list[dict], punt
             break
     if candidati and not fadd:
         avvisi.append("titolare sostituibile (FADD) ma nessun panchinaro del suo ruolo")
-    return {"totale": round(sum(t["fp"] for t in tit), 2), "titolari": tit, "panchina": pan,
+    return {"totale": ottavi(sum(t["fp"] for t in tit)), "titolari": tit, "panchina": pan,
             "fadd": fadd, "avvisi": avvisi}
 
 
@@ -172,10 +173,10 @@ def esito(casa: dict, trasferta: dict, bonus: float = 3) -> dict:
     else:
         vince = "trasferta"
     reg_c, reg_t = casa["totale"] + bonus, trasferta["totale"]
-    return {"vince": vince, "casa": round(c, 2), "trasferta": round(t, 2), "supplementari": supp,
-            "regolamentari": (round(reg_c, 2), round(reg_t, 2)),
+    return {"vince": vince, "casa": ottavi(c), "trasferta": ottavi(t), "supplementari": supp,
+            "regolamentari": (ottavi(reg_c), ottavi(reg_t)),
             # i soli punti dei supplementari (sul foglio Calendario, sotto i regolamentari)
-            "punti_supplementari": (round(c - reg_c, 2), round(t - reg_t, 2)) if supp else None}
+            "punti_supplementari": (ottavi(c - reg_c), ottavi(t - reg_t)) if supp else None}
 
 
 # ── abbinamento giocatori ↔ ESPN ───────────────────────────────────────────────

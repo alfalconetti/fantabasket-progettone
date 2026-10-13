@@ -25,7 +25,7 @@ def funzione(path, nome):
     return t[i:fine]
 
 def citati(testo):
-    return set(re.findall(r'(?<![\w/.<~])/([a-z][a-z_]*)(?![\w/.])', testo))
+    return set(re.findall(r'(?<![\w/.<~])/([a-z][a-z0-9_]*)(?![\w/.])', testo))
 
 for bot, testi in {
     "fantabasket-main": [("guida GM", leggi("fantabasket-main/docs/guida_gm.md")),

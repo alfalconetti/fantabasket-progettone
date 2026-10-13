@@ -48,7 +48,7 @@ async def cmd_decadimento(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await update.effective_message.reply_text("⛔ Non sei registrato come GM.")
         return ConversationHandler.END
 
-    roster = db.get_roster_team(team["id"])
+    roster = db.get_roster_team(team["id"], senza_10day=True)
     if not roster:
         await update.effective_message.reply_text("Il tuo roster è vuoto.")
         return ConversationHandler.END
@@ -192,6 +192,8 @@ async def applica_decadimento(bot, team_id: str, gid: int, motivo_key: str, admi
         return "❌ Giocatore non trovato."
     if not contratto or contratto.get("team_id") != team_id:
         return "❌ Contratto non trovato o già scaduto."
+    if contratto.get("tipo") == "10day":
+        return "❌ È un 10-day: si chiude dal pannello admin (⏱ 10-day)."
 
     # Ritiro / altra lega: smettono di pesare anche le spalmature di chi l'aveva tagliato
     # (non per "altro", es. Cam Thomas exception: il giocatore resta in NBA)
@@ -298,7 +300,7 @@ async def cb_dec_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if azione == "t":
         stagione = settings.stagione_corrente()
-        roster = sorted(db.get_roster_team(team_id) or [], key=lambda x: -x["importo"])
+        roster = sorted(db.get_roster_team(team_id, senza_10day=True) or [], key=lambda x: -x["importo"])
         kb = [[InlineKeyboardButton(f"{r['nome_common']} {r['importo']}x{_anni_residui(r, stagione)}",
                                     callback_data=f"decadm:g:{team_id}:{r['giocatore_id']}")] for r in roster]
         kb.append([InlineKeyboardButton("← Squadre", callback_data="adm:dec")])

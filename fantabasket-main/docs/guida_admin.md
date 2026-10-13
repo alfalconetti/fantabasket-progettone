@@ -79,7 +79,7 @@ Se uno di questi passaggi fallisce, la fase resta cambiata e il messaggio di con
 
 ## Approvare le richieste
 
-Trade, DPE, Saedro e decadimenti chiesti dai GM arrivano nel gruppo admin con i bottoni ✅ Approva / ❌ Rifiuta.
+Trade, DPE, Saedro, 10-day e decadimenti chiesti dai GM arrivano nel gruppo admin con i bottoni ✅ Approva / ❌ Rifiuta.
 
 - Li può premere solo un admin, e funzionano anche dopo un riavvio del bot.
 - **Vale la prima decisione.** Se un altro admin ha già risposto, il tuo bottone dice "già gestita" e non cambia niente: un Rifiuta arrivato dopo non annulla mai un'approvazione.
@@ -131,6 +131,13 @@ I diritti delle seconde al secondo anno scadono 10 giorni prima della trade dead
 
 - nei 3 giorni prima ti arriva un avviso nel gruppo;
 - il giorno della scadenza arriva il bottone **Conferma scadenza**, che libera i giocatori e lo annuncia.
+
+**10-day contract** (solo nella fase regular-season-fa). La richiesta del GM arriva nel gruppo con le regole e i giocatori della squadra nel ruolo da coprire, con lo status dell'ultimo snapshot ESPN: si approva solo se nessuno di loro è disponibile (OUT o fuori dalle rotazioni). Il bot controlla da solo il resto: una volta a stagione per squadra, al massimo due squadre per giocatore, free agent, ruolo tra le sue posizioni eleggibili.
+
+- Per firmarlo direttamente per una squadra: `/firma_10day_admin NOME`, poi squadra e ruolo.
+- Pannello → **⏱ 10-day**: quelli in corso con la scadenza, e il bottone per chiuderne uno prima.
+- Scade da solo 10 giorni dopo la firma; se cade a giornata in corso, il giorno dopo l'ultima notte della giornata alle 12. Annuncio sul canale e avviso al GM.
+- Non pesa sul cap, non occupa uno slot, non conta per i minimi dei ruoli; non si taglia, non si scambia, niente DPE. Non registrarlo mai con `/registra_firma`.
 
 ---
 

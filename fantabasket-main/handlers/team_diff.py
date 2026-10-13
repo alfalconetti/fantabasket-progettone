@@ -120,6 +120,7 @@ def _motivo_giocatore(team_id: str, giocatore_id: int,
                 "decaduto":"Ritirato",
                 "decadimento":"Decaduto",
                 "dpe_attivata":"DPE",
+                "10day_scadenza":"Fine 10-Day",
             }.get(r["tipo"], r["tipo"].capitalize())
     return "—"
 

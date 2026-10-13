@@ -31,6 +31,7 @@ from handlers.posizioni   import get_handlers as posizioni_handlers
 from handlers.ruoli       import get_handlers as ruoli_handlers
 from handlers.ruoli_rs    import get_handlers as ruoli_rs_handlers
 from handlers.cambi_ruolo import get_handlers as cambi_ruolo_handlers
+from handlers.dieci_giorni import get_handlers as dieci_giorni_handlers
 from handlers.bref        import get_handlers as bref_handlers
 from handlers.nascite     import get_handlers as nascite_handlers
 from handlers.spalmature  import get_handlers as spalmature_handlers
@@ -417,6 +418,8 @@ def main():
         app.add_handler(h)
     for h in cambi_ruolo_handlers():
         app.add_handler(h)
+    for h in dieci_giorni_handlers():
+        app.add_handler(h)
     for h in bref_handlers():
         app.add_handler(h)
     for h in nascite_handlers():
@@ -458,6 +461,8 @@ def main():
     app.job_queue.run_repeating(job_scadenze, interval=900, first=120)
     from handlers.cambi_ruolo import job_fine_saedro
     app.job_queue.run_repeating(job_fine_saedro, interval=900, first=180)
+    from handlers.dieci_giorni import job_scadenza as job_scadenza_10day
+    app.job_queue.run_repeating(job_scadenza_10day, interval=900, first=240)
     # Backup settimanale sabato alle 00:30 (PTB: days 0 = domenica … 6 = sabato)
     app.job_queue.run_daily(
         backup_settimanale,

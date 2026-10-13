@@ -711,9 +711,10 @@ def cerca_giocatori(nome_norm: str) -> list:
         (f"%{nome_norm}%",), many=True
     )
 
-def get_roster_team(team_id: str) -> list:
+def get_roster_team(team_id: str, senza_10day: bool = False) -> list:
     """Roster attuale con data_nascita e anni_scala per il PNG roster.
-    L'importo tiene conto della DPE attiva per la stagione corrente."""
+    L'importo tiene conto della DPE attiva per la stagione corrente. `senza_10day`: per le
+    liste di chi si può scambiare, tagliare, mettere in DPE o far decadere (il 10-day no)."""
     from settings import stagione_corrente
     stagione = stagione_corrente()
     righe = _q(
@@ -736,6 +737,8 @@ def get_roster_team(team_id: str) -> list:
     ) or []
     for r in righe:
         r["x0"] = r["anni_residui"] <= 0
+    if senza_10day:
+        righe = [r for r in righe if r["tipo_contratto"] != "10day"]
     return righe
 
 

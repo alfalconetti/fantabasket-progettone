@@ -180,6 +180,9 @@ def valida_trade(trade_id: int) -> tuple[bool, list[str]]:
             if not contratto:
                 errori.append(f"❌ {nome}: {nome_g} non ha un contratto attivo")
                 continue
+            if contratto.get("tipo") == "10day":
+                errori.append(f"❌ {nome}: {nome_g} ha un 10-day, non si può scambiare")
+                continue
             if contratto["team_id"] != team_id:
                 team_reale = tm.get_team_by_id(contratto["team_id"])
                 nome_reale = team_reale["nome"] if team_reale else contratto["team_id"]

@@ -344,6 +344,7 @@ ORDER BY t.timestamp, t.id;
 | `ruoli.py` | dichiarazione di inizio stagione, `/deadline_ruoli` |
 | `ruoli_rs.py` | dichiarazioni post-trade/firma in RS |
 | `cambi_ruolo.py` | `/cambio_ruolo`: ordinario, Erminio, Saedro, forzato, Extra DPE |
+| `dieci_giorni.py` | `/firma_10day` (GM, richiesta), `/firma_10day_admin`, approvazione, pannello, scadenza |
 | `posizioni.py` | import e correzione delle posizioni eleggibili, `/data_erminio` |
 | `roster.py` | `/roster`, `/assets` (Typst) |
 | `team_diff.py` | `/team_diff` |
@@ -379,6 +380,7 @@ Utile per capire chi risponde a un bottone. In grassetto quelli citati più spes
 | `dpe.py` | `dpe_*` |
 | `tagli.py` | `taglia_*` |
 | `cambi_ruolo.py` | **`cr:`** (GM), **`ca:`**/`cradm:` (admin), `sae:` (Saedro) |
+| `dieci_giorni.py` | `td:` (GM), `tda:` (admin che firma), `tdq:` (richiesta), `tdadm:` (pannello) |
 | `ruoli.py` | `rl:`, `rladm:`, `rli:` |
 | `ruoli_rs.py` | `rp:`, `rpadm:` |
 | `posizioni.py` | `pos_imp_`, `spe:` |
@@ -489,6 +491,7 @@ Le richieste nuove vanno fatte così.
 | ogni 5 min | `_ping_healthcheck` | solo con `HEALTHCHECK_URL` |
 | ogni 15 min | `ruoli_rs.job_scadenze` | estrae il ruolo delle dichiarazioni oltre le 48 ore |
 | ogni 15 min | `cambi_ruolo.job_fine_saedro` | chiude le Saedro scadute |
+| ogni 15 min | `dieci_giorni.job_scadenza` | chiude i 10-day scaduti (fine giornata compresa) |
 | ogni 2 ore | `sync_sheets_periodico` | sync completo dei fogli |
 | 00:00 e 12:00 | `backup_giornaliero` | backup completo al canale log |
 | sabato 00:30 | `backup_settimanale` | backup al gruppo admin (PTB: `days=(6,)` = sabato, 0 = domenica) |
@@ -666,7 +669,7 @@ docker compose logs -f --tail 100 bot-main            # log
 
 **Ogni stagione:** `/trade_deadline` (scadenza dei diritti 2nd); il bot lo ricorda entrando nei rinnovi.
 
-**10-day contract.** Non c'è: si gestisce a mano. Non va registrato con `/registra_firma`, perché peserebbe sul cap.
+**10-day contract** (v5.2.0, `handlers/dieci_giorni.py`): contratto `tipo = '10day'`, importo 0, x1 della stagione, `scadenza_10day` = firma + 10 giorni; movimenti `10day_firma` e `10day_scadenza`; ruolo in `cambi_ruolo` (`post_firma`). `shared/cap.py` lo esclude da cap e slot (`SQL_NON_10DAY`), `ruoli_core.deficit_team` dai minimi; `get_roster_team(senza_10day=True)` per le liste di tagli, DPE, decadimenti e trade, e i controlli sul contratto lo rifiutano. Scadenza effettiva (`fine_effettiva`): se cade tra la prima partita di una giornata di `lega_giornate` e il giorno dopo `al` alle 12 (Roma), è quest'ultima. Richieste in `richieste_admin` (tipo `10day`).
 
 **Limiti noti:**
 

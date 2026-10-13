@@ -23,6 +23,7 @@
 #let eta_media     = sys.inputs.at("eta_media")
 #let logo_path     = sys.inputs.at("logo_path")
 #let giocatori_raw = sys.inputs.at("giocatori")
+#let fine_10day    = sys.inputs.at("fine_10day", default: "")
 // picks: "2027|1st|Propria|S;2027|2nd|Propria|;2028||;2029|1st|Propria|;..."  (S = bloccata Stepien)
 // anno vuoto = anno senza pick → mostra cella vuota
 #let picks_raw     = sys.inputs.at("picks")
@@ -82,6 +83,7 @@
 #let c_r2  = color.rgb("#F57F17")
 #let c_r3  = color.rgb("#6A1B9A")
 #let c_rfa = color.rgb("#E65100")
+#let c_10d = color.rgb("#00838F") // 10-day  — verde petrolio
 #let c_dpe = color.rgb("#C62828") // DPE — rosso scuro
 
 #set page(width: 420pt, height: auto, margin: 0pt, fill: white)
@@ -131,6 +133,7 @@
                 else if g.flag == "R2"    { (c_r2,  true) }
                 else if g.flag == "R3"    { (c_r3,  true) }
                 else if g.flag == "A"     { (c_rfa, true) }
+                else if g.flag == "D"     { (c_10d, true) }
                 else                       { (black, false) }
     let ha_dpe = g.importo_orig != ""
     let fc_nome = if ha_dpe { c_dpe } else { fc }
@@ -162,7 +165,8 @@
 #let has_rookie = giocatori.any(g => g.flag != "VUOTO" and g.flag.starts-with("R"))
 #let has_rfa    = giocatori.any(g => g.flag == "A")
 #let has_dpe    = giocatori.any(g => g.flag != "VUOTO" and g.importo_orig != "")
-#if has_rookie or has_rfa or has_dpe {
+#let has_10d    = giocatori.any(g => g.flag == "D")
+#if has_rookie or has_rfa or has_dpe or has_10d {
   block(width: 100%, fill: c_sezione)[
     #pad(x: 6pt, y: 3pt)[
       #if giocatori.any(g => g.flag == "R0") [#text(7pt, fill: c_r0,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno I ]  ]
@@ -170,7 +174,8 @@
       #if giocatori.any(g => g.flag == "R2") [#text(7pt, fill: c_r2,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno III ]  ]
       #if giocatori.any(g => g.flag == "R3") [#text(7pt, fill: c_r3,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno IV ]  ]
       #if has_rfa                             [#text(7pt, fill: c_rfa, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[RFA]  ]
-      #if has_dpe                             [#text(7pt, fill: c_dpe, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[DPE]]
+      #if has_dpe                             [#text(7pt, fill: c_dpe, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[DPE]  ]
+      #if has_10d [#text(7pt, fill: c_10d, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[10-day#if fine_10day != "" [ fino al #fine_10day]]]
     ]
   ]
 }

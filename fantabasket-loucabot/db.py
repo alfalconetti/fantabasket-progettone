@@ -279,7 +279,8 @@ def medie_stagione(atleti: list[str], stagione: str, prima_del) -> dict[str, dic
                  JOIN nba_partite p ON p.espn_id = t.partita
                  WHERE t.atleta = ANY(%s) AND p.stagione = %s AND p.tipo = ANY(%s) AND p.data_et < %s
                    AND t.giocato AND NOT (t.fp = 0 AND t.minuti = 0) GROUP BY t.atleta""", (list(atleti), stagione, [2, 5], prima_del), many=True) or []
-    return {r["atleta"]: {"media": round(r["media"], 2), "partite": r["partite"]} for r in righe}
+    from numeri import ottavi
+    return {r["atleta"]: {"media": ottavi(r["media"]), "partite": r["partite"]} for r in righe}
 
 
 def ultima_squadra(atleti: list[str], prima_del) -> dict[str, str]:

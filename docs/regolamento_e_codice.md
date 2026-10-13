@@ -122,7 +122,7 @@ per fantapunti** (0–10,99 → 1 … 45+ → 35), in `settings.json` `tabella_m
 
 | Regola | Stato | Dove | Prova |
 |---|---|---|---|
-| Uno a stagione per squadra, al massimo due squadre per giocatore, senza peso su cap e roster, 10 giorni | ✋ a mano. Non va registrato con `/registra_firma` (peserebbe sul cap) | `max_10day_per_giocatore` in `settings.json`, non usato | — |
+| Uno a stagione per squadra, al massimo due squadre per giocatore, senza peso su cap e roster, 10 giorni (fino a fine giornata se scade a giornata in corso), solo prima della chiusura della FA, solo se nel ruolo non c'è nessuno disponibile | 🤝 il bot controlla tutto il resto, la disponibilità del ruolo la decide l'admin approvando (v5.2.0) | `main/handlers/dieci_giorni.py`, `shared/cap.py`, `max_10day_per_giocatore` in `settings.json` | `dieci_giorni` |
 
 ## Tagli
 

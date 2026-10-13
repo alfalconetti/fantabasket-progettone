@@ -1243,3 +1243,13 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v5.1.3 (2026-10-13)
 
 - loucabot v16: il tab «Calcolo GN» non blocca più righe e colonne
+
+## v5.2.0 (2026-10-13)
+
+- **10-day contract** (`/firma_10day NOME`, menu → ⏱ 10-day): il GM sceglie un free agent e il ruolo da coprire, la richiesta arriva nel gruppo admin con le regole e i giocatori della squadra in quel ruolo con lo status ESPN; ✅ Approva / ❌ Rifiuta. Gli admin lo firmano anche direttamente per qualsiasi squadra (`/firma_10day_admin NOME`) e dal pannello (⏱ 10-day) vedono quelli in corso e li possono chiudere prima
+- Regole controllate dal bot: solo in regular season prima della chiusura della FA, una volta a stagione per squadra, al massimo due squadre per giocatore, free agent senza asta in corso, ruolo tra le posizioni eleggibili. Dura 10 giorni; se scade a giornata in corso, fino alla fine della giornata (il giorno dopo l'ultima notte alle 12). Alla scadenza torna free agent, con annuncio sul canale e avviso al GM
+- Non pesa sul cap, non occupa uno slot (`shared/cap.py`, anche nel bot delle aste) e non conta per i minimi dei ruoli; non si taglia, non si scambia, niente DPE né decadimento
+- Roster e asset Typst: in verde petrolio, "10d" al posto dell'importo e la data di fine nella legenda. Foglio Roster: in fondo, "(10-day)", importo 0. IPanchinari e calcolo lo vedono come gli altri giocatori della squadra
+- Prova `dieci_giorni`; la prova delle guide accetta i comandi con le cifre
+- loucabot v17: medie arrotondate all'ottavo (solo ,00 ,13 ,25 ,38 ,50 ,63 ,75 ,88)
+

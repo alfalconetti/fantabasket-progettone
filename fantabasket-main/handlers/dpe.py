@@ -51,7 +51,7 @@ async def cmd_dpe(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     stagione = settings.stagione_corrente()
-    roster   = db.get_roster_team(team["id"])
+    roster   = db.get_roster_team(team["id"], senza_10day=True)
     if not roster:
         await update.effective_message.reply_text("Il tuo roster è vuoto.")
         return
@@ -90,8 +90,8 @@ async def cb_seleziona_dpe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     team = tm.get_team_by_gm(user.id)
 
     contratto = db.get_contratto_attivo(gid)
-    if not contratto or contratto["team_id"] != team["id"]:
-        await query.edit_message_text("❌ Giocatore non trovato nel tuo roster.")
+    if not contratto or contratto["team_id"] != team["id"] or contratto["tipo"] == "10day":
+        await query.edit_message_text("❌ Giocatore non trovato nel tuo roster (o è un 10-day).")
         return
 
     giocatore = db.get_giocatore(gid)
@@ -147,6 +147,8 @@ async def applica_dpe(bot, gid: int, team_id: str, admin_tag: str, da_admin: boo
     contratto = db.get_contratto_attivo(gid)
     if not contratto or contratto["team_id"] != team_id:
         return f"❌ {giocatore['nome_common']} non è più nel roster di {team['nome']}.", ""
+    if contratto["tipo"] == "10day":
+        return f"❌ {giocatore['nome_common']} ha un 10-day: niente DPE.", ""
     if db.get_dpe_attiva(gid, stagione):
         return f"⚠️ DPE per {giocatore['nome_common']} già registrata questa stagione.", ""
 
@@ -209,8 +211,8 @@ async def cb_invia_richiesta_dpe(update: Update, context: ContextTypes.DEFAULT_T
         return
 
     contratto = db.get_contratto_attivo(gid)
-    if not contratto or contratto["team_id"] != team["id"]:
-        await query.edit_message_text("❌ Giocatore non trovato nel tuo roster.")
+    if not contratto or contratto["team_id"] != team["id"] or contratto["tipo"] == "10day":
+        await query.edit_message_text("❌ Giocatore non trovato nel tuo roster (o è un 10-day).")
         return
 
     giocatore    = db.get_giocatore(gid)

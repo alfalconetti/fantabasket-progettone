@@ -54,8 +54,9 @@ def deficit_team(q, team_id: str, stagione: str, togli=(), aggiungi=(), imposti:
     """Deficit del roster di team_id, eventualmente con giocatori tolti/aggiunti e ruoli
     imposti {gid: ruolo}. Fissi = ruoli ufficiali della squadra nella stagione."""
     imposti = imposti or {}
-    roster = {r["giocatore_id"] for r in q(
-        "SELECT giocatore_id FROM roster_attuale WHERE team_id = %s", (team_id,), many=True) or []}
+    roster = {r["giocatore_id"] for r in q(        # i 10-day non contano per i minimi (scadono)
+        "SELECT giocatore_id FROM roster_attuale WHERE team_id = %s AND tipo_contratto <> '10day'",
+        (team_id,), many=True) or []}
     gids = (roster - set(togli)) | set(aggiungi)
     if not gids:
         return deficit_minimo([], [])

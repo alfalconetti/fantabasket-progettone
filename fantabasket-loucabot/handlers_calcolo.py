@@ -6,6 +6,7 @@ Job:   tabellini e abbinamenti nella sincronizzazione delle 8:30 (handlers.job_s
        snapshot degli infortunati ogni 4 ore e 30 minuti prima della prima partita del giorno, solo dai ruoli
        dell'offseason ai playoff (config.FASI_SNAPSHOT).
 """
+from numeri import testo as testo_punti
 import difflib
 import html
 import logging
@@ -172,7 +173,7 @@ def testo_fantapunti(stagione: str, g: dict) -> str:
                 continue
             q = p[x["atleta"]]
             nota = f" <i>({e(q['nota'])})</i>" if q["nota"] and q["come"] != "partite" or len(q["partite"]) > 1 else ""
-            righe.append(f"• {simbolo[q['come']]}{e(x['nome_common'])} {x['ruolo'] or ''}: <b>{q['fp']:.2f}</b>{nota}")
+            righe.append(f"• {simbolo[q['come']]}{e(x['nome_common'])} {x['ruolo'] or ''}: <b>{testo_punti(q['fp'])}</b>{nota}")
     return "\n".join(righe)
 
 

@@ -633,3 +633,8 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 - Corretto: a contratto firmato il messaggio dell'asta diceva sempre il vincitore e la sua offerta, anche quando il proprietario aveva pareggiato (a volte a un importo diverso). Ora dice chi ha firmato davvero e a quanto, con "(pareggio)" (colonne `team_firma`, `importo_firma`; le aste vecchie restano come prima)
 - Corretto: un RFA senza offerte rifirmato dal proprietario usciva sul canale principale come "pareggia"; ora "rifirma (RFA senza offerte)"
 - Prova `tempo_scaduto`
+
+## v66 — 10-day contract
+
+- Il 10-day contract del bot principale (contratto `10day`) non pesa sul cap e non occupa uno slot anche qui (`shared/cap.py`); durante il 10-day il giocatore non è un free agent, alla scadenza torna nella lista
+

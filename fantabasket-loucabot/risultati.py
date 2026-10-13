@@ -156,7 +156,8 @@ def _dettaglio(stagione: str, g: dict, atleti: list[str]) -> dict:
 # ── testo per il gruppo admin ──────────────────────────────────────────────────
 
 def _n(x) -> str:
-    return f"{x:.2f}".replace(".", ",")
+    from numeri import testo as _testo
+    return _testo(x)
 
 
 def testo(c: dict, versione: int = 1) -> str:
@@ -274,7 +275,7 @@ def griglia(c: dict) -> dict:
                 stati = [det["status"].get(a, {}).get(d, "—") if a else "—" for d in giorni]
                 nba = p.get("squadra") or ""
                 rn = f"{L['N0']}{riga_n}:{L['NN']}{riga_n}"
-                punteggio = (f'=IF(COUNT({rn})>0,ROUND(AVERAGE({rn}),2),'
+                punteggio = (f'=IF(COUNT({rn})>0,ROUND(AVERAGE({rn})*8,0)/8,'
                              f'IF(AND({L["AM"]}{riga_n}="sì",{L["IND"]}{riga_n}="no"),{L["MED"]}{riga_n},0))')
                 come = (f'=IF(COUNT({rn})>0,"partite",IF(AND({L["AM"]}{riga_n}="sì",{L["IND"]}{riga_n}="no"),"media","0"))')
                 valori = [nome_t, x["posto"], x["ruolo"] or "", x["nome"], nba] + notti + \

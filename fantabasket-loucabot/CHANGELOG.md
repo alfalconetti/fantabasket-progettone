@@ -84,3 +84,8 @@ Il calcolo dei fantapunti.
 ## v16 (2026-10-13)
 
 - Tab «Calcolo GN»: niente più righe e colonne bloccate in alto e a sinistra (il foglio era inusabile); si sbloccano anche i tab già scritti, alla prossima scrittura
+
+## v17 (2026-10-13)
+
+- Medie arrotondate all'ottavo: la media delle notti della giornata e la media della stagione valgono solo ,00 ,13 ,25 ,38 ,50 ,63 ,75 ,88 dopo la virgola (prima a due decimali: uscivano 0,01 o 0,26). Lo stesso per totali e supplementari. Sul foglio di calcolo il punteggio è `ROUND(AVERAGE(notti)*8;0)/8`, provato con LibreOffice contro il bot. Nei messaggi la metà si scrive per eccesso (0,125 → 0,13)
+

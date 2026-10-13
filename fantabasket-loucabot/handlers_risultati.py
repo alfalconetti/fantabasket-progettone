@@ -11,6 +11,7 @@ proposta (anche dopo la convalida: alla nuova convalida si riscrive il Calendari
 
 Callback: rc:ok:<N>:<versione> convalida · rc:re:<N> ricalcola.
 """
+from numeri import testo as testo_punti
 import html
 import logging
 from datetime import datetime, timedelta, timezone
@@ -83,7 +84,7 @@ async def esegui(bot, stagione: str, n: int, chi: str = "job delle 7:45") -> str
         m = await bot.send_message(chat_id=gruppo, text=testo, parse_mode="HTML", reply_markup=_tasti(n, versione))
         db.q("UPDATE lega_calcoli SET messaggio = %s WHERE stagione = %s AND giornata = %s", (m.message_id, stagione, n))
     await log(bot, f"📊 Giornata {n} calcolata (versione {versione}, {chi}): "
-                   + ", ".join(f"{e(config.nome(r['casa']))} {r['punti_casa']:.2f}–{r['punti_trasferta']:.2f} {e(config.nome(r['trasferta']))}"
+                   + ", ".join(f"{e(config.nome(r['casa']))} {testo_punti(r['punti_casa'])}–{testo_punti(r['punti_trasferta'])} {e(config.nome(r['trasferta']))}"
                                for r in c["risultati"]) + f"; {e(foglio)}")
     return foglio
 

@@ -75,7 +75,7 @@ Il foglio di controllo è un file Google a parte (`CALCOLO_SPREADSHEET_ID` in `g
 **`/fantapunti [N]`** mostra i fantapunti della giornata di tutti i giocatori a roster, divisi per squadra (📉 = ha preso la media). Serve per controllare il calcolo. Se è lungo arriva come file.
 
 **Come si calcola** (regolamento, capitolo Partita):
-- chi ha giocato una o più partite della giornata → media delle partite giocate (uno 0 con 0 minuti non conta, uno 0 con dei minuti sì);
+- chi ha giocato una o più partite della giornata → media delle partite giocate (uno 0 con 0 minuti non conta, uno 0 con dei minuti sì), arrotondata all'ottavo: dopo la virgola solo ,00 ,13 ,25 ,38 ,50 ,63 ,75 ,88 (sul foglio `ROUND(media*8)/8`; lo stesso per la media della stagione);
 - chi non ha giocato, se la sua squadra NBA non aveva partite (o solo partite rinviate) → la sua media della stagione, 0 se indisponibile;
 - chi non ha giocato mentre la sua squadra sì → 0;
 - squadra: somma dei 5 titolari, con la FADD; vince chi ha almeno 5 punti di scarto, bonus casa compreso (3, nei playoff 5); altrimenti supplementari con i panchinari in ordine; pari fino al decimo uomo → vince la trasferta. Sul Calendario: punti col bonus casa, e sotto i soli punti dei supplementari.

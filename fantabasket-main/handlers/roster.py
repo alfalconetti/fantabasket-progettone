@@ -122,6 +122,7 @@ _COLORI_TIPO = {
     "R2": "#F57F17",
     "R3": "#6A1B9A",
     "A":  "#E65100",
+    "D":  "#00838F",   # 10-day
     "N":  None,
 }
 _BADGE_SOGLIA = 2.5  # ratio WCAG minimo; sotto questo → badge bianco
@@ -212,7 +213,9 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
         anni_orig = r.get("anni_originali", 1)
         s_firma   = int(r.get("stagione_firma") or stagione_int)
         anni_res  = max(0, anni_orig - (stagione_int - s_firma))
-        if anni_res == 0 and r.get("rfa"):
+        if tipo == "10day":
+            flag = "D"                                   # 10-day: niente cap, niente anni
+        elif anni_res == 0 and r.get("rfa"):
             flag = "A"                                   # RFA dichiarato
         elif tipo == "rookie":
             flag = f"R{min(max(int(r.get('anni_scala') or 0), 0), 3)}"
@@ -233,8 +236,23 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
         dpe   = importo_orig if ha_dpe else ""
         media = fm.get(r["giocatore_id"])
         fm_txt = f"{media:.1f}" if media is not None else "—"
+        if flag == "D":
+            importo, anni_res = "10d", "–"
         righe.append(f"{nome}|{importo}|{anni_res}|{flag}|{dpe}|{badge}|{ruolo}|{eleg}|{fm_txt}")
     return ";".join(righe)
+
+
+def _fine_10day(team_id: str) -> str:
+    """Scadenza del 10-day in corso della squadra, per la legenda ("" se non c'è)."""
+    try:
+        from handlers.dieci_giorni import attivo_squadra, fine_effettiva
+        a = attivo_squadra(team_id)
+        if a and a["scadenza_10day"]:
+            from utils import ROME
+            return fine_effettiva(a["scadenza_10day"])[0].astimezone(ROME).strftime("%d/%m")
+    except Exception as e:
+        logger.warning("Scadenza 10-day per il roster: %s", e)
+    return ""
 
 
 async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
@@ -322,6 +340,7 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
         "--input", f"logo_path={logo}",
         "--input", f"giocatori={giocatori_str}",
         "--input", f"fm_label={fm_label}",
+        "--input", f"fine_10day={'' if as_of else _fine_10day(team_id)}",
         "--root", "/",
         os.path.abspath(TYPST_TEMPLATE),
         tmp.name,
@@ -539,6 +558,7 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
         "--input", f"cambi_usati={cambi_usati}",
         "--input", f"logo_path={logo}",
         "--input", f"giocatori={giocatori_str}",
+        "--input", f"fine_10day={_fine_10day(team_id)}",
         "--input", f"picks={picks_str}",
         "--input", f"diritti={diritti_str}",
         "--root", "/",

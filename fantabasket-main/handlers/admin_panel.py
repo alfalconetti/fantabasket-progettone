@@ -53,6 +53,7 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
         ("🎽 Ruoli squadre",    "rladm:list",  True),   # dichiarazione per conto dei GM, anche fuori fase
         ("⏳ Ruoli in sospeso", "rpadm:list",  fase in settings.FASI_RUOLI_RS),
         ("🔁 Cambi ruolo",      "cradm:teams", fase in settings.FASI_RUOLI_RS),
+        ("⏱ 10-day",           "tdadm:list",  fase in settings.FASI_RUOLI_RS),
         ("🔁 Rinnovi rookie",   "sga:scegli:rr",  fase in FASI_ADMIN_RINNOVI),
         ("🔒 RFA squadre",      "sga:scegli:rfa", fase in FASI_ADMIN_RINNOVI),
         ("📊 Situazione cap",   "adm:cap",     True),
@@ -234,7 +235,7 @@ async def cb_adm_taglia_team(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
     team_id = query.data.split(":")[1]
     import database as db
-    roster = db.get_roster_team(team_id)
+    roster = db.get_roster_team(team_id, senza_10day=True)
     team   = tm.get_team_by_id(team_id)
     if not roster:
         await query.edit_message_text(f"Roster di {team['nome']} vuoto.")
@@ -303,7 +304,7 @@ async def cb_adm_dpe_team(update: Update, context: ContextTypes.DEFAULT_TYPE):
     team_id  = query.data.split(":")[1]
     team     = tm.get_team_by_id(team_id)
     stagione = settings.stagione_corrente()
-    roster   = db.get_roster_team(team_id)
+    roster   = db.get_roster_team(team_id, senza_10day=True)
 
     eligibili = [
         r for r in roster

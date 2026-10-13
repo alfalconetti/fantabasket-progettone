@@ -70,14 +70,17 @@ def _build_team_payload(team_id: str) -> dict:
             return f"R{min(scala, 3)}"
         return ""
     giocatori = [r for r in giocatori if not r.get("x0") or r.get("rfa")]
+    # 10-day in fondo, con la scritta: importo 0 (non pesa sul cap), niente anni
+    giocatori = ([r for r in giocatori if r.get("tipo_contratto") != "10day"]
+                 + [r for r in giocatori if r.get("tipo_contratto") == "10day"])
 
     giocatori_payload = [
         {
             "ruolo":   ruoli.get(r["giocatore_id"], ""),
-            "nome":    r["nome_common"],
-            "importo": r["importo"],
-            "anni":    max(0, db.anni_residui(r, stagione)),
-            "flag":    _flag(r),
+            "nome":    r["nome_common"] + (" (10-day)" if r.get("tipo_contratto") == "10day" else ""),
+            "importo": 0 if r.get("tipo_contratto") == "10day" else r["importo"],
+            "anni":    0 if r.get("tipo_contratto") == "10day" else max(0, db.anni_residui(r, stagione)),
+            "flag":    "D" if r.get("tipo_contratto") == "10day" else _flag(r),
         }
         for r in giocatori
         if not r.get("ha_dpe")  # giocatori con DPE vanno nella sezione DIS. separata

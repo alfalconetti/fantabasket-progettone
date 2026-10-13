@@ -41,12 +41,14 @@ partita("v2", date(2026, 11, 3), "IND", "MIA"); tab("v2", [("r5", "IND", 36, 30)
 # la giornata: tre notti; IND e NOP non giocano (a media)
 partita("g1", DAL, "NYK", "BOS"); partita("g2", DAL + timedelta(days=1), "NYK", "PHX"); partita("g3", AL, "BOS", "PHX")
 partita("g4", DAL, "MEM", "UTA")
+partita("g5", AL, "NYK", "MIA")   # r1: tre notti, 30 20 21 → media 23,67 → all'ottavo 23,625
 tab("g1", [("r1", "NYK", 30, 30), ("r2", "NYK", 25, 30), ("r3", "BOS", 18, 30), ("r11", "NYK", 24, 30), ("r12", "BOS", 21, 30),
            ("r13", "BOS", 0, 22), ("r6", "NYK", 12, 20), ("r21", "NYK", 27, 30), ("r22", "BOS", 33, 30)])
 tab("g2", [("r1", "NYK", 20, 30), ("r4", "PHX", 35, 30), ("r11", "NYK", 14, 30), ("r14", "PHX", 28, 30),
            ("r6", "NYK", 0, 0), ("r21", "NYK", 31, 30), ("r24", "PHX", 15, 30), ("r7", "PHX", 9, 15)])
 tab("g3", [("r3", "BOS", 22, 30), ("r4", "PHX", 15, 30), ("r12", "BOS", 19, 30), ("r14", "PHX", 30, 30), ("r13", "BOS", 10, 25),
            ("r22", "BOS", 29, 30), ("r24", "PHX", 17, 30), ("r8", "BOS", 6, 12)])
+tab("g5", [("r1", "NYK", 21, 30)])
 tab("g4", [("r9", "UTA", 11, 25), ("r10", "MEM", None, None), ("r23", "UTA", 26, 30), ("r25", "MEM", 12, 30), ("r26", "UTA", 8, 18)])
 # snapshot: r10 (MEM, gioca) Out tutta la giornata → FADD; r5 (IND, a media) Out tutta la giornata → FADD; r16 sano
 for d in (DAL, DAL + timedelta(days=1), AL):
@@ -91,6 +93,13 @@ ok(r1["supplementari"] == 1 and r1["supp_casa"] == 9 and r1["supp_trasferta"] ==
    f"partita 1 ai supplementari: soli punti dei supplementari {r1['punti_casa']} {r1['punti_trasferta']} {r1['supp_casa']} {r1['supp_trasferta']}")
 
 # ── il foglio rifà i conti del bot ──
+from numeri import ottavi, testo as tp
+ok([ottavi(x) for x in (0.01, 0.26, 10 / 3, -0.0625, 0.4375)] == [0.0, 0.25, 3.375, -0.125, 0.5]
+   and [tp(x) for x in (0.125, 0.375, 0.625, 0.875, -3.375)] == ["0,13", "0,38", "0,63", "0,88", "-3,38"],
+   "all'ottavo: solo ,00 ,13 ,25 ,38 ,50 ,63 ,75 ,88 (la metà per eccesso, come ROUND dei fogli)")
+ok(c["punti"]["r1"]["fp"] == 23.625, f"tre notti: media all'ottavo ({c['punti']['r1']['fp']})")
+ok(all(float(v) * 8 == int(float(v) * 8) for v in [p["fp"] for p in c["punti"].values()] + [r1["punti_casa"], r1["punti_trasferta"]]),
+   "punteggi e totali del calcolo: multipli di 0,125")
 gr = R.griglia(c)
 ok(R.payload_foglio(gr)["congela"] == {"righe": 0, "colonne": 0}, "niente righe né colonne bloccate (e si sbloccano quelle dei tab vecchi)")
 ok(all(len(x) == len(gr["righe"][0]) for k in ("righe", "sfondi", "testi", "pesi", "formati") for x in gr[k])
@@ -108,7 +117,7 @@ if shutil.which("soffice"):
                    capture_output=True, timeout=180)
     foglio = list(csv.reader(io.open(os.path.join(d, "c.csv"), encoding="utf-8", errors="replace")))
     shutil.rmtree(d, ignore_errors=True)
-    num = lambda x: round(float(x), 2) if x not in ("", None) else None
+    num = lambda x: round(float(x), 6) if x not in ("", None) else None
     ris_foglio = [foglio[i] for i in range(4, 4 + len(c["risultati"]))]
     for k, (rb, rf) in enumerate(zip(c["risultati"], ris_foglio), 1):
         vince_bot = config.nome(rb["casa"]) if rb["vince"] == "casa" else config.nome(rb["trasferta"])

@@ -98,7 +98,7 @@ async def cmd_taglia(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not context.args:
         # Mostra roster con bottoni
-        roster = [r for r in db.get_roster_team(team["id"]) or [] if not r.get("x0")]   # x0 scadono da soli
+        roster = [r for r in db.get_roster_team(team["id"], senza_10day=True) or [] if not r.get("x0")]   # x0 scadono da soli
         if not roster:
             await update.effective_message.reply_text("Il tuo roster è vuoto.")
             return
@@ -144,6 +144,8 @@ def _valuta_taglio(team: dict, gid: int) -> dict:
     contratto = db.get_contratto_attivo(gid)
     if not contratto or contratto["team_id"] != team["id"]:
         raise TaglioNonEseguibile("❌ Giocatore non trovato nel tuo roster.")
+    if contratto["tipo"] == "10day":
+        raise TaglioNonEseguibile("❌ È un 10-day: non si taglia, scade da solo. Per chiuderlo prima chiedi a un admin.")
     stagione = settings.stagione_corrente()
     anni_res = _anni_residui(contratto, stagione)
     if anni_res <= 0:
