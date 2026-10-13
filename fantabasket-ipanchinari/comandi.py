@@ -23,6 +23,7 @@ def liste_comandi() -> dict:
     admin = gm + [
         BotCommand("stato",            "Conferme e panchine della giornata [N]"),
         BotCommand("quintetti",        "Tutti i quintetti, una riga per squadra [N: giornata]"),
+        BotCommand("controlli",        "Formazioni della giornata chiusa da controllare su Yahoo [N]"),
         BotCommand("quintetto_admin",  "Quintetto di una squadra: coi bottoni, o SQUADRA e sotto i 5"),
         BotCommand("quintetti_import", "Quintetti di tutte le squadre (testo o file)"),
         BotCommand("panchina_admin",   "Panchina di una squadra (GN: giornata chiusa): coi bottoni o le righe sotto"),

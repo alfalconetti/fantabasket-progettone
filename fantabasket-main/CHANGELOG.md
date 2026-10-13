@@ -1260,3 +1260,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - Roster e asset Typst: le 15 righe sono dei giocatori che occupano uno slot; sotto, dopo una riga più spessa, le DPE che liberano lo slot e il 10-day
 - Foglio Roster: il 10-day non sta più nelle 15 righe ma sotto le DIS., riga "10-DAY ruolo nome scadenza" in verde petrolio. Le righe sotto gli impatti si puliscono a ogni sync, testo e colore (prima una DIS. finita oltre le righe degli impatti restava scritta, e il rosso restava sulle righe). Serve `clasp push` e Nuova versione
 
+## v5.2.2 (2026-10-14)
+
+- IPanchinari v18: l'admin conferma il quintetto di una squadra prima della scadenza; `/controlli [N]` per segnare le formazioni controllate su Yahoo dopo la scadenza (chi e quando), anche da sole quando l'admin le corregge
+

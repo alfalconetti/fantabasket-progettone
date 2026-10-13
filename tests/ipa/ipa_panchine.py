@@ -13,7 +13,7 @@ ok = lambda c, m: print(("✅" if c else "❌ FAIL"), m)
 spec = importlib.util.spec_from_file_location("louca_db", os.path.join(ROOT, "fantabasket-loucabot", "db.py"))
 ldb = importlib.util.module_from_spec(spec); spec.loader.exec_module(ldb); ldb.init_db()
 db.init_db()
-db.q("TRUNCATE ipa_quintetto, ipa_alias, ipa_cessioni, ipa_panchine, ipa_bozze, ipa_conferme, ipa_formazioni, ipa_stato_giornata, "
+db.q("TRUNCATE ipa_quintetto, ipa_alias, ipa_cessioni, ipa_panchine, ipa_bozze, ipa_conferme, ipa_formazioni, ipa_stato_giornata, ipa_controlli, "
      "lega_giornate, nba_tabellini, nba_partite, nba_atleti, nba_infortuni")
 G = json.load(open(config.GLOBALS_PATH)); G["canale_panchinari_id"] = -500; json.dump(G, open(config.GLOBALS_PATH, "w"))
 
@@ -333,7 +333,7 @@ ok(m.risposte[-1][0] == "⛔ Solo admin.", "/quintetti solo admin")
 m = Msg("/quintetto_admin Alfa"); asyncio.run(Q.cmd_quintetto_admin(upd(900, m), CTX))
 t, k = m.risposte[-1]
 ok("(admin)" in t and "Ja Morant" in t and "q:c:team01:SG" in bottoni(k["reply_markup"])
-   and not any(b.startswith("q:ok") for b in bottoni(k["reply_markup"])), "quintetto_admin senza righe: bottoni, parte dall'attuale")
+   , "quintetto_admin senza righe: bottoni, parte dall'attuale")
 premi(900, f"q:s:team01:PG:{gids['Walter Clayton Jr.']}")
 ok(db.quintetto("team01")["PG"] == gids["Walter Clayton Jr."] and db.formazione(S, 1, "team01")["PG"] == gids["Walter Clayton Jr."],
    "admin coi bottoni a giornata in corso: aggiorna anche la formazione")
@@ -450,11 +450,34 @@ ok([r["giocatore_id"] for r in p2["righe"]][-1] == gids["Jalen Brunson"] and all
 m = Msg("/panchina_admin Alfa G9\nJa Morant\nBarlow\nClifford\nLooney\nBrunson"); asyncio.run(P.cmd_panchina_admin(upd(900, m), CTX))
 ok("non trovata" in m.risposte[-1][0] or "non è ancora chiusa" in m.risposte[-1][0], "G di una giornata non chiusa o inesistente: rifiutato")
 
+# ── conferma dell'admin e controllo delle formazioni dopo la scadenza ──
+aperta_g = {"numero": 3, "prima_partita": datetime.now(timezone.utc) + timedelta(days=3)}
+ok(f"q:ok:team02:3" in bottoni(Q._tastiera("team02", aperta_g, admin=True)), "l'admin può confermare il quintetto di una squadra")
+_gc = Q.giornata_da_controllare()
+NC = _gc["numero"] if _gc else None
+ok(NC and db.stato_giornata(S, NC)["chiusa"] and Q.giornata_in_corso()["numero"] == NC, "da controllare: la giornata in corso chiusa")
+ok(f"q:ck:team02:{NC}" in bottoni(Q._tastiera("team02", None, admin=True)), "editor admin: ☑️ Segna controllata")
+m = Msg(); u = upd(900, m); asyncio.run(Q.cmd_controlli(u, CTX))
+t, k = m.risposte[-1]
+ok(f"Controllo formazioni G{NC}" in t and "⬜ <b>Beta</b>" in t and f"ck:{NC}:team02" in bottoni(k["reply_markup"]), "/controlli: le formazioni da controllare")
+uq = upd(101, cb=f"ck:{NC}:team02"); asyncio.run(Q.cb_controlli(uq, CTX))
+ok(uq.callback_query.risposte == ["Solo admin."] and "team02" not in db.controlli(S, NC), "controllo: solo admin")
+uq = upd(900, cb=f"ck:{NC}:team02"); uq.effective_user.first_name = "Luca"; asyncio.run(Q.cb_controlli(uq, CTX))
+c2 = db.controlli(S, NC).get("team02")
+ok(c2 and c2["da_nome"] == "Luca" and "☑️ <b>Beta</b>" in uq.callback_query.testi[-1][0],
+   "tocco: Beta controllata da Luca")
+uq = upd(900, cb=f"ck:{NC}:team02"); asyncio.run(Q.cb_controlli(uq, CTX))
+ok("team02" not in db.controlli(S, NC), "secondo tocco: tolto")
+m = Msg("/quintetto_admin Alfa G2\nJalen Brunson\nBooker\nBridges\nGrant Williams\nMark Williams"); asyncio.run(Q.cmd_quintetto_admin(upd(900, m), CTX))
+ok("team01" in db.controlli(S, 2) and "controllata" in m.risposte[-1][0], "correzione della formazione G2: controllata da sola")
+m = Msg(); u = upd(900, m); CTX.args = ["2"]; asyncio.run(Q.cmd_stato(u, CTX)); CTX.args = []
+ok(any("☑️ · Alfa" in x["text"] for x in BOT.mandati[-3:]) or "☑️ · Alfa" in str(m.risposte), "/stato 2: ☑️ accanto a chi è controllato")
+
 # pulizia
 ids = list(gids.values())
 db.q("DELETE FROM cambi_ruolo WHERE giocatore_id = ANY(%s)", (ids,))
 db.q("DELETE FROM contratti WHERE giocatore_id = ANY(%s)", (ids,))
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (ids,))
-db.q("TRUNCATE ipa_quintetto, ipa_alias, ipa_cessioni, ipa_panchine, ipa_bozze, ipa_conferme, ipa_formazioni, ipa_stato_giornata, "
+db.q("TRUNCATE ipa_quintetto, ipa_alias, ipa_cessioni, ipa_panchine, ipa_bozze, ipa_conferme, ipa_formazioni, ipa_stato_giornata, ipa_controlli, "
      "lega_giornate, nba_tabellini, nba_partite, nba_atleti, nba_infortuni")
 _ = date

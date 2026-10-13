@@ -101,6 +101,15 @@ def migra():
             da           BIGINT,
             quando       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             PRIMARY KEY (stagione, giornata, team_id))""")
+    # v18: formazioni controllate dagli admin su Yahoo dopo la scadenza (chi, quando)
+    q("""CREATE TABLE IF NOT EXISTS ipa_controlli (
+            stagione     TEXT NOT NULL,
+            giornata     INT  NOT NULL,
+            team_id      TEXT NOT NULL,
+            da           BIGINT,
+            da_nome      TEXT,
+            quando       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (stagione, giornata, team_id))""")
     q("""CREATE TABLE IF NOT EXISTS ipa_formazioni (
             stagione     TEXT NOT NULL,
             giornata     INT  NOT NULL,
@@ -203,6 +212,21 @@ def conferma(stagione: str, giornata_: int, team_id: str, stato: str, da=None) -
 
 def conferme(stagione: str, giornata_: int) -> dict[str, dict]:
     righe = q("SELECT * FROM ipa_conferme WHERE stagione = %s AND giornata = %s", (stagione, giornata_), many=True) or []
+    return {r["team_id"]: r for r in righe}
+
+
+def segna_controllo(stagione: str, giornata_: int, team_id: str, da: int, da_nome: str) -> None:
+    q("""INSERT INTO ipa_controlli (stagione, giornata, team_id, da, da_nome) VALUES (%s, %s, %s, %s, %s)
+         ON CONFLICT (stagione, giornata, team_id) DO UPDATE SET da = EXCLUDED.da, da_nome = EXCLUDED.da_nome, quando = NOW()""",
+      (stagione, giornata_, team_id, da, da_nome))
+
+
+def togli_controllo(stagione: str, giornata_: int, team_id: str) -> None:
+    q("DELETE FROM ipa_controlli WHERE stagione = %s AND giornata = %s AND team_id = %s", (stagione, giornata_, team_id))
+
+
+def controlli(stagione: str, giornata_: int) -> dict[str, dict]:
+    righe = q("SELECT * FROM ipa_controlli WHERE stagione = %s AND giornata = %s", (stagione, giornata_), many=True) or []
     return {r["team_id"]: r for r in righe}
 
 

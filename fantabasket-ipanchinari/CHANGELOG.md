@@ -83,3 +83,8 @@ Primo rilascio: panchine e quintetti.
 
 - Per il calcolo di loucabot: alla scadenza si congela anche il **ruolo di ogni panchinaro** nella panchina della giornata (la FADD usa quello). `/panchina_admin SQUADRA GN` corregge la panchina di una giornata già chiusa (anche col builder): si pubblica a scadenza passata, i ruoli si ricongelano, invito a `/ricalcola N` su loucabot
 
+## v18 (2026-10-14)
+
+- L'admin può **confermare il quintetto** di una squadra prima della scadenza: nell'editor di `/quintetto_admin SQUADRA` c'è ✅ Conferma per la giornata N (admin); la squadra risulta ✅ in `/stato` e nel riepilogo
+- **`/controlli [N]`**: dopo la scadenza, le formazioni congelate della giornata, una per squadra, con ☑️ controllata (chi e quando) o ⬜ da controllare su Yahoo e lo stato del GM; un bottone per squadra segna (o toglie) il controllo. Una correzione dell'admin alla formazione di una giornata chiusa la segna controllata da sola. Il segno c'è anche nell'editor admin e in `/stato N` (tabella `ipa_controlli`)
+

@@ -39,7 +39,7 @@ Il ruolo di ogni titolare è quello di roster: un giocatore scritto in un ruolo 
 
 **Durante la stagione**: alle 8 dell'ultimo giorno prima della giornata i GM ricevono il promemoria e confermano o modificano. **2 ore prima della scadenza** nel gruppo admin arriva il riepilogo:
 
-- ✅ confermato · ✏️ modificato · — niente: le squadre con "—" sono quelle di cui controllare il quintetto su Yahoo (con `/quintetto_admin`);
+- ✅ confermato · ✏️ modificato · — niente: le squadre con "—" sono quelle di cui controllare il quintetto su Yahoo (con `/quintetto_admin`). Se lo controlli tu prima della scadenza, nell'editor di `/quintetto_admin SQUADRA` c'è **✅ Conferma per la giornata N (admin)**: la squadra passa a ✅ come se avesse confermato il GM;
 - 🪑 panchina mandata · ❌ mancante;
 - ⚠️ incompatibilità (titolare non più in squadra o in un altro ruolo, anche in panchina, ruolo vuoto).
 
@@ -48,6 +48,8 @@ Il ruolo di ogni titolare è quello di roster: un giocatore scritto in un ruolo 
 **`/quintetti`** mostra tutti i quintetti attuali, una riga per squadra (`PG … · SG … · SF … · PF … · C …`; ⚠️ accanto a un giocatore non più in squadra, — per un ruolo vuoto). **`/quintetti N`** mostra invece le formazioni congelate della giornata N, quelle che usa il calcolo.
 
 **Alla scadenza** i quintetti si congelano: sono quelli della giornata per il calcolo. Nel gruppo admin arriva l'elenco delle squadre senza panchina (penalità).
+
+**Dopo la scadenza: tenere il segno dei controlli.** **`/controlli`** (o `/controlli N`) mostra le formazioni congelate della giornata in corso (o della N), una per squadra, con ☑️ controllata (chi e quando) o ⬜ da controllare, e accanto lo stato del GM (✅ ✏️ —). Sotto c'è un bottone per squadra: lo tocchi quando hai controllato quella formazione su Yahoo (un altro tocco toglie il segno), 🔄 aggiorna. Se correggi una formazione (`/quintetto_admin SQUADRA`, anche coi bottoni, o `/quintetto_admin SQUADRA G5`) si segna controllata da sola. Lo stesso segno c'è nell'editor di `/quintetto_admin SQUADRA` (☑️ Segna controllata) e in `/stato N` a giornata chiusa.
 
 **Non serve fare tutto prima della scadenza.** I quintetti si correggono anche a giornata in corso:
 - `/quintetto_admin SQUADRA` con i 5 titolari cambia il quintetto e, se c'è una giornata in corso, anche la sua formazione (quella del calcolo);
