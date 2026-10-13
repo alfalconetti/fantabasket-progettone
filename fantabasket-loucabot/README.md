@@ -130,6 +130,7 @@ riscarica i tabellini: se ESPN ne ha corretto uno di un giocatore schierato, avv
 | `/nba_sync` | admin | riscarica tutte le partite NBA della stagione |
 | `/calendario_foglio` | admin | ricarica il foglio Calendario (A:E: calendario, squadre a media, punteggi) |
 | `/ricalcola N` | admin | riscarica i tabellini, ricalcola la giornata e la ripropone da convalidare |
+| `/live` | admin | aggiorna subito i punteggi live sul canale principale (o l'anteprima) |
 | `/fantapunti [N]` | admin | fantapunti della giornata dei giocatori a roster, per squadra |
 | `/set_valid_status GIOCATORE N` | admin | lo status che vale per il calcolo della giornata, scelto tra quelli degli snapshot |
 | `/tabellini` | admin | scarica i tabellini delle partite finite che mancano e fa uno snapshot degli infortunati |

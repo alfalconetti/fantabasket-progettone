@@ -1264,3 +1264,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - IPanchinari v18: l'admin conferma il quintetto di una squadra prima della scadenza; `/controlli [N]` per segnare le formazioni controllate su Yahoo dopo la scadenza (chi e quando), anche da sole quando l'admin le corregge
 
+## v5.3.0 (2026-10-14)
+
+- loucabot v18: **punteggi live** sul canale principale (dalla prima partita ogni 10 minuti fino alle 8, poi alle 10:05 il controllo della notte con le differenze sul canale log), provvisori, col calcolo vero sui tabellini live; `/live`
+

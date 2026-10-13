@@ -9,6 +9,7 @@ Gli admin sono quelli di `admin_ids` in `globals.json`, gli stessi degli altri b
 ## Canali
 
 - **Gruppo admin** (`admin_group_id`): qui arrivano solo i cambi che contano per la lega, cioè una scadenza che si sposta o le squadre a media di una giornata che cambiano. loucabot deve essere nel gruppo.
+- **Canale principale** (`main_channel_id`, lo stesso del bot principale): il messaggio dei punteggi live di ogni giornata. **loucabot deve essere amministratore del canale** (con il permesso di pubblicare e modificare i messaggi).
 - **Canale log** (`log_channel_id_louca` in `globals.json`; senza, quello del bot principale): la parte tecnica. Ci vanno avvio ed errori, ogni import del calendario, ogni `/nba_sync`, `/tabellini`, `/espn_giocatori`, ogni abbinamento a mano e la sincronizzazione delle 8:30, anche quando non cambia niente (così si vede che gira).
 
 ---
@@ -57,6 +58,18 @@ Il foglio di controllo è un file Google a parte (`CALCOLO_SPREADSHEET_ID` in `g
 
 ---
 
+## I punteggi live
+
+Alla palla a due della prima partita della giornata il bot pubblica sul canale principale un messaggio con tutte le partite della giornata: punteggio di casa e trasferta (bonus casa compreso), chi è avanti, i supplementari se servirebbero, quanti giocatori in campo sono in partita adesso (🏀) e quanti devono ancora giocare (⏳). È il calcolo vero (medie, media della stagione, FADD, supplementari) sui tabellini live di ESPN. Sotto c'è scritto che sono **risultati provvisori, da valutare e convalidare da un admin**, e l'ora dell'ultimo aggiornamento.
+
+- Si aggiorna (modificando lo stesso messaggio) **ogni 10 minuti** dalla prima partita di ogni notte della giornata **fino alle 8 di mattina**, poi **una volta alle 10:05**: è il controllo della notte appena finita a giornata in corso. Riscarica tutte le partite di quella notte (ESPN a volte riassegna le statistiche) e aggiorna il messaggio; se è cambiato il tabellino di un giocatore schierato, sul canale log arriva una riga con le differenze. Dopo l'ultima notte non riscarica: l'ha appena fatto il controllo del calcolo delle 10:00, che avvisa il gruppo admin.
+- Formazioni: quelle congelate da IPanchinari alla scadenza (nei primi minuti, finché IPanchinari non chiude la giornata, i quintetti di quel momento).
+- Se ESPN non risponde si salta il giro e si riprova dopo 20 minuti; sul canale log una riga (al massimo una all'ora).
+- **`/live`**: aggiorna subito, senza aspettare i 10 minuti (se nessuna giornata è in corso, ti manda l'anteprima della prossima). Anche `/dev_prova_calcolo` manda l'anteprima del messaggio live.
+- Fa fede sempre il calcolo delle 7:45 convalidato: il live è solo una stima.
+
+---
+
 ## I punteggi
 
 **Tabellini.** A partita finita il bot scarica da ESPN il tabellino e salva statistiche e fantapunti di ogni giocatore NBA. Lo fa alle 8:30; `/tabellini` lo fa subito, per le partite finite che ancora non ce l'hanno.
@@ -97,6 +110,7 @@ Restano agli admin le 72 ore di attesa per le partite rinviate e le penalità.
 | `/espn_mancanti` | giocatori a roster senza id ESPN |
 | `/espn_abbina ID_GIOCATORE ID_ESPN` | abbinamento a mano |
 | `/ricalcola N` | riscarica i tabellini della giornata N, ricalcola, riscrive il tab «Calcolo GN» e ripropone la convalida |
+| `/live` | aggiorna subito il messaggio live della giornata in corso (o l'anteprima, se non è iniziata) |
 | `/fantapunti [N]` | fantapunti della giornata, per squadra |
 | `/set_valid_status GIOCATORE N` | lo status di un giocatore che vale per il calcolo della giornata N, scelto tra quelli degli snapshot |
 | `/calendario [N]`, `/giornata [N]` | come i GM |

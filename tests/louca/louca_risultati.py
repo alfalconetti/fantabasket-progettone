@@ -223,8 +223,83 @@ ok(prova and "PROVA" in prova[0]["text"] and "Giornata 0 calcolata" in prova[0][
 ok(db.q("SELECT COUNT(*) AS n FROM lega_calcoli WHERE giornata = 0", one=True)["n"] == 0, "la prova non salva niente")
 db.q("DELETE FROM ipa_quintetto")
 
+# ── punteggi live (v18) ──
+import live as LV
+from zoneinfo import ZoneInfo
+ROMA = ZoneInfo("Europe/Rome")
+LV.migra(); db.q("TRUNCATE lega_live")
+G = _json.load(open(config.GLOBALS_PATH)); G["main_channel_id"] = -1; _json.dump(G, open(config.GLOBALS_PATH, "w"))
+g7 = {**db.giornata(S, N), "stagione": S}
+nn = LV.notti(g7)
+ok([d for d, _, _ in nn] == [DAL, DAL + timedelta(days=1), AL] and nn[0][1] == datetime(2026, 11, 10, 23, 0, tzinfo=timezone.utc)
+   and nn[0][2] == datetime(2026, 11, 11, 8, 0, tzinfo=ROMA), "notti: dalla prima partita alle 8 del mattino dopo")
+t0 = nn[0][1]
+ok(LV.cosa_fare(g7, t0 - timedelta(minutes=1), None) == (None, None), "prima della palla a due: niente")
+ok(LV.cosa_fare(g7, t0, None) == ("live", DAL), "alla palla a due: si pubblica")
+st_ = {"message_id": 5, "aggiornato": t0}
+ok(LV.cosa_fare(g7, t0 + timedelta(minutes=5), st_) == (None, None) and LV.cosa_fare(g7, t0 + timedelta(minutes=10), st_) == ("live", DAL),
+   "poi ogni 10 minuti")
+ok(LV.cosa_fare(g7, datetime(2026, 11, 11, 9, 0, tzinfo=ROMA), {**st_, "aggiornato": datetime(2026, 11, 11, 7, 55, tzinfo=ROMA)}) == (None, None),
+   "dalle 8 alle 10 niente")
+ok(LV.cosa_fare(g7, datetime(2026, 11, 11, 10, 6, tzinfo=ROMA), {**st_, "aggiornato": datetime(2026, 11, 11, 7, 55, tzinfo=ROMA)})
+   == ("controllo", DAL), "alle 10:05 un aggiornamento (dopo il controllo dei tabellini)")
+ok(LV.cosa_fare(g7, t0 + timedelta(minutes=30), {**st_, "prossimo": t0 + timedelta(minutes=40)}) == (None, None), "dopo un errore si aspetta")
+
+class BotL(Bot):
+    async def edit_message_text(s, chat_id, message_id, text, **k):
+        s.mandati.append({"chat_id": chat_id, "id": message_id, "text": text, "modifica": True})
+BL = BotL()
+scaricate = []
+async def finta(g, d, controllo=False):
+    scaricate.append((d, controllo))
+db.q("UPDATE lega_giornate SET prima_partita = %s WHERE stagione = %s AND numero = %s", (t0, S, N))
+fatti = asyncio.run(LV.tick(BL, ora=t0 + timedelta(seconds=30), scarica_fn=finta))
+pub = [x for x in BL.mandati if x.get("chat_id") == -1]
+c_ora = LV.calcolo(S, N)
+r0 = c_ora["risultati"][0]
+ok(len(pub) == 1 and "punteggi live" in pub[0]["text"] and "provvisori" in pub[0]["text"] and "convalida un admin" in pub[0]["text"]
+   and "Ultimo aggiornamento: 11/11 alle 00:00" in pub[0]["text"]
+   and f"{LV.tp(r0['punti_casa'])} – {LV.tp(r0['punti_trasferta'])}" in pub[0]["text"] and scaricate == [(DAL, False)],
+   "tipoff: messaggio sul canale principale col calcolo, provvisorio, ora dell'aggiornamento")
+asyncio.run(LV.tick(BL, ora=t0 + timedelta(minutes=4), scarica_fn=finta))
+ok(len([x for x in BL.mandati if x.get("chat_id") == -1]) == 1 and len(scaricate) == 1, "4 minuti dopo: niente")
+asyncio.run(LV.tick(BL, ora=t0 + timedelta(minutes=11), scarica_fn=finta))
+mod = [x for x in BL.mandati if x.get("modifica")]
+ok(len(mod) == 1 and mod[0]["id"] == pub[0]["id"] and len(scaricate) == 2, "10 minuti dopo: si modifica lo stesso messaggio")
+async def rotta(g, d, controllo=False):
+    raise RuntimeError("429 Too Many Requests")
+BL.mandati.clear()
+asyncio.run(LV.tick(BL, ora=t0 + timedelta(minutes=22), scarica_fn=rotta))
+stl = LV.stato(S, N)
+ok(stl["prossimo"] == t0 + timedelta(minutes=42) and any("aggiornamento saltato" in x["text"] for x in BL.mandati if x["chat_id"] == -3)
+   and not any(x.get("modifica") for x in BL.mandati), "ESPN in errore: giro saltato, si riprova fra 20 minuti, una riga sul log")
+asyncio.run(LV.tick(BL, ora=t0 + timedelta(minutes=32), scarica_fn=finta))
+ok(len(scaricate) == 2, "prima dei 20 minuti non riprova")
+asyncio.run(LV.tick(BL, ora=datetime(2026, 11, 11, 10, 6, tzinfo=ROMA), scarica_fn=finta))
+ok(scaricate[-1] == (DAL, True), "alle 10:05 riscarica i tabellini della notte")
+async def con_cambi(g, d, controllo=False):
+    return {"cambi": {("g1", "r1"): ((30.0, 30, "Prova 1"), (32.5, 31, "Prova 1")), ("g1", "r99"): ((5.0, 10, "Nessuno"), (6.0, 10, "Nessuno"))}}
+db.q("UPDATE lega_live SET aggiornato = %s WHERE stagione = %s AND giornata = %s", (datetime(2026, 11, 12, 7, 55, tzinfo=ROMA), S, N))
+BL.mandati.clear()
+asyncio.run(LV.tick(BL, ora=datetime(2026, 11, 12, 10, 6, tzinfo=ROMA), scarica_fn=con_cambi))
+righe_log = [x["text"] for x in BL.mandati if x.get("chat_id") == -3 and "controllo delle 10:05" in x.get("text", "")]
+ok(len(righe_log) == 1 and "Prova 1: 30,00 → 32,50 fantapunti (minuti 30 → 31)" in righe_log[0] and "Nessuno" not in righe_log[0]
+   and "notte del 11/11" in righe_log[0], "10:05: tabellini cambiati di giocatori schierati sul canale log (gli altri no)")
+# tabellino parziale: la partita resta senza tabellino (il definitivo si riscarica a partita finita)
+db.salva_tabellino("g5", [{"partita": "g5", "atleta": "r1", "nome": "r1", "squadra": "NYK", "titolare": True, "giocato": True,
+                           "minuti": 10, "pts": 0, "fgm": 0, "fga": 0, "tpm": 0, "tpa": 0, "ftm": 0, "fta": 0, "oreb": 0,
+                           "dreb": 0, "ast": 0, "stl": 0, "blk": 0, "tov": 0, "pf": 0, "fp": 21}], finale=False)
+ok(db.q("SELECT tabellino FROM nba_partite WHERE espn_id = 'g5'", one=True)["tabellino"] is None and "g5" in db.partite_senza_tabellino(),
+   "tabellino live: partita ancora da riscaricare")
+db.q("UPDATE nba_partite SET stato = 'STATUS_IN_PROGRESS' WHERE espn_id = 'g5'")
+c_ora = LV.calcolo(S, N)
+r_b = next(r for r in c_ora["risultati"] if r["trasferta"] == "team02" or r["casa"] == "team02")
+lato = r_b["st"] if r_b["trasferta"] == "team02" else r_b["sc"]
+ok(LV._da_giocare(c_ora, lato)[0] >= 1 and "🏀 in campo" in LV.testo(c_ora, t0), "partita in corso: giocatori in campo")
+db.q("UPDATE nba_partite SET stato = 'STATUS_FINAL' WHERE espn_id = 'g5'")
+
 # pulizia
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (list(gid.values()),))
-db.q("TRUNCATE nba_tabellini, nba_infortuni, lega_giornate, lega_partite, nba_partite, lega_risultati, lega_calcoli")
+db.q("TRUNCATE nba_tabellini, nba_infortuni, lega_giornate, lega_partite, nba_partite, lega_risultati, lega_calcoli, lega_live")
 db.q("TRUNCATE ipa_formazioni, ipa_panchine, ipa_stato_giornata")
 _ = (asyncio, json, types)

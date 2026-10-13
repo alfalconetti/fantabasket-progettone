@@ -173,7 +173,7 @@ def leggi_tabellino(dati: dict, partita: str) -> list[dict]:
     return out
 
 
-async def scarica_tabellini(partite: list[str], scarica=None, pausa: float = 1.0) -> dict:
+async def scarica_tabellini(partite: list[str], scarica=None, pausa: float = 1.0, finale: bool = True) -> dict:
     """Scarica e salva i tabellini delle partite indicate (id ESPN). `scarica(id)` si può sostituire
     nelle prove. Una partita va scaricata una volta sola: chi chiama passa solo quelle finite e
     senza tabellino (db.partite_senza_tabellino)."""
@@ -191,7 +191,7 @@ async def scarica_tabellini(partite: list[str], scarica=None, pausa: float = 1.0
                 tab = leggi_tabellino(await scarica(pid), pid)
                 if not tab:
                     raise ValueError("tabellino vuoto")
-                db.salva_tabellino(pid, tab)
+                db.salva_tabellino(pid, tab, finale=finale)
                 salvate += 1
                 righe += len(tab)
             except Exception as e:

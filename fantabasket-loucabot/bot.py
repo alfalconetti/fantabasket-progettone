@@ -52,6 +52,8 @@ async def post_init(app):
 
 def main():
     db.init_db()
+    import live
+    live.migra()
     app = ApplicationBuilder().token(_token()).post_init(post_init).build()
     from handlers import _is_dev
     from shared import dev_comune
@@ -68,6 +70,8 @@ def main():
     for ora in ORE_SNAPSHOT:
         app.job_queue.run_daily(job_infortuni, time=ora)
     app.job_queue.run_repeating(job_prepartita, interval=timedelta(minutes=10), first=120)
+    # punteggi live: il job guarda ogni minuto, aggiorna ogni 10 (live.cosa_fare)
+    app.job_queue.run_repeating(live.job_live, interval=timedelta(minutes=1), first=60)
     logger.info("loucabot %s avviato.", BOT_VERSION)
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 

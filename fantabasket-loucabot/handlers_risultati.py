@@ -269,12 +269,49 @@ async def cmd_dev_prova_calcolo(update: Update, context: ContextTypes.DEFAULT_TY
             foglio = await R.scrivi_foglio(c)
             await context.bot.send_message(chat_id=update.effective_chat.id, parse_mode="HTML",
                                            text="🧪 <b>PROVA</b> (niente è stato salvato)\n\n" + R.testo(c) + f"\n\n<i>{e(foglio)}</i>")
+            import live
+            await context.bot.send_message(chat_id=update.effective_chat.id, parse_mode="HTML",
+                                           text=live.testo(c, datetime.now(timezone.utc), prova=True))
         except Exception as err:
             logger.exception("Prova del calcolo")
             await context.bot.send_message(chat_id=update.effective_chat.id, text=f"⚠️ Prova fallita: {err}")
     await _avvia(context, lavoro())
 
 
+async def cmd_live(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/live (admin): il messaggio live della giornata in corso adesso, senza aspettare i 10 minuti.
+    Se la giornata non è ancora iniziata, l'anteprima solo a chi lo chiede."""
+    import live
+    if not config.is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ Solo admin.")
+        return
+    s = config.stagione()
+    ora = datetime.now(timezone.utc)
+    attive = live.giornate_attive(s, ora)
+    msg = update.effective_message
+    if not attive:
+        import calendario as cal
+        g = cal.corrente(s)
+        if not g:
+            await msg.reply_text("Nessuna giornata.")
+            return
+        c = live.calcolo(s, g["numero"])
+        await msg.reply_text(live.testo(c, ora, prova=True), parse_mode="HTML")
+        return
+
+    async def lavoro():
+        for g in attive:
+            g = {**g, "stagione": s}
+            notte = next((d for d, inizio, fine in live.notti(g) if inizio <= ora < fine), None)
+            try:
+                esito = await live.aggiorna(context.bot, g, notte, ora)
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=f"🔴 Live G{g['numero']} aggiornato: {esito}")
+            except Exception as err:
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=f"⚠️ Live G{g['numero']}: {err}")
+    await _avvia(context, lavoro())
+
+
 def get_handlers() -> list:
     return [CommandHandler("ricalcola", cmd_ricalcola), CommandHandler("dev_prova_calcolo", cmd_dev_prova_calcolo),
+            CommandHandler("live", cmd_live),
             CallbackQueryHandler(cb_risultati, pattern=r"^rc:")]

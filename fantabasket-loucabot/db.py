@@ -3,6 +3,7 @@ PostgreSQL di loucabot: lo stesso database dei due bot, tabelle sue con prefisso
 Legge (mai scrive) le tabelle degli altri bot. Le righe sono dict (RealDictCursor).
 """
 import logging
+from datetime import datetime, timezone
 import os
 import re
 from contextlib import contextmanager
@@ -246,15 +247,18 @@ _COLONNE_TAB = ("partita", "atleta", "nome", "squadra", "titolare", "giocato", "
                 "tpm", "tpa", "ftm", "fta", "oreb", "dreb", "ast", "stl", "blk", "tov", "pf", "fp")
 
 
-def salva_tabellino(partita: str, righe: list[dict]) -> None:
-    """Sostituisce il tabellino di una partita (ESPN a volte corregge le statistiche) e segna la partita."""
+def salva_tabellino(partita: str, righe: list[dict], finale: bool = True) -> None:
+    """Sostituisce il tabellino di una partita (ESPN a volte corregge le statistiche) e segna la partita.
+    Con finale=False (live, partita in corso) la partita resta "senza tabellino": quello definitivo
+    si riscarica a partita finita (partite_senza_tabellino)."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM nba_tabellini WHERE partita = %s", (partita,))
             for r in righe:
                 cur.execute(f"INSERT INTO nba_tabellini ({', '.join(_COLONNE_TAB)}) VALUES "
                             f"({', '.join('%(' + c + ')s' for c in _COLONNE_TAB)})", r)
-            cur.execute("UPDATE nba_partite SET tabellino = NOW() WHERE espn_id = %s", (partita,))
+            cur.execute("UPDATE nba_partite SET tabellino = %s WHERE espn_id = %s",
+                        (datetime.now(timezone.utc) if finale else None, partita))
 
 
 def partite_senza_tabellino(fino=None) -> list[str]:

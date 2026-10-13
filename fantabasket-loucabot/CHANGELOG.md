@@ -89,3 +89,11 @@ Il calcolo dei fantapunti.
 
 - Medie arrotondate all'ottavo: la media delle notti della giornata e la media della stagione valgono solo ,00 ,13 ,25 ,38 ,50 ,63 ,75 ,88 dopo la virgola (prima a due decimali: uscivano 0,01 o 0,26). Lo stesso per totali e supplementari. Sul foglio di calcolo il punteggio è `ROUND(AVERAGE(notti)*8;0)/8`, provato con LibreOffice contro il bot. Nei messaggi la metà si scrive per eccesso (0,125 → 0,13)
 
+## v18 (2026-10-14)
+
+- **Punteggi live** sul canale principale: alla palla a due della prima partita della giornata un messaggio con tutte le partite (punteggi col bonus casa, chi è avanti, supplementari, giocatori in campo e da giocare), il calcolo vero sui tabellini live di ESPN; sotto "provvisori, li valuta e convalida un admin" e l'ora dell'ultimo aggiornamento. Si modifica ogni 10 minuti dalla prima partita di ogni notte fino alle 8 di mattina, poi una volta alle 10:05 dopo il controllo dei tabellini. ESPN in errore: giro saltato, nuovo tentativo dopo 20 minuti, riga sul canale log
+- Alle 10:05, a giornata in corso, il controllo della notte appena finita: riscarica tutte le sue partite e, se ESPN ha cambiato il tabellino di un giocatore schierato, una riga sul canale log con le differenze
+- `/live` (admin) aggiorna subito; `/dev_prova_calcolo` manda anche l'anteprima del messaggio live
+- I tabellini delle partite in corso si salvano senza segnare la partita come scaricata: il tabellino definitivo si riscarica sempre a partita finita
+- Serve che loucabot sia amministratore del canale principale
+
