@@ -4,6 +4,7 @@ scegliere in regular season, validazione degli anni, e le due sole funzioni che 
 nel database: _registra_firma_finale (contratto, cap e slot, RFA liberata) e
 _concludi_rfa_senza_contratto (lascia andare, RFA annullata senza offerte).
 """
+import html
 import logging
 from datetime import datetime, timezone
 
@@ -104,7 +105,7 @@ async def _concludi_rfa_senza_contratto(context, asta_id: int):
 async def _registra_firma_finale(
     context, asta_id: int, anni: int, team_id: str,
     query=None, importo_override: int = None, pareggiato: bool = False,
-    ruolo: str | None = None,
+    ruolo: str | None = None, nota_tempo: str | None = None,
 ) -> str | None:
     """
     Gestisce SEMPRE:
@@ -113,6 +114,9 @@ async def _registra_firma_finale(
     3. Registra contratto nel DB
     4. Aggiorna messaggio canale
     5. Annuncio firma nel canale
+
+    Quando qualcosa è stato deciso d'ufficio perché è scaduto il tempo (anni di penale, anni
+    minimi RFA, pareggio non deciso, ruolo estratto), l'annuncio sul canale lo dice: ⏰ Tempo scaduto.
     """
     asta = db.get_asta(asta_id)
     if not asta:
@@ -155,7 +159,7 @@ async def _registra_firma_finale(
                 ruolo, nota = fisso, " (regola dei 60 giorni)"
             elif ruolo is None:
                 ruolo = core.estrai_ruolo(pg_client.q, team_id, stagione, gid)
-                nota = " (estratto: nessuna risposta in tempo)" if ruolo else ""
+                nota = ((" (⏰ estratto: tempo scaduto)" if nota_tempo else " (estratto)") if ruolo else "")
             if ruolo:
                 core.registra_ruolo(pg_client.q, gid, team_id, ruolo, stagione, "post_firma")
                 riga_ruolo = f"\n🎽 Ruolo: <b>{ruolo}</b>{nota}"
@@ -173,7 +177,14 @@ async def _registra_firma_finale(
         team_id=team_id, importo=importo, anni=anni,
         ruolo=ruolo, firmato_at=now,
     )
-    db.concludi_asta(asta_id, anni_contratto=anni, firmato_at=now)
+    # Cose decise d'ufficio perché è scaduto il tempo: nell'annuncio e nel messaggio dell'asta
+    scaduti = [nota_tempo] if nota_tempo else []
+    if asta["tipo"] == "RFA" and not pareggiato and asta["anni_automatici"]:
+        scaduti.insert(0, "il vincitore non ha scelto gli anni: minimi per fascia d'ufficio")
+    riga_tempo = "".join(f"\n⏰ <i>Tempo scaduto: {html.escape(x, quote=False)}</i>" for x in scaduti)
+
+    db.concludi_asta(asta_id, anni_contratto=anni, firmato_at=now, team_firma=team_id, importo_firma=importo,
+                     note_tempo=scaduti)
 
     await _aggiorna_canale(context, asta_id)
 
@@ -185,7 +196,13 @@ async def _registra_firma_finale(
     main_channel_id = utils.load_globals().get("main_channel_id")
     if main_channel_id:
         try:
-            if asta["tipo"] == "RFA" and pareggiato:
+            if asta["tipo"] == "RFA" and pareggiato and not asta["offerente_team_id"]:
+                # Nessuna offerta: il proprietario rifirma (non è un pareggio)
+                testo_main = (
+                    f"🖊️ <b>{team_nome} rifirma {asta['giocatore']}</b> (RFA senza offerte)\n"
+                    f"💰 {importo}M × {anni} ann{'o' if anni==1 else 'i'}"
+                )
+            elif asta["tipo"] == "RFA" and pareggiato:
                 # Proprietario ha pareggiato
                 testo_main = (
                     f"⚖️ <b>{team_nome} pareggia {asta['giocatore']}</b>\n"
@@ -200,6 +217,7 @@ async def _registra_firma_finale(
                     f"❌ {team_prop_nome} non pareggia\n"
                     f"<b>{firma_label} {asta['giocatore']}</b> con <b>{team_nome}</b>\n"
                     f"💰 {importo}M × {anni} ann{'o' if anni==1 else 'i'}"
+                    f"{riga_tempo}"
                 )
             else:
                 # FA normale
@@ -207,7 +225,7 @@ async def _registra_firma_finale(
                 testo_main = (
                     f"<b>{firma_label} {asta['giocatore']}</b> con <b>{team_nome}</b>\n"
                     f"💰 {importo}M × {anni} ann{'o' if anni==1 else 'i'}"
-                    f"{riga_ruolo}"
+                    f"{riga_ruolo}{riga_tempo}"
                 )
             await context.bot.send_message(
                 chat_id=main_channel_id,

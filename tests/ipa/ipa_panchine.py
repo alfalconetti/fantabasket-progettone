@@ -4,7 +4,7 @@ pubblicazione sul canale solo con le righe del GM, aggiornamento, scadenza), qui
 import, /quintetto coi bottoni, conferma, incompatibilità), promemoria, riepilogo e chiusura."""
 import asyncio, importlib.util, json, os, types
 from datetime import date, datetime, timedelta, timezone
-import config, db, comune, panchine as P, quintetti as Q
+import config, db, comune, panchine as P, quintetti as Q, soprannomi as SO, cessioni as CE
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ok = lambda c, m: print(("✅" if c else "❌ FAIL"), m)
@@ -13,7 +13,7 @@ ok = lambda c, m: print(("✅" if c else "❌ FAIL"), m)
 spec = importlib.util.spec_from_file_location("louca_db", os.path.join(ROOT, "fantabasket-loucabot", "db.py"))
 ldb = importlib.util.module_from_spec(spec); spec.loader.exec_module(ldb); ldb.init_db()
 db.init_db()
-db.q("TRUNCATE ipa_quintetto, ipa_alias, ipa_panchine, ipa_bozze, ipa_conferme, ipa_formazioni, ipa_stato_giornata, "
+db.q("TRUNCATE ipa_quintetto, ipa_alias, ipa_cessioni, ipa_panchine, ipa_bozze, ipa_conferme, ipa_formazioni, ipa_stato_giornata, "
      "lega_giornate, nba_tabellini, nba_partite, nba_atleti")
 G = json.load(open(config.GLOBALS_PATH)); G["canale_panchinari_id"] = -500; json.dump(G, open(config.GLOBALS_PATH, "w"))
 
@@ -128,9 +128,13 @@ canale = [x for x in BOT.mandati if x["chat_id"] == -500]
 ok(len(canale) == 1 and canale[0]["text"].startswith("<b>Alfa</b>") and "Dominik Arcade Boy Barlow" in canale[0]["text"] and "Dominick Barlow" not in canale[0]["text"]
    and "<i>No Buffalo Brownies</i>" in canale[0]["text"] and "Alfa" in canale[0]["text"],
    f"sul canale solo le righe del GM (niente nomi veri) e il titolo: {canale[0]['text'] if canale else ''}")
+ok("<i>✍️ GM · inserita " in canale[0]["text"] and " alle " in canale[0]["text"], "sul canale: inserita dal GM, giorno e ora")
 p = db.panchina(S, 2, "team01")
 ok([r["giocatore_id"] for r in p["righe"]] == [gids[n] for n in ("Ja Morant", "Dominick Barlow", "Walter Clayton Jr.",
                                                                     "Nique Clifford", "Kevon Looney")], "panchina salvata in ordine coi giocatori veri")
+
+m = manda(101, "Ja Morant\nBarlow\nClayton\nClifford")
+ok("5 giocatori, mai meno" in m.risposte[0][0] and "pb:" not in str(m.risposte[0][1]), "4 righe: rifiutata, la panchina è sempre di 5")
 
 # ── soprannome sconosciuto: si sceglie coi bottoni e si ricorda ──
 m = manda(101, "Lo Sceriffo\nBarlow\nClayton\nClifford\nLooney")
@@ -145,6 +149,7 @@ premi(101, f"pb:ok:{bid}")
 canale = [x for x in BOT.mandati if x["chat_id"] == -500]
 ok(len(canale) == 2 and canale[1].get("modifica") and canale[1]["id"] == canale[0]["id"] and "aggiornata" in canale[1]["text"],
    "rimandata: modifica il messaggio di prima sul canale, niente messaggio nuovo")
+ok("✍️ GM · ultima modifica " in canale[1]["text"], "aggiornata: ora dell'ultima modifica")
 m = manda(101, "lo sceriffo!\nBarlow\nClayton\nClifford\nLooney")
 ok("lo sceriffo! → <b>Josh Hart</b>" in m.risposte[0][0], "la volta dopo il soprannome si riconosce da solo (alias)")
 
@@ -210,36 +215,45 @@ ok(f"pb:b:{bid}:{gids['Josh Hart']}" not in bottoni(qb.testi[-1][1]["reply_marku
 premi(101, f"pb:b:{bid}:{gids['Kevon Looney']}")
 qb = premi(101, f"pb:u:{bid}")
 ok("Kevon Looney" not in qb.testi[-1][0], "builder: togli l'ultimo")
-premi(101, f"pb:b:{bid}:{gids['Ja Morant']}")
-qb = premi(101, f"pb:bv:{bid}")
+qb = premi(101, f"pb:b:{bid}:{gids['Ja Morant']}")
+ok(not any(x.startswith("pb:bv") or x.startswith("pb:ok") for x in bottoni(qb.testi[-1][1]["reply_markup"])),
+   "builder: niente anteprima né Pubblica prima del quinto")
+premi(101, f"pb:b:{bid}:{gids['Dominick Barlow']}"); premi(101, f"pb:b:{bid}:{gids['Nique Clifford']}")
+qb = premi(101, f"pb:b:{bid}:{gids['Kevon Looney']}")
 ok(f"pb:ok:{bid}" in bottoni(qb.testi[-1][1]["reply_markup"]) and "2. Ja Morant → <b>Ja Morant</b>" in qb.testi[-1][0],
-   "builder: anteprima e Pubblica come per il messaggio")
+   "builder: al quinto l'anteprima con Pubblica, come per il messaggio")
 BOT.mandati.clear(); premi(101, f"pb:ok:{bid}")
 ok(any(x["chat_id"] == -500 and "1. Josh Hart\n2. Ja Morant" in x["text"] for x in BOT.mandati), "builder: sul canale i nomi dei giocatori")
+ok("josh hart" not in db.alias("team01"), "il nome vero non diventa un soprannome")
 
 # ── CAI mode dal builder: titolo e soprannomi ──
 m = Msg(); asyncio.run(P.cmd_build_panchina(upd(101, m), CTX))
 bid = int(bottoni(m.risposte[0][1]["reply_markup"])[0].split(":")[2])
-premi(101, f"pb:b:{bid}:{gids['Josh Hart']}"); premi(101, f"pb:b:{bid}:{gids['Kevon Looney']}")
-qb = premi(101, f"pb:bv:{bid}")
+CINQUE = ["Josh Hart", "Kevon Looney", "Ja Morant", "Dominick Barlow", "Nique Clifford"]
+for n in CINQUE:
+    qb = premi(101, f"pb:b:{bid}:{gids[n]}")
 ok(f"pb:cai:{bid}" in bottoni(qb.testi[-1][1]["reply_markup"]), "anteprima del builder: bottone CAI mode")
 qb = premi(101, f"pb:cai:{bid}")
 ok("titolo" in qb.testi[-1][0], "CAI mode: prima chiede il titolo")
 m = manda(101, "La panca dei sogni")
-ok("Soprannome per <b>Josh Hart</b> (1/2)" in m.risposte[-1][0], "poi il soprannome di ognuno, in ordine")
+ok("Soprannome per <b>Josh Hart</b> (1/5)" in m.risposte[-1][0], "poi il soprannome di ognuno, in ordine")
 m = manda(101, "Lo Sceriffo bis")
-ok("Kevon Looney</b> (2/2)" in m.risposte[-1][0], "avanti al prossimo")
+ok("Kevon Looney</b> (2/5)" in m.risposte[-1][0], "avanti al prossimo")
 qb = premi(101, f"pb:cs:{bid}")
+ok("Ja Morant</b> (3/5)" in qb.testi[-1][0], "salta: al prossimo")
+qb = premi(101, f"pb:cf:{bid}")
 ok("1. Lo Sceriffo bis → <b>Josh Hart</b>" in qb.testi[-1][0] and "2. Kevon Looney → <b>Kevon Looney</b>" in qb.testi[-1][0]
-   and "La panca dei sogni" in qb.testi[-1][0], "saltato l'ultimo: anteprima con titolo e soprannomi")
+   and "La panca dei sogni" in qb.testi[-1][0], "fine: anteprima con titolo e soprannomi")
 BOT.mandati.clear(); premi(101, f"pb:ok:{bid}")
 ok(any(x["chat_id"] == -500 and "<i>La panca dei sogni</i>" in x["text"] and "1. Lo Sceriffo bis" in x["text"]
        and "Josh Hart" not in x["text"] for x in BOT.mandati), "sul canale titolo e soprannomi, non i nomi")
 ok(db.alias("team01").get("lo sceriffo bis") == gids["Josh Hart"], "il soprannome della CAI mode si impara")
 m = Msg(); asyncio.run(P.cmd_build_panchina(upd(101, m), CTX))
 bid = int(bottoni(m.risposte[0][1]["reply_markup"])[0].split(":")[2])
-premi(101, f"pb:b:{bid}:{gids['Josh Hart']}"); premi(101, f"pb:bv:{bid}"); premi(101, f"pb:cai:{bid}")
-m = manda(101, "Ja the sniper Morant\nBarlow\nClayton")
+for n in CINQUE:
+    premi(101, f"pb:b:{bid}:{gids[n]}")
+premi(101, f"pb:cai:{bid}")
+m = manda(101, "Ja the sniper Morant\nBarlow\nClayton\nClifford\nLooney")
 ok("Panchina di Alfa" in m.risposte[-1][0] and "Ja Morant" in m.risposte[-1][0] and db.bozza(bid)["chiusa"],
    "CAI mode lasciata a metà: un messaggio di più righe è una panchina nuova")
 
@@ -299,9 +313,54 @@ bid = int(bottoni(k["reply_markup"])[0].split(":")[2])
 ok("Panchina di Alfa" in t and db.bozza(bid)["fonte"] == "admin" and any(b.startswith(f"pb:b:{bid}:") for b in bottoni(k["reply_markup"])),
    "panchina_admin senza righe: builder per conto della squadra")
 db.chiudi_bozza(bid)
+m = Msg("/panchina_admin Alfa\nJa Morant\nBarlow\nClifford\nLooney\nBrunson"); asyncio.run(P.cmd_panchina_admin(upd(900, m), CTX))
+bid = int(bottoni(m.risposte[-1][1]["reply_markup"])[-2].split(":")[2])
+BOT.mandati.clear(); premi(900, f"pb:ok:{bid}")
+ok(any(x["chat_id"] == -500 and "✍️ admin U900 · ultima modifica" in x["text"] for x in BOT.mandati),
+   "panchina inserita da un admin: sul canale quale admin")
+
+# ── soprannomi: vederli, cancellarli, seguono il giocatore ──
+m = Msg("/soprannomi"); CTX.args = []; asyncio.run(SO.cmd_soprannomi(upd(101, m), CTX))
+t, k = m.risposte[-1]
+ok("<b>Josh Hart</b>: " in t and "«lo sceriffo»" in t and "«ja the sniper morant»" in t, "/soprannomi: quelli della squadra, per giocatore")
+id_sc = next(a["id"] for a in db.alias_giocatori([gids["Josh Hart"]]) if a["alias"] == "lo sceriffo")
+ok(f"so:d:team01:{id_sc}:0" in bottoni(k["reply_markup"]), "un bottone 🗑 per soprannome")
+ok(premi(102, f"so:d:team01:{id_sc}:0").risposte == ["Non è la tua squadra."], "il GM di un'altra squadra non cancella")
+BOT.mandati.clear()
+u = upd(101, cb=f"so:d:team01:{id_sc}:0"); asyncio.run(SO.cb_soprannomi(u, CTX))
+ok("lo sceriffo" not in db.alias("team01") and "«lo sceriffo»" not in u.callback_query.testi[-1][0]
+   and any(x["chat_id"] == -3 and "cancellato" in x["text"] for x in BOT.mandati), "cancellato: sparisce, riga sul log")
+# Josh Hart (in panchina G2) e Mikal Bridges (SF nel quintetto e nella formazione G1 in corso) passano a Beta
+db.salva_panchina(S, 2, "team01", None, [{"giocatore_id": gids[n], "testo": n} for n in CINQUE])
+db.q("UPDATE contratti SET team_id = 'team02' WHERE giocatore_id = ANY(%s) AND attivo", ([gids["Josh Hart"], gids["Mikal Bridges"]],))
+ok(db.alias("team02", [x["id"] for x in db.roster("team02", S)]).get("lo sceriffo bis") == gids["Josh Hart"]
+   and "lo sceriffo bis" not in db.alias("team01", [x["id"] for x in db.roster("team01", S)]),
+   "dopo la trade il soprannome vale per la squadra nuova, non più per la vecchia")
+m = Msg("/soprannomi"); asyncio.run(SO.cmd_soprannomi(upd(102, m), CTX))
+ok("«lo sceriffo bis» <i>(da Alfa)</i>" in m.risposte[-1][0], "/soprannomi della squadra nuova: ereditati, con chi li ha scritti")
+BOT.mandati.clear()
+n_avvisi = asyncio.run(CE.controlla(BOT))
+gm = [x for x in BOT.mandati if x["chat_id"] == 101]
+hart = next((x["text"] for x in gm if "Josh Hart" in x["text"]), "")
+bridges = next((x["text"] for x in gm if "Mikal Bridges" in x["text"]), "")
+ok(n_avvisi == 2 and "ora è di <b>Beta</b>" in hart and "panchina della giornata 2: rimandala" in hart,
+   f"cessione di un panchinaro: avviso al GM, va rimandata la panchina\n{hart}")
+ok("quintetto del bot (SF)" in bridges and "favore agli admin" in bridges and "giornata 1 in corso (SF)" in bridges,
+   f"cessione di un titolare: quintetto (non obbligatorio) e giornata in corso\n{bridges}")
+ok(any(x["chat_id"] == 111 for x in BOT.mandati) and sum(x["chat_id"] == -3 and "Cessione" in x["text"] for x in BOT.mandati) == 2,
+   "a tutti i GM della squadra e sul canale log")
+BOT.mandati.clear()
+ok(asyncio.run(CE.controlla(BOT)) == 0 and not BOT.mandati, "avvisati una volta sola")
+db.q("UPDATE contratti SET team_id = 'team01' WHERE giocatore_id = %s AND attivo", (gids["Josh Hart"],))
+asyncio.run(CE.controlla(BOT))
+db.q("UPDATE contratti SET team_id = 'team02' WHERE giocatore_id = %s AND attivo", (gids["Josh Hart"],))
+ok(asyncio.run(CE.controlla(BOT)) == 1, "tornato e ceduto di nuovo: nuovo avviso")
+m = Msg(); asyncio.run(P.cmd_panchina(upd(101, m), CTX))
+ok("Josh Hart (non più in squadra: rimandala)" in m.risposte[-1][0], "/panchina: il ceduto si vede")
+db.q("UPDATE contratti SET team_id = 'team01' WHERE giocatore_id = ANY(%s) AND attivo", ([gids["Josh Hart"], gids["Mikal Bridges"]],))
 
 # ── scadenza passata mentre si conferma ──
-m = manda(101, "Ja Morant\nBarlow")
+m = manda(101, "Ja Morant\nBarlow\nClayton\nClifford\nLooney")
 bid = int(bottoni(m.risposte[0][1]["reply_markup"])[0].split(":")[2])
 db.q("UPDATE lega_giornate SET prima_partita = %s WHERE numero = 2", (datetime.now(timezone.utc) - timedelta(minutes=1),))
 qb = premi(101, f"pb:ok:{bid}")
@@ -312,6 +371,6 @@ ids = list(gids.values())
 db.q("DELETE FROM cambi_ruolo WHERE giocatore_id = ANY(%s)", (ids,))
 db.q("DELETE FROM contratti WHERE giocatore_id = ANY(%s)", (ids,))
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (ids,))
-db.q("TRUNCATE ipa_quintetto, ipa_alias, ipa_panchine, ipa_bozze, ipa_conferme, ipa_formazioni, ipa_stato_giornata, "
+db.q("TRUNCATE ipa_quintetto, ipa_alias, ipa_cessioni, ipa_panchine, ipa_bozze, ipa_conferme, ipa_formazioni, ipa_stato_giornata, "
      "lega_giornate, nba_tabellini, nba_partite, nba_atleti")
 _ = date

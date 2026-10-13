@@ -24,7 +24,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 import abbina
 import config
 import db
-from comune import (adesso, aperta, chi, e, giornata_in_corso, log, ora, ora_promemoria, partite_squadre_nba,
+from comune import (FAVORE, adesso, aperta, chi, e, giornata_in_corso, log, ora, ora_promemoria, partite_squadre_nba,
                     prossima_giornata, testo_partite)
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ def leggi_quintetto(team_id: str, righe: list[str]) -> tuple[dict[str, int], lis
         pezzi = r.split(maxsplit=1)
         ruolo_scritto = pezzi[0].upper().rstrip(":") if pezzi and pezzi[0].upper().rstrip(":") in RUOLI else None
         nome = pezzi[1] if ruolo_scritto and len(pezzi) > 1 else r
-        x = abbina.abbina_riga(nome, roster, db.alias(team_id))
+        x = abbina.abbina_riga(nome, roster, db.alias(team_id, list(per_id)))
         if not x["certo"]:
             proposte = ", ".join(per_id[c]["nome_common"] for c in x["candidati"]) or "nessuno"
             errori.append(f"«{r}»: non riconosciuto (forse {proposte})")
@@ -86,7 +86,7 @@ def incompatibilita(team_id: str, q: dict[str, int] | None = None) -> list[str]:
         in_panca = {r["giocatore_id"] for r in p["righe"]}
         for ruolo, gid in q.items():
             if gid in in_panca:
-                out.append(f"{roster.get(gid, {}).get('nome_common', gid)} è titolare ({ruolo}) e anche in panchina: se vuoi aggiorna il quintetto, altrimenti se ne occupa un admin")
+                out.append(f"{roster.get(gid, {}).get('nome_common', gid)} è titolare ({ruolo}) e anche in panchina: se vuoi aggiorna il quintetto ({FAVORE}), altrimenti se ne occupa un admin")
     return out
 
 
@@ -135,6 +135,8 @@ def _testo_editor(team_id: str, g: dict | None, admin: bool = False) -> str:
     if g:
         st = db.conferme(config.stagione(), g["numero"]).get(team_id)
         t += ["", f"Stato: {'✅ confermato' if st and st['stato'] == 'confermato' else '✏️ modificato' if st else 'non ancora confermato'}"]
+    if not admin:
+        t += ["", f"ℹ️ Aggiornare il quintetto qui {FAVORE}."]
     if admin:
         in_corso = giornata_in_corso()
         if in_corso:
@@ -377,7 +379,8 @@ def promemoria(t: dict, g: dict) -> tuple[str, K]:
     inc = incompatibilita(t["id"])
     if inc:
         testo += "\n\n⚠️ " + "\n⚠️ ".join(e(x) for x in inc)
-    testo += "\n\nVa bene così o vuoi cambiarlo? E ricordati la panchina: mandamela qui, una riga per giocatore."
+    testo += (f"\n\nVa bene così o vuoi cambiarlo? Confermarlo o aggiornarlo qui {FAVORE}.\n"
+               "La panchina invece sì: mandamela qui, 5 giocatori, uno per riga.")
     tasti = K([[B("✅ Confermo", callback_data=f"q:ok:{t['id']}:{g['numero']}"),
                 B("✏️ Modifico", callback_data=f"q:mod:{t['id']}:{g['numero']}")]])
     return testo, tasti

@@ -285,7 +285,7 @@ Le scelte restano in bozza finché non premi **✅ Conferma**. Puoi anche confer
 
 **Da trade, firma registrata da un admin o attivazione diritti.** Ti arriva un messaggio privato con i bottoni dei ruoli possibili; lo ritrovi anche nel menu, in 🎽 Ruoli da dichiarare.
 
-- Hai **48 ore**. Dopo, il ruolo viene estratto a caso tra quelli possibili.
+- Hai **48 ore**. Dopo, il ruolo viene estratto a caso tra quelli possibili, e sul canale l'annuncio lo dice (⏰ Tempo scaduto).
 - Se il giocatore ha una sola posizione eleggibile, il ruolo è automatico e non c'è niente da fare.
 - Se riprendi un giocatore che avevi negli ultimi **60 giorni**, torna col suo vecchio ruolo.
 - Il ruolo non viaggia con il giocatore: chi lo riceve in trade dichiara il suo.

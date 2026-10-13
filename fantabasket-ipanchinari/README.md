@@ -46,10 +46,12 @@ Kevon the champ Looney
 Il bot cerca solo tra i giocatori della squadra: conta le parole del nome che compaiono nella riga
 (il cognome vale doppio), tollera errori di battitura, nomi col trattino, iniziali (SGA, KAT) e il
 solo nome di battesimo se è di un giocatore solo. Mostra al GM l'anteprima coi nomi veri; le righe
-dubbie si scelgono coi bottoni e il bot se le ricorda per quella squadra. Alla conferma, sul canale
-escono **solo le righe come le ha scritte il GM** e il titolo. Vale per la prossima giornata la
+dubbie si scelgono coi bottoni e il bot se le ricorda come soprannomi del giocatore (`/soprannomi` per vederli e
+cancellarli; seguono il giocatore se cambia squadra). Alla conferma, sul canale
+escono **solo le righe come le ha scritte il GM** e il titolo, con in fondo chi l'ha inserita (GM o
+quale admin) e l'ora dell'ultima modifica. Vale per la prossima giornata la
 cui scadenza (prima partita NBA) non è passata; si può rimandare fino alla scadenza, e sul canale
-si modifica il messaggio di prima. Non si pubblica se: un giocatore non è della squadra, è due volte, o la
+si modifica il messaggio di prima. Non si pubblica se: i giocatori non sono 5 (mai meno), uno non è della squadra, è due volte, o la
 scadenza è passata. Un panchinaro che nel bot è titolare non blocca (per il quintetto fa fede
 Yahoo): avviso al GM e riga sul canale log.
 
@@ -58,7 +60,12 @@ admin; i GM lo cambiano con `/quintetto`. **Alle 8:00** (ora italiana) dell'ulti
 prima partita della giornata (la mattina prima se si gioca di notte) ogni GM riceve il quintetto,
 le partite di ogni titolare nella giornata e i bottoni **Confermo** / **Modifico**, validi fino
 alla scadenza. Incompatibilità (titolare non più in squadra, in un altro ruolo, anche in panchina,
-ruolo vuoto) segnalate al GM e agli admin.
+ruolo vuoto) segnalate al GM e agli admin. **Aggiornarlo nel bot non è obbligatorio** (fa fede Yahoo):
+il bot lo ricorda ogni volta, è un favore agli admin.
+
+**Trade e tagli.** Ogni 5 minuti il bot controlla se un giocatore schierato (quintetto, panchina
+della prossima giornata, giornata in corso) non è più in squadra: avviso ai GM e riga sul canale
+log, una volta sola. La panchina va rimandata, il quintetto si aggiorna se si vuole.
 
 **Admin.** 2 ore prima della scadenza il gruppo admin riceve il riepilogo: chi ha confermato, chi ha
 modificato, chi niente (quintetti da controllare su Yahoo), chi non ha mandato la panchina.
@@ -72,12 +79,14 @@ giornata per il calcolo) e al gruppo admin va l'elenco delle panchine mancanti.
 | (messaggio con le righe) | GM | la panchina della prossima giornata |
 | `/build_panchina` | GM | la panchina coi bottoni: un panchinaro alla volta, solo giocatori non nel quintetto; con 😎 CAI mode titolo e soprannomi, sennò sul canale i nomi |
 | `/panchina` | GM | la panchina mandata, coi nomi veri |
-| `/quintetto` | GM | il quintetto: cambialo o confermalo |
+| `/quintetto` | GM | il quintetto: cambialo o confermalo (non obbligatorio, fa fede Yahoo) |
+| `/soprannomi` | GM | i soprannomi riconosciuti per i giocatori della squadra: vederli e cancellarli |
 | `/start`, `/guida` | tutti | come si usa, la guida (file) |
 | `/stato [N]` | admin | conferme e panchine di una giornata |
 | `/quintetto_admin SQUADRA [GN]` | admin | senza righe il quintetto coi bottoni (parte dall'attuale), o sotto i 5 titolari (con o senza ruolo davanti); anche a giornata in corso; con GN corregge la formazione della giornata N |
 | `/quintetti_import` | admin | tutte le squadre: nome esatto o id, poi 5 titolari; squadre separate da una riga vuota (anche file .txt) |
 | `/panchina_admin SQUADRA` | admin | la panchina per conto di una squadra: senza righe col builder (e CAI mode), o le righe sotto |
+| `/soprannomi SQUADRA` | admin | i soprannomi di una squadra |
 | `/guida_admin` | admin | la guida admin (file) |
 | `/dev`, `/guida_dev`, `/dev_version`, `/job_status` | dev | comandi dev |
 

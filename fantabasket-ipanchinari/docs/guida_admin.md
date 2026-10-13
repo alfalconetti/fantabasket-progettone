@@ -49,7 +49,7 @@ Il ruolo di ogni titolare è quello di roster: un giocatore scritto in un ruolo 
 - `/quintetto_admin SQUADRA` con i 5 titolari cambia il quintetto e, se c'è una giornata in corso, anche la sua formazione (quella del calcolo);
 - `/quintetto_admin SQUADRA G5` con i 5 titolari corregge solo la formazione della giornata 5 (già chiusa), senza toccare il quintetto attuale.
 
-Per il quintetto fa fede Yahoo: i GM non sono obbligati a tenerlo aggiornato nel bot. Se un GM mette in panchina un giocatore che nel bot è titolare, la panchina si pubblica lo stesso; il GM riceve un avviso e a te arriva una riga ⚠️ sul canale log.
+Per il quintetto fa fede Yahoo: i GM non sono obbligati a tenerlo aggiornato nel bot (il bot lo ripete ovunque: è un favore agli admin). Se un GM mette in panchina un giocatore che nel bot è titolare, la panchina si pubblica lo stesso; il GM riceve un avviso e a te arriva una riga ⚠️ sul canale log.
 
 ---
 
@@ -64,9 +64,24 @@ Dominik Arcade Boy Barlow
 ...
 ```
 
-Stessa anteprima e stessi bottoni del GM; sul canale esce come se l'avesse mandata lui (nel log risulta fatta da un admin). **Senza righe** (`/panchina_admin SQUADRA`) si apre il builder coi bottoni di quella squadra, con la 😎 CAI mode.
+Stessa anteprima e stessi bottoni del GM; sul canale, in fondo al messaggio, c'è scritto "✍️ admin" col tuo nome e l'ora (per le panchine dei GM "✍️ GM"), e nel log risulta fatta da te. **Senza righe** (`/panchina_admin SQUADRA`) si apre il builder coi bottoni di quella squadra, con la 😎 CAI mode.
+
+La panchina è sempre di 5 giocatori: con meno righe il bot non la prende, il builder pubblica solo al quinto.
 
 Una panchina che arriva dopo la scadenza vale per la giornata successiva: per quella appena chiusa decidono gli admin.
+
+---
+
+## Trade e tagli
+
+Ogni 5 minuti il bot confronta quintetti e panchine con le rose. Un giocatore che non è più in squadra (trade o taglio nel bot principale) ed era schierato fa partire un avviso ai GM della squadra e una riga 🔁 sul canale log, una volta sola:
+- **panchina della prossima giornata**: il GM la deve rimandare (finché non lo fa, nell'anteprima e in `/panchina` il giocatore risulta fuori squadra);
+- **quintetto del bot**: aggiornarlo non è obbligatorio, il riepilogo lo segna tra le incompatibilità;
+- **formazione o panchina della giornata in corso**: decidete voi (`/quintetto_admin SQUADRA G N` per la formazione).
+
+## Soprannomi
+
+`/soprannomi SQUADRA` mostra i soprannomi che il bot riconosce per i giocatori di una squadra e permette di cancellarli. Seguono il giocatore: dopo una trade valgono per la squadra nuova.
 
 ---
 
@@ -78,4 +93,5 @@ Una panchina che arriva dopo la scadenza vale per la giornata successiva: per qu
 | `/quintetto_admin SQUADRA [GN]` | quintetto di una squadra: senza righe coi bottoni, o 5 righe sotto (anche a giornata in corso); con GN corregge la formazione della giornata N |
 | `/quintetti_import` | quintetti di tutte le squadre |
 | `/panchina_admin SQUADRA` | panchina per conto di una squadra: senza righe col builder, o le righe sotto |
+| `/soprannomi SQUADRA` | soprannomi di una squadra, da vedere o cancellare |
 | `/guida_admin` | questa guida |

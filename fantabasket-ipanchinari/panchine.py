@@ -11,11 +11,12 @@ Le righe confermate diventano alias della squadra: la volta dopo si riconoscono 
 Callback: pb:r:<bozza>:<i> scegli la riga i · pb:s:<bozza>:<i>:<gid> giocatore scelto ·
 pb:t:<bozza>:<i> tutta la rosa per la riga i · pb:ok:<bozza> pubblica · pb:no:<bozza> annulla ·
 pb:v:<bozza> torna all'anteprima. Builder (/build_panchina): pb:b:<bozza>:<gid> aggiungi ·
-pb:u:<bozza> togli l'ultimo · pb:bv:<bozza> all'anteprima. CAI mode (dall'anteprima del builder):
+pb:u:<bozza> togli l'ultimo (al quinto si passa all'anteprima). CAI mode (dall'anteprima del builder):
 pb:cai:<bozza> inizia (titolo, poi i soprannomi uno alla volta, risposte come messaggi) ·
 pb:cs:<bozza> salta · pb:cf:<bozza> fine.
-Un panchinaro che nel quintetto del bot è titolare non blocca: fa fede Yahoo, il bot lo segnala
-al GM (può aggiornare il quintetto, o ci pensa un admin) e sul canale log.
+La panchina è sempre di 5 giocatori, mai meno. Un panchinaro che nel quintetto del bot è titolare
+non blocca: fa fede Yahoo, il bot lo segnala al GM (può aggiornare il quintetto, non è obbligatorio:
+è un favore agli admin) e sul canale log.
 """
 import logging
 
@@ -25,7 +26,7 @@ from telegram.ext import CallbackQueryHandler, ContextTypes, MessageHandler, fil
 import abbina
 import config
 import db
-from comune import aperta, chi, e, log, ora, prossima_giornata
+from comune import FAVORE, ROMA, adesso, aperta, chi, e, log, ora, prossima_giornata
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,8 @@ def problemi(b: dict, roster: list[dict]) -> list[str]:
     d = b["dati"]
     nomi = _nomi(roster)
     out = []
+    if len(d["righe"]) != abbina.MAX_PANCHINA:
+        out.append(f"la panchina è di {abbina.MAX_PANCHINA} giocatori, mai meno: qui ce ne sono {len(d['righe'])}")
     scelti = [r.get("scelto") for r in d["righe"]]
     for i, r in enumerate(d["righe"], 1):
         if not r.get("scelto"):
@@ -56,8 +59,8 @@ def avvisi(b: dict, roster: list[dict]) -> list[str]:
     bot è titolare (fa fede Yahoo: il quintetto lo può sistemare il GM o un admin)."""
     nomi = _nomi(roster)
     tit = {gid: ruolo for ruolo, gid in db.quintetto(b["team_id"]).items()}
-    return [f"{nomi.get(g, g)} risulta nel tuo quintetto ({tit[g]}): se vuoi aggiornalo con /quintetto, "
-            "altrimenti se ne occupa un admin"
+    return [f"{nomi.get(g, g)} risulta nel tuo quintetto ({tit[g]}): se vuoi aggiornalo con /quintetto "
+            f"({FAVORE}), altrimenti se ne occupa un admin"
             for g in dict.fromkeys(r.get("scelto") for r in b["dati"]["righe"]) if g in tit]
 
 
@@ -108,10 +111,13 @@ def crea_bozza(chat_id: int, team_id: str, testo: str, fonte: str = "gm") -> tup
     titolo, righe, err = abbina.leggi_messaggio(testo)
     if err:
         return None, err
+    if len(righe) < abbina.MAX_PANCHINA:
+        return None, (f"La panchina è di {abbina.MAX_PANCHINA} giocatori, mai meno: ne ho letti {len(righe)}. "
+                      f"Rimandamela con tutte e {abbina.MAX_PANCHINA} le righe (o usa /build_panchina).")
     roster = db.roster(team_id, s)
     if not roster:
         return None, "Nessun giocatore a roster per questa squadra."
-    abbinate = abbina.abbina_panchina(righe, roster, db.alias(team_id))
+    abbinate = abbina.abbina_panchina(righe, roster, db.alias(team_id, [g["id"] for g in roster]))
     dati = {"titolo": titolo, "righe": abbinate}
     bid = db.nuova_bozza(chat_id, team_id, s, g["numero"], dati, fonte)
     return db.bozza(bid), None
@@ -142,7 +148,7 @@ async def msg_panchina(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await msg.reply_text("Non risulti GM di nessuna squadra: scrivi a un admin.")
         return
     if len([r for r in (msg.text or "").splitlines() if r.strip()]) < 2:
-        await msg.reply_text("Per la panchina mandami le righe dei panchinari, una per riga, in ordine "
+        await msg.reply_text("Per la panchina mandami le righe dei 5 panchinari, una per riga, in ordine "
                              "(ed eventualmente il titolo sopra, separato da una riga vuota). Guida: /guida")
         return
     b, err = crea_bozza(update.effective_chat.id, team["id"], msg.text)
@@ -198,7 +204,7 @@ async def cb_panchina(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db.aggiorna_bozza(bid, d)
         b = db.bozza(bid)
         await q.answer()
-        if azione == "bv" or len(d["righe"]) >= abbina.MAX_PANCHINA:
+        if len(d["righe"]) >= abbina.MAX_PANCHINA:
             testo, tasti = anteprima(b)
         else:
             testo, tasti = builder(b, roster)
@@ -242,11 +248,17 @@ async def cb_panchina(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await pubblica(update, context, b)
 
 
-def testo_canale(team_id: str, giornata: int, titolo: str | None, righe: list[dict], aggiornata: bool) -> str:
+def testo_canale(team_id: str, giornata: int, titolo: str | None, righe: list[dict], aggiornata: bool,
+                 fonte: str = "gm", admin: str | None = None, quando=None) -> str:
+    """Il messaggio sul canale Panchinari: le righe del GM e, in fondo, chi l'ha inserita (GM o
+    quale admin) e quando (l'ultima modifica, ora italiana)."""
     out = [f"<b>{e(config.nome(team_id))}</b> · giornata {giornata}" + (" · 🔁 aggiornata" if aggiornata else "")]
     if titolo:
         out.append(f"<i>{e(titolo)}</i>")
     out += [f"{i}. {e(r['testo'])}" for i, r in enumerate(righe, 1)]
+    t = (quando or adesso()).astimezone(ROMA)
+    da = f"admin {e(admin)}" if fonte == "admin" else "GM"
+    out.append(f"\n<i>✍️ {da} · {'ultima modifica' if aggiornata else 'inserita'} {t:%d/%m} alle {t:%H:%M}</i>")
     return "\n".join(out)
 
 
@@ -281,7 +293,9 @@ async def pubblica(update, context, b: dict):
         return
     righe = [{"giocatore_id": r["scelto"], "testo": r["testo"]} for r in b["dati"]["righe"]]
     precedente = db.panchina(b["stagione"], b["giornata"], b["team_id"])
-    testo = testo_canale(b["team_id"], b["giornata"], b["dati"].get("titolo"), righe, bool(precedente))
+    u = update.effective_user
+    testo = testo_canale(b["team_id"], b["giornata"], b["dati"].get("titolo"), righe, bool(precedente),
+                         fonte=b["fonte"], admin=(u.full_name or str(u.id)) if u else "?")
     mid = None
     canale = config.canale_panchinari()
     if canale:
@@ -294,7 +308,8 @@ async def pubblica(update, context, b: dict):
     db.salva_panchina(b["stagione"], b["giornata"], b["team_id"], b["dati"].get("titolo"), righe,
                       da=update.effective_user.id, fonte=b["fonte"], messaggio_canale=mid)
     for r in b["dati"]["righe"]:
-        db.salva_alias(b["team_id"], abbina.chiave(r["testo"]), r["scelto"])
+        if abbina.chiave(r["testo"]) != abbina.chiave(_nomi(roster).get(r["scelto"], "")):   # il nome vero non serve
+            db.salva_alias(b["team_id"], abbina.chiave(r["testo"]), r["scelto"])
     db.chiudi_bozza(b["id"])
     nomi = _nomi(roster)
     av = avvisi(b, roster)
@@ -360,16 +375,18 @@ def builder(b: dict, roster: list[dict]) -> tuple[str, K]:
     scelti = [r["scelto"] for r in d["righe"]]
     titolari = set(db.quintetto(b["team_id"]).values())
     liberi = [g for g in roster if g["id"] not in titolari and g["id"] not in scelti]
+    if len(liberi) < abbina.MAX_PANCHINA - len(scelti):    # rosa corta: si possono scegliere anche i titolari
+        liberi += [g for g in roster if g["id"] in titolari and g["id"] not in scelti]
     g = db.giornata(b["stagione"], b["giornata"])
     righe = [f"🪑 <b>Panchina di {e(config.nome(b['team_id']))} per la giornata {b['giornata']}</b>",
              f"Scadenza: {ora(g['prima_partita']) if g else '?'}", ""]
     righe += [f"{i}. {e(r['testo'])}" for i, r in enumerate(d["righe"], 1)] or ["(ancora nessuno)"]
     righe += ["", f"Scegli il panchinaro n. {len(scelti) + 1}:" if len(scelti) < abbina.MAX_PANCHINA else ""]
-    tasti = [[B(f"{x['nome_common']}" + (f" ({x['ruolo']})" if x.get("ruolo") else ""),
+    tasti = [[B(f"{x['nome_common']}" + (f" ({x['ruolo']})" if x.get("ruolo") else "") + (" ⭐ titolare" if x["id"] in titolari else ""),
                 callback_data=f"pb:b:{b['id']}:{x['id']}")] for x in liberi]
     fondo = []
-    if scelti:
-        fondo += [B("↩️ Togli l'ultimo", callback_data=f"pb:u:{b['id']}"), B("➡️ Anteprima", callback_data=f"pb:bv:{b['id']}")]
+    if scelti:                                         # al quinto si passa da soli all'anteprima
+        fondo.append(B("↩️ Togli l'ultimo", callback_data=f"pb:u:{b['id']}"))
     fondo.append(B("❌ Annulla", callback_data=f"pb:no:{b['id']}"))
     return "\n".join(righe), K(tasti + [fondo])
 
@@ -412,6 +429,8 @@ async def cmd_panchina(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "mandami le righe, una per riga.")
         return
     nomi = _nomi(db.roster(team["id"], config.stagione()))
+    fuori = db.nomi_giocatori([r["giocatore_id"] for r in p["righe"] if r["giocatore_id"] not in nomi])
+    nomi.update({g: f"{n} (non più in squadra: rimandala)" for g, n in fuori.items()})
     await update.effective_message.reply_text(
         f"🪑 Panchina della giornata {g['numero']} (scadenza {ora(g['prima_partita'])})\n"
         + (f"<i>{e(p['titolo'])}</i>\n" if p["titolo"] else "")

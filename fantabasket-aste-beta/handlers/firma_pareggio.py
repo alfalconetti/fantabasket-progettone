@@ -312,7 +312,8 @@ async def pareggio_automatico(context: ContextTypes.DEFAULT_TYPE):
                     await _log_warn(context, f"Notifica pareggio auto fallita GM {gm_id}: {e}")
 
         await _registra_firma_finale(
-            context, asta_id, asta["anni_offerti"], asta["offerente_team_id"]
+            context, asta_id, asta["anni_offerti"], asta["offerente_team_id"],
+            nota_tempo="il proprietario non ha deciso entro il termine: niente pareggio"
         )
     except Exception as e:
         from handlers.helpers import log_job_error

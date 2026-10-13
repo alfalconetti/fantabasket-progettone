@@ -38,3 +38,15 @@ Primo rilascio: panchine e quintetti.
 ## v8 (2026-10-13)
 
 - "Message is not modified" (bottone premuto due volte, il messaggio resterebbe uguale) non arriva più sul canale log come errore: è innocuo, come già nel bot principale e nel bot aste. Gli errori di rete restano sul canale log (non al dev). Gli errori veri dicono anche chi e quale bottone o comando. Error handler comune in `shared/dev_comune.py`
+
+## v9 (2026-10-13)
+
+- **Panchina sempre di 5 giocatori**, mai meno: un messaggio con meno righe viene rifiutato (con la spiegazione), il builder passa all'anteprima e a Pubblica solo al quinto (i titolari, segnati ⭐, si possono scegliere solo se non restano abbastanza giocatori)
+- **`/soprannomi`**: i soprannomi che il bot riconosce per i giocatori della squadra, giocatore per giocatore, con 🗑 per cancellare quelli sbagliati o vecchi; gli admin `/soprannomi SQUADRA`. Il nome vero del giocatore non diventa più un soprannome
+- **I soprannomi seguono il giocatore**: dopo una trade valgono per la squadra nuova (in `/soprannomi` con chi li ha scritti) e non più per la vecchia
+- **Trade e tagli**: ogni 5 minuti il bot controlla se un giocatore schierato non è più in squadra (quintetto, panchina della prossima giornata, formazione o panchina della giornata in corso) e avvisa i GM della squadra e il canale log, una volta sola: la panchina va rimandata, il quintetto si aggiorna se si vuole, per la giornata in corso decidono gli admin. `/panchina` segna il giocatore fuori squadra
+- Ovunque si parla del quintetto (`/start`, `/quintetto`, promemoria, avvisi, guide, menu) il bot ripete che aggiornarlo **non è obbligatorio**: fa fede Yahoo, è un favore agli admin
+
+## v10 (2026-10-13)
+
+- Sul canale Panchinari, in fondo a ogni panchina: chi l'ha inserita (**✍️ GM** o **✍️ admin** col nome) e giorno e ora (ora italiana) dell'inserimento o dell'ultima modifica

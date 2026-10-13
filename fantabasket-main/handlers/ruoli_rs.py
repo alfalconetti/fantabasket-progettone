@@ -271,9 +271,9 @@ async def job_scadenze(context: ContextTypes.DEFAULT_TYPE):
             _chiudi(p["id"], "estratta", ruolo)
             cambiato = True
             await _annuncia(context.bot, f"🎲 <b>{_nome_team(p['team_id'])}</b>: {p['nome_common']} → <b>{ruolo}</b>\n"
-                                         f"<i>Ruolo non dichiarato entro {ORE_DICHIARAZIONE}h: estratto tra {', '.join(eleg)}.</i>")
+                                         f"⏰ <i>Tempo scaduto: ruolo non dichiarato entro {ORE_DICHIARAZIONE}h, estratto tra {', '.join(eleg)}.</i>")
             await _ai_gm(context.bot, p["team_id"],
-                         f"🎲 Non hai dichiarato il ruolo di <b>{p['nome_common']}</b> entro {ORE_DICHIARAZIONE}h: "
+                         f"⏰ Tempo scaduto: non hai dichiarato il ruolo di <b>{p['nome_common']}</b> entro {ORE_DICHIARAZIONE}h, "
                          f"estratto <b>{ruolo}</b>.")
         if cambiato:
             _sync_roster()

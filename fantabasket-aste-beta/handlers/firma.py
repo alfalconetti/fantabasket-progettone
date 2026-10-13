@@ -433,7 +433,9 @@ async def firma_automatica(context: ContextTypes.DEFAULT_TYPE):
         if asta["tipo"] == "FA":
             anni = 3
             logger.info("Firma automatica FA (penale 3 anni): asta_id=%d", asta_id)
-            ruolo = await _registra_firma_finale(context, asta_id, anni, asta["offerente_team_id"])
+            ruolo = await _registra_firma_finale(
+                context, asta_id, anni, asta["offerente_team_id"],
+                nota_tempo="il vincitore non ha scelto gli anni: 3 anni d'ufficio (penale)")
             team_auto = tm.get_team_by_id(asta["offerente_team_id"])
             for gm_id in (team_auto or {}).get("gm_ids", []):
                 try:
@@ -448,7 +450,7 @@ async def firma_automatica(context: ContextTypes.DEFAULT_TYPE):
         else:
             anni = anni_minimi(asta["offerta_corrente"])
             logger.info("Firma automatica RFA vincitore (anni minimi %d): asta_id=%d", anni, asta_id)
-            db.set_anni_offerti(asta_id, anni)
+            db.set_anni_offerti(asta_id, anni, automatici=True)
             await _aggiorna_canale(context, asta_id)
 
             # Annuncio canale anni automatici

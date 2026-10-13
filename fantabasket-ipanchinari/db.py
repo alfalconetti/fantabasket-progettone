@@ -115,6 +115,13 @@ def migra():
             riepilogo    TIMESTAMPTZ,                   -- riepilogo agli admin prima della scadenza
             chiusa       TIMESTAMPTZ,                   -- quintetti congelati in ipa_formazioni
             PRIMARY KEY (stagione, giornata))""")
+    q("ALTER TABLE ipa_alias ADD COLUMN IF NOT EXISTS id SERIAL")          # per cancellarli coi bottoni
+    q("""CREATE TABLE IF NOT EXISTS ipa_cessioni (
+            team_id      TEXT NOT NULL,                 -- la squadra che l'ha ceduto (o tagliato)
+            giocatore_id INT  NOT NULL,
+            dove         TEXT NOT NULL,                 -- quintetto / panchina G<n> / formazione G<n>
+            avvisato     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (team_id, giocatore_id, dove))""")
 
 
 # ── letture dagli altri bot ────────────────────────────────────────────────────
@@ -212,9 +219,26 @@ def formazione(stagione: str, giornata_: int, team_id: str) -> dict[str, int | N
 
 # ── alias ──────────────────────────────────────────────────────────────────────
 
-def alias(team_id: str) -> dict[str, int]:
-    righe = q("SELECT alias, giocatore_id FROM ipa_alias WHERE team_id = %s", (team_id,), many=True) or []
+def alias(team_id: str, ids: list[int] | None = None) -> dict[str, int]:
+    """{riga normalizzata: giocatore}. Con `ids` (la rosa di oggi): i soprannomi di quei giocatori
+    chiunque li abbia scritti, così seguono il giocatore quando cambia squadra; a parità di
+    soprannome vincono quelli della squadra, poi i più recenti."""
+    if ids is None:
+        righe = q("SELECT alias, giocatore_id FROM ipa_alias WHERE team_id = %s", (team_id,), many=True) or []
+        return {r["alias"]: r["giocatore_id"] for r in righe}
+    righe = q("""SELECT alias, giocatore_id FROM ipa_alias WHERE giocatore_id = ANY(%s)
+                 ORDER BY (team_id = %s), creato""", (list(ids), team_id), many=True) or []
     return {r["alias"]: r["giocatore_id"] for r in righe}
+
+
+def alias_giocatori(ids: list[int]) -> list[dict]:
+    """I soprannomi dei giocatori indicati (per /soprannomi), con chi li ha scritti."""
+    return q("SELECT id, team_id, alias, giocatore_id FROM ipa_alias WHERE giocatore_id = ANY(%s) ORDER BY giocatore_id, alias",
+             (list(ids),), many=True) or []
+
+
+def elimina_alias(id_: int) -> dict | None:
+    return q("DELETE FROM ipa_alias WHERE id = %s RETURNING team_id, alias, giocatore_id", (id_,), one=True)
 
 
 def salva_alias(team_id: str, alias_: str, giocatore_id: int) -> None:
@@ -222,6 +246,34 @@ def salva_alias(team_id: str, alias_: str, giocatore_id: int) -> None:
         q("""INSERT INTO ipa_alias (team_id, alias, giocatore_id) VALUES (%s, %s, %s)
              ON CONFLICT (team_id, alias) DO UPDATE SET giocatore_id = EXCLUDED.giocatore_id, creato = NOW()""",
           (team_id, alias_, giocatore_id))
+
+
+# ── cessioni (giocatori usciti dalla squadra che erano in quintetto o in panchina) ──
+
+def squadra_attuale(giocatore_id: int) -> str | None:
+    r = q("SELECT team_id FROM contratti WHERE giocatore_id = %s AND attivo LIMIT 1", (giocatore_id,), one=True)
+    return r["team_id"] if r else None
+
+
+def nomi_giocatori(ids: list[int]) -> dict[int, str]:
+    righe = q("SELECT id, nome_common FROM giocatori WHERE id = ANY(%s)", (list(ids),), many=True) or []
+    return {r["id"]: r["nome_common"] for r in righe}
+
+
+def cessioni_avvisate(team_id: str) -> set[tuple[int, str]]:
+    righe = q("SELECT giocatore_id, dove FROM ipa_cessioni WHERE team_id = %s", (team_id,), many=True) or []
+    return {(r["giocatore_id"], r["dove"]) for r in righe}
+
+
+def segna_cessione(team_id: str, giocatore_id: int, dove: str) -> None:
+    q("INSERT INTO ipa_cessioni (team_id, giocatore_id, dove) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
+      (team_id, giocatore_id, dove))
+
+
+def dimentica_cessioni(team_id: str, rientrati: list[int]) -> None:
+    """Un giocatore tornato in squadra: se riparte, va avvisato di nuovo."""
+    if rientrati:
+        q("DELETE FROM ipa_cessioni WHERE team_id = %s AND giocatore_id = ANY(%s)", (team_id, list(rientrati)))
 
 
 # ── panchine ───────────────────────────────────────────────────────────────────

@@ -81,6 +81,13 @@ def _migrate():
         "ALTER TABLE aste ADD COLUMN rifiuto_preimpostato INTEGER NOT NULL DEFAULT 0",
         # v57: id del giocatore su PostgreSQL, deciso all'apertura (il nome resta per i messaggi)
         "ALTER TABLE aste ADD COLUMN giocatore_id INTEGER",
+        # v65: anni RFA assegnati d'ufficio (il vincitore non ha scelto in tempo), per l'annuncio
+        "ALTER TABLE aste ADD COLUMN anni_automatici INTEGER NOT NULL DEFAULT 0",
+        # v65: chi ha firmato davvero e a quanto (col pareggio è il proprietario, a volte a un importo
+        # diverso dall'offerta), e le cose decise d'ufficio a tempo scaduto (una per riga)
+        "ALTER TABLE aste ADD COLUMN team_firma TEXT",
+        "ALTER TABLE aste ADD COLUMN importo_firma INTEGER",
+        "ALTER TABLE aste ADD COLUMN note_tempo TEXT",
     ]
     with get_conn() as conn:
         for sql in migrazioni:
@@ -167,19 +174,21 @@ def chiudi_asta(asta_id, conclusa_at):
         )
 
 
-def set_anni_offerti(asta_id, anni):
+def set_anni_offerti(asta_id, anni, automatici: bool = False):
     with get_conn() as conn:
         conn.execute(
-            "UPDATE aste SET anni_offerti=?, stato='PAREGGIO' WHERE id=?",
-            (anni, asta_id),
+            "UPDATE aste SET anni_offerti=?, anni_automatici=?, stato='PAREGGIO' WHERE id=?",
+            (anni, 1 if automatici else 0, asta_id),
         )
 
 
-def concludi_asta(asta_id, anni_contratto=None, firmato_at=None):
+def concludi_asta(asta_id, anni_contratto=None, firmato_at=None, team_firma=None, importo_firma=None,
+                   note_tempo: list[str] | None = None):
     with get_conn() as conn:
         conn.execute(
-            "UPDATE aste SET stato='CONCLUSA', anni_contratto=?, firmato_at=? WHERE id=?",
-            (anni_contratto, firmato_at, asta_id),
+            "UPDATE aste SET stato='CONCLUSA', anni_contratto=?, firmato_at=?, team_firma=?, importo_firma=?, "
+            "note_tempo=? WHERE id=?",
+            (anni_contratto, firmato_at, team_firma, importo_firma, "\n".join(note_tempo) if note_tempo else None, asta_id),
         )
 
 

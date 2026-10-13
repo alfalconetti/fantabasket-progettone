@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 e = html.escape
 ROMA = ZoneInfo("Europe/Rome")
 GIORNI = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"]
+# Da ripetere ovunque si parla di aggiornare il quintetto nel bot: fa fede Yahoo.
+FAVORE = "non è obbligatorio, per il regolamento fa fede Yahoo: tenerlo aggiornato qui è un favore agli admin"
 
 
 def adesso() -> datetime:

@@ -85,7 +85,7 @@ Gli anni dipendono dalla cifra:
 | da 20M a 34M | 2 o 3 |
 | da 35M | 3, obbligatori |
 
-Hai **48 ore**. Se non rispondi, il contratto viene firmato per **3 anni** come penale (e in regular season il ruolo viene estratto a caso).
+Hai **48 ore**. Se non rispondi, il contratto viene firmato per **3 anni** come penale (e in regular season il ruolo viene estratto a caso). Nell'annuncio sul canale c'è scritto **⏰ Tempo scaduto**, così tutti sanno che anni e ruolo non li hai scelti tu. Lo stesso vale per le RFA: anni minimi assegnati d'ufficio, o pareggio non deciso dal proprietario entro il termine.
 
 Finché non firmi, quel giocatore **conta già** sul tuo cap e sui tuoi slot, anche ad asta chiusa. Quindi non puoi usare quei soldi per un'altra asta nel frattempo.
 

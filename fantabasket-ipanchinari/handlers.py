@@ -11,18 +11,21 @@ from comune import e, ora
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     team = config.squadra_del_gm(update.effective_user.id)
     testo = ("🪑 <b>IPanchinari</b> — panchine e quintetti. Guida completa: /guida\n\n"
-             "<b>Panchina</b>: mandami qui le righe dei panchinari, una per riga, in ordine, come le scrivi sempre "
+             "<b>Panchina</b>: mandami qui le righe dei 5 panchinari (sempre 5, mai meno), una per riga, in ordine, come le scrivi sempre "
              "(soprannomi compresi). Un titolo, se vuoi, sopra, separato da una riga vuota. Ti mostro chi ho capito, "
              "confermi e la pubblico sul canale Panchinari con le tue righe. Vale per la prossima giornata, fino alla scadenza.\n"
              "/build_panchina — oppure componila coi bottoni\n"
              "/panchina — la panchina che hai mandato\n"
-             "/quintetto — il tuo quintetto: cambialo o confermalo")
+             "/soprannomi — i soprannomi che riconosco: vedili o cancellali\n"
+             "/quintetto — il tuo quintetto: cambialo o confermalo. Non è obbligatorio (fa fede Yahoo): "
+             "tenerlo aggiornato qui è un favore agli admin")
     if team:
         testo = f"Ciao, GM di <b>{e(team['nome'])}</b>.\n\n" + testo
     if config.is_admin(update.effective_user.id):
         testo += ("\n\n<b>Admin</b>\n/quintetto_admin SQUADRA — coi bottoni, o sotto i 5 titolari\n"
                   "/quintetti_import — tutte le squadre insieme\n/panchina_admin SQUADRA — coi bottoni, o sotto le righe\n"
-                  "/stato [N] — conferme e panchine della giornata\nGuida admin: /guida_admin")
+                  "/stato [N] — conferme e panchine della giornata\n/soprannomi SQUADRA — soprannomi di una squadra\n"
+                  "Guida admin: /guida_admin")
     await update.effective_message.reply_text(testo, parse_mode="HTML")
 
 

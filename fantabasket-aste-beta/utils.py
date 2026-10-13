@@ -242,8 +242,10 @@ def build_canale_message(asta: dict, offerte: list, teams_map: dict, aperta_da: 
         anni = int(asta["anni_offerti"]) if asta["anni_offerti"] else None
         anni_label = str(anni) if anni else "?"
         prop_nome = teams_map.get(asta["squadra_proprietaria"], "") if asta["squadra_proprietaria"] else ""
+        auto = ("\n⏰ <i>Tempo scaduto: il vincitore non ha scelto gli anni, minimi per fascia d'ufficio</i>"
+                if "anni_automatici" in asta.keys() and asta["anni_automatici"] else "")
         footer = (
-            f"{corrente} × {anni_label} ann{'o' if anni == 1 else 'i'}\n\n"
+            f"{corrente} × {anni_label} ann{'o' if anni == 1 else 'i'}{auto}\n\n"
             f"⚖️ <b>IN ATTESA DI PAREGGIO</b>\n"
             f"⏳ <b>{prop_nome}</b> ha 24h per decidere se pareggiare\n"
             f"<i>(dalla chiusura: {format_dt(asta['conclusa_at'])})</i>"
@@ -253,13 +255,21 @@ def build_canale_message(asta: dict, offerte: list, teams_map: dict, aperta_da: 
         footer = f"{corrente}\n\n❌ <b>ASTA ANNULLATA</b>"
 
     else:  # CONCLUSA
-        team_firma = teams_map.get(asta["offerente_team_id"], asta["offerente_team_id"]) if asta["offerente_team_id"] else "?"
+        k = asta.keys()
+        # chi ha firmato davvero (col pareggio il proprietario) e a quanto; aste vecchie: il vincitore
+        chi_firma = (asta["team_firma"] if "team_firma" in k and asta["team_firma"] else asta["offerente_team_id"])
+        importo_f = (asta["importo_firma"] if "importo_firma" in k and asta["importo_firma"] else asta["offerta_corrente"])
+        team_firma = teams_map.get(chi_firma, chi_firma) if chi_firma else "?"
+        pareggio = (" (pareggio)" if asta["tipo"] == "RFA" and asta["offerente_team_id"] and chi_firma
+                    and chi_firma == asta["squadra_proprietaria"] and chi_firma != asta["offerente_team_id"] else "")
         anni_c = asta["anni_contratto"] if asta["anni_contratto"] else "?"
         firmato = f"\n✍️ Firmato: {format_dt(asta['firmato_at'])}" if asta["firmato_at"] else ""
         ultima = f"\n🕐 Ultima offerta: {format_dt(offerte[-1]['timestamp'])}" if offerte else ""
+        note = (asta["note_tempo"] or "").splitlines() if "note_tempo" in k else []
+        tempo = "".join(f"\n⏰ <i>Tempo scaduto: {x}</i>" for x in note)
         footer = (
-            f"💰 <b>{asta['offerta_corrente']}M × {anni_c} ann{'o' if anni_c == 1 else 'i'} — {team_firma}</b>"
-            f"{ultima}{firmato}\n\n✅ <b>CONTRATTO FIRMATO</b>"
+            f"💰 <b>{importo_f}M × {anni_c} ann{'o' if anni_c == 1 else 'i'} — {team_firma}{pareggio}</b>"
+            f"{tempo}{ultima}{firmato}\n\n✅ <b>CONTRATTO FIRMATO</b>"
         )
 
     sep = "━━━━━━━━━━━━━━━━━━"

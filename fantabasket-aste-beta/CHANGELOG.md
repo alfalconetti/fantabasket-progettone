@@ -625,3 +625,11 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 ## v64 — Log senza token
 
 - Nei log niente più una riga per ogni chiamata all'API di Telegram (`httpx` e `httpcore` a WARNING): l'URL conteneva il token del bot e con quattro bot i log erano illeggibili. Avvisi ed errori restano
+
+## v65 — ⏰ Tempo scaduto sul canale
+
+- Quando una cosa si decide d'ufficio perché è scaduto il tempo, l'annuncio della firma sul canale principale lo dice con una riga **⏰ Tempo scaduto**: FA con gli anni non scelti (3 anni di penale), RFA con gli anni minimi assegnati d'ufficio (nuova colonna `anni_automatici` delle aste) o con il pareggio non deciso dal proprietario. Il ruolo estratto in regular season dice "⏰ tempo scaduto: estratto tra le posizioni eleggibili"
+- Anche il **messaggio dell'asta sul canale aste** lo dice: "anni d'ufficio" già nello stato in attesa di pareggio, e tutte le note a contratto firmato (colonna `note_tempo`)
+- Corretto: a contratto firmato il messaggio dell'asta diceva sempre il vincitore e la sua offerta, anche quando il proprietario aveva pareggiato (a volte a un importo diverso). Ora dice chi ha firmato davvero e a quanto, con "(pareggio)" (colonne `team_firma`, `importo_firma`; le aste vecchie restano come prima)
+- Corretto: un RFA senza offerte rifirmato dal proprietario usciva sul canale principale come "pareggia"; ora "rifirma (RFA senza offerte)"
+- Prova `tempo_scaduto`

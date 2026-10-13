@@ -1172,3 +1172,20 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v5.0.8 (2026-10-13)
 
 - loucabot e IPanchinari: gli errori di rete tornano sul canale log (solo lì, non al dev), come nel bot principale, per accorgersi se un bot non raggiunge Telegram
+
+## v5.0.9 (2026-10-13)
+
+- IPanchinari v9: panchina sempre di 5, `/soprannomi` (vedere e cancellare), soprannomi che seguono il giocatore nelle trade, avvisi ai GM e al canale log quando si cede o si taglia un giocatore schierato, "il quintetto non è obbligatorio, è un favore agli admin" ovunque
+
+## v5.0.10 (2026-10-13)
+
+- Bot aste v65: ⏰ Tempo scaduto nell'annuncio sul canale quando anni (penale FA, minimi RFA), pareggio o ruolo sono decisi d'ufficio
+- Ruoli dopo trade, firma o diritti: l'estrazione per dichiarazione non arrivata dice "⏰ Tempo scaduto" sul canale e al GM
+
+## v5.0.11 (2026-10-13)
+
+- Bot aste v65 ricontrollato: ⏰ Tempo scaduto anche nel messaggio dell'asta sul canale aste (in attesa di pareggio e a contratto firmato); il messaggio dell'asta firmata dice chi ha firmato davvero e a quanto (col pareggio prima diceva il vincitore); RFA senza offerte rifirmato: "rifirma", non "pareggia"
+
+## v5.0.12 (2026-10-13)
+
+- IPanchinari v10: sul canale Panchinari chi ha inserito la panchina (GM o quale admin) e l'ora dell'ultima modifica
