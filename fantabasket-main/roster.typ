@@ -29,17 +29,22 @@
     (nome: p.at(0, default: ""), importo: p.at(1, default: "0"),
      anni: p.at(2, default: "1"), flag: p.at(3, default: "N"),
      importo_orig: p.at(4, default: ""), badge: p.at(5, default: ""),
-     ruolo: p.at(6, default: ""), eleg: p.at(7, default: ""), fm: p.at(8, default: ""))
+     ruolo: p.at(6, default: ""), eleg: p.at(7, default: ""), fm: p.at(8, default: ""), extra: p.at(9, default: ""))
   })
 }
 
 // Padding a 15 righe — aggiunge slot vuoti se il roster è incompleto
 #let roster_max = 15
-#let giocatori = if giocatori.len() >= roster_max { giocatori } else {
-  giocatori + range(roster_max - giocatori.len()).map(_ =>
-    (nome: "", importo: "", anni: "", flag: "VUOTO", importo_orig: "", badge: "", ruolo: "", eleg: "", fm: "")
+#let extra_g   = giocatori.filter(g => g.extra != "")
+#let base_g    = giocatori.filter(g => g.extra == "")
+#let base_g    = if base_g.len() >= roster_max { base_g } else {
+  base_g + range(roster_max - base_g.len()).map(_ =>
+    (nome: "", importo: "", anni: "", flag: "VUOTO", importo_orig: "", badge: "", ruolo: "", eleg: "", fm: "", extra: "")
   )
 }
+// fuori dai 15 (DPE che libera lo slot, 10-day): sotto, dopo una riga più spessa
+#let n_base    = base_g.len()
+#let giocatori = base_g + extra_g
 
 #let c_primary  = color.rgb(colore_hex)
 #let c_dark     = c_primary.darken(20%)
@@ -100,6 +105,7 @@
   [#align(center)[#text(8pt, weight: "bold", fill: white)[\$]]],
   [#align(center)[#text(8pt, weight: "bold", fill: white)[Y]]],
   // giocatori
+  ..if extra_g.len() > 0 { (table.hline(y: n_base + 1, stroke: 2pt + c_dark),) } else { () },
   ..giocatori.enumerate().map(((i, g)) => {
     let is_vuoto = g.flag == "VUOTO"
     let (fc, bold) = if g.flag == "R0"     { (c_r0,  true) }
@@ -152,7 +158,7 @@
       #if giocatori.any(g => g.flag == "R3") [#text(7pt, fill: c_r3, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno IV]  ]
       #if has_rfa                             [#text(7pt, fill: c_rfa, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[RFA]  ]
       #if has_dpe                             [#text(7pt, fill: c_dpe, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[DPE]  ]
-      #if has_10d [#text(7pt, fill: c_10d, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[10-day#if fine_10day != "" [ fino al #fine_10day]]]
+      #if has_10d [#text(7pt, fill: c_10d, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[10-day#if fine_10day != "" [ #fine_10day]]]
     ]
   ]
 }

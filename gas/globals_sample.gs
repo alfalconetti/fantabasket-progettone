@@ -15,6 +15,7 @@ const CONFIG = {
   OFFSET_CAMBI_RUOLO:   21,
   OFFSET_TAGLIATI_LABEL: 22,
   OFFSET_IMPATTI:       [23, 24],
+  RIGHE_EXTRA_SOTTO:    2,   // righe sotto gli impatti per DIS. e 10-DAY (pulite a ogni sync)
   COLS_PER_TEAM: 4,
 
   // Scelte

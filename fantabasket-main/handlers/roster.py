@@ -192,6 +192,8 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
     - 6° campo badge: 'badge' se il contrasto testo-sfondo è insufficiente
     - 7° campo ruolo ufficiale, 8° posizioni eleggibili ("SF/PF")
     - 9° campo fantamedia ("23.4", "—" se manca)
+    - 10° campo "x" per chi sta fuori dai 15 (DPE che libera lo slot, 10-day): in fondo, dopo le
+      15 righe e una riga più spessa
     Ordinamento: importo_originale DESC, cognome ASC; quando TUTTI i giocatori
     hanno un ruolo ufficiale: ruolo (PG, SG, SF, PF, C), poi importo, poi cognome.
     Flag: N=normale, A=RFA, R0-R3=rookie anno I-IV scale
@@ -203,7 +205,13 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
     tutti_dichiarati = bool(roster) and all(ruoli.get(x["giocatore_id"]) for x in roster)
     chiave = (lambda x: (_ORDINE_RUOLI.get(ruoli.get(x["giocatore_id"]), 9),) + per_importo(x)) \
         if tutti_dichiarati else per_importo
-    for r in sorted(roster, key=chiave):
+    ordinati = sorted(roster, key=chiave)
+    fuori = lambda x: x.get("tipo_contratto") == "10day" or (x.get("ha_dpe") and x.get("occupa_slot") is False)
+    base = [x for x in ordinati if not fuori(x)]
+    extra = sorted((x for x in ordinati if fuori(x)), key=lambda x: x.get("tipo_contratto") == "10day")
+    posti = [(i, x, "") for i, x in enumerate(base)] + \
+            [(max(15, len(base)) + k, x, "x") for k, x in enumerate(extra)]   # indice della riga su Typst
+    for idx, r, fuori_15 in posti:
         importo      = r.get("importo", 0)
         importo_orig = r.get("importo_originale", importo)
         ha_dpe       = r.get("ha_dpe", False)
@@ -225,7 +233,6 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
         nome = r["nome_common"].replace("|", " ").replace(";", " ")
         # Badge: calcolato sulla riga specifica dove finisce il giocatore
         # indice pari (0,2,4...) → colore_riga1, dispari → colore_riga2
-        idx = len(righe)
         c_r1 = team_colori.get("colore_riga1", "#FFFFFF") if team_colori else "#FFFFFF"
         c_r2 = team_colori.get("colore_riga2", "#FFFFFF") if team_colori else "#FFFFFF"
         # Typst usa calc.odd(i): i dispari → _ton_r1/colore_riga1, i pari → colore_riga2
@@ -238,18 +245,17 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
         fm_txt = f"{media:.1f}" if media is not None else "—"
         if flag == "D":
             importo, anni_res = "10d", "–"
-        righe.append(f"{nome}|{importo}|{anni_res}|{flag}|{dpe}|{badge}|{ruolo}|{eleg}|{fm_txt}")
+        righe.append(f"{nome}|{importo}|{anni_res}|{flag}|{dpe}|{badge}|{ruolo}|{eleg}|{fm_txt}|{fuori_15}")
     return ";".join(righe)
 
 
 def _fine_10day(team_id: str) -> str:
     """Scadenza del 10-day in corso della squadra, per la legenda ("" se non c'è)."""
     try:
-        from handlers.dieci_giorni import attivo_squadra, fine_effettiva
+        from handlers.dieci_giorni import attivo_squadra, breve_scadenza
         a = attivo_squadra(team_id)
         if a and a["scadenza_10day"]:
-            from utils import ROME
-            return fine_effettiva(a["scadenza_10day"])[0].astimezone(ROME).strftime("%d/%m")
+            return breve_scadenza(a["scadenza_10day"])
     except Exception as e:
         logger.warning("Scadenza 10-day per il roster: %s", e)
     return ""

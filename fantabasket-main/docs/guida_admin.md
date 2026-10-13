@@ -134,9 +134,8 @@ I diritti delle seconde al secondo anno scadono 10 giorni prima della trade dead
 
 **10-day contract** (solo nella fase regular-season-fa). La richiesta del GM arriva nel gruppo con le regole e i giocatori della squadra nel ruolo da coprire, con lo status dell'ultimo snapshot ESPN: si approva solo se nessuno di loro è disponibile (OUT o fuori dalle rotazioni). Il bot controlla da solo il resto: una volta a stagione per squadra, al massimo due squadre per giocatore, free agent, ruolo tra le sue posizioni eleggibili.
 
-- Per firmarlo direttamente per una squadra: `/firma_10day_admin NOME`, poi squadra e ruolo.
-- Pannello → **⏱ 10-day**: quelli in corso con la scadenza, e il bottone per chiuderne uno prima.
-- Scade da solo 10 giorni dopo la firma; se cade a giornata in corso, il giorno dopo l'ultima notte della giornata alle 12. Annuncio sul canale e avviso al GM.
+- Pannello → **⏱ 10-day**: quelli in corso con la scadenza, **✍️ Firma un 10-day** (scrivi il nome, poi giocatore, squadra e ruolo: firma subito, senza richiesta) e **⏹ Chiudi ora** accanto a ognuno per chiuderlo prima (chiede conferma; annuncio sul canale e avviso al GM, il giocatore torna free agent). Lo stesso da comando: `/firma_10day_admin NOME`.
+- Scade da solo: dopo 10 giorni dalla firma, ma solo quando è convalidata l'ultima giornata in cui era in squadra (se i 10 giorni finiscono a giornata in corso, o prima della sua convalida, aspetta la convalida). Annuncio sul canale e avviso al GM.
 - Non pesa sul cap, non occupa uno slot, non conta per i minimi dei ruoli; non si taglia, non si scambia, niente DPE. Non registrarlo mai con `/registra_firma`.
 
 ---

@@ -58,11 +58,13 @@ function updateTeamRoster(sheet, team) {
   sheet.getRange(rowBase + CONFIG.OFFSET_CAMBI_RUOLO, colBase, 1, CONFIG.COLS_PER_TEAM)
     .setValue(`CAMBI RUOLO USATI: ${team.cambi_ruolo_usati || 0}/2`);
 
-  // Pulisci area tagliati/impatti
+  // Pulisci area tagliati/impatti e le righe sotto (DIS. e 10-DAY): testo e colore, così una DPE
+  // o un 10-day finiti non restano scritti (prima le DIS. oltre le righe degli impatti restavano)
   sheet.getRange(rowBase + CONFIG.OFFSET_TAGLIATI_LABEL, colBase, 1, CONFIG.COLS_PER_TEAM).clearContent();
-  CONFIG.OFFSET_IMPATTI.forEach(offset => {
-    sheet.getRange(rowBase + offset, colBase, 1, CONFIG.COLS_PER_TEAM).clearContent();
-  });
+  const righeSotto = CONFIG.OFFSET_IMPATTI.length + (CONFIG.RIGHE_EXTRA_SOTTO || 2);
+  const sotto = sheet.getRange(rowBase + CONFIG.OFFSET_TAGLIATI_LABEL + 1, colBase, righeSotto, CONFIG.COLS_PER_TEAM);
+  sotto.clearContent();
+  sotto.setFontColor(null);
 
   // Scrivi impatti tagli se presenti
   if (team.impatti_tagli && team.impatti_tagli.length > 0) {
@@ -112,6 +114,20 @@ function updateTeamRoster(sheet, team) {
         )
         .build();
       sheet.getRange(row, colBase).setRichTextValue(rtv);
+    });
+  }
+
+  // 10-day — sotto le DIS., in verde petrolio (come sul roster di Typst)
+  const dieci = team.dieci_giorni || [];
+  if (dieci.length > 0) {
+    let riga = rowBase + CONFIG.OFFSET_TAGLIATI_LABEL + 1 + (team.impatti_tagli || []).length + dpeList.length;
+    const ultima = rowBase + CONFIG.OFFSET_TAGLIATI_LABEL + righeSotto;
+    dieci.forEach(d => {
+      if (riga > ultima) return;
+      const cella = sheet.getRange(riga, colBase, 1, CONFIG.COLS_PER_TEAM);
+      cella.setFontColor("#00838F");
+      sheet.getRange(riga, colBase).setValue(`10-DAY ${d.ruolo ? d.ruolo + " " : ""}${d.nome} ${d.fine || ""}`.trim());
+      riga++;
     });
   }
 

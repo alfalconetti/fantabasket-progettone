@@ -1,17 +1,17 @@
 """
 10-day contract (regolamento): una volta a stagione per squadra, in regular season prima della
 chiusura della free agency (fase regular-season-fa), un free agent senza asta, senza peso sul
-cap e senza occupare uno slot, per 10 giorni dall'ora della firma. Se la scadenza cade in una
-giornata in corso, il contratto dura fino alla fine di quella giornata: chi inizia una giornata
-in una squadra la finisce. Ogni free agent al massimo con due squadre a stagione. Si chiama solo
+cap e senza occupare uno slot, per 10 giorni dall'ora della firma; decade però solo alla
+convalida (ufficialità) dell'ultima giornata in cui era in squadra: chi inizia una giornata in
+una squadra la finisce (deciso con Luca il 14/10). Ogni free agent al massimo con due squadre a stagione. Si chiama solo
 se nel ruolo da coprire non c'è nessun giocatore disponibile (OUT o fuori rotazione): decidono
 gli admin.
 
-GM:    /firma_10day NOME (o ⏱ 10-day nel /menu) → giocatore → ruolo da coprire → richiesta al
+GM:    /firma_10day NOME (o /menu → ⏱ 10-day → ✍️ e il nome) → giocatore → ruolo da coprire → richiesta al
        gruppo admin, con le regole e i giocatori della squadra in quel ruolo con lo status ESPN.
-Admin: ✅ Approva / ❌ Rifiuta sulla richiesta (callback tdq:); /firma_10day_admin NOME firma
-       direttamente per qualsiasi squadra; /admin_menu → ⏱ 10-day mostra quelli in corso e li
-       può chiudere prima.
+Admin: ✅ Approva / ❌ Rifiuta sulla richiesta (callback tdq:); /firma_10day_admin NOME (o
+       /admin_menu → ⏱ 10-day → ✍️ e il nome) firma direttamente per qualsiasi squadra; lo
+       stesso pannello mostra quelli in corso e li può chiudere prima (⏹).
 
 Nel database: contratti tipo '10day' (importo 0, x1 della stagione, scadenza_10day = firma + 10
 giorni), transazioni '10day_firma' e '10day_scadenza', ruolo in cambi_ruolo ('post_firma', il
@@ -30,6 +30,8 @@ from psycopg2.extras import RealDictCursor
 
 from telegram import InlineKeyboardButton as B, InlineKeyboardMarkup as K, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
+
+from telegram.ext import ConversationHandler, MessageHandler, filters
 
 import database as db
 import nomi
@@ -50,7 +52,7 @@ REGOLE = ("• una volta a stagione per squadra, prima della chiusura della free
           "• solo se nel ruolo da coprire non c'è nessun giocatore disponibile (OUT o fuori dalle rotazioni): "
           "decidono gli admin\n"
           "• niente asta, niente cap, niente slot\n"
-          "• dura 10 giorni dall'ora della firma; se scade a giornata in corso, fino alla fine della giornata\n"
+          "• dura 10 giorni dall'ora della firma, ma decade solo alla convalida dell'ultima giornata in cui era in squadra\n"
           "• ogni free agent al massimo con due squadre a stagione\n"
           "• alla scadenza torna free agent: per riprenderlo serve un'asta")
 
@@ -95,25 +97,72 @@ def _giornate(stagione: str) -> list[dict]:
 
 
 def _intervallo(g: dict) -> tuple[datetime, datetime]:
+    """Da quando a quando una giornata è "in corso": dalla prima partita al giorno dopo l'ultima
+    notte alle 12 (ora di Roma), quando di solito è già calcolata."""
     inizio = g["prima_partita"] or datetime.combine(g["dal"], time(0, 0), ET)
     fine = datetime.combine(g["al"] + timedelta(days=1), ORA_FINE_GIORNATA, ROMA)
     return inizio, fine
 
 
-def fine_effettiva(base: datetime, stagione: str | None = None) -> tuple[datetime, int | None]:
-    """(scadenza, giornata che la allunga): se i 10 giorni finiscono a giornata in corso, il
-    contratto dura fino alla fine di quella giornata (il giorno dopo l'ultima notte, alle 12)."""
+def _convalidate(stagione: str) -> set[int] | None:
+    """Giornate convalidate da loucabot (None se la tabella non c'è)."""
+    try:
+        if not db._qval("SELECT to_regclass('public.lega_calcoli') IS NOT NULL"):
+            return None
+        return {r["giornata"] for r in db._q("SELECT giornata FROM lega_calcoli WHERE stagione = %s AND stato = 'convalidata'",
+                                             (stagione,), many=True) or []}
+    except Exception as err:
+        logger.warning("Giornate convalidate per il 10-day: %s", err)
+        return None
+
+
+def giornate_aperte(base: datetime, ora: datetime | None = None, stagione: str | None = None) -> list[int]:
+    """Le giornate che tengono ancora il 10-day: iniziate durante il contratto (dalla firma,
+    base − 10 giorni, ai 10 giorni) e non ancora convalidate. Il contratto decade all'ufficialità
+    (convalida) dell'ultima giornata in cui era presente, non prima. Senza le tabelle di loucabot
+    vale la fine della giornata (giorno dopo l'ultima notte, alle 12)."""
+    stagione = stagione or _stagione()
+    ora = ora or datetime.now(timezone.utc)
+    firma = base - timedelta(days=GIORNI)
+    convalidate = _convalidate(stagione)
+    aperte = []
+    for g in _giornate(stagione):
+        inizio, fine = _intervallo(g)
+        if inizio > base or fine < firma:
+            continue
+        if convalidate is None:
+            if ora < fine:
+                aperte.append(g["numero"])
+        elif g["numero"] not in convalidate:
+            aperte.append(g["numero"])
+    return aperte
+
+
+def in_corso_alla_scadenza(base: datetime, stagione: str | None = None) -> int | None:
+    """La giornata in corso quando finiscono i 10 giorni (lo terrà fino alla sua convalida)."""
     for g in _giornate(stagione or _stagione()):
         inizio, fine = _intervallo(g)
         if inizio <= base < fine:
-            return fine, g["numero"]
-    return base, None
+            return g["numero"]
+    return None
+
+
+def scaduto(base: datetime, ora: datetime | None = None) -> bool:
+    ora = ora or datetime.now(timezone.utc)
+    return ora >= base and not giornate_aperte(base, ora)
 
 
 def testo_scadenza(base: datetime, stagione: str | None = None) -> str:
-    fine, n = fine_effettiva(base, stagione)
-    t = fine.astimezone(ROMA).strftime("%d/%m alle %H:%M")
-    return f"{t} (fine della giornata {n})" if n else t
+    n = in_corso_alla_scadenza(base, stagione)
+    if n:
+        return f"alla convalida della giornata {n}"
+    return "al " + base.astimezone(ROMA).strftime("%d/%m alle %H:%M")
+
+
+def breve_scadenza(base: datetime) -> str:
+    """Per la legenda del roster: "fino al 26/10" o "fino alla convalida della G3"."""
+    n = in_corso_alla_scadenza(base)
+    return f"fino alla convalida della G{n}" if n else "fino al " + base.astimezone(ROMA).strftime("%d/%m")
 
 
 # ══ dati ════════════════════════════════════════════════════════════════════
@@ -322,10 +371,10 @@ async def esegui(bot, team_id: str, gid: int, ruolo: str, chi: str) -> str:
     fino = testo_scadenza(r["scadenza"])
     await _manda(bot, settings.load_globals().get("main_channel_id"),
                  f"⏱ <b>{e(_nome_team(team_id))}</b> firma <b>{nome}</b> con un 10-day ({ruolo})\n"
-                 f"<i>Fino al {fino}. Non pesa sul cap e non occupa uno slot.</i>")
-    await _log(bot, f"⏱ 10-day: {nome} → {e(_nome_team(team_id))} ({ruolo}), fino al {fino} — {e(chi)}")
+                 f"<i>Fino {fino}. Non pesa sul cap e non occupa uno slot.</i>")
+    await _log(bot, f"⏱ 10-day: {nome} → {e(_nome_team(team_id))} ({ruolo}), fino {fino} — {e(chi)}")
     _sync(team_id)
-    return f"✅ <b>{nome}</b> firmato con un 10-day da {e(_nome_team(team_id))} come {ruolo}, fino al {fino}."
+    return f"✅ <b>{nome}</b> firmato con un 10-day da {e(_nome_team(team_id))} come {ruolo}, fino {fino}."
 
 
 async def job_scadenza(context: ContextTypes.DEFAULT_TYPE):
@@ -335,8 +384,7 @@ async def job_scadenza(context: ContextTypes.DEFAULT_TYPE):
         for c in attivi():
             if not c["scadenza_10day"]:
                 continue
-            fine, _ = fine_effettiva(c["scadenza_10day"])
-            if fine > ora or not chiudi(c["id"], "Fine del 10-day"):
+            if not scaduto(c["scadenza_10day"], ora) or not chiudi(c["id"], "Fine del 10-day"):
                 continue
             testo = (f"⏱ <b>{e(_nome_team(c['team_id']))}</b>: finito il 10-day di <b>{e(c['nome_common'])}</b>, "
                      f"torna free agent (per riprenderlo serve un'asta)")
@@ -354,7 +402,7 @@ async def job_scadenza(context: ContextTypes.DEFAULT_TYPE):
 def _info_squadra(team_id: str) -> str:
     a = attivo_squadra(team_id)
     if a:
-        return f"In corso: <b>{e(a['nome_common'])}</b>, fino al {testo_scadenza(a['scadenza_10day'])}."
+        return f"In corso: <b>{e(a['nome_common'])}</b>, fino {testo_scadenza(a['scadenza_10day'])}."
     u = usato(team_id)
     if u:
         return f"Già usato in questa stagione ({e(u['nome_common'])})."
@@ -363,8 +411,8 @@ def _info_squadra(team_id: str) -> str:
 
 def testo_home(team_id: str) -> str:
     return (f"⏱ <b>10-day contract</b> — {e(_nome_team(team_id))}\n{_info_squadra(team_id)}\n\n"
-            f"<b>Regole</b>\n{REGOLE}\n\nPer chiederlo: <code>/firma_10day NOME</code> "
-            f"(un free agent), poi scegli il ruolo da coprire. Decide un admin.")
+            f"<b>Regole</b>\n{REGOLE}\n\nPer chiederlo: ✍️ qui sotto e scrivi il nome (o "
+            f"<code>/firma_10day NOME</code>), poi scegli il ruolo da coprire. Decide un admin.")
 
 
 def _kb_giocatori(trovati: list[dict], prefisso: str) -> K:
@@ -415,8 +463,9 @@ async def cb_gm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.edit_message_text("Chiuso.")
         return
     if azione == "home":
-        await q.edit_message_text(testo_home(team["id"]), parse_mode="HTML",
-                                  reply_markup=K([[B("← Menu", callback_data="menu:home")]]))
+        kb = ([[B("✍️ Scrivi il nome del giocatore", callback_data="td:nome")]] if aperto() else []) + \
+             [[B("← Menu", callback_data="menu:home")]]
+        await q.edit_message_text(testo_home(team["id"]), parse_mode="HTML", reply_markup=K(kb))
         return
     gid = int(parti[2])
     nome = e((db.get_giocatore(gid) or {}).get("nome_common", gid))
@@ -589,13 +638,15 @@ def testo_pannello() -> tuple[str, K]:
     righe = ["⏱ <b>10-day in corso</b>"]
     kb = []
     for c in attivi():
-        righe.append(f"• {e(_nome_team(c['team_id']))}: <b>{e(c['nome_common'])}</b>, fino al "
+        righe.append(f"• {e(_nome_team(c['team_id']))}: <b>{e(c['nome_common'])}</b>, fino "
                      f"{testo_scadenza(c['scadenza_10day'])}")
         kb.append([B(f"⏹ Chiudi ora: {c['nome_common']}", callback_data=f"tdadm:end:{c['id']}")])
     if len(righe) == 1:
         righe.append("Nessuno.")
-    righe += ["", "Per firmarne uno per una squadra: <code>/firma_10day_admin NOME</code>. "
-                  "Le richieste dei GM arrivano nel gruppo admin."]
+    righe += ["", "✍️ per firmarne uno per una squadra (o <code>/firma_10day_admin NOME</code>); ⏹ per chiuderne "
+                  "uno prima. Le richieste dei GM arrivano nel gruppo admin."]
+    if aperto():
+        kb.append([B("✍️ Firma un 10-day (scrivi il nome)", callback_data="tdadm:nome")])
     kb.append([B("← Menu admin", callback_data="adm:home")])
     return "\n".join(righe), K(kb)
 
@@ -627,8 +678,56 @@ async def cb_pannello(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.edit_message_text(testo, parse_mode="HTML", reply_markup=kb)
 
 
+# ══ nome scritto dopo il bottone ✍️ (GM e admin) ══════════════════════════════
+
+NOME = 1
+
+
+async def cb_chiedi_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    admin = q.data.startswith("tdadm:")
+    if admin and not _is_admin(q.from_user.id):
+        await q.answer("⛔ Solo admin.", show_alert=True)
+        return ConversationHandler.END
+    if not admin and not tm.get_team_by_gm(q.from_user.id):
+        await q.answer("⛔ Non sei registrato come GM.", show_alert=True)
+        return ConversationHandler.END
+    await q.answer()
+    if not aperto():
+        await q.edit_message_text(FUORI_FASE)
+        return ConversationHandler.END
+    context.user_data["10day_admin"] = admin
+    await q.edit_message_text("✍️ Scrivi il nome del free agent (anche solo una parte). /annulla per uscire.")
+    return NOME
+
+
+async def msg_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    admin = context.user_data.pop("10day_admin", False)
+    nome = (update.effective_message.text or "").strip()
+    trovati = cerca(nome)
+    if not trovati:
+        await update.effective_message.reply_text(f"Nessun free agent trovato con «{nome}». Riprova o /annulla.")
+        context.user_data["10day_admin"] = admin
+        return NOME
+    titolo = "⏱ <b>10-day (admin)</b> — quale giocatore?" if admin else "⏱ <b>10-day</b> — quale giocatore?"
+    await update.effective_message.reply_text(titolo, parse_mode="HTML",
+                                              reply_markup=_kb_giocatori(trovati, "tda" if admin else "td"))
+    return ConversationHandler.END
+
+
+async def annulla_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data.pop("10day_admin", None)
+    await update.effective_message.reply_text("Annullato.")
+    return ConversationHandler.END
+
+
 def get_handlers() -> list:
     return [
+        ConversationHandler(
+            entry_points=[CallbackQueryHandler(cb_chiedi_nome, pattern=r"^(?:td|tdadm):nome$")],
+            states={NOME: [MessageHandler(filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, msg_nome)]},
+            fallbacks=[CommandHandler(["annulla", "annulla_admin"], annulla_nome)],
+            conversation_timeout=600, name="dieci_giorni_nome"),
         CommandHandler("firma_10day", cmd_firma_10day),
         CommandHandler("firma_10day_admin", cmd_firma_10day_admin),
         CallbackQueryHandler(cb_gm, pattern=r"^td:(?:x|home|g:\d+|(?:r|ok):\d+:[A-Z]{1,2})$"),

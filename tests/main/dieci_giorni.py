@@ -12,7 +12,9 @@ db._q("TRUNCATE giocatori, contratti, transazioni, dpe, impatto_taglio, rookie, 
 db._q("""CREATE TABLE IF NOT EXISTS lega_giornate (stagione TEXT NOT NULL, numero INT NOT NULL, tipo TEXT NOT NULL DEFAULT 'regular',
          dal DATE NOT NULL, al DATE NOT NULL, media_file TEXT[] NOT NULL DEFAULT '{}', prima_partita TIMESTAMPTZ, media TEXT[],
          calcolato TIMESTAMPTZ, PRIMARY KEY (stagione, numero))""")
-db._q("TRUNCATE lega_giornate")
+db._q("""CREATE TABLE IF NOT EXISTS lega_calcoli (stagione TEXT NOT NULL, giornata INT NOT NULL, stato TEXT NOT NULL DEFAULT
+         'da_convalidare', risultati JSONB NOT NULL, PRIMARY KEY (stagione, giornata))""")
+db._q("TRUNCATE lega_giornate, lega_calcoli")
 ok = lambda c, m: print(("✅" if c else "❌ FAIL"), m)
 
 
@@ -143,20 +145,33 @@ import handlers.roster as R
 s = R._build_giocatori_str(roster, [], ruoli={libero: "C"})
 ok(any(p.startswith("Libero Lungo|10d|–|D|") for p in s.split(";")), "roster PNG: flag D, 10d, niente anni")
 import gas_client
-p = gas_client._build_team_payload("team01")["giocatori"]
-ok(p[-1] == {"ruolo": "C", "nome": "Libero Lungo (10-day)", "importo": 0, "anni": 0, "flag": "D"}, "foglio Roster: in fondo, (10-day), importo 0")
-ok(R._fine_10day("team01") == T.fine_effettiva(c["scadenza_10day"])[0].astimezone(ZoneInfo("Europe/Rome")).strftime("%d/%m"),
-   "legenda: fino al giorno della scadenza")
+p = gas_client._build_team_payload("team01")
+fino = "fino al " + c["scadenza_10day"].astimezone(ZoneInfo("Europe/Rome")).strftime("%d/%m")
+ok(all(x["nome"] != "Libero Lungo" for x in p["giocatori"]) and p["dieci_giorni"] == [{"nome": "Libero Lungo", "ruolo": "C", "fine": fino}],
+   "foglio Roster: fuori dalle 15 righe, sotto (dieci_giorni)")
+ok(R._fine_10day("team01") == fino, "legenda: fino al giorno dei 10 giorni")
+s2 = R._build_giocatori_str([{"giocatore_id": i, "nome_common": f"G{i}", "importo": 20 - i, "anni_originali": 2, "stagione_firma": "2026",
+                              "tipo_contratto": "normale", "occupa_slot": True} for i in range(3)]
+                            + [{"giocatore_id": 99, "nome_common": "Rotto", "importo": 15, "importo_originale": 20, "ha_dpe": True,
+                                "occupa_slot": False, "anni_originali": 2, "stagione_firma": "2026", "tipo_contratto": "normale"}]
+                            + [x for x in roster if x["giocatore_id"] == libero], [])
+ok([q.split("|")[0] for q in s2.split(";")][-2:] == ["Rotto", "Libero Lungo"] and s2.split(";")[-1].endswith("|x")
+   and s2.split(";")[-2].endswith("|x") and s2.split(";")[0].endswith("|"), "Typst: DPE che libera lo slot e 10-day in fondo, fuori dai 15")
 
 # ── scadenza allungata a fine giornata ──
 base = datetime(2026, 11, 3, 20, 0, tzinfo=timezone.utc)
 db._q("INSERT INTO lega_giornate (stagione, numero, dal, al, prima_partita) VALUES ('2026', 3, '2026-11-02', '2026-11-04', %s)",
       (datetime(2026, 11, 2, 23, 0, tzinfo=timezone.utc),))
-fine, n = T.fine_effettiva(base)
-ok(n == 3 and fine == datetime(2026, 11, 5, 12, 0, tzinfo=ZoneInfo("Europe/Rome")), f"scade a giornata in corso → fine giornata ({fine})")
-ok(T.fine_effettiva(datetime(2026, 11, 6, 10, 0, tzinfo=timezone.utc)) == (datetime(2026, 11, 6, 10, 0, tzinfo=timezone.utc), None),
-   "fuori dalle giornate: i 10 giorni esatti")
-ok("fine della giornata 3" in T.testo_scadenza(base), "il testo dice che è allungato")
+dopo = datetime(2026, 11, 9, 12, 0, tzinfo=timezone.utc)
+ok(T.in_corso_alla_scadenza(base) == 3 and T.testo_scadenza(base) == "alla convalida della giornata 3",
+   "10 giorni a giornata in corso: fino alla convalida della giornata")
+ok(not T.scaduto(base, dopo) and T.giornate_aperte(base, dopo) == [3], "giornata finita ma non convalidata: resta")
+dopo_fine = datetime(2026, 11, 5, 13, 0, tzinfo=timezone.utc)
+ok(not T.scaduto(dopo_fine, dopo), "10 giorni finiti dopo l'ultima notte, giornata non ancora convalidata: resta")
+db._q("INSERT INTO lega_calcoli (stagione, giornata, stato, risultati) VALUES ('2026', 3, 'convalidata', '{}')")
+ok(T.scaduto(base, dopo) and T.scaduto(dopo_fine, dopo), "alla convalida della giornata decade")
+ok(not T.scaduto(base, base - timedelta(minutes=1)), "prima dei 10 giorni mai")
+ok(T.testo_scadenza(datetime(2026, 11, 6, 10, 0, tzinfo=timezone.utc)) == "al 06/11 alle 11:00", "fuori dalle giornate: i 10 giorni")
 
 # ── job: scadenza ──
 db._q("UPDATE contratti SET scadenza_10day = NOW() + INTERVAL '1 hour' WHERE id = %s", (c["id"],))
@@ -210,3 +225,23 @@ db.aggiungi_item_trade(tid, "giocatore", "team03", "team04", giocatore_id=second
 ok(any("10-day, non si può scambiare" in x for x in VT.valida_trade(tid)[1]), "trade: il 10-day non si scambia")
 coe = db.controlli_coerenza()
 ok(coe == [] or all("storico" in x for x in coe), f"coerenza {coe}")
+
+# ── bottone ✍️ e nome scritto (menu GM e pannello admin) ──
+fase("regular-season-fa")
+ud = {}
+def tap_ud(f, data, uid):
+    q = Q(data, uid)
+    st = asyncio.run(f(types.SimpleNamespace(callback_query=q, effective_user=q.from_user), types.SimpleNamespace(bot=Bot(), user_data=ud)))
+    return q, st
+q = tap(T.cb_gm, "td:home", 103)
+ok("td:nome" in cbs(q.kb), "menu GM → ⏱ 10-day: il bottone ✍️")
+q = tap(T.cb_pannello, "tdadm:list", 900)
+ok("tdadm:nome" in cbs(q.kb), "pannello admin → ⏱ 10-day: il bottone ✍️ per firmarne uno")
+q, st = tap_ud(T.cb_chiedi_nome, "tdadm:nome", 900)
+ok(st == T.NOME and ud.get("10day_admin") is True, "✍️ admin: aspetta il nome")
+m = Msg(); m.text = "Libero"
+st = asyncio.run(T.msg_nome(types.SimpleNamespace(effective_message=m, effective_user=types.SimpleNamespace(id=900)),
+                            types.SimpleNamespace(bot=Bot(), user_data=ud)))
+ok(st == T.ConversationHandler.END and f"tda:g:{libero}" in cbs(m.r[0][1]), "nome scritto: i free agent coi bottoni della firma admin")
+q, st = tap_ud(T.cb_chiedi_nome, "tdadm:nome", 101)
+ok(st == T.ConversationHandler.END and "Solo admin" in (q.risposte[0] or ""), "✍️ admin: solo admin")

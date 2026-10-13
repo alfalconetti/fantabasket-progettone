@@ -251,12 +251,12 @@ In regular season, prima della chiusura della free agency, puoi prendere **un fr
 
 - Non pesa sul cap e non occupa uno slot.
 - Si chiede solo se nel ruolo da coprire **non hai nessun giocatore disponibile** (OUT o fuori dalle rotazioni). Decidono gli admin.
-- Dura 10 giorni dall'ora della firma. Se scade a giornata in corso, resta tuo **fino alla fine della giornata**: chi la inizia con te la finisce con te.
+- Dura 10 giorni dall'ora della firma, ma decade solo **all'ufficialità (convalida) dell'ultima giornata in cui era in squadra**: chi inizia una giornata con te la finisce con te, e resta tuo finché quella giornata non è convalidata.
 - Ogni free agent può essere firmato con un 10-day al massimo da **due squadre** a stagione.
 - Alla scadenza torna free agent: per riprenderlo serve un'asta normale.
 - Non si taglia, non si scambia e non va in DPE.
 
-Come si chiede: `/firma_10day NOME` (o menu → ⏱ 10-day), scegli il giocatore e il ruolo che deve coprire. Il bot ti mostra i tuoi giocatori in quel ruolo con lo status ESPN, poi manda la richiesta agli admin. Quando approvano lo trovi nel roster (in verde petrolio, con la data di fine nella legenda), nel foglio Roster e su IPanchinari, dove lo puoi schierare come gli altri.
+Come si chiede: menu → ⏱ 10-day → ✍️ e scrivi il nome (oppure `/firma_10day NOME`), poi scegli il giocatore e il ruolo che deve coprire. Il bot ti mostra i tuoi giocatori in quel ruolo con lo status ESPN, poi manda la richiesta agli admin. Quando approvano lo trovi nel roster (in fondo, sotto una riga più spessa, in verde petrolio, con la scadenza nella legenda), nel foglio Roster (sotto, riga 10-DAY) e su IPanchinari, dove lo puoi schierare come gli altri.
 
 ---
 

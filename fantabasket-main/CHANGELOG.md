@@ -1253,3 +1253,10 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - Prova `dieci_giorni`; la prova delle guide accetta i comandi con le cifre
 - loucabot v17: medie arrotondate all'ottavo (solo ,00 ,13 ,25 ,38 ,50 ,63 ,75 ,88)
 
+## v5.2.1 (2026-10-14)
+
+- 10-day: decade all'ufficialità (convalida) dell'ultima giornata in cui era in squadra, non più a un'ora fissa; il testo dice "fino al 26/10" o "fino alla convalida della giornata N"
+- 10-day dai menu: /menu → ⏱ 10-day → ✍️ e il nome (GM), /admin_menu → ⏱ 10-day → ✍️ Firma un 10-day (admin, per qualsiasi squadra); ⏹ Chiudi ora per chiuderlo prima
+- Roster e asset Typst: le 15 righe sono dei giocatori che occupano uno slot; sotto, dopo una riga più spessa, le DPE che liberano lo slot e il 10-day
+- Foglio Roster: il 10-day non sta più nelle 15 righe ma sotto le DIS., riga "10-DAY ruolo nome scadenza" in verde petrolio. Le righe sotto gli impatti si puliscono a ogni sync, testo e colore (prima una DIS. finita oltre le righe degli impatti restava scritta, e il rosso restava sulle righe). Serve `clasp push` e Nuova versione
+
