@@ -101,10 +101,11 @@ def abbina_riga(riga: str, roster: list[dict], alias: dict[str, int] | None = No
         return {"testo": riga, "candidati": [a], "scelto": a, "certo": True}
     voti = sorted(((punteggio(riga, g), g["id"]) for g in roster), reverse=True)
     buoni = [(v, i) for v, i in voti if v >= SOGLIA]
-    if not buoni:                                   # solo il nome di battesimo ("Shai", "Luka magic")
-        pr = set(parole(riga))
+    if not buoni:                                   # solo il nome di battesimo ("Shai", "Luka magic", "Herbet")
+        pr = [p for p in parole(riga) if p not in SUFFISSI]
         per_nome = [g["id"] for g in roster
-                    if any(p in pr for w in (g.get("nome_common") or "").split()[:-1] for p in parole(w))]
+                    if any(_simile(p, n) >= 0.7 for w in (g.get("nome_common") or "").split()[:-1]
+                           for n in parole(w) for p in pr)]
         buoni = [(SOGLIA, i) for i in per_nome]
     candidati = [i for _, i in buoni[:3]]
     certo = bool(buoni) and (len(buoni) == 1 or buoni[0][0] - buoni[1][0] >= STACCO)

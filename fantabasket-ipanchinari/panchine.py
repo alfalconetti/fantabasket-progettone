@@ -81,8 +81,15 @@ def anteprima(b: dict) -> tuple[str, K]:
         righe += ["", "ℹ️ " + "\nℹ️ ".join(e(x) for x in av)]
     if not pb:
         righe += ["", "Sul canale usciranno le righe come le hai scritte tu."]
-    tasti = [[B(f"{'❓' if not r.get('scelto') else '✏️'} {i}", callback_data=f"pb:r:{b['id']}:{i - 1}")
-              for i, r in enumerate(d["righe"], 1)]]
+    tasti = []
+    for i, r in enumerate(d["righe"], 1):            # dubbi: i candidati direttamente come bottoni
+        if r.get("scelto"):
+            continue
+        cand = [c for c in r.get("candidati", []) if c in nomi][:3]
+        tasti.append([B(f"{i}: {nomi[c]}", callback_data=f"pb:s:{b['id']}:{i - 1}:{c}") for c in cand]
+                     + [B(f"{i}: 📋 altri" if cand else f"{i}: 📋 scegli", callback_data=f"pb:t:{b['id']}:{i - 1}")])
+    tasti.append([B(f"{'❓' if not r.get('scelto') else '✏️'} {i}", callback_data=f"pb:r:{b['id']}:{i - 1}")
+                  for i, r in enumerate(d["righe"], 1)])
     fondo = [B("❌ Annulla", callback_data=f"pb:no:{b['id']}")]
     if not pb:
         fondo.insert(0, B("✅ Pubblica", callback_data=f"pb:ok:{b['id']}"))
@@ -236,7 +243,7 @@ async def cb_panchina(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def testo_canale(team_id: str, giornata: int, titolo: str | None, righe: list[dict], aggiornata: bool) -> str:
-    out = [f"🪑 <b>{e(config.nome(team_id))}</b> · giornata {giornata}" + (" · 🔁 aggiornata" if aggiornata else "")]
+    out = [f"<b>{e(config.nome(team_id))}</b> · giornata {giornata}" + (" · 🔁 aggiornata" if aggiornata else "")]
     if titolo:
         out.append(f"<i>{e(titolo)}</i>")
     out += [f"{i}. {e(r['testo'])}" for i, r in enumerate(righe, 1)]

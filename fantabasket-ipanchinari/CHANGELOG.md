@@ -19,3 +19,9 @@ Primo rilascio: panchine e quintetti.
 ## v4 (2026-10-13)
 
 - Admin coi bottoni sulle altre squadre: `/quintetto_admin SQUADRA` senza righe apre il quintetto di quella squadra coi bottoni (parte da quello attuale; anche a giornata in corso aggiorna la formazione della giornata), `/panchina_admin SQUADRA` senza righe apre il builder della panchina con la CAI mode. I bottoni del quintetto portano la squadra (un GM non tocca quelle degli altri)
+
+## v5 (2026-10-13)
+
+- Riconosce il nome di battesimo da solo anche scritto male o accorciato ("Herbet", "Herb" → Herbert Jones), se è di un solo giocatore della squadra
+- Sul canale Panchinari niente più emoji 🪑 nell'intestazione della panchina
+- Righe dubbie risolte con un tocco: nell'anteprima i candidati di ogni riga dubbia sono già bottoni ("2: Jalen Williams"), più "📋 altri" per tutta la rosa

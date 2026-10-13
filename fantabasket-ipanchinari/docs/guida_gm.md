@@ -20,7 +20,7 @@ Kevon the champ Looney
 
 Il bot ti risponde con l'anteprima: accanto a ogni riga il giocatore che ha capito.
 
-- Se una riga non l'ha capita (❓), tocca il numero della riga e scegli il giocatore dai bottoni. La volta dopo quel soprannome lo riconosce da solo.
+- Se una riga non l'ha capita (❓), sotto l'anteprima trovi già i bottoni con i giocatori possibili per quella riga ("2: Jalen Williams", "2: Jalen Brunson"): un tocco e la riga è a posto. Se non c'è quello giusto, "📋 altri" ti mostra tutta la rosa. La volta dopo quel soprannome lo riconosce da solo.
 - Se ha capito male, tocca ✏️ e il numero della riga per correggerla.
 - Quando è tutto giusto tocca **✅ Pubblica**: sul canale Panchinari escono **le tue righe come le hai scritte** (e il titolo), senza i nomi veri.
 

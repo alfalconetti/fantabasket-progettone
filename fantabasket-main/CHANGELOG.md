@@ -1149,3 +1149,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v5.0.3 (2026-10-13)
 
 - IPanchinari v4: quintetto e panchina coi bottoni anche per gli admin sulle altre squadre (`/quintetto_admin SQUADRA` e `/panchina_admin SQUADRA` senza righe)
+
+## v5.0.4 (2026-10-13)
+
+- IPanchinari v5: nome di battesimo scritto male riconosciuto ("Herbet"); dubbi risolti con un tocco (candidati già bottoni nell'anteprima); intestazione sul canale senza emoji

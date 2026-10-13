@@ -1,6 +1,6 @@
 # Messaggio di migrazione — Fantabasket Progettone
 
-**Stato: v5.0.3 · bot aste v64 · loucabot v9 · IPanchinari v4** (13/10/2026)
+**Stato: v5.0.4 · bot aste v64 · loucabot v9 · IPanchinari v5** (13/10/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 
@@ -149,7 +149,7 @@ README e guide in `fantabasket-loucabot/` e `docs/`. Legge tutto, scrive solo le
 - **Calcolo** (`calcolo.py`): punteggio del giocatore nella giornata, della squadra con FADD, esito con supplementari, tutto provato. `/fantapunti N` per controllo.
 - **Foglio Calendario** (stesso file del Roster, oggi un foglio parallelo di test): a ogni aggiornamento si ricarica tutta la pagina, colonne A:E (formattazione e celle unite restano), con le squadre a media calcolate e i punteggi in B e D (regolamentari nella riga delle squadre, supplementari sotto) da `lega_risultati`. All'import, quando cambiano le squadre a media, con `/calendario_foglio`; da fare anche dopo ogni giornata ufficializzata. La classifica sul foglio ha le sue formule.
 
-## 8b. IPanchinari (`fantabasket-ipanchinari`, v4)
+## 8b. IPanchinari (`fantabasket-ipanchinari`, v5)
 
 README e guide in `fantabasket-ipanchinari/`. Scrive solo `ipa_*`; legge roster e ruoli (bot principale), giornate e partite NBA (loucabot). Deciso con Luca (13/10/2026), per venire incontro alle abitudini dei GM:
 - **Panchine come sempre, da messaggio**: il GM manda al bot in privato le righe dei panchinari (soprannomi "High CAI" compresi, titolo facoltativo sopra separato da una riga vuota); il bot le abbina ai giocatori della squadra (tollerante; dubbi coi bottoni; alias ricordati per squadra), chiede conferma e pubblica sul **canale Panchinari solo le righe come le ha scritte il GM**, mai i nomi veri. Vale per la prossima giornata aperta; rimandata esce come aggiornamento. Chi vuole la compone coi bottoni (`/build_panchina`: solo giocatori non nel quintetto; con il bottone 😎 CAI mode titolo e soprannomi).

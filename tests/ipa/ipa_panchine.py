@@ -76,6 +76,14 @@ def premi(uid, data):
 def bottoni(k):
     return [b.callback_data for riga in k.inline_keyboard for b in riga]
 
+# ── abbinamento: casi reali ──
+import abbina as A
+_r = [{"id": i, "nome_common": n} for i, n in enumerate(["Herbert Jones", "Jalen Williams", "Jalen Brunson", "Ja Morant"], 1)]
+ok(all(A.abbina_riga(x, _r)["scelto"] == 1 for x in ("Herbet", "Herbet il muro", "Herb")),
+   "nome di battesimo da solo, scritto male o accorciato (Herbet, Herb): riconosciuto se è di uno solo")
+ok(A.abbina_riga("Jalen", _r)["scelto"] is None and len(A.abbina_riga("Jalen", _r)["candidati"]) == 2,
+   "nome di battesimo di due giocatori: si chiede")
+
 # ── quintetti dall'admin ──
 qq, err = Q.leggi_quintetto("team01", ["PG Brunson", "SG Booker", "SF Bridges", "PF Grant Williams", "C Mark Williams"])
 ok(not err and qq == {"PG": gids["Jalen Brunson"], "SG": gids["Devin Booker"], "SF": gids["Mikal Bridges"],
@@ -104,7 +112,7 @@ ok(f"pb:ok:{bid}" in bottoni(k["reply_markup"]), "tutte le righe riconosciute: s
 ok(premi(102, f"pb:ok:{bid}").risposte == ["Non è la tua squadra."], "il GM di un'altra squadra non può confermare")
 premi(111, f"pb:ok:{bid}")                                   # il secondo GM della squadra sì
 canale = [x for x in BOT.mandati if x["chat_id"] == -500]
-ok(len(canale) == 1 and "Dominik Arcade Boy Barlow" in canale[0]["text"] and "Dominick Barlow" not in canale[0]["text"]
+ok(len(canale) == 1 and canale[0]["text"].startswith("<b>Alfa</b>") and "Dominik Arcade Boy Barlow" in canale[0]["text"] and "Dominick Barlow" not in canale[0]["text"]
    and "<i>No Buffalo Brownies</i>" in canale[0]["text"] and "Alfa" in canale[0]["text"],
    f"sul canale solo le righe del GM (niente nomi veri) e il titolo: {canale[0]['text'] if canale else ''}")
 p = db.panchina(S, 2, "team01")
@@ -116,6 +124,7 @@ m = manda(101, "Lo Sceriffo\nBarlow\nClayton\nClifford\nLooney")
 t, k = m.risposte[0]
 bid = int(bottoni(k["reply_markup"])[0].split(":")[2])
 ok("❓" in t and f"pb:ok:{bid}" not in bottoni(k["reply_markup"]), "riga non riconosciuta: da scegliere, niente Pubblica")
+ok(f"pb:t:{bid}:0" in bottoni(k["reply_markup"]), "riga senza candidati: bottone per scegliere dalla rosa già nell'anteprima")
 qb = premi(101, f"pb:r:{bid}:0")
 ok(any(f"pb:s:{bid}:0:{gids['Josh Hart']}" == b for b in bottoni(qb.testi[-1][1]["reply_markup"])), "bottoni con la rosa")
 premi(101, f"pb:s:{bid}:0:{gids['Josh Hart']}")
@@ -125,6 +134,16 @@ ok(len(canale) == 2 and "aggiornata" in canale[1]["text"] and canale[1].get("rep
    "rimandata: esce come aggiornamento, in risposta alla precedente")
 m = manda(101, "lo sceriffo!\nBarlow\nClayton\nClifford\nLooney")
 ok("lo sceriffo! → <b>Josh Hart</b>" in m.risposte[0][0], "la volta dopo il soprannome si riconosce da solo (alias)")
+
+# ── dubbio tra più candidati: bottoni diretti nell'anteprima ──
+m = manda(101, "Williams il primo\nBarlow\nClayton\nClifford\nLooney")
+t, k = m.risposte[0]
+bid = int(bottoni(k["reply_markup"])[0].split(":")[2])
+ok({f"pb:s:{bid}:0:{gids['Grant Williams']}", f"pb:s:{bid}:0:{gids['Mark Williams']}"} <= set(bottoni(k["reply_markup"])),
+   "riga dubbia: i candidati sono già bottoni nell'anteprima")
+qb = premi(101, f"pb:s:{bid}:0:{gids['Grant Williams']}")
+ok("Williams il primo → <b>Grant Williams</b>" in qb.testi[-1][0], "un tocco e la riga è risolta")
+db.chiudi_bozza(bid)
 
 # ── titolare in panchina (solo avviso: fa fede Yahoo), doppioni (bloccano) ──
 m = manda(101, "Brunson\nBarlow\nBarlow il bis\nClifford\nLooney")
