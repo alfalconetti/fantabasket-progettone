@@ -9,7 +9,7 @@ from datetime import time as dtime
 from zoneinfo import ZoneInfo
 
 from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes
+from telegram.ext import ApplicationBuilder
 
 import config
 import db
@@ -21,6 +21,11 @@ logging.basicConfig(format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", 
 for _nome in ("httpx", "httpcore"):
     logging.getLogger(_nome).setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
+try:
+    from shared import dev_comune
+    dev_comune.installa_log()                     # per /dev_log
+except ImportError:
+    pass
 ROME = ZoneInfo("Europe/Rome")
 
 
@@ -32,16 +37,6 @@ def _token() -> str:
     if path and os.path.exists(path):
         return open(path).read().strip()
     raise RuntimeError("Token non trovato (BOT_TOKEN_FILE)")
-
-
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
-    logger.error("Errore non gestito", exc_info=context.error)
-    for chat in (config.canale_log(), config.dev_id()):
-        if chat:
-            try:
-                await context.bot.send_message(chat_id=chat, text=f"⚠️ loucabot: {context.error!r}"[:3000])
-            except Exception:
-                pass
 
 
 async def post_init(app):
@@ -57,9 +52,11 @@ async def post_init(app):
 def main():
     db.init_db()
     app = ApplicationBuilder().token(_token()).post_init(post_init).build()
-    for h in get_handlers():
+    from handlers import _is_dev
+    from shared import dev_comune
+    for h in get_handlers() + dev_comune.get_handlers(_is_dev, lambda: db.q("SELECT version() AS v", one=True)["v"]):
         app.add_handler(h)
-    app.add_error_handler(error_handler)
+    app.add_error_handler(dev_comune.error_handler("loucabot", config.canale_log, config.dev_id))
     app.job_queue.run_daily(job_sync, time=dtime(8, 30, tzinfo=ROME))        # partite, tabellini, infortunati
     for ora in (dtime(17, 30, tzinfo=ROME), dtime(23, 30, tzinfo=ROME)):       # infortunati prima delle partite
         app.job_queue.run_daily(job_infortuni, time=ora)

@@ -12,7 +12,7 @@ fantabasket-progettone/
 ├── config/             globals.json, teams.json, settings.json, divisions.json, loghi/ …  (NON in git)
 ├── secrets/            token, password, URL dei fogli, *.env                            (NON in git)
 │   └── cifrati/        secrets.tar.gpg per il backup (scripts/cifra_secrets.sh)
-├── shared/              in comune ai due bot: ruoli_core.py (ruoli), cap.py (cap e slot), squadre.py (ricerca squadra), messaggi.py (report lunghi)
+├── shared/              in comune ai bot: ruoli_core.py (ruoli), cap.py (cap e slot), squadre.py (ricerca squadra), messaggi.py (report lunghi), dev_comune.py (/dev_log, /dev_pg, /reboot ed error handler di loucabot e IPanchinari)
 ├── fantabasket-main/      ← questo bot
 ├── fantabasket-aste-beta/ bot aste
 ├── fantabasket-loucabot/  loucabot: calendario e calcolo dei fantapunti, README e docs/ suoi
@@ -40,7 +40,7 @@ fantabasket-progettone/
 
 **Chi possiede cosa:**
 
-- **PostgreSQL** è la fonte di verità di contratti, trade, pick, tagli, ruoli e RFA dichiarati. Ci scrivono entrambi i bot; il bot aste scrive solo firme, rilasci RFA, cap/slot anticipati e coda dei fogli, e legge `rfa_dichiarati` per aprire le aste RFA.
+- **PostgreSQL** è la fonte di verità di contratti, trade, pick, tagli, ruoli e RFA dichiarati. Ci scrivono il bot principale e il bot aste (loucabot e IPanchinari hanno tabelle loro, `lega_*`/`nba_*` e `ipa_*`); il bot aste scrive solo firme, rilasci RFA, cap/slot anticipati e coda dei fogli, e legge `rfa_dichiarati` per aprire le aste RFA.
 - **globals.json** è condiviso. Lo scrive solo questo bot (fase, stagione, mercato, deadline); il bot aste lo monta in sola lettura.
 - **teams.json** è condiviso. Lo scrive solo questo bot (`/my_team`, `/palette`, `/set_cap_penalizzato`).
 - **aste.db** (SQLite) è del bot aste. Questo bot lo legge solo per il backup (`/data_aste/aste.db`, in sola lettura).

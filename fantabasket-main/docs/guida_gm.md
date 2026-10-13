@@ -1,6 +1,8 @@
 # Guida GM — bot principale
 
-Questo è il bot dove vive la tua squadra: roster, trade, tagli, rookie, ruoli. Le aste per i free agent sono nell'altro bot (quello delle aste), che ha la sua guida.
+Questo è il bot dove vive la tua squadra: roster, trade, tagli, rookie, ruoli.
+
+Gli altri bot della lega: **bot aste** (aste FA e RFA), **loucabot** (calendario, scadenze, squadre a media, punteggi), **IPanchinari** (panchine e quintetti). Ognuno ha la sua guida (`/guida`).
 
 Si usa tutto in **chat privata**. Se qualcosa non torna, o non sai come fare, scrivi a un admin: può fare qualsiasi operazione al posto tuo.
 

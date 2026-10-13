@@ -1,6 +1,6 @@
 # Guida GM — bot aste
 
-Qui si fanno le aste: free agent (FA) e restricted free agent (RFA). Roster, trade e tagli sono nel bot principale.
+Qui si fanno le aste: free agent (FA) e restricted free agent (RFA). Roster, trade e tagli sono nel bot principale; calendario e punteggi in loucabot; panchine e quintetti in IPanchinari. Ognuno ha la sua guida (`/guida`).
 
 **La prima volta** manda `/start` al bot in privato, altrimenti non può scriverti (e ti perdi le notifiche delle aste).
 

@@ -24,7 +24,7 @@ Il bot ti risponde con l'anteprima: accanto a ogni riga il giocatore che ha capi
 - Se ha capito male, tocca ✏️ e il numero della riga per correggerla.
 - Quando è tutto giusto tocca **✅ Pubblica**: sul canale Panchinari escono **le tue righe come le hai scritte** (e il titolo), senza i nomi veri.
 
-La panchina vale per **la prossima giornata**, quella la cui scadenza (la prima partita NBA) non è ancora passata. Fino alla scadenza puoi rimandarla quante volte vuoi: vale l'ultima, e sul canale esce come aggiornamento.
+La panchina vale per **la prossima giornata**, quella la cui scadenza (la prima partita NBA) non è ancora passata. Fino alla scadenza puoi rimandarla quante volte vuoi: vale l'ultima, e sul canale il bot modifica il messaggio della tua panchina (con la scritta 🔁 aggiornata) invece di mandarne uno nuovo.
 
 Il bot non pubblica se un giocatore non è della tua squadra, se c'è due volte o se la scadenza è passata (anche mentre stavi confermando). Se un panchinaro risulta titolare nel quintetto del bot, te lo segnala ma pubblica lo stesso: per il quintetto fa fede Yahoo, quindi puoi aggiornarlo con `/quintetto` oppure lasciare che se ne occupi un admin.
 
@@ -52,5 +52,7 @@ I bottoni valgono fino alla scadenza della giornata. Se non fai niente, gli admi
 Se qualcosa non torna (un titolare che non è più in squadra, che hai messo anche in panchina, un ruolo vuoto) il bot te lo segnala. Non sei obbligato a sistemarlo nel bot: per il quintetto fa fede Yahoo, e se non lo fai tu ci pensa un admin.
 
 ---
+
+`/start` ti ricorda come si usa, `/guida` ti manda questa guida.
 
 Se qualcosa non va, scrivi a un admin: può mettere panchina e quintetto al posto tuo.

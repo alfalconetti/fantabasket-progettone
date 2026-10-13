@@ -1,6 +1,6 @@
 # Prove dei bot
 
-Prove "di flusso" dei due bot: girano il codice vero (handler, validatori, query) contro
+Prove "di flusso" dei bot (principale, aste, loucabot, IPanchinari): girano il codice vero (handler, validatori, query) contro
 un **PostgreSQL 16 locale di prova** e una **configurazione finta**, con Telegram simulato
 (oggetti finti al posto di bot, messaggi e bottoni: nessuna rete, nessun token).
 

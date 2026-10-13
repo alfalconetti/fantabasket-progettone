@@ -1,5 +1,5 @@
 """Ogni comando citato nelle guide, negli aiuti (/admin, /dev) e nei menu "/" esiste davvero nel suo bot."""
-import os, re, sys
+import os, re
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ok = lambda c, m: print(("✅" if c else "❌ FAIL"), m)
 
@@ -56,7 +56,7 @@ mancanti = sorted(citati(leggi("docs/regolamento_e_codice.md")) - tutti)
 ok(not mancanti, f"docs/regolamento_e_codice.md: comandi citati tutti esistenti {mancanti or ''}")
 
 # v4.0.0: loucabot (README e /guida) e i suoi comandi del menu
-reg = registrati("fantabasket-loucabot")
+reg = registrati("fantabasket-loucabot") | {"dev_log", "dev_pg", "reboot"}   # shared/dev_comune.py
 for nome, t in [("README", leggi("fantabasket-loucabot/README.md")),
                 ("guida GM", leggi("fantabasket-loucabot/docs/guida_gm.md")),
                 ("guida admin", leggi("fantabasket-loucabot/docs/guida_admin.md")),
@@ -69,7 +69,7 @@ menu = set(re.findall(r'BotCommand\(\s*"(\w+)"', leggi("fantabasket-loucabot", "
 ok(menu and not (menu - reg), f"loucabot menu '/': tutti i comandi esistono {sorted(menu - reg) or ''}")
 
 # v5.0.0: IPanchinari (README, guide, /start e /dev) e i suoi comandi del menu
-reg = registrati("fantabasket-ipanchinari")
+reg = registrati("fantabasket-ipanchinari") | {"dev_log", "dev_pg", "reboot"}
 for nome, t in [("README", leggi("fantabasket-ipanchinari/README.md")),
                 ("guida GM", leggi("fantabasket-ipanchinari/docs/guida_gm.md")),
                 ("guida admin", leggi("fantabasket-ipanchinari/docs/guida_admin.md")),
@@ -80,3 +80,11 @@ for nome, t in [("README", leggi("fantabasket-ipanchinari/README.md")),
     ok(not mancanti, f"IPanchinari {nome}: comandi citati tutti esistenti {mancanti or ''}")
 menu = set(re.findall(r'BotCommand\(\s*"(\w+)"', leggi("fantabasket-ipanchinari", "comandi.py")))
 ok(menu and not (menu - reg), f"IPanchinari menu '/': tutti i comandi esistono {sorted(menu - reg) or ''}")
+
+# il contrario: ogni comando registrato sta in una delle tre guide del suo bot (GM, admin, dev)
+COMUNI = set(re.findall(r'CommandHandler\("(\w+)"', leggi("shared/dev_comune.py")))
+for bot, extra in [("fantabasket-main", set()), ("fantabasket-aste-beta", set()),
+                   ("fantabasket-loucabot", COMUNI), ("fantabasket-ipanchinari", COMUNI)]:
+    guide = "".join(leggi(bot, "docs", f"guida_{x}.md") for x in ("gm", "admin", "dev"))
+    senza = sorted((registrati(bot) | extra) - citati(guide))
+    ok(not senza, f"{bot}: ogni comando è in una guida {senza or ''}")

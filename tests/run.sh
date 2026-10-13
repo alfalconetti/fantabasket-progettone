@@ -12,7 +12,7 @@ MAIN=(trade_3_squadre revisione_regolamento dpe_trade_tagli team_diff report_spa
 ASTE_PG=(pg_rfa_30giorni_dpe rfa_lascio_andare menu_e_listteams autoslot giocatore_id rfa_dichiarati)
 ASTE_ISOLATO=(apri_asta_admin apertura_gm cap_asta_chiusa rfa_proprietario team_ricerca regolamento_numeri_aste)
 LOUCA=(louca_calendario louca_calcolo louca_foglio)
-IPA=(ipa_panchine)
+IPA=(ipa_panchine ipa_errori)
 DOCS=(guide_e_menu letture_transazioni nomi_importati)
 scelti=("$@"); [ ${#scelti[@]} -eq 0 ] && scelti=("${MAIN[@]}" "${ASTE_PG[@]}" "${ASTE_ISOLATO[@]}" "${LOUCA[@]}" "${IPA[@]}" "${DOCS[@]}")
 in_lista() { local x=$1; shift; for y in "$@"; do [ "$x" = "$y" ] && return 0; done; return 1; }

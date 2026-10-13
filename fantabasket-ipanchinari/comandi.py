@@ -31,6 +31,10 @@ def liste_comandi() -> dict:
         BotCommand("guida_dev",   "Guida tecnica"),
         BotCommand("dev_version", "Versione del bot"),
         BotCommand("job_status",  "Job programmati"),
+        BotCommand("dev_promemoria", "Anteprima del promemoria [SQUADRA]"),
+        BotCommand("dev_log",     "Ultime righe di log [N]"),
+        BotCommand("dev_pg",      "Connessione a PostgreSQL"),
+        BotCommand("reboot",      "Riavvia il bot"),
     ]
     return {"gm": gm, "admin": admin, "dev": dev}
 

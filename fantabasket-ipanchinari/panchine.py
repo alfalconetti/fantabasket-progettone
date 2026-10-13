@@ -250,6 +250,21 @@ def testo_canale(team_id: str, giornata: int, titolo: str | None, righe: list[di
     return "\n".join(out)
 
 
+async def _scrivi_canale(bot, canale, testo: str, vecchio: int | None) -> int:
+    """Una panchina per squadra e giornata sul canale: se c'è già, si modifica quel messaggio.
+    Un nuovo messaggio solo se il vecchio non si può più modificare (cancellato a mano)."""
+    if vecchio:
+        try:
+            await bot.edit_message_text(chat_id=canale, message_id=vecchio, text=testo, parse_mode="HTML")
+            return vecchio
+        except Exception as err:
+            if "not modified" in str(err).lower():
+                return vecchio
+            logger.warning("Canale Panchinari: non riesco a modificare il messaggio %s (%s), ne mando uno nuovo", vecchio, err)
+    m = await bot.send_message(chat_id=canale, text=testo, parse_mode="HTML")
+    return m.message_id
+
+
 async def pubblica(update, context, b: dict):
     q = update.callback_query
     g = db.giornata(b["stagione"], b["giornata"])
@@ -271,11 +286,7 @@ async def pubblica(update, context, b: dict):
     canale = config.canale_panchinari()
     if canale:
         try:
-            kw = {}
-            if precedente and precedente.get("messaggio_canale"):
-                kw = {"reply_to_message_id": precedente["messaggio_canale"], "allow_sending_without_reply": True}
-            m = await context.bot.send_message(chat_id=canale, text=testo, parse_mode="HTML", **kw)
-            mid = m.message_id
+            mid = await _scrivi_canale(context.bot, canale, testo, (precedente or {}).get("messaggio_canale"))
         except Exception as err:
             logger.warning("Canale Panchinari: %s", err)
             await q.answer("Non riesco a scrivere sul canale Panchinari: avvisa un admin.", show_alert=True)

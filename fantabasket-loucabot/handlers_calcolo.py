@@ -141,7 +141,7 @@ def testo_fantapunti(stagione: str, g: dict) -> str:
     roster = db.giocatori_a_roster(stagione)
     p = calcolo.punteggio_giocatori(stagione, g, [x["atleta"] for x in roster if x["atleta"]])
     righe = [f"📊 <b>Fantapunti giornata {g['numero']}</b> · {g['dal']:%d/%m} – {g['al']:%d/%m}",
-             "<i>Giocatori a roster; quintetti e panchine non ancora nel bot.</i>"]
+             "<i>Tutti i giocatori a roster (il calcolo coi quintetti e le panchine di IPanchinari è da fare).</i>"]
     simbolo = {"partite": "", "media": "📉 ", "zero": ""}
     for team in config.squadre():
         suoi = [x for x in roster if x["team_id"] == team["id"]]
@@ -174,8 +174,36 @@ async def cmd_fantapunti(update: Update, context: ContextTypes.DEFAULT_TYPE):
                       riassunto=f"📊 Fantapunti giornata {g['numero']}")
 
 
+async def cmd_dev_giornata(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/dev_giornata [N]: tutto quello che il bot sa di una giornata (la corrente se manca N)."""
+    if not (config.dev_id() and update.effective_user.id == config.dev_id()):
+        return
+    s = config.stagione()
+    n = int(context.args[0]) if context.args and context.args[0].isdigit() else None
+    g = db.giornata(s, n) if n else cal.corrente(s)
+    if not g:
+        await update.effective_message.reply_text("Giornata non trovata.")
+        return
+    partite = db.q("SELECT stato, COUNT(*) AS n, COUNT(tabellino) AS t FROM nba_partite WHERE data_et BETWEEN %s AND %s "
+                   "AND tipo = ANY(%s) GROUP BY stato ORDER BY stato", (g["dal"], g["al"], [2, 3, 5]), many=True) or []
+    foto = db.q("SELECT giorno, COUNT(*) AS n FROM nba_infortuni WHERE giorno BETWEEN %s AND %s GROUP BY giorno ORDER BY giorno",
+                (g["dal"], g["al"]), many=True) or []
+    ris = db.q("SELECT COUNT(*) AS n, COUNT(convalidato) AS c FROM lega_risultati WHERE stagione = %s AND giornata = %s",
+               (s, g["numero"]), one=True)
+    righe = [f"🔧 <b>Giornata {g['numero']}</b> ({g['tipo']}) · {g['dal']} → {g['al']} (giorni ET)",
+             f"Scadenza: {cal.ora(g['prima_partita'])} · calcolata {g['calcolato'] or '—'}",
+             f"Media calcolata: {', '.join(g['media']) if g['media'] is not None else 'non calcolata'} · "
+             f"nel calendario: {', '.join(g['media_file']) or 'nessuno'}",
+             "Partite NBA: " + (", ".join(f"{p['stato'].replace('STATUS_', '').lower()} {p['n']} (tabellini {p['t']})"
+                                          for p in partite) or "nessuna"),
+             "Foto infortunati: " + (", ".join(f"{f['giorno']:%d/%m} {f['n']}" for f in foto) or "nessuna"),
+             f"Risultati: {ris['n']} (convalidati {ris['c']})"]
+    await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
+
+
 def get_handlers() -> list:
     return [
+        CommandHandler("dev_giornata", cmd_dev_giornata),
         CommandHandler("tabellini", cmd_tabellini),
         CommandHandler("espn_giocatori", cmd_espn_giocatori),
         CommandHandler("espn_mancanti", cmd_espn_mancanti),

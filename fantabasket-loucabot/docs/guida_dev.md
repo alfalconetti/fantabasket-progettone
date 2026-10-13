@@ -87,9 +87,28 @@ Errori dei job: canale log e dev.
 - `esito(casa, trasferta, bonus=3)`: scarto minimo `SCARTO` = 5, supplementari con i panchinari (5, poi 0), pari → trasferta.
 - `abbina_auto({atleta: nome})`: `norm()` (senza accenti, Đ/ø/ł…, punteggiatura, Jr./Sr./II–V) uguale a uno e un solo giocatore dell'anagrafica (nome_common, nome_bref, nome_yahoo) e a un solo atleta ESPN; i già abbinati non si toccano.
 
-Non ancora: quintetti e panchine (bot a parte), risultati congelati (`lega_punteggi`, `lega_risultati`, da scrivere alla convalida della giornata), classifica (parità: scontri diretti, media punti, differenza punti), playoff dalla classifica, 72 ore delle partite rinviate.
+Non ancora: risultati dai quintetti e dalle panchine di IPanchinari (`ipa_formazioni` congelate alla scadenza, `ipa_panchine`), risultati congelati (`lega_punteggi`, `lega_risultati`, da scrivere alla convalida della giornata), classifica (parità: scontri diretti, media punti, differenza punti), playoff dalla classifica, 72 ore delle partite rinviate.
 
 ---
+
+## 5b. Comandi dev
+
+Solo per `dev_id`, nel menu `/` del dev.
+
+| Comando | Cosa fa |
+|---|---|
+| `/dev` | l'elenco dei comandi dev |
+| `/guida_dev` | questa guida, come file |
+| `/dev_version` | versione (ultima voce del CHANGELOG) |
+| `/job_status` | job programmati e prossima esecuzione |
+| `/dev_giornata [N]` | tutto su una giornata (la corrente senza N): date, scadenza, squadre a media calcolate e del calendario, partite NBA per stato con quante hanno il tabellino, foto degli infortunati per giorno, risultati salvati e convalidati |
+| `/dev_log [N]` | ultime N righe di log in memoria (30, massimo 100) |
+| `/dev_pg` | connessione a PostgreSQL (versione) |
+| `/reboot` | riavvia il bot (il processo esce, Docker lo fa ripartire) |
+
+`/dev_log`, `/dev_pg` e `/reboot` sono in `shared/dev_comune.py`, uguali in IPanchinari.
+
+**Errori non gestiti** (`dev_comune.error_handler`): log del container, poi canale log e dev col tipo di errore, chi e quale bottone o comando. "Message is not modified" (un bottone premuto due volte, stesso testo) non si segnala; gli errori di rete vanno solo sul canale log, per accorgersi se il bot non raggiunge Telegram.
 
 ## 6. Prove
 

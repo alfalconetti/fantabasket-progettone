@@ -19,6 +19,13 @@ G = json.load(open(config.GLOBALS_PATH)); G["canale_panchinari_id"] = -500; json
 
 S = config.stagione()
 gids = {}
+NOMI_PROVA = ["Ja Morant", "Dominick Barlow", "Walter Clayton Jr.", "Nique Clifford", "Kevon Looney", "Jalen Brunson",
+              "Devin Booker", "Mikal Bridges", "Grant Williams", "Mark Williams", "Josh Hart"]
+vecchi = [r["id"] for r in db.q("SELECT id FROM giocatori WHERE nome_bref = ANY(%s) AND espn_id LIKE '9%%'", (NOMI_PROVA,), many=True) or []]
+if vecchi:   # avanzi di una prova interrotta
+    db.q("DELETE FROM cambi_ruolo WHERE giocatore_id = ANY(%s)", (vecchi,))
+    db.q("DELETE FROM contratti WHERE giocatore_id = ANY(%s)", (vecchi,))
+    db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (vecchi,))
 def giocatore(nome, team, ruolo, espn=None, squadra=None):
     gid = db.q("INSERT INTO giocatori (nome_bref, nome_common, nome_norm, espn_id) VALUES (%s, %s, %s, %s) RETURNING id",
                (nome, nome, nome.lower(), espn), one=True)["id"]
@@ -53,9 +60,15 @@ class Msg:
         s.text, s.caption, s.document, s.reply_to_message, s.risposte = testo, None, None, None, []
     async def reply_text(s, t, **k): s.risposte.append((t, k))
 class Bot:
-    def __init__(s): s.mandati, s.n = [], 1000
+    def __init__(s): s.mandati, s.n, s.testi = [], 1000, {}
     async def send_message(s, chat_id, text, **k):
-        s.n += 1; s.mandati.append({"chat_id": chat_id, "text": text, "id": s.n, **k}); return types.SimpleNamespace(message_id=s.n)
+        s.n += 1; s.mandati.append({"chat_id": chat_id, "text": text, "id": s.n, **k}); s.testi[(chat_id, s.n)] = text
+        return types.SimpleNamespace(message_id=s.n)
+    async def edit_message_text(s, chat_id, message_id, text, **k):
+        if getattr(s, "rotto", False): raise RuntimeError("Bad Request: message to edit not found")
+        if s.testi[(chat_id, message_id)] == text: raise RuntimeError("Bad Request: message is not modified")
+        s.testi[(chat_id, message_id)] = text
+        s.mandati.append({"chat_id": chat_id, "text": text, "id": message_id, "modifica": True})
     async def send_document(s, **k): pass
 BOT = Bot()
 CTX = types.SimpleNamespace(bot=BOT, args=[], job_queue=None)
@@ -130,8 +143,8 @@ ok(any(f"pb:s:{bid}:0:{gids['Josh Hart']}" == b for b in bottoni(qb.testi[-1][1]
 premi(101, f"pb:s:{bid}:0:{gids['Josh Hart']}")
 premi(101, f"pb:ok:{bid}")
 canale = [x for x in BOT.mandati if x["chat_id"] == -500]
-ok(len(canale) == 2 and "aggiornata" in canale[1]["text"] and canale[1].get("reply_to_message_id") == canale[0]["id"],
-   "rimandata: esce come aggiornamento, in risposta alla precedente")
+ok(len(canale) == 2 and canale[1].get("modifica") and canale[1]["id"] == canale[0]["id"] and "aggiornata" in canale[1]["text"],
+   "rimandata: modifica il messaggio di prima sul canale, niente messaggio nuovo")
 m = manda(101, "lo sceriffo!\nBarlow\nClayton\nClifford\nLooney")
 ok("lo sceriffo! → <b>Josh Hart</b>" in m.risposte[0][0], "la volta dopo il soprannome si riconosce da solo (alias)")
 
@@ -158,6 +171,14 @@ BOT.mandati.clear()
 premi(101, f"pb:ok:{bid}")
 ok(any(x["chat_id"] == -3 and "titolare nel quintetto del bot" in x["text"] for x in BOT.mandati)
    and any(x["chat_id"] == -500 for x in BOT.mandati), "pubblicata, e l'avviso arriva sul canale log")
+m = manda(101, "Brunson\nBarlow\nClayton\nClifford\nLooney")
+bid = int(bottoni(m.risposte[0][1]["reply_markup"])[0].split(":")[2])
+BOT.mandati.clear(); BOT.rotto = True
+premi(101, f"pb:ok:{bid}")
+BOT.rotto = False
+nuovi = [x for x in BOT.mandati if x["chat_id"] == -500]
+ok(len(nuovi) == 1 and not nuovi[0].get("modifica") and db.q("SELECT messaggio_canale FROM ipa_panchine WHERE team_id='team01' ORDER BY inviata DESC LIMIT 1", one=True)["messaggio_canale"] == nuovi[0]["id"],
+   "messaggio vecchio cancellato a mano: ne esce uno nuovo, e il bot si segna quello")
 
 # ── incompatibilità quintetto/panchina e /quintetto ──
 db.salva_panchina(S, 2, "team01", None, [{"giocatore_id": gids["Ja Morant"], "testo": "Ja"}])

@@ -49,7 +49,7 @@ solo nome di battesimo se è di un giocatore solo. Mostra al GM l'anteprima coi 
 dubbie si scelgono coi bottoni e il bot se le ricorda per quella squadra. Alla conferma, sul canale
 escono **solo le righe come le ha scritte il GM** e il titolo. Vale per la prossima giornata la
 cui scadenza (prima partita NBA) non è passata; si può rimandare fino alla scadenza, e sul canale
-esce come aggiornamento. Non si pubblica se: un giocatore non è della squadra, è due volte, o la
+si modifica il messaggio di prima. Non si pubblica se: un giocatore non è della squadra, è due volte, o la
 scadenza è passata. Un panchinaro che nel bot è titolare non blocca (per il quintetto fa fede
 Yahoo): avviso al GM e riga sul canale log.
 

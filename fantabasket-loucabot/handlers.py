@@ -296,7 +296,12 @@ async def cmd_dev(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "<b>Comandi dev — loucabot</b>\n\n"
         "/guida_dev — la guida tecnica (file .md)\n"
         "/dev_version — versione del bot\n"
-        "/job_status — job programmati e prossima esecuzione\n\n"
+        "/job_status — job programmati e prossima esecuzione\n"
+        "/dev_log [N] — ultime N righe di log in memoria (30)\n"
+        "/dev_pg — connessione a PostgreSQL\n"
+        "/dev_giornata [N] — stato di una giornata: date, scadenza, squadre a media, partite NBA, "
+        "tabellini, foto degli infortunati, risultati\n"
+        "/reboot — riavvia il bot\n\n"
         "Tutti i comandi admin: /guida_admin", parse_mode="HTML")
 
 

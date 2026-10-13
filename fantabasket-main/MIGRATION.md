@@ -1,6 +1,6 @@
 # Messaggio di migrazione — Fantabasket Progettone
 
-**Stato: v5.0.4 · bot aste v64 · loucabot v9 · IPanchinari v5** (13/10/2026)
+**Stato: v5.0.8 · bot aste v64 · loucabot v11 · IPanchinari v8** (13/10/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 
@@ -28,7 +28,7 @@ fantabasket-progettone/
 ├── docker-compose.yml
 ├── config/        globals.json, teams.json, settings.json, divisions.json, tabelle/, loghi/   (solo sul server)
 ├── secrets/       token, password, URL dei fogli, *.env; cifrati/secrets.tar.gpg               (solo sul server)
-├── shared/        in comune ai bot: ruoli_core.py, cap.py, squadre.py, messaggi.py (montata :ro)
+├── shared/        in comune ai bot: ruoli_core.py, cap.py, squadre.py, messaggi.py, dev_comune.py (/dev_log, /dev_pg, /reboot ed error handler di loucabot e IPanchinari) (montata :ro)
 ├── fantabasket-main/ · fantabasket-aste-beta/ · fantabasket-loucabot/ · fantabasket-ipanchinari/
 ├── gas/           Apps Script (clasp); globals.gs solo in locale
 ├── gas-router/ · yahoo-router/
@@ -129,7 +129,7 @@ Guida tecnica completa: `fantabasket-main/docs/guida_dev.md`.
 - **Trade** (`handlers/trade*.py`, divisi nella v3.13.0): builder 2-4 squadre, import da testo (`trade_parser.py`: pick per proprietario originale, possesso verificato), bozze, voti, approvazione; stati cambiati solo con `db.cambia_stato_trade`; esecuzione e annullamento atomici in `_scrivi_trade` (verifica di ogni asset, `TradeNonEseguibile`); `trade_ref` (`TRADE-AAAA-NNN`) assegnato prima dell'esecuzione; annuncio sempre con `_formatta_annuncio_canale`.
 - **Richieste agli admin** (DPE, Saedro, decadimento): `richieste_admin`, una richiesta aperta per giocatore, decisione unica (`db.apri_richiesta` / `chiudi_richiesta`).
 - **Cambio di stagione** (`handlers/stagione.py`): ai rinnovi rookie scale, Doncic d'ufficio a fine IV anno, pick dell'anno +6, `/rinnovo_rookie`, `/dichiara_rfa`; all'inizio FA x0 scaduti; all'inizio RS report di floor e tetto. `/dev_stagione` per l'anteprima, `/trade_deadline` ogni stagione. Report lunghi come file `.md` (`shared/messaggi.py`).
-- **Cap e slot**: `shared/cap.py`, un'implementazione per entrambi i bot.
+- **Cap e slot**: `shared/cap.py`, un'implementazione per il bot principale e il bot aste.
 - **Ruoli**: `shared/ruoli_core.py` (regole uniche), `handlers/ruoli.py`, `ruoli_rs.py`, `cambi_ruolo.py`, posizioni eleggibili importate da CSV Yahoo (`/import_posizioni_eleggibili`, event log `posizioni_eleggibili`).
 - **Fogli Google** (`gas_client.py` → gas-router): Roster sempre per tutte le 24 squadre, Scelte, BrefRaw; il bot aste accoda le firme in `gas_sync_queue`, il principale sincronizza ogni 60 s.
 - **Basketball-Reference**: job giornaliero alle 10:00 (per_game → `bref_stats`, fantamedie, giocatori nuovi da confermare, cambi squadra NBA).

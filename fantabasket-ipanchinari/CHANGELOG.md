@@ -25,3 +25,16 @@ Primo rilascio: panchine e quintetti.
 - Riconosce il nome di battesimo da solo anche scritto male o accorciato ("Herbet", "Herb" → Herbert Jones), se è di un solo giocatore della squadra
 - Sul canale Panchinari niente più emoji 🪑 nell'intestazione della panchina
 - Righe dubbie risolte con un tocco: nell'anteprima i candidati di ogni riga dubbia sono già bottoni ("2: Jalen Williams"), più "📋 altri" per tutta la rosa
+
+## v6 (2026-10-13)
+
+- Comandi dev: `/dev_promemoria [SQUADRA]` (ti manda in privato il promemoria del quintetto come lo riceverebbe la squadra, per provarlo), `/dev_log`, `/dev_pg`, `/reboot`. Menu dev e `/dev` aggiornati
+- Guide: sezione "Comandi dev" nella guida dev, `/start` e `/guida` nella guida GM
+
+## v7 (2026-10-13)
+
+- Panchina rimandata: sul canale Panchinari si **modifica il messaggio di prima** (con "🔁 aggiornata" nell'intestazione) invece di mandarne uno nuovo in risposta. Un messaggio nuovo solo se il vecchio è stato cancellato a mano; da lì il bot modifica quello nuovo
+
+## v8 (2026-10-13)
+
+- "Message is not modified" (bottone premuto due volte, il messaggio resterebbe uguale) non arriva più sul canale log come errore: è innocuo, come già nel bot principale e nel bot aste. Gli errori di rete restano sul canale log (non al dev). Gli errori veri dicono anche chi e quale bottone o comando. Error handler comune in `shared/dev_comune.py`

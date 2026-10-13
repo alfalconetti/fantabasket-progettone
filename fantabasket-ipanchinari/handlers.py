@@ -61,7 +61,10 @@ async def cmd_dev(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.effective_message.reply_text(
         "<b>Comandi dev — IPanchinari</b>\n\n/guida_dev — la guida tecnica (file .md)\n"
-        "/dev_version — versione del bot\n/job_status — job programmati\n\nComandi admin: /guida_admin",
+        "/dev_version — versione del bot\n/job_status — job programmati\n"
+        "/dev_promemoria [SQUADRA] — il promemoria della prossima giornata, solo a te\n"
+        "/dev_log [N] — ultime N righe di log in memoria (30)\n/dev_pg — connessione a PostgreSQL\n"
+        "/reboot — riavvia il bot\n\nComandi admin: /guida_admin",
         parse_mode="HTML")
 
 

@@ -2,9 +2,9 @@
 
 Il bot del campionato: il **calendario** (giornate e partite della lega, sincronizzate con il
 calendario NBA) e il **calcolo dei fantapunti** dai tabellini di ESPN. Poi classifica, calendario
-dei playoff dalla classifica e risultati automatici, quando ci saranno quintetti e panchine. Le formazioni e le panchine saranno in un bot a parte.
+dei playoff dalla classifica e risultati automatici, usando i quintetti e le panchine di IPanchinari (`ipa_formazioni`, `ipa_panchine`).
 
-Fa parte del progettone: stesso PostgreSQL e stessa `config/` dei due bot (in sola lettura),
+Fa parte del progettone: stesso PostgreSQL e stessa `config/` del bot principale e del bot aste (in sola lettura),
 moduli condivisi in `../shared/`. Legge le tabelle degli altri bot, scrive solo le sue
 (`lega_giornate`, `lega_partite`, `lega_calendario_csv`, `lega_risultati`, `nba_partite`, `nba_tabellini`, `nba_infortuni`, `nba_atleti`), più id e nome ESPN nell'anagrafica
 (`giocatori.espn_id`, `nome_espn`).
@@ -145,7 +145,7 @@ NYK-SAS del 1/3/2026, formula, infortunati, partite/media/zero, FADD, supplement
 
 ## Da fare
 
-- quintetti e panchine (bot a parte): poi risultati delle partite con `calcolo.esito`;
+- risultati delle partite con `calcolo.esito`, dai quintetti e dalle panchine di IPanchinari (`ipa_formazioni`, `ipa_panchine`), convalida della giornata e foglio Calendario;
 - punteggio live durante le partite (ESPN aggiorna tabellini e scoreboard in diretta), dopo i risultati ufficiali;
 - classifica e risultati, con i criteri di parità del regolamento (scontri diretti, media punti,
   differenza punti: da decidere se col bonus casa);

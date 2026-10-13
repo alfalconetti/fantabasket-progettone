@@ -48,3 +48,12 @@ Il calcolo dei fantapunti.
 ## v9 (2026-10-13)
 
 - Nei log niente chiamate all'API di Telegram (anche `httpcore` a WARNING, oltre a `httpx`)
+
+## v10 (2026-10-13)
+
+- Comandi dev: `/dev_giornata [N]` (stato di una giornata: date, scadenza, squadre a media, partite NBA e tabellini scaricati, foto infortuni, risultati), `/dev_log` (ultime righe di log del bot), `/dev_pg` (versione e risposta di PostgreSQL), `/reboot` (riavvio del container). Menu dev e `/dev` aggiornati
+- Guide: sezione "Comandi dev" nella guida dev, `/start` e `/guida` nella guida GM; tolti i riferimenti superati a "quintetti e panchine in un bot a parte"
+
+## v11 (2026-10-13)
+
+- Error handler comune con IPanchinari (`shared/dev_comune.py`): "Message is not modified" non arriva più sul canale log, gli errori di rete sì (non al dev), gli errori veri dicono chi e quale bottone o comando

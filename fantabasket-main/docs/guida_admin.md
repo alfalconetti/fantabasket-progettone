@@ -2,6 +2,8 @@
 
 Da admin puoi fare **tutto quello che fa un GM, al posto suo**: trade, tagli, rookie, DPE, decadimenti, ruoli. In più approvi le richieste dei GM e porti avanti la stagione cambiando fase.
 
+Gli altri bot hanno la loro guida admin: **bot aste** (correzioni e aste per conto di una squadra), **loucabot** (import del calendario, ESPN, punteggi), **IPanchinari** (quintetti, panchine per conto di una squadra, riepiloghi prima della scadenza). Le fasi si cambiano solo qui.
+
 Si parte da **`/admin_menu`**, il pannello coi bottoni. Come il `/menu` dei GM mostra solo le voci che hanno senso nella fase corrente, più **📊 Situazione cap**: cap occupato e tetto di tutte le squadre in un colpo d'occhio.
 
 **Se sei anche GM**, dal `/menu` e da `/cambio_ruolo` agisci come GM della tua squadra, con le stesse regole di tutti. Le operazioni "da admin" (cambio forzato, Saedro diretta, eccetera) stanno solo nel pannello.
@@ -23,10 +25,10 @@ offseason-rfa → offseason-fa → offseason-ruoli → (ricomincia)
 A ogni cambio di fase il bot:
 
 - pubblica sul canale principale un annuncio con cosa si può fare nella nuova fase;
-- aggiorna i menu di entrambi i bot (quello delle aste entro 5 minuti);
+- aggiorna i menu del bot principale e del bot aste (quello delle aste entro 5 minuti);
 - apre o chiude da solo il mercato FA del bot aste.
 
-Entrando in **offseason-rinnovi** la stagione avanza di uno, per tutti e due i bot. Solo arrivando dalla stagione prima (regular season, playoff o break): se torni ai rinnovi da draft, RFA, FA o ruoli con "Salta a…", la stagione resta quella.
+Entrando in **offseason-rinnovi** la stagione avanza di uno, per il bot principale e il bot aste. Solo arrivando dalla stagione prima (regular season, playoff o break): se torni ai rinnovi da draft, RFA, FA o ruoli con "Salta a…", la stagione resta quella.
 
 **La fase si cambia solo da qui.** Il `/set_fase` del bot aste non fa più niente: rimanda a questo.
 

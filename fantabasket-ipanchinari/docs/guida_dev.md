@@ -30,7 +30,7 @@ Legge: `contratti`, `giocatori` (anche `espn_id`), `ruolo_attuale` (bot principa
 
 ## 4. Flussi
 
-**Panchina** (`panchine.py`): messaggio privato di testo di un GM con almeno 2 righe → `crea_bozza` (giornata = `comune.prossima_giornata`: la prima con `prima_partita` futura) → anteprima con bottoni `pb:*` → `pubblica`: ricontrolla scadenza e `problemi` (bloccano: non a roster, doppioni); `avvisi` (titolare nel quintetto del bot: fa fede Yahoo) non bloccano, vanno al GM e al log; manda sul canale (in risposta alla precedente se c'era), salva panchina e alias, chiude la bozza, riga sul log.
+**Panchina** (`panchine.py`): messaggio privato di testo di un GM con almeno 2 righe → `crea_bozza` (giornata = `comune.prossima_giornata`: la prima con `prima_partita` futura) → anteprima con bottoni `pb:*` → `pubblica`: ricontrolla scadenza e `problemi` (bloccano: non a roster, doppioni); `avvisi` (titolare nel quintetto del bot: fa fede Yahoo) non bloccano, vanno al GM e al log; scrive sul canale (`_scrivi_canale`: se la squadra ha già la panchina della giornata modifica quel messaggio, `messaggio_canale`; uno nuovo solo se il vecchio non si può modificare), salva panchina e alias, chiude la bozza, riga sul log.
 
 **Builder** (`/build_panchina`, `panchine.builder`): bozza con `righe` vuote e `builder: True`; `pb:b` aggiunge (solo roster meno titolari meno già scelti, massimo 5), `pb:u` toglie l'ultimo, `pb:bv` (o al quinto) passa all'anteprima normale; il testo di ogni riga è il nome del giocatore. **CAI mode** (`pb:cai`, dall'anteprima del builder): `dati.cai_passo` 0 = titolo, i = soprannome della riga i; le risposte arrivano come messaggi (`msg_panchina` → `risposta_cai` se `db.bozza_cai` trova una bozza in CAI mode delle ultime 6 ore e il messaggio ha meno di 3 righe; altrimenti la chiude ed è una panchina nuova); `pb:cs` salta, `pb:cf` finisce. I soprannomi diventano alias alla pubblicazione.
 
@@ -39,6 +39,25 @@ Legge: `contratti`, `giocatori` (anche `espn_id`), `ruolo_attuale` (bot principa
 **Quintetto** (`quintetti.py`): `leggi_quintetto` (admin e import: righe con o senza ruolo, ruolo = quello di roster), `/quintetto` con bottoni `q:*` (solo giocatori del ruolo), conferma `q:ok:N` valida fino alla scadenza della giornata N. `incompatibilita`: ruoli vuoti, titolari non a roster o in altro ruolo, titolari nella panchina della prossima giornata. `/quintetto_admin` anche a giornata in corso: aggiorna il quintetto e la formazione della `comune.giornata_in_corso` (se già chiusa); con `GN` solo `db.salva_formazione` della giornata N (deve essere chiusa).
 
 **Job** `job_giornate` ogni 5 minuti, per ogni giornata con scadenza: scaduta e non chiusa → `congela_quintetti` + avviso al gruppo admin; altrimenti promemoria a `comune.ora_promemoria` (le 8:00 Roma dell'ultimo giorno prima della scadenza) e riepilogo 2 ore prima, ognuno una volta sola (`ipa_stato_giornata`).
+
+## 4b. Comandi dev
+
+Solo per `dev_id`, nel menu `/` del dev.
+
+| Comando | Cosa fa |
+|---|---|
+| `/dev` | l'elenco dei comandi dev |
+| `/guida_dev` | questa guida, come file |
+| `/dev_version` | versione (ultima voce del CHANGELOG) |
+| `/job_status` | job programmati (il controllo delle giornate ogni 5 minuti) |
+| `/dev_promemoria [SQUADRA]` | il promemoria della prossima giornata mandato solo a te, con quando partirà davvero e a quanti GM; i bottoni funzionano (per provarlo prima del giorno vero) |
+| `/dev_log [N]` | ultime N righe di log in memoria (30, massimo 100) |
+| `/dev_pg` | connessione a PostgreSQL (versione) |
+| `/reboot` | riavvia il bot (il processo esce, Docker lo fa ripartire) |
+
+`/dev_log`, `/dev_pg` e `/reboot` sono in `shared/dev_comune.py`, uguali in loucabot.
+
+**Errori non gestiti** (`dev_comune.error_handler`): log del container, poi canale log e dev col tipo di errore, chi e quale bottone o comando. "Message is not modified" (un bottone premuto due volte, stesso testo) non si segnala; gli errori di rete vanno solo sul canale log, per accorgersi se il bot non raggiunge Telegram.
 
 ## 5. Prove
 

@@ -370,17 +370,23 @@ async def cmd_stato(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ── job: promemoria, riepilogo, chiusura ───────────────────────────────────────
 
+def promemoria(t: dict, g: dict) -> tuple[str, K]:
+    """Il promemoria di una squadra per la giornata g (testo e bottoni)."""
+    testo = (f"🏀 <b>Giornata {g['numero']}</b> · formazione entro <b>{ora(g['prima_partita'])}</b>\n\n"
+             f"Il tuo quintetto ({e(t['nome'])}), con le partite di ognuno:\n\n{testo_quintetto(t['id'], g)}")
+    inc = incompatibilita(t["id"])
+    if inc:
+        testo += "\n\n⚠️ " + "\n⚠️ ".join(e(x) for x in inc)
+    testo += "\n\nVa bene così o vuoi cambiarlo? E ricordati la panchina: mandamela qui, una riga per giocatore."
+    tasti = K([[B("✅ Confermo", callback_data=f"q:ok:{t['id']}:{g['numero']}"),
+                B("✏️ Modifico", callback_data=f"q:mod:{t['id']}:{g['numero']}")]])
+    return testo, tasti
+
+
 async def manda_promemoria(bot, g: dict) -> int:
     inviati = 0
     for t in config.squadre():
-        testo = (f"🏀 <b>Giornata {g['numero']}</b> · formazione entro <b>{ora(g['prima_partita'])}</b>\n\n"
-                 f"Il tuo quintetto ({e(t['nome'])}), con le partite di ognuno:\n\n{testo_quintetto(t['id'], g)}")
-        inc = incompatibilita(t["id"])
-        if inc:
-            testo += "\n\n⚠️ " + "\n⚠️ ".join(e(x) for x in inc)
-        testo += "\n\nVa bene così o vuoi cambiarlo? E ricordati la panchina: mandamela qui, una riga per giocatore."
-        tasti = K([[B("✅ Confermo", callback_data=f"q:ok:{t['id']}:{g['numero']}"),
-                    B("✏️ Modifico", callback_data=f"q:mod:{t['id']}:{g['numero']}")]])
+        testo, tasti = promemoria(t, g)
         for uid in config.gm_ids(t["id"]):
             try:
                 await bot.send_message(chat_id=uid, text=testo, parse_mode="HTML", reply_markup=tasti)
@@ -432,9 +438,28 @@ async def job_giornate(context: ContextTypes.DEFAULT_TYPE):
                     logger.warning("Riepilogo al gruppo admin: %s", err)
 
 
+async def cmd_dev_promemoria(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/dev_promemoria [SQUADRA]: il promemoria della prossima giornata, mandato solo al dev
+    (la sua squadra, o quella indicata). Prima riga: quando partirà davvero."""
+    if not (config.dev_id() and update.effective_user.id == config.dev_id()):
+        return
+    from shared.squadre import cerca_squadra
+    t = (cerca_squadra(" ".join(context.args), config.squadre()) if context.args
+         else config.squadra_del_gm(update.effective_user.id)) or config.squadre()[0]
+    g = prossima_giornata()
+    if not g:
+        await update.effective_message.reply_text("Nessuna giornata aperta.")
+        return
+    testo, tasti = promemoria(t, g)
+    await update.effective_message.reply_text(
+        f"<i>Anteprima per {e(t['nome'])}: partirà {ora(ora_promemoria(g))} a {len(config.gm_ids(t['id']))} GM. "
+        f"I bottoni funzionano davvero.</i>\n\n" + testo, parse_mode="HTML", reply_markup=tasti)
+
+
 def get_handlers() -> list:
     from telegram.ext import MessageHandler, filters
     return [
+        CommandHandler("dev_promemoria", cmd_dev_promemoria),
         CommandHandler("quintetto", cmd_quintetto),
         CommandHandler("quintetto_admin", cmd_quintetto_admin),
         CommandHandler("quintetti_import", cmd_quintetti_import),

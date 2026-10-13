@@ -1153,3 +1153,22 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v5.0.4 (2026-10-13)
 
 - IPanchinari v5: nome di battesimo scritto male riconosciuto ("Herbet"); dubbi risolti con un tocco (candidati già bottoni nell'anteprima); intestazione sul canale senza emoji
+
+## v5.0.5 (2026-10-13)
+
+- Nuovo `shared/dev_comune.py`: `/dev_log`, `/dev_pg` e `/reboot` uguali per loucabot e IPanchinari, con il buffer dei log in memoria
+- loucabot v10 (`/dev_giornata`) e IPanchinari v6 (`/dev_promemoria`): comandi dev e guide dev aggiornate
+- Guide GM del bot principale e del bot aste: in apertura i quattro bot della lega e cosa fa ciascuno. Guide dev, README e MIGRATION: tolti i "due bot" dove ormai sono quattro
+- Prova delle guide al contrario: ogni comando registrato da un bot deve comparire in una delle sue tre guide (tutti e quattro i bot)
+
+## v5.0.6 (2026-10-13)
+
+- IPanchinari v7: la panchina rimandata modifica il messaggio sul canale invece di mandarne uno nuovo
+
+## v5.0.7 (2026-10-13)
+
+- loucabot v11 e IPanchinari v8: error handler comune in `shared/dev_comune.py`, niente più "Message is not modified" sul canale log; negli errori chi e quale bottone o comando. Prova nuova `tests/ipa/ipa_errori.py`
+
+## v5.0.8 (2026-10-13)
+
+- loucabot e IPanchinari: gli errori di rete tornano sul canale log (solo lì, non al dev), come nel bot principale, per accorgersi se un bot non raggiunge Telegram

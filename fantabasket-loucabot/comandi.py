@@ -38,6 +38,10 @@ def liste_comandi() -> dict:
         BotCommand("guida_dev",   "Guida tecnica di loucabot"),
         BotCommand("dev_version", "Versione del bot"),
         BotCommand("job_status",  "Job programmati"),
+        BotCommand("dev_giornata", "Stato di una giornata [N]"),
+        BotCommand("dev_log",     "Ultime righe di log [N]"),
+        BotCommand("dev_pg",      "Connessione a PostgreSQL"),
+        BotCommand("reboot",      "Riavvia il bot"),
     ]
     return {"gruppi": gruppi, "gm": gm, "admin": admin, "dev": dev}
 

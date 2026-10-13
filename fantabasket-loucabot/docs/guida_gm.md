@@ -32,8 +32,10 @@ Se le squadre a media scritte nel calendario pubblicato e quelle del bot non coi
 
 ## I punteggi
 
-Il bot scarica ogni mattina i tabellini delle partite della notte e calcola i fantapunti di ogni giocatore con la formula del regolamento (punto +0,5, assist +2, rimbalzo offensivo +2, difensivo +1,25, tripla +1,5, tiro dal campo tentato −0,5 e segnato +1, libero tentato −0,75 e segnato +1, recupero +2, stoppata +2, palla persa −2). Per ora i punteggi li vedono gli admin; quando ci saranno quintetti e panchine nel bot arriveranno anche risultati e classifica.
+Il bot scarica ogni mattina i tabellini delle partite della notte e calcola i fantapunti di ogni giocatore con la formula del regolamento (punto +0,5, assist +2, rimbalzo offensivo +2, difensivo +1,25, tripla +1,5, tiro dal campo tentato −0,5 e segnato +1, libero tentato −0,75 e segnato +1, recupero +2, stoppata +2, palla persa −2). Per ora i punteggi li vedono gli admin. Quintetti e panchine li gestisce IPanchinari; quando il calcolo dei risultati sarà pronto arriveranno anche risultati e classifica.
 
 ---
+
+`/start` ti ricorda i comandi, `/guida` ti manda questa guida.
 
 Se qualcosa non torna, scrivi a un admin.
