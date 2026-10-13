@@ -200,7 +200,8 @@ def _col(i: int) -> str:
 
 
 def griglia(c: dict) -> dict:
-    """{righe, sfondi, testi, pesi, formati, congela}: matrici della stessa forma per il gas."""
+    """{righe, sfondi, testi, pesi, formati, congela}: matrici della stessa forma per il gas. Niente
+    righe né colonne bloccate (congela a 0: sblocca anche i tab scritti dalle versioni prima)."""
     g = c["giornata"]
     det = c["dettaglio"]
     giorni = det["giorni"]
@@ -326,7 +327,7 @@ def griglia(c: dict) -> dict:
         for i in (2, 4, 5, 6, 7, 8):
             tx[i_r][i] = VERDE
     return {"righe": righe, "sfondi": sf, "testi": tx, "pesi": pe, "formati": fo,
-            "congela": {"righe": r_testa, "colonne": 4}, "nome": f"Calcolo G{g['numero']}",
+            "congela": {"righe": 0, "colonne": 0}, "nome": f"Calcolo G{g['numero']}",
             "colonne": {"punteggio": iPUN}}
 
 

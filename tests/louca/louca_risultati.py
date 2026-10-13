@@ -92,6 +92,7 @@ ok(r1["supplementari"] == 1 and r1["supp_casa"] == 9 and r1["supp_trasferta"] ==
 
 # ── il foglio rifà i conti del bot ──
 gr = R.griglia(c)
+ok(R.payload_foglio(gr)["congela"] == {"righe": 0, "colonne": 0}, "niente righe né colonne bloccate (e si sbloccano quelle dei tab vecchi)")
 ok(all(len(x) == len(gr["righe"][0]) for k in ("righe", "sfondi", "testi", "pesi", "formati") for x in gr[k])
    and len(gr["righe"]) == len(gr["sfondi"]) == len(gr["formati"]), "matrici della stessa forma per il gas")
 if shutil.which("soffice"):

@@ -81,3 +81,6 @@ Il calcolo dei fantapunti.
 
 - Tab «Calcolo GN»: le formule si scrivono con `setFormulas` e non più con `setValues` (che le leggeva nella lingua del foglio: in italiano il separatore è ";" e davano tutte #ERROR!). Dopo la scrittura il gas controlla le celle: se una formula dà #ERROR! le riscrive col ";" e ricontrolla; se restano errori, la proposta al gruppo admin lo dice
 
+## v16 (2026-10-13)
+
+- Tab «Calcolo GN»: niente più righe e colonne bloccate in alto e a sinistra (il foglio era inusabile); si sbloccano anche i tab già scritti, alla prossima scrittura

@@ -1240,3 +1240,6 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - `gas/calcolo.gs`: formule del tab «Calcolo GN» scritte con `setFormulas`, controllo degli #ERROR! e riscrittura col ";" per i fogli in italiano (loucabot v15 segnala le formule rimaste in errore)
 
+## v5.1.3 (2026-10-13)
+
+- loucabot v16: il tab «Calcolo GN» non blocca più righe e colonne
