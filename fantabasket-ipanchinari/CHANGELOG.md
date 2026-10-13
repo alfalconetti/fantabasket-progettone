@@ -66,3 +66,9 @@ Primo rilascio: panchine e quintetti.
 ## v14 (2026-10-13)
 
 - **Righe duplicate**: una panchina con la stessa riga scritta più volte ("prova" cinque volte, anche con maiuscole o punteggiatura diverse) viene rifiutata con "Righe duplicate"; anche due soprannomi uguali nella CAI mode bloccano Pubblica. Al posto della v13, che le accettava facendo scegliere i giocatori coi bottoni
+
+## v15 (2026-10-13)
+
+- **`/ripubblica_panchine [N]`** (admin): tutte le panchine già mandate della prossima giornata (o della N) di nuovo sul canale Panchinari, con chi e quando, una ogni 3,5 secondi (limite di Telegram), senza bloccare il bot; avviso a fine lavoro e sul log. Serve per passare dal canale di prova a quello vero
+- Le modifiche di una panchina vanno sul suo messaggio solo se è nel canale di oggi (`ipa_panchine.canale_id`): dopo un cambio di canale il bot non rischia più di modificare, con lo stesso numero di messaggio, la panchina di un'altra squadra. Le panchine salvate prima di questa versione, alla prossima modifica, escono come messaggio nuovo
+- Salvati anche il nome di chi ha inserito la panchina e quante volte è stata mandata, per ripubblicarla com'era

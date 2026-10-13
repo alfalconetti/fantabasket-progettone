@@ -307,13 +307,17 @@ async def pubblica(update, context, b: dict):
     canale = config.canale_panchinari()
     if canale:
         try:
-            mid = await _scrivi_canale(context.bot, canale, testo, (precedente or {}).get("messaggio_canale"))
+            vecchio = (precedente or {}).get("messaggio_canale")
+            if precedente and precedente.get("canale_id") != canale:   # canale cambiato (o non noto): messaggio nuovo
+                vecchio = None
+            mid = await _scrivi_canale(context.bot, canale, testo, vecchio)
         except Exception as err:
             logger.warning("Canale Panchinari: %s", err)
             await q.answer("Non riesco a scrivere sul canale Panchinari: avvisa un admin.", show_alert=True)
             return
     db.salva_panchina(b["stagione"], b["giornata"], b["team_id"], b["dati"].get("titolo"), righe,
-                      da=update.effective_user.id, fonte=b["fonte"], messaggio_canale=mid)
+                      da=update.effective_user.id, fonte=b["fonte"], messaggio_canale=mid,
+                      canale_id=canale if mid else None, da_nome=(u.full_name or str(u.id)) if u else None)
     rip = abbina.ripetute([r["testo"] for r in b["dati"]["righe"]])
     for r in b["dati"]["righe"]:
         if abbina.chiave(r["testo"]) in rip:          # "prova" ×5: non è il soprannome di nessuno
@@ -448,6 +452,83 @@ async def cmd_panchina(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + "\n\nPer cambiarla mandami di nuovo le righe.", parse_mode="HTML")
 
 
+def testo_da_salvata(p: dict) -> str:
+    """Il messaggio sul canale di una panchina salvata, com'era (chi, quando, se aggiornata)."""
+    return testo_canale(p["team_id"], p["giornata"], p["titolo"], p["righe"], (p.get("versioni") or 1) > 1,
+                        fonte=p["fonte"], admin=p.get("da_nome") or "?", quando=p["inviata"])
+
+
+PAUSA_CANALE = 3.5          # Telegram: circa 20 messaggi al minuto nello stesso canale
+
+
+async def ripubblica(bot, stagione: str, n: int, pausa: float = PAUSA_CANALE) -> tuple[int, list[str]]:
+    """Manda sul canale Panchinari di oggi tutte le panchine salvate della giornata n, come
+    messaggi nuovi (in ordine di squadra), e si segna i messaggi: le modifiche successive
+    aggiornano questi. (mandate, errori)"""
+    import asyncio
+    from telegram.error import RetryAfter
+    canale = config.canale_panchinari()
+    panche = db.panchine(stagione, n)
+    fatte, errori = 0, []
+    for t in config.squadre():
+        p = panche.get(t["id"])
+        if not p:
+            continue
+        for tentativo in (1, 2):
+            try:
+                m = await bot.send_message(chat_id=canale, text=testo_da_salvata(p), parse_mode="HTML")
+                db.segna_messaggio(stagione, n, t["id"], m.message_id, canale)
+                fatte += 1
+                break
+            except RetryAfter as ra:                       # troppo veloce: si aspetta e si riprova
+                await asyncio.sleep(ra.retry_after + 1)
+            except Exception as err:
+                errori.append(f"{t['nome']}: {err}")
+                break
+        await asyncio.sleep(pausa)
+    return fatte, errori
+
+
+async def cmd_ripubblica_panchine(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/ripubblica_panchine [N] (admin): tutte le panchine già mandate della prossima giornata
+    (o della N) di nuovo sul canale Panchinari, per esempio dopo aver cambiato canale."""
+    msg = update.effective_message
+    if not config.is_admin(update.effective_user.id):
+        await msg.reply_text("⛔ Solo admin.")
+        return
+    if not config.canale_panchinari():
+        await msg.reply_text("Manca canale_panchinari_id in globals.json.")
+        return
+    s = config.stagione()
+    n = int(context.args[0]) if context.args and context.args[0].isdigit() else None
+    g = db.giornata(s, n) if n else prossima_giornata(s)
+    if not g:
+        await msg.reply_text("Nessuna giornata: /ripubblica_panchine N.")
+        return
+    quante = len(db.panchine(s, g["numero"]))
+    if not quante:
+        await msg.reply_text(f"Nessuna panchina salvata per la giornata {g['numero']}.")
+        return
+    await msg.reply_text(f"⏳ Ripubblico {quante} panchine della giornata {g['numero']} sul canale Panchinari, "
+                         f"una ogni {PAUSA_CANALE:g} secondi (limite di Telegram): circa {round(quante * PAUSA_CANALE / 60) or 1} minuti.")
+    chi_ = chi(update)
+
+    async def lavoro():
+        fatte, errori = await ripubblica(context.bot, s, g["numero"])
+        testo = f"✅ Ripubblicate {fatte} panchine della giornata {g['numero']}." + (
+            "\n❌ " + "\n❌ ".join(e(x) for x in errori) if errori else "")
+        try:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=testo, parse_mode="HTML")
+        except Exception as err:
+            logger.warning("Fine ripubblicazione: %s", err)
+        await log(context.bot, f"📣 /ripubblica_panchine G{g['numero']} di {chi_}: {fatte} mandate, {len(errori)} errori")
+    app = getattr(context, "application", None)
+    if app:
+        app.create_task(lavoro())         # non blocca il bot per il minuto e mezzo
+    else:
+        await lavoro()
+
+
 async def cmd_panchina_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/panchina_admin SQUADRA e sotto le righe: la panchina per conto di una squadra."""
     msg = update.effective_message
@@ -478,6 +559,7 @@ def get_handlers() -> list:
         CommandHandler("panchina", cmd_panchina, filters=filters.ChatType.PRIVATE),
         CommandHandler("build_panchina", cmd_build_panchina, filters=filters.ChatType.PRIVATE),
         CommandHandler("panchina_admin", cmd_panchina_admin),
+        CommandHandler("ripubblica_panchine", cmd_ripubblica_panchine),
         CallbackQueryHandler(cb_panchina, pattern=r"^pb:"),
         MessageHandler(filters.ChatType.PRIVATE & filters.TEXT & ~filters.COMMAND, msg_panchina),
     ]

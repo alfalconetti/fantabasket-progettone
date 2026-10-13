@@ -116,6 +116,11 @@ def migra():
             chiusa       TIMESTAMPTZ,                   -- quintetti congelati in ipa_formazioni
             PRIMARY KEY (stagione, giornata))""")
     q("ALTER TABLE ipa_alias ADD COLUMN IF NOT EXISTS id SERIAL")          # per cancellarli coi bottoni
+    # il canale del messaggio (per non modificare un messaggio di un altro canale se il canale
+    # cambia), il nome di chi l'ha inserita e quante volte è stata mandata (per ripubblicarla)
+    q("ALTER TABLE ipa_panchine ADD COLUMN IF NOT EXISTS canale_id BIGINT")
+    q("ALTER TABLE ipa_panchine ADD COLUMN IF NOT EXISTS da_nome TEXT")
+    q("ALTER TABLE ipa_panchine ADD COLUMN IF NOT EXISTS versioni INT NOT NULL DEFAULT 1")
     q("""CREATE TABLE IF NOT EXISTS ipa_cessioni (
             team_id      TEXT NOT NULL,                 -- la squadra che l'ha ceduto (o tagliato)
             giocatore_id INT  NOT NULL,
@@ -289,13 +294,21 @@ def panchine(stagione: str, giornata_: int) -> dict[str, dict]:
 
 
 def salva_panchina(stagione: str, giornata_: int, team_id: str, titolo: str | None, righe: list[dict],
-                   da=None, fonte="gm", in_ritardo=False, messaggio_canale=None) -> None:
-    q("""INSERT INTO ipa_panchine (stagione, giornata, team_id, titolo, righe, da, fonte, in_ritardo, messaggio_canale)
-         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                   da=None, fonte="gm", in_ritardo=False, messaggio_canale=None, canale_id=None, da_nome=None) -> None:
+    q("""INSERT INTO ipa_panchine (stagione, giornata, team_id, titolo, righe, da, fonte, in_ritardo, messaggio_canale,
+                                   canale_id, da_nome)
+         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
          ON CONFLICT (stagione, giornata, team_id) DO UPDATE SET titolo = EXCLUDED.titolo, righe = EXCLUDED.righe,
            da = EXCLUDED.da, fonte = EXCLUDED.fonte, in_ritardo = EXCLUDED.in_ritardo,
-           messaggio_canale = EXCLUDED.messaggio_canale, inviata = NOW()""",
-      (stagione, giornata_, team_id, titolo, json.dumps(righe), da, fonte, in_ritardo, messaggio_canale))
+           messaggio_canale = EXCLUDED.messaggio_canale, canale_id = EXCLUDED.canale_id, da_nome = EXCLUDED.da_nome,
+           versioni = ipa_panchine.versioni + 1, inviata = NOW()""",
+      (stagione, giornata_, team_id, titolo, json.dumps(righe), da, fonte, in_ritardo, messaggio_canale, canale_id, da_nome))
+
+
+def segna_messaggio(stagione: str, giornata_: int, team_id: str, messaggio: int, canale: int) -> None:
+    """Il messaggio sul canale di una panchina ripubblicata (non cambia ora né versioni)."""
+    q("UPDATE ipa_panchine SET messaggio_canale = %s, canale_id = %s WHERE stagione = %s AND giornata = %s AND team_id = %s",
+      (messaggio, canale, stagione, giornata_, team_id))
 
 
 # ── bozze (panchine in attesa di conferma: sopravvivono ai riavvii) ────────────

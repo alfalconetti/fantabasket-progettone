@@ -7,6 +7,8 @@ Da admin carichi i quintetti, controlli conferme e panchine prima della scadenza
 ## Canali
 
 - **Canale Panchinari** (`canale_panchinari_id` in `globals.json`): il bot deve esserne amministratore e poter pubblicare. Ci escono le panchine come le scrivono i GM.
+
+  **Cambiare canale** (per esempio dal canale di prova a quello vero): metti il nuovo id in `globals.json` (vale subito, senza riavvio), aggiungi il bot come amministratore del canale nuovo e lancia **`/ripubblica_panchine`**: tutte le panchine già mandate per la prossima giornata escono sul canale nuovo, ognuna con chi l'ha inserita e l'ora dell'ultima modifica (`/ripubblica_panchine N` per la giornata N). Il bot ne manda una ogni 3,5 secondi per il limite di Telegram (24 panchine ≈ un minuto e mezzo) e ti avvisa quando ha finito. Da lì le modifiche vanno sui messaggi nuovi; quelli del canale vecchio non li tocca più.
 - **Gruppo admin** (`admin_group_id`): riepilogo 2 ore prima della scadenza e avviso di chiusura con le panchine mancanti. Il bot deve essere nel gruppo.
 - **Canale log** (`log_channel_id_ipa`; senza, quello del bot principale): avvio, errori, ogni panchina (coi nomi veri), conferme e cambi di quintetto, import, promemoria, chiusure.
 
@@ -97,4 +99,5 @@ Ogni 5 minuti il bot confronta quintetti e panchine con le rose. Un giocatore ch
 | `/quintetti_import` | quintetti di tutte le squadre |
 | `/panchina_admin SQUADRA` | panchina per conto di una squadra: senza righe col builder, o le righe sotto |
 | `/soprannomi SQUADRA` | soprannomi di una squadra, da vedere o cancellare |
+| `/ripubblica_panchine [N]` | tutte le panchine della prossima giornata (o della N) di nuovo sul canale, per esempio dopo un cambio di canale |
 | `/guida_admin` | questa guida |

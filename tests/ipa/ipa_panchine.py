@@ -378,6 +378,32 @@ ok("Righe duplicate: «prova»" in m.risposte[0][0] and "pb:" not in str(m.rispo
 m = manda(101, "Morant\nBarlow\nClifford\nlo Sceriffo!\nLO SCERIFFO")
 ok("Righe duplicate" in m.risposte[0][0], "duplicate anche con maiuscole e punteggiatura diverse")
 
+# ── canale cambiato: /ripubblica_panchine ──
+import json as _json
+G = _json.load(open(config.GLOBALS_PATH)); G["canale_panchinari_id"] = -600; _json.dump(G, open(config.GLOBALS_PATH, "w"))
+P.PAUSA_CANALE = 0
+BOT.mandati.clear()
+m = Msg("/ripubblica_panchine"); CTX.args = []; asyncio.run(P.cmd_ripubblica_panchine(upd(900, m), CTX))
+nuovo = [x for x in BOT.mandati if x["chat_id"] == -600]
+p2 = db.panchina(S, 2, "team01")
+ok(len(nuovo) == len(db.panchine(S, 2)) >= 1 and "<b>Alfa</b> · giornata 2" in nuovo[0]["text"] and "✍️ " in nuovo[0]["text"]
+   and p2["messaggio_canale"] == nuovo[0]["id"] and p2["canale_id"] == -600,
+   "ripubblicate sul canale nuovo, con chi e quando; il bot si segna i messaggi nuovi")
+ok(any(x["chat_id"] == 900 and "Ripubblicate" in x["text"] for x in BOT.mandati), "a fine lavoro avvisa chi l'ha chiesto")
+m = manda(101, "Ja Morant\nBarlow\nClifford\nLooney\nBrunson")
+bid = int(bottoni(m.risposte[0][1]["reply_markup"])[-2].split(":")[2])
+BOT.mandati.clear(); premi(101, f"pb:ok:{bid}")
+ok([x.get("modifica") for x in BOT.mandati if x["chat_id"] in (-500, -600)] == [True]
+   and any(x["chat_id"] == -600 and x["id"] == p2["messaggio_canale"] for x in BOT.mandati),
+   "dopo: la modifica va sul messaggio del canale nuovo, il vecchio canale non si tocca")
+db.q("UPDATE ipa_panchine SET canale_id = -500 WHERE team_id = 'team01'")       # come se fosse del canale vecchio
+m = manda(101, "Ja Morant\nBarlow\nClifford\nLooney\nHart")
+bid = int(bottoni(m.risposte[0][1]["reply_markup"])[-2].split(":")[2])
+BOT.mandati.clear(); premi(101, f"pb:ok:{bid}")
+ok([(x["chat_id"], bool(x.get("modifica"))) for x in BOT.mandati if x["chat_id"] in (-500, -600)] == [(-600, False)],
+   "messaggio di un altro canale: non si modifica (potrebbe essere di un'altra squadra), se ne manda uno nuovo")
+G["canale_panchinari_id"] = -500; _json.dump(G, open(config.GLOBALS_PATH, "w"))
+
 # ── scadenza passata mentre si conferma ──
 m = manda(101, "Ja Morant\nBarlow\nClayton\nClifford\nLooney")
 bid = int(bottoni(m.risposte[0][1]["reply_markup"])[0].split(":")[2])

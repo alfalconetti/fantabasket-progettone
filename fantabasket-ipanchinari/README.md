@@ -88,6 +88,7 @@ giornata per il calcolo) e al gruppo admin va l'elenco delle panchine mancanti.
 | `/quintetti_import` | admin | tutte le squadre: nome esatto o id, poi 5 titolari; squadre separate da una riga vuota (anche file .txt) |
 | `/panchina_admin SQUADRA` | admin | la panchina per conto di una squadra: senza righe col builder (e CAI mode), o le righe sotto |
 | `/soprannomi SQUADRA` | admin | i soprannomi di una squadra |
+| `/ripubblica_panchine [N]` | admin | le panchine della giornata di nuovo sul canale (dopo un cambio di canale) |
 | `/guida_admin` | admin | la guida admin (file) |
 | `/dev`, `/guida_dev`, `/dev_version`, `/job_status` | dev | comandi dev |
 

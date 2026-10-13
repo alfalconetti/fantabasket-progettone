@@ -20,6 +20,7 @@ Legge: `contratti`, `giocatori` (anche `espn_id`), `ruolo_attuale` (bot principa
 | `ipa_formazioni` | stagione, giornata, team_id, ruolo | il quintetto congelato alla scadenza: **è quello che usa il calcolo** |
 | `ipa_panchine` | stagione, giornata, team_id | titolo, `righe` JSON `[{giocatore_id, testo}]` in ordine, chi, fonte, messaggio sul canale |
 | `ipa_alias` | team_id, alias (+ `id` per i bottoni) | riga normalizzata → giocatore (si impara alla pubblicazione, tranne il nome vero). `team_id` = chi l'ha scritto: l'abbinamento usa i soprannomi dei giocatori della rosa di oggi chiunque li abbia scritti (seguono il giocatore), a parità vincono quelli della squadra |
+| (`ipa_panchine`) | | in più `canale_id` (il canale del messaggio: si modifica solo se è quello di oggi, perché gli id dei messaggi sono per canale), `da_nome`, `versioni` |
 | `ipa_cessioni` | team_id, giocatore_id, dove | avvisi di cessione già mandati (`quintetto`, `panchina GN`, `formazione GN`); si cancellano se il giocatore torna |
 | `ipa_bozze` | id | panchine in attesa di conferma (sopravvivono ai riavvii; i bottoni portano l'id) |
 | `ipa_conferme` | stagione, giornata, team_id | confermato / modificato |
@@ -38,6 +39,8 @@ Legge: `contratti`, `giocatori` (anche `espn_id`), `ruolo_attuale` (bot principa
 **Quintetto coi bottoni** (`/quintetto`, `/quintetto_admin SQUADRA` senza righe): callback con la squadra `q:<azione>:<team>:…`; il GM agisce sulla sua, un admin su tutte (fonte admin, e se c'è una giornata in corso già chiusa aggiorna anche la sua formazione). `/panchina_admin SQUADRA` senza righe → `apri_builder` con `fonte = admin`.
 
 **Quintetto** (`quintetti.py`): `leggi_quintetto` (admin e import: righe con o senza ruolo, ruolo = quello di roster), `/quintetto` con bottoni `q:*` (solo giocatori del ruolo), conferma `q:ok:N` valida fino alla scadenza della giornata N. `incompatibilita`: ruoli vuoti, titolari non a roster o in altro ruolo, titolari nella panchina della prossima giornata. `/quintetto_admin` anche a giornata in corso: aggiorna il quintetto e la formazione della `comune.giornata_in_corso` (se già chiusa); con `GN` solo `db.salva_formazione` della giornata N (deve essere chiusa).
+
+**`/ripubblica_panchine [N]`** (`panchine.ripubblica`, in un task per non bloccare il bot): manda di nuovo tutte le panchine salvate della giornata sul canale di oggi (`testo_da_salvata`: chi, quando, aggiornata se `versioni` > 1), una ogni `PAUSA_CANALE` secondi (RetryAfter: aspetta e riprova), e segna `messaggio_canale`/`canale_id` (`db.segna_messaggio`).
 
 **`/quintetti [N]`** (`quintetti.testo_quintetti`): una riga per squadra da `ipa_quintetto`, o con N da `ipa_formazioni` (solo giornate chiuse); ⚠️ se il giocatore non è più a roster.
 

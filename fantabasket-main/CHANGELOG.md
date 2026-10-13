@@ -1206,3 +1206,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v5.0.16 (2026-10-13)
 
 - IPanchinari v14: una panchina con righe duplicate viene rifiutata ("Righe duplicate"), anche due soprannomi uguali nella CAI mode
+
+## v5.0.17 (2026-10-13)
+
+- IPanchinari v15: `/ripubblica_panchine` per mandare sul canale vero le panchine già inserite; modifiche solo sui messaggi del canale di oggi

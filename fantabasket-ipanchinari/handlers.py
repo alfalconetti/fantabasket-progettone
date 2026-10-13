@@ -25,6 +25,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         testo += ("\n\n<b>Admin</b>\n/quintetto_admin SQUADRA — coi bottoni, o sotto i 5 titolari\n"
                   "/quintetti_import — tutte le squadre insieme\n/panchina_admin SQUADRA — coi bottoni, o sotto le righe\n"
                   "/stato [N] — conferme e panchine della giornata\n/quintetti [N] — tutti i quintetti, una riga per squadra\n/soprannomi SQUADRA — soprannomi di una squadra\n"
+                  "/ripubblica_panchine [N] — le panchine della giornata di nuovo sul canale (canale cambiato)\n"
                   "Guida admin: /guida_admin")
     await update.effective_message.reply_text(testo, parse_mode="HTML")
 
