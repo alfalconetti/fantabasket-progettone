@@ -41,6 +41,9 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     level=logging.INFO,
 )
+# niente riga per ogni chiamata all'API di Telegram: contiene il token nell'URL e riempie i log
+for _nome in ("httpx", "httpcore"):
+    logging.getLogger(_nome).setLevel(logging.WARNING)
 _log_buffer_mod.install()
 logger = logging.getLogger(__name__)
 

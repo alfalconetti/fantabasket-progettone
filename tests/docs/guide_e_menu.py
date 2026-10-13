@@ -67,3 +67,16 @@ for nome, t in [("README", leggi("fantabasket-loucabot/README.md")),
     ok(not mancanti, f"loucabot {nome}: comandi citati tutti esistenti {mancanti or ''}")
 menu = set(re.findall(r'BotCommand\(\s*"(\w+)"', leggi("fantabasket-loucabot", "comandi.py")))
 ok(menu and not (menu - reg), f"loucabot menu '/': tutti i comandi esistono {sorted(menu - reg) or ''}")
+
+# v5.0.0: IPanchinari (README, guide, /start e /dev) e i suoi comandi del menu
+reg = registrati("fantabasket-ipanchinari")
+for nome, t in [("README", leggi("fantabasket-ipanchinari/README.md")),
+                ("guida GM", leggi("fantabasket-ipanchinari/docs/guida_gm.md")),
+                ("guida admin", leggi("fantabasket-ipanchinari/docs/guida_admin.md")),
+                ("guida dev", leggi("fantabasket-ipanchinari/docs/guida_dev.md")),
+                ("/start e /dev", funzione("fantabasket-ipanchinari/handlers.py", "cmd_start")
+                 + funzione("fantabasket-ipanchinari/handlers.py", "cmd_dev"))]:
+    mancanti = sorted(citati(t) - reg)
+    ok(not mancanti, f"IPanchinari {nome}: comandi citati tutti esistenti {mancanti or ''}")
+menu = set(re.findall(r'BotCommand\(\s*"(\w+)"', leggi("fantabasket-ipanchinari", "comandi.py")))
+ok(menu and not (menu - reg), f"IPanchinari menu '/': tutti i comandi esistono {sorted(menu - reg) or ''}")

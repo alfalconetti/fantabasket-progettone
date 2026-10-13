@@ -1,0 +1,9 @@
+# Changelog — IPanchinari
+
+## v1 (2026-10-13)
+
+Primo rilascio: panchine e quintetti.
+- **Panchine da messaggio**: il GM manda al bot, in privato, il messaggio di sempre (righe dei panchinari in ordine, soprannomi compresi, titolo facoltativo sopra separato da una riga vuota). Abbinamento tollerante con i giocatori della squadra (parole del nome, cognome che vale doppio, errori di battitura, nomi col trattino, iniziali come SGA o KAT, solo nome di battesimo se è di uno solo); le righe dubbie si scelgono coi bottoni e diventano alias della squadra. Anteprima al GM coi nomi veri, poi sul canale Panchinari solo le righe come le ha scritte lui. Vale per la prossima giornata aperta; rimandata esce come aggiornamento in risposta alla precedente. Bloccano: giocatori non della squadra, doppioni, scadenza (anche se passa durante la conferma). Un panchinaro che nel quintetto del bot è titolare è solo segnalato (al GM e sul canale log): per il quintetto fa fede Yahoo
+- **Quintetti**: uno per squadra, un giocatore per ruolo nel suo ruolo di roster, restano finché si cambiano. `/quintetto_admin SQUADRA` con 5 righe (anche a giornata in corso: aggiorna anche la formazione della giornata; con `G5` corregge solo quella della giornata 5), `/quintetti_import` per tutte le squadre (nomi esatti), `/quintetto` per i GM coi bottoni
+- **Promemoria** alle 8 (Roma) dell'ultimo giorno prima della prima partita: quintetto, partite di ogni titolare nella giornata, Confermo / Modifico validi fino alla scadenza. **Riepilogo** agli admin 2 ore prima (conferme, panchine, incompatibilità; `/stato` quando si vuole). **Chiusura** alla scadenza: quintetti congelati in `ipa_formazioni` per il calcolo, panchine mancanti al gruppo admin
+- `/panchina_admin` per conto di una squadra; menu per scope e guide GM, admin e dev come gli altri bot; nei log niente chiamate all'API di Telegram

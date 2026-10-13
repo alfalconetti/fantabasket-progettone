@@ -44,3 +44,7 @@ Il calcolo dei fantapunti.
 ## v8 (2026-10-13)
 
 - Foglio Calendario: a ogni aggiornamento si ricarica tutta la pagina, colonne A:E (richiesta di Luca), invece di scrivere solo le celle che cambiano: lo script svuota i valori di A:E (formattazione, celle unite e altre colonne restano) e scrive il calendario con le squadre a media calcolate e i punteggi. Da sincronizzare anche dopo ogni giornata convalidata
+
+## v9 (2026-10-13)
+
+- Nei log niente chiamate all'API di Telegram (anche `httpcore` a WARNING, oltre a `httpx`)

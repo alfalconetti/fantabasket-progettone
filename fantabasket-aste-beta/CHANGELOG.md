@@ -621,3 +621,7 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 - `handlers/firma.py` (1.750 righe): restano la scelta degli anni e del ruolo, la firma automatica e la registrazione dei bottoni; il resto in `firma_comune.py` (soglie, validazione, `_registra_firma_finale`, `_concludi_rfa_senza_contratto`), `firma_preimpostazioni.py`, `firma_pareggio.py` (pareggio, RFA senza offerte, lascia andare)
 - Tolte `_check_cap_virtuale_negativo` e `_notifica_gm_cap_slot`, che nessuno chiamava
 - Prova `regolamento_numeri_aste`: durata dell'asta, tempi di firma e pareggio, anni minimi, soglie del pareggio RFA come nel regolamento
+
+## v64 — Log senza token
+
+- Nei log niente più una riga per ogni chiamata all'API di Telegram (`httpx` e `httpcore` a WARNING): l'URL conteneva il token del bot e con quattro bot i log erano illeggibili. Avvisi ed errori restano

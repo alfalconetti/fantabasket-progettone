@@ -146,6 +146,7 @@ NYK-SAS del 1/3/2026, formula, infortunati, partite/media/zero, FADD, supplement
 ## Da fare
 
 - quintetti e panchine (bot a parte): poi risultati delle partite con `calcolo.esito`;
+- punteggio live durante le partite (ESPN aggiorna tabellini e scoreboard in diretta), dopo i risultati ufficiali;
 - classifica e risultati, con i criteri di parità del regolamento (scontri diretti, media punti,
   differenza punti: da decidere se col bonus casa);
 - calendario dei playoff generato dalla classifica;

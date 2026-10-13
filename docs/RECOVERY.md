@@ -101,6 +101,7 @@ senza a capo in più). Nomi esatti, come in `docker-compose.yml`:
 | `bot_token_main.txt` | token del bot principale | @BotFather → il bot → API Token |
 | `bot_token_aste_beta.txt` | token del bot aste | @BotFather |
 | `bot_token_loucabot.txt` | token di loucabot (dalla v4.0.0) | @BotFather |
+| `bot_token_ipanchinari.txt` | token di IPanchinari (dalla v5.0.0) | @BotFather |
 | `pg_password.txt` | password del database | si può inventare: su un database nuovo vale quella che scrivi qui |
 | `gas_roster_url`, `gas_scelte_url` | URL delle web app dei fogli | Apps Script → Esegui il deployment → Gestisci deployment |
 | `gas_token` | token che le web app controllano | Apps Script → Impostazioni progetto → Proprietà script → `AUTH_TOKEN` |
@@ -166,7 +167,7 @@ computer con Docker, con queste differenze.
 1. Su Telegram apri `@BotFather` → `/newbot` → salva il token. Ripeti per il secondo bot.
 2. Bot principale: amministratore del canale principale, del gruppo admin e del canale log.
    Bot aste: amministratore del canale aste e del gruppo admin.
-3. Metti i token in `secrets/bot_token_main.txt`, `secrets/bot_token_aste_beta.txt` e `secrets/bot_token_loucabot.txt`.
+3. Metti i token in `secrets/bot_token_main.txt`, `secrets/bot_token_aste_beta.txt`, `secrets/bot_token_loucabot.txt` e `secrets/bot_token_ipanchinari.txt`. IPanchinari deve essere amministratore del canale Panchinari.
 4. Se hai ricreato canali o gruppi, aggiorna gli ID in `config/globals.json`.
 5. In `config/globals.json` metti il tuo ID Telegram come `dev_id`: così puoi usare `/backup`.
 6. Avvisa i GM del cambio di bot.

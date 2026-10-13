@@ -1,0 +1,426 @@
+"""
+Quintetti: uno per squadra, un giocatore per ruolo (PG, SG, SF, PF, C), nel suo ruolo di roster.
+Non si reinseriscono ogni giornata: restano quelli che sono finché qualcuno li cambia.
+
+- Gli admin li caricano: /quintetto_admin SQUADRA con 5 righe, oppure /quintetti_import con tutte
+  le squadre (blocchi "Squadra" + 5 righe, il formato dello script da console su Yahoo).
+- I GM li cambiano con /quintetto (bottoni) e confermano dal promemoria.
+- Promemoria alle 8:00 (Roma) dell'ultimo giorno prima della prima partita della giornata: a ogni
+  GM il quintetto, le partite di ogni giocatore nella giornata e i bottoni Confermo / Modifico,
+  validi fino alla scadenza.
+- Riepilogo agli admin 2 ore prima della scadenza (chi ha confermato, modificato, niente;
+  panchine mandate; incompatibilità). Alla scadenza i quintetti si congelano in ipa_formazioni
+  (quelli che userà il calcolo) e agli admin va l'elenco di chi non ha mandato la panchina.
+
+Callback: q:c:<ruolo> scegli ruolo · q:s:<ruolo>:<gid> giocatore · q:ok:<giornata> confermo ·
+q:mod:<giornata> modifico · q:v torna al quintetto.
+"""
+import logging
+from datetime import timedelta
+
+from telegram import InlineKeyboardButton as B, InlineKeyboardMarkup as K, Update
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
+
+import abbina
+import config
+import db
+from comune import (adesso, aperta, chi, e, giornata_in_corso, log, ora, ora_promemoria, partite_squadre_nba,
+                    prossima_giornata, testo_partite)
+
+logger = logging.getLogger(__name__)
+RUOLI = db.RUOLI
+RIEPILOGO_PRIMA = timedelta(hours=2)
+
+
+# ── lettura del quintetto da testo (admin, import) ─────────────────────────────
+
+def leggi_quintetto(team_id: str, righe: list[str]) -> tuple[dict[str, int], list[str]]:
+    """({ruolo: giocatore_id}, errori). Una riga per giocatore, con o senza il ruolo davanti
+    ("PG Ja Morant", "Morant"); il ruolo vale quello di roster."""
+    s = config.stagione()
+    roster = db.roster(team_id, s)
+    per_id = {g["id"]: g for g in roster}
+    out, errori = {}, []
+    for r in [x.strip() for x in righe if x.strip()]:
+        r = abbina.RE_NUMERO.sub("", r)
+        pezzi = r.split(maxsplit=1)
+        ruolo_scritto = pezzi[0].upper().rstrip(":") if pezzi and pezzi[0].upper().rstrip(":") in RUOLI else None
+        nome = pezzi[1] if ruolo_scritto and len(pezzi) > 1 else r
+        x = abbina.abbina_riga(nome, roster, db.alias(team_id))
+        if not x["certo"]:
+            proposte = ", ".join(per_id[c]["nome_common"] for c in x["candidati"]) or "nessuno"
+            errori.append(f"«{r}»: non riconosciuto (forse {proposte})")
+            continue
+        g = per_id[x["scelto"]]
+        ruolo = g.get("ruolo") or ruolo_scritto
+        if not ruolo:
+            errori.append(f"{g['nome_common']}: senza ruolo per la stagione")
+            continue
+        if ruolo_scritto and g.get("ruolo") and ruolo_scritto != g["ruolo"]:
+            errori.append(f"{g['nome_common']}: scritto {ruolo_scritto} ma il suo ruolo è {g['ruolo']}")
+            continue
+        if ruolo in out:
+            errori.append(f"due {ruolo}: {per_id[out[ruolo]]['nome_common']} e {g['nome_common']}")
+            continue
+        out[ruolo] = g["id"]
+    mancano = [x for x in RUOLI if x not in out]
+    if mancano and not errori:
+        errori.append("manca " + ", ".join(mancano))
+    return out, errori
+
+
+def incompatibilita(team_id: str, q: dict[str, int] | None = None) -> list[str]:
+    """Titolari che non sono più a roster o sono anche nella panchina della prossima giornata."""
+    s = config.stagione()
+    q = q if q is not None else db.quintetto(team_id)
+    roster = {g["id"]: g for g in db.roster(team_id, s)}
+    out = [f"{ruolo} vuoto" for ruolo in RUOLI if not q.get(ruolo)]
+    for ruolo, gid in q.items():
+        if gid not in roster:
+            out.append(f"{ruolo}: il titolare non è più in squadra")
+        elif roster[gid].get("ruolo") and roster[gid]["ruolo"] != ruolo:
+            out.append(f"{roster[gid]['nome_common']} ora è {roster[gid]['ruolo']}, non {ruolo}")
+    g = prossima_giornata(s)
+    p = db.panchina(s, g["numero"], team_id) if g else None
+    if p:
+        in_panca = {r["giocatore_id"] for r in p["righe"]}
+        for ruolo, gid in q.items():
+            if gid in in_panca:
+                out.append(f"{roster.get(gid, {}).get('nome_common', gid)} è titolare ({ruolo}) e anche in panchina: se vuoi aggiorna il quintetto, altrimenti se ne occupa un admin")
+    return out
+
+
+def testo_quintetto(team_id: str, g: dict | None) -> str:
+    s = config.stagione()
+    q = db.quintetto(team_id)
+    roster = {x["id"]: x for x in db.roster(team_id, s)}
+    nba = db.squadre_nba_giocatori(list(q.values()))
+    partite = partite_squadre_nba(g) if g else {}
+    media = (g.get("media") if g.get("media") is not None else g.get("media_file")) if g else None
+    righe = []
+    for ruolo in RUOLI:
+        gid = q.get(ruolo)
+        if not gid:
+            righe.append(f"<b>{ruolo}</b> —")
+            continue
+        nome = roster.get(gid, {}).get("nome_common") or f"giocatore {gid} (non più in squadra)"
+        riga = f"<b>{ruolo}</b> {e(nome)}"
+        if g:
+            riga += f"\n      {e(testo_partite(nba.get(gid), partite, media))}"
+        righe.append(riga)
+    return "\n".join(righe)
+
+
+# ── /quintetto (GM) ────────────────────────────────────────────────────────────
+
+def _tastiera(team_id: str, g: dict | None) -> K:
+    tasti = [[B(f"✏️ {r}", callback_data=f"q:c:{r}") for r in RUOLI[:3]],
+             [B(f"✏️ {r}", callback_data=f"q:c:{r}") for r in RUOLI[3:]]]
+    if g and aperta(g):
+        tasti.append([B(f"✅ Confermo per la giornata {g['numero']}", callback_data=f"q:ok:{g['numero']}")])
+    return K(tasti)
+
+
+def _testo_editor(team_id: str, g: dict | None) -> str:
+    t = [f"🏀 <b>Quintetto di {e(config.nome(team_id))}</b>"]
+    if g:
+        t.append(f"Giornata {g['numero']} · scadenza {ora(g['prima_partita'])}")
+    t += ["", testo_quintetto(team_id, g)]
+    inc = incompatibilita(team_id)
+    if inc:
+        t += ["", "⚠️ " + "\n⚠️ ".join(e(x) for x in inc)]
+    if g:
+        st = db.conferme(config.stagione(), g["numero"]).get(team_id)
+        t += ["", f"Stato: {'✅ confermato' if st and st['stato'] == 'confermato' else '✏️ modificato' if st else 'non ancora confermato'}"]
+    return "\n".join(t)
+
+
+async def cmd_quintetto(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    team = config.squadra_del_gm(update.effective_user.id)
+    if not team:
+        await update.effective_message.reply_text("Non risulti GM di nessuna squadra. Admin: /quintetto_admin SQUADRA.")
+        return
+    g = prossima_giornata()
+    await update.effective_message.reply_text(_testo_editor(team["id"], g), parse_mode="HTML",
+                                              reply_markup=_tastiera(team["id"], g))
+
+
+async def cb_quintetto(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    parti = q.data.split(":")
+    team = config.squadra_del_gm(update.effective_user.id)
+    if not team:
+        await q.answer("Non risulti GM di nessuna squadra.", show_alert=True)
+        return
+    s = config.stagione()
+    g = prossima_giornata(s)
+    azione = parti[1]
+    if azione in ("ok", "mod"):
+        n = int(parti[2])
+        gg = db.giornata(s, n)
+        if not gg or not aperta(gg):
+            await q.answer("La scadenza di questa giornata è passata.", show_alert=True)
+            return
+        if azione == "ok":
+            db.conferma(s, n, team["id"], "confermato", update.effective_user.id)
+            await q.answer("Confermato")
+            await log(context.bot, f"✅ Quintetto G{n} {e(team['nome'])} confermato da {chi(update)}")
+        else:
+            await q.answer()
+        g = gg
+    elif azione == "c":
+        ruolo = parti[2]
+        roster = [x for x in db.roster(team["id"], s) if x.get("ruolo") == ruolo]
+        if not roster:
+            await q.answer(f"Nessun {ruolo} nella tua squadra.", show_alert=True)
+            return
+        att = db.quintetto(team["id"]).get(ruolo)
+        tasti = [[B(("• " if x["id"] == att else "") + x["nome_common"], callback_data=f"q:s:{ruolo}:{x['id']}")]
+                 for x in roster] + [[B("↩️ Indietro", callback_data="q:v")]]
+        await q.answer()
+        await q.edit_message_text(f"Chi gioca da <b>{ruolo}</b>?", parse_mode="HTML", reply_markup=K(tasti))
+        return
+    elif azione == "s":
+        ruolo, gid = parti[2], int(parti[3])
+        roster = {x["id"]: x for x in db.roster(team["id"], s)}
+        if gid not in roster or roster[gid].get("ruolo") != ruolo:
+            await q.answer("Non è un giocatore di quel ruolo nella tua squadra.", show_alert=True)
+            return
+        nuovo = {**db.quintetto(team["id"]), ruolo: gid}
+        db.salva_quintetto(team["id"], nuovo, "gm", update.effective_user.id)
+        if g:
+            db.conferma(s, g["numero"], team["id"], "modificato", update.effective_user.id)
+        await q.answer("Fatto")
+        await log(context.bot, f"✏️ Quintetto {e(team['nome'])}: {ruolo} {e(roster[gid]['nome_common'])} ({chi(update)})")
+    else:
+        await q.answer()
+    await q.edit_message_text(_testo_editor(team["id"], g), parse_mode="HTML", reply_markup=_tastiera(team["id"], g))
+
+
+# ── admin ──────────────────────────────────────────────────────────────────────
+
+async def cmd_quintetto_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/quintetto_admin SQUADRA [GN], sotto 5 righe (con o senza il ruolo davanti).
+    Senza GN: cambia il quintetto attuale e, se c'è una giornata in corso, anche la sua formazione
+    (quella del calcolo). Con GN (es. G5): corregge solo la formazione della giornata N."""
+    import re
+    msg = update.effective_message
+    if not config.is_admin(update.effective_user.id):
+        await msg.reply_text("⛔ Solo admin.")
+        return
+    righe = (msg.text or "").split("\n")
+    prima = righe[0].split(maxsplit=1)
+    solo_g = None
+    if len(prima) > 1:
+        m = re.search(r"\s+[Gg](\d{1,2})\s*$", prima[1])
+        if m:
+            solo_g, prima[1] = int(m.group(1)), prima[1][:m.start()]
+    from shared.squadre import cerca_squadra
+    team = cerca_squadra(prima[1], config.squadre()) if len(prima) > 1 else None
+    if not team:
+        await msg.reply_text("Uso: /quintetto_admin SQUADRA (nome o id) nella prima riga, sotto i 5 titolari. "
+                             "Con G5 dopo la squadra corregge la formazione della giornata 5.")
+        return
+    if not [r for r in righe[1:] if r.strip()] and not solo_g:
+        g = prossima_giornata()
+        await msg.reply_text(_testo_editor(team["id"], g), parse_mode="HTML")
+        return
+    q, errori = leggi_quintetto(team["id"], righe[1:])
+    if errori:
+        await msg.reply_text(f"❌ Quintetto di {e(team['nome'])} non salvato:\n• " + "\n• ".join(e(x) for x in errori),
+                             parse_mode="HTML")
+        return
+    s = config.stagione()
+    nomi = {x["id"]: x["nome_common"] for x in db.roster(team["id"], s)}
+    elenco = ", ".join(f"{r} {nomi.get(q[r], '?')}" for r in RUOLI)
+    if solo_g:
+        if not db.stato_giornata(s, solo_g)["chiusa"]:
+            await msg.reply_text(f"La giornata {solo_g} non è ancora chiusa: cambia il quintetto senza G{solo_g}.")
+            return
+        db.salva_formazione(s, solo_g, team["id"], q)
+        await msg.reply_text(f"✅ Formazione della giornata {solo_g} di {e(team['nome'])} corretta: {e(elenco)}", parse_mode="HTML")
+        await log(context.bot, f"✏️ Formazione G{solo_g} {e(team['nome'])} corretta da {chi(update)}: {e(elenco)}")
+        return
+    db.salva_quintetto(team["id"], q, "admin", update.effective_user.id)
+    g = prossima_giornata()
+    if g:
+        db.conferma(s, g["numero"], team["id"], "modificato", update.effective_user.id)
+    in_corso = giornata_in_corso(s)
+    if in_corso and db.stato_giornata(s, in_corso["numero"])["chiusa"]:
+        db.salva_formazione(s, in_corso["numero"], team["id"], q)
+    await msg.reply_text("✅ " + _testo_editor(team["id"], g)
+                         + (f"\n\nAggiornata anche la formazione della giornata in corso ({in_corso['numero']})." if in_corso else ""),
+                         parse_mode="HTML")
+    await log(context.bot, f"✏️ Quintetto {e(team['nome'])} impostato da {chi(update)} (admin): {e(elenco)}"
+                           + (f" · anche G{in_corso['numero']} in corso" if in_corso else ""))
+
+
+def importa(testo: str) -> tuple[list[str], list[str]]:
+    """Blocchi separati da righe vuote: nome o id della squadra (esatti, senza maiuscole e accenti:
+    in un import di massa una ricerca tollerante può sbagliare squadra), poi i 5 titolari.
+    (salvati, errori)"""
+    from shared.squadre import normalizza
+
+    def cerca_squadra(testo, squadre):
+        n = normalizza(testo)
+        return next((t for t in squadre if n in (normalizza(t["nome"]), normalizza(t["id"]))), None)
+    blocchi, cur = [], []
+    for r in testo.splitlines():
+        if r.strip():
+            cur.append(r.strip())
+        elif cur:
+            blocchi.append(cur)
+            cur = []
+    if cur:
+        blocchi.append(cur)
+    ok, errori = [], []
+    for b in blocchi:
+        team = cerca_squadra(b[0], config.squadre())
+        if not team:
+            errori.append(f"«{b[0]}»: squadra non trovata")
+            continue
+        q, err = leggi_quintetto(team["id"], b[1:])
+        if err:
+            errori.append(f"{team['nome']}: " + "; ".join(err))
+            continue
+        db.salva_quintetto(team["id"], q, "import")
+        ok.append(team["nome"])
+    return ok, errori
+
+
+async def cmd_quintetti_import(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/quintetti_import con sotto (o in un file .txt allegato) tutte le squadre."""
+    msg = update.effective_message
+    if not config.is_admin(update.effective_user.id):
+        await msg.reply_text("⛔ Solo admin.")
+        return
+    testo = "\n".join((msg.text or msg.caption or "").split("\n")[1:])
+    doc = msg.document or (msg.reply_to_message.document if msg.reply_to_message else None)
+    if doc:
+        testo = bytes(await (await doc.get_file()).download_as_bytearray()).decode("utf-8-sig", errors="replace")
+    if not testo.strip():
+        await msg.reply_text("Uso: /quintetti_import e sotto, per ogni squadra, il nome nella prima riga e i 5 titolari; "
+                             "squadre separate da una riga vuota. Va bene anche un file .txt con didascalia /quintetti_import.")
+        return
+    ok, errori = importa(testo)
+    t = f"✅ Quintetti salvati: {len(ok)}" + (f"\n{e(', '.join(ok))}" if ok else "")
+    if errori:
+        t += "\n\n❌ Non salvati:\n• " + "\n• ".join(e(x) for x in errori)
+    from shared.messaggi import manda_lungo
+    await manda_lungo(context.bot, update.effective_chat.id, t, "quintetti-import")
+    await log(context.bot, f"📥 /quintetti_import di {chi(update)}: {len(ok)} salvati, {len(errori)} errori")
+
+
+def testo_stato(g: dict) -> str:
+    s = config.stagione()
+    conf = db.conferme(s, g["numero"])
+    panche = db.panchine(s, g["numero"])
+    righe = [f"📋 <b>Giornata {g['numero']}</b> · scadenza {ora(g['prima_partita'])}", ""]
+    nessuna_conferma, senza_panca = [], []
+    for t in config.squadre():
+        c = conf.get(t["id"])
+        stato_q = "✅" if c and c["stato"] == "confermato" else "✏️" if c else "—"
+        p = panche.get(t["id"])
+        inc = incompatibilita(t["id"])
+        righe.append(f"{stato_q} quintetto · {'🪑' if p else '❌'} panchina · {e(t['nome'])}"
+                     + (f" ⚠️ {e('; '.join(inc))}" if inc else ""))
+        if not c:
+            nessuna_conferma.append(t["nome"])
+        if not p:
+            senza_panca.append(t["nome"])
+    righe += ["", "✅ confermato · ✏️ modificato · — niente (quintetto da controllare su Yahoo)"]
+    if nessuna_conferma:
+        righe += ["", f"<b>Quintetti da controllare ({len(nessuna_conferma)})</b>: {e(', '.join(nessuna_conferma))}"]
+    if senza_panca:
+        righe += [f"<b>Panchine mancanti ({len(senza_panca)})</b>: {e(', '.join(senza_panca))}"]
+    return "\n".join(righe)
+
+
+async def cmd_stato(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/stato [N]: conferme dei quintetti e panchine di una giornata (la prossima se manca N)."""
+    if not config.is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ Solo admin.")
+        return
+    n = int(context.args[0]) if context.args and context.args[0].isdigit() else None
+    g = db.giornata(config.stagione(), n) if n else prossima_giornata()
+    if not g:
+        await update.effective_message.reply_text("Nessuna giornata.")
+        return
+    from shared.messaggi import manda_lungo
+    await manda_lungo(context.bot, update.effective_chat.id, testo_stato(g), f"stato-G{g['numero']}")
+
+
+# ── job: promemoria, riepilogo, chiusura ───────────────────────────────────────
+
+async def manda_promemoria(bot, g: dict) -> int:
+    inviati = 0
+    for t in config.squadre():
+        testo = (f"🏀 <b>Giornata {g['numero']}</b> · formazione entro <b>{ora(g['prima_partita'])}</b>\n\n"
+                 f"Il tuo quintetto ({e(t['nome'])}), con le partite di ognuno:\n\n{testo_quintetto(t['id'], g)}")
+        inc = incompatibilita(t["id"])
+        if inc:
+            testo += "\n\n⚠️ " + "\n⚠️ ".join(e(x) for x in inc)
+        testo += "\n\nVa bene così o vuoi cambiarlo? E ricordati la panchina: mandamela qui, una riga per giocatore."
+        tasti = K([[B("✅ Confermo", callback_data=f"q:ok:{g['numero']}"),
+                    B("✏️ Modifico", callback_data=f"q:mod:{g['numero']}")]])
+        for uid in config.gm_ids(t["id"]):
+            try:
+                await bot.send_message(chat_id=uid, text=testo, parse_mode="HTML", reply_markup=tasti)
+                inviati += 1
+            except Exception as err:          # GM che non ha mai scritto al bot
+                logger.info("Promemoria a %s: %s", uid, err)
+    return inviati
+
+
+async def job_giornate(context: ContextTypes.DEFAULT_TYPE):
+    """Ogni 5 minuti: per le giornate aperte promemoria, riepilogo agli admin e chiusura."""
+    bot = context.bot
+    s = config.stagione()
+    ora_ = adesso()
+    for g in db.giornate(s):
+        scad = g.get("prima_partita")
+        if not scad:
+            continue
+        st = db.stato_giornata(s, g["numero"])
+        if st["chiusa"]:
+            continue
+        if ora_ >= scad:
+            db.congela_quintetti(s, g["numero"], [t["id"] for t in config.squadre()])
+            db.segna_stato(s, g["numero"], "chiusa")
+            panche = db.panchine(s, g["numero"])
+            mancanti = [t["nome"] for t in config.squadre() if t["id"] not in panche]
+            if config.gruppo_admin():
+                try:
+                    await bot.send_message(chat_id=config.gruppo_admin(), parse_mode="HTML", text=(
+                        f"⏰ <b>Giornata {g['numero']} chiusa</b>: quintetti congelati (si correggono anche a giornata "
+                        f"in corso con /quintetto_admin)."
+                        + (f"\n❌ Senza panchina ({len(mancanti)}): {e(', '.join(mancanti))}" if mancanti else "\n✅ Tutte le panchine arrivate.")))
+                except Exception as err:
+                    logger.warning("Chiusura al gruppo admin: %s", err)
+            await log(bot, f"⏰ G{g['numero']} chiusa: quintetti congelati, {len(mancanti)} panchine mancanti")
+            continue
+        p = ora_promemoria(g)
+        if not st["promemoria"] and p and ora_ >= p:
+            db.segna_stato(s, g["numero"], "promemoria")
+            n = await manda_promemoria(bot, g)
+            await log(bot, f"📨 Promemoria G{g['numero']}: {n} messaggi ai GM")
+        if not st["riepilogo"] and ora_ >= scad - RIEPILOGO_PRIMA:
+            db.segna_stato(s, g["numero"], "riepilogo")
+            if config.gruppo_admin():
+                from shared.messaggi import manda_lungo
+                try:
+                    await manda_lungo(bot, config.gruppo_admin(), testo_stato(g), f"stato-G{g['numero']}")
+                except Exception as err:
+                    logger.warning("Riepilogo al gruppo admin: %s", err)
+
+
+def get_handlers() -> list:
+    from telegram.ext import MessageHandler, filters
+    return [
+        CommandHandler("quintetto", cmd_quintetto),
+        CommandHandler("quintetto_admin", cmd_quintetto_admin),
+        CommandHandler("quintetti_import", cmd_quintetti_import),
+        MessageHandler(filters.Document.ALL & filters.CaptionRegex(r"^/quintetti_import"), cmd_quintetti_import),
+        CommandHandler("stato", cmd_stato),
+        CallbackQueryHandler(cb_quintetto, pattern=r"^q:"),
+    ]

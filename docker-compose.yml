@@ -97,6 +97,27 @@ services:
       - ./config:/config:ro
       - ./shared:/app/shared:ro
 
+
+  # IPanchinari (v5.0.0): panchine (messaggi dei GM, soprannomi) e quintetti. Prima di avviarlo:
+  # token di BotFather in secrets/bot_token_ipanchinari.txt (fantabasket-ipanchinari/README.md)
+  ipanchinari:
+    build: ./fantabasket-ipanchinari
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      BOT_TOKEN_FILE: /run/secrets/bot_token_ipanchinari
+      GLOBALS_PATH: /config/globals.json
+      TEAMS_PATH: /config/teams.json
+      DATABASE_URL: postgresql://fantabasket@postgres/fantabasket
+      PG_PASSWORD_FILE: /run/secrets/pg_password
+    secrets:
+      - bot_token_ipanchinari
+      - pg_password
+    volumes:
+      - ./config:/config:ro
+      - ./shared:/app/shared:ro
   gas-router:
     build: ./gas-router
     restart: unless-stopped
@@ -168,6 +189,8 @@ secrets:
     file: ./secrets/bot_token_main.txt
   bot_token_loucabot:
     file: ./secrets/bot_token_loucabot.txt
+  bot_token_ipanchinari:
+    file: ./secrets/bot_token_ipanchinari.txt
   pg_password:
     file: ./secrets/pg_password.txt
   gas_token:

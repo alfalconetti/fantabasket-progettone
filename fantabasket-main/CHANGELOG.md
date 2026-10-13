@@ -1131,3 +1131,9 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v4.2.1 (2026-10-13)
 
 - loucabot v8 e `gas/calendario.gs`: il foglio Calendario si ricarica tutto (colonne A:E) a ogni aggiornamento (serve di nuovo `clasp push` e Nuova versione)
+
+## v5.0.0 (2026-10-13)
+
+- **IPanchinari v1**, il quarto bot (`fantabasket-ipanchinari/`, servizio `ipanchinari`): panchine dai messaggi dei GM con i soprannomi (abbinamento tollerante, bottoni per i dubbi, alias ricordati) pubblicate sul canale Panchinari con le sole righe del GM; quintetti (import, admin anche a giornata in corso, `/quintetto` per i GM), promemoria alle 8 con le partite e Confermo/Modifico, riepilogo agli admin e chiusura alla scadenza con i quintetti congelati. Un titolare in panchina è solo segnalato: per il quintetto fa fede Yahoo. Prima del deploy va creato `secrets/bot_token_ipanchinari.txt`; in `globals.json` `canale_panchinari_id`
+- Nei log dei bot niente chiamate all'API di Telegram (contenevano il token): bot principale, bot aste v64, loucabot v9
+- `MIGRATION.md` riordinato per argomento, senza le cose superate

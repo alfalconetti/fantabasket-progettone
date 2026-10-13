@@ -16,6 +16,7 @@ fantabasket-progettone/
 ├── fantabasket-main/      ← questo bot
 ├── fantabasket-aste-beta/ bot aste
 ├── fantabasket-loucabot/  loucabot: calendario e calcolo dei fantapunti, README e docs/ suoi
+├── fantabasket-ipanchinari/ IPanchinari: panchine (messaggi dei GM) e quintetti, README e docs/ suoi
 ├── gas-router/            ponte verso Google Apps Script (fogli)
 ├── gas/                   codice Apps Script (clasp)
 ├── yahoo-router/          OAuth Yahoo (in attesa di abilitazione)
@@ -32,6 +33,7 @@ fantabasket-progettone/
 | `bot-main` | questo bot |
 | `bot-aste-beta` | bot aste |
 | `loucabot` | calendario della lega sincronizzato con quello NBA, tabellini ESPN e fantapunti; tabelle sue `lega_*`, `nba_*`, più `giocatori.espn_id`; guida tecnica in `fantabasket-loucabot/docs/guida_dev.md` |
+| `ipanchinari` | panchine dai messaggi dei GM (soprannomi) pubblicate sul canale Panchinari, quintetti con promemoria e conferma; tabelle sue `ipa_*`; guida tecnica in `fantabasket-ipanchinari/docs/guida_dev.md` |
 | `gas-router` | riceve i dati dal bot e li gira alla web app Apps Script |
 | `yahoo-router` | OAuth e chiamate Yahoo (per ora inutilizzato) |
 | `nocodb` | dashboard in LAN sulla 8090, di solito spenta |
@@ -72,6 +74,8 @@ fantabasket-progettone/
 | `log_channel_id_main` | log del bot e backup |
 | `log_channel_id` | log del bot aste |
 | `log_channel_id_louca` | log di loucabot (senza: usa `log_channel_id_main`) |
+| `log_channel_id_ipa` | log di IPanchinari (senza: usa `log_channel_id_main`) |
+| `canale_panchinari_id` | canale Panchinari: ci pubblica IPanchinari |
 | `channel_id` | canale aste (usato dal bot aste) |
 | `trade_deadline` | data; i diritti 2nd scadono 10 giorni prima. Ogni stagione con `/trade_deadline AAAA-MM-GG` (admin, controlla che cada nella stagione); entrando nei rinnovi, se è vecchia, promemoria al gruppo admin |
 | `deadline_ruoli` | scadenza della dichiarazione ruoli (`/deadline_ruoli`) |
@@ -636,7 +640,7 @@ PostgreSQL 16 locale, database `fbt` (fb/fb), config finta in `tests/config/`. `
 
 1. voce `## vX.Y.Z (data)` nel CHANGELOG (la versione del bot si legge da lì);
 2. voce `## vNN` nel CHANGELOG del bot aste, se lo tocchi;
-3. riga in `MIGRATION.md`;
+3. `MIGRATION.md` aggiornato dove cambia lo stato (decisioni, architettura, operazioni, da fare): niente righe per versione, la storia sta nei CHANGELOG;
 4. zip con i percorsi del repo, senza `config/`, `secrets/`, `.db`, `gas/globals.gs`, più alla radice `deploy.sh` (copia di `scripts/deploy.sh`) e `rilascio.json` (`versione`, `messaggio` di commit, `elimina`, `riavvia`, `ferma_aste_prima`, `attesa_main`, `log_attesi`).
 
 Deploy di uno zip, da `~/bots`: `Z=fantabasket-progettone-vX.Y.Z.zip; bash <(unzip -p $Z deploy.sh) $Z`. Controlla zip e versione, chiede conferma, fa il dump del database in `archivio/backup-deploy/`, scompatta, cancella i file tolti, riavvia controllando i log, fa commit e push e archivia gli zip oltre gli ultimi 5. Se un bot non parte non fa il commit e stampa come tornare indietro.

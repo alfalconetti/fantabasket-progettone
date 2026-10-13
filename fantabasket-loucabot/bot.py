@@ -17,7 +17,9 @@ from handlers import get_handlers, job_sync
 from handlers_calcolo import job_infortuni
 
 logging.basicConfig(format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", level=logging.INFO)
-logging.getLogger("httpx").setLevel(logging.WARNING)
+# niente riga per ogni chiamata all'API di Telegram: contiene il token nell'URL e riempie i log
+for _nome in ("httpx", "httpcore"):
+    logging.getLogger(_nome).setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 ROME = ZoneInfo("Europe/Rome")
 
