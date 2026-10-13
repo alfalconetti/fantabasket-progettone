@@ -128,7 +128,14 @@ partita("p4", "2026-11-04", "NYK", "CHI")
 G3 = {**G, "al": date(2026, 11, 4)}
 db.salva_infortuni(date(2026, 11, 3), [{"atleta": "3", "nome": "Gioc 3", "stato": "Out"}])
 S3 = calcolo.punteggio_squadra(G3, Q, B, calcolo.punteggio_giocatori("2026", G3, ["1", "2", "3", "4", "6", "8", "9", "5"]))
+_oggi = calcolo.oggi_et
+calcolo.oggi_et = lambda: date(2026, 12, 1)                       # giornata finita
+S3 = calcolo.punteggio_squadra(G3, Q, B, calcolo.punteggio_giocatori("2026", G3, ["1", "2", "3", "4", "6", "8", "9", "5"]))
 ok(S3["fadd"] is None and any("decide un admin" in a for a in S3["avvisi"]), "FADD: manca lo snapshot di un giorno → decide un admin")
+calcolo.oggi_et = lambda: date(2026, 11, 4)                       # il giorno senza snapshot è oggi (live)
+S3 = calcolo.punteggio_squadra(G3, Q, B, calcolo.punteggio_giocatori("2026", G3, ["1", "2", "3", "4", "6", "8", "9", "5"]))
+ok(S3["fadd"] is None and not any("snapshot" in a for a in S3["avvisi"]), "giornata in corso: lo snapshot di oggi e dei prossimi giorni non manca ancora")
+calcolo.oggi_et = _oggi
 
 # ── status deciso da un admin (/set_valid_status): vince sugli snapshot ──
 GS = {**G, "stagione": "2026"}

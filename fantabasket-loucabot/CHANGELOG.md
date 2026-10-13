@@ -116,3 +116,7 @@ Il calcolo dei fantapunti.
 
 - Live: con il quintetto di una squadra vuoto (nessun giocatore) niente esito, ma "⚠️ quintetto vuoto: SQUADRA" (prima, con tutti a zero, il regolamento dava vinta la trasferta: scarto sotto 5, niente panchine)
 
+## v23 (2026-10-14)
+
+- FADD durante la giornata (live, anteprime): un titolare a zero la cui squadra NBA deve ancora giocare non si valuta finché non ha giocato (prima si guardava tutta la giornata come se non giocasse); e l'avviso "manca lo snapshot degli infortunati" vale solo per i giorni passati: per oggi e i prossimi giorni lo snapshot arriverà (prima usciva per ogni giocatore nell'anteprima prima della giornata). Il calcolo delle 7:45, a giornata finita, è come prima
+

@@ -223,6 +223,12 @@ ok(prova and "PROVA" in prova[0]["text"] and "Giornata 0 calcolata" in prova[0][
 ok(db.q("SELECT COUNT(*) AS n FROM lega_calcoli WHERE giornata = 0", one=True)["n"] == 0, "la prova non salva niente")
 db.q("DELETE FROM ipa_quintetto")
 
+db.q("UPDATE nba_partite SET stato = 'STATUS_SCHEDULED' WHERE espn_id = 'g4'")
+c_s = R.calcola(S, N)
+ok(c_s["risultati"][0]["sc"]["fadd"] is None and not any("r10" in x or "Prova 10" in x for x in c_s["avvisi"] if "snapshot" in x),
+   "la squadra del titolare deve ancora giocare (live): niente FADD e niente avviso, si decide dopo")
+db.q("UPDATE nba_partite SET stato = 'STATUS_FINAL' WHERE espn_id = 'g4'")
+
 # ── squadra NBA dai roster ESPN di adesso (cambi di squadra d'estate) ──
 gN = db.giornata(S, N)
 ok(calcolo.punteggio_giocatori(S, gN, ["r30"])["r30"]["come"] == "media", "r30: ultimo tabellino coi NOP, che non giocano: media")

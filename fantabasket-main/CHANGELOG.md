@@ -1287,3 +1287,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - loucabot v22: il live non stima l'esito se una squadra ha il quintetto vuoto
 
+## v5.3.5 (2026-10-14)
+
+- loucabot v23: FADD e avvisi degli snapshot giusti a giornata in corso (niente FADD per chi deve ancora giocare, niente "manca lo snapshot" per oggi e i giorni futuri)
+

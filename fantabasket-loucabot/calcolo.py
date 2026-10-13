@@ -112,12 +112,21 @@ def punteggio_giocatori(stagione: str, g: dict, atleti: list[str]) -> dict[str, 
     return out
 
 
+def oggi_et():
+    """Il giorno NBA di adesso (costa est); le prove lo sostituiscono."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    return datetime.now(ZoneInfo("America/New_York")).date()
+
+
 def _fadd_possibile(a: str, p: dict, g: dict) -> tuple[bool, str]:
     """Il titolare `a` (con punteggio p) può essere sostituito? (sì/no, motivo)"""
     if p["come"] != "zero" or not p.get("squadra"):
         return False, ""
-    giorni = sorted({x["data_et"] for x in db.partite_nba(g["dal"], g["al"])
-                     if p["squadra"] in (x["casa"], x["trasferta"]) and x["stato"] == "STATUS_FINAL"})
+    sue = [x for x in db.partite_nba(g["dal"], g["al"]) if p["squadra"] in (x["casa"], x["trasferta"])]
+    if any(x["stato"] not in ("STATUS_FINAL", "STATUS_POSTPONED", "STATUS_CANCELED") for x in sue):
+        return False, ""    # deve ancora giocare (live, giornata in corso): la FADD si decide dopo
+    giorni = sorted({x["data_et"] for x in sue if x["stato"] == "STATUS_FINAL"})
     if not giorni:          # la sua squadra non ha giocato (a media, rinviate): conta tutta la giornata
         giorni = _giorni(g["dal"], g["al"])
     if g.get("numero") and g.get("stagione"):
@@ -126,6 +135,8 @@ def _fadd_possibile(a: str, p: dict, g: dict) -> tuple[bool, str]:
             return (True, f"{deciso[a]}, deciso da un admin") if indisponibile(deciso[a]) else (False, "")
     con_snap = db.giorni_con_snapshot(giorni)
     if set(giorni) - con_snap:
+        if max(set(giorni) - con_snap) >= oggi_et():
+            return False, ""    # giornata non ancora finita (live): gli snapshot di oggi e dei prossimi giorni arriveranno
         return False, "manca lo snapshot degli infortunati di qualche giorno: decide un admin"
     stati = db.infortuni([a], giorni)
     if all(indisponibile(stati.get((a, d))) for d in giorni):
