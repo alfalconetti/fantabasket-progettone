@@ -128,6 +128,9 @@ ok(_b.m and _b.m[0]["chat_id"] == -77, "riga di log mandata al canale di loucabo
 async def _sync_finto(giorni=None, **k):
     return {"giorni": 18, "partite": 0, "errori": []}
 _h.nba.sincronizza = _sync_finto
+async def _roster_finto(**k):
+    return []
+_h.nba.scarica_giocatori = _roster_finto
 _ctx = types.SimpleNamespace(bot=_Bot())
 asyncio.run(_h.job_sync(_ctx))
 ok(any(x["chat_id"] == -77 and "8:30" in x["text"] for x in _ctx.bot.m),

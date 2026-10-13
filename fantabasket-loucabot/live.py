@@ -161,13 +161,14 @@ def calcolo(s: str, n: int) -> dict:
     return R.calcola(s, n, sch=sch)
 
 
-def _da_giocare(c: dict, squadra: dict) -> tuple[int, int]:
-    """(in campo adesso, ancora da giocare) tra i 5 in campo di una squadra fantasy."""
+def _da_giocare(c: dict, giocatori: list[dict]) -> tuple[int, int]:
+    """(in campo adesso, ancora da giocare) tra i giocatori indicati: la loro squadra NBA sta
+    giocando, o ha ancora una partita della giornata non iniziata (stanotte o nelle notti dopo)."""
     partite = db.partite_nba(c["giornata"]["dal"], c["giornata"]["al"])
     adesso = {sq for p in partite if p["stato"] not in FINITE and p["stato"] not in NON_INIZIATE for sq in (p["casa"], p["trasferta"])}
     dopo = {sq for p in partite if p["stato"] == "STATUS_SCHEDULED" for sq in (p["casa"], p["trasferta"])}
     live = poi = 0
-    for x in squadra["titolari"]:
+    for x in giocatori:
         p = c["punti"].get(x.get("atleta")) or {}
         sq = p.get("squadra")
         if sq in adesso:
@@ -177,28 +178,44 @@ def _da_giocare(c: dict, squadra: dict) -> tuple[int, int]:
     return live, poi
 
 
+def esito_live(r: dict, casa: str, tr: str, aperti: bool) -> str:
+    """Finché qualcuno (titolari o panchina) deve ancora giocare: chi è avanti e di quanto, bonus
+    casa compreso. Quando tutti hanno finito: l'esito del calcolo, supplementari compresi."""
+    if aperti:
+        scarto = r["punti_casa"] - r["punti_trasferta"]
+        if scarto == 0:
+            return "pari"
+        return f"{e(casa if scarto > 0 else tr)} avanti di {tp(abs(scarto))}"
+    chi = e(casa if r["vince"] == "casa" else tr)
+    if r["supplementari"]:
+        return f"{chi} vince ai supplementari ({r['supplementari']}): {tp(r['esito']['casa'])} – {tp(r['esito']['trasferta'])}"
+    return f"{chi} vince"
+
+
 def testo(c: dict, ora: datetime, prova: bool = False) -> str:
     g = c["giornata"]
     righe = [f"🔴 <b>Giornata {g['numero']} · punteggi live</b>", ""]
     for r in c["risultati"]:
         casa, tr = config.nome(r["casa"]), config.nome(r["trasferta"])
         righe.append(f"<b>{e(casa)}</b> {tp(r['punti_casa'])} – {tp(r['punti_trasferta'])} <b>{e(tr)}</b>")
-        chi = e(casa if r["vince"] == "casa" else tr)
-        extra = (f" ai supplementari ({r['supplementari']}): {tp(r['esito']['casa'])} – {tp(r['esito']['trasferta'])}"
-                 if r["supplementari"] else "")
-        lc, pc = _da_giocare(c, r["sc"])
-        lt, pt = _da_giocare(c, r["st"])
+        lc, pc = _da_giocare(c, r["sc"]["titolari"])
+        lt, pt = _da_giocare(c, r["st"]["titolari"])
+        bc = sum(_da_giocare(c, r["sc"]["panchina"]))
+        bt = sum(_da_giocare(c, r["st"]["panchina"]))
+        aperti = bool(lc or lt or pc or pt or bc or bt)
         stato_g = []
         if lc or lt:
             stato_g.append(f"🏀 in campo {lc}–{lt}")
         if pc or pt:
             stato_g.append(f"⏳ da giocare {pc}–{pt}")
-        righe.append(f"   ▶ {chi}{extra}" + (" · " + " · ".join(stato_g) if stato_g else ""))
+        righe.append(f"   ▶ {esito_live(r, casa, tr, aperti)}" + (" · " + " · ".join(stato_g) if stato_g else ""))
     righe += ["", f"<i>Risultati provvisori, stimati sui tabellini live di ESPN con le regole del calcolo (bonus casa "
                   f"+{c['bonus']:g}, FADD, supplementari): li valuta e convalida un admin.\n"
                   f"Ultimo aggiornamento: {ora.astimezone(ROMA):%d/%m alle %H:%M}</i>"]
     if prova:
         righe.insert(0, "🧪 <b>PROVA</b> (non pubblicato sul canale)\n")
+        if c.get("avvisi"):
+            righe += ["", f"⚠️ {len(c['avvisi'])} avvisi del calcolo, per esempio:"] + [f"• {e(a)}" for a in c["avvisi"][:8]]
     return "\n".join(righe)
 
 

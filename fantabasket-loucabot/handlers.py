@@ -215,6 +215,12 @@ async def job_sync(context: ContextTypes.DEFAULT_TYPE):
         r = await nba.sincronizza(nba.giorni_vicini())
         cambi = cal.ricalcola()
         import handlers_calcolo as hc
+        try:                                          # roster ESPN: la squadra NBA di adesso di ogni giocatore
+            atleti = await nba.scarica_giocatori()
+            db.salva_atleti(atleti)
+            roster_txt = f"roster ESPN: {len(atleti)} giocatori"
+        except Exception as err:
+            roster_txt = f"roster ESPN non aggiornati ({e(str(err))[:100]})"
         tab = await hc.aggiorna_tabellini()
         inf = await hc.snapshot_infortuni() if config.snapshot_attivi() else f"snapshot infortunati fermi (fase {config.fase()})"
         tolte = db.pulisci_snapshot(nba.oggi_et())
@@ -225,7 +231,7 @@ async def job_sync(context: ContextTypes.DEFAULT_TYPE):
             inf += "; " + await foglio.aggiorna(config.stagione())
         await log(context.bot, f"🔄 Sincronizzazione delle 8:30: {_esito_sync(r)}"
                                + (f", {len(cambi)} cambi (avviso al gruppo admin)" if cambi else ", nessun cambio")
-                               + f"; {hc.testo_tabellini(tab)}; {inf}")
+                               + f"; {hc.testo_tabellini(tab)}; {roster_txt}; {inf}")
         if cambi and config.gruppo_admin():
             await context.bot.send_message(
                 chat_id=config.gruppo_admin(), parse_mode="HTML",

@@ -223,6 +223,16 @@ ok(prova and "PROVA" in prova[0]["text"] and "Giornata 0 calcolata" in prova[0][
 ok(db.q("SELECT COUNT(*) AS n FROM lega_calcoli WHERE giornata = 0", one=True)["n"] == 0, "la prova non salva niente")
 db.q("DELETE FROM ipa_quintetto")
 
+# ── squadra NBA dai roster ESPN di adesso (cambi di squadra d'estate) ──
+gN = db.giornata(S, N)
+ok(calcolo.punteggio_giocatori(S, gN, ["r30"])["r30"]["come"] == "media", "r30: ultimo tabellino coi NOP, che non giocano: media")
+db.salva_atleti([{"atleta": "r30", "nome": "r30", "squadra": "NYK"}])
+p30 = calcolo.punteggio_giocatori(S, gN, ["r30"])["r30"]
+ok(p30["squadra"] == "NYK" and p30["come"] == "zero", "passato ai Knicks (roster ESPN), che giocano: non prende la media")
+db.salva_atleti([{"atleta": f"x{i}", "nome": "x", "squadra": sq} for i, sq in enumerate(sorted(__import__("nba").NBA))])
+ok(calcolo.punteggio_giocatori(S, gN, ["r30"])["r30"]["squadra"] == "NOP", "non più in nessun roster: vale l'ultimo tabellino")
+db.q("TRUNCATE nba_atleti")
+
 # ── punteggi live (v18) ──
 import live as LV
 from zoneinfo import ZoneInfo
@@ -295,8 +305,13 @@ db.q("UPDATE nba_partite SET stato = 'STATUS_IN_PROGRESS' WHERE espn_id = 'g5'")
 c_ora = LV.calcolo(S, N)
 r_b = next(r for r in c_ora["risultati"] if r["trasferta"] == "team02" or r["casa"] == "team02")
 lato = r_b["st"] if r_b["trasferta"] == "team02" else r_b["sc"]
-ok(LV._da_giocare(c_ora, lato)[0] >= 1 and "🏀 in campo" in LV.testo(c_ora, t0), "partita in corso: giocatori in campo")
+tl = LV.testo(c_ora, t0)
+ok(LV._da_giocare(c_ora, lato["titolari"])[0] >= 1 and "🏀 in campo" in tl, "partita in corso: giocatori in campo")
+ok("avanti di" in tl or "▶ pari" in tl, "si gioca ancora: chi è avanti e di quanto, niente supplementari ipotetici")
 db.q("UPDATE nba_partite SET stato = 'STATUS_FINAL' WHERE espn_id = 'g5'")
+tl = LV.testo(LV.calcolo(S, N), t0)
+ok("▶ Beta vince ai supplementari (1): " in tl and "▶ Gamma vince" in tl and "avanti di" not in tl,
+   "tutti hanno finito: l'esito, supplementari compresi")
 
 # pulizia
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (list(gid.values()),))

@@ -97,3 +97,8 @@ Il calcolo dei fantapunti.
 - I tabellini delle partite in corso si salvano senza segnare la partita come scaricata: il tabellino definitivo si riscarica sempre a partita finita
 - Serve che loucabot sia amministratore del canale principale
 
+## v19 (2026-10-14)
+
+- Live: finché qualcuno (titolari o panchina) deve ancora giocare, il messaggio dice chi è avanti e di quanto, non più l'esito e i supplementari ipotetici (prima della prima partita usciva "ai supplementari (5)" con tutti a zero); quando hanno finito tutti, chi vince, supplementari compresi. L'anteprima di `/live` mostra anche i primi avvisi del calcolo (quintetti incompleti, panchine mancanti)
+- **Squadra NBA di adesso dai roster ESPN**, aggiornati ogni mattina alle 8:30: per chi non ha ancora giocato nella giornata la squadra non è più quella del suo ultimo tabellino (per chi ha cambiato squadra d'estate o con una trade era quella vecchia). Conta per la media (squadra che non gioca), per la FADD e per il ⏳ del live
+

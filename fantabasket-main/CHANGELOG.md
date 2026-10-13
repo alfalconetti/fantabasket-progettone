@@ -1268,3 +1268,9 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - loucabot v18: **punteggi live** sul canale principale (dalla prima partita ogni 10 minuti fino alle 8, poi alle 10:05 il controllo della notte con le differenze sul canale log), provvisori, col calcolo vero sui tabellini live; `/live`
 
+## v5.3.1 (2026-10-14)
+
+- loucabot v19: il live dice chi è avanti finché si gioca, l'esito solo quando hanno finito tutti
+- loucabot v19: la squadra NBA di chi non ha ancora giocato viene dai roster ESPN di adesso (aggiornati alle 8:30), non dall'ultimo tabellino: corregge media, FADD e ⏳ del live per chi ha cambiato squadra
+- MIGRATION: fonte dati di riserva al posto di ESPN (candidati e requisiti)
+

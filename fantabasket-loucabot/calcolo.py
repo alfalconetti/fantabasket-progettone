@@ -64,7 +64,9 @@ def punteggio_giocatori(stagione: str, g: dict, atleti: list[str]) -> dict[str, 
             x = giocano.setdefault(sq, {"giocate": [], "rinviate": []})
             (x["rinviate"] if p["stato"] in ("STATUS_POSTPONED", "STATUS_CANCELED") else x["giocate"]).append(p)
     media_giornata = set(g.get("media") if g.get("media") is not None else (g.get("media_file") or []))
-    squadre_prima = db.ultima_squadra(atleti, al + timedelta(days=1))
+    # squadra NBA di chi non ha giocato nella giornata: quella dei roster ESPN di adesso (cambi di
+    # squadra d'estate e trade), se no quella dell'ultimo tabellino
+    squadre_prima = {**db.ultima_squadra(atleti, al + timedelta(days=1)), **db.squadre_roster(atleti)}
     medie = db.medie_stagione(atleti, stagione, dal)
     stati = db.infortuni(atleti, giorni)
     decisi = db.status_validi(stagione, g["numero"], atleti) if g.get("numero") else {}

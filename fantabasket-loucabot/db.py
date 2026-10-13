@@ -428,12 +428,24 @@ def abbina(giocatore_id: int, atleta: str, nome_espn: str, metodo: str) -> None:
 
 
 def salva_atleti(atleti: list[dict]) -> None:
+    """I roster ESPN. Se ci sono tutte e 30 le squadre, chi non è più in nessun roster (tagliato,
+    free agent NBA) resta senza squadra."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             for a in atleti:
                 cur.execute("INSERT INTO nba_atleti (atleta, nome, squadra) VALUES (%(atleta)s, %(nome)s, %(squadra)s) "
                             "ON CONFLICT (atleta) DO UPDATE SET nome = EXCLUDED.nome, squadra = EXCLUDED.squadra, "
                             "aggiornato = NOW()", a)
+            if len({a["squadra"] for a in atleti}) >= 30:
+                cur.execute("UPDATE nba_atleti SET squadra = NULL, aggiornato = NOW() WHERE NOT (atleta = ANY(%s))",
+                            ([a["atleta"] for a in atleti],))
+
+
+def squadre_roster(atleti: list[str]) -> dict[str, str]:
+    """La squadra NBA di adesso dai roster ESPN (aggiornati ogni mattina alle 8:30)."""
+    righe = q("SELECT atleta, squadra FROM nba_atleti WHERE atleta = ANY(%s) AND squadra IS NOT NULL",
+              (list(atleti),), many=True) or []
+    return {r["atleta"]: r["squadra"] for r in righe}
 
 
 def atleti_espn_visti() -> dict[str, str]:
