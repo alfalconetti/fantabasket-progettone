@@ -58,7 +58,8 @@ def main():
     from handlers import _is_dev
     from shared import dev_comune
     import handlers_risultati
-    for h in get_handlers() + handlers_risultati.get_handlers() + dev_comune.get_handlers(_is_dev, lambda: db.q("SELECT version() AS v", one=True)["v"]):
+    import prova_live
+    for h in get_handlers() + handlers_risultati.get_handlers() + prova_live.get_handlers() + dev_comune.get_handlers(_is_dev, lambda: db.q("SELECT version() AS v", one=True)["v"]):
         app.add_handler(h)
     app.add_error_handler(dev_comune.error_handler("loucabot", config.canale_log, config.dev_id))
     app.job_queue.run_daily(job_sync, time=dtime(8, 30, tzinfo=ROME))        # partite, tabellini, infortunati

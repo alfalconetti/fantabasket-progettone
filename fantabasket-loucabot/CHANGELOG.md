@@ -120,3 +120,7 @@ Il calcolo dei fantapunti.
 
 - FADD durante la giornata (live, anteprime): un titolare a zero la cui squadra NBA deve ancora giocare non si valuta finché non ha giocato (prima si guardava tutta la giornata come se non giocasse); e l'avviso "manca lo snapshot degli infortunati" vale solo per i giorni passati: per oggi e i prossimi giorni lo snapshot arriverà (prima usciva per ogni giocatore nell'anteprima prima della giornata). Il calcolo delle 7:45, a giornata finita, è come prima
 
+## v24 (2026-10-14)
+
+- **`/dev_prova_live [GG/MM/AAAA …]`** (dev): il live vero su notti vere, anche di preseason (che il calcolo ignora), con gli accoppiamenti della prossima giornata e i quintetti e le panchine di adesso: stessi orari (ogni 10 minuti dalla prima partita alle 8, poi alle 10:05), stesso calcolo e stesso messaggio, ma **solo al dev** e **niente nel database** (partite e tabellini restano in memoria). `/dev_prova_live stop` la ferma; finisce da sola dopo le 10:05 dell'ultimo giorno; un riavvio la ferma
+

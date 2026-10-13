@@ -350,6 +350,40 @@ rr = {"punti_casa": 3.0, "punti_trasferta": 0.0, "vince": "trasferta", "suppleme
       "sc": {"panchina": []}, "st": {"panchina": []}}
 ok(LV.esito_live(rr, "A", "B") == "al momento vince B (nessuna delle due ha la panchina: niente supplementari)", "senza panchine: niente supplementari nel testo")
 
+# ── /dev_prova_live: il live su notti vere (preseason), solo al dev, niente nel database ──
+import prova_live as PL
+db.q("TRUNCATE ipa_quintetto")
+db.q("INSERT INTO ipa_quintetto (team_id, ruolo, giocatore_id, fonte) SELECT team_id, ruolo, giocatore_id, 'prova' FROM ipa_formazioni "
+     "WHERE stagione = %s AND giornata = %s AND giocatore_id IS NOT NULL", (S, N))
+DP = date(2026, 10, 14)
+inizio_p = datetime(2026, 10, 14, 23, 30, tzinfo=timezone.utc)
+async def giorno_finto(d):
+    return {"events": [{"id": "pre1", "date": inizio_p.isoformat().replace("+00:00", "Z"), "season": {"year": 2027, "type": 1},
+                        "competitions": [{"competitors": [{"homeAway": "home", "team": {"abbreviation": "NYK"}},
+                                                          {"homeAway": "away", "team": {"abbreviation": "BOS"}}],
+                                          "status": {"type": {"name": "STATUS_IN_PROGRESS"}}}]}]}
+async def partita_finta(pid):
+    return {"boxscore": {"players": [{"team": {"abbreviation": "NYK"}, "statistics": [{"keys": ["minutes", "points"],
+            "athletes": [{"athlete": {"id": "r1", "displayName": "Prova 1"}, "starter": True, "stats": ["20", "40"]}]}]}]}}
+conta = lambda: (db.q("SELECT count(*) AS n FROM nba_tabellini", one=True)["n"], db.q("SELECT count(*) AS n FROM nba_partite", one=True)["n"],
+                 db.q("SELECT count(*) AS n FROM lega_live", one=True)["n"])
+prima_db = conta()
+import calendario as _cal
+stp = {"giorni": [DP], "chat": 900, "vera": _cal.corrente(S), "accoppiamenti": db.partite_giornata(S, N),
+       "partite": [], "tabellini": [], "finite": set(), "fatti_10": set(), "message_id": None, "aggiornato": None}
+orig = (db.partite_nba, db.tabellini_atleti)
+BP = BotL()
+asyncio.run(PL.giro(BP, stp, inizio_p + timedelta(minutes=2), forza=True, scarica_giorno=giorno_finto, scarica_partita=partita_finta))
+txt = BP.mandati[0]["text"] if BP.mandati else ""
+ok(len(BP.mandati) == 1 and BP.mandati[0]["chat_id"] == 900 and "preseason, solo a te" in txt and "🏀 in campo" in txt,
+   "prova del live: messaggio solo al dev, con le partite in corso " + txt[:300])
+ok(conta() == prima_db and (db.partite_nba, db.tabellini_atleti) == orig, "prova del live: niente scritto nel database, funzioni rimesse a posto")
+ok(PL.cosa_fare(stp, inizio_p + timedelta(minutes=5)) is None and PL.cosa_fare(stp, inizio_p + timedelta(minutes=13)) == "live"
+   and PL.cosa_fare(stp, datetime(2026, 10, 15, 10, 6, tzinfo=ROMA)) == "controllo", "prova del live: stessi orari del live")
+ok(not PL.finita(stp, datetime(2026, 10, 15, 10, 6, tzinfo=ROMA)) and PL.finita(stp, datetime(2026, 10, 15, 10, 20, tzinfo=ROMA)),
+   "prova del live: finisce dopo le 10:05 dell'ultimo giorno")
+db.q("TRUNCATE ipa_quintetto")
+
 # pulizia
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (list(gid.values()),))
 db.q("TRUNCATE nba_tabellini, nba_infortuni, lega_giornate, lega_partite, nba_partite, lega_risultati, lega_calcoli, lega_live")

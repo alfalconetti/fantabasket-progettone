@@ -311,6 +311,7 @@ async def cmd_dev(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/dev_log [N] — ultime N righe di log in memoria (30)\n"
         "/dev_pg — connessione a PostgreSQL\n"
         "/dev_prova_calcolo DAL AL — prova del calcolo su notti NBA già giocate (tab Calcolo G0, solo a te)\n"
+        "/dev_prova_live [GG/MM/AAAA …] — prova del live su notti vere (anche preseason), solo a te e niente nel database; stop per fermarla\n"
         "/dev_giornata [N] — stato di una giornata: date, scadenza, squadre a media, partite NBA, "
         "tabellini, snapshot degli infortunati, risultati\n"
         "/reboot — riavvia il bot\n\n"

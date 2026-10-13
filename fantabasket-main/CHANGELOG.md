@@ -1291,3 +1291,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - loucabot v23: FADD e avvisi degli snapshot giusti a giornata in corso (niente FADD per chi deve ancora giocare, niente "manca lo snapshot" per oggi e i giorni futuri)
 
+## v5.3.6 (2026-10-14)
+
+- loucabot v24: `/dev_prova_live` per provare il live sulle notti di preseason (solo al dev, niente nel database)
+
