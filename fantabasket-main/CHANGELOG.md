@@ -1276,5 +1276,10 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 ## v5.3.2 (2026-10-14)
 
-- loucabot v20: anteprima del live con gli avvisi per squadra; niente supplementari finti senza panchine
+- loucabot v20: esito del live "al momento" solo con al massimo 4 dei 10 ancora da giocare; anteprima con gli avvisi per squadra; niente supplementari finti senza panchine
+
+## v5.3.3 (2026-10-14)
+
+- loucabot v21: avvisi lunghi dell'anteprima del live in un file .md sul canale log
+- Tutti i bot (`shared/dev_comune.py`): un BadRequest di Telegram (messaggio troppo lungo, HTML sbagliato) non si segnala più come "errore di rete" ma come errore vero, al canale log e al dev (in python-telegram-bot BadRequest è una sottoclasse di NetworkError)
 

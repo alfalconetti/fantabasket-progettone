@@ -307,16 +307,37 @@ r_b = next(r for r in c_ora["risultati"] if r["trasferta"] == "team02" or r["cas
 lato = r_b["st"] if r_b["trasferta"] == "team02" else r_b["sc"]
 tl = LV.testo(c_ora, t0)
 ok(LV._da_giocare(c_ora, lato["titolari"])[0] >= 1 and "🏀 in campo" in tl, "partita in corso: giocatori in campo")
-ok("avanti di" in tl or "▶ pari" in tl, "si gioca ancora: chi è avanti e di quanto, niente supplementari ipotetici")
+ok("▶ al momento vince" in tl, "pochi giocatori ancora da giocare (al massimo 4 su 10): l'esito, al momento")
+_stati = db.q("SELECT espn_id, stato FROM nba_partite", many=True)
+db.q("UPDATE nba_partite SET stato = 'STATUS_SCHEDULED'")
+tl0 = LV.testo(LV.calcolo(S, N), t0)
+ok("▶" not in tl0 and "⏳ da giocare" in tl0, "più di 4 dei 10 ancora da giocare: nessun esito, solo chi deve giocare")
+for _x in _stati:
+    db.q("UPDATE nba_partite SET stato = %s WHERE espn_id = %s", (_x["stato"], _x["espn_id"]))
 db.q("UPDATE nba_partite SET stato = 'STATUS_FINAL' WHERE espn_id = 'g5'")
 tl = LV.testo(LV.calcolo(S, N), t0)
-ok("▶ Beta vince ai supplementari (1): " in tl and "▶ Gamma vince" in tl and "avanti di" not in tl,
+ok("▶ al momento vince Beta ai supplementari (1): " in tl and "▶ al momento vince Gamma" in tl,
    "tutti hanno finito: l'esito, supplementari compresi")
 av = LV.avvisi_brevi(LV.calcolo(S, N))
 ok(any(x.startswith("• Delta: ") and "manca SF" in x and "senza panchina" in x for x in av), f"anteprima: avvisi brevi per squadra {av}")
+class BotD(BotL):
+    async def send_document(s, chat_id, document, filename, caption=None, **k):
+        s.mandati.append({"chat_id": chat_id, "file": filename, "contenuto": document.read().decode()})
+BD = BotD()
+c_ant = LV.calcolo(S, N)
+asyncio.run(LV.manda_anteprima(BD, 900, c_ant, t0))
+ok(len(BD.mandati) == 1 and "Avvisi del calcolo" in BD.mandati[0]["text"] and "Delta: manca SF" in BD.mandati[0]["text"],
+   "anteprima: avvisi nello stesso messaggio se ci stanno")
+c_ant["avvisi"] = [f"Squadra {i}: senza id ESPN, contano 0: {'Nome Lunghissimo ' * 8}" for i in range(60)]
+BD.mandati.clear(); asyncio.run(LV.manda_anteprima(BD, 900, c_ant, t0))
+msg_a = [x for x in BD.mandati if x.get("chat_id") == 900]
+fil = [x for x in BD.mandati if x.get("file")]
+ok(len(msg_a) == 1 and len(msg_a[0]["text"]) <= 4096 and "file sul canale log" in msg_a[0]["text"]
+   and fil and fil[0]["chat_id"] == -3 and fil[0]["file"] == f"avvisi-G{N}.md" and "Squadra 59" in fil[0]["contenuto"],
+   "avvisi troppo lunghi: messaggio senza avvisi, file .md sul canale log")
 rr = {"punti_casa": 3.0, "punti_trasferta": 0.0, "vince": "trasferta", "supplementari": 5, "esito": {"casa": 3.0, "trasferta": 0.0},
       "sc": {"panchina": []}, "st": {"panchina": []}}
-ok(LV.esito_live(rr, "A", "B", False) == "B vince (nessuna delle due ha la panchina: niente supplementari)", "senza panchine: niente supplementari nel testo")
+ok(LV.esito_live(rr, "A", "B") == "al momento vince B (nessuna delle due ha la panchina: niente supplementari)", "senza panchine: niente supplementari nel testo")
 
 # pulizia
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (list(gid.values()),))

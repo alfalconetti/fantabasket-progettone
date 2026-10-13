@@ -270,8 +270,7 @@ async def cmd_dev_prova_calcolo(update: Update, context: ContextTypes.DEFAULT_TY
             await context.bot.send_message(chat_id=update.effective_chat.id, parse_mode="HTML",
                                            text="🧪 <b>PROVA</b> (niente è stato salvato)\n\n" + R.testo(c) + f"\n\n<i>{e(foglio)}</i>")
             import live
-            await context.bot.send_message(chat_id=update.effective_chat.id, parse_mode="HTML",
-                                           text=live.testo(c, datetime.now(timezone.utc), prova=True))
+            await live.manda_anteprima(context.bot, update.effective_chat.id, c, datetime.now(timezone.utc))
         except Exception as err:
             logger.exception("Prova del calcolo")
             await context.bot.send_message(chat_id=update.effective_chat.id, text=f"⚠️ Prova fallita: {err}")
@@ -296,7 +295,7 @@ async def cmd_live(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await msg.reply_text("Nessuna giornata.")
             return
         c = live.calcolo(s, g["numero"])
-        await msg.reply_text(live.testo(c, ora, prova=True), parse_mode="HTML")
+        await live.manda_anteprima(context.bot, update.effective_chat.id, c, ora)
         return
 
     async def lavoro():

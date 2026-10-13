@@ -105,5 +105,10 @@ Il calcolo dei fantapunti.
 ## v20 (2026-10-14)
 
 - Anteprima di `/live`: tutti gli avvisi del calcolo, una riga per squadra ("quintetto vuoto", "manca SF", "senza panchina", giocatori senza id ESPN)
+- Live: l'esito si scrive solo quando dei 10 in campo ne restano al massimo 4 da giocare (o in campo), sempre come "al momento vince …" (supplementari compresi); prima nessun esito, solo 🏀 e ⏳
 - Live: se nessuna delle due squadre ha la panchina, "vince (nessuna delle due ha la panchina: niente supplementari)" invece di "ai supplementari (5)"
+
+## v21 (2026-10-14)
+
+- Anteprima del live (`/live` fuori giornata, `/dev_prova_calcolo`): se con gli avvisi del calcolo il messaggio supera il limite di Telegram, l'anteprima esce senza avvisi e gli avvisi vanno in un file `avvisi-GN.md` sul canale log (prima: "Message is too long")
 

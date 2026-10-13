@@ -207,20 +207,43 @@ def avvisi_brevi(c: dict) -> list[str]:
     return out
 
 
-def esito_live(r: dict, casa: str, tr: str, aperti: bool) -> str:
-    """Finché qualcuno (titolari o panchina) deve ancora giocare: chi è avanti e di quanto, bonus
-    casa compreso. Quando tutti hanno finito: l'esito del calcolo, supplementari compresi."""
-    if aperti:
-        scarto = r["punti_casa"] - r["punti_trasferta"]
-        if scarto == 0:
-            return "pari"
-        return f"{e(casa if scarto > 0 else tr)} avanti di {tp(abs(scarto))}"
+MAX_DA_GIOCARE = 4      # con più di 4 dei 10 in campo ancora da giocare (o in campo) niente esito (Luca, 14/10)
+
+
+LIMITE = 3900          # Telegram: 4096 caratteri per messaggio
+
+
+async def manda_anteprima(bot, chat_id, c: dict, ora: datetime) -> None:
+    """L'anteprima del messaggio live con gli avvisi del calcolo. Se insieme non ci stanno in un
+    messaggio, gli avvisi vanno in un file .md sul canale log."""
+    t = testo(c, ora, prova=True)
+    av = avvisi_brevi(c)
+    insieme = t + "\n" + "\n".join(av)
+    if len(insieme) <= LIMITE:
+        await bot.send_message(chat_id=chat_id, text=insieme, parse_mode="HTML")
+        return
+    import io
+    import re
+    canale = config.canale_log()
+    nota = "\n\n⚠️ Gli avvisi del calcolo sono troppi per un messaggio: " + ("file sul canale log." if canale else "canale log non configurato.")
+    await bot.send_message(chat_id=chat_id, text=t[:LIMITE - len(nota)] + nota, parse_mode="HTML")
+    if canale:
+        md = "\n".join(["# Avvisi del calcolo, giornata " + str(c["giornata"]["numero"]), ""]
+                       + [html.unescape(re.sub(r"</?b>", "**", x)) for x in av if x])
+        await bot.send_document(chat_id=canale, document=io.BytesIO(md.encode("utf-8")),
+                                filename=f"avvisi-G{c['giornata']['numero']}.md",
+                                caption=f"⚠️ Avvisi del calcolo, giornata {c['giornata']['numero']} (anteprima del live)")
+
+
+def esito_live(r: dict, casa: str, tr: str) -> str:
+    """L'esito del calcolo, "al momento": chi vince, coi supplementari se servono."""
     chi = e(casa if r["vince"] == "casa" else tr)
     if r["supplementari"] and not r["sc"]["panchina"] and not r["st"]["panchina"]:
-        return f"{chi} vince (nessuna delle due ha la panchina: niente supplementari)"
+        return f"al momento vince {chi} (nessuna delle due ha la panchina: niente supplementari)"
     if r["supplementari"]:
-        return f"{chi} vince ai supplementari ({r['supplementari']}): {tp(r['esito']['casa'])} – {tp(r['esito']['trasferta'])}"
-    return f"{chi} vince"
+        return (f"al momento vince {chi} ai supplementari ({r['supplementari']}): "
+                f"{tp(r['esito']['casa'])} – {tp(r['esito']['trasferta'])}")
+    return f"al momento vince {chi}"
 
 
 def testo(c: dict, ora: datetime, prova: bool = False) -> str:
@@ -231,21 +254,19 @@ def testo(c: dict, ora: datetime, prova: bool = False) -> str:
         righe.append(f"<b>{e(casa)}</b> {tp(r['punti_casa'])} – {tp(r['punti_trasferta'])} <b>{e(tr)}</b>")
         lc, pc = _da_giocare(c, r["sc"]["titolari"])
         lt, pt = _da_giocare(c, r["st"]["titolari"])
-        bc = sum(_da_giocare(c, r["sc"]["panchina"]))
-        bt = sum(_da_giocare(c, r["st"]["panchina"]))
-        aperti = bool(lc or lt or pc or pt or bc or bt)
         stato_g = []
         if lc or lt:
             stato_g.append(f"🏀 in campo {lc}–{lt}")
         if pc or pt:
             stato_g.append(f"⏳ da giocare {pc}–{pt}")
-        righe.append(f"   ▶ {esito_live(r, casa, tr, aperti)}" + (" · " + " · ".join(stato_g) if stato_g else ""))
+        pezzi = ([] if lc + lt + pc + pt > MAX_DA_GIOCARE else [f"▶ {esito_live(r, casa, tr)}"]) + stato_g
+        if pezzi:
+            righe.append("   " + " · ".join(pezzi))
     righe += ["", f"<i>Risultati provvisori, stimati sui tabellini live di ESPN con le regole del calcolo (bonus casa "
                   f"+{c['bonus']:g}, FADD, supplementari): li valuta e convalida un admin.\n"
                   f"Ultimo aggiornamento: {ora.astimezone(ROMA):%d/%m alle %H:%M}</i>"]
     if prova:
         righe.insert(0, "🧪 <b>PROVA</b> (non pubblicato sul canale)\n")
-        righe += avvisi_brevi(c)
     return "\n".join(righe)
 
 

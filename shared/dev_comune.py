@@ -96,7 +96,7 @@ def descrivi_update(update) -> str:
 def error_handler(nome: str, canale_log, dev_id):
     """Error handler di PTB: log, poi canale log e dev. canale_log() e dev_id() sono funzioni."""
     async def gestisci(update, context):
-        from telegram.error import NetworkError, TimedOut
+        from telegram.error import BadRequest, NetworkError, TimedOut
         err = context.error
         if "message is not modified" in str(err).lower():
             logger.debug("Message is not modified (%s)", descrivi_update(update))
@@ -107,7 +107,9 @@ def error_handler(nome: str, canale_log, dev_id):
                 except Exception:
                     pass
             return
-        if isinstance(err, (TimedOut, NetworkError)):
+        # BadRequest in PTB è una sottoclasse di NetworkError, ma è un errore nostro (messaggio troppo
+        # lungo, HTML sbagliato…), non di rete: va segnalato come gli altri
+        if isinstance(err, (TimedOut, NetworkError)) and not isinstance(err, BadRequest):
             logger.warning("Errore di rete (%s): %s", descrivi_update(update), err)
             canale = canale_log()
             if canale:

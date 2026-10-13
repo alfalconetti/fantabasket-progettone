@@ -24,6 +24,10 @@ ok(not mandati and risposte == [1], "bottone premuto due volte: niente sul canal
 asyncio.run(h(up(), ctx(TimedOut())))
 ok(len(mandati) == 1 and mandati[0][0] == -3 and "errore di rete" in mandati[0][1], "rete: sul canale log, non al dev")
 mandati.clear()
+asyncio.run(h(up(testo="/live"), ctx(BadRequest("Message is too long"))))
+ok(len(mandati) == 2 and "errore di rete" not in mandati[0][1] and "too long" in mandati[0][1],
+   "BadRequest (messaggio troppo lungo): errore vero, non di rete")
+mandati.clear()
 asyncio.run(h(up("pb:ok:5"), ctx(ValueError("boh"))))
 ok(len(mandati) == 2 and "bottone pb:ok:5" in mandati[0][1] and "Alfa GM (7)" in mandati[0][1],
    "errore vero: canale log e dev, con chi e quale bottone")
