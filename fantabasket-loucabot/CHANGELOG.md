@@ -62,3 +62,5 @@ Il calcolo dei fantapunti.
 
 - **Snapshot** degli infortunati ESPN (prima "foto"): ogni 4 ore anche di notte (0:30, 4:30, 8:30, 12:30, 16:30, 20:30) e 30 minuti prima della prima partita NBA del giorno, per prendere i report che escono subito prima delle partite. Non si sostituiscono più: si tengono tutti quelli dell'ultima settimana; per i giorni più vecchi resta solo quello che conta per il calcolo (l'ultimo prima della prima partita del giorno). Il più recente è lo stato che IPanchinari mostra accanto ai giocatori
 - `/dev_giornata` conta gli snapshot di ogni giorno
+- Snapshot solo dai ruoli dell'offseason ai playoff (`offseason-ruoli`, `regular-season-fa`, `regular-season-deadline`, `playoff`); nelle altre fasi i job non scaricano niente
+- **`/set_valid_status GIOCATORE N`** (admin): lo status di un giocatore che vale per il calcolo della giornata N, scelto coi bottoni tra quelli catturati dagli snapshot (con ★ quello che conterebbe); vince sugli snapshot per la media a 0 e per la FADD, "↩️ Torna agli snapshot" annulla, tutto sul canale log

@@ -57,6 +57,7 @@ def punteggio_giocatori(stagione: str, g: dict, atleti: list[str]) -> dict[str, 
     squadre_prima = db.ultima_squadra(atleti, al + timedelta(days=1))
     medie = db.medie_stagione(atleti, stagione, dal)
     stati = db.infortuni(atleti, giorni)
+    decisi = db.status_validi(stagione, g["numero"], atleti) if g.get("numero") else {}
     con_snap = db.giorni_con_snapshot(giorni)
     out = {}
     for a in atleti:
@@ -70,6 +71,16 @@ def punteggio_giocatori(stagione: str, g: dict, atleti: list[str]) -> dict[str, 
         sq = giocano.get(squadra, {"giocate": [], "rinviate": []})
         senza_partite = squadra in media_giornata or (squadra and not sq["giocate"] and not sq["rinviate"])
         solo_rinviate = bool(sq["rinviate"]) and not sq["giocate"]
+        if squadra and (senza_partite or solo_rinviate) and a in decisi:      # deciso da un admin
+            if indisponibile(decisi[a]):
+                out[a] = {"fp": 0.0, "come": "zero", "partite": [], "squadra": squadra,
+                          "nota": f"indisponibile ({decisi[a]}, deciso da un admin): niente media"}
+            else:
+                m = medie.get(a)
+                out[a] = {"fp": m["media"] if m else 0.0, "come": "media", "partite": [], "squadra": squadra,
+                          "nota": (f"media su {m['partite']} partite" if m else "nessuna partita giocata, media 0")
+                                  + " (disponibile, deciso da un admin)"}
+            continue
         if squadra and (senza_partite or solo_rinviate):
             snap = sorted(d for d in giorni if d in con_snap)
             ko = [stati.get((a, d)) for d in snap]
@@ -97,6 +108,10 @@ def _fadd_possibile(a: str, p: dict, g: dict) -> tuple[bool, str]:
                      if p["squadra"] in (x["casa"], x["trasferta"]) and x["stato"] == "STATUS_FINAL"})
     if not giorni:
         return False, ""
+    if g.get("numero") and g.get("stagione"):
+        deciso = db.status_validi(g["stagione"], g["numero"], [a])
+        if a in deciso:                                       # deciso da un admin: vince sugli snapshot
+            return (True, f"{deciso[a]}, deciso da un admin") if indisponibile(deciso[a]) else (False, "")
     con_snap = db.giorni_con_snapshot(giorni)
     if set(giorni) - con_snap:
         return False, "manca lo snapshot degli infortunati di qualche giorno: decide un admin"

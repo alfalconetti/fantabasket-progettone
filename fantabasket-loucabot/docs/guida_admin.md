@@ -35,7 +35,7 @@ Gli admin sono quelli di `admin_ids` in `globals.json`, gli stessi degli altri b
 
 **Tabellini.** A partita finita il bot scarica da ESPN il tabellino e salva statistiche e fantapunti di ogni giocatore NBA. Lo fa alle 8:30; `/tabellini` lo fa subito, per le partite finite che ancora non ce l'hanno.
 
-**Infortunati.** ESPN dà solo lo stato di adesso, quindi il bot ne salva uno snapshot ogni 4 ore, anche di notte (0:30, 4:30, 8:30, 12:30, 16:30, 20:30), più uno 30 minuti prima della prima partita NBA del giorno (il report subito prima delle partite). Per il calcolo, di ogni giorno conta lo snapshot subito prima della prima partita; il più recente è lo stato che IPanchinari mostra accanto ai giocatori. Si tengono tutti gli snapshot dell'ultima settimana; per i giorni più vecchi resta solo quello che conta. Anche `/tabellini` ne salva uno. Servono per due regole:
+**Infortunati.** ESPN dà solo lo stato di adesso, quindi il bot ne salva uno snapshot (dai ruoli dell'offseason fino ai playoff; nelle altre fasi no) ogni 4 ore, anche di notte (0:30, 4:30, 8:30, 12:30, 16:30, 20:30), più uno 30 minuti prima della prima partita NBA del giorno (il report subito prima delle partite). Per il calcolo, di ogni giorno conta lo snapshot subito prima della prima partita; il più recente è lo stato che IPanchinari mostra accanto ai giocatori. Si tengono tutti gli snapshot dell'ultima settimana; per i giorni più vecchi resta solo quello che conta. Anche `/tabellini` ne salva uno. Servono per due regole:
 - chi è in una squadra a media prende 0 invece della media se nello snapshot che conta di ogni giorno della giornata risulta indisponibile (stato diverso da Probable);
 - la FADD (il panchinaro che entra al posto del titolare che non ha giocato): il titolare deve avere il tag in tutti i giorni in cui la sua squadra ha giocato. Se manca lo snapshot di uno di quei giorni il bot non sostituisce e lo segnala: decide un admin.
 
@@ -43,6 +43,8 @@ Gli admin sono quelli di `admin_ids` in `globals.json`, gli stessi degli altri b
 - `/espn_giocatori` scarica i roster delle 30 squadre e abbina. Si rifà ogni tanto, per esempio dopo il mercato NBA.
 - `/espn_mancanti` elenca i giocatori a roster nella lega senza id ESPN, con i nomi ESPN più simili.
 - `/espn_abbina ID_GIOCATORE ID_ESPN` abbina a mano. L'id del giocatore è quello di `/espn_mancanti`; l'id ESPN è il numero nell'indirizzo della pagina del giocatore su espn.com (`…/player/_/id/4432174/cam-thomas`). Attenzione ai suggerimenti: sono solo nomi simili, non per forza giusti.
+
+**`/set_valid_status GIOCATORE N`**: quando gli snapshot non tornano (un report arrivato tardi, un giocatore segnato Out che poi ha giocato, uno sparito dalla lista per sbaglio) decidi tu lo status che vale per il calcolo della giornata N. Il bot mostra tutti gli snapshot del giocatore in quella giornata, giorno per giorno, con ★ quello che conta, e un bottone per ogni stato catturato (Out, Questionable, sano…): quello che scegli vale per tutta la giornata, sia per la media a 0 sia per la FADD, al posto degli snapshot. "↩️ Torna agli snapshot" annulla. Ogni scelta finisce sul canale log. Gli snapshot dei giorni più vecchi di una settimana si riducono a uno per giorno: le correzioni conviene farle prima.
 
 **`/fantapunti [N]`** mostra i fantapunti della giornata di tutti i giocatori a roster, divisi per squadra (📉 = ha preso la media). Serve per controllare il calcolo. Se è lungo arriva come file.
 
@@ -69,5 +71,6 @@ Restano agli admin le 72 ore di attesa per le partite rinviate e le penalità.
 | `/espn_mancanti` | giocatori a roster senza id ESPN |
 | `/espn_abbina ID_GIOCATORE ID_ESPN` | abbinamento a mano |
 | `/fantapunti [N]` | fantapunti della giornata, per squadra |
+| `/set_valid_status GIOCATORE N` | lo status di un giocatore che vale per il calcolo della giornata N, scelto tra quelli degli snapshot |
 | `/calendario [N]`, `/giornata [N]` | come i GM |
 | `/guida_admin` | questa guida |

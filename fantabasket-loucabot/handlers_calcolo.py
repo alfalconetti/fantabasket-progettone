@@ -1,15 +1,17 @@
 """Comandi e job del calcolo: tabellini, infortunati, abbinamento con ESPN, fantapunti.
 
-Admin: /tabellini (anche snapshot degli infortunati), /espn_giocatori, /espn_mancanti, /espn_abbina ID_GIOCATORE ID_ESPN, /fantapunti [N]
+Admin: /tabellini (anche snapshot degli infortunati), /espn_giocatori, /espn_mancanti, /espn_abbina ID_GIOCATORE ID_ESPN, /fantapunti [N],
+       /set_valid_status GIOCATORE N (lo status che vale per il calcolo, scelto tra quelli degli snapshot)
 Job:   tabellini e abbinamenti nella sincronizzazione delle 8:30 (handlers.job_sync),
-       snapshot degli infortunati ogni 4 ore e 30 minuti prima della prima partita del giorno.
+       snapshot degli infortunati ogni 4 ore e 30 minuti prima della prima partita del giorno, solo dai ruoli
+       dell'offseason ai playoff (config.FASI_SNAPSHOT).
 """
 import difflib
 import html
 import logging
 
-from telegram import Update
-from telegram.ext import CommandHandler, ContextTypes
+from telegram import InlineKeyboardButton as B, InlineKeyboardMarkup as K, Update
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 import calcolo
 import calendario as cal
@@ -61,7 +63,7 @@ async def job_prepartita(context: ContextTypes.DEFAULT_TYPE):
     ora_ = datetime.now(timezone.utc)
     r = db.q("SELECT MIN(inizio) AS t FROM nba_partite WHERE inizio > %s AND inizio <= %s",
              (ora_, ora_ + timedelta(minutes=40)), one=True)
-    if not r or not r["t"]:
+    if not r or not r["t"] or not config.snapshot_attivi():
         return
     gia = db.q("SELECT 1 FROM nba_infortuni WHERE preso >= %s LIMIT 1", (r["t"] - timedelta(minutes=45),), one=True)
     if not gia:
@@ -70,6 +72,8 @@ async def job_prepartita(context: ContextTypes.DEFAULT_TYPE):
 
 async def job_infortuni(context: ContextTypes.DEFAULT_TYPE):
     from handlers import log
+    if not config.snapshot_attivi():          # fuori stagione (dai rinnovi alla FA) non servono
+        return
     esito = await snapshot_infortuni()
     if esito.startswith("⚠️"):
         await log(context.bot, f"🩹 Snapshot infortunati: {esito}")
@@ -215,8 +219,124 @@ async def cmd_dev_giornata(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
 
 
+# ── status valido per il calcolo (deciso da un admin) ─────────────────────────
+
+def _ora(t) -> str:
+    from zoneinfo import ZoneInfo
+    return t.astimezone(ZoneInfo("Europe/Rome")).strftime("%H:%M")
+
+
+def _cerca_giocatori(testo: str) -> list[dict]:
+    """Giocatori dell'anagrafica abbinati a ESPN che corrispondono al nome (prima quelli a roster)."""
+    n = calcolo.norm(testo)
+    if not n:
+        return []
+    tutti = db.q("""SELECT g.id, g.nome_common, g.espn_id, EXISTS (SELECT 1 FROM contratti c WHERE c.giocatore_id = g.id AND c.attivo) AS a_roster
+                    FROM giocatori g WHERE g.espn_id IS NOT NULL""", many=True) or []
+    esatti = [g for g in tutti if calcolo.norm(g["nome_common"]) == n]
+    trovati = esatti or [g for g in tutti if n in calcolo.norm(g["nome_common"])]
+    if not trovati:
+        nomi = {calcolo.norm(g["nome_common"]): g for g in tutti}
+        trovati = [nomi[x] for x in difflib.get_close_matches(n, list(nomi), n=5, cutoff=0.75)]
+    return sorted(trovati, key=lambda g: (not g["a_roster"], g["nome_common"]))[:8]
+
+
+def _scelte(snap: list[dict]) -> list:
+    """Gli stati catturati dagli snapshot (None = sano), in un ordine fisso per i bottoni."""
+    return sorted({s["stato"] for s in snap}, key=lambda x: (x is None, x or ""))
+
+
+def schermata_status(gid: int, n: int) -> tuple[str, K | None]:
+    s = config.stagione()
+    g = db.giornata(s, n)
+    gi = db.q("SELECT id, nome_common, espn_id FROM giocatori WHERE id = %s", (gid,), one=True)
+    if not g or not gi or not gi["espn_id"]:
+        return "Giornata o giocatore non trovati.", None
+    snap = db.snapshot_giocatore(gi["espn_id"], g["dal"], g["al"])
+    contano = db.snapshot_del_giorno(sorted({x["giorno"] for x in snap}))
+    deciso = db.status_validi(s, n, [gi["espn_id"]])
+    t = [f"🩺 <b>{e(gi['nome_common'])}</b> · giornata {n} ({g['dal']:%d/%m}–{g['al']:%d/%m})", ""]
+    if not snap:
+        t.append("Nessuno snapshot degli infortunati in questa giornata: non c'è niente tra cui scegliere.")
+        return "\n".join(t), None
+    per_giorno: dict = {}
+    for x in snap:
+        segno = "★" if contano.get(x["giorno"]) == x["preso"] else ""
+        per_giorno.setdefault(x["giorno"], []).append(f"{_ora(x['preso'])}{segno} {e(x['stato'] or 'sano')}")
+    for d, lista in per_giorno.items():
+        t.append(f"<b>{d:%d/%m}</b>: " + " · ".join(lista))
+    t += ["", "★ = lo snapshot che conta per il calcolo in quel giorno (l'ultimo prima della prima partita)."]
+    if gi["espn_id"] in deciso:
+        t.append(f"✅ <b>Deciso da un admin: {e(deciso[gi['espn_id']] or 'sano')}</b> (vale per tutta la giornata)")
+    else:
+        t.append("Per ora vale quello degli snapshot. Scegli lo status che vale per tutta la giornata:")
+    tasti = [[B(("✅ " if gi["espn_id"] in deciso and deciso[gi["espn_id"]] == st else "") + (st or "sano (disponibile)"),
+                callback_data=f"sv:s:{gid}:{n}:{i}")] for i, st in enumerate(_scelte(snap))]
+    if gi["espn_id"] in deciso:
+        tasti.append([B("↩️ Torna agli snapshot", callback_data=f"sv:a:{gid}:{n}")])
+    return "\n".join(t), K(tasti)
+
+
+async def cmd_set_valid_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/set_valid_status GIOCATORE N: lo status di un giocatore che vale per il calcolo della
+    giornata N (media a 0 se indisponibile, FADD), scelto tra quelli catturati dagli snapshot."""
+    if not await _solo_admin(update):
+        return
+    args = list(context.args or [])
+    if len(args) < 2 or not args[-1].isdigit():
+        await update.effective_message.reply_text("Uso: /set_valid_status GIOCATORE N (es. /set_valid_status Herbert Jones 3)")
+        return
+    n = int(args.pop())
+    if not db.giornata(config.stagione(), n):
+        await update.effective_message.reply_text(f"Giornata {n} non trovata.")
+        return
+    trovati = _cerca_giocatori(" ".join(args))
+    if not trovati:
+        await update.effective_message.reply_text(f"Nessun giocatore abbinato a ESPN si chiama «{e(' '.join(args))}».", parse_mode="HTML")
+        return
+    if len(trovati) > 1 and calcolo.norm(trovati[0]["nome_common"]) != calcolo.norm(" ".join(args)):
+        await update.effective_message.reply_text("Quale?", reply_markup=K([[B(g["nome_common"], callback_data=f"sv:g:{g['id']}:{n}")]
+                                                                           for g in trovati]))
+        return
+    testo, tasti = schermata_status(trovati[0]["id"], n)
+    await update.effective_message.reply_text(testo, parse_mode="HTML", reply_markup=tasti)
+
+
+async def cb_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    if not config.is_admin(update.effective_user.id):
+        await q.answer("Solo admin.", show_alert=True)
+        return
+    parti = q.data.split(":")
+    azione, gid, n = parti[1], int(parti[2]), int(parti[3])
+    s = config.stagione()
+    gi = db.q("SELECT nome_common, espn_id FROM giocatori WHERE id = %s", (gid,), one=True)
+    g = db.giornata(s, n)
+    from handlers import log, _chi
+    if azione == "s" and gi and g:
+        scelte = _scelte(db.snapshot_giocatore(gi["espn_id"], g["dal"], g["al"]))
+        i = int(parti[4])
+        if i >= len(scelte):
+            await q.answer("Gli snapshot sono cambiati: riprova.", show_alert=True)
+        else:
+            db.set_status_valido(s, n, gi["espn_id"], scelte[i], update.effective_user.id)
+            await q.answer("Salvato")
+            await log(context.bot, f"🩺 Status valido G{n} di {e(gi['nome_common'])}: <b>{e(scelte[i] or 'sano')}</b> "
+                                   f"(deciso da {_chi(update)})")
+    elif azione == "a" and gi:
+        db.togli_status_valido(s, n, gi["espn_id"])
+        await q.answer("Torna agli snapshot")
+        await log(context.bot, f"🩺 Status G{n} di {e(gi['nome_common'])}: di nuovo dagli snapshot ({_chi(update)})")
+    else:
+        await q.answer()
+    testo, tasti = schermata_status(gid, n)
+    await q.edit_message_text(testo, parse_mode="HTML", reply_markup=tasti)
+
+
 def get_handlers() -> list:
     return [
+        CommandHandler("set_valid_status", cmd_set_valid_status),
+        CallbackQueryHandler(cb_status, pattern=r"^sv:"),
         CommandHandler("dev_giornata", cmd_dev_giornata),
         CommandHandler("tabellini", cmd_tabellini),
         CommandHandler("espn_giocatori", cmd_espn_giocatori),

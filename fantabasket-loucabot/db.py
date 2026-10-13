@@ -116,6 +116,14 @@ def migra():
         q("ALTER TABLE nba_infortuni DROP CONSTRAINT nba_infortuni_pkey")
         q("ALTER TABLE nba_infortuni ADD PRIMARY KEY (atleta, preso)")
     q("CREATE INDEX IF NOT EXISTS idx_nba_infortuni_giorno ON nba_infortuni (giorno, preso)")
+    q("""CREATE TABLE IF NOT EXISTS lega_status_validi (
+            stagione   TEXT NOT NULL,
+            giornata   INT  NOT NULL,
+            atleta     TEXT NOT NULL,                           -- id ESPN
+            stato      TEXT,                                    -- NULL = sano (disponibile)
+            da         BIGINT,                                  -- l'admin che l'ha deciso
+            quando     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (stagione, giornata, atleta))""")
     q("DROP TABLE IF EXISTS nba_status")                # v5.0.18, sostituita dall'ultimo snapshot di nba_infortuni
     q("""CREATE TABLE IF NOT EXISTS lega_calendario_csv (
             stagione   TEXT PRIMARY KEY,
@@ -325,6 +333,34 @@ def infortuni(atleti: list[str], giorni: list) -> dict[tuple, str]:
     righe = q("SELECT atleta, giorno, preso, stato FROM nba_infortuni WHERE atleta = ANY(%s) AND giorno = ANY(%s)",
               (list(atleti), list(scelti)), many=True) or []
     return {(r["atleta"], r["giorno"]): r["stato"] for r in righe if r["preso"] == scelti[r["giorno"]]}
+
+
+def status_validi(stagione: str, giornata: int, atleti: list[str]) -> dict[str, str | None]:
+    """{atleta: stato} deciso da un admin per la giornata (None = sano): vince sugli snapshot."""
+    righe = q("SELECT atleta, stato FROM lega_status_validi WHERE stagione = %s AND giornata = %s AND atleta = ANY(%s)",
+              (stagione, giornata, list(atleti)), many=True) or []
+    return {r["atleta"]: r["stato"] for r in righe}
+
+
+def set_status_valido(stagione: str, giornata: int, atleta: str, stato: str | None, da=None) -> None:
+    q("""INSERT INTO lega_status_validi (stagione, giornata, atleta, stato, da) VALUES (%s, %s, %s, %s, %s)
+         ON CONFLICT (stagione, giornata, atleta) DO UPDATE SET stato = EXCLUDED.stato, da = EXCLUDED.da, quando = NOW()""",
+      (stagione, giornata, atleta, stato, da))
+
+
+def togli_status_valido(stagione: str, giornata: int, atleta: str) -> None:
+    q("DELETE FROM lega_status_validi WHERE stagione = %s AND giornata = %s AND atleta = %s", (stagione, giornata, atleta))
+
+
+def snapshot_giocatore(atleta: str, dal, al) -> list[dict]:
+    """Tutti gli snapshot dei giorni dal-al, con lo stato del giocatore in ognuno (None = non
+    in lista, cioè sano): [{giorno, preso, stato}] in ordine."""
+    tempi = q("SELECT DISTINCT giorno, preso FROM nba_infortuni WHERE giorno BETWEEN %s AND %s ORDER BY preso",
+              (dal, al), many=True) or []
+    suoi = q("SELECT preso, stato FROM nba_infortuni WHERE atleta = %s AND giorno BETWEEN %s AND %s", (atleta, dal, al),
+             many=True) or []
+    st = {r["preso"]: r["stato"] for r in suoi}
+    return [{"giorno": t["giorno"], "preso": t["preso"], "stato": st.get(t["preso"])} for t in tempi]
 
 
 def giorni_con_snapshot(giorni: list) -> set:

@@ -130,6 +130,56 @@ db.salva_infortuni(date(2026, 11, 3), [{"atleta": "3", "nome": "Gioc 3", "stato"
 S3 = calcolo.punteggio_squadra(G3, Q, B, calcolo.punteggio_giocatori("2026", G3, ["1", "2", "3", "4", "6", "8", "9", "5"]))
 ok(S3["fadd"] is None and any("decide un admin" in a for a in S3["avvisi"]), "FADD: manca lo snapshot di un giorno → decide un admin")
 
+# ── status deciso da un admin (/set_valid_status): vince sugli snapshot ──
+GS = {**G, "stagione": "2026"}
+db.set_status_valido("2026", 5, "3", None, 900)                    # "sano": niente FADD anche se gli snapshot dicono Out
+db.salva_infortuni(date(2026, 11, 3), [{"atleta": "3", "nome": "Gioc 3", "stato": "Out"}, {"atleta": "5", "nome": "Gioc 5", "stato": "Out"}])
+ok(calcolo.punteggio_squadra(GS, Q, B, P)["fadd"] is None, "status deciso dall'admin (disponibile): niente FADD")
+db.set_status_valido("2026", 5, "3", "Out", 900)
+db.salva_infortuni(date(2026, 11, 3), [{"atleta": "3", "nome": "Gioc 3", "stato": "Probable"}])
+SF = calcolo.punteggio_squadra(GS, Q, B, P)
+ok(SF["fadd"] and SF["fadd"]["esce"]["atleta"] == "3", "status deciso dall'admin (Out): FADD anche se l'ultimo snapshot dice Probable")
+db.set_status_valido("2026", 5, "5", None, 900)
+P5 = calcolo.punteggio_giocatori("2026", GS, ["5"])
+ok(P5["5"]["fp"] == 16 and "deciso da un admin" in P5["5"]["nota"], "squadra a media, l'admin lo dichiara disponibile: media")
+db.togli_status_valido("2026", 5, "5"); db.togli_status_valido("2026", 5, "3")
+ok("deciso" not in calcolo.punteggio_giocatori("2026", GS, ["5"])["5"]["nota"], "tolto lo status deciso: si torna agli snapshot")
+import handlers_calcolo as HC
+sn = db.snapshot_giocatore("3", date(2026, 11, 2), date(2026, 11, 3))
+sc = HC._scelte(sn)
+ok({"Out", "Probable", "Questionable"} <= set(sc) and set(sc) <= {x["stato"] for x in sn},
+   f"le scelte del comando sono solo gli stati catturati dagli snapshot {sc}")
+# il comando: schermata coi bottoni, scelta, ritorno agli snapshot
+import asyncio as _aio, types as _ty, config as _c2
+gid = db.q("INSERT INTO giocatori (nome_bref, nome_common, nome_norm, espn_id) VALUES ('Gioc Tre','Gioc Tre','gioc tre','3') RETURNING id", one=True)["id"]
+db.q("INSERT INTO lega_giornate (stagione, numero, dal, al) VALUES (%s, 5, '2026-11-02', '2026-11-03') ON CONFLICT DO NOTHING", (_c2.stagione(),))
+txt, kb = HC.schermata_status(gid, 5)
+ok("Gioc Tre" in txt and "★" in txt and any(b.callback_data.startswith(f"sv:s:{gid}:5:") for r in kb.inline_keyboard for b in r),
+   "/set_valid_status: gli snapshot del giocatore nella giornata (★ quello che conta) e un bottone per stato")
+class _Q:
+    def __init__(s, data): s.data, s.risposte, s.testi = data, [], []
+    async def answer(s, t=None, show_alert=False): s.risposte.append(t)
+    async def edit_message_text(s, t, **k): s.testi.append(t)
+class _Bot:
+    async def send_message(s, **k): pass
+def _premi(uid, data):
+    q = _Q(data); u = _ty.SimpleNamespace(callback_query=q, effective_user=_ty.SimpleNamespace(id=uid, full_name="Admin"))
+    _aio.run(HC.cb_status(u, _ty.SimpleNamespace(bot=_Bot()))); return q
+ok(_premi(101, f"sv:s:{gid}:5:0").risposte == ["Solo admin."], "/set_valid_status: solo admin")
+i_out = HC._scelte(db.snapshot_giocatore("3", date(2026, 11, 2), date(2026, 11, 3))).index("Out")
+q = _premi(900, f"sv:s:{gid}:5:{i_out}")
+ok(db.status_validi(_c2.stagione(), 5, ["3"]) == {"3": "Out"} and "Deciso da un admin: Out" in q.testi[-1], "scelto Out: salvato per la giornata")
+_premi(900, f"sv:a:{gid}:5")
+ok(db.status_validi(_c2.stagione(), 5, ["3"]) == {}, "↩️ torna agli snapshot")
+db.q("DELETE FROM giocatori WHERE id = %s", (gid,)); db.q("DELETE FROM lega_giornate WHERE numero = 5 AND stagione = %s", (_c2.stagione(),))
+
+# ── fase: snapshot solo dai ruoli dell'offseason ai playoff ──
+import json as _json, config as _cfg
+_G = _json.load(open(_cfg.GLOBALS_PATH))
+for f, atteso in (("offseason-fa", False), ("offseason-ruoli", True), ("regular-season-deadline", True), ("playoff", True), ("offseason-rinnovi", False)):
+    _G["fase"] = f; _json.dump(_G, open(_cfg.GLOBALS_PATH, "w"))
+    ok(_cfg.snapshot_attivi() == atteso, f"snapshot {'attivi' if atteso else 'fermi'} in {f}")
+
 # ── esito e supplementari ──
 sq = lambda tot, pan=(): {"totale": tot, "panchina": [{"fp": x} for x in pan]}
 ok(calcolo.esito(sq(100), sq(90))["vince"] == "casa", "scarto di 5 o più (bonus casa compreso): vince chi ha di più")
@@ -171,4 +221,4 @@ else:
     print("ℹ️ tabella giocatori assente (lancia prima le prove del bot principale): abbinamento non provato")
 ok(calcolo.norm("Nikola Đurišić") == calcolo.norm("Nikola Durisic") and calcolo.norm("Kelly Oubre Jr.") == "kellyoubre",
    "nomi normalizzati")
-db.q("TRUNCATE nba_tabellini, nba_infortuni, nba_atleti, nba_partite")
+db.q("TRUNCATE nba_tabellini, nba_infortuni, nba_atleti, nba_partite, lega_status_validi")

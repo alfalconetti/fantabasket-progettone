@@ -1219,3 +1219,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v5.0.19 (2026-10-13)
 
 - loucabot v12 rivisto: snapshot degli infortunati (non più "foto") ogni 4 ore anche di notte e 30 minuti prima della prima partita; tenuti tutti per una settimana, poi solo quello che conta per il calcolo; tolta la tabella `nba_status` della 5.0.18. IPanchinari mostra l'ultimo snapshot
+
+## v5.0.20 (2026-10-13)
+
+- loucabot: snapshot solo dai ruoli dell'offseason ai playoff; `/set_valid_status GIOCATORE N` per decidere lo status che vale per il calcolo

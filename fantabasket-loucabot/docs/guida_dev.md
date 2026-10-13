@@ -41,6 +41,7 @@ Stesso PostgreSQL degli altri bot. loucabot legge tutto e scrive solo le sue tab
 | `nba_partite` | `espn_id` | partite NBA: stagione della lega (ESPN 2027 = 2026), tipo (1 pre, 2 RS, 3 playoff, 5 play-in), `data_et`, `inizio`, sigle, `stato`, `tabellino` (quando scaricato) |
 | `nba_tabellini` | partita, atleta | una riga per giocatore a referto: squadra, titolare, `giocato` (FALSE = DNP), minuti, statistiche della formula, `fp` |
 | `nba_infortuni` | atleta, preso | snapshot ESPN degli infortunati (uno snapshot = le righe con lo stesso `preso`; `giorno` = giorno ET): stato, dettaglio. Per il calcolo conta, per ogni giorno, `db.snapshot_del_giorno`: l'ultimo preso prima dell'inizio della prima partita del giorno (senza partite, l'ultimo del giorno). `db.pulisci_snapshot` (alle 8:30) tiene tutto per `GIORNI_SNAPSHOT` = 7 giorni, poi solo quello che conta. IPanchinari legge il più recente |
+| `lega_status_validi` | stagione, giornata, atleta | status deciso da un admin con `/set_valid_status` (NULL = sano): vale per tutta la giornata e vince sugli snapshot in `punteggio_giocatori` e `_fadd_possibile` |
 | `nba_atleti` | atleta | giocatori dai roster ESPN (per l'abbinamento prima dei tabellini) |
 | `giocatori.espn_id`, `nome_espn` | indice unico su espn_id | abbinamento con l'anagrafica (anche il bot principale crea le colonne) |
 
@@ -74,7 +75,7 @@ Date ESPN in UTC → giorno della costa est (`ET`). Sigle ESPN → NBA (`SIGLE`:
 | Ora (Roma) | Job | Cosa |
 |---|---|---|
 | 8:30 | `handlers.job_sync` | partite dei giorni vicini (−3, +14), ricalcolo di scadenze e squadre a media (cambi → gruppo admin), tabellini delle partite finite, abbinamento automatico dei giocatori nuovi, snapshot degli infortunati; riga sul canale log |
-| 0:30, 4:30, 12:30, 16:30, 20:30 | `handlers_calcolo.job_infortuni` (`bot.ORE_SNAPSHOT`) | snapshot degli infortunati: con quello delle 8:30 uno ogni 4 ore; sul canale log solo se fallisce |
+| 0:30, 4:30, 12:30, 16:30, 20:30 | `handlers_calcolo.job_infortuni` (`bot.ORE_SNAPSHOT`) | snapshot degli infortunati, solo nelle fasi `config.FASI_SNAPSHOT` (offseason-ruoli, regular season, playoff): con quello delle 8:30 uno ogni 4 ore; sul canale log solo se fallisce |
 | ogni 10 minuti | `handlers_calcolo.job_prepartita` | uno snapshot 30-40 minuti prima della prima partita NBA del giorno, se non ce n'è già uno da 45 minuti prima |
 
 Errori dei job: canale log e dev.

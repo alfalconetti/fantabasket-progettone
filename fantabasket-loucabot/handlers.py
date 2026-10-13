@@ -216,7 +216,7 @@ async def job_sync(context: ContextTypes.DEFAULT_TYPE):
         cambi = cal.ricalcola()
         import handlers_calcolo as hc
         tab = await hc.aggiorna_tabellini()
-        inf = await hc.snapshot_infortuni()
+        inf = await hc.snapshot_infortuni() if config.snapshot_attivi() else f"snapshot infortunati fermi (fase {config.fase()})"
         tolte = db.pulisci_snapshot(nba.oggi_et())
         if tolte:
             inf += f" (snapshot più vecchi di {db.GIORNI_SNAPSHOT} giorni ridotti a uno per giorno: {tolte} righe tolte)"
@@ -251,6 +251,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                   "/nba_sync — riscarica le partite NBA della stagione da ESPN\n"
                   "/calendario_foglio — riscrive squadre a media e punteggi sul foglio Calendario\n\n"
                   "<b>Calcolo</b>\n/fantapunti [N] — fantapunti della giornata dei giocatori a roster\n"
+                  "/set_valid_status GIOCATORE N — lo status che vale per il calcolo, tra quelli degli snapshot\n"
                   "/tabellini — scarica i tabellini delle partite finite che mancano\n"
                   "/espn_giocatori — roster NBA da ESPN e abbinamento con l'anagrafica\n"
                   "/espn_mancanti — giocatori a roster senza id ESPN\n"

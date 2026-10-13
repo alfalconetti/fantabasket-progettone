@@ -12,6 +12,18 @@ def globali() -> dict:
         return json.load(f)
 
 
+# Gli snapshot degli infortunati servono dai ruoli dell'offseason fino ai playoff compresi
+FASI_SNAPSHOT = {"offseason-ruoli", "regular-season-fa", "regular-season-deadline", "playoff"}
+
+
+def fase() -> str:
+    return str(globali().get("fase", ""))
+
+
+def snapshot_attivi() -> bool:
+    return fase() in FASI_SNAPSHOT
+
+
 def stagione() -> str:
     return str(globali().get("stagione_corrente", "2026"))
 
