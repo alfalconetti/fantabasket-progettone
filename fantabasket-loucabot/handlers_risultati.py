@@ -261,7 +261,7 @@ async def cmd_dev_prova_calcolo(update: Update, context: ContextTypes.DEFAULT_TY
     async def lavoro():
         try:
             await nba.sincronizza([dal + timedelta(days=i) for i in range((al - dal).days + 1)])
-            await hc.aggiorna_tabellini()
+            await hc.aggiorna_tabellini(dal, al)
             stagione_nba = next((p["stagione"] for p in db.partite_nba(dal, al)), s)
             finta = {**vera, "numero": 0, "dal": dal, "al": al, "media": None, "media_file": [], "tipo": "regular"}
             c = R.calcola(s, 0, g=finta, sch=R.schieramenti_attuali(s, vera["numero"]), stagione_nba=stagione_nba,

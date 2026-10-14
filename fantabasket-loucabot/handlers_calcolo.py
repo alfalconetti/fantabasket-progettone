@@ -31,10 +31,24 @@ async def _solo_admin(update) -> bool:
     return False
 
 
-async def aggiorna_tabellini() -> dict:
-    """Tabellini delle partite finite che non li hanno, poi abbinamento automatico dei giocatori nuovi."""
+def da_scaricare(dal=None, al=None) -> list[str]:
+    """Le partite finite senza tabellino: della stagione in corso (le vecchie non si ritentano ogni
+    mattina), o con dal/al dei giorni indicati (/dev_prova_calcolo su notti della stagione scorsa)."""
     from datetime import datetime
-    r = await nba.scarica_tabellini(db.partite_senza_tabellino(fino=datetime.now(nba.ET).date()))
+    if dal is not None:
+        return db.partite_senza_tabellino(fino=al, dal=dal)
+    return db.partite_senza_tabellino(fino=datetime.now(nba.ET).date(), stagione=config.stagione())
+
+
+async def aggiorna_tabellini(dal=None, al=None) -> dict:
+    """Tabellini delle partite finite che non li hanno, poi abbinamento automatico dei giocatori nuovi."""
+    r = await nba.scarica_tabellini(da_scaricare(dal, al))
+    if r["errori"]:                              # quale partita e perché, per il log
+        ids = [x.split(":", 1)[0] for x in r["errori"]]
+        info = {p["espn_id"]: p for p in db.q("SELECT espn_id, data_et, casa, trasferta FROM nba_partite WHERE espn_id = ANY(%s)",
+                                               (ids,), many=True) or []}
+        r["errori"] = [(f"{info[i]['casa']}–{info[i]['trasferta']} del {info[i]['data_et']:%d/%m/%Y} ({x})" if i in info else x)
+                       for i, x in zip(ids, r["errori"])]
     r["abbinamento"] = calcolo.abbina_auto(db.atleti_espn_visti())
     return r
 
@@ -42,7 +56,7 @@ async def aggiorna_tabellini() -> dict:
 def testo_tabellini(r: dict) -> str:
     t = f"{r['partite']} tabellini ({r['giocatori']} righe)"
     if r["errori"]:
-        t += f", ⚠️ {len(r['errori'])} non scaricati"
+        t += f", ⚠️ {len(r['errori'])} non scaricati: " + "; ".join(e(x)[:150] for x in r["errori"][:3])
     if r.get("abbinamento", {}).get("nuovi"):
         t += f", {r['abbinamento']['nuovi']} giocatori abbinati a ESPN"
     return t
@@ -83,7 +97,7 @@ async def job_infortuni(context: ContextTypes.DEFAULT_TYPE):
 async def cmd_tabellini(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await _solo_admin(update):
         return
-    da_fare = db.partite_senza_tabellino()
+    da_fare = da_scaricare()
     await update.effective_message.reply_text(f"⏳ Scarico {len(da_fare)} tabellini da ESPN (circa un secondo l'uno)…")
     r = await aggiorna_tabellini()
     inf = await snapshot_infortuni()

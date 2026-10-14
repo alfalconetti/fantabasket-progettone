@@ -31,6 +31,18 @@ def partita(pid, giorno, casa, trasf, stato="STATUS_FINAL", stagione="2026"):
 partita("401810723", "2026-03-01", "NYK", "SAS", stagione="2025")
 partita("futura", "2026-03-02", "NYK", "BOS", "STATUS_SCHEDULED", stagione="2025")
 ok(db.partite_senza_tabellino() == ["401810723"], "da scaricare: solo le partite finite senza tabellino")
+import handlers_calcolo as _hc
+ok(_hc.da_scaricare() == [] and _hc.da_scaricare(date(2026, 3, 1), date(2026, 3, 2)) == ["401810723"],
+   "ogni mattina solo le partite della stagione in corso (le vecchie no); con le date (/dev_prova_calcolo) quelle dei giorni")
+async def _vuoto(pid):
+    return {}
+_vecchio = nba.scarica_tabellini
+async def _scarica_vuoto(ids, **k):
+    return await _vecchio(ids, scarica=_vuoto, pausa=0)
+_hc.nba.scarica_tabellini = _scarica_vuoto
+_r = asyncio.run(_hc.aggiorna_tabellini(date(2026, 3, 1), date(2026, 3, 2)))
+_hc.nba.scarica_tabellini = _vecchio
+ok("NYK–SAS del 01/03/2026 (401810723: tabellino vuoto)" in _hc.testo_tabellini(_r), f"log: quale partita non si scarica e perché {_hc.testo_tabellini(_r)}")
 async def finto(pid):
     return vero
 r = asyncio.run(nba.scarica_tabellini(db.partite_senza_tabellino(), scarica=finto, pausa=0))

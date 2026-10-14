@@ -261,11 +261,13 @@ def salva_tabellino(partita: str, righe: list[dict], finale: bool = True) -> Non
                         (datetime.now(timezone.utc) if finale else None, partita))
 
 
-def partite_senza_tabellino(fino=None) -> list[str]:
-    """Partite finite (regular season, play-in, playoff) senza tabellino, dalla più vecchia."""
+def partite_senza_tabellino(fino=None, stagione: str | None = None, dal=None) -> list[str]:
+    """Partite finite (regular season, play-in, playoff) senza tabellino, dalla più vecchia; con
+    `stagione` solo quelle di quella stagione, con `dal` solo da quel giorno."""
     righe = q("SELECT espn_id FROM nba_partite WHERE stato = 'STATUS_FINAL' AND tabellino IS NULL "
-              "AND tipo = ANY(%s) AND (%s::date IS NULL OR data_et <= %s) ORDER BY inizio",
-              ([2, 3, 5], fino, fino), many=True) or []
+              "AND tipo = ANY(%s) AND (%s::date IS NULL OR data_et <= %s) AND (%s::text IS NULL OR stagione = %s) "
+              "AND (%s::date IS NULL OR data_et >= %s) ORDER BY inizio",
+              ([2, 3, 5], fino, fino, stagione, stagione, dal, dal), many=True) or []
     return [r["espn_id"] for r in righe]
 
 

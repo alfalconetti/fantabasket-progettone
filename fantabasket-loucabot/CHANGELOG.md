@@ -124,3 +124,8 @@ Il calcolo dei fantapunti.
 
 - **`/dev_prova_live [GG/MM/AAAA …]`** (dev): il live vero su notti vere, anche di preseason (che il calcolo ignora), con gli accoppiamenti della prossima giornata e i quintetti e le panchine di adesso: stessi orari (ogni 10 minuti dalla prima partita alle 8, poi alle 10:05), stesso calcolo e stesso messaggio, ma **solo al dev** e **niente nel database** (partite e tabellini restano in memoria). `/dev_prova_live stop` la ferma; finisce da sola dopo le 10:05 dell'ultimo giorno; un riavvio la ferma
 
+## v25 (2026-10-14)
+
+- I tabellini che mancano si ritentano solo per le partite della **stagione in corso** (ogni mattina alle 8:30, alle 7:45, `/tabellini`, `/ricalcola`): una partita vecchia senza tabellino su ESPN (es. Bulls–Hornets del 3/1/2026) non torna più ogni giorno. `/dev_prova_calcolo` scarica quelli dei giorni indicati
+- Se un tabellino non si scarica, il log dice quale partita e perché ("NYK–SAS del 01/03/2026 (id: tabellino vuoto)")
+

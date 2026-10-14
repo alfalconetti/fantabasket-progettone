@@ -1295,3 +1295,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - loucabot v24: `/dev_prova_live` per provare il live sulle notti di preseason (solo al dev, niente nel database)
 
+## v5.3.7 (2026-10-14)
+
+- loucabot v25: tabellini mancanti ritentati solo per la stagione in corso; il log dice quale partita non si scarica e perché
+- MIGRATION: idee per il futuro (assistente `/chiedi`, bot delle statistiche con `/carriera`, dashboard in LAN)
+
