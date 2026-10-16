@@ -1316,3 +1316,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - Roster (immagine): la colonna **FM diventa FP** (fantapunti). A inizio stagione, finché si mostrano quelli della stagione prima, chi non li ha (i rookie) mostra quelli della stagione in corso con l'asterisco, e in legenda «* = FP 26-27»
 - Messaggi di Basketball-Reference sempre sotto il limite di Telegram (al massimo 40 nomi nuovi, 20 abbinati, 30 cambi di squadra, poi «… e altri N»)
+
+## v5.5.0 (2026-10-16)
+
+- loucabot v27: **`/classifica`** e **`/classifica_full`** (immagini)
+

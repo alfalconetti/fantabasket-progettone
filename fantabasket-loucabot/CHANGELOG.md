@@ -134,3 +134,10 @@ Il calcolo dei fantapunti.
 - **`/player NOME`** (tutti): squadra NBA di adesso e status degli infortunati, squadra del fantabasket con ruolo e contratto (o svincolato), partite e media dei fantapunti della stagione (la stessa del calcolo), medie per partita e percentuali al tiro, ultime 5 partite
 - `/giornata` (e `/calendario` per la propria partita): i risultati delle giornate convalidate, vincente in grassetto e supplementari; "in attesa della convalida" se calcolata ma non convalidata
 - Sincronizzazione delle 8:30: il log dice **chi** è stato abbinato a ESPN (nome dell'anagrafica = nome ESPN); se un giocatore a roster non ha l'id ESPN (i suoi punti non contano), avviso ogni mattina al gruppo admin con /espn_mancanti
+
+## v27 (2026-10-16)
+
+- **`/classifica`** (immagine verticale): vittorie, sconfitte, punti fatti e subiti col bonus casa, media punti, striscia; solo giornate convalidate. Ordine: vittorie, poi scontri diretti tra le squadre a pari (classifica avulsa ricorsiva, solo V/S), poi media punti, poi differenza
+- **`/classifica_full`** (immagine orizzontale, come file): in più media delle ultime 10, migliori di giornata, massimo e minimo, età media, record positivi e negativi subiti, coefficiente di variazione, fantapunti medi e % di partite giocate di roster e quintetto, età del quintetto, vantaggio e svantaggio medio senza supplementari, supplementari (vinti-persi)
+- Immagini con Typst (pacchetto `typst` e font Liberation nell'immagine Docker di loucabot)
+

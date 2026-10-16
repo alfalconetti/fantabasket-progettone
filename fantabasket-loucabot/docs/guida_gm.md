@@ -22,6 +22,12 @@ Scrivi `/calendario` e vedi la giornata in corso, o la prossima se non ne è in 
 
 `/giornata` elenca le 12 partite della giornata in corso (o la prossima), `/giornata 12` quelle della 12. Va bene anche nei gruppi. Per le giornate già convalidate dagli admin ci sono anche i risultati (chi vince in grassetto, i supplementari se ci sono stati); una giornata calcolata ma non ancora convalidata lo dice. Anche `/calendario` mostra il risultato della tua partita quando c'è.
 
+## La classifica: `/classifica` e `/classifica_full`
+
+`/classifica` manda l'immagine della classifica: vittorie, sconfitte, punti fatti e subiti (col bonus casa), media punti e striscia (3W = tre vittorie di fila, 1L = una sconfitta). Contano solo le giornate convalidate dagli admin. A parità di vittorie contano gli scontri diretti tra le squadre a pari (solo vittorie e sconfitte, mai lo scarto; con tre o più squadre la classifica avulsa tra loro), poi la media punti, poi la differenza.
+
+`/classifica_full` manda la classifica completa (un file, perché è larga): in più media delle ultime 10 giornate, quante volte hai fatto il punteggio più alto della giornata, massimo e minimo, età media, record subiti (quante volte l'avversario ha fatto il punteggio più alto, o più basso, della giornata), coefficiente di variazione dei punti, fantapunti medi e percentuale di partite giocate di roster e quintetto di adesso, età del quintetto, scarto medio nelle vittorie e nelle sconfitte (senza supplementari) e supplementari giocati (vinti-persi).
+
 ## Un giocatore: `/player`
 
 `/player Wembanyama` (basta un pezzo del nome; se ce n'è più d'uno ti fa scegliere): la squadra NBA di adesso e lo status degli infortunati, la squadra del fantabasket con ruolo e contratto (o svincolato), poi la stagione: partite, media dei fantapunti (la stessa che usa il calcolo), minuti, punti, rimbalzi, assist, recuperi, stoppate, perse e percentuali al tiro, e le ultime 5 partite coi fantapunti.

@@ -121,6 +121,7 @@ riscarica i tabellini: se ESPN ne ha corretto uno di un giocatore schierato, avv
 |---|---|---|
 | `/calendario [N]` | GM | la tua giornata (avversario, casa o trasferta, scadenza, squadre a media) e le prossime |
 | `/giornata [N]` | tutti | le partite di una giornata, coi risultati convalidati |
+| `/classifica` · `/classifica_full` | tutti | classifica (immagine) · con tutte le statistiche (file) |
 | `/player NOME` | tutti | squadra NBA e fantabasket, contratto, media dei fantapunti e statistiche della stagione, ultime 5 partite |
 | `/start` | tutti | i comandi in breve |
 | `/guida` | tutti | la guida GM (file) |

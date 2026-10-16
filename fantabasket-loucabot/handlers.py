@@ -297,7 +297,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
              "/calendario — la tua giornata: avversario, casa o trasferta, entro quando mettere la formazione, "
              "chi è a media, le prossime giornate. /calendario N per un'altra giornata\n"
              "/giornata [N] — tutte le partite di una giornata, coi risultati quando sono convalidati\n"
-             "/player NOME — dove gioca nella NBA e nel fantabasket, contratto, media e statistiche della stagione")
+             "/player NOME — dove gioca nella NBA e nel fantabasket, contratto, media e statistiche della stagione\n"
+             "/classifica — la classifica · /classifica_full — con tutte le statistiche")
     if config.is_admin(update.effective_user.id):
         testo += ("\n\n<b>Admin</b>\n/importa_calendario — col CSV allegato (sostituisce quello della stagione)\n"
                   "/calendario_check — scadenze e squadre a media, confronto col calendario\n"
