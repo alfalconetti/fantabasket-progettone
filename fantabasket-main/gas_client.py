@@ -318,6 +318,12 @@ def _build_scelte_payload() -> dict:
     anni = list(range(stagione_int + 1, stagione_int + 7))  # 6 anni scambiabili
 
     _TEAM_DIV, _TEAM_ORDER, _PICK_NOME = _load_divisions()
+    try:                                              # penalità della stagione (v5.6.0)
+        from handlers.penalita import conteggi
+        penalita = conteggi()
+    except Exception as err:
+        logger.warning("Penalità per il foglio Scelte: %s", err)
+        penalita = {}
     teams_payload = []
     for team_id in _TEAM_ORDER:
         team      = tm.get_team_by_id(team_id)
@@ -389,6 +395,7 @@ def _build_scelte_payload() -> dict:
             "draft_nums":    draft_nums,
             "picks_proprie": picks_proprie,
             "picks_altrui":  picks_altrui,
+            "penalita":      penalita.get(team_id, 0),
         })
 
     return {

@@ -56,6 +56,7 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
         ("⏱ 10-day",           "tdadm:list",  fase in settings.FASI_RUOLI_RS),
         ("🔁 Rinnovi rookie",   "sga:scegli:rr",  fase in FASI_ADMIN_RINNOVI),
         ("🔒 RFA squadre",      "sga:scegli:rfa", fase in FASI_ADMIN_RINNOVI),
+        ("⚠️ Penalità",         "pen:adm",     True),
         ("📊 Situazione cap",   "adm:cap",     True),
     ]
     bottoni = [InlineKeyboardButton(l, callback_data=cb) for l, cb, ok in voci if ok]

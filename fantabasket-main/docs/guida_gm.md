@@ -320,6 +320,10 @@ I cambi che ti lascerebbero sotto i minimi (4 G, 4 F, 2 C) vengono bloccati. Ogn
 
 ---
 
+## Penalità
+
+Gli admin possono dare una penalità alla squadra (panchina in ritardo, formazioni sbagliate e così via): arriva sul canale principale e ti arriva un messaggio con la motivazione. Si sommano nella stagione e ripartono da zero con quella nuova. `/penalita` (o /menu → ⚠️ Penalità) mostra quelle della tua squadra, `/penalita SQUADRA` quelle di un'altra.
+
 ## In breve
 
 | Voglio… | Comando |

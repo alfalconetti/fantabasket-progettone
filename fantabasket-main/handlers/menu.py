@@ -46,6 +46,7 @@ AZIONI_FASE = [
 AZIONI_SEMPRE = [
     ("📊 Roster", "menu:roster"),
     ("📋 Assets", "menu:assets"),
+    ("⚠️ Penalità", "pen:mie"),
 ]
 
 

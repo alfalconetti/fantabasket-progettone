@@ -220,12 +220,22 @@ Se il nome non è esatto il bot propone i candidati coi bottoni, non indovina ma
 
 ---
 
+## Penalità
+
+Dal pannello admin **⚠️ Penalità** (o `/penalita`): ➕ Nuova penalità → squadra → scrivi la **motivazione** → anteprima → ✅ Conferma. Il bot la pubblica sul canale principale («Penalità a SQUADRA — la Nª della stagione» con la motivazione), la manda ai GM della squadra, scrive una riga sul canale log e aggiorna il foglio Scelte, dove sotto il GM compare «Penalità: N».
+
+Le penalità si sommano nella stagione e ripartono da zero con la stagione nuova (lo storico resta). Gli effetti del regolamento (posizioni in meno al draft, cap ridotto con `/set_cap_penalizzato`) si applicano a mano: il bot le registra soltanto.
+
+Dal pannello, 📋 sulla squadra mostra l'elenco con 🗑 Revoca: dopo la conferma il messaggio sul canale diventa «revocata», i GM e il log vengono avvisati e il conteggio scende. `/penalita SQUADRA` mostra quelle di una squadra (all'admin anche le revocate, barrate).
+
+---
+
 ## Fogli Google
 
 Il bot aggiorna i fogli dopo ogni operazione:
 
 - **Roster:** ruoli, cap con penalità, tagli e cambi ruolo usati, DPE. I contratti finiti (x0) non compaiono, perché non pesano; l'RFA dichiarato c'è, con la sigla A.
-- **Scelte:** pick e diritti, con il tag `[STEPIEN]`.
+- **Scelte:** pick e diritti, con il tag `[STEPIEN]`; sotto il GM «Penalità: N» se la squadra ne ha in questa stagione.
 - **BrefRaw:** le statistiche del mattino.
 
 Se sembrano indietro, il dev può forzare un aggiornamento completo con `/sync_sheets`.

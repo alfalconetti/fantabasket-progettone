@@ -32,6 +32,7 @@ from handlers.ruoli       import get_handlers as ruoli_handlers
 from handlers.ruoli_rs    import get_handlers as ruoli_rs_handlers
 from handlers.cambi_ruolo import get_handlers as cambi_ruolo_handlers
 from handlers.dieci_giorni import get_handlers as dieci_giorni_handlers
+from handlers.penalita    import get_handlers as penalita_handlers
 from handlers.bref        import get_handlers as bref_handlers
 from handlers.nascite     import get_handlers as nascite_handlers
 from handlers.spalmature  import get_handlers as spalmature_handlers
@@ -376,6 +377,8 @@ async def _ping_healthcheck(context) -> None:
 def main():
     db.init_db()
     db.migrate_db()
+    from handlers import penalita as _pen
+    _pen.migra()
     logger.info("DB inizializzato e migrato.")
 
     token = _read_secret("BOT_TOKEN_FILE")
@@ -417,6 +420,8 @@ def main():
     for h in ruoli_rs_handlers():
         app.add_handler(h)
     for h in cambi_ruolo_handlers():
+        app.add_handler(h)
+    for h in penalita_handlers():
         app.add_handler(h)
     for h in dieci_giorni_handlers():
         app.add_handler(h)

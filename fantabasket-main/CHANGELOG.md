@@ -1325,3 +1325,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - loucabot v28: `/classifica_conference`; in `/classifica_full` record subiti sul massimo/minimo dell'avversario e quintetto migliore possibile. Serve la chiave `conference` in `config/divisions.json`
 
+## v5.6.0 (2026-10-16)
+
+- **Penalità** (bot principale): l'admin le dà dal pannello (⚠️ Penalità o `/penalita`) con la motivazione scritta, anteprima e conferma; pubblicate sul canale principale, mandate ai GM, riga sul log. Si sommano nella stagione (1ª, 2ª…) e si azzerano con la nuova, lo storico resta. Revoca dal pannello (canale corretto, GM e log avvisati). I GM le vedono con `/penalita` o dal /menu. Usa la tabella `penalita` di `schema.sql` (c'era, mai usata), con quattro colonne nuove
+- Foglio **Scelte**: tolta la scritta «Altre pick»; sotto il GM una riga vuota e poi «Penalità: N» in rosso, solo se la squadra ne ha. Serve `clasp push` + Nuova versione
+

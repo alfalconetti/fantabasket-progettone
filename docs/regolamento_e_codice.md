@@ -230,7 +230,7 @@ per fantapunti** (0–10,99 → 1 … 45+ → 35), in `settings.json` `tabella_m
 
 | Regola | Stato | Dove | Prova |
 |---|---|---|---|
-| Penalità per panchina, schierati sbagliati, Start Active Player, ruoli su Yahoo | ✋ admin | — | — |
+| Penalità per panchina, schierati sbagliati, Start Active Player, ruoli su Yahoo | 🤝 le decide l'admin, il bot le registra (motivazione, canale, GM, foglio Scelte «Penalità: N»), si sommano nella stagione e si azzerano con la nuova | `main/handlers/penalita.py`, tabella `penalita` | `penalita` |
 | Ogni 2 rilanci non validi una penalità | non serve: il bot non accetta rilanci senza slot o cap | `aste/handlers/offerte.py` | `cap_asta_chiusa` |
 | Scelte al draft che scendono ogni 3 penalità | 🔜 con il draft | — | — |
 | Cap ridotto di 1M ogni 3 (o 4) penalità | 🤝 l'admin imposta la penalità di cap | `/set_cap_penalizzato` (`admin_panel.py`), `cap_penalizzato` in `teams.json`, vale in RS | `penalita_cap` |

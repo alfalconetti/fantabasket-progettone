@@ -216,7 +216,11 @@ CREATE TABLE penalita (
     team_id         TEXT NOT NULL,
     stagione        TEXT NOT NULL,
     motivo          TEXT NOT NULL,
-    assegnata_da    TEXT NOT NULL
+    assegnata_da    TEXT NOT NULL,
+    da_id           BIGINT,
+    canale_msg      BIGINT,                     -- messaggio sul canale principale
+    revocata        TIMESTAMPTZ,
+    revocata_da     TEXT
 );
 
 CREATE INDEX idx_penalita_team ON penalita (team_id, stagione);

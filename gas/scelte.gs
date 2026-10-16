@@ -95,8 +95,11 @@ function writeTeamBlock(sheet, team, anni, colors, startRow) {
   for (let ri = 0; ri < maxAltreRighe; ri++) {
     const r = startRow + 2 + ri;
 
-    // Colonna nome
-    _setCell(sheet, r, colNome, ri === 0 ? "Altre pick" : "", colors.light, ri === 0, "#000000", "center");
+    // Colonna nome: sotto il GM una riga vuota, poi "Penalità: N" se la squadra ne ha (v5.6.0;
+    // prima la scritta "Altre pick")
+    const pen = team.penalita || 0;
+    const testoNome = (ri === 1 && pen > 0) ? `Penalità: ${pen}` : "";
+    _setCell(sheet, r, colNome, testoNome, colors.light, ri === 1 && pen > 0, ri === 1 && pen > 0 ? "#C62828" : "#000000", "center");
 
     // Colonna diritti (dalla 3a in poi)
     const dIdx = ri + 2;
