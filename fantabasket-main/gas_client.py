@@ -95,7 +95,7 @@ def _build_team_payload(team_id: str) -> dict:
         if not r.get("ha_dpe")  # giocatori con DPE vanno nella sezione DIS. separata
     ]
 
-    # Impatti tagli — raggruppa per giocatore, max 2 righe nel foglio
+    # Impatti tagli — raggruppa per giocatore, una riga ciascuno (tutti: v5.4.0, prima al massimo 2)
     # Formato: "importo x anni" se rate uguali, "imp1-imp2 x anni" se diverse
     from collections import defaultdict
     impatti_by_giocatore = defaultdict(list)
@@ -103,7 +103,7 @@ def _build_team_payload(team_id: str) -> dict:
         impatti_by_giocatore[imp["nome_common"]].append(imp["importo"])
 
     impatti_payload = []
-    for nome, rate in list(impatti_by_giocatore.items())[:2]:
+    for nome, rate in impatti_by_giocatore.items():
         n_anni = len(rate)
         if len(set(rate)) == 1:
             # tutte le rate uguali: "importo x anni"

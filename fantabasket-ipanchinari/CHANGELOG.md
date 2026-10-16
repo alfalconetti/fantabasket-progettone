@@ -88,3 +88,6 @@ Primo rilascio: panchine e quintetti.
 - L'admin può **confermare il quintetto** di una squadra prima della scadenza: nell'editor di `/quintetto_admin SQUADRA` c'è ✅ Conferma per la giornata N (admin); la squadra risulta ✅ in `/stato` e nel riepilogo
 - **`/controlli [N]`**: dopo la scadenza, le formazioni congelate della giornata, una per squadra, con ☑️ controllata (chi e quando) o ⬜ da controllare su Yahoo e lo stato del GM; un bottone per squadra segna (o toglie) il controllo. Una correzione dell'admin alla formazione di una giornata chiusa la segna controllata da sola. Il segno c'è anche nell'editor admin e in `/stato N` (tabella `ipa_controlli`)
 
+## v19 (2026-10-16)
+
+- **`/soprannomi tutti`** (admin): tutti i soprannomi della lega in un file .md, dal più sospetto (somiglianza col nome del giocatore da 0 a 1: sotto 0,5 «sospetti», cioè col nome non c'entrano), e i sospetti nel messaggio; si cancellano con /soprannomi SQUADRA

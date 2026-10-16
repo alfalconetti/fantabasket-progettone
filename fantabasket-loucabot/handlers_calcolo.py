@@ -58,7 +58,10 @@ def testo_tabellini(r: dict) -> str:
     if r["errori"]:
         t += f", ⚠️ {len(r['errori'])} non scaricati: " + "; ".join(e(x)[:150] for x in r["errori"][:3])
     if r.get("abbinamento", {}).get("nuovi"):
-        t += f", {r['abbinamento']['nuovi']} giocatori abbinati a ESPN"
+        cp = r["abbinamento"].get("coppie") or []
+        t += f", {r['abbinamento']['nuovi']} giocatori abbinati a ESPN" + (
+            ": " + ", ".join(e(a) if a == b else f"{e(a)} = {e(b)}" for a, b in cp[:15]) + (" …" if len(cp) > 15 else "")
+            if cp else "")
     return t
 
 

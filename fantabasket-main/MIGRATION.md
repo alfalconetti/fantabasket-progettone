@@ -1,6 +1,6 @@
 # Messaggio di migrazione — Fantabasket Progettone
 
-**Stato: v5.3.7 · bot aste v66 · loucabot v25 · IPanchinari v18** (13/10/2026)
+**Stato: v5.4.2 · bot aste v66 · loucabot v26 · IPanchinari v19** (13/10/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 
@@ -132,7 +132,7 @@ Guida tecnica completa: `fantabasket-main/docs/guida_dev.md`.
 - **Cap e slot**: `shared/cap.py`, un'implementazione per il bot principale e il bot aste.
 - **Ruoli**: `shared/ruoli_core.py` (regole uniche), `handlers/ruoli.py`, `ruoli_rs.py`, `cambi_ruolo.py`, posizioni eleggibili importate da CSV Yahoo (`/import_posizioni_eleggibili`, event log `posizioni_eleggibili`).
 - **Fogli Google** (`gas_client.py` → gas-router): Roster sempre per tutte le 24 squadre, Scelte, BrefRaw; il bot aste accoda le firme in `gas_sync_queue`, il principale sincronizza ogni 60 s.
-- **Basketball-Reference**: job giornaliero alle 10:00 (per_game → `bref_stats`, fantamedie, giocatori nuovi da confermare, cambi squadra NBA).
+- **Basketball-Reference**: job giornaliero alle 10:00 (per_game → `bref_stats`, fantamedie, cambi squadra NBA). L'aggancio all'anagrafica è per `giocatori.nome_bref` uguale al nome di bref: un nome nuovo uguale senza accenti a uno e un solo giocatore mai visto su bref si abbina da solo (v5.4.1), gli altri vanno al dev (🔗 abbina a un simile, 🆕 crea, ✅ crea quelli senza simili); nel log chi è abbinato e chi a roster su bref non c'è.
 - **Anagrafica** `giocatori`: `nome_common`, `nome_bref`, `nome_yahoo`, `yahoo_id`, `espn_id` e `nome_espn` (questi due li scrive loucabot), `data_nascita`.
 
 ## 7. Bot aste (`fantabasket-aste-beta`, v64)

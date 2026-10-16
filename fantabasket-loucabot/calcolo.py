@@ -209,8 +209,9 @@ def norm(nome: str) -> str:
 def abbina_auto(atleti: dict[str, str]) -> dict:
     """Abbina all'anagrafica i giocatori ESPN {atleta: nome} non ancora abbinati, solo se il nome
     (senza accenti, punteggiatura e Jr./III) corrisponde a uno e un solo giocatore e viceversa."""
-    indice = {}
+    indice, nomi_g = {}, {}
     for g in db.giocatori_anagrafica():
+        nomi_g[g["id"]] = g["nome_common"]
         for n in {norm(g["nome_common"]), norm(g["nome_bref"]), norm(g.get("nome_yahoo") or "")} - {""}:
             indice.setdefault(n, set()).add(g["id"])
     gia = db.abbinamenti()
@@ -218,7 +219,7 @@ def abbina_auto(atleti: dict[str, str]) -> dict:
     per_nome = {}
     for a, nome in atleti.items():
         per_nome.setdefault(norm(nome), []).append(a)
-    nuovi, ambigui = 0, []
+    nuovi, ambigui, coppie = 0, [], []
     for a, nome in atleti.items():
         if a in gia_atleti:
             continue
@@ -229,6 +230,7 @@ def abbina_auto(atleti: dict[str, str]) -> dict:
                 db.abbina(gid, a, nome, "auto")
                 gia[gid] = a
                 nuovi += 1
+                coppie.append((nomi_g.get(gid, str(gid)), nome))
         elif len(ids) > 1 or len(per_nome[norm(nome)]) > 1:
             ambigui.append(nome)
-    return {"nuovi": nuovi, "ambigui": sorted(set(ambigui))}
+    return {"nuovi": nuovi, "ambigui": sorted(set(ambigui)), "coppie": coppie}

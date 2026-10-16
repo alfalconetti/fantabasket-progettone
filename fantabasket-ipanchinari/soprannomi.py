@@ -7,6 +7,9 @@ mostra per i giocatori della propria squadra, chiunque li abbia scritti, e coi b
 cancellano quelli sbagliati o vecchi. /soprannomi SQUADRA mostra quelli di un'altra squadra: i GM
 li possono solo guardare (niente bottoni), gli admin anche cancellare.
 
+/soprannomi tutti (admin): tutti i soprannomi della lega, prima quelli che col nome del giocatore
+non c'entrano niente (somiglianza bassa): in un file .md completo e i sospetti nel messaggio.
+
 Callback: so:p:<team>:<pagina> · so:d:<team>:<id alias>:<pagina>.
 """
 import logging
@@ -31,6 +34,69 @@ def elenco(team_id: str) -> tuple[list[dict], dict[int, str]]:
     ordine = {gid: i for i, gid in enumerate(nomi)}
     al.sort(key=lambda a: (ordine.get(a["giocatore_id"], 999), a["alias"]))
     return al, nomi
+
+
+def somiglianza(alias_: str, nome: str) -> float:
+    """Da 0 a 1: quanto il soprannome somiglia al nome (intero, nome, cognome, iniziali).
+    1 se è un pezzo del nome o ne è l'inizio (es. «giannis», «sga», «wemby»)."""
+    from difflib import SequenceMatcher
+    a, n = abbina.chiave(alias_), abbina.chiave(nome)
+    if not a or not n:
+        return 0.0
+    parti = n.split()
+    iniziali = "".join(p[0] for p in parti)
+    if a.replace(" ", "") in n.replace(" ", "") or a == iniziali or any(
+            len(p) >= 3 and (p.startswith(a[:4]) or a.startswith(p[:4])) for p in parti):
+        return 1.0
+    candidati = [n, n.replace(" ", ""), iniziali] + parti
+    return max(SequenceMatcher(None, a.replace(" ", ""), c).ratio() for c in candidati)
+
+
+SOGLIA_SOSPETTI = 0.5
+
+
+def tutti() -> list[dict]:
+    """Tutti i soprannomi (diversi dal nome vero), con giocatore, squadra di adesso, chi li ha
+    scritti e la somiglianza; dal più sospetto."""
+    righe = db.q("""SELECT a.id, a.alias, a.team_id AS da, a.creato, g.id AS giocatore_id, g.nome_common AS nome,
+                           (SELECT c.team_id FROM contratti c WHERE c.giocatore_id = g.id AND c.attivo LIMIT 1) AS squadra
+                    FROM ipa_alias a JOIN giocatori g ON g.id = a.giocatore_id""", many=True) or []
+    out = []
+    for x in righe:
+        if x["alias"] == abbina.chiave(x["nome"]):
+            continue
+        out.append({**x, "somiglianza": somiglianza(x["alias"], x["nome"])})
+    out.sort(key=lambda x: (x["somiglianza"], x["nome"], x["alias"]))
+    return out
+
+
+def file_tutti(lista: list[dict]) -> str:
+    md = ["# Soprannomi della lega", "",
+          f"{len(lista)} soprannomi. Somiglianza col nome da 0 a 1: sotto {SOGLIA_SOSPETTI} sono «sospetti» "
+          "(non c'entrano col nome: magari sensati, magari solo confondono).", "",
+          "| Soprannome | Giocatore | Squadra di adesso | Scritto da | Somiglianza |", "|---|---|---|---|---|"]
+    for x in lista:
+        md.append(f"| {'⚠️ ' if x['somiglianza'] < SOGLIA_SOSPETTI else ''}«{x['alias']}» | {x['nome']} | "
+                  f"{config.nome(x['squadra']) if x['squadra'] else '— (svincolato)'} | {config.nome(x['da'])} | {x['somiglianza']:.2f} |")
+    md += ["", "Per cancellarne uno: /soprannomi SQUADRA (la squadra di adesso del giocatore) e 🗑."]
+    return "\n".join(md)
+
+
+async def manda_tutti(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    import io
+    lista = tutti()
+    sospetti = [x for x in lista if x["somiglianza"] < SOGLIA_SOSPETTI]
+    t = [f"🏷 <b>Soprannomi della lega</b>: {len(lista)}, di cui <b>{len(sospetti)} sospetti</b> "
+         f"(col nome non c'entrano niente)", ""]
+    for x in sospetti[:30]:
+        t.append(f"• «{e(x['alias'])}» → {e(x['nome'])} <i>({e(config.nome(x['squadra'])) if x['squadra'] else 'svincolato'}"
+                 f", scritto da {e(config.nome(x['da']))})</i>")
+    if len(sospetti) > 30:
+        t.append(f"… e altri {len(sospetti) - 30} nel file")
+    t += ["", "Tutti nel file, dal più sospetto. Per cancellarne uno: /soprannomi SQUADRA e 🗑."]
+    await update.effective_message.reply_text("\n".join(t)[:4000], parse_mode="HTML")
+    await update.effective_message.reply_document(document=io.BytesIO(file_tutti(lista).encode("utf-8")),
+                                                  filename="soprannomi.md")
 
 
 def schermata(team_id: str, pagina: int = 0, modifica: bool = True) -> tuple[str, K | None]:
@@ -75,6 +141,12 @@ async def cmd_soprannomi(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("Non risulti GM di nessuna squadra.")
         return
     team = mia
+    if context.args and context.args[0].lower() == "tutti":
+        if not config.is_admin(uid):
+            await update.effective_message.reply_text("⛔ /soprannomi tutti è solo per gli admin.")
+            return
+        await manda_tutti(update, context)
+        return
     if context.args:
         from shared.squadre import cerca_squadra
         team = cerca_squadra(" ".join(context.args), config.squadre())

@@ -77,6 +77,8 @@ async def cmd_calendario(update: Update, context: ContextTypes.DEFAULT_TYPE):
         avv = p["trasferta"] if casa else p["casa"]
         righe.append(f"🏀 <b>{e(team['nome'])}</b> {'in casa (+3)' if casa else 'in trasferta'} contro "
                      f"<b>{e(config.nome(avv))}</b>")
+        if _risultato(s, g["numero"], p):
+            righe.append(riga_partita(s, g["numero"], p))
     prossime = [x for x in db.giornate(s) if x["numero"] > g["numero"]][:3]
     if prossime:
         righe += ["", "<b>Le prossime</b>"]
@@ -90,10 +92,46 @@ async def cmd_calendario(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
 
 
+def _risultato(s: str, n: int, p: dict) -> dict | None:
+    """Il risultato convalidato di una partita della lega, se c'è."""
+    r = db.q("SELECT * FROM lega_risultati WHERE stagione = %s AND giornata = %s AND casa = %s AND convalidato IS NOT NULL",
+             (s, n, p["casa"]), one=True)
+    return r
+
+
+def _stato_calcolo(s: str, n: int) -> str | None:
+    try:
+        r = db.q("SELECT stato FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (s, n), one=True)
+    except Exception:
+        return None
+    return r["stato"] if r else None
+
+
+def riga_partita(s: str, n: int, p: dict) -> str:
+    """«Casa – Trasferta», col risultato se la giornata è convalidata (vincente in grassetto)."""
+    from numeri import testo as tp
+    casa, tr = e(config.nome(p["casa"])), e(config.nome(p["trasferta"]))
+    r = _risultato(s, n, p)
+    if not r:
+        return f"• {casa} – {tr}"
+    if r["vince"] == "casa":
+        casa = f"<b>{casa}</b>"
+    else:
+        tr = f"<b>{tr}</b>"
+    t = f"• {casa} {tp(r['punti_casa'])} – {tp(r['punti_trasferta'])} {tr}"
+    if r["supp_casa"] is not None:
+        t += f" <i>(supp. {tp(r['supp_casa'])} – {tp(r['supp_trasferta'])})</i>"
+    return t
+
+
 async def _mostra_giornata(update, g):
+    s = config.stagione()
     righe = [_riga_giornata(g), ""]
-    for p in db.partite_giornata(config.stagione(), g["numero"]):
-        righe.append(f"• {e(config.nome(p['casa']))} – {e(config.nome(p['trasferta']))}")
+    for p in db.partite_giornata(s, g["numero"]):
+        righe.append(riga_partita(s, g["numero"], p))
+    stato = _stato_calcolo(s, g["numero"])
+    if stato and stato != "convalidata":
+        righe += ["", "⏳ <i>Risultati calcolati, in attesa della convalida di un admin.</i>"]
     await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
 
 
@@ -232,6 +270,14 @@ async def job_sync(context: ContextTypes.DEFAULT_TYPE):
         await log(context.bot, f"🔄 Sincronizzazione delle 8:30: {_esito_sync(r)}"
                                + (f", {len(cambi)} cambi (avviso al gruppo admin)" if cambi else ", nessun cambio")
                                + f"; {hc.testo_tabellini(tab)}; {roster_txt}; {inf}")
+        mancanti = [x for x in db.giocatori_a_roster(config.stagione()) if not x["atleta"]]
+        if mancanti and config.gruppo_admin():             # senza id ESPN i suoi punti non contano
+            await context.bot.send_message(
+                chat_id=config.gruppo_admin(), parse_mode="HTML",
+                text=f"⚠️ <b>{len(mancanti)} giocatori a roster senza id ESPN</b>: i loro punti non contano finché "
+                     "non sono abbinati.\n" + "\n".join(f"• {e(x['nome_common'])} ({e(config.nome(x['team_id']))})"
+                                                       for x in mancanti[:20])
+                     + "\n\n/espn_mancanti per i candidati, /espn_abbina per abbinarli")
         if cambi and config.gruppo_admin():
             await context.bot.send_message(
                 chat_id=config.gruppo_admin(), parse_mode="HTML",
@@ -250,7 +296,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     testo = ("<b>loucabot</b> — calendario e punteggi della lega. Guida completa: /guida\n\n"
              "/calendario — la tua giornata: avversario, casa o trasferta, entro quando mettere la formazione, "
              "chi è a media, le prossime giornate. /calendario N per un'altra giornata\n"
-             "/giornata [N] — tutte le partite di una giornata")
+             "/giornata [N] — tutte le partite di una giornata, coi risultati quando sono convalidati\n"
+             "/player NOME — dove gioca nella NBA e nel fantabasket, contratto, media e statistiche della stagione")
     if config.is_admin(update.effective_user.id):
         testo += ("\n\n<b>Admin</b>\n/importa_calendario — col CSV allegato (sostituisce quello della stagione)\n"
                   "/calendario_check — scadenze e squadre a media, confronto col calendario\n"

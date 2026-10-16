@@ -25,3 +25,17 @@ const r = handleRoster({ teams: [team] });
 const ok = r.ok && celle["26:1"] === "T 1x1" && celle["27:1"].startsWith("DIS. Rotto") && celle["28:1"] === "10-DAY C Dieci fino al 26/10"
   && colori[28] === "#00838F" && colori[27] === "#C62828" && celle["29:1"] === undefined && colori[29] === null;
 console.log(ok ? "✅" : "❌ FAIL", "GAS roster: 10-DAY sotto le DIS. in verde petrolio, righe sotto pulite (testo e colore)", JSON.stringify(celle), JSON.stringify(colori));
+
+// v5.4.0: tutti gli impatti, uno dopo l'altro; se l'area non basta, l'ultima riga lo dice
+for (const k of Object.keys(celle)) delete celle[k];
+const t2 = { ...team, impatti_tagli: [{ nome: "T1", stringa: "1x1" }, { nome: "T2", stringa: "2x2" }, { nome: "T3", stringa: "3x1" }],
+  dpe: [], dieci_giorni: [] };
+handleRoster({ teams: [t2] });
+const ok2 = celle["25:1"] === "TAGLIATI:" && celle["26:1"] === "T1 1x1" && celle["27:1"] === "T2 2x2" && celle["28:1"] === "T3 3x1";
+console.log(ok2 ? "✅" : "❌ FAIL", "GAS roster: tre impatti, tutti scritti", JSON.stringify(celle));
+for (const k of Object.keys(celle)) delete celle[k];
+const t3 = { ...team, impatti_tagli: [{ nome: "T1", stringa: "1x1" }, { nome: "T2", stringa: "2x2" }, { nome: "T3", stringa: "3x1" }],
+  dpe: [{ nome: "Rotto", importo_orig: 20, importo_dpe: 15, anni: 2 }], dieci_giorni: [{ nome: "Dieci", ruolo: "C", fine: "" }] };
+handleRoster({ teams: [t3] });
+const ok3 = celle["28:1"] === "T3 3x1" && celle["29:1"] === "… altre 2 righe: aumentare RIGHE_EXTRA_SOTTO" && celle["30:1"] === undefined;
+console.log(ok3 ? "✅" : "❌ FAIL", "GAS roster: area piena, l'ultima riga dice quante mancano (e non sconfina nella conference sotto)", JSON.stringify(celle));

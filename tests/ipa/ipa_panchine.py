@@ -361,6 +361,18 @@ ok(premi(102, f"so:d:team01:{id_sc}:0").risposte == ["Non è la tua squadra."], 
 m = Msg("/soprannomi Alfa"); CTX.args = ["Alfa"]; asyncio.run(SO.cmd_soprannomi(upd(102, m), CTX)); CTX.args = []
 ok("«lo sceriffo»" in m.risposte[-1][0] and m.risposte[-1][1]["reply_markup"] is None and "🗑" not in m.risposte[-1][0],
    "un GM guarda i soprannomi di un'altra squadra: solo testo, niente bottoni")
+ok(SO.somiglianza("lo sceriffo", "Josh Hart") < SO.SOGLIA_SOSPETTI and SO.somiglianza("hart", "Josh Hart") == 1
+   and SO.somiglianza("sga", "Shai Gilgeous-Alexander") == 1 and SO.somiglianza("ja morant", "Ja Morant") == 1,
+   "somiglianza: «lo sceriffo» sospetto, cognome e iniziali no")
+class MsgD(Msg):
+    async def reply_document(s, document, filename, **k): s.risposte.append((document.read().decode(), {"file": filename}))
+m = MsgD("/soprannomi tutti"); CTX.args = ["tutti"]; asyncio.run(SO.cmd_soprannomi(upd(900, m), CTX))
+testo_t, file_t = m.risposte[0][0], m.risposte[1]
+ok("sospetti" in testo_t and "«lo sceriffo» → Josh Hart" in testo_t and file_t[1]["file"] == "soprannomi.md"
+   and file_t[0].index("lo sceriffo") < file_t[0].index("ja the sniper morant") if "ja the sniper morant" in file_t[0] else False,
+   "/soprannomi tutti (admin): i sospetti nel messaggio, tutti nel file dal più sospetto")
+m = Msg("/soprannomi tutti"); asyncio.run(SO.cmd_soprannomi(upd(101, m), CTX)); CTX.args = []
+ok("solo per gli admin" in m.risposte[-1][0], "/soprannomi tutti: solo admin")
 BOT.mandati.clear()
 u = upd(101, cb=f"so:d:team01:{id_sc}:0"); asyncio.run(SO.cb_soprannomi(u, CTX))
 ok("lo sceriffo" not in db.alias("team01") and "«lo sceriffo»" not in u.callback_query.testi[-1][0]

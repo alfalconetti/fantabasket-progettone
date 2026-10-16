@@ -20,7 +20,8 @@
 #let giocatori_raw = sys.inputs.at("giocatori")
 #let fine_10day    = sys.inputs.at("fine_10day", default: "")
 #let salary_detail = sys.inputs.at("salary_detail")
-#let fm_label      = sys.inputs.at("fm_label", default: "FM")
+#let fm_label      = sys.inputs.at("fm_label", default: "FP")
+#let fm_nota       = sys.inputs.at("fm_nota", default: "")   // "* FP 26-27": chi ha i fantapunti dell'altra stagione
 
 // flag: N=normale, A=RFA, R0-R3=rookie anno scale 1-4
 #let giocatori = if giocatori_raw == "" { () } else {
@@ -149,7 +150,7 @@
 #let has_dpe    = giocatori.any(g => g.flag != "VUOTO" and g.importo_orig != "")
 #let has_10d    = giocatori.any(g => g.flag == "D")
 
-#if has_rookie or has_rfa or has_dpe or has_10d {
+#if has_rookie or has_rfa or has_dpe or has_10d or fm_nota != "" {
   block(width: 100%, fill: c_sezione)[
     #pad(x: 6pt, y: 4pt)[
       #if giocatori.any(g => g.flag == "R0") [#text(7pt, fill: c_r0, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno I]  ]
@@ -158,7 +159,8 @@
       #if giocatori.any(g => g.flag == "R3") [#text(7pt, fill: c_r3, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno IV]  ]
       #if has_rfa                             [#text(7pt, fill: c_rfa, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[RFA]  ]
       #if has_dpe                             [#text(7pt, fill: c_dpe, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[DPE]  ]
-      #if has_10d [#text(7pt, fill: c_10d, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[10-day#if fine_10day != "" [ #fine_10day]]]
+      #if has_10d [#text(7pt, fill: c_10d, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[10-day#if fine_10day != "" [ #fine_10day]]  ]
+      #if fm_nota != "" [#h(8pt)#text(7pt, fill: _ton_sez, weight: "bold")[#fm_nota]]
     ]
   ]
 }

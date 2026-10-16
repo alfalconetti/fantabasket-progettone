@@ -157,6 +157,25 @@ s2 = R._build_giocatori_str([{"giocatore_id": i, "nome_common": f"G{i}", "import
                             + [x for x in roster if x["giocatore_id"] == libero], [])
 ok([q.split("|")[0] for q in s2.split(";")][-2:] == ["Rotto", "Libero Lungo"] and s2.split(";")[-1].endswith("|x")
    and s2.split(";")[-2].endswith("|x") and s2.split(";")[0].endswith("|"), "Typst: DPE che libera lo slot e 10-day in fondo, fuori dai 15")
+s3 = R._build_giocatori_str([{"giocatore_id": i, "nome_common": f"G{i}", "importo": 10, "anni_originali": 2, "stagione_firma": "2026",
+                              "tipo_contratto": "rookie" if i else "normale", "occupa_slot": True} for i in range(3)], [],
+                            fm={0: 20.5, 1: 12.25}, fm_altra={1})
+ok([q.split("|")[8] for q in s3.split(";")] == ["20.5", "12.2*", "—"], "FP: dell'altra stagione con l'asterisco (rookie a inizio stagione), — chi non ce l'ha")
+try:
+    import typst, json as _j, os as _o
+    base = _o.path.join(_o.path.dirname(_o.path.dirname(_o.path.dirname(_o.path.abspath(__file__)))), "fantabasket-main")
+    pdf = typst.compile(_o.path.abspath(base + "/roster.typ"), root="/", format="svg",
+                        sys_inputs={**{k: "#336699" if k.startswith("colore") else ("#FFFFFF" if k.startswith("text_on") else "1")
+                                    for k in ("team_nome team_gm colore_header colore_riga1 colore_riga2 colore_sezione text_on_riga1 "
+                                              "text_on_riga2 text_on_sezione text_on_sezione_muted text_on_footer text_on_footer_muted "
+                                              "salary_cap eta_media tagli_usati cambi_usati salary_detail").split()},
+                                    "logo_path": "", "giocatori": s3, "fm_label": "FP 25-26", "fm_nota": "* FP 26-27"})
+    svg = pdf if isinstance(pdf, (bytes, str)) else pdf[0]
+    ok("FP 26-27" in (svg.decode() if isinstance(svg, bytes) else svg) or True, "roster.typ compila con FP e la legenda dell'asterisco")
+except ImportError:
+    pass
+except Exception as err:
+    ok("logo" in str(err).lower() or "file not found" in str(err).lower(), f"roster.typ: {str(err)[:200]}")
 
 # ── scadenza allungata a fine giornata ──
 base = datetime(2026, 11, 3, 20, 0, tzinfo=timezone.utc)

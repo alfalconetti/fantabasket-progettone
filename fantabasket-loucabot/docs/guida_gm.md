@@ -20,7 +20,11 @@ Scrivi `/calendario` e vedi la giornata in corso, o la prossima se non ne è in 
 
 ## Tutte le partite: `/giornata`
 
-`/giornata` elenca le 12 partite della giornata in corso (o la prossima), `/giornata 12` quelle della 12. Va bene anche nei gruppi.
+`/giornata` elenca le 12 partite della giornata in corso (o la prossima), `/giornata 12` quelle della 12. Va bene anche nei gruppi. Per le giornate già convalidate dagli admin ci sono anche i risultati (chi vince in grassetto, i supplementari se ci sono stati); una giornata calcolata ma non ancora convalidata lo dice. Anche `/calendario` mostra il risultato della tua partita quando c'è.
+
+## Un giocatore: `/player`
+
+`/player Wembanyama` (basta un pezzo del nome; se ce n'è più d'uno ti fa scegliere): la squadra NBA di adesso e lo status degli infortunati, la squadra del fantabasket con ruolo e contratto (o svincolato), poi la stagione: partite, media dei fantapunti (la stessa che usa il calcolo), minuti, punti, rimbalzi, assist, recuperi, stoppate, perse e percentuali al tiro, e le ultime 5 partite coi fantapunti.
 
 ---
 

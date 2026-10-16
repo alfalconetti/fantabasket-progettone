@@ -151,6 +151,15 @@ R.convalida(S, N, 900)
 lr = db.q("SELECT * FROM lega_risultati WHERE stagione = %s AND giornata = %s ORDER BY casa", (S, N), many=True)
 ok(len(lr) == 2 and all(x["convalidato"] for x in lr) and float(lr[0]["punti_casa"]) == r1["punti_casa"],
    "convalida: risultati in lega_risultati (quelli che vanno sul Calendario)")
+import handlers as _H
+_risp = []
+class _Msg:
+    async def reply_text(self, t, **k): _risp.append(t)
+_upd = types.SimpleNamespace(effective_message=_Msg(), effective_user=types.SimpleNamespace(id=1))
+asyncio.run(_H._mostra_giornata(_upd, db.giornata(S, N)))
+from numeri import testo as _tp
+ok(f"{_tp(lr[0]['punti_casa'])} – {_tp(lr[0]['punti_trasferta'])}" in _risp[0] and "<b>" in _risp[0].split("\n\n", 1)[1]
+   and "supp." in _risp[0], "/giornata: risultati convalidati, vincente in grassetto, supplementari " + _risp[0][-300:])
 t = R.testo(c, 2)
 ok("Giornata 7 calcolata</b> (ricalcolo 1)" in t and "FADD: esce Prova 10, entra Prova 6" in t and "Delta: panchina non mandata" in t,
    "messaggio per il gruppo admin: risultati, FADD, avvisi")
@@ -384,6 +393,18 @@ ok(not PL.finita(stp, datetime(2026, 10, 15, 10, 6, tzinfo=ROMA)) and PL.finita(
    "prova del live: finisce dopo le 10:05 dell'ultimo giorno")
 db.q("TRUNCATE ipa_quintetto")
 
+# ── /player ──
+import player as PLY
+gid1 = next(v for k, v in gid.items() if db.q("SELECT espn_id FROM giocatori WHERE id = %s", (v,), one=True)["espn_id"] == "r1")
+sc = PLY.scheda(gid1)
+ok("🇺🇸 NBA:" in sc and "🏆 Fantabasket: <b>" in sc and "media <b>" in sc and "Ultime partite" in sc and "fantapunti" in sc,
+   "/player: NBA, fantabasket, media e ultime partite\n" + sc)
+ok(PLY.cerca("prova 1") and PLY.cerca("prova 1")[0]["id"] == gid1, "/player: ricerca per nome")
+db.q("INSERT INTO contratti (giocatore_id, team_id, importo, anni_originali, stagione_firma, tipo) VALUES (%s, 'team01', 12, 3, %s, 'normale')",
+     (gid1, S))
+sc = PLY.scheda(gid1)
+ok("🏆 Fantabasket: <b>Alfa</b>" in sc and "12 × 3 anni" in sc, "/player: squadra e contratto " + sc.split("\n")[3])
+db.q("DELETE FROM contratti WHERE giocatore_id = %s", (gid1,))
 # pulizia
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (list(gid.values()),))
 db.q("TRUNCATE nba_tabellini, nba_infortuni, lega_giornate, lega_partite, nba_partite, lega_risultati, lega_calcoli, lega_live")

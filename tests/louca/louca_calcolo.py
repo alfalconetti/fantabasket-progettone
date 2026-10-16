@@ -256,6 +256,10 @@ if db.q("SELECT to_regclass('giocatori') AS t", one=True)["t"]:
     ab = db.abbinamenti()
     ok(r["nuovi"] == 2 and ab.get(ids[0]) == "901" and ab.get(ids[1]) == "902" and r["ambigui"] == ["Dupl Icato"],
        "abbinamento: nomi senza accenti e Jr. riconosciuti, omonimi lasciati all'admin")
+    import handlers_calcolo as _hc2
+    _t = _hc2.testo_tabellini({"partite": 0, "giocatori": 0, "errori": [], "abbinamento": r})
+    ok(sorted(r["coppie"]) == [("Zyxw Testone Jr.", "Zyxw Testone"), ("Ábcd Pròva", "Abcd Prova")]
+       and "Zyxw Testone Jr. = Zyxw Testone" in _t, "log delle 8:30: chi è stato abbinato, coi due nomi " + _t)
     db.abbina(ids[2], "903", "Dupl Icato", "admin")
     db.abbina(ids[3], "903", "Dupl Icato", "admin")
     ok(db.abbinamenti().get(ids[3]) == "903" and ids[2] not in db.abbinamenti(), "abbinamento a mano: l'ultimo sostituisce")

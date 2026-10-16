@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 def liste_comandi() -> dict:
     gruppi = [
         BotCommand("calendario", "La tua giornata e le prossime [N]"),
-        BotCommand("giornata",   "Tutte le partite di una giornata [N]"),
+        BotCommand("giornata",   "Tutte le partite di una giornata [N], coi risultati"),
+        BotCommand("player",     "Un giocatore: squadra NBA e fantabasket, media, statistiche"),
     ]
     gm = gruppi + [
         BotCommand("guida",      "Guida per i GM"),

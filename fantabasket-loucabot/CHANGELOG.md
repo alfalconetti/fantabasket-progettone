@@ -129,3 +129,8 @@ Il calcolo dei fantapunti.
 - I tabellini che mancano si ritentano solo per le partite della **stagione in corso** (ogni mattina alle 8:30, alle 7:45, `/tabellini`, `/ricalcola`): una partita vecchia senza tabellino su ESPN (es. Bulls–Hornets del 3/1/2026) non torna più ogni giorno. `/dev_prova_calcolo` scarica quelli dei giorni indicati
 - Se un tabellino non si scarica, il log dice quale partita e perché ("NYK–SAS del 01/03/2026 (id: tabellino vuoto)")
 
+## v26 (2026-10-16)
+
+- **`/player NOME`** (tutti): squadra NBA di adesso e status degli infortunati, squadra del fantabasket con ruolo e contratto (o svincolato), partite e media dei fantapunti della stagione (la stessa del calcolo), medie per partita e percentuali al tiro, ultime 5 partite
+- `/giornata` (e `/calendario` per la propria partita): i risultati delle giornate convalidate, vincente in grassetto e supplementari; "in attesa della convalida" se calcolata ma non convalidata
+- Sincronizzazione delle 8:30: il log dice **chi** è stato abbinato a ESPN (nome dell'anagrafica = nome ESPN); se un giocatore a roster non ha l'id ESPN (i suoi punti non contano), avviso ogni mattina al gruppo admin con /espn_mancanti

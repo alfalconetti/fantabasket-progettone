@@ -102,6 +102,8 @@ def migrate_db():
             da         TEXT
         )
     """)
+    # v5.4.1 — id per i bottoni (il nome bref può superare i 64 byte di un callback)
+    _q("ALTER TABLE bref_nuovi ADD COLUMN IF NOT EXISTS id SERIAL")
     # v3.6.0 — richieste ai admin (DPE, Saedro, decadimento): una sola aperta per
     # giocatore e tipo; Approva/Rifiuta la chiudono in modo atomico (niente doppie
     # gestioni, niente "rifiutata" dopo un'approvazione)

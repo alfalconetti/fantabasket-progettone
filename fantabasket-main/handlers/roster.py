@@ -184,7 +184,8 @@ def _cambi_usati(team_id: str, stagione: str) -> str:
 
 
 def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None,
-                         ruoli: dict = None, posizioni: dict = None, fm: dict = None) -> str:
+                         ruoli: dict = None, posizioni: dict = None, fm: dict = None,
+                         fm_altra: set = None) -> str:
     """
     Costruisce la stringa giocatori per Typst:
     "Nome|importo|anni_res|flag|importo_orig|badge|ruolo|eleggibili;..."
@@ -243,6 +244,8 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
         dpe   = importo_orig if ha_dpe else ""
         media = fm.get(r["giocatore_id"])
         fm_txt = f"{media:.1f}" if media is not None else "—"
+        if media is not None and r["giocatore_id"] in (fm_altra or set()):
+            fm_txt += "*"                     # dell'altra stagione (rookie a inizio stagione)
         if flag == "D":
             importo, anni_res = "10d", "–"
         righe.append(f"{nome}|{importo}|{anni_res}|{flag}|{dpe}|{badge}|{ruolo}|{eleg}|{fm_txt}|{fuori_15}")
@@ -277,18 +280,29 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
         contratti = db.get_contratti_team(team_id)
 
     ruoli, posizioni = _ruoli_e_posizioni(team_id, stagione, as_of)
-    # Fantamedia: stessa stagione per tutta la lega (quella in corso da quando almeno
-    # metà dei giocatori sotto contratto ce l'ha), "—" per chi non ce l'ha.
-    # Roster a una data: medie e scelta della stagione a quella data
+    # Fantapunti (colonna FP): stessa stagione per tutta la lega (quella in corso da quando
+    # almeno metà dei giocatori sotto contratto ce l'ha). Chi in quella stagione non ce l'ha
+    # (v5.4.2: i rookie a inizio stagione) mostra quella dell'altra stagione con l'asterisco;
+    # "—" chi non ce l'ha in nessuna. Roster a una data: tutto a quella data
+    fm_altra, fm_nota = set(), ""
     try:
         stagione_fm = db.stagione_fantamedia(as_of)
-        fm = db.fantamedie([r["giocatore_id"] for r in roster], stagione_fm, as_of)
-        fm_label = f"FM {int(stagione_fm) - 1 - 2000:02d}-{int(stagione_fm) - 2000:02d}"
+        ids = [r["giocatore_id"] for r in roster]
+        fm = db.fantamedie(ids, stagione_fm, as_of)
+        # solo a inizio stagione (si mostra ancora la stagione prima): chi non ce l'ha prende quella in corso
+        corrente = str(int(stagione) + 1) if as_of is None else str(as_of.year + 1 if as_of.month >= 7 else as_of.year)
+        altra = str(int(stagione_fm) + 1)
+        extra = db.fantamedie([i for i in ids if i not in fm], altra, as_of) if altra == corrente else {}
+        if extra:
+            fm.update(extra)
+            fm_altra = set(extra)
+            fm_nota = f"* = FP {int(altra) - 1 - 2000:02d}-{int(altra) - 2000:02d}"
+        fm_label = f"FP {int(stagione_fm) - 1 - 2000:02d}-{int(stagione_fm) - 2000:02d}"
     except Exception as e:
-        logger.warning("Fantamedia per il roster: %s", e)
-        fm, fm_label = {}, "FM"
+        logger.warning("Fantapunti per il roster: %s", e)
+        fm, fm_label = {}, "FP"
     giocatori_str = _build_giocatori_str(roster, contratti, team_colori=team,
-                                         ruoli=ruoli, posizioni=posizioni, fm=fm)
+                                         ruoli=ruoli, posizioni=posizioni, fm=fm, fm_altra=fm_altra)
 
     # Salary cap
     cap_contratti = db.cap_roster(roster)          # x0 esclusi, RFA dichiarati inclusi (v3.11)
@@ -346,6 +360,7 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
         "--input", f"logo_path={logo}",
         "--input", f"giocatori={giocatori_str}",
         "--input", f"fm_label={fm_label}",
+        "--input", f"fm_nota={fm_nota}",
         "--input", f"fine_10day={'' if as_of else _fine_10day(team_id)}",
         "--root", "/",
         os.path.abspath(TYPST_TEMPLATE),

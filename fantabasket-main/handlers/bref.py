@@ -5,10 +5,16 @@ Job (10:00, solo regular season e playoff), una sola richiesta alla pagina per_g
 - append in bref_stats per chi ha giocato (G aumentate);
 - foglio BrefRaw sincronizzato con la tabella (formule del foglio collegate);
 - messaggio sul canale log: giocatori aggiornati + 🔀 cambi squadra NBA;
-- giocatori di bref non in anagrafica → messaggio al dev con ✅ Crea tutti / ❌ Ignora.
-  L'elenco sta in bref_nuovi: i bottoni funzionano anche dopo un riavvio e gli
-  ignorati non vengono riproposti. Accanto a ogni nome, gli eventuali giocatori già
-  in anagrafica con un nome simile (per non creare doppioni).
+- giocatori di bref non in anagrafica (v5.4.1):
+  · abbinati da soli a un giocatore già in anagrafica se il nome, senza accenti e
+    punteggiatura, è lo stesso di uno e un solo giocatore che su bref non c'è ancora
+    (tipicamente un rookie scritto «Topic» e su bref «Topić»): giocatori.nome_bref diventa
+    quello di bref, così le sue statistiche si collegano;
+  · gli altri al dev: chi ha un nome simile in anagrafica con 🔗 (abbina a quello) o 🆕 (crea),
+    uno per uno; ✅ crea solo quelli senza simili; ❌ ignora. L'elenco sta in bref_nuovi: i
+    bottoni funzionano anche dopo un riavvio e gli ignorati non vengono riproposti.
+- sul canale log anche chi è stato abbinato e i giocatori a roster che su bref non ci sono
+  ancora (rookie non ancora entrati, o nome diverso da sistemare).
 """
 import asyncio
 import html
@@ -25,27 +31,91 @@ from settings import FASI_RUOLI_RS
 
 logger = logging.getLogger(__name__)
 
-MAX_RIGHE = 60
+
+
+MAX_RIGHE = 40         # nomi senza simili elencati (il messaggio resta sotto il limite di Telegram)
+MAX_DUBBI = 8          # righe con i bottoni 🔗/🆕 per volta
+
+
+def _anagrafica() -> list[dict]:
+    return db._q("SELECT id, nome_common, nome_bref, nome_yahoo FROM giocatori", many=True) or []
+
+
+def abbina_auto(nuovi: list[str]) -> list[tuple[str, str]]:
+    """I nomi di bref non in anagrafica che corrispondono (nomi.chiave: senza accenti né
+    punteggiatura) a uno e un solo giocatore che su bref non c'è ancora: giocatori.nome_bref
+    diventa quello di bref. → [(nome in anagrafica, nome bref)]."""
+    if not nuovi:
+        return []
+    visti = {r["nome_bref"] for r in db._q("SELECT DISTINCT nome_bref FROM bref_stats", many=True) or []}
+    indice: dict[str, list[dict]] = {}
+    for g in _anagrafica():
+        if g["nome_bref"] in visti:
+            continue
+        for k in nomi._chiavi(g):
+            indice.setdefault(k, []).append(g)
+    per_chiave: dict[str, int] = {}
+    for n in nuovi:
+        per_chiave[nomi.chiave(n)] = per_chiave.get(nomi.chiave(n), 0) + 1
+    fatti = []
+    for n in nuovi:
+        k = nomi.chiave(n)
+        cand = {g["id"]: g for g in indice.get(k, [])}
+        if len(cand) != 1 or per_chiave[k] != 1:
+            continue
+        g = next(iter(cand.values()))
+        _collega(g["id"], n, "auto")
+        fatti.append((g["nome_common"], n))
+    return fatti
+
+
+def _collega(gid: int, nome_bref: str, chi: str) -> None:
+    db._q("UPDATE giocatori SET nome_bref = %s WHERE id = %s", (nome_bref, gid))
+    db._q("""INSERT INTO bref_nuovi (nome_bref, stato, deciso, da) VALUES (%s, 'abbinato', NOW(), %s)
+             ON CONFLICT (nome_bref) DO UPDATE SET stato = 'abbinato', deciso = NOW(), da = EXCLUDED.da""", (nome_bref, chi))
+    logger.info("bref: %s collegato al giocatore %s (%s)", nome_bref, gid, chi)
+
+
+def senza_bref() -> list[dict]:
+    """Giocatori a roster di cui su bref non c'è nessuna riga (mai): rookie non ancora entrati,
+    o nome in anagrafica diverso da quello di bref."""
+    return db._q("""SELECT g.nome_common, c.team_id FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
+                    WHERE c.attivo AND NOT EXISTS (SELECT 1 FROM bref_stats b WHERE b.nome_bref = g.nome_bref)
+                    ORDER BY c.team_id, g.nome_common""", many=True) or []
 
 
 def _testo_nuovi() -> tuple[str, InlineKeyboardMarkup | None]:
     proposti = db._q("SELECT * FROM bref_nuovi WHERE stato = 'proposto' ORDER BY nome_bref", many=True) or []
     if not proposti:
         return "🆕 Nessun giocatore nuovo in attesa.", None
-    anagrafica = db._q("SELECT id, nome_common, nome_bref, nome_yahoo FROM giocatori", many=True) or []
+    anagrafica = _anagrafica()
+    sicuri, dubbi = [], []
+    for p in proposti:
+        sim = nomi.simili(p["nome_bref"], anagrafica, max_n=1)
+        (dubbi if sim else sicuri).append((p, sim[0][0] if sim else None))
     righe = [f"🆕 <b>Giocatori nuovi su Basketball-Reference</b> ({len(proposti)})",
-             "<i>Non sono in anagrafica. Creandoli, le loro statistiche (già salvate) si collegano da sole.</i>", ""]
-    for p in proposti[:MAX_RIGHE]:
-        riga = f"• {html.escape(p['nome_bref'])} ({p['team'] or '?'}, {p['g'] or 0} G)"
-        simili = [g["nome_common"] for g, _ in nomi.simili(p["nome_bref"], anagrafica, max_n=2)]
-        if simili:
-            riga += f" — ⚠️ simile a: {html.escape(', '.join(simili))}"
-        righe.append(riga)
-    if len(proposti) > MAX_RIGHE:
-        righe.append(f"… e altri {len(proposti) - MAX_RIGHE}")
-    kb = InlineKeyboardMarkup([[InlineKeyboardButton("✅ Crea tutti", callback_data="brefn:ok"),
-                                InlineKeyboardButton("❌ Ignora", callback_data="brefn:no")]])
-    return "\n".join(righe), kb
+             "<i>Non sono in anagrafica. Creandoli (o abbinandoli a chi c'è già), le loro statistiche "
+             "(già salvate) si collegano da sole.</i>"]
+    if dubbi:
+        righe += ["", "<b>Con un nome simile in anagrafica</b> — 🔗 è lui (abbina) · 🆕 è un altro (crea):"]
+        righe += [f"• {html.escape(p['nome_bref'])} ({p['team'] or '?'}, {p['g'] or 0} G) ↔ "
+                  f"{html.escape(g['nome_common'])}" for p, g in dubbi[:MAX_DUBBI]]
+        if len(dubbi) > MAX_DUBBI:
+            righe.append(f"… e altri {len(dubbi) - MAX_DUBBI} dopo questi")
+    if sicuri:
+        righe += ["", "<b>Senza simili</b>:"]
+        righe += [f"• {html.escape(p['nome_bref'])} ({p['team'] or '?'}, {p['g'] or 0} G)" for p, _ in sicuri[:MAX_RIGHE]]
+        if len(sicuri) > MAX_RIGHE:
+            righe.append(f"… e altri {len(sicuri) - MAX_RIGHE}")
+    tasti = [[InlineKeyboardButton(f"🔗 {g['nome_common'][:28]}", callback_data=f"brefn:l:{p['id']}:{g['id']}"),
+              InlineKeyboardButton(f"🆕 {p['nome_bref'][:28]}", callback_data=f"brefn:c:{p['id']}")]
+             for p, g in dubbi[:MAX_DUBBI]]
+    fondo = []
+    if sicuri:
+        fondo.append(InlineKeyboardButton(f"✅ Crea i {len(sicuri)} senza simili", callback_data="brefn:ok"))
+    fondo.append(InlineKeyboardButton("❌ Ignora tutti", callback_data="brefn:no"))
+    tasti.append(fondo)
+    return "\n".join(righe), InlineKeyboardMarkup(tasti)
 
 
 async def job_bref(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -75,14 +145,33 @@ async def job_bref(context: ContextTypes.DEFAULT_TYPE) -> None:
         foglio = "⚠️"
         logger.warning("BrefRaw: %s", e)
 
+    abbinati = abbina_auto([n for n, _, _ in esito["nuovi"]])
+    if abbinati:
+        presi = {b for _, b in abbinati}
+        esito["nuovi"] = [x for x in esito["nuovi"] if x[0] not in presi]
     if log_ch:
         righe = [f"📊 Bref {stagione_bref}: <b>{esito['inseriti']}</b> giocatori aggiornati "
                  f"(su {esito['giocatori']}) · foglio BrefRaw {foglio}"]
+        if abbinati:
+            righe.append("\n🔗 <b>Abbinati a Basketball-Reference</b> (stesso nome senza accenti)")
+            righe.append(", ".join(f"{html.escape(a)} = {html.escape(b)}" for a, b in abbinati[:20])
+                         + (f" … e altri {len(abbinati) - 20}" if len(abbinati) > 20 else ""))
+        mancano = senza_bref()
+        if mancano:
+            righe.append(f"\n⚠️ <b>A roster ma mai visti su bref</b> ({len(mancano)}): rookie non ancora entrati, "
+                         "o nome diverso da quello di bref")
+            righe.append(", ".join(f"{html.escape(x['nome_common'])} ({html.escape(x['team_id'])})" for x in mancano[:25])
+                         + (" …" if len(mancano) > 25 else ""))
         if esito["cambi"]:
             righe.append("\n🔀 <b>Cambi squadra NBA</b>")
-            righe += [f"• {html.escape(n)}: {da} → <b>{a}</b>" for n, da, a in esito["cambi"]]
+            righe += [f"• {html.escape(n)}: {da} → <b>{a}</b>" for n, da, a in esito["cambi"][:30]]
+            if len(esito["cambi"]) > 30:
+                righe.append(f"… e altri {len(esito['cambi']) - 30}")
         try:
-            await context.bot.send_message(chat_id=log_ch, text="\n".join(righe), parse_mode="HTML")
+            testo_log = "\n".join(righe)
+            if len(testo_log) > 4000:                      # limite di Telegram: si taglia a una riga intera
+                testo_log = testo_log[:3990].rsplit("\n", 1)[0] + "\n…"
+            await context.bot.send_message(chat_id=log_ch, text=testo_log, parse_mode="HTML")
         except Exception as e:
             logger.warning("Messaggio bref sul canale log: %s", e)
 
@@ -116,11 +205,30 @@ async def cb_nuovi(update: Update, context: ContextTypes.DEFAULT_TYPE):
                      "WHERE stato = 'proposto' RETURNING 1) SELECT count(*) FROM x", (chi,)) or 0
         await query.edit_message_text(f"❌ {n} giocatori ignorati: non verranno riproposti.")
         return
+    parti = query.data.split(":")
+    if parti[1] in ("l", "c"):
+        p = db._q("SELECT * FROM bref_nuovi WHERE id = %s", (int(parti[2]),), one=True)
+        if not p or p["stato"] != "proposto":
+            pass                                          # già deciso (altro tocco, altro admin)
+        elif parti[1] == "l":
+            _collega(int(parti[3]), p["nome_bref"], chi)
+        else:
+            if not db._qval("SELECT 1 FROM giocatori WHERE nome_bref = %s", (p["nome_bref"],)):
+                db._q("INSERT INTO giocatori (nome_bref, nome_common, nome_norm) VALUES (%s, %s, %s)",
+                      (p["nome_bref"], p["nome_bref"], normalizza(p["nome_bref"])))
+            db._q("UPDATE bref_nuovi SET stato = 'creato', deciso = NOW(), da = %s WHERE id = %s", (chi, p["id"]))
+        testo, kb = _testo_nuovi()
+        await query.edit_message_text(testo, parse_mode="HTML", reply_markup=kb)
+        return
+    senza_simili = {p["nome_bref"] for p in (db._q("SELECT nome_bref FROM bref_nuovi WHERE stato = 'proposto'", many=True) or [])
+                    if not nomi.simili(p["nome_bref"], _anagrafica(), max_n=1)}
     creati = []
     with db.get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT nome_bref FROM bref_nuovi WHERE stato = 'proposto' FOR UPDATE")
             for (nome,) in cur.fetchall():
+                if nome not in senza_simili:              # quelli con un simile si decidono uno per uno
+                    continue
                 cur.execute("SELECT 1 FROM giocatori WHERE nome_bref = %s", (nome,))
                 if not cur.fetchone():
                     cur.execute("INSERT INTO giocatori (nome_bref, nome_common, nome_norm) VALUES (%s, %s, %s)",
@@ -129,8 +237,10 @@ async def cb_nuovi(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 cur.execute("UPDATE bref_nuovi SET stato = 'creato', deciso = NOW(), da = %s WHERE nome_bref = %s",
                             (chi, nome))
     elenco = ", ".join(html.escape(n) for n in creati[:40]) + (" …" if len(creati) > 40 else "")
-    await query.edit_message_text(f"✅ Creati <b>{len(creati)}</b> giocatori: {elenco or '—'}", parse_mode="HTML")
+    testo, kb = _testo_nuovi()
+    await query.edit_message_text(f"✅ Creati <b>{len(creati)}</b> giocatori: {elenco or '—'}\n\n" + testo,
+                                  parse_mode="HTML", reply_markup=kb)
 
 
 def get_handlers() -> list:
-    return [CallbackQueryHandler(cb_nuovi, pattern=r"^brefn:(ok|no)$")]
+    return [CallbackQueryHandler(cb_nuovi, pattern=r"^brefn:(ok|no|l:\d+:\d+|c:\d+)$")]

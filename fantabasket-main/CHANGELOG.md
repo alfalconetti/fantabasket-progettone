@@ -1300,3 +1300,19 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - loucabot v25: tabellini mancanti ritentati solo per la stagione in corso; il log dice quale partita non si scarica e perché
 - MIGRATION: idee per il futuro (assistente `/chiedi`, bot delle statistiche con `/carriera`, dashboard in LAN)
 
+## v5.4.0 (2026-10-16)
+
+- Foglio Roster: **tutti gli impatti dei tagli** (prima al massimo 2: limite del vecchio foglio, non del regolamento), una riga dopo l'altra sotto TAGLIATI:, poi DIS. e 10-DAY; se l'area (`OFFSET_IMPATTI` + `RIGHE_EXTRA_SOTTO`) non basta, l'ultima riga dice quante ne mancano. Serve `clasp push` + Nuova versione
+- loucabot v26: `/player`, risultati in `/giornata`, nomi degli abbinati a ESPN nel log e avviso per chi a roster non ha l'id ESPN
+- IPanchinari v19: `/soprannomi tutti`
+
+## v5.4.1 (2026-10-16)
+
+- **Basketball-Reference ↔ anagrafica** (job delle 10:00): un nome nuovo di bref che, senza accenti e punteggiatura, è quello di uno e un solo giocatore in anagrafica mai visto su bref (es. un rookie scritto «Topic», su bref «Topić») si abbina da solo: `giocatori.nome_bref` diventa quello di bref e le sue statistiche (fantamedia del roster, aste, spalmature) si collegano. Prima veniva proposto come giocatore nuovo, e «Crea tutti» faceva un doppione
+- Proposta dei nuovi al dev: chi ha un nome simile in anagrafica si decide uno per uno (🔗 è lui, abbina · 🆕 è un altro, crea); ✅ crea solo quelli senza simili
+- Sul canale log, col riepilogo di bref: chi è stato abbinato e i giocatori **a roster mai visti su bref** (rookie non ancora entrati, o nome diverso da sistemare)
+
+## v5.4.2 (2026-10-16)
+
+- Roster (immagine): la colonna **FM diventa FP** (fantapunti). A inizio stagione, finché si mostrano quelli della stagione prima, chi non li ha (i rookie) mostra quelli della stagione in corso con l'asterisco, e in legenda «* = FP 26-27»
+- Messaggi di Basketball-Reference sempre sotto il limite di Telegram (al massimo 40 nomi nuovi, 20 abbinati, 30 cambi di squadra, poi «… e altri N»)

@@ -58,77 +58,52 @@ function updateTeamRoster(sheet, team) {
   sheet.getRange(rowBase + CONFIG.OFFSET_CAMBI_RUOLO, colBase, 1, CONFIG.COLS_PER_TEAM)
     .setValue(`CAMBI RUOLO USATI: ${team.cambi_ruolo_usati || 0}/2`);
 
-  // Pulisci area tagliati/impatti e le righe sotto (DIS. e 10-DAY): testo e colore, così una DPE
-  // o un 10-day finiti non restano scritti (prima le DIS. oltre le righe degli impatti restavano)
-  sheet.getRange(rowBase + CONFIG.OFFSET_TAGLIATI_LABEL, colBase, 1, CONFIG.COLS_PER_TEAM).clearContent();
-  const righeSotto = CONFIG.OFFSET_IMPATTI.length + (CONFIG.RIGHE_EXTRA_SOTTO || 2);
-  const sotto = sheet.getRange(rowBase + CONFIG.OFFSET_TAGLIATI_LABEL + 1, colBase, righeSotto, CONFIG.COLS_PER_TEAM);
-  sotto.clearContent();
-  sotto.setFontColor(null);
+  // Sotto "TAGLIATI:" una riga dopo l'altra: impatti dei tagli, poi le DIS. (DPE), poi il 10-DAY.
+  // Nessun limite per tipo (v5.4.0: prima al massimo 2 impatti); l'area è di
+  // OFFSET_IMPATTI.length + RIGHE_EXTRA_SOTTO righe, pulita a ogni sync (testo e colore). Se non
+  // basta, l'ultima riga dice quante ne mancano: si allarga RIGHE_EXTRA_SOTTO (e il foglio).
+  const labelRow = rowBase + CONFIG.OFFSET_TAGLIATI_LABEL;
+  const primaRiga = labelRow + 1;
+  const righeArea = CONFIG.OFFSET_IMPATTI.length + (CONFIG.RIGHE_EXTRA_SOTTO || 2);
+  sheet.getRange(labelRow, colBase, 1, CONFIG.COLS_PER_TEAM).clearContent();
+  const area = sheet.getRange(primaRiga, colBase, righeArea, CONFIG.COLS_PER_TEAM);
+  area.clearContent();
+  area.setFontColor(null);
 
-  // Scrivi impatti tagli se presenti
-  if (team.impatti_tagli && team.impatti_tagli.length > 0) {
-    sheet.getRange(rowBase + CONFIG.OFFSET_TAGLIATI_LABEL, colBase, 1, CONFIG.COLS_PER_TEAM)
-      .setValue("TAGLIATI:");
-    team.impatti_tagli.forEach((imp, i) => {
-      if (i < CONFIG.OFFSET_IMPATTI.length) {
-        sheet.getRange(rowBase + CONFIG.OFFSET_IMPATTI[i], colBase, 1, CONFIG.COLS_PER_TEAM)
-          .setValue(`${imp.nome} ${imp.stringa}`);
-      }
-    });
-  }
-
-  // DPE attive — sotto i tagliati, prima riga libera
+  const impatti = team.impatti_tagli || [];
   const dpeList = team.dpe || [];
-  if (dpeList.length > 0) {
-    // Trova prima riga libera dopo i tagliati
-    let dpeStartRow = rowBase + CONFIG.OFFSET_TAGLIATI_LABEL + 1;
-    if (team.impatti_tagli && team.impatti_tagli.length > 0) {
-      dpeStartRow += team.impatti_tagli.length;
-    }
-    dpeList.forEach((d, i) => {
-      const row = dpeStartRow + i;
-      const cell = sheet.getRange(row, colBase, 1, CONFIG.COLS_PER_TEAM);
-      cell.setFontColor("#C62828");
-
-      // Testo con importo originale barrato via RichTextValue
-      const prefix   = `DIS. ${d.nome} `;
-      const barrato  = `${d.importo_orig}x${d.anni}`;
-      const suffisso = `  ${d.importo_dpe}x${d.anni}`;
-      const rtv = SpreadsheetApp.newRichTextValue()
-        .setText(prefix + barrato + suffisso)
-        .setTextStyle(
-          prefix.length,
-          prefix.length + barrato.length,
-          SpreadsheetApp.newTextStyle().setStrikethrough(true).setForegroundColor("#C62828").build()
-        )
-        .setTextStyle(
-          0,
-          prefix.length,
-          SpreadsheetApp.newTextStyle().setForegroundColor("#C62828").build()
-        )
-        .setTextStyle(
-          prefix.length + barrato.length,
-          prefix.length + barrato.length + suffisso.length,
-          SpreadsheetApp.newTextStyle().setForegroundColor("#C62828").build()
-        )
-        .build();
-      sheet.getRange(row, colBase).setRichTextValue(rtv);
-    });
-  }
-
-  // 10-day — sotto le DIS., in verde petrolio (come sul roster di Typst)
   const dieci = team.dieci_giorni || [];
-  if (dieci.length > 0) {
-    let riga = rowBase + CONFIG.OFFSET_TAGLIATI_LABEL + 1 + (team.impatti_tagli || []).length + dpeList.length;
-    const ultima = rowBase + CONFIG.OFFSET_TAGLIATI_LABEL + righeSotto;
-    dieci.forEach(d => {
-      if (riga > ultima) return;
-      const cella = sheet.getRange(riga, colBase, 1, CONFIG.COLS_PER_TEAM);
-      cella.setFontColor("#00838F");
-      sheet.getRange(riga, colBase).setValue(`10-DAY ${d.ruolo ? d.ruolo + " " : ""}${d.nome} ${d.fine || ""}`.trim());
-      riga++;
-    });
+  if (impatti.length > 0) {
+    sheet.getRange(labelRow, colBase, 1, CONFIG.COLS_PER_TEAM).setValue("TAGLIATI:");
+  }
+  const righe = [];
+  impatti.forEach(imp => righe.push({ testo: `${imp.nome} ${imp.stringa}` }));
+  dpeList.forEach(d => {
+    // importo originale barrato (RichTextValue), tutta la riga in rosso
+    const prefix = `DIS. ${d.nome} `, barrato = `${d.importo_orig}x${d.anni}`, suffisso = `  ${d.importo_dpe}x${d.anni}`;
+    const rosso = SpreadsheetApp.newTextStyle().setForegroundColor("#C62828").build();
+    const rtv = SpreadsheetApp.newRichTextValue()
+      .setText(prefix + barrato + suffisso)
+      .setTextStyle(0, prefix.length, rosso)
+      .setTextStyle(prefix.length, prefix.length + barrato.length,
+                    SpreadsheetApp.newTextStyle().setStrikethrough(true).setForegroundColor("#C62828").build())
+      .setTextStyle(prefix.length + barrato.length, prefix.length + barrato.length + suffisso.length, rosso)
+      .build();
+    righe.push({ rich: rtv, colore: "#C62828" });
+  });
+  dieci.forEach(d => righe.push({ testo: `10-DAY ${d.ruolo ? d.ruolo + " " : ""}${d.nome} ${d.fine || ""}`.trim(), colore: "#00838F" }));
+
+  const troppe = righe.length > righeArea;
+  const scrivibili = troppe ? righe.slice(0, righeArea - 1) : righe;
+  scrivibili.forEach((x, i) => {
+    const riga = primaRiga + i;
+    if (x.colore) sheet.getRange(riga, colBase, 1, CONFIG.COLS_PER_TEAM).setFontColor(x.colore);
+    if (x.rich) sheet.getRange(riga, colBase).setRichTextValue(x.rich);
+    else sheet.getRange(riga, colBase).setValue(x.testo);
+  });
+  if (troppe) {
+    sheet.getRange(primaRiga + righeArea - 1, colBase)
+      .setValue(`… altre ${righe.length - scrivibili.length} righe: aumentare RIGHE_EXTRA_SOTTO`);
   }
 
   // ── Rookie scale — colonne AX-BA (50-53) ─────────────────────────────────
