@@ -49,24 +49,33 @@
     ("#", r => [#r.pos]), ("", r => logo(r.logo)), ("Squadra", r => text(weight: "bold")[#r.nome]),
     ("V", r => text(weight: "bold")[#r.w]), ("S", r => [#r.l]), ("PF", r => [#r.pf]), ("PS", r => [#r.ps]),
     ("Media", r => [#r.media]), ("Striscia", r => striscia(r.striscia)),
-  )
+  ) + if "sezioni" in dati { (("Gen.", r => text(fill: rgb("#5A6478"))[#r.gen]),) } else { () }
 }
 
 #let larghezze = colonne.enumerate().map(((i, c)) => if i == 2 { 1fr } else if i == 1 { 22pt } else { auto })
 
-#table(
+#let tabella(righe) = table(
   columns: larghezze,
   stroke: (x, y) => (bottom: 0.5pt + c_line),
   inset: (x: 5pt, y: 4.5pt),
   align: (x, y) => if x == 2 { left + horizon } else { center + horizon },
   fill: (x, y) => if y == 0 { c_head } else if calc.odd(y) { c_r1 } else { c_r2 },
   table.header(..colonne.map(c => intest(c.at(0)))),
-  ..dati.righe.map(r => colonne.map(c => (c.at(1))(r))).flatten(),
+  ..righe.map(r => colonne.map(c => (c.at(1))(r))).flatten(),
 )
+
+#if "sezioni" in dati {
+  for sez in dati.sezioni {
+    block(width: 100%, fill: c_sub)[#pad(x: 12pt, y: 5pt)[#text(11pt, weight: "bold", fill: c_head)[#sez.nome]]]
+    tabella(sez.righe)
+  }
+} else {
+  tabella(dati.righe)
+}
 
 #block(width: 100%, fill: c_head)[
   #pad(x: 12pt, y: 5pt)[
     #set par(justify: false)
-    #text(7pt, fill: white)[Punti col bonus casa · a parità di vittorie: scontri diretti (solo V/S), poi media punti, poi differenza#if full [ · Record +/− subiti: volte in cui l'avversario ha fatto il punteggio più alto/più basso della giornata · roster e quintetto di adesso, fantapunti e % di partite giocate della stagione]]
+    #text(7pt, fill: white)[Punti col bonus casa · a parità di vittorie: scontri diretti (solo V/S), poi media punti, poi differenza#if "sezioni" in dati [ · ordine della classifica generale (Gen.), filtrato per conference]#if full [ · Record +/− subiti: volte in cui l'avversario ha fatto contro di te il suo massimo/minimo della stagione · roster di adesso, quintetto = il migliore possibile per fantapunti (uno per ruolo)]]
   ]
 ]

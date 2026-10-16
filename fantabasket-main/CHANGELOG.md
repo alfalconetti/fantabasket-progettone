@@ -1321,3 +1321,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - loucabot v27: **`/classifica`** e **`/classifica_full`** (immagini)
 
+## v5.5.1 (2026-10-16)
+
+- loucabot v28: `/classifica_conference`; in `/classifica_full` record subiti sul massimo/minimo dell'avversario e quintetto migliore possibile. Serve la chiave `conference` in `config/divisions.json`
+

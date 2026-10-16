@@ -141,3 +141,8 @@ Il calcolo dei fantapunti.
 - **`/classifica_full`** (immagine orizzontale, come file): in più media delle ultime 10, migliori di giornata, massimo e minimo, età media, record positivi e negativi subiti, coefficiente di variazione, fantapunti medi e % di partite giocate di roster e quintetto, età del quintetto, vantaggio e svantaggio medio senza supplementari, supplementari (vinti-persi)
 - Immagini con Typst (pacchetto `typst` e font Liberation nell'immagine Docker di loucabot)
 
+## v28 (2026-10-16)
+
+- **`/classifica_conference`**: la generale filtrata per conference (ex aequo risolti sulla generale), con la posizione nella conference e quella generale. Le conference vengono da `config/divisions.json`, chiave nuova `"conference": {"Nome": ["A", "B", "C"], ...}` (le division di `team_div`)
+- `/classifica_full`: record positivi/negativi subiti = volte in cui l'avversario ha fatto contro di te il **suo** massimo/minimo della stagione; le statistiche del quintetto sono sul **quintetto migliore possibile** per fantapunti (uno per ruolo dal roster di adesso), non su quello schierato
+

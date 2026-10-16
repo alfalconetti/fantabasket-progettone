@@ -26,7 +26,9 @@ Scrivi `/calendario` e vedi la giornata in corso, o la prossima se non ne è in 
 
 `/classifica` manda l'immagine della classifica: vittorie, sconfitte, punti fatti e subiti (col bonus casa), media punti e striscia (3W = tre vittorie di fila, 1L = una sconfitta). Contano solo le giornate convalidate dagli admin. A parità di vittorie contano gli scontri diretti tra le squadre a pari (solo vittorie e sconfitte, mai lo scarto; con tre o più squadre la classifica avulsa tra loro), poi la media punti, poi la differenza.
 
-`/classifica_full` manda la classifica completa (un file, perché è larga): in più media delle ultime 10 giornate, quante volte hai fatto il punteggio più alto della giornata, massimo e minimo, età media, record subiti (quante volte l'avversario ha fatto il punteggio più alto, o più basso, della giornata), coefficiente di variazione dei punti, fantapunti medi e percentuale di partite giocate di roster e quintetto di adesso, età del quintetto, scarto medio nelle vittorie e nelle sconfitte (senza supplementari) e supplementari giocati (vinti-persi).
+`/classifica_conference` è la stessa classifica divisa per conference: l'ordine è quello della generale (gli ex aequo si risolvono sulla generale, non tra le sole squadre della conference), con la posizione nella conference e, a destra, quella generale.
+
+`/classifica_full` manda la classifica completa (un file, perché è larga): in più media delle ultime 10 giornate, quante volte hai fatto il punteggio più alto della giornata, massimo e minimo, età media, record subiti (quante volte l'avversario ha fatto contro di te il suo punteggio più alto, o più basso, della stagione), coefficiente di variazione dei punti, fantapunti medi e percentuale di partite giocate del roster di adesso e del quintetto migliore possibile (per ogni ruolo il giocatore con più fantapunti di media), età del quintetto, scarto medio nelle vittorie e nelle sconfitte (senza supplementari) e supplementari giocati (vinti-persi).
 
 ## Un giocatore: `/player`
 

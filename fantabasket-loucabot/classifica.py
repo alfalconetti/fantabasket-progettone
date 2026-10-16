@@ -12,10 +12,15 @@ massimo e minimo, età media, record subiti, coefficiente di variazione, fantapu
 di partite giocate, età del quintetto, scarti medi, supplementari.
 
 «Migliore di giornata» = punteggio più alto della giornata (anche a pari merito). «Record positivi
-subiti» = volte in cui l'avversario ha fatto il punteggio più alto della giornata; «negativi
-subiti» = il più basso. Roster e quintetto sono quelli di adesso (contratti attivi senza 10-day,
-quintetto di IPanchinari); fantapunti = media della stagione di ognuno (come nel calcolo),
-partite giocate = sue partite che contano / partite della sua squadra NBA in stagione.
+subiti» = volte in cui l'avversario ha fatto contro di te il suo massimo della stagione; «negativi
+subiti» = il suo minimo (Luca, 16/10). Roster di adesso (contratti attivi senza 10-day); quintetto
+= il migliore possibile per fantapunti dal roster di adesso, uno per ruolo (PG SG SF PF C, ruoli
+della stagione), non quello schierato (Luca, 16/10); fantapunti = media della stagione di ognuno
+(come nel calcolo), partite giocate = sue partite che contano / partite della sua squadra NBA.
+
+/classifica_conference: la generale filtrata per conference (gli ex aequo si risolvono sulla
+generale, non tra le squadre della conference); conference da config/divisions.json, chiave
+"conference": {"Nome": ["A", "B", "C"], ...} (division di team_div).
 """
 import json
 import logging
@@ -121,7 +126,8 @@ def extra(ris: list[dict], st: dict[str, dict]) -> None:
         for x in s["partite"]:
             per_g.setdefault(x["giornata"], []).append(x["fatti"])
     massimi = {g: max(v) for g, v in per_g.items()}
-    minimi = {g: min(v) for g, v in per_g.items()}
+    max_sq = {t: max((x["fatti"] for x in s["partite"]), default=None) for t, s in st.items()}
+    min_sq = {t: min((x["fatti"] for x in s["partite"]), default=None) for t, s in st.items()}
     for t, s in st.items():
         p = s["partite"]
         punti = [x["fatti"] for x in p]
@@ -131,8 +137,9 @@ def extra(ris: list[dict], st: dict[str, dict]) -> None:
         s["migliore"] = sum(x["fatti"] == massimi[x["giornata"]] for x in p)
         s["max"] = max(punti) if punti else 0.0
         s["min"] = min(punti) if punti else 0.0
-        s["rec_pos_subiti"] = sum(x["subiti"] == massimi[x["giornata"]] for x in p)
-        s["rec_neg_subiti"] = sum(x["subiti"] == minimi[x["giornata"]] for x in p)
+        # record subiti: l'avversario ha fatto contro di te il suo massimo (minimo) della stagione
+        s["rec_pos_subiti"] = sum(x["subiti"] == max_sq[x["avv"]] for x in p)
+        s["rec_neg_subiti"] = sum(x["subiti"] == min_sq[x["avv"]] for x in p)
         s["cv"] = (statistics.pstdev(punti) / statistics.mean(punti) * 100) if len(punti) > 1 and statistics.mean(punti) else 0.0
         vin = [x["fatti"] - x["subiti"] for x in p if x["vinta"] and not x["supp"]]
         per_ = [x["subiti"] - x["fatti"] for x in p if not x["vinta"] and not x["supp"]]
@@ -153,14 +160,10 @@ def _eta(dn) -> float | None:
 
 def roster_stats(stagione: str, st: dict[str, dict]) -> None:
     """Età, fantapunti e partite giocate di roster e quintetto di adesso."""
-    roster = db.q("""SELECT c.team_id, g.id, g.espn_id, g.data_nascita FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
-                     WHERE c.attivo AND c.tipo <> '10day'""", many=True) or []
-    quint: dict[str, set] = {}
-    try:
-        for r in db.q("SELECT team_id, giocatore_id FROM ipa_quintetto", many=True) or []:
-            quint.setdefault(r["team_id"], set()).add(r["giocatore_id"])
-    except Exception:
-        pass
+    roster = db.q("""SELECT c.team_id, g.id, g.espn_id, g.data_nascita,
+                            (SELECT r.ruolo FROM ruolo_attuale r WHERE r.giocatore_id = g.id AND r.stagione = %s LIMIT 1) AS ruolo
+                     FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
+                     WHERE c.attivo AND c.tipo <> '10day'""", (stagione,), many=True) or []
     atleti = [r["espn_id"] for r in roster if r["espn_id"]]
     medie = db.medie_stagione(atleti, stagione, date(2999, 1, 1)) if atleti else {}
     squadra_nba = {**db.ultima_squadra(atleti, date(2999, 1, 1)), **db.squadre_roster(atleti)} if atleti else {}
@@ -186,13 +189,38 @@ def roster_stats(stagione: str, st: dict[str, dict]) -> None:
         per_t.setdefault(r["team_id"], []).append(r)
     for t, s in st.items():
         rs = per_t.get(t, [])
-        qs = [r for r in rs if r["id"] in quint.get(t, set())]
+        qs = miglior_quintetto(rs, medie)
         s["eta"] = media(_eta(r["data_nascita"]) for r in rs)
         s["eta_q"] = media(_eta(r["data_nascita"]) for r in qs)
         s["fp_roster"] = media((medie.get(r["espn_id"]) or {}).get("media") for r in rs)
         s["fp_q"] = media((medie.get(r["espn_id"]) or {}).get("media") for r in qs)
         s["gioc_roster"] = media(perc(r["espn_id"]) for r in rs)
         s["gioc_q"] = media(perc(r["espn_id"]) for r in qs)
+
+
+RUOLI = ("PG", "SG", "SF", "PF", "C")
+
+
+def miglior_quintetto(roster: list[dict], medie: dict) -> list[dict]:
+    """Per ogni ruolo il giocatore del roster con la media fantapunti più alta (chi non ha
+    partite vale 0): il quintetto migliore possibile adesso."""
+    out = []
+    for ruolo in RUOLI:
+        cand = [r for r in roster if r.get("ruolo") == ruolo]
+        if cand:
+            out.append(max(cand, key=lambda r: ((medie.get(r["espn_id"]) or {}).get("media") or 0.0)))
+    return out
+
+
+def conference() -> dict[str, str]:
+    """{team_id: nome della conference} da config/divisions.json ("conference" + "team_div")."""
+    path = os.path.join(os.path.dirname(os.environ.get("TEAMS_PATH", "/config/teams.json")), "divisions.json")
+    try:
+        d = json.load(open(path, encoding="utf-8"))
+    except Exception:
+        return {}
+    div_conf = {div: nome for nome, divs in (d.get("conference") or {}).items() for div in divs}
+    return {t: div_conf[dv] for t, dv in (d.get("team_div") or {}).items() if dv in div_conf}
 
 
 def calcola(stagione: str | None = None, full: bool = False) -> tuple[list[dict], int]:
@@ -246,15 +274,33 @@ def dati_typst(righe: list[dict], giornate: int, full: bool) -> dict:
             "ult": f"Media ult. {n_ult}", "righe": out}
 
 
+def dati_conference(righe: list[dict], giornate: int, conf: dict[str, str]) -> dict:
+    """La generale filtrata per conference: stesso ordine (ex aequo risolti sulla generale)."""
+    base_ = dati_typst(righe, giornate, False)
+    per_nome = {r["team"]: x for r, x in zip(righe, base_["righe"])}
+    sezioni = []
+    for nome in sorted(set(conf.values()), key=lambda n: min(r["pos"] for r in righe if conf.get(r["team"]) == n)):
+        rs = [r for r in righe if conf.get(r["team"]) == nome]
+        sezioni.append({"nome": nome, "righe": [{**per_nome[r["team"]], "pos": i + 1, "gen": r["pos"]} for i, r in enumerate(rs)]})
+    return {**base_, "sezioni": sezioni}
+
+
 TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "classifica.typ")
 
 
-def immagine(full: bool = False, stagione: str | None = None) -> tuple[bytes | None, int]:
+def immagine(full: bool = False, stagione: str | None = None, per_conference: bool = False) -> tuple[bytes | None, int]:
     righe, giornate = calcola(stagione, full)
     if not giornate:
         return None, 0
     import typst
-    dati = dati_typst(righe, giornate, full)
+    if per_conference:
+        conf = conference()
+        if len(set(conf.values())) < 2:
+            raise RuntimeError("conference non configurate: in config/divisions.json manca \"conference\" "
+                               "(es. {\"Conference A\": [\"A\", \"B\", \"C\"], \"Conference B\": [\"D\", \"E\", \"F\"]})")
+        dati = dati_conference(righe, giornate, conf)
+    else:
+        dati = dati_typst(righe, giornate, full)
     png = typst.compile(TEMPLATE, root="/", format="png", ppi=180,
                         sys_inputs={"dati": json.dumps(dati, ensure_ascii=False), "full": "1" if full else ""})
     return png, giornate
@@ -262,12 +308,12 @@ def immagine(full: bool = False, stagione: str | None = None) -> tuple[bytes | N
 
 # ── comandi ────────────────────────────────────────────────────────────────────
 
-async def cmd_classifica(update, context, full: bool = False):
+async def cmd_classifica(update, context, full: bool = False, per_conference: bool = False):
     import asyncio
     import io
     msg = update.effective_message
     try:
-        png, giornate = await asyncio.to_thread(immagine, full)
+        png, giornate = await asyncio.to_thread(immagine, full, None, per_conference)
     except Exception as err:
         logger.exception("Classifica")
         await msg.reply_text(f"⚠️ Classifica non disponibile: {err}")
@@ -280,7 +326,12 @@ async def cmd_classifica(update, context, full: bool = False):
         await msg.reply_document(document=io.BytesIO(png), filename=nome,
                                  caption=f"📊 Classifica completa dopo {giornate} giornate convalidate")
     else:
-        await msg.reply_photo(photo=io.BytesIO(png), caption=f"🏆 Classifica dopo {giornate} giornate · /classifica_full per tutte le statistiche")
+        await msg.reply_photo(photo=io.BytesIO(png), caption=f"🏆 Classifica{' per conference' if per_conference else ''} dopo "
+                                                            f"{giornate} giornate · /classifica_full per tutte le statistiche")
+
+
+async def cmd_classifica_conference(update, context):
+    await cmd_classifica(update, context, per_conference=True)
 
 
 async def cmd_classifica_full(update, context):
@@ -289,4 +340,5 @@ async def cmd_classifica_full(update, context):
 
 def get_handlers() -> list:
     from telegram.ext import CommandHandler
-    return [CommandHandler("classifica", cmd_classifica), CommandHandler("classifica_full", cmd_classifica_full)]
+    return [CommandHandler("classifica", cmd_classifica), CommandHandler("classifica_full", cmd_classifica_full),
+            CommandHandler("classifica_conference", cmd_classifica_conference)]

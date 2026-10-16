@@ -20,6 +20,7 @@ def liste_comandi() -> dict:
         BotCommand("player",     "Un giocatore: squadra NBA e fantabasket, media, statistiche"),
         BotCommand("classifica", "La classifica (immagine)"),
         BotCommand("classifica_full", "La classifica con tutte le statistiche"),
+        BotCommand("classifica_conference", "La classifica divisa per conference"),
     ]
     gm = gruppi + [
         BotCommand("guida",      "Guida per i GM"),

@@ -27,11 +27,23 @@ ok(st2["B"]["w"] == 3 and C.ordina(st2)[:3] == ["B", "C", "A"] and st2["A"]["med
    f"due a pari (A, C): conta lo scontro diretto (C ha battuto A), non la media {C.ordina(st2)}")
 ok(st2["C"]["striscia"] == "1L" and st2["B"]["striscia"] == "3W" and st2["A"]["striscia"] == "2L", "striscia: 3W, 1L, 2L")
 C.extra(ris2, st2)
-ok(st2["D"]["migliore"] == 1 and st2["A"]["rec_pos_subiti"] == 2 and st2["A"]["max"] == 130 and st2["A"]["min"] == 100,
-   "migliore di giornata, record positivi subiti, massimo e minimo")
+ok(st2["D"]["migliore"] == 1 and st2["A"]["max"] == 130 and st2["A"]["min"] == 100, "migliore di giornata, massimo e minimo")
+ok((st2["A"]["rec_pos_subiti"], st2["A"]["rec_neg_subiti"], st2["D"]["rec_pos_subiti"], st2["D"]["rec_neg_subiti"]) == (1, 1, 2, 2),
+   "record subiti: l'avversario ha fatto contro di te il suo massimo / minimo della stagione")
 ok(st2["B"]["supp"] == 1 and st2["B"]["supp_w"] == 1 and st2["B"]["vantaggio"] == 20.0,
    f"supplementari contati a parte, vantaggio medio senza supplementari {st2['B']['vantaggio']}")
-ok(st2["D"]["rec_neg_subiti"] == 0 and st2["A"]["n_ult"] == 4, "record negativi subiti e media sulle ultime n (meno di 10)")
+ok(st2["A"]["n_ult"] == 4, "media sulle ultime n (meno di 10)")
+# quintetto migliore possibile: per ruolo il più alto per fantapunti, non lo schierato
+ros = [{"espn_id": "1", "ruolo": "PG"}, {"espn_id": "2", "ruolo": "PG"}, {"espn_id": "3", "ruolo": "C"}, {"espn_id": "4", "ruolo": "SF"}]
+q = C.miglior_quintetto(ros, {"1": {"media": 20.0}, "2": {"media": 31.5}, "3": {"media": 12.0}})
+ok([x["espn_id"] for x in q] == ["2", "4", "3"], "quintetto migliore: il PG da 31,5 e non quello da 20, un giocatore per ruolo")
+# per conference: filtro della generale, ex aequo risolti sulla generale
+righe_g = [{**st2[t], "pos": i + 1} for i, t in enumerate(C.ordina(st2))]
+config.nome = lambda t: t
+dc = C.dati_conference(righe_g, 4, {"A": "Est", "D": "Est", "B": "Ovest", "C": "Ovest"})
+ok([(x["nome"], [(y["nome"], y["pos"], y["gen"]) for y in x["righe"]]) for x in dc["sezioni"]]
+   == [("Ovest", [("B", 1, 1), ("C", 2, 2)]), ("Est", [("A", 1, 3), ("D", 2, 4)])],
+   "per conference: stesso ordine della generale, posizione nella conference e nella generale")
 
 # ── dal database: risultati convalidati, immagini ──
 S = config.stagione()
@@ -51,6 +63,16 @@ try:
     import typst  # noqa: F401
     png, _ = C.immagine(False, S)
     png2, _ = C.immagine(True, S)
+    _conf = C.conference
+    C.conference = lambda: {a: "Est", b: "Est", c: "Ovest", d: "Ovest"}
+    png3, _ = C.immagine(False, S, per_conference=True)
+    C.conference = lambda: {}
+    try:
+        C.immagine(False, S, per_conference=True); senza = False
+    except RuntimeError as err:
+        senza = "divisions.json" in str(err)
+    C.conference = _conf
+    ok(png3[:4] == b"\x89PNG" and senza, "immagine per conference; senza conference configurate lo dice")
     ok(png[:8] == b"\x89PNG\r\n\x1a\n" and png2[:8] == b"\x89PNG\r\n\x1a\n", "immagini di /classifica e /classifica_full")
 except ImportError:
     print("(typst non installato: immagini non provate)")
