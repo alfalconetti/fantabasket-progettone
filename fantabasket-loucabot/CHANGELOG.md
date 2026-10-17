@@ -146,3 +146,13 @@ Il calcolo dei fantapunti.
 - **`/classifica_conference`**: la generale filtrata per conference (ex aequo risolti sulla generale), con la posizione nella conference e quella generale. Le conference vengono da `config/divisions.json`, chiave nuova `"conference": {"Nome": ["A", "B", "C"], ...}` (le division di `team_div`)
 - `/classifica_full`: record positivi/negativi subiti = volte in cui l'avversario ha fatto contro di te il **suo** massimo/minimo della stagione; le statistiche del quintetto sono sul **quintetto migliore possibile** per fantapunti (uno per ruolo dal roster di adesso), non su quello schierato
 
+## v29 (2026-10-17)
+
+- Un titolare messo anche in panchina (es. quintetto corretto dall'admin copiando Yahoo, con un giocatore che il GM aveva in panchina): in panchina conta **0**, tiene il suo posto (i supplementari non scalano) e non entra con la FADD. Avviso nel calcolo («titolare e anche in panchina»); sul foglio di controllo la sua riga di panchina è senza notti, quindi la formula dà 0 come il bot. Vale anche per il live
+
+## v30 (2026-10-18)
+
+- Titolare anche in panchina: **esce dalla panchina e gli altri scalano** (Luca, 18/10; nella v29 restava al suo posto con 0). Sul foglio di controllo la riga resta, senza notti né ordine dei supplementari
+- `/calendario [N] [SQUADRA]`: anche per un'altra squadra (id, nome o inizio del nome, nome del GM, come /roster), numero e squadra in qualsiasi ordine
+- **`/calendario_full [SQUADRA]`**: tutto il calendario di una squadra in un messaggio, coi risultati delle giornate convalidate (V/S, i suoi punti prima, supplementari) e il record
+

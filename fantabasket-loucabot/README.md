@@ -119,7 +119,8 @@ riscarica i tabellini: se ESPN ne ha corretto uno di un giocatore schierato, avv
 
 | Comando | Chi | Cosa |
 |---|---|---|
-| `/calendario [N]` | GM | la tua giornata (avversario, casa o trasferta, scadenza, squadre a media) e le prossime |
+| `/calendario [N] [SQUADRA]` | tutti | la giornata tua o di una squadra (avversario, casa o trasferta, scadenza, squadre a media) e le prossime |
+| `/calendario_full [SQUADRA]` | tutti | tutto il calendario di una squadra, coi risultati delle giornate convalidate |
 | `/giornata [N]` | tutti | le partite di una giornata, coi risultati convalidati |
 | `/classifica` · `/classifica_conference` · `/classifica_full` | tutti | classifica (immagine) · divisa per conference · con tutte le statistiche (file) |
 | `/player NOME` | tutti | squadra NBA e fantabasket, contratto, media dei fantapunti e statistiche della stagione, ultime 5 partite |

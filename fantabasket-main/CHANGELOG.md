@@ -1330,3 +1330,11 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - **Penalità** (bot principale): l'admin le dà dal pannello (⚠️ Penalità o `/penalita`) con la motivazione scritta, anteprima e conferma; pubblicate sul canale principale, mandate ai GM, riga sul log. Si sommano nella stagione (1ª, 2ª…) e si azzerano con la nuova, lo storico resta. Revoca dal pannello (canale corretto, GM e log avvisati). I GM le vedono con `/penalita` o dal /menu. Usa la tabella `penalita` di `schema.sql` (c'era, mai usata), con quattro colonne nuove
 - Foglio **Scelte**: tolta la scritta «Altre pick»; sotto il GM una riga vuota e poi «Penalità: N» in rosso, solo se la squadra ne ha. Serve `clasp push` + Nuova versione
 
+## v5.6.1 (2026-10-17)
+
+- loucabot v29: titolare anche in panchina → in panchina conta 0 (posto tenuto, niente FADD)
+
+## v5.6.2 (2026-10-18)
+
+- loucabot v30: titolare anche in panchina esce dalla panchina (gli altri scalano); `/calendario` anche per un'altra squadra; `/calendario_full`
+

@@ -130,6 +130,11 @@ S = calcolo.punteggio_squadra(G, Q, B, P)
 ok(S["fadd"] and S["fadd"]["esce"]["atleta"] == "3" and S["fadd"]["entra"]["atleta"] == "8" and S["totale"] == 94,
    f"FADD: il titolare PG senza partite e sempre col tag lascia il posto al primo panchinaro PG (totale 94) {S['fadd']}")
 ok([x["atleta"] for x in S["panchina"]] == ["9", "5"], "dopo la FADD la panchina scala")
+# titolare messo anche in panchina (quintetto corretto copiando Yahoo): esce dalla panchina, gli altri scalano
+Bd = [{"atleta": "1", "ruolo": "SF", "nome": "Uno"}, {"atleta": "3", "ruolo": "PG", "nome": "Tre"}] + B
+Sd = calcolo.punteggio_squadra(G, Q, Bd, P)
+ok([x["atleta"] for x in Sd["panchina"]] == ["9", "5"] and Sd["fadd"]["entra"]["atleta"] == "8" and Sd["totale"] == 94,
+   "titolare anche in panchina: esce dalla panchina, gli altri scalano, niente FADD con lui (nemmeno al posto di se stesso)")
 S2 = calcolo.punteggio_squadra(G, Q, [B[0]], P)
 ok(S2["fadd"] is None and S2["totale"] == 82 and any("nessun panchinaro" in a for a in S2["avvisi"]),
    "FADD possibile ma nessun panchinaro del ruolo: resta lo 0, con l'avviso")
@@ -216,7 +221,7 @@ db.salva_infortuni(date(2026, 11, 3), [{"atleta": "5", "nome": "Gioc 5", "stato"
 PM = calcolo.punteggio_giocatori("2026", G, ["5", "8", "9", "1", "2", "4", "6"])
 QM = [{"atleta": "5", "ruolo": "C", "nome": "Cinque"}] + [x for x in Q if x["atleta"] in ("1", "2", "4", "6")]
 SM = calcolo.punteggio_squadra(G, QM, [{"atleta": "9", "ruolo": "SF", "nome": "Nove"}, {"atleta": "8", "ruolo": "C", "nome": "Otto"},
-                                       {"atleta": "2", "ruolo": "PF", "nome": "Due bis"}], PM)
+                                       {"atleta": "3", "ruolo": "PF", "nome": "Tre bis"}], PM)
 ok(PM["5"]["come"] == "zero" and SM["fadd"] and SM["fadd"]["esce"]["atleta"] == "5" and SM["fadd"]["entra"]["atleta"] == "8",
    "squadra a media e titolare indisponibile tutta la giornata: FADD")
 ok(len(SM["panchina"]) == 2, "dopo la FADD la panchina scala, senza buchi")

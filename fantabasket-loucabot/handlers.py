@@ -58,15 +58,39 @@ def _riga_giornata(g: dict) -> str:
     return "\n".join(righe)
 
 
+def _argomenti(args) -> tuple[int | None, str]:
+    """(numero di giornata, testo della squadra) da /calendario [N] [SQUADRA] (in qualsiasi ordine)."""
+    n, resto = None, []
+    for a in args or []:
+        if n is None and a.isdigit():
+            n = int(a)
+        else:
+            resto.append(a)
+    return n, " ".join(resto).strip()
+
+
+def _squadra(update, testo: str) -> tuple[dict | None, str | None]:
+    """La squadra scritta (id, nome, GM; come /roster) o, senza testo, quella del GM. (squadra, errore)"""
+    if testo:
+        from shared.squadre import cerca_squadra
+        t = cerca_squadra(testo, config.squadre())
+        return (t, None) if t else (None, f"Nessuna squadra trovata con «{e(testo)}».")
+    return config.squadra_del_gm(update.effective_user.id), None
+
+
 async def cmd_calendario(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/calendario [N] [SQUADRA]: la giornata di una squadra (la propria se non scritta) e le prossime."""
     s = config.stagione()
-    n = _numero(context.args)
+    n, testo = _argomenti(context.args)
     g = db.giornata(s, n) if n else cal.corrente(s)
     if not g:
         await update.effective_message.reply_text(
             "Nessuna giornata in calendario." if not db.giornate(s) else f"La giornata {n} non c'è.")
         return
-    team = config.squadra_del_gm(update.effective_user.id)
+    team, errore = _squadra(update, testo)
+    if errore:
+        await update.effective_message.reply_text(errore, parse_mode="HTML")
+        return
     if not team:
         await _mostra_giornata(update, g)
         return
@@ -88,8 +112,50 @@ async def cmd_calendario(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 casa = p["casa"] == team["id"]
                 righe.append(f"• G{x['numero']} {x['dal']:%d/%m}: {'🏠' if casa else '✈️'} "
                              f"{e(config.nome(p['trasferta'] if casa else p['casa']))}")
-    righe += ["", "<i>/giornata per tutte le partite · /calendario N per un'altra giornata</i>"]
+    righe += ["", "<i>/giornata per tutte le partite · /calendario N [SQUADRA] per un'altra giornata o squadra · "
+                  "/calendario_full [SQUADRA] per tutta la stagione</i>"]
     await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
+
+
+def testo_calendario_full(s: str, team: dict) -> str:
+    """Tutte le giornate di una squadra: avversario, casa/trasferta e, se convalidato, il risultato."""
+    from numeri import testo as tp
+    tid = team["id"]
+    righe, v, l = [], 0, 0
+    for g in db.giornate(s):
+        p = db.partita_squadra(s, g["numero"], tid)
+        if not p:
+            continue
+        casa = p["casa"] == tid
+        avv = e(config.nome(p["trasferta"] if casa else p["casa"]))
+        t = f"G{g['numero']} · {g['dal']:%d/%m} {'🏠' if casa else '✈️'} {avv}"
+        r = _risultato(s, g["numero"], p)
+        if r:
+            mio, suo = (r["punti_casa"], r["punti_trasferta"]) if casa else (r["punti_trasferta"], r["punti_casa"])
+            vinta = (r["vince"] == "casa") == casa
+            v, l = v + vinta, l + (not vinta)
+            supp = " <i>(supp.)</i>" if r["supp_casa"] is not None else ""
+            t += f" — {'✅ V' if vinta else '❌ S'} <b>{tp(mio)}</b>–{tp(suo)}{supp}"
+        elif (_stato_calcolo(s, g["numero"]) or "") not in ("", "convalidata"):
+            t += " — ⏳ da convalidare"
+        righe.append(t)
+    if not righe:
+        return f"Nessuna partita in calendario per {e(team['nome'])}."
+    testa = [f"📅 <b>Calendario di {e(team['nome'])}</b>" + (f" · {v}V {l}S" if v + l else ""), ""]
+    return "\n".join(testa + righe + ["", "<i>Punti col bonus casa; i risultati dopo la convalida degli admin.</i>"])
+
+
+async def cmd_calendario_full(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/calendario_full [SQUADRA]: tutto il calendario della stagione di una squadra, coi risultati."""
+    _, testo = _argomenti(context.args)
+    team, errore = _squadra(update, testo)
+    if errore or not team:
+        await update.effective_message.reply_text(errore or "Uso: /calendario_full SQUADRA (o senza, la tua squadra)", parse_mode="HTML")
+        return
+    t = testo_calendario_full(config.stagione(), team)
+    if len(t) > 4000:                                   # non succede con un calendario normale, ma per sicurezza
+        t = t[:3990].rsplit("\n", 1)[0] + "\n…"
+    await update.effective_message.reply_text(t, parse_mode="HTML")
 
 
 def _risultato(s: str, n: int, p: dict) -> dict | None:
@@ -296,6 +362,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     testo = ("<b>loucabot</b> — calendario e punteggi della lega. Guida completa: /guida\n\n"
              "/calendario — la tua giornata: avversario, casa o trasferta, entro quando mettere la formazione, "
              "chi è a media, le prossime giornate. /calendario N per un'altra giornata\n"
+             "/calendario_full [SQUADRA] — tutto il calendario di una squadra, coi risultati\n"
              "/giornata [N] — tutte le partite di una giornata, coi risultati quando sono convalidati\n"
              "/player NOME — dove gioca nella NBA e nel fantabasket, contratto, media e statistiche della stagione\n"
              "/classifica — la classifica · /classifica_conference — divisa per conference · /classifica_full — con tutte le statistiche")
@@ -391,6 +458,7 @@ def get_handlers() -> list:
         CommandHandler("dev_version", cmd_dev_version),
         CommandHandler("job_status", cmd_job_status),
         CommandHandler("calendario", cmd_calendario),
+        CommandHandler("calendario_full", cmd_calendario_full),
         CommandHandler("giornata", cmd_giornata),
         CommandHandler("importa_calendario", cmd_importa_calendario),
         MessageHandler(filters.Document.ALL & filters.CaptionRegex(r"^/importa_calendario"), cmd_importa_calendario),

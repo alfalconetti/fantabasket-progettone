@@ -109,6 +109,9 @@ def calcola(stagione: str, n: int, g: dict | None = None, sch: dict | None = Non
                 avvisi.append(f"{nome}: quintetto incompleto ({', '.join(vuoti)}): 0 in quei ruoli")
             if s["panchina"] is None:
                 avvisi.append(f"{nome}: panchina non mandata, si gioca senza supplementari (penalità: decidono gli admin)")
+            doppi = [x["nome"] for x in b if x["gid"] and x["gid"] in {y["gid"] for y in q if y["gid"]}]
+            if doppi:
+                avvisi.append(f"{nome}: titolare e anche in panchina: {', '.join(doppi)} (tolto dalla panchina, gli altri scalano)")
             senza = [x["nome"] for x in q + b if x["gid"] and not x["atleta"]]
             if senza:
                 avvisi.append(f"{nome}: senza id ESPN, contano 0: {', '.join(senza)} (/espn_abbina)")
@@ -257,9 +260,14 @@ def griglia(c: dict) -> dict:
             in_campo = {x.get("atleta") for x in s["titolari"]}
             ordine = {x.get("atleta"): i for i, x in enumerate(s["panchina"], 1) if x.get("atleta")}
             prima = len(righe) + 1
+            tit_atleti = {y["atleta"] for y in c["squadre"][t]["quintetto"] if y["atleta"]}
             for x in c["squadre"][t]["quintetto"] + c["squadre"][t]["panchina"]:
                 a = x["atleta"]
                 p = c["punti"].get(a, {"fp": 0.0, "come": "zero", "nota": "senza id ESPN" if x["gid"] else "vuoto"})
+                doppio = x["posto"].startswith("P") and a in tit_atleti
+                if doppio:              # titolare e anche in panchina: fuori dalla panchina (niente notti né ordine sul foglio)
+                    p = {"fp": 0.0, "come": "zero", "nota": "anche titolare: tolto dalla panchina, gli altri scalano",
+                         "squadra": p.get("squadra")}
                 # le due colonne che la formula del punteggio usa, come le ha usate il bot:
                 # a media = la sua squadra non ha giocato (media, o 0 perché indisponibile)
                 zero_indisp = p["come"] == "zero" and p.get("nota", "").startswith("indisponibile")
@@ -271,7 +279,7 @@ def griglia(c: dict) -> dict:
                 if a and a == entra:
                     nota = f"FADD: entra al posto di {fadd['esce']['nome']}. " + nota
                 riga_n = len(righe) + 1
-                notti = [det["notti"].get(a, {}).get(d, "") if a else "" for d in giorni]
+                notti = [det["notti"].get(a, {}).get(d, "") if a and not doppio else "" for d in giorni]
                 stati = [det["status"].get(a, {}).get(d, "—") if a else "—" for d in giorni]
                 nba = p.get("squadra") or ""
                 rn = f"{L['N0']}{riga_n}:{L['NN']}{riga_n}"
@@ -281,7 +289,7 @@ def griglia(c: dict) -> dict:
                 valori = [nome_t, x["posto"], x["ruolo"] or "", x["nome"], nba] + notti + \
                          [det["medie"].get(a, 0.0) if a else 0.0, "sì" if a_media else "no"] + stati + \
                          ["sì" if indisp else "no", punteggio, come,
-                          "sì" if a in in_campo and a else "no", ordine.get(a, "") if a else "", nota.strip()]
+                          "sì" if a in in_campo and a and not doppio else "no", ordine.get(a, "") if a else "", nota.strip()]
                 fondo = SF_FADD if (a and a in (esce, entra)) else (SF_PANCA if x["posto"].startswith("P") else "")
                 nuova(valori, sfondo=fondo, colore=BLU)
                 for i in (iPUN, iCOME):

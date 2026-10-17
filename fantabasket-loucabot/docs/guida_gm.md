@@ -16,7 +16,11 @@ Scrivi `/calendario` e vedi la giornata in corso, o la prossima se non ne è in 
 - **🏀 il tuo avversario**, e se giochi in casa (+3 punti) o in trasferta;
 - **le prossime tre giornate**: 🏠 in casa, ✈️ in trasferta.
 
-`/calendario 12` mostra la giornata 12.
+`/calendario 12` mostra la giornata 12. Puoi anche guardare quella di un'altra squadra scrivendone l'id, il nome (anche solo l'inizio) o il nome del GM: `/calendario Buffalo`, `/calendario 12 Buffalo`.
+
+## Tutta la stagione: `/calendario_full`
+
+`/calendario_full` manda in un solo messaggio tutto il calendario della tua squadra: per ogni giornata la data, 🏠 casa o ✈️ trasferta e l'avversario, e per le giornate già convalidate il risultato (✅ V o ❌ S, i tuoi punti prima, «supp.» se si è andati ai supplementari), con il record in cima. `/calendario_full SQUADRA` per un'altra squadra.
 
 ## Tutte le partite: `/giornata`
 

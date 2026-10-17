@@ -71,7 +71,8 @@ schiera("team01", [10, 2, 3, 4, 9], [(7, "SF"), (6, "PG"), (8, "C"), (16, "PF"),
 # Beta: tutti giocano; r13 ha uno 0 con dei minuti (conta)
 schiera("team02", [11, 12, 13, 14, 1], [(21, "PG"), (22, "SG"), (24, "SF"), (23, "PF"), (25, "C")])
 # Gamma: r5 PG (IND, a media) Out tutta la giornata → FADD anche se IND non gioca; r30 (NOP) a media
-schiera("team03", [5, 21, 22, 24, 23], [(30, "SG"), (16, "PG"), (26, "C")])
+# in fondo alla panchina r21, che è anche titolare (quintetto copiato da Yahoo): esce dalla panchina
+schiera("team03", [5, 21, 22, 24, 23], [(30, "SG"), (16, "PG"), (26, "C"), (21, "PG")])
 # Delta: niente panchina (avviso), un ruolo vuoto
 schiera("team04", [25, 26, None, 9, 12], None)
 db.q("INSERT INTO ipa_stato_giornata (stagione, giornata, chiusa) VALUES (%s, %s, NOW())", (S, N))
@@ -88,7 +89,9 @@ ok(r2["sc"]["fadd"] and r2["sc"]["fadd"]["esce"]["atleta"] == "r5" and r2["sc"][
 ok(c["punti"]["r30"]["come"] == "media" and c["punti"]["r30"]["fp"] == 18, "squadra a media, disponibile: media della stagione")
 ok(any("Delta: panchina non mandata" in a for a in c["avvisi"]) and any("Delta: quintetto incompleto (Q-SF)" in a for a in c["avvisi"]),
    "avvisi: panchina mancante e quintetto incompleto")
-ok(len(r2["sc"]["panchina"]) == 2, "dopo la FADD la panchina di Gamma scala")
+ok(len(r2["sc"]["panchina"]) == 2 and "r21" not in [x["atleta"] for x in r2["sc"]["panchina"]]
+   and any("Gamma: titolare e anche in panchina: Prova 21" in a for a in c["avvisi"]),
+   "dopo la FADD la panchina di Gamma scala; r21, titolare e anche in panchina, esce dalla panchina (con l'avviso)")
 ok(r1["supplementari"] == 1 and r1["supp_casa"] == 9 and r1["supp_trasferta"] == 29,
    f"partita 1 ai supplementari: soli punti dei supplementari {r1['punti_casa']} {r1['punti_trasferta']} {r1['supp_casa']} {r1['supp_trasferta']}")
 
@@ -127,9 +130,12 @@ if shutil.which("soffice"):
            f"{rb['supplementari']} {rb['supp_casa']} {rb['supp_trasferta']} {vince_bot}")
     ip = gr["colonne"]["punteggio"]
     nomi = {f"Prova {i}": f"r{i}" for i in range(1, 41)}
-    diversi = [(r[3], r[ip], c["punti"][nomi[r[3]]]["fp"]) for r in foglio if len(r) > ip and r[3] in nomi
+    doppio = lambda r: r[1].startswith("P") and "tolto dalla panchina" in r[-1]
+    diversi = [(r[3], r[ip], c["punti"][nomi[r[3]]]["fp"]) for r in foglio if len(r) > ip and r[3] in nomi and not doppio(r)
                and num(r[ip]) != c["punti"][nomi[r[3]]]["fp"]]
     ok(not diversi, f"punteggio di ogni giocatore: foglio = bot {diversi[:3]}")
+    dd = [r for r in foglio if len(r) > ip and r[3] == "Prova 21" and doppio(r)]
+    ok(len(dd) == 1 and num(dd[0][ip]) == 0, f"foglio: il titolare che è anche in panchina, lì vale 0 e senza ordine {dd}")
 else:
     print("⚠️ LibreOffice non c'è: confronto col foglio saltato")
 
@@ -160,6 +166,16 @@ asyncio.run(_H._mostra_giornata(_upd, db.giornata(S, N)))
 from numeri import testo as _tp
 ok(f"{_tp(lr[0]['punti_casa'])} – {_tp(lr[0]['punti_trasferta'])}" in _risp[0] and "<b>" in _risp[0].split("\n\n", 1)[1]
    and "supp." in _risp[0], "/giornata: risultati convalidati, vincente in grassetto, supplementari " + _risp[0][-300:])
+ok(_H._argomenti(["7", "Beta"]) == (7, "Beta") and _H._argomenti(["buffalo", "brownies"]) == (None, "buffalo brownies"),
+   "/calendario: numero e squadra in qualsiasi ordine")
+t_beta = _H._squadra(_upd, "team02")[0]
+ok(t_beta and t_beta["id"] == "team02" and _H._squadra(_upd, "GA")[0]["id"] == "team01"
+   and _H._squadra(_upd, "zzzz")[1], "squadra per id, per nome del GM; non trovata: lo dice")
+tf = _H.testo_calendario_full(S, t_beta)
+rb = lr[0] if lr[0]["trasferta"] == "team02" or lr[0]["casa"] == "team02" else lr[1]
+mio = rb["punti_trasferta"] if rb["trasferta"] == "team02" else rb["punti_casa"]
+ok(f"G{N} ·" in tf and _tp(mio) in tf and ("✅ V" in tf or "❌ S" in tf) and "Calendario di Beta" in tf,
+   "/calendario_full: tutte le giornate della squadra, col risultato (i suoi punti prima) " + tf)
 t = R.testo(c, 2)
 ok("Giornata 7 calcolata</b> (ricalcolo 1)" in t and "FADD: esce Prova 10, entra Prova 6" in t and "Delta: panchina non mandata" in t,
    "messaggio per il gruppo admin: risultati, FADD, avvisi")

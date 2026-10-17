@@ -150,6 +150,10 @@ def punteggio_squadra(g: dict, quintetto: list[dict], panchina: list[dict], punt
     zero = {"fp": 0.0, "come": "zero", "nota": "senza id ESPN"}
     tit = [{**x, **punteggi.get(x.get("atleta"), zero)} for x in quintetto]
     pan = [{**x, **punteggi.get(x.get("atleta"), zero)} for x in panchina]
+    # un titolare messo anche in panchina (es. quintetto corretto dall'admin copiando Yahoo): esce
+    # dalla panchina e gli altri scalano (Luca, 18/10): niente supplementari né FADD con lui
+    titolari = {t.get("atleta") for t in tit if t.get("atleta")}
+    pan = [b for b in pan if b.get("atleta") not in titolari]
     fadd, avvisi = None, []
     candidati = []
     for i, t in enumerate(tit):
