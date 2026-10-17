@@ -54,6 +54,8 @@ def main():
     db.init_db()
     import live
     live.migra()
+    import formazioni_foglio
+    formazioni_foglio.migra()
     app = ApplicationBuilder().token(_token()).post_init(post_init).build()
     from handlers import _is_dev
     from shared import dev_comune
@@ -76,6 +78,8 @@ def main():
     app.job_queue.run_repeating(job_prepartita, interval=timedelta(minutes=10), first=120)
     # punteggi live: il job guarda ogni minuto, aggiorna ogni 10 (live.cosa_fare)
     app.job_queue.run_repeating(live.job_live, interval=timedelta(minutes=1), first=60)
+    # formazioni congelate sul foglio di controllo (e le correzioni degli admin), fino al calcolo
+    app.job_queue.run_repeating(formazioni_foglio.job_formazioni, interval=timedelta(minutes=5), first=90)
     logger.info("loucabot %s avviato.", BOT_VERSION)
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 

@@ -78,6 +78,28 @@ schiera("team04", [25, 26, None, 9, 12], None)
 db.q("INSERT INTO ipa_stato_giornata (stagione, giornata, chiusa) VALUES (%s, %s, NOW())", (S, N))
 
 ok(R.giornata_chiusa(S, N), "giornata chiusa su IPanchinari: si può calcolare")
+# ── formazioni sul foglio di controllo appena congelate (prima del calcolo) ──
+import formazioni_foglio as FF
+FF.migra(); db.q("TRUNCATE lega_foglio_formazioni")
+_t0 = datetime(2026, 11, 10, 23, 0, tzinfo=timezone.utc)
+db.q("UPDATE lega_giornate SET prima_partita = %s WHERE stagione = %s AND numero = %s", (_t0, S, N))
+_inviati = []
+async def _gas_ff(payload):
+    _inviati.append(payload); return {"ok": True}
+ff = asyncio.run(FF.aggiorna(ora=_t0 + timedelta(hours=1), manda=_gas_ff))
+_tab = _inviati[0]["righe"] if _inviati else []
+_cel = [c for r in _tab for c in r]
+ok(len(ff) == 1 and _inviati[0]["nome"] == f"Calcolo G{N}" and "Q-PG" in _cel and "P1" in _cel and "panchina non mandata" in _cel
+   and any("tolto dalla panchina" in str(x) for x in _cel) and not any(str(x).startswith("=") for x in _cel),
+   "alla scadenza: tab «Calcolo GN» coi soli schierati (quintetti, panchine in ordine), niente formule")
+ok(asyncio.run(FF.aggiorna(ora=_t0 + timedelta(hours=1), manda=_gas_ff)) == [] and len(_inviati) == 1, "niente cambi: non riscrive")
+db.q("UPDATE ipa_formazioni SET giocatore_id = %s WHERE stagione = %s AND giornata = %s AND team_id = 'team01' AND ruolo = 'C'",
+     (gid[16], S, N))
+ff2 = asyncio.run(FF.aggiorna(ora=_t0 + timedelta(hours=2), manda=_gas_ff))
+ok(len(ff2) == 1 and "aggiornate" in ff2[0] and len(_inviati) == 2, "un admin corregge una formazione: il tab si riscrive")
+db.q("UPDATE ipa_formazioni SET giocatore_id = %s WHERE stagione = %s AND giornata = %s AND team_id = 'team01' AND ruolo = 'C'",
+     (gid[9], S, N))
+db.q("UPDATE lega_giornate SET prima_partita = NULL WHERE stagione = %s AND numero = %s", (S, N))
 c = R.calcola(S, N)
 r1, r2 = c["risultati"]
 ok(r1["sc"]["fadd"] and r1["sc"]["fadd"]["esce"]["atleta"] == "r10" and r1["sc"]["fadd"]["entra"]["atleta"] == "r6",

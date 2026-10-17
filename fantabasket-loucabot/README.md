@@ -107,6 +107,8 @@ giocatore; ogni giorno lo stesso con i giocatori nuovi dei tabellini. Gli altri:
 
 ## Calcolo della giornata
 
+Alla **scadenza**, quando IPanchinari congela la giornata, il tab «Calcolo GN» mostra già gli
+schierati (quintetti e panchine, senza punteggi), aggiornati entro 5 minuti se un admin li corregge.
 Alle **7:45** del giorno dopo l'ultima notte il bot calcola la giornata coi tabellini definitivi, dai
 quintetti congelati e dalle panchine di IPanchinari; scrive il tab «Calcolo GN» del foglio di
 controllo (una riga per giocatore, formule che rifanno i conti del bot) e manda la proposta al

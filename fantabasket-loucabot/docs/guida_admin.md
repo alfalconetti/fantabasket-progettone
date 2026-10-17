@@ -34,6 +34,8 @@ Gli admin sono quelli di `admin_ids` in `globals.json`, gli stessi degli altri b
 
 ## Il calcolo della giornata
 
+**Alla scadenza**, appena IPanchinari congela quintetti e panchine, nel tab **«Calcolo GN»** del foglio di controllo esce l'elenco degli schierati, per trasparenza verso i GM: per ogni partita, per ogni squadra, i 5 del quintetto e la panchina in ordine, col ruolo e la squadra NBA (panchina non mandata, posti vuoti e doppioni sono segnati). Niente punteggi né formule. Se un admin corregge una formazione o una panchina, il tab si riscrive entro 5 minuti (riga sul canale log). Il calcolo della mattina riscrive lo stesso tab per intero.
+
 **Alle 7:45** del giorno dopo l'ultima notte della giornata il bot calcola da solo, coi tabellini definitivi: riscarica partite e tabellini, prende i quintetti congelati alla scadenza e le panchine da IPanchinari e applica le regole qui sotto. Poi:
 - scrive il tab **«Calcolo GN»** del foglio di controllo del calcolo: una riga per giocatore coi fantapunti di ogni notte, la media della stagione, lo status di ogni notte, il punteggio, chi è in campo (FADD), l'ordine dei supplementari, e in cima il riquadro dei risultati. Punteggi, totali, supplementari e vincitore sono **formule** che rifanno i conti del bot: se tutto quadra sul foglio, quadra anche nel bot. I dati scritti dal bot sono in blu, le formule in nero, le righe della FADD in arancione;
 - manda al gruppo admin la proposta: risultati, FADD, avvisi (panchina mancante → senza supplementari, quintetto incompleto, giocatori senza id ESPN), con **✅ Convalida** e **🔄 Ricalcola**.

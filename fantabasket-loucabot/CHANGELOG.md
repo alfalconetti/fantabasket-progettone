@@ -156,3 +156,7 @@ Il calcolo dei fantapunti.
 - `/calendario [N] [SQUADRA]`: anche per un'altra squadra (id, nome o inizio del nome, nome del GM, come /roster), numero e squadra in qualsiasi ordine
 - **`/calendario_full [SQUADRA]`**: tutto il calendario di una squadra in un messaggio, coi risultati delle giornate convalidate (V/S, i suoi punti prima, supplementari) e il record
 
+## v31 (2026-10-18)
+
+- **Formazioni sul foglio di controllo alla scadenza**: quando IPanchinari congela la giornata, il tab «Calcolo GN» mostra subito gli schierati (per partita e squadra: quintetto, panchina in ordine, ruolo, squadra NBA; panchina non mandata, posti vuoti e titolari anche in panchina segnati), senza punteggi né formule. Si riscrive entro 5 minuti se un admin corregge formazioni o panchine (riga sul canale log); il calcolo della mattina lo sostituisce con quello completo. Tabella nuova `lega_foglio_formazioni` (creata all'avvio)
+

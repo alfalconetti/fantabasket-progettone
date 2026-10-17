@@ -1334,6 +1334,10 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - loucabot v29: titolare anche in panchina → in panchina conta 0 (posto tenuto, niente FADD)
 
+## v5.7.0 (2026-10-18)
+
+- loucabot v31: alla scadenza le formazioni congelate (quintetti e panchine) sul tab «Calcolo GN» del foglio di controllo, aggiornate se un admin le corregge, fino al calcolo
+
 ## v5.6.2 (2026-10-18)
 
 - loucabot v30: titolare anche in panchina esce dalla panchina (gli altri scalano); `/calendario` anche per un'altra squadra; `/calendario_full`
