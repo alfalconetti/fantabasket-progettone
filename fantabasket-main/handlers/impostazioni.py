@@ -269,7 +269,9 @@ async def applica(bot, user, chiave: str, nuovo) -> str:
     g = settings.load_globals()
     pubblico = f"⚙️ <b>Impostazioni</b> · {e(v[2])}: {e(fmt(vecchio))}{e(unita)} → <b>{e(fmt(nuovo))}{e(unita)}</b>"
     await _manda(bot, g.get("main_channel_id"), pubblico)
-    await _manda(bot, g.get("log_channel_id_main"), f"{pubblico}\n<code>{e(chiave)}</code> · admin {e(_chi(user))}{e(extra)}")
+    from handlers.registro import segna            # registro + riga sul canale log (formato unico)
+    await segna(bot, user, "admin", "impostazione cambiata", oggetto=f"{v[2]} ({chiave})",
+                prima=f"{fmt(vecchio)}{unita}", dopo=f"{fmt(nuovo)}{unita}", nota=extra.strip() or None)
     return pubblico + e(extra)
 
 

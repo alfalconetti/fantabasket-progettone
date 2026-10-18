@@ -107,3 +107,8 @@ Primo rilascio: panchine e quintetti.
 ## v23 (2026-10-18)
 
 - Alla chiusura della giornata, nel gruppo admin, anche le **panchine con giocatori non più in squadra alla scadenza** (penalità: decidono gli admin; nel calcolo escono e gli altri scalano) e i **titolari non più in squadra** (da correggere da Yahoo). Dal registro dei movimenti del bot principale: chi è ceduto dopo la scadenza non viene segnalato
+
+## v24 (2026-10-19)
+
+- **Registro delle azioni** (main v6.0.0, `registro.py`): panchine mandate e corrette (GM, o admin per conto), quintetti cambiati e confermati (GM, o admin per conto), quintetto e formazione corretti da /quintetto_admin, quintetti importati, formazioni controllate ☑️ e controlli tolti, panchine ripubblicate, soprannomi cancellati, chiusura della giornata (sistema) lasciano una riga nel registro condiviso con gli altri bot, con chi, veste e prima → dopo; si consulta dal bot principale. Sul canale log restano le righe di sempre, che avevano già il nome di chi (niente doppioni)
+- Prova: controlli del registro in `ipa_panchine`

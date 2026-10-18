@@ -191,7 +191,8 @@ def _sync():
         logger.warning("GAS sync dopo cambio ruolo: %s", e)
 
 
-async def _esegui(bot, team_id: str, gid: int, nuovo: str, tipo: str, chi: str) -> str:
+async def _esegui(bot, team_id: str, gid: int, nuovo: str, tipo: str, chi: str, user=None, veste: str = "gm",
+                  azione: str | None = None) -> str:
     vecchio = applica(team_id, gid, nuovo, tipo)
     nome = (db.get_giocatore(gid) or {}).get("nome_common", str(gid))
     extra = ""
@@ -202,6 +203,10 @@ async def _esegui(bot, team_id: str, gid: int, nuovo: str, tipo: str, chi: str) 
         extra = f" — fino al {fine}, poi torna {vecchio}"
     await _annuncia(bot, f"🔁 <b>{_nome_team(team_id)}</b>: {nome} {vecchio} → <b>{nuovo}</b>\n"
                          f"<i>{ETICHETTE[tipo]}{extra}{chi}</i>")
+    from handlers.registro import segna
+    await segna(bot, user, veste, azione or ("cambio ruolo per conto della squadra" if veste == "admin" else "cambio ruolo"),
+                squadre=team_id, giocatore_id=gid, oggetto=nome, prima=vecchio, dopo=nuovo,
+                nota=f"{ETICHETTE[tipo]}{extra}")
     _sync()
     return f"✅ {nome}: {vecchio} → <b>{nuovo}</b> ({ETICHETTE[tipo]}{extra})"
 
@@ -362,12 +367,16 @@ async def cb_cambio(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                               "aspetta la risposta degli admin.")
                 return
             await _richiedi_saedro(context.bot, team_id, gid, nuovo, query.from_user)
+            from handlers.registro import segna
+            await segna(context.bot, query.from_user, "gm", "Saedro chiesta", squadre=team_id, giocatore_id=gid,
+                        oggetto=(db.get_giocatore(gid) or {}).get("nome_common", str(gid)), dopo=f"{nuovo} se approvata")
             await query.edit_message_text("📨 Richiesta di Saedro inviata agli admin. Ti arriva un messaggio quando decidono.")
             return
         chi = f" — {query.from_user.first_name or 'admin'}" if admin_mode else ""
         if tipo == "saedro":   # Saedro diretta dell'admin: chiude l'eventuale richiesta del GM
             db.chiudi_richiesta("saedro", gid, "approvata", query.from_user.first_name or "admin")
-        esito = await _esegui(context.bot, team_id, gid, nuovo, tipo, chi)
+        esito = await _esegui(context.bot, team_id, gid, nuovo, tipo, chi, user=query.from_user,
+                              veste="admin" if admin_mode else "gm")
         await query.edit_message_text(esito, parse_mode="HTML",
                                       reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔁 Altri cambi", callback_data=f"{p}:t:{team_id}")]]))
         if admin_mode:
@@ -411,6 +420,10 @@ async def cb_saedro(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         await query.edit_message_text(query.message.text_html + f"\n\n❌ <b>Rifiutata</b> da {admin_nome}", parse_mode="HTML")
         await _ai_gm(context.bot, team_id, f"❌ La richiesta di Saedro per il ruolo {nuovo} è stata rifiutata.")
+        from handlers.registro import segna
+        await segna(context.bot, query.from_user, "admin", "Saedro rifiutata", squadre=team_id, giocatore_id=gid,
+                    oggetto=(db.get_giocatore(gid) or {}).get("nome_common", str(gid)), prima="chiesta",
+                    dopo="rifiutata", nota=f"verso {nuovo}")
         return
     errori, _ = verifica(team_id, gid, nuovo, "saedro", admin=True)
     if errori:
@@ -420,7 +433,8 @@ async def cb_saedro(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if db.chiudi_richiesta("saedro", gid, "approvata", admin_nome) == "gestita":
         await query.edit_message_text(query.message.text_html + gia, parse_mode="HTML")
         return
-    esito_txt = await _esegui(context.bot, team_id, gid, nuovo, "saedro", f" — approvata da {admin_nome}")
+    esito_txt = await _esegui(context.bot, team_id, gid, nuovo, "saedro", f" — approvata da {admin_nome}",
+                              user=query.from_user, veste="admin", azione="Saedro approvata")
     await query.edit_message_text(query.message.text_html + f"\n\n✅ <b>Approvata</b> da {admin_nome}", parse_mode="HTML")
     await _ai_gm(context.bot, team_id, f"✅ Saedro approvata. {esito_txt[2:]}")
 
@@ -462,6 +476,9 @@ async def job_fine_saedro(context: ContextTypes.DEFAULT_TYPE):
                      f"{c['ruolo_a']} → <b>{c['ruolo_ripristino']}</b>")
             await _annuncia(context.bot, testo)
             await _ai_gm(context.bot, c["team_id"], testo)
+            from handlers.registro import segna_sync
+            segna_sync(None, "sistema", "fine Saedro", squadre=c["team_id"], giocatore_id=c["giocatore_id"],
+                       oggetto=c["nome_common"], prima=c["ruolo_a"], dopo=c["ruolo_ripristino"])
         if fatto:
             _sync()
     except Exception as e:

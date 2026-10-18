@@ -200,10 +200,13 @@ async def cb_nuovi(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await query.answer()
     chi = query.from_user.first_name or str(query.from_user.id)
+    veste = "dev" if query.from_user.id == settings.dev_id() else "admin"
+    from handlers.registro import segna
     if query.data == "brefn:no":
         n = db._qval("WITH x AS (UPDATE bref_nuovi SET stato = 'ignorato', deciso = NOW(), da = %s "
                      "WHERE stato = 'proposto' RETURNING 1) SELECT count(*) FROM x", (chi,)) or 0
         await query.edit_message_text(f"❌ {n} giocatori ignorati: non verranno riproposti.")
+        await segna(context.bot, query.from_user, veste, "bref: nuovi ignorati", oggetto=f"{n} giocatori", dopo="ignorati")
         return
     parti = query.data.split(":")
     if parti[1] in ("l", "c"):
@@ -211,12 +214,19 @@ async def cb_nuovi(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not p or p["stato"] != "proposto":
             pass                                          # già deciso (altro tocco, altro admin)
         elif parti[1] == "l":
+            prima = db._qval("SELECT nome_bref FROM giocatori WHERE id = %s", (int(parti[3]),))
             _collega(int(parti[3]), p["nome_bref"], chi)
+            await segna(context.bot, query.from_user, veste, "bref: giocatore collegato", giocatore_id=int(parti[3]),
+                        oggetto=(db.get_giocatore(int(parti[3])) or {}).get("nome_common"), prima=prima or "—",
+                        dopo=p["nome_bref"])
         else:
             if not db._qval("SELECT 1 FROM giocatori WHERE nome_bref = %s", (p["nome_bref"],)):
                 db._q("INSERT INTO giocatori (nome_bref, nome_common, nome_norm) VALUES (%s, %s, %s)",
                       (p["nome_bref"], p["nome_bref"], normalizza(p["nome_bref"])))
             db._q("UPDATE bref_nuovi SET stato = 'creato', deciso = NOW(), da = %s WHERE id = %s", (chi, p["id"]))
+            await segna(context.bot, query.from_user, veste, "bref: giocatore creato",
+                        giocatore_id=db._qval("SELECT id FROM giocatori WHERE nome_bref = %s", (p["nome_bref"],)),
+                        oggetto=p["nome_bref"], dopo="creato")
         testo, kb = _testo_nuovi()
         await query.edit_message_text(testo, parse_mode="HTML", reply_markup=kb)
         return
@@ -237,6 +247,9 @@ async def cb_nuovi(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 cur.execute("UPDATE bref_nuovi SET stato = 'creato', deciso = NOW(), da = %s WHERE nome_bref = %s",
                             (chi, nome))
     elenco = ", ".join(html.escape(n) for n in creati[:40]) + (" …" if len(creati) > 40 else "")
+    if creati:
+        await segna(context.bot, query.from_user, veste, "bref: giocatori creati", oggetto=f"{len(creati)} giocatori",
+                    dopo="creati", nota=", ".join(creati)[:800])
     testo, kb = _testo_nuovi()
     await query.edit_message_text(f"✅ Creati <b>{len(creati)}</b> giocatori: {elenco or '—'}\n\n" + testo,
                                   parse_mode="HTML", reply_markup=kb)

@@ -641,3 +641,11 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 ## v67 — numeri del regolamento in settings.json
 
 - Tolta la costante `DURATA_ASTA_H` (18), mai usata: la durata delle aste è da sempre `durata_asta_ore` di settings.json. I minimi per ruolo usati dai controlli dei ruoli (`shared/ruoli_core`) ora vengono da settings.json
+
+## v68 — registro delle azioni
+
+- Ogni azione che cambia qualcosa lascia una riga nel registro delle azioni condiviso con gli altri bot (`registro.py`, main v6.0.0): aste aperte (GM, admin per conto, RFA dichiarate dal job, RFA a mano), offerte (GM; per conto con `/crea_offerta`, una sola riga in veste admin), offerte annullate, aste chiuse in anticipo, annullate, riaperte, estese o accorciate, scadenze spostate, ripubblicate, esiti rimandati, firme dopo l'asta e pareggi (GM, o sistema se è scaduto il tempo o vale una preimpostazione), RFA lasciato andare, preimpostazioni di pareggio e rifiuto, diritti RFA passati con una trade, mercato aperto/chiuso, cap e slot anticipati (e tolti), broadcast
+- Le azioni da admin vanno anche sul canale log di questo bot (`log_channel_id`) nel formato unico; dove c'era già una riga (mercato, estendi/sposta, offerta per conto) ora c'è quella, non due
+- Senza PostgreSQL il bot funziona come prima: la riga nel registro manca (avviso nel log del processo), quella sul canale log arriva
+- Prova: `registro_aste`
+

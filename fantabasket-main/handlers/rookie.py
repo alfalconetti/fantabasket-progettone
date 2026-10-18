@@ -92,9 +92,14 @@ def esegui_attivazione(rookie_id: int, team_id: str, importo: int, anni: int) ->
 
 
 async def _dopo_attivazione(bot, team_id: str, r: dict, importo: int, anni: int,
-                            admin_nome: str | None = None) -> None:
-    """Annuncio sul canale, avviso al GM se ha fatto un admin, ruolo da dichiarare (RS), sync fogli."""
+                            admin_nome: str | None = None, user=None) -> None:
+    """Registro, annuncio sul canale, avviso al GM se ha fatto un admin, ruolo da dichiarare (RS), sync fogli."""
     team = tm.get_team_by_id(team_id) or {"nome": team_id}
+    from handlers.registro import segna
+    await segna(bot, user, "admin" if admin_nome else "gm",
+                "diritti rookie attivati per conto della squadra" if admin_nome else "diritti rookie attivati",
+                squadre=team_id, giocatore_id=r["giocatore_id"], oggetto=r["nome_common"], prima="diritti",
+                dopo=f"{importo}M × {anni}", nota=f"#{r['pick_numero']} {r['anno_draft']}")
     anni_str = "anno" if anni == 1 else "anni"
     main_channel = settings.load_globals().get("main_channel_id")
     if main_channel:
@@ -275,7 +280,7 @@ async def cb_conferma_firma_rookie(update: Update, context: ContextTypes.DEFAULT
         f"Contratto: <b>{importo}M × {anni} {anni_str}</b> (rookie scale){nota_ruolo}",
         parse_mode="HTML",
     )
-    await _dopo_attivazione(context.bot, team["id"], r, importo, anni)
+    await _dopo_attivazione(context.bot, team["id"], r, importo, anni, user=user)
     return ConversationHandler.END
 
 
@@ -375,7 +380,8 @@ async def cb_admin_attiva(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"✅ <b>{riga['nome_common']}</b> firmato per {team['nome']}: {importo}M × {anni} {anni_str}",
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("← Squadre", callback_data="adm:rookie")]]))
-        await _dopo_attivazione(context.bot, r["team_id"], riga, importo, anni, admin_nome=admin_nome)
+        await _dopo_attivazione(context.bot, r["team_id"], riga, importo, anni, admin_nome=admin_nome,
+                                user=query.from_user)
 
 
 # ── Scadenza diritti 2nd (bottone dal job check_scadenza_diritti) ─────────────
@@ -439,6 +445,11 @@ async def cb_scadi_diritti(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.warning("Annuncio canale scadenza diritti fallito: %s", e)
 
     logger.info("Diritti 2nd %d scaduti (%d) da %s", anno, len(scaduti), admin_nome)
+    from handlers.registro import segna
+    await segna(context.bot, user, "admin", f"diritti 2nd {anno} scaduti", squadre=sorted(per_team),
+                oggetto=f"{len(scaduti)} giocatori", prima="diritti", dopo="free agent",
+                nota="; ".join(f"{(tm.get_team_by_id(t) or {}).get('nome', t)}: {', '.join(sorted(n))}"
+                               for t, n in sorted(per_team.items())))
 
     try:
         import gas_client

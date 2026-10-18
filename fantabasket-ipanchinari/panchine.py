@@ -361,6 +361,14 @@ async def pubblica(update, context, b: dict):
                               + "\n".join(f"{i}. {e(r['testo'])} → {e(nomi.get(r['giocatore_id'], '?'))}"
                                           for i, r in enumerate(righe, 1))
                               + ("\n\nℹ️ " + "\nℹ️ ".join(e(x) for x in av) if av else ""), parse_mode="HTML")
+    from registro import segna_sync
+    segna_sync(update.effective_user, "admin" if b["fonte"] == "admin" else "gm",
+               ("panchina corretta" if b["dati"].get("correzione") else "panchina mandata")
+               + (" per conto della squadra" if b["fonte"] == "admin" else ""),
+               squadre=b["team_id"], oggetto=f"panchina G{b['giornata']}",
+               prima="una panchina già mandata" if precedente else None,
+               dopo=", ".join(nomi.get(r["giocatore_id"], "?") for r in righe),
+               nota="a giornata chiusa" if b["dati"].get("correzione") else None)
     await log(context.bot, f"🪑 Panchina G{b['giornata']} {e(config.nome(b['team_id']))} da {chi(update)}"
                            + (" (admin)" if b["fonte"] == "admin" else "") + ": "
                            + ", ".join(e(nomi.get(r["giocatore_id"], "?")) for r in righe)
@@ -562,6 +570,9 @@ async def cmd_ripubblica_panchine(update: Update, context: ContextTypes.DEFAULT_
         except Exception as err:
             logger.warning("Fine ripubblicazione: %s", err)
         await log(context.bot, f"📣 /ripubblica_panchine G{g['numero']} di {chi_}: {fatte} mandate, {len(errori)} errori")
+        from registro import segna_sync
+        segna_sync(update.effective_user, "admin", "panchine ripubblicate", oggetto=f"giornata {g['numero']}",
+                   dopo=f"{fatte} mandate, {len(errori)} errori")
     app = getattr(context, "application", None)
     if app:
         app.create_task(lavoro())         # non blocca il bot per il minuto e mezzo

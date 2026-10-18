@@ -269,8 +269,15 @@ def testi_taglio(team: dict, v: dict) -> tuple[str, str]:
     return risposta, canale
 
 
-async def dopo_taglio(bot, team: dict, v: dict, admin_nome: str | None = None) -> None:
-    """Annuncio sul canale, avviso al GM se ha tagliato un admin, sync dei fogli."""
+async def dopo_taglio(bot, team: dict, v: dict, admin_nome: str | None = None, user=None) -> None:
+    """Registro delle azioni, annuncio sul canale, avviso al GM se ha tagliato un admin, sync dei fogli.
+    Veste: admin se arriva dal pannello (admin_nome), gm se dal /taglia del GM."""
+    from handlers.registro import segna
+    c = v["contratto"]
+    await segna(bot, user, "admin" if admin_nome else "gm", "taglio", squadre=team["id"],
+                giocatore_id=v["giocatore"].get("id") or c.get("giocatore_id"), oggetto=v["giocatore"]["nome_common"],
+                prima=f"{c['importo']}M × {v['anni_res']}", dopo="tagliato",
+                nota=("gratuito" if v["gratuito"] else "rate: " + ", ".join(f"{r['stagione']} {r['importo']}M" for r in v["rate"])))
     _, canale = testi_taglio(team, v)
     if admin_nome:
         canale += f"\n<i>Registrato da un admin ({admin_nome})</i>"
@@ -312,7 +319,7 @@ async def cb_conferma_taglio(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
     risposta, _ = testi_taglio(team, v)
     await query.edit_message_text(risposta, parse_mode="HTML")
-    await dopo_taglio(context.bot, team, v)
+    await dopo_taglio(context.bot, team, v, user=update.effective_user)
 
 
 async def cb_annulla_taglio(update: Update, context: ContextTypes.DEFAULT_TYPE):

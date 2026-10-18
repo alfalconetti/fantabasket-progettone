@@ -74,7 +74,9 @@ async def estendi_asta(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     from handlers.helpers import aggiorna_canale, log_warn as _lw
     await aggiorna_canale(context, asta_id)
-    await _lw(context, f"⏰ Asta <b>{asta['giocatore']}</b> {azione} da <b>{admin_label}</b>. Nuova scadenza: {utils.format_dt(nuovo.isoformat())}")
+    from registro import segna_asta
+    await segna_asta(context.bot, update.effective_user, "admin", f"asta {azione}", asta,
+                     prima=f"scade {utils.format_dt(asta['scade_at'])}", dopo=f"scade {utils.format_dt(nuovo.isoformat())}")
 
     channel_id = utils.get_channel_id()
     try:
@@ -158,7 +160,9 @@ async def sposta_asta(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     from handlers.helpers import aggiorna_canale, log_warn as _lw
     await aggiorna_canale(context, asta_id)
-    await _lw(context, f"⏰ Asta <b>{asta['giocatore']}</b> spostata a {utils.format_dt(nuovo.isoformat())} da <b>{admin_label}</b>.")
+    from registro import segna_asta
+    await segna_asta(context.bot, update.effective_user, "admin", "scadenza dell'asta spostata", asta,
+                     prima=f"scade {utils.format_dt(asta['scade_at'])}", dopo=f"scade {utils.format_dt(nuovo.isoformat())}")
 
     channel_id = utils.get_channel_id()
     try:
@@ -286,6 +290,9 @@ async def riapri_asta(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     nuova_scadenza = datetime.now(timezone.utc) + timedelta(hours=ore)
     db.riapri_asta(asta_id, nuova_scadenza.isoformat())
+    from registro import segna_asta
+    await segna_asta(context.bot, update.effective_user, "admin", "asta riaperta", asta, prima=asta["stato"].lower(),
+                     dopo=f"aperta, scade {utils.format_dt(nuova_scadenza.isoformat())}")
     await _notifica_riapertura(context, dict(asta), nuova_scadenza, admin_label)
 
     await update.effective_message.reply_text(
@@ -408,6 +415,10 @@ async def riapri_annullata_callback(update: Update, context: ContextTypes.DEFAUL
 
     db.riapri_asta(asta_id, nuova_scadenza.isoformat())
     admin_label = _admin_label(query.from_user)
+    from registro import segna_asta
+    await segna_asta(context.bot, query.from_user, "admin", "asta riaperta", asta, prima=asta["stato"].lower(),
+                     dopo=f"aperta, scade {utils.format_dt(nuova_scadenza.isoformat())}",
+                     nota="confermato dal gruppo admin" if prefix == "riapri_cap" else None)
     await _notifica_riapertura(context, dict(asta), nuova_scadenza, admin_label)
 
     await query.edit_message_text(

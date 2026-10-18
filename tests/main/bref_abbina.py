@@ -46,7 +46,9 @@ class Q:
 import settings
 settings.dev_id = lambda: 1
 async def premi(data):
-    q = Q(data); await BR.cb_nuovi(types.SimpleNamespace(callback_query=q), None); return q
+    class _Bot:
+        async def send_message(s, **k): pass
+    q = Q(data); await BR.cb_nuovi(types.SimpleNamespace(callback_query=q), types.SimpleNamespace(bot=_Bot())); return q
 asyncio.run(premi("brefn:ok"))
 ok(db._qval("SELECT 1 FROM giocatori WHERE nome_bref = 'Gioc Nuovo Davvero'") and
    not db._qval("SELECT 1 FROM giocatori WHERE nome_bref = 'Zaccharie Risacher Prov'"),

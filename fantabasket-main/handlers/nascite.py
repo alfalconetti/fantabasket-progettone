@@ -62,10 +62,14 @@ def _etichetta(g: dict) -> str:
     return g["nome_common"] + (f" ({t['nome']})" if t else "")
 
 
-def _salva(gid: int, d: date) -> str:
+def _salva(gid: int, d: date, user=None) -> str:
     prima = db._qval("SELECT data_nascita FROM giocatori WHERE id = %s", (gid,))
     db._q("UPDATE giocatori SET data_nascita = %s WHERE id = %s", (d, gid))
     nome = (db.get_giocatore(gid) or {}).get("nome_common", str(gid))
+    if prima != d:      # registro: una riga per giocatore; sul canale log il riassunto (vedi cmd_set_nascita)
+        from handlers.registro import segna_sync
+        segna_sync(user, "admin", "data di nascita", giocatore_id=gid, oggetto=nome,
+                   prima=prima.isoformat() if prima else "mancante", dopo=d.isoformat())
     extra = f" <i>(prima {prima.strftime('%d/%m/%Y')})</i>" if prima and prima != d else ""
     return f"✅ {html.escape(nome)}: {d.strftime('%d/%m/%Y')}{extra}"
 
@@ -94,7 +98,7 @@ async def cmd_set_nascita(update: Update, context: ContextTypes.DEFAULT_TYPE):
         nome, d = p
         esatti = nomi.esatti(nome, anagrafica)
         if len(esatti) == 1:
-            salvati.append(_salva(esatti[0]["id"], d))
+            salvati.append(_salva(esatti[0]["id"], d, update.effective_user))
             continue
         candidati = esatti or [g for g, _ in nomi.simili(nome, anagrafica)]
         if candidati:
@@ -114,6 +118,10 @@ async def cmd_set_nascita(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if da_scegliere:
         out += ["", f"🔎 {len(da_scegliere)} da confermare qui sotto."]
     await update.effective_message.reply_text("\n".join(out) or "Niente da fare.", parse_mode="HTML")
+    if salvati:
+        from handlers.registro import solo_log
+        await solo_log(context.bot, update.effective_user, "admin", "date di nascita", oggetto=f"{len(salvati)} giocatori",
+                       dopo="salvate", nota="una riga per giocatore nel /registro")
 
     for nome, d, candidati, omonimi in da_scegliere:
         kb = [[InlineKeyboardButton(_etichetta(g), callback_data=f"nasc:{g['id']}:{d.strftime('%Y%m%d')}")]
@@ -136,7 +144,7 @@ async def cb_nascita(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     _, gid, ymd = query.data.split(":")
     d = date(int(ymd[:4]), int(ymd[4:6]), int(ymd[6:]))
-    await query.edit_message_text(_salva(int(gid), d), parse_mode="HTML")
+    await query.edit_message_text(_salva(int(gid), d, query.from_user), parse_mode="HTML")
 
 
 def testi_mancanti() -> list[str]:

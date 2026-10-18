@@ -135,7 +135,7 @@ def _effetto(pre_deadline: bool, gid: int) -> str:
     return f"🔁 Cambio ruolo aggiuntivo gratuito{verso} (post-deadline, nessuno slot liberato)"
 
 
-async def applica_dpe(bot, gid: int, team_id: str, admin_tag: str, da_admin: bool) -> tuple[str | None, str]:
+async def applica_dpe(bot, gid: int, team_id: str, admin_tag: str, da_admin: bool, user=None) -> tuple[str | None, str]:
     """Applica la DPE con i dati di ADESSO: contratto della squadra, fase (pre/post
     deadline), importo. Restituisce (errore, testo_esito). Usata dall'approvazione
     della richiesta del GM e dalla DPE diretta del pannello admin."""
@@ -161,6 +161,11 @@ async def applica_dpe(bot, gid: int, team_id: str, admin_tag: str, da_admin: boo
     db.inserisci_dpe(giocatore_id=gid, team_id=team_id, stagione=stagione,
                      importo_originale=importo_orig, importo_dpe=importo_new,
                      pre_deadline=pre_deadline, approvata_da=admin_tag)
+    from handlers.registro import segna
+    await segna(bot, user, "admin", "DPE per conto della squadra" if da_admin else "DPE approvata", squadre=team_id,
+                giocatore_id=gid, oggetto=giocatore["nome_common"], prima=f"{importo_orig}M",
+                dopo=f"{importo_new}M (DPE {stagione})", nota="pre-deadline: libera uno slot" if pre_deadline
+                else "post-deadline: cambio ruolo aggiuntivo")
 
     esito = (f"✅ DPE {'registrata' if da_admin else 'approvata'} — <b>{giocatore['nome_common']}</b>\n"
              f"{importo_orig}M → {importo_new}M (stagione {stagione})\n{effetto}")
@@ -231,6 +236,9 @@ async def cb_invia_richiesta_dpe(update: Update, context: ContextTypes.DEFAULT_T
     pre_deadline = (fase != "regular-season-deadline")
     importo_orig = contratto["importo"]
     importo_new  = _importo_dpe(importo_orig)
+    from handlers.registro import segna
+    await segna(context.bot, user, "gm", "DPE chiesta", squadre=team["id"], giocatore_id=gid,
+                oggetto=giocatore["nome_common"], prima=f"{importo_orig}M", dopo=f"{importo_new}M se approvata")
 
     await query.edit_message_text(
         f"✅ Richiesta DPE per <b>{giocatore['nome_common']}</b> inviata agli admin.",
@@ -286,7 +294,7 @@ async def cb_approva_dpe(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                       parse_mode="HTML")
         return
     try:
-        errore, esito = await applica_dpe(context.bot, gid, team_id, admin_tag, da_admin=False)
+        errore, esito = await applica_dpe(context.bot, gid, team_id, admin_tag, da_admin=False, user=query.from_user)
     except Exception:
         db.riapri_richiesta("dpe", gid)
         raise
@@ -333,6 +341,9 @@ async def cb_rifiuta_dpe(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception:
             pass
     logger.info("DPE rifiutata: team=%s giocatore=%d", team_id, gid)
+    from handlers.registro import segna
+    await segna(context.bot, query.from_user, "admin", "DPE rifiutata", squadre=team_id, giocatore_id=gid,
+                oggetto=giocatore["nome_common"], prima="chiesta", dopo="rifiutata")
 
 
 async def cb_annulla_dpe(update: Update, context: ContextTypes.DEFAULT_TYPE):

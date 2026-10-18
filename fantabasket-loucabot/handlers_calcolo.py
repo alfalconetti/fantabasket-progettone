@@ -109,6 +109,8 @@ async def cmd_tabellini(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                               parse_mode="HTML")
     from handlers import log, _chi
     await log(context.bot, f"📊 /tabellini di {_chi(update)}: {testo_tabellini(r)}; snapshot: {inf}")
+    from registro import segna_sync
+    segna_sync(update.effective_user, "admin", "tabellini riscaricati", dopo=testo_tabellini(r), nota=f"snapshot: {inf}")
 
 
 async def cmd_espn_giocatori(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -128,6 +130,9 @@ async def cmd_espn_giocatori(update: Update, context: ContextTypes.DEFAULT_TYPE)
     from handlers import log, _chi
     await log(context.bot, f"👥 /espn_giocatori di {_chi(update)}: {len(atleti)} giocatori ESPN, {r['nuovi']} abbinati, "
                            f"{len(mancanti)} a roster senza id")
+    from registro import segna_sync
+    segna_sync(update.effective_user, "admin", "giocatori ESPN scaricati", oggetto=f"{len(atleti)} giocatori ESPN",
+               dopo=f"{r['nuovi']} abbinati", nota=f"{len(mancanti)} a roster senza id")
 
 
 async def cmd_espn_mancanti(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -166,7 +171,11 @@ async def cmd_espn_abbina(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text(f"Nessun giocatore con id {gid} in anagrafica.")
         return
     nome_espn = db.atleti_espn_visti().get(atleta, "?")
+    prima = db.abbinamenti().get(gid)
     db.abbina(gid, atleta, nome_espn, "admin")
+    from registro import segna_sync
+    segna_sync(update.effective_user, "admin", "abbinamento ESPN", giocatore_id=gid, oggetto=g["nome_common"],
+               prima=f"ESPN {prima}" if prima else "senza id ESPN", dopo=f"ESPN {atleta} ({nome_espn})")
     await update.effective_message.reply_text(
         f"✅ {e(g['nome_common'])} ↔ ESPN {atleta} ({e(nome_espn)})", parse_mode="HTML")
     from handlers import log, _chi
@@ -338,11 +347,17 @@ async def cb_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await q.answer("Gli snapshot sono cambiati: riprova.", show_alert=True)
         else:
             db.set_status_valido(s, n, gi["espn_id"], scelte[i], update.effective_user.id)
+            from registro import segna_sync
+            segna_sync(update.effective_user, "admin", "status valido", giocatore_id=gid, oggetto=gi["nome_common"],
+                       prima="dagli snapshot", dopo=scelte[i] or "sano", nota=f"giornata {n}")
             await q.answer("Salvato")
             await log(context.bot, f"🩺 Status valido G{n} di {e(gi['nome_common'])}: <b>{e(scelte[i] or 'sano')}</b> "
                                    f"(deciso da {_chi(update)})")
     elif azione == "a" and gi:
         db.togli_status_valido(s, n, gi["espn_id"])
+        from registro import segna_sync
+        segna_sync(update.effective_user, "admin", "status valido tolto", giocatore_id=gid, oggetto=gi["nome_common"],
+                   dopo="dagli snapshot", nota=f"giornata {n}")
         await q.answer("Torna agli snapshot")
         await log(context.bot, f"🩺 Status G{n} di {e(gi['nome_common'])}: di nuovo dagli snapshot ({_chi(update)})")
     else:
@@ -382,6 +397,9 @@ async def cmd_dev_ricalcola_fp(update: Update, context: ContextTypes.DEFAULT_TYP
          f"{r['bref']} righe di basketball-reference. Risultati già convalidati non toccati.\nPesi: {pesi}")
     await update.effective_message.reply_text(t)
     await log(context.bot, t)
+    from registro import segna_sync
+    segna_sync(update.effective_user, "dev", "fantapunti ricalcolati", oggetto=f"stagione {s}",
+               dopo=f"{r['tabellini']} tabellini, {r['bref']} righe bref", nota=f"pesi: {pesi}")
 
 
 def get_handlers() -> list:

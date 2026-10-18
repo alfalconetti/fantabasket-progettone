@@ -150,7 +150,7 @@ async def pareggio_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML",
         )
         await _registra_firma_finale(
-            context, asta_id, asta["anni_offerti"], asta["offerente_team_id"]
+            context, asta_id, asta["anni_offerti"], asta["offerente_team_id"], user=query.from_user
         )
     else:
         # pareggio: mostra anni disponibili
@@ -281,7 +281,8 @@ async def pareggio_confirm_callback(update: Update, context: ContextTypes.DEFAUL
         f"💰 {importo}M × {anni} ann{'o' if anni==1 else 'i'}",
         parse_mode="HTML",
     )
-    await _registra_firma_finale(context, asta_id, anni, asta["squadra_proprietaria"], importo_override=importo, pareggiato=True)
+    await _registra_firma_finale(context, asta_id, anni, asta["squadra_proprietaria"], importo_override=importo,
+                                 pareggiato=True, user=query.from_user)
 
 
 async def pareggio_automatico(context: ContextTypes.DEFAULT_TYPE):
@@ -457,7 +458,8 @@ async def firma_prop_anni_callback(update: Update, context: ContextTypes.DEFAULT
         f"💰 {importo}M × {anni} ann{'o' if anni==1 else 'i'}",
         parse_mode="HTML",
     )
-    await _registra_firma_finale(context, asta_id, anni, asta["squadra_proprietaria"], importo_override=importo, pareggiato=True)
+    await _registra_firma_finale(context, asta_id, anni, asta["squadra_proprietaria"], importo_override=importo,
+                                 pareggiato=True, user=query.from_user)
 
 
 async def lascia_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -482,6 +484,9 @@ async def lascia_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await _concludi_rfa_senza_contratto(context, asta_id)
     db.annulla_asta(asta_id)  # usa ANNULLATA per distinguere da CONCLUSA
+    from registro import segna_asta
+    await segna_asta(context.bot, query.from_user, "gm", "RFA lasciato andare", asta,
+                     prima=f"RFA {asta['vecchio_compenso'] or 0}M", dopo="free agent")
     await _aggiorna_canale(context, asta_id)
     await query.edit_message_text(
         f"<b>{asta['giocatore']}</b> lasciato andare in free agency.\n"

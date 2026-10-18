@@ -9,9 +9,11 @@ from handlers.admin_panel import cmd_set_cap_penalizzato
 out=[]
 class M:
     async def reply_text(s,t,**k): out.append(t)
+class Bot:
+    async def send_message(s, **k): pass
 def chiama(uid,args):
     out.clear()
-    asyncio.run(cmd_set_cap_penalizzato(types.SimpleNamespace(effective_message=M(),effective_user=types.SimpleNamespace(id=uid)), types.SimpleNamespace(args=args)))
+    asyncio.run(cmd_set_cap_penalizzato(types.SimpleNamespace(effective_message=M(),effective_user=types.SimpleNamespace(id=uid)), types.SimpleNamespace(args=args, bot=Bot())))
     return out[-1] if out else ""
 def setfase(f):
     g=json.load(open(os.environ["GLOBALS_PATH"])); g["fase"]=f; json.dump(g,open(os.environ["GLOBALS_PATH"],"w"))

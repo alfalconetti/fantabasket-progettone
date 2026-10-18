@@ -714,7 +714,19 @@ async def inserisci_importo(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 # ── logica offerta ────────────────────────────────────────────────────────────
 
-async def _esegui_offerta(context, team, asta_id: int, importo: int, gm_id: int) -> str | None:
+async def _registro_offerta(context, chi, veste: str, asta: dict, team: dict, importo: int, chiusa: bool):
+    if chi is None:                 # admin (/crea_offerta): la riga la scrive il chiamante, in veste admin
+        return
+    from registro import segna_asta
+    await segna_asta(context.bot, chi, veste, "offerta", asta, team["id"],
+                     prima=f"{asta['offerta_corrente']}M" + (f" {(tm.get_team_by_id(asta['offerente_team_id']) or {}).get('nome', asta['offerente_team_id'])}"
+                                                            if asta["offerente_team_id"] else ""),
+                     dopo=f"{importo}M {team['nome']}", nota="offerta massima: asta chiusa" if chiusa else None)
+
+
+async def _esegui_offerta(context, team, asta_id: int, importo: int, gm_id: int, chi=None,
+                          veste: str = "gm") -> str | None:
+    """chi: l'utente che offre, per il registro (None = lo scrive il chiamante)."""
     asta = db.get_asta(asta_id)
     if not asta or asta["stato"] != "APERTA":
         return "L'asta non è più disponibile."
@@ -761,6 +773,7 @@ async def _esegui_offerta(context, team, asta_id: int, importo: int, gm_id: int)
             f"⏰ Asta chiusa immediatamente.",
             escludi_gm=gm_id,
         )
+        await _registro_offerta(context, chi, veste, asta, team, importo, True)
         from handlers.firma import chiedi_anni
         await chiedi_anni(context, asta_id)
         logger.info("Offerta massima: asta_id=%d team=%s importo=%d — chiusura immediata",
@@ -802,6 +815,7 @@ async def _esegui_offerta(context, team, asta_id: int, importo: int, gm_id: int)
                     logger.warning("Notifica proprietario RFA %d fallita: %s", prop_gm, e)
 
     logger.info("Offerta: asta_id=%d team=%s importo=%d scade=%s", asta_id, team["id"], importo, nuova_scadenza)
+    await _registro_offerta(context, chi, veste, asta, team, importo, False)
     return None
 
 
@@ -875,7 +889,7 @@ async def conferma_offerta_callback(update: Update, context: ContextTypes.DEFAUL
     if tipo == "rilancio":
         team    = context.user_data.get("offri_team") or tm.get_team_by_gm(user.id)
         asta_id = context.user_data.get("asta_id")
-        errore  = await _esegui_offerta(context, team, asta_id, importo, user.id)
+        errore  = await _esegui_offerta(context, team, asta_id, importo, user.id, chi=user)
         if errore:
             await query.edit_message_text(f"❌ {errore}", parse_mode="HTML")
         else:
@@ -894,6 +908,8 @@ async def conferma_offerta_callback(update: Update, context: ContextTypes.DEFAUL
             await query.edit_message_text(f"❌ {errore}", parse_mode="HTML")
         else:
             asta_row = db.get_asta(asta_id)
+            from registro import segna_asta
+            await segna_asta(context.bot, user, "gm", "asta FA aperta", asta_row, dopo=f"aperta, {importo}M {team['nome']}")
             await query.edit_message_text(
                 f"✅ Asta FA aperta per <b>{giocatore}</b> con offerta iniziale <b>{importo}M</b>.\n"
                 f"Scade il {utils.format_dt(asta_row['scade_at'])}.",

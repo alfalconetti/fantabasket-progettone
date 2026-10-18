@@ -120,6 +120,9 @@ async def cb_dec_motivo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         context.user_data.clear()
         return ConversationHandler.END
 
+    from handlers.registro import segna
+    await segna(context.bot, user, "gm", "decadimento chiesto", squadre=team_id, giocatore_id=gid, oggetto=nome,
+                nota=motivo_label)
     await query.edit_message_text(
         f"⏳ Richiesta inviata al gruppo admin.\n\n"
         f"Giocatore: <b>{nome}</b>\n"
@@ -181,7 +184,8 @@ def _admin_tag(user) -> str:
     return tag + (f" (@{user.username})" if user.username else "")
 
 
-async def applica_decadimento(bot, team_id: str, gid: int, motivo_key: str, admin_tag: str) -> str | None:
+async def applica_decadimento(bot, team_id: str, gid: int, motivo_key: str, admin_tag: str, user=None,
+                              per_conto: bool = False) -> str | None:
     """Esegue il decadimento e lo annuncia. Restituisce un messaggio d'errore o None."""
     motivo_label = MOTIVI.get(motivo_key, motivo_key)
     stagione  = settings.stagione_corrente()
@@ -202,6 +206,11 @@ async def applica_decadimento(bot, team_id: str, gid: int, motivo_key: str, admi
                                     contratto_id=contratto["id"], note=f"Decadimento: {motivo_label}",
                                     tutte_le_squadre=tutte)
     nomi_altre = ", ".join((tm.get_team_by_id(t) or {}).get("nome", t) for t in altre)
+    from handlers.registro import segna
+    await segna(bot, user, "admin", "decadimento per conto della squadra" if per_conto else "decadimento approvato",
+                squadre=[team_id] + list(altre), giocatore_id=gid, oggetto=giocatore["nome_common"],
+                prima=f"{contratto['importo']}M × {db.anni_residui(contratto, stagione)}", dopo="decaduto",
+                nota=motivo_label + (f"; tolte le spalmature di {nomi_altre}" if altre else ""))
 
     ora = format_dt(datetime.now(ROME))
     main_channel = settings.load_globals().get("main_channel_id")
@@ -247,7 +256,7 @@ async def cb_dec_approva(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(query.message.text_html + "\n\nℹ️ <b>Richiesta già gestita</b>", parse_mode="HTML")
         return
     try:
-        errore = await applica_decadimento(context.bot, team_id, gid, motivo_key, admin_tag)
+        errore = await applica_decadimento(context.bot, team_id, gid, motivo_key, admin_tag, user=query.from_user)
     except Exception:
         db.riapri_richiesta("decadimento", gid)
         raise
@@ -273,6 +282,9 @@ async def cb_dec_rifiuta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(query.message.text_html + f"\n\n❌ <b>Rifiutato</b> da {_admin_tag(query.from_user)}",
                                   parse_mode="HTML", reply_markup=None)
     nome = (db.get_giocatore(int(gid)) or {}).get("nome_common", gid)
+    from handlers.registro import segna
+    await segna(context.bot, query.from_user, "admin", "decadimento rifiutato", squadre=team_id, giocatore_id=int(gid),
+                oggetto=nome, prima="chiesto", dopo="rifiutato")
     await _ai_gm(context.bot, team_id, f"❌ Richiesta di decadimento per <b>{nome}</b> rifiutata dagli admin.")
 
 
@@ -333,7 +345,8 @@ async def cb_dec_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if azione == "ok":
         admin_tag = _admin_tag(query.from_user)
         db.chiudi_richiesta("decadimento", gid, "approvata", admin_tag)  # eventuale richiesta del GM
-        errore = await applica_decadimento(context.bot, team_id, gid, motivo, admin_tag)
+        errore = await applica_decadimento(context.bot, team_id, gid, motivo, admin_tag, user=query.from_user,
+                                            per_conto=True)
         if errore:
             await query.edit_message_text(errore)
             return
@@ -391,6 +404,11 @@ async def cmd_ritiro_fa(update: Update, context: ContextTypes.DEFAULT_TYPE):
     testo = (f"🏁 <b>{_html.escape(g['nome_common'])}</b> si è ritirato / ha lasciato la NBA: "
              f"le spalmature dei tagli passati non pesano più sul cap.\n" + "\n".join(righe))
     await update.effective_message.reply_text(testo, parse_mode="HTML")
+    from handlers.registro import segna
+    await segna(context.bot, update.effective_user, "admin", "free agent ritirato", squadre=list(per_team),
+                giocatore_id=g["id"], oggetto=g["nome_common"],
+                prima="spalmature: " + ", ".join(f"{(tm.get_team_by_id(t) or {}).get('nome', t)} {imp}M" for t, imp in per_team.items()),
+                dopo="tolte")
     ch = settings.load_globals().get("main_channel_id")
     if ch:
         try:

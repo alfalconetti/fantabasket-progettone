@@ -193,6 +193,7 @@ ok(any("anche in panchina" in x for x in Q.incompatibilita("team01", {**qq, "PG"
 qb = premi(101, "q:c:team01:PG")
 ok(set(bottoni(qb.testi[-1][1]["reply_markup"])) >= {f"q:s:team01:PG:{gids['Ja Morant']}", f"q:s:team01:PG:{gids['Walter Clayton Jr.']}"}
    and f"q:s:team01:PG:{gids['Devin Booker']}" not in bottoni(qb.testi[-1][1]["reply_markup"]), "cambio PG: solo i PG della squadra")
+from shared import azioni as _A; _A.migra(db.q); db.q("DELETE FROM registro_azioni WHERE bot = 'ipa'")
 qb = premi(101, f"q:s:team01:PG:{gids['Walter Clayton Jr.']}")
 ok(db.quintetto("team01")["PG"] == gids["Walter Clayton Jr."] and db.conferme(S, 2)["team01"]["stato"] == "modificato",
    "quintetto cambiato dal GM: segnato come modificato")
@@ -200,6 +201,10 @@ ok(premi(101, f"q:s:team01:PG:{gids['Devin Booker']}").risposte[-1].startswith("
 premi(101, "q:ok:team01:2")
 ok(premi(102, "q:ok:team01:2").risposte[-1] == "Non è la tua squadra.", "il GM di un'altra squadra non tocca il quintetto")
 ok(db.conferme(S, 2)["team01"]["stato"] == "confermato", "Confermo dal promemoria")
+_reg = db.q("SELECT veste, azione, squadre, dopo, chi_id FROM registro_azioni WHERE bot = 'ipa' ORDER BY id", many=True)
+ok([(r["veste"], r["azione"], r["squadre"]) for r in _reg] == [("gm", "quintetto cambiato", ["team01"]), ("gm", "quintetto confermato", ["team01"])]
+   and _reg[0]["dopo"] == "Walter Clayton Jr." and _reg[0]["chi_id"] == 101,
+   f"registro IPanchinari: cambio e conferma del GM, sulla sua squadra {_reg}")
 ok(premi(101, "q:ok:team01:1").risposte[-1] == "La scadenza di questa giornata è passata.", "bottone di una giornata scaduta: rifiutato")
 
 # ── stato ESPN (ultimo snapshot di nba_infortuni di loucabot) nei builder, nell'anteprima e nel quintetto ──

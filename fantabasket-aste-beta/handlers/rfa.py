@@ -60,6 +60,9 @@ async def _allinea_proprietari(context) -> None:
             continue
         prima = a["squadra_proprietaria"]
         db.set_squadra_proprietaria(a["id"], team)
+        from registro import segna_asta
+        await segna_asta(context.bot, None, "sistema", "diritti RFA passati con una trade", a, prima, team,
+                         prima=prima, dopo=team)
         await aggiorna_canale(context, a["id"])
         nomi = teams_map()
         await log_warn(context, f"RFA <b>{a['giocatore']}</b> (asta #{a['id']}): diritti passati da "
@@ -80,6 +83,10 @@ async def _apri_dichiarati(context) -> None:
                                                  r["giocatore_id"], "il bot (RFA dichiarato)")
         logger.info("RFA dichiarato all'asta: asta_id=%d giocatore=%s proprietario=%s compenso=%s",
                     asta_id, r["nome_common"], r["team_id"], r["importo"])
+        from registro import segna_asta
+        await segna_asta(context.bot, None, "sistema", "asta RFA aperta", db.get_asta(asta_id) or
+                         {"id": asta_id, "tipo": "RFA", "giocatore": r["nome_common"], "squadra_proprietaria": r["team_id"]},
+                         dopo="aperta", nota=f"RFA dichiarato, vecchio compenso {r['importo']}M")
         team = tm.get_team_by_id(r["team_id"])
         for gm in (team or {}).get("gm_ids", []):
             try:

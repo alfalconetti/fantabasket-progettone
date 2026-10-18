@@ -204,7 +204,9 @@ async def dp_ricevi_valore(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             # Campo anagrafico: aggiorna direttamente in giocatori
             if campo == "nome_norm":
                 valore = _norm(valore)
+            prima = (_q(f"SELECT {campo} AS v FROM giocatori WHERE id = %s", (gid,), one=True) or {}).get("v")
             _q(f"UPDATE giocatori SET {campo} = %s WHERE id = %s", (valore or None, gid))
+            await _log_modifica(update, context, gid, campo, valore, prima, "giocatore")
             await update.effective_message.reply_text(
                 f"✅ <b>{campo}</b> aggiornato.",
                 parse_mode="HTML",
@@ -223,7 +225,8 @@ async def dp_ricevi_valore(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             valore_db = int(valore) if campo in ("importo", "anni_originali") else valore
             _q(f"UPDATE contratti SET {campo} = %s WHERE id = %s",
                (valore_db, contratto["id"]))
-            await _log_modifica(update, context, gid, campo, valore)
+            await _log_modifica(update, context, gid, campo, valore, contratto.get(campo), "contratto",
+                                contratto.get("team_id"))
             await update.effective_message.reply_text(
                 f"✅ <b>{campo}</b> aggiornato. Operazione loggata.",
                 parse_mode="HTML",
@@ -242,7 +245,7 @@ async def dp_ricevi_valore(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             valore_db = int(valore) if campo in ("pick_numero", "anni_scala") else valore
             _q(f"UPDATE rookie SET {campo} = %s WHERE id = %s",
                (valore_db, rookie["id"]))
-            await _log_modifica(update, context, gid, campo, valore)
+            await _log_modifica(update, context, gid, campo, valore, rookie.get(campo), "rookie", rookie.get("team_id"))
             await update.effective_message.reply_text(
                 f"✅ <b>{campo}</b> aggiornato. Operazione loggata.",
                 parse_mode="HTML",
@@ -258,24 +261,15 @@ async def dp_ricevi_valore(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     return DP_SCEGLI_CAMPO
 
 
-async def _log_modifica(update, context, gid: int, campo: str, valore: str):
+async def _log_modifica(update, context, gid: int, campo: str, valore: str, prima=None, tabella: str = "",
+                        team_id: str | None = None):
+    """Registro + riga sul canale log del bot principale (v6.0.0; prima andava sul canale del bot aste)."""
     g = db.get_giocatore(gid)
     nome = g["nome_common"] if g else f"#{gid}"
-    log_channel = settings.load_globals().get("log_channel_id")
-    if log_channel:
-        try:
-            await context.bot.send_message(
-                chat_id=log_channel,
-                text=(
-                    f"⚠️ <b>Dev edit</b> — {update.effective_user.first_name}\n"
-                    f"Giocatore: <b>{nome}</b> #{gid}\n"
-                    f"Campo: <code>{campo}</code>\n"
-                    f"Nuovo valore: <code>{valore}</code>"
-                ),
-                parse_mode="HTML",
-            )
-        except Exception as e:
-            logger.warning("Log modifica fallito: %s", e)
+    from handlers.registro import segna
+    await segna(context.bot, update.effective_user, "dev", "giocatore modificato", squadre=team_id or (),
+                giocatore_id=gid, oggetto=f"{nome} · {tabella}.{campo}" if tabella else f"{nome} · {campo}",
+                prima="—" if prima is None else prima, dopo=valore or "—")
 
 
 async def cmd_annulla_dev(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

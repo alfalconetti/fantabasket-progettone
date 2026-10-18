@@ -60,6 +60,7 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
         ("📊 Situazione cap",   "adm:cap",     True),
         ("⚙️ Impostazioni",     "set:home",    True),
         ("🩺 Controllo dati",   "rdati:md",    True),
+        ("📜 Registro",         "reg:7",       True),
     ]
     bottoni = [InlineKeyboardButton(l, callback_data=cb) for l, cb, ok in voci if ok]
     return InlineKeyboardMarkup([bottoni[i:i + 2] for i in range(0, len(bottoni), 2)])
@@ -289,7 +290,7 @@ async def cb_adm_taglia_esegui(update: Update, context: ContextTypes.DEFAULT_TYP
     risposta, _ = testi_taglio(team, v)
     await query.edit_message_text(risposta, parse_mode="HTML")
     admin = update.effective_user
-    await dopo_taglio(context.bot, team, v, admin_nome=admin.first_name or admin.username or str(admin.id))
+    await dopo_taglio(context.bot, team, v, admin_nome=admin.first_name or admin.username or str(admin.id), user=admin)
     logger.info("Taglio admin: team=%s giocatore=%s admin=%d", team_id, gid_s, admin.id)
 
 
@@ -390,7 +391,8 @@ async def cb_adm_dpe_conferma(update: Update, context: ContextTypes.DEFAULT_TYPE
     team_id = parts[2]
     # Importi e pre/post deadline ricalcolati adesso (non quelli della schermata di conferma)
     from handlers.dpe import applica_dpe, _admin_tag
-    errore, esito = await applica_dpe(query.get_bot(), gid, team_id, _admin_tag(update.effective_user), da_admin=True)
+    errore, esito = await applica_dpe(query.get_bot(), gid, team_id, _admin_tag(update.effective_user), da_admin=True,
+                                      user=update.effective_user)
     if not errore:
         db.chiudi_richiesta("dpe", gid, "approvata", _admin_tag(update.effective_user))  # eventuale richiesta del GM
     await query.edit_message_text(errore or esito, parse_mode="HTML")
@@ -483,6 +485,8 @@ async def admin_import_ricevi_testo(update: Update, context: ContextTypes.DEFAUL
         return ADMIN_IMPORT_TESTO
 
     trade_id = crea_trade_da_parse(squadre, stagione, "admin")
+    from handlers.trade_comune import segna_trade
+    await segna_trade(context.bot, update.effective_user, "admin", "bozza trade importata", trade_id, dopo="bozza")
     ok, errori_val = valida_trade(trade_id)
 
     trade_obj = db.get_trade(trade_id)
@@ -527,7 +531,7 @@ async def cb_ufficializza(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     admin_nome = update.effective_user.first_name or str(update.effective_user.id)
     try:
-        await _esegui_trade(context, trade_id, trade_ref, approvata_da=admin_nome)
+        await _esegui_trade(context, trade_id, trade_ref, approvata_da=admin_nome, user=update.effective_user)
     except TradeNonEseguibile as e:
         await query.edit_message_text(
             f"❌ <b>Trade non ufficializzata</b>: {e}.\nNessuna modifica è stata salvata.",
@@ -823,6 +827,10 @@ async def _esegui_cambio_fase(query, fase_vecchia: str, nuova_fase: str):
     # scaduti; RFA → pick nuove; regular season → report cap). Dopo aver scritto la fase:
     # se falliscono, la fase resta cambiata e /dev_stagione rifai li ripete.
     from handlers.stagione import dopo_cambio_fase
+    from handlers.registro import segna
+    await segna(query.get_bot(), query.from_user, "admin", "cambio di fase", oggetto="fase",
+                prima=FASI_LABEL.get(fase_vecchia, fase_vecchia), dopo=FASI_LABEL.get(nuova_fase, nuova_fase),
+                nota=nota_stagione.strip().replace("<b>", "").replace("</b>", "") or None)
     nota_passaggi = await dopo_cambio_fase(query.get_bot(), fase_vecchia, nuova_fase)
 
     testo = (
@@ -920,6 +928,9 @@ async def cmd_set_cap_penalizzato(update: Update, context: ContextTypes.DEFAULT_
         f"(in offseason resta {settings.get()['cap_offseason']}M per tutti).",
         parse_mode="HTML")
     logger.info("set_cap_penalizzato: %s %d → %d da %d", team["id"], prima, valore, update.effective_user.id)
+    from handlers.registro import segna
+    await segna(context.bot, update.effective_user, "admin", "cap penalizzato", squadre=team["id"],
+                oggetto="penalità sul cap", prima=f"{prima}M", dopo=f"{valore}M")
     try:
         from gas_client import sync_teams
         sync_teams([team["id"]])
@@ -1073,25 +1084,10 @@ async def _esegui_registra_firma(update_or_query, context, giocatore, team_id, t
         logger.warning("Dichiarazione ruolo dopo registra_firma: %s", e)
 
     admin_user = update_or_query.from_user if is_callback else update_or_query.effective_user
-    admin_tag  = admin_user.first_name or str(admin_user.id)
-    if admin_user.username:
-        admin_tag += f" (@{admin_user.username})"
-
-    g_log = settings.load_globals()
-    log_ch = g_log.get("log_channel_id_main")
-    if log_ch:
-        try:
-            await context.bot.send_message(
-                chat_id=log_ch,
-                text=(
-                    f"✍️ Firma registrata manualmente da {admin_tag}\n"
-                    f"<b>{giocatore['nome_common']}</b> → <b>{team['nome']}</b>\n"
-                    f"{importo}M × {anni} anni"
-                ),
-                parse_mode="HTML"
-            )
-        except Exception:
-            pass
+    from handlers.registro import segna
+    await segna(context.bot, admin_user, "admin", "firma registrata", squadre=team_id, giocatore_id=giocatore["id"],
+                oggetto=giocatore["nome_common"], prima="free agent", dopo=f"{importo}M × {anni}",
+                nota="firma avvenuta fuori dal bot")
 
     testo = (
         f"✅ Firma registrata:\n"

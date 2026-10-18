@@ -45,6 +45,7 @@ def liste_comandi(fase: str) -> dict:
     cmd_base = cmd_group + [
         BotCommand("menu",           "Menu principale"),
         BotCommand("penalita",       "Penalità della tua squadra, o di SQUADRA"),
+        BotCommand("registro",       "Registro delle azioni sulla tua squadra (.md)"),
     ]
     cmd_gm = cmd_base + [
         BotCommand("build_trade",    "Costruisci una trade"),

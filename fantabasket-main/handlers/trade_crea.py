@@ -18,7 +18,7 @@ from handlers.trade_comune import (
     TRADE_RIEPILOGO, TRADE_SELEZIONA_SQUADRE, _ANNULLA_HINT, _STATI, _bozza_non_modificabile,
     _contratto_str, _kb_asset_menu, _kb_edit_menu, _kb_n_squadre, _kb_riepilogo,
     _kb_riepilogo_non_valida, _kb_squadre, _label_bozza, _puo_gestire_bozza, _testo_riepilogo,
-    _trade_label,
+    _trade_label, veste_bozza,
 )
 from handlers.trade_voto import _invia_ad_admin, _proponi_ai_gm
 
@@ -463,6 +463,9 @@ async def cb_trade_del(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     if not _puo_gestire_bozza(query.from_user.id, trade):
         await query.answer("⛔ Non è una tua bozza.", show_alert=True)
         return ConversationHandler.END
+    from handlers.trade_comune import segna_trade
+    await segna_trade(context.bot, query.from_user, veste_bozza(trade), "bozza trade eliminata", trade_id,
+                      prima="bozza", dopo="eliminata")     # prima di eliminarla: dopo non c'è più il contenuto
     db.elimina_trade(trade_id)
     await query.answer()
     await query.edit_message_text(f"🗑️ Bozza {label} eliminata.")
@@ -523,6 +526,12 @@ async def cb_send_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         await _invia_ad_admin(query, context, trade_id)
     else:
         await _proponi_ai_gm(query, context, trade_id)
+    nuova = db.get_trade(trade_id) or {}
+    if nuova.get("stato") != "bozza":           # inviata davvero
+        from handlers.trade_comune import segna_trade
+        await segna_trade(context.bot, update.effective_user, veste_bozza(trade),
+                          "trade inviata " + ("agli admin" if destinatario == "admin" else "al voto dei GM"),
+                          trade_id, prima="bozza", dopo=nuova.get("stato"))
     return ConversationHandler.END
 
 
@@ -650,6 +659,9 @@ async def import_ricevi_testo(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # Parsing pulito — crea bozza
     trade_id = crea_trade_da_parse(squadre, stagione, proposta_da)
+    from handlers.trade_comune import segna_trade
+    await segna_trade(context.bot, update.effective_user, "gm" if team else "admin", "bozza trade importata", trade_id,
+                      dopo="bozza")
 
     # Validazione trade (cap, roster, Stepien)
     ok, errori_val = valida_trade(trade_id)

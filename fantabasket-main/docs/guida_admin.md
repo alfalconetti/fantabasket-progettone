@@ -259,6 +259,14 @@ Se sembrano indietro, il dev può forzare un aggiornamento completo con `/sync_s
 
 ---
 
+## Registro delle azioni
+
+Tutto quello che cambia qualcosa, in tutti e quattro i bot, lascia una riga nel **registro delle azioni**: chi l'ha fatto, in che veste (**gm**, **admin**, **dev**, **sistema** per i job automatici), cosa, su quale squadra e giocatore, com'era prima e com'è dopo. Dal pannello admin **📜 Registro** (gli ultimi 7 giorni) o **`/registro`** coi filtri, in qualsiasi ordine: un numero di giorni (`/registro 30`), una squadra (nome, id o GM), un giocatore, una veste (`admin`), un bot (`principale`, `aste`, `loucabot`, `ipanchinari`), `@username` per chi l'ha fatto, altro testo per l'azione (`/registro taglio`). Arriva un file Markdown, al massimo 500 righe, dalla più recente.
+
+La veste la decide il flusso, non chi sei: dal `/menu` normale sei **gm** anche se sei admin; dal pannello e dai comandi admin sei **admin**. Le azioni da admin e da dev vanno anche sul canale log del bot dove le fai, in un formato unico (`🛠 admin Nome · azione · squadra`, sotto `oggetto: prima → dopo`); quelle dei GM e dei job restano nel registro, per non fare rumore. Su loucabot e IPanchinari le azioni admin avevano già la loro riga sul log col nome: quella resta com'è. Un GM con `/registro` vede solo le righe della sua squadra, comprese le azioni degli admin su di essa.
+
+Il registro si tiene per sempre. Le azioni fatte prima della v6.0.0 non ci sono (per quelle restano i movimenti in `/team_diff` e i canali log).
+
 ## Varie
 
 - **`/settings`** (anche dal pannello admin, «⚙️ Impostazioni»): le impostazioni di gioco divise per argomento (cap e roster, contratti, ruoli, tagli/DPE/10-day, partita, fantapunti, aste, sistema, tabelle), col nome in italiano, il valore di adesso e l'unità; *(default)* vuol dire che nel file non c'è e vale il valore del regolamento. Tocchi una voce, scrivi il nuovo valore (con i limiti indicati; la virgola va bene), vedi l'anteprima vecchio → nuovo e confermi. Ogni modifica va sul canale principale e sul canale log (con chi l'ha fatta), e i bot la usano subito, senza riavvio. Scorciatoia: `/settings chiave valore` (es. `/settings salary_floor 115`, `/settings pesi_fantapunti.dreb 1,5`), sempre con conferma. Le tabelle (rookie scale, minimi dei contratti) si vedono ma si cambiano nel file.

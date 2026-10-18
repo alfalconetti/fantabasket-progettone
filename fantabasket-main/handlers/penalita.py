@@ -260,7 +260,10 @@ async def cb_penalita(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.warning("Penalità revocata, messaggio sul canale: %s", err)
         await _ai_gm(context.bot, p["team_id"], f"✅ La penalità del {p['timestamp']:%d/%m} alla tua squadra è stata <b>revocata</b> "
                                                 f"dagli admin.\nMotivazione era: {e(p['motivo'])}\nPenalità in questa stagione: <b>{n}</b>")
-        await _log(context.bot, f"🗑 Penalità revocata a {e(_nome(p['team_id']))} da {e(chi)} (ora {n}): {e(p['motivo'])}")
+        from handlers.registro import segna
+        await segna(context.bot, q.from_user, "admin", "penalità revocata", squadre=p["team_id"],
+                    oggetto=f"penalità del {p['timestamp']:%d/%m}", prima=f"{n + 1} in stagione", dopo=f"{n} in stagione",
+                    nota=p["motivo"])
         _sync_scelte()
         await q.edit_message_text(testo_squadra(p["team_id"], admin=True), parse_mode="HTML", reply_markup=_kb_revoche(p["team_id"]))
     elif azione == "ok":
@@ -275,7 +278,9 @@ async def cb_penalita(update: Update, context: ContextTypes.DEFAULT_TYPE):
             db._q("UPDATE penalita SET canale_msg = %s WHERE id = %s", (m.message_id, p["id"]))
         await _ai_gm(context.bot, p["team_id"], f"⚠️ <b>La tua squadra ha ricevuto una penalità</b> — la {n}ª di questa stagione.\n\n"
                                                 f"<b>Motivazione:</b> {e(p['motivo'])}\n\nPer chiarimenti scrivi agli admin.")
-        await _log(context.bot, f"⚠️ Penalità a {e(_nome(p['team_id']))} (la {n}ª) da {e(chi)}: {e(p['motivo'])}")
+        from handlers.registro import segna
+        await segna(context.bot, q.from_user, "admin", "penalità assegnata", squadre=p["team_id"], oggetto="penalità",
+                    prima=f"{n - 1} in stagione", dopo=f"{n} in stagione", nota=p["motivo"])
         _sync_scelte()
         await q.edit_message_text(f"✅ Penalità registrata: <b>{e(_nome(p['team_id']))}</b> è a <b>{n}</b> in questa stagione.\n"
                                   "Pubblicata sul canale e mandata ai GM.", parse_mode="HTML",

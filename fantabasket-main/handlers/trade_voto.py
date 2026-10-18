@@ -159,6 +159,9 @@ async def cb_voto_gm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     db.registra_voto(trade_id, team_id, voto)
+    from handlers.trade_comune import segna_trade
+    await segna_trade(context.bot, query.from_user, "gm", "voto sulla trade", trade_id,
+                      dopo=f"{team['nome'] if team else team_id}: accettata")
     if db.chiudi_voto_se_tutti_accettano(trade_id):
         await query.edit_message_text(f"✅ Hai accettato la trade {_trade_label(trade)}. "
                                       f"Hanno accettato tutti: ora tocca agli admin.")
@@ -191,7 +194,7 @@ async def cb_rifiuta_conf(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     if con_nota == "no":
         # Rifiuto secco — esegui subito
-        await _esegui_rifiuto(query, context, trade_id, team_id, nota=None)
+        await _esegui_rifiuto(query, context, trade_id, team_id, nota=None, user=query.from_user)
         return ConversationHandler.END
     else:
         # Con nota — chiedi testo
@@ -225,11 +228,11 @@ async def cb_rifiuto_nota_ricevi(update: Update, context: ContextTypes.DEFAULT_T
             await self.message.reply_text(text, **kw)
 
     fq = FakeQuery(update.message)
-    await _esegui_rifiuto(fq, context, trade_id, team_id, nota=nota)
+    await _esegui_rifiuto(fq, context, trade_id, team_id, nota=nota, user=update.effective_user)
     return ConversationHandler.END
 
 
-async def _esegui_rifiuto(query, context, trade_id: int, team_id: str, nota: str | None) -> None:
+async def _esegui_rifiuto(query, context, trade_id: int, team_id: str, nota: str | None, user=None) -> None:
     """Esegue il rifiuto della trade con nota opzionale."""
     trade = db.get_trade(trade_id)
     team  = tm.get_team_by_id(team_id)
@@ -240,6 +243,9 @@ async def _esegui_rifiuto(query, context, trade_id: int, team_id: str, nota: str
     if not db.cambia_stato_trade(trade_id, ("proposta",), "rifiutata_gm", note=note_db):
         await query.edit_message_text("⚠️ Questa trade non è più in votazione.")
         return
+    from handlers.trade_comune import segna_trade
+    await segna_trade(context.bot, user, "gm", "voto sulla trade", trade_id,
+                      dopo=f"{team['nome'] if team else team_id}: rifiutata", nota=nota)
 
     testo_altri = f"❌ <b>{team['nome'] if team else team_id}</b> ha rifiutato la trade <b>{_trade_label(trade)}</b>."
     if nota:
@@ -298,6 +304,9 @@ async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="HTML")
             return
         t = db.get_trade(trade_id) or {}
+        from handlers.trade_comune import segna_trade
+        await segna_trade(context.bot, admin_user, "admin", "trade rifiutata dagli admin", trade_id,
+                          prima="in approvazione", dopo="rifiutata")
         await query.edit_message_text(f"❌ Trade {_trade_label(t) if t else ''} rifiutata dagli admin ({admin_nome}).")
         await _notifica_squadre(context, trade_id,
                                 f"🚫 Gli admin hanno rifiutato la trade <b>{_trade_label(t)}</b>.", escludi=("admin",))
@@ -320,7 +329,7 @@ async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Approvazione + esecuzione atomiche: se fallisce, la trade resta com'era
     try:
-        await _esegui_trade(context, trade_id, trade_ref, approvata_da=admin_nome)
+        await _esegui_trade(context, trade_id, trade_ref, approvata_da=admin_nome, user=admin_user)
     except TradeNonEseguibile as e:
         await query.edit_message_text(
             f"❌ <b>Trade non eseguita</b>: {e}.\nNessuna modifica è stata salvata; la trade resta da approvare.",

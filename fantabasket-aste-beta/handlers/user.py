@@ -461,7 +461,8 @@ async def cmd_offerta(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     from handlers.offerte import _esegui_offerta
-    errore = await _esegui_offerta(context, team, asta_id, importo, update.effective_user.id)
+    errore = await _esegui_offerta(context, team, asta_id, importo, update.effective_user.id,
+                                   chi=update.effective_user)
     if errore:
         await update.effective_message.reply_text(f"❌ {errore}", parse_mode="HTML")
     else:

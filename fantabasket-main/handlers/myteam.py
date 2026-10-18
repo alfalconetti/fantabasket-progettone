@@ -115,7 +115,11 @@ async def ricevi_valore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         return INSERISCI_VALORE
 
     # Salva in teams.json
+    prima = (tm.get_team_by_id(team_id) or {}).get(campo)
     tm.set_campo_team(team_id, campo, valore)
+    from handlers.registro import segna
+    await segna(context.bot, update.effective_user, "gm", "dati della squadra", squadre=team_id, oggetto=campo,
+                prima=prima or "—", dopo=valore or "—")
 
     team = tm.get_team_by_id(team_id)
     await update.effective_message.reply_text(

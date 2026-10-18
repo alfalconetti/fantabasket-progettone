@@ -128,6 +128,9 @@ async def autocap(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Salva cap anticipato su PG (sostituisce eventuale precedente)
     pg_client.set_cap_anticipato(team["id"], importo)
+    from registro import segna
+    await segna(context.bot, user, "gm", "cap anticipato", squadre=team["id"], oggetto="cap anticipato",
+                dopo=f"+{importo}M", nota="in attesa della trade")
 
     from datetime import datetime, timezone
     ora = utils.format_dt(datetime.now(timezone.utc).isoformat())
@@ -209,6 +212,9 @@ async def cb_reset_cap_anticipato(update: Update, context: ContextTypes.DEFAULT_
         return
 
     pg_client.reset_cap_anticipato(team_id)
+    from registro import segna
+    await segna(context.bot, query.from_user, "admin", "cap anticipato tolto", squadre=team_id, oggetto="cap anticipato",
+                dopo="tolto")
     await query.edit_message_text(
         query.message.text + f"\n\n✅ <b>Cap anticipato resettato</b> da {query.from_user.first_name}.",
         parse_mode="HTML",
@@ -243,6 +249,9 @@ async def cb_reset_slot_anticipato(update: Update, context: ContextTypes.DEFAULT
         return
 
     pg_client.reset_slot_anticipato(team_id)
+    from registro import segna
+    await segna(context.bot, query.from_user, "admin", "slot anticipato tolto", squadre=team_id,
+                oggetto="slot anticipato", prima=f"+{slot_ant}", dopo="tolto")
     await query.edit_message_text(
         query.message.text + f"\n\n✅ <b>Slot anticipato resettato</b> da {query.from_user.first_name}.",
         parse_mode="HTML",
@@ -286,6 +295,9 @@ async def auto_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     pg_client.set_slot_anticipato(team["id"], quantita)
+    from registro import segna
+    await segna(context.bot, user, "gm", "slot anticipato", squadre=team["id"], oggetto="slot anticipato",
+                dopo=f"+{quantita}", nota="in attesa della trade")
     from datetime import datetime, timezone
     ora = utils.format_dt(datetime.now(timezone.utc).isoformat())
     await update.effective_message.reply_text(

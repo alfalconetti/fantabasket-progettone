@@ -105,7 +105,7 @@ async def _concludi_rfa_senza_contratto(context, asta_id: int):
 async def _registra_firma_finale(
     context, asta_id: int, anni: int, team_id: str,
     query=None, importo_override: int = None, pareggiato: bool = False,
-    ruolo: str | None = None, nota_tempo: str | None = None,
+    ruolo: str | None = None, nota_tempo: str | None = None, user=None,
 ) -> str | None:
     """
     Gestisce SEMPRE:
@@ -185,6 +185,20 @@ async def _registra_firma_finale(
 
     db.concludi_asta(asta_id, anni_contratto=anni, firmato_at=now, team_firma=team_id, importo_firma=importo,
                      note_tempo=scaduti)
+    # registro: chi ha deciso (il GM che conferma) o il job (tempo scaduto, preimpostazioni)
+    chi = user or (query.from_user if query is not None else None)
+    if asta["tipo"] == "RFA" and pareggiato and not asta["offerente_team_id"]:
+        azione = "RFA rifirmato senza offerte"
+    elif asta["tipo"] == "RFA" and pareggiato:
+        azione = "RFA pareggiato"
+    elif asta["tipo"] == "RFA":
+        azione = "firma RFA (pareggio non esercitato)"
+    else:
+        azione = "firma dopo l'asta FA"
+    from registro import segna_asta
+    await segna_asta(context.bot, chi, "gm" if chi else "sistema", azione, asta, team_id,
+                     prima="asta", dopo=f"{importo}M × {anni}" + (f", {ruolo}" if ruolo else ""),
+                     nota="; ".join(scaduti) or None)
 
     await _aggiorna_canale(context, asta_id)
 

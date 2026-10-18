@@ -388,6 +388,13 @@ async def cb_ruoli(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _log_conferma(context, team_id, nuovi, r, user, admin):
+    # registro: una riga per giocatore (si cerca per giocatore); sul canale log la riga riassuntiva
+    # di sempre, una per conferma, che dice già chi e in che veste (15 righe a conferma sarebbero rumore)
+    from handlers.registro import segna_sync
+    for s in nuovi:
+        segna_sync(user, "admin" if admin else "gm", "ruolo dichiarato" + (" per conto della squadra" if admin else ""),
+                   squadre=team_id, giocatore_id=s["gid"], oggetto=s["nome"], prima=s["ufficiale"] or "senza ruolo",
+                   dopo=s["scelta"], nota="dichiarazione di inizio stagione")
     ch = settings.load_globals().get("log_channel_id_main")
     if not ch or not nuovi:
         return
@@ -608,9 +615,13 @@ async def cmd_deadline_ruoli(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
     path = os.environ.get("GLOBALS_PATH", "/config/globals.json")
     g = json.load(open(path))
+    prima = _deadline_str()
     g["deadline_ruoli"] = d.strftime("%Y-%m-%dT%H:%M")
     json.dump(g, open(path, "w"), indent=2, ensure_ascii=False)
     await update.effective_message.reply_text(f"✅ Deadline dichiarazione ruoli: {_deadline_str()}")
+    from handlers.registro import segna
+    await segna(context.bot, update.effective_user, "admin", "deadline ruoli", oggetto="deadline dichiarazione ruoli",
+                prima=prima, dopo=_deadline_str())
 
 
 def _riepilogo_lega_testo() -> str:

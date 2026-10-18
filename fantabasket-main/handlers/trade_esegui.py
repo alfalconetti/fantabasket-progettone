@@ -113,7 +113,7 @@ def _scrivi_trade(trade_id: int, trade_ref: str, approvata_da: str | None, inver
                             (trade_ref, approvata_da, trade_id))
 
 
-async def _esegui_trade(context, trade_id: int, trade_ref: str, approvata_da: str | None = None):
+async def _esegui_trade(context, trade_id: int, trade_ref: str, approvata_da: str | None = None, user=None):
     """Approva ed esegue la trade in un'unica transazione DB (vedi _scrivi_trade),
     poi notifiche, sync e dichiarazioni di ruolo. Solleva TradeNonEseguibile se
     non è eseguibile: in quel caso il DB non è stato toccato."""
@@ -127,6 +127,9 @@ async def _esegui_trade(context, trade_id: int, trade_ref: str, approvata_da: st
 
     _scrivi_trade(trade_id, trade_ref, approvata_da or trade.get("approvata_da"))
     logger.info("Trade %s eseguita.", trade_ref)
+    from handlers.trade_comune import segna_trade
+    await segna_trade(context.bot, user, "admin", "trade approvata ed eseguita", trade_id,
+                      prima="in approvazione", dopo=trade_ref)
 
     # Notifica tutti i GM coinvolti
     squadre = [s["team_id"] for s in db.get_squadre_trade(trade_id)]
@@ -327,6 +330,9 @@ async def cmd_annulla_trade_admin(update: Update, context: ContextTypes.DEFAULT_
         return
 
     admin_nome = user.first_name or str(user.id)
+    from handlers.trade_comune import segna_trade
+    await segna_trade(context.bot, user, "admin", "trade annullata", trade["id"], prima=trade_ref, dopo="annullata",
+                      nota="giocatori, pick e diritti tornati alle squadre di prima")
     from datetime import datetime
     ora = format_dt(datetime.now(ROME))
     # se la trade aveva toccato un RFA, la dichiarazione è tornata: riepilogo aggiornato

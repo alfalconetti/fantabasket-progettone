@@ -64,7 +64,7 @@ async def _riscarica(g: dict) -> dict:
     return {k: (prima.get(k), dopo.get(k)) for k in set(prima) | set(dopo) if prima.get(k) != dopo.get(k)}
 
 
-async def esegui(bot, stagione: str, n: int, chi: str = "job delle 7:45") -> str:
+async def esegui(bot, stagione: str, n: int, chi: str = "job delle 7:45", user=None) -> str:
     """Calcola (o ricalcola) la giornata n, scrive il tab, manda la proposta. Restituisce l'esito."""
     from handlers import log
     c = R.calcola(stagione, n)
@@ -83,6 +83,11 @@ async def esegui(bot, stagione: str, n: int, chi: str = "job delle 7:45") -> str
                 logger.info("Proposta vecchia: %s", err)
         m = await bot.send_message(chat_id=gruppo, text=testo, parse_mode="HTML", reply_markup=_tasti(n, versione))
         db.q("UPDATE lega_calcoli SET messaggio = %s WHERE stagione = %s AND giornata = %s", (m.message_id, stagione, n))
+    from registro import segna_sync
+    segna_sync(user, "admin" if user else "sistema", "giornata ricalcolata" if versione > 1 else "giornata calcolata",
+               oggetto=f"giornata {n}", dopo=f"versione {versione}, da convalidare",
+               nota="; ".join(f"{config.nome(r['casa'])} {testo_punti(r['punti_casa'])}–{testo_punti(r['punti_trasferta'])} "
+                              f"{config.nome(r['trasferta'])}" for r in c["risultati"])[:800])
     await log(bot, f"📊 Giornata {n} calcolata (versione {versione}, {chi}): "
                    + ", ".join(f"{e(config.nome(r['casa']))} {testo_punti(r['punti_casa'])}–{testo_punti(r['punti_trasferta'])} {e(config.nome(r['trasferta']))}"
                                for r in c["risultati"]) + f"; {e(foglio)}")
@@ -150,7 +155,7 @@ async def job_controllo(context: ContextTypes.DEFAULT_TYPE):
         await log(context.bot, f"🔎 Controllo delle 10, giornata {n}: {len(contano)} tabellini cambiati, avviso agli admin")
 
 
-async def _ricalcola(bot, s: str, n: int, chi: str, rispondi):
+async def _ricalcola(bot, s: str, n: int, chi: str, rispondi, user=None):
     g = db.giornata(s, n)
     if not g:
         await rispondi(f"Giornata {n} non trovata.")
@@ -165,7 +170,7 @@ async def _ricalcola(bot, s: str, n: int, chi: str, rispondi):
         if motivo:
             await rispondi(f"❌ Giornata {n} non ancora calcolabile: {motivo}.")
             return
-        esito = await esegui(bot, s, n, chi)
+        esito = await esegui(bot, s, n, chi, user=user)
         await rispondi(f"✅ Giornata {n} ricalcolata: proposta nuova nel gruppo admin ({esito}).")
     except Exception as err:
         logger.exception("Ricalcolo %s", n)
@@ -187,7 +192,8 @@ async def cmd_ricalcola(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     async def rispondi(t):
         await msg.reply_text(t)
-    await _avvia(context, _ricalcola(context.bot, config.stagione(), n, f"/ricalcola di {_chi(update)}", rispondi))
+    await _avvia(context, _ricalcola(context.bot, config.stagione(), n, f"/ricalcola di {_chi(update)}", rispondi,
+                                     user=update.effective_user))
 
 
 async def _avvia(context, coro):
@@ -213,6 +219,9 @@ async def cb_risultati(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await q.answer("Questa proposta non è più valida (ricalcolata o già convalidata).", show_alert=True)
             return
         R.convalida(s, n, update.effective_user.id)
+        from registro import segna_sync
+        segna_sync(update.effective_user, "admin", "giornata convalidata", oggetto=f"giornata {n}",
+                   prima=f"versione {lc['versione']} da convalidare", dopo="convalidata: risultati salvati")
         await q.answer("Convalidata")
         import foglio
         esito = await foglio.aggiorna(s)
@@ -231,7 +240,7 @@ async def cb_risultati(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         async def rispondi(t):
             await context.bot.send_message(chat_id=q.message.chat_id, text=t)
-        await _avvia(context, _ricalcola(context.bot, s, n, f"🔄 di {_chi(update)}", rispondi))
+        await _avvia(context, _ricalcola(context.bot, s, n, f"🔄 di {_chi(update)}", rispondi, user=update.effective_user))
 
 
 async def cmd_dev_prova_calcolo(update: Update, context: ContextTypes.DEFAULT_TYPE):

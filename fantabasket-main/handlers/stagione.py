@@ -831,6 +831,8 @@ async def cb_stagione(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chi = None
     await query.answer()
     bot = query.get_bot()
+    veste = "admin" if admin_team else "gm"
+    from handlers.registro import segna
 
     try:
         if azione == "rr":
@@ -851,6 +853,9 @@ async def cb_stagione(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"<i>{html.escape(c['spiegazione'])}</i>", parse_mode="HTML", reply_markup=kb)
         elif azione == "rrok":
             c = esegui_rinnovo_rookie(team["id"], int(resto[0]))
+            await segna(bot, user, veste, "rinnovo rookie" + (" per conto della squadra" if admin_team else ""),
+                        squadre=team["id"], giocatore_id=c["giocatore_id"], oggetto=c["nome_common"],
+                        prima=f"{c['importo']}x0", dopo=f"{c['importo_nuovo']}x2", nota="Doncic" if c["doncic"] else None)
             await query.edit_message_text(f"✅ <b>{html.escape(c['nome_common'])}</b> rinnovato: "
                                           f"<b>{c['importo_nuovo']}x2</b>.", parse_mode="HTML")
             await _annuncia(bot, f"🔁 <b>{html.escape(team.get('gm_nome', team['nome']))}</b> rinnova il rookie "
@@ -881,6 +886,9 @@ async def cb_stagione(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif azione == "rfaok":
             prima = db.rfa_squadra(team["id"], settings.stagione_corrente())
             c = dichiara_rfa(team["id"], int(resto[0]), chi or f"GM {user.id}")
+            await segna(bot, user, veste, "RFA dichiarato" + (" per conto della squadra" if admin_team else ""),
+                        squadre=team["id"], giocatore_id=c["giocatore_id"], oggetto=c["nome_common"],
+                        prima=prima["nome_common"] if prima else "nessun RFA", dopo=f"RFA {c['importo_originale']}M")
             await query.edit_message_text(f"✅ <b>{html.escape(c['nome_common'])}</b> dichiarato RFA.", parse_mode="HTML")
             cambio = (f" al posto di {html.escape(prima['nome_common'])}"
                       if prima and prima["giocatore_id"] != c["giocatore_id"] else "")
@@ -895,6 +903,9 @@ async def cb_stagione(update: Update, context: ContextTypes.DEFAULT_TYPE):
             prima = revoca_rfa(team["id"])
             await query.edit_message_text("✅ Nessun RFA dichiarato.")
             if prima:
+                await segna(bot, user, veste, "RFA ritirato" + (" per conto della squadra" if admin_team else ""),
+                            squadre=team["id"], giocatore_id=prima.get("giocatore_id"), oggetto=prima["nome_common"],
+                            prima="RFA", dopo="nessun RFA")
                 await log_rfa(bot, f"🔓 <b>RFA — {html.escape(team['nome'])}</b>: ritira "
                                    f"<b>{html.escape(prima['nome_common'])}</b>"
                                    + (f"\n<i>Registrato da {chi}</i>" if chi else ""))
@@ -923,6 +934,9 @@ async def cmd_dev_stagione(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bot = update.get_bot()
     if context.args and context.args[0] == "rifai":
         nota = await dopo_cambio_fase(bot, "manuale", settings.fase())
+        from handlers.registro import segna
+        await segna(bot, update.effective_user, "dev", "passaggi di stagione rifatti", oggetto=f"fase {settings.fase()}",
+                    nota=(nota or "niente da fare").replace("<b>", "").replace("</b>", "").strip()[:500])
         await update.effective_message.reply_text(
             f"🔁 Passaggi della fase <b>{settings.fase()}</b> (stagione {s}) ripetuti.{nota or ' Niente da fare.'}",
             parse_mode="HTML")
@@ -1004,6 +1018,9 @@ async def cmd_trade_deadline(update: Update, context: ContextTypes.DEFAULT_TYPE)
         + f"\nI diritti delle seconde del draft {s - 1} scadono il <b>{scadenza.strftime('%d/%m/%Y')}</b>: "
           f"avviso nel gruppo admin 3 giorni prima, poi il bottone di conferma.", parse_mode="HTML")
     logger.info("trade_deadline: %s → %s da %d", prima, d.isoformat(), update.effective_user.id)
+    from handlers.registro import segna
+    await segna(context.bot, update.effective_user, "admin", "trade deadline", oggetto="trade deadline",
+                prima=prima or "non impostata", dopo=d.isoformat())
 
 
 def get_handlers() -> list:

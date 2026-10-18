@@ -294,6 +294,9 @@ async def cb_conferma(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         f"Giocatori con yahoo_id/nome Yahoo aggiornati: <b>{aggiornati}</b>", parse_mode="HTML")
     logger.info("Import posizioni: %d righe, %d giocatori aggiornati (da %s)",
                 inserite, aggiornati, query.from_user.id)
+    from handlers.registro import segna
+    await segna(query.get_bot(), query.from_user, "admin", "posizioni eleggibili importate", oggetto="file Yahoo",
+                dopo=f"{inserite} righe nuove, {aggiornati} giocatori aggiornati")
     return ConversationHandler.END
 
 
@@ -343,7 +346,8 @@ async def cmd_set_posizioni(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nome = " ".join(context.args[:-1])
     candidati, esatto = _cerca_giocatori(nome)
     if esatto and len(candidati) == 1:
-        await _applica_set_posizioni(update.effective_message.reply_text, candidati[0], pos)
+        await _applica_set_posizioni(update.effective_message.reply_text, candidati[0], pos, context.bot,
+                                     update.effective_user)
         return
     if not candidati:
         await update.effective_message.reply_text(f"Nessun giocatore trovato per «{nome}».")
@@ -355,10 +359,13 @@ async def cmd_set_posizioni(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text(f"{titolo}:", reply_markup=InlineKeyboardMarkup(kb))
 
 
-async def _applica_set_posizioni(rispondi, g: dict, pos: str):
+async def _applica_set_posizioni(rispondi, g: dict, pos: str, bot=None, user=None):
     vecchie, cambiate = imposta_posizioni_manuali(g["id"], pos)
     if cambiate:
         await rispondi(f"✅ {g['nome_common']}: {vecchie or 'nessuna'} → <b>{pos}</b>", parse_mode="HTML")
+        from handlers.registro import segna
+        await segna(bot, user, "admin", "posizioni eleggibili corrette", giocatore_id=g["id"], oggetto=g["nome_common"],
+                    prima=vecchie or "nessuna", dopo=pos)
     else:
         await rispondi(f"ℹ️ {g['nome_common']} ha già le posizioni {pos}, nessuna modifica.")
 
@@ -375,7 +382,7 @@ async def cb_set_posizioni(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _, gid, pos = query.data.split(":")
     g = db._q("SELECT id, nome_common FROM giocatori WHERE id = %s", (int(gid),), one=True)
     if g and posizioni_canoniche(pos):
-        await _applica_set_posizioni(query.edit_message_text, g, posizioni_canoniche(pos))
+        await _applica_set_posizioni(query.edit_message_text, g, posizioni_canoniche(pos), context.bot, query.from_user)
 
 
 @solo_privato
@@ -406,6 +413,9 @@ async def cmd_data_erminio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not r:
         await update.effective_message.reply_text(f"{g['nome_common']} non ha posizioni registrate.")
         return
+    from handlers.registro import segna
+    await segna(context.bot, update.effective_user, "admin", "data Erminio", giocatore_id=g["id"], oggetto=g["nome_common"],
+                dopo=giorno.isoformat(), nota=f"posizioni {r['posizioni']}")
     await update.effective_message.reply_text(
         f"✅ {g['nome_common']} ({r['posizioni']}): ultima posizione aggiunta su Yahoo il "
         f"{giorno.strftime('%d/%m/%Y')}. La finestra Erminio di 14 giorni parte da questa data.")

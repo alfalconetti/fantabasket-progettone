@@ -238,6 +238,7 @@ import json as _json, handlers_risultati as HR
 G = _json.load(open(config.GLOBALS_PATH)); G["admin_group_id"] = -2; G["log_channel_id_louca"] = -3
 _json.dump(G, open(config.GLOBALS_PATH, "w"))
 db.q("DELETE FROM lega_calcoli"); db.q("DELETE FROM lega_risultati")
+from shared import azioni as _A; _A.migra(db.q); db.q("DELETE FROM registro_azioni WHERE bot = 'louca'")
 class Bot:
     def __init__(s): s.mandati, s.n = [], 100
     async def send_message(s, chat_id, text, **k):
@@ -265,6 +266,10 @@ premi(900, f"rc:ok:{N}:2")
 ok(db.q("SELECT COUNT(*) AS n FROM lega_risultati WHERE stagione = %s AND giornata = %s AND convalidato IS NOT NULL", (S, N), one=True)["n"] == 2
    and any("convalidata da Admin" in x.get("text", "") for x in BOT.mandati), "convalida: risultati salvati, conferma nel gruppo")
 ok("non è più valida" in premi(900, f"rc:ok:{N}:2").risposte[-1], "una seconda convalida dello stesso bottone non fa niente")
+_reg = db.q("SELECT veste, azione, chi_id, dopo FROM registro_azioni WHERE bot = 'louca' ORDER BY id", many=True)
+ok([(r["veste"], r["azione"]) for r in _reg] == [("sistema", "giornata calcolata"), ("sistema", "giornata ricalcolata"),
+                                                  ("admin", "giornata convalidata")] and _reg[-1]["chi_id"] == 900,
+   f"registro: calcolo e ricalcolo del job (sistema), convalida dell'admin {[(r['veste'], r['azione']) for r in _reg]}")
 # controllo delle 10: ESPN corregge il tabellino di un giocatore schierato (r12) e di uno no (r40)
 async def finto_scarica(ids, **k):
     db.q("UPDATE nba_tabellini SET fp = 25 WHERE atleta = 'r12' AND partita = 'g1'")

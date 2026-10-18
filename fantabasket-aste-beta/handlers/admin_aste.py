@@ -137,6 +137,9 @@ async def admin_chiudi_callback(update: Update, context: ContextTypes.DEFAULT_TY
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc)
     db.chiudi_asta(asta_id, now.isoformat())
+    from registro import segna_asta
+    await segna_asta(context.bot, query.from_user, "admin", "asta chiusa in anticipo", asta, prima="aperta",
+                     dopo=f"chiusa, {asta['offerta_corrente']}M" if asta["offerente_team_id"] else "chiusa, senza offerte")
 
     await _aggiorna_canale(context, asta_id)
 
@@ -250,6 +253,9 @@ async def admin_annulla_callback(update: Update, context: ContextTypes.DEFAULT_T
             j.schedule_removal()
 
     db.annulla_asta(asta_id)
+    from registro import segna_asta
+    await segna_asta(context.bot, query.from_user, "admin", "asta annullata", asta, prima=asta["stato"].lower()
+                     + (f", {asta['offerta_corrente']}M" if asta["offerente_team_id"] else ""), dopo="annullata")
     await _aggiorna_canale(context, asta_id)
 
     # notifica GM vincitore se esiste
@@ -484,6 +490,9 @@ async def ripubblica_asta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     logger.info("ripubblica_asta: asta_id=%d nuovo_msg_id=%d admin=%d",
                 asta_id, msg.message_id, update.effective_user.id)
+    from registro import segna_asta
+    await segna_asta(context.bot, update.effective_user, "admin", "asta ripubblicata sul canale", asta,
+                     prima=f"messaggio {asta['canale_msg_id'] or '—'}", dopo=f"messaggio {msg.message_id}")
 
 
 # ── /forza_aggiornamento ──────────────────────────────────────────────────────
@@ -634,3 +643,7 @@ async def force_esito(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     logger.info("force_esito: asta_id=%d stato=%s admin=%d", asta_id, stato, update.effective_user.id)
+    from registro import segna_asta
+    await segna_asta(context.bot, update.effective_user, "admin", "esito dell'asta rimandato", asta,
+                     nota=f"stato {stato.lower()}: messaggio di " + ("pareggio" if stato == "PAREGGIO" else "firma")
+                     + " rimandato")

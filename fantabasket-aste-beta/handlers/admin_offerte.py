@@ -95,6 +95,11 @@ async def nuova_rfa(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     logger.info("Nuova RFA: asta_id=%d giocatore=%s proprietario=%s compenso=%d admin=%d",
                 asta_id, giocatore, team_id, vecchio_compenso, update.effective_user.id)
+    from registro import segna_asta
+    await segna_asta(context.bot, update.effective_user, "admin", "asta RFA aperta a mano",
+                     db.get_asta(asta_id) or {"id": asta_id, "tipo": "RFA", "giocatore": giocatore,
+                                              "squadra_proprietaria": team_id},
+                     dopo="aperta", nota=f"vecchio compenso {vecchio_compenso}M")
 
 
 # ── /annulla_offerta ──────────────────────────────────────────────────────────
@@ -237,6 +242,10 @@ async def annulla_offerta(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML",
     )
     logger.info("annulla_offerta: asta_id=%d offerta=%d admin=%d", asta_id, result["offerta_eliminata"], update.effective_user.id)
+    from registro import segna_asta
+    await segna_asta(context.bot, update.effective_user, "admin", "offerta annullata", asta,
+                     result["team_eliminato"], result["nuovo_team"],
+                     prima=f"{result['offerta_eliminata']}M {team_el}", dopo=f"{result['nuovo_importo']}M {nuovo_team}")
 
 
 # ── /annulla_offerta con cap negativo: conferma ─────────────────────────────────
@@ -287,6 +296,11 @@ async def annulla_off_cap_callback(update: Update, context: ContextTypes.DEFAULT
         parse_mode="HTML",
     )
     logger.info("annulla_off_cap_callback: asta_id=%d admin=%d", asta_id, query.from_user.id)
+    from registro import segna_asta
+    await segna_asta(context.bot, query.from_user, "admin", "offerta annullata", asta,
+                     result["team_eliminato"], result["nuovo_team"],
+                     prima=f"{result['offerta_eliminata']}M {team_el}", dopo=f"{result['nuovo_importo']}M {nuovo_team}",
+                     nota="confermato col cap virtuale in negativo")
 
 
 # ── /crea_offerta ─────────────────────────────────────────────────────────────
@@ -360,10 +374,9 @@ async def crea_offerta(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         except Exception as e:
             await _log_warn(context, f"Annuncio crea_offerta canale fallito: {e}")
-        await _log_warn(context,
-            f"🏀 Offerta creata da admin <b>{admin_label}</b>: "
-            f"{team['nome']} → {asta['giocatore']} {importo}M"
-        )
+        from registro import segna_asta
+        await segna_asta(context.bot, update.effective_user, "admin", "offerta per conto della squadra", asta, team_id,
+                         prima=f"{asta['offerta_corrente']}M", dopo=f"{importo}M {team['nome']}")
     logger.info("crea_offerta: team=%s asta_id=%d importo=%d admin=%d",
                 team_id, asta_id, importo, update.effective_user.id)
 
@@ -434,6 +447,9 @@ async def apri_asta(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     admin_label = _admin_label(update.effective_user)
     asta = db.get_asta(asta_id)
+    from registro import segna_asta
+    await segna_asta(context.bot, update.effective_user, "admin", "asta FA aperta per conto della squadra", asta,
+                     dopo=f"aperta, {importo}M {team['nome']}")
     await update.effective_message.reply_text(
         f"✅ Asta FA <b>#{asta_id}</b> aperta per <b>{nome_esatto}</b> per conto di <b>{team['nome']}</b> "
         f"con offerta iniziale <b>{importo}M</b>.\nScade: {utils.format_dt(asta['scade_at'])}",

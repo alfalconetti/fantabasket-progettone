@@ -363,15 +363,19 @@ def _sync(team_id: str):
         logger.warning("Sync foglio dopo il 10-day: %s", err)
 
 
-async def esegui(bot, team_id: str, gid: int, ruolo: str, chi: str) -> str:
-    """Firma, annunci (canale, GM, log) e foglio. Il testo dell'esito."""
+async def esegui(bot, team_id: str, gid: int, ruolo: str, chi: str, user=None, per_conto: bool = False) -> str:
+    """Firma, annunci (canale, GM), registro (e la sua riga sul log) e foglio. Il testo dell'esito."""
     r = registra(team_id, gid, ruolo, chi)
-    nome = e((db.get_giocatore(gid) or {}).get("nome_common", gid))
+    nome_g = (db.get_giocatore(gid) or {}).get("nome_common", str(gid))
+    nome = e(nome_g)
     fino = testo_scadenza(r["scadenza"])
     await _manda(bot, settings.load_globals().get("main_channel_id"),
                  f"⏱ <b>{e(_nome_team(team_id))}</b> firma <b>{nome}</b> con un 10-day ({ruolo})\n"
                  f"<i>Fino {fino}. Non pesa sul cap e non occupa uno slot.</i>")
-    await _log(bot, f"⏱ 10-day: {nome} → {e(_nome_team(team_id))} ({ruolo}), fino {fino} — {e(chi)}")
+    from handlers.registro import segna
+    await segna(bot, user, "admin", "10-day firmato per conto della squadra" if per_conto else "10-day approvato",
+                squadre=team_id, giocatore_id=gid, oggetto=nome_g, prima="free agent", dopo=f"10-day come {ruolo}",
+                nota=f"fino {fino}")
     _sync(team_id)
     return f"✅ <b>{nome}</b> firmato con un 10-day da {e(_nome_team(team_id))} come {ruolo}, fino {fino}."
 
@@ -390,6 +394,9 @@ async def job_scadenza(context: ContextTypes.DEFAULT_TYPE):
             await _manda(context.bot, settings.load_globals().get("main_channel_id"), testo)
             await _ai_gm(context.bot, c["team_id"], testo)
             await _log(context.bot, testo)
+            from handlers.registro import segna
+            await segna(context.bot, None, "sistema", "10-day scaduto", squadre=c["team_id"],
+                        giocatore_id=c.get("giocatore_id"), oggetto=c["nome_common"], prima="10-day", dopo="free agent")
             _sync(c["team_id"])
     except Exception as err:
         logger.exception("job_scadenza 10-day: %s", err)
@@ -501,6 +508,9 @@ async def cb_gm(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def _richiesta(bot, team_id: str, gid: int, ruolo: str, user):
     nome = e((db.get_giocatore(gid) or {}).get("nome_common", gid))
+    from handlers.registro import segna
+    await segna(bot, user, "gm", "10-day chiesto", squadre=team_id, giocatore_id=gid,
+                oggetto=(db.get_giocatore(gid) or {}).get("nome_common", str(gid)), nota=f"ruolo {ruolo}")
     chi = e(user.first_name or user.id)
     testo = (f"⏱ <b>Richiesta 10-day</b> — {e(_nome_team(team_id))} ({chi})\n"
              f"<b>{nome}</b> per coprire il ruolo <b>{ruolo}</b>\n\n"
@@ -529,7 +539,10 @@ async def cb_richiesta(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         await q.edit_message_text(q.message.text_html + f"\n\n❌ <b>Rifiutata</b> da {e(admin)}", parse_mode="HTML")
         await _ai_gm(context.bot, team_id, f"❌ La richiesta di 10-day per {nome} ({ruolo}) è stata rifiutata.")
-        await _log(context.bot, f"❌ 10-day di {nome} → {e(_nome_team(team_id))} rifiutato da {e(admin)}")
+        from handlers.registro import segna
+        await segna(context.bot, q.from_user, "admin", "10-day rifiutato", squadre=team_id, giocatore_id=gid,
+                    oggetto=(db.get_giocatore(gid) or {}).get("nome_common", str(gid)), prima="chiesto",
+                    dopo="rifiutato", nota=f"ruolo {ruolo}")
         return
     ultima = db._qval("SELECT stato FROM richieste_admin WHERE tipo = '10day' AND chiave = %s ORDER BY id DESC LIMIT 1",
                       (gid,))
@@ -546,7 +559,7 @@ async def cb_richiesta(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.edit_message_text(q.message.text_html + gia, parse_mode="HTML")
         return
     try:
-        esito_txt = await esegui(context.bot, team_id, gid, ruolo, f"approvato da {admin}")
+        esito_txt = await esegui(context.bot, team_id, gid, ruolo, f"approvato da {admin}", user=q.from_user)
     except Exception as err:
         db.riapri_richiesta("10day", gid)
         logger.exception("10-day: %s", err)
@@ -624,7 +637,8 @@ async def cb_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         admin = q.from_user.first_name or str(q.from_user.id)
         db.chiudi_richiesta("10day", gid, "approvata", admin)
         try:
-            esito = await esegui(context.bot, team_id, gid, ruolo, f"firmato da {admin}")
+            esito = await esegui(context.bot, team_id, gid, ruolo, f"firmato da {admin}", user=q.from_user,
+                                 per_conto=True)
         except Exception as err:
             logger.exception("10-day admin: %s", err)
             await q.edit_message_text(f"⚠️ Errore: {e(err)}")
@@ -671,7 +685,11 @@ async def cb_pannello(update: Update, context: ContextTypes.DEFAULT_TYPE):
                      f"torna free agent")
             await _manda(context.bot, settings.load_globals().get("main_channel_id"), testo)
             await _ai_gm(context.bot, c["team_id"], testo)
-            await _log(context.bot, testo + f" ({e(admin)})")
+            from handlers.registro import segna
+            await segna(context.bot, q.from_user, "admin", "10-day chiuso prima", squadre=c["team_id"],
+                        giocatore_id=c["giocatore_id"],
+                        oggetto=(db.get_giocatore(c["giocatore_id"]) or {}).get("nome_common", str(c["giocatore_id"])),
+                        prima="10-day", dopo="free agent")
             _sync(c["team_id"])
     testo, kb = testo_pannello()
     await q.edit_message_text(testo, parse_mode="HTML", reply_markup=kb)

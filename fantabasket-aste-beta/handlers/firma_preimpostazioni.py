@@ -227,6 +227,9 @@ async def pre_pareggio_set_callback(update: Update, context: ContextTypes.DEFAUL
     importo_eff = min_importo if sotto_soglia else importo
 
     db.set_pareggio_preimpostato(asta_id, importo_eff, anni)
+    from registro import segna_asta
+    await segna_asta(context.bot, query.from_user, "gm", "pareggio preimpostato", asta,
+                     dopo=f"pareggio fino a {anni} anni, {importo_eff}M")
 
     # Check: se c'è rifiuto condizionale che si sovrappone, avviso
     rifiuto = db.get_rifiuto_preimpostato(asta_id)
@@ -263,6 +266,8 @@ async def pre_pareggio_annulla_callback(update: Update, context: ContextTypes.DE
         return
 
     db.clear_pareggio_preimpostato(asta_id)
+    from registro import segna_asta
+    await segna_asta(context.bot, query.from_user, "gm", "pareggio preimpostato tolto", asta, dopo="tolto")
     rifiuto = db.get_rifiuto_preimpostato(asta_id)
     testo, = _testo_stato_preimpostazioni(dict(asta), None, rifiuto)
     await query.edit_message_text(
@@ -389,6 +394,9 @@ async def pre_rifiuto_set_callback(update: Update, context: ContextTypes.DEFAULT
         return
 
     db.set_rifiuto_preimpostato(asta_id, valore)
+    from registro import segna_asta
+    await segna_asta(context.bot, query.from_user, "gm", "rifiuto preimpostato", asta,
+                     dopo="rifiuto assoluto" if valore == -1 else f"rifiuto sopra {valore} anni")
 
     if valore == -1:
         desc_rifiuto = "Rifiuto <b>assoluto</b> — il giocatore passerà al vincitore qualunque siano gli anni."
@@ -431,6 +439,8 @@ async def pre_rifiuto_annulla_callback(update: Update, context: ContextTypes.DEF
         return
 
     db.set_rifiuto_preimpostato(asta_id, 0)
+    from registro import segna_asta
+    await segna_asta(context.bot, query.from_user, "gm", "rifiuto preimpostato tolto", asta, dopo="tolto")
 
     pre = db.get_pareggio_preimpostato(asta_id)
     stato_pre = f"\n\n⚡ Pre-pareggio attivo: ≤{pre['anni']} ann{'o' if pre['anni']==1 else 'i'}" if pre else ""

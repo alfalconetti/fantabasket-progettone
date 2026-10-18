@@ -221,13 +221,10 @@ async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if falliti:
         riepilogo += "\n\n<b>Falliti:</b>\n" + "\n".join(falliti)
 
-    g = settings.load_globals()
-    log_ch = g.get("log_channel_id_main")
-    if log_ch:
-        try:
-            await context.bot.send_message(chat_id=log_ch, text=riepilogo, parse_mode="HTML")
-        except Exception:
-            pass
+    from handlers.registro import segna            # registro + riga sul canale log
+    await segna(context.bot, update.effective_user, "dev", "broadcast ai GM", oggetto=testo[:300],
+                dopo=f"{ok} inviati, {fail} falliti",
+                nota="; ".join(f.strip(" •") for f in falliti)[:500] or None)
     await update.effective_message.reply_text(riepilogo, parse_mode="HTML")
 
 
@@ -281,6 +278,10 @@ async def cmd_nuovo_giocatore(update: Update, context: ContextTypes.DEFAULT_TYPE
                 "VALUES (%s, %s, %s, %s)",
                 (nome_bref, nome_common, nome_common, nome_norm)
             )
+        from handlers.registro import segna
+        await segna(context.bot, update.effective_user, "dev", "giocatore creato",
+                    giocatore_id=db._qval("SELECT id FROM giocatori WHERE nome_bref = %s ORDER BY id DESC LIMIT 1", (nome_bref,)),
+                    oggetto=nome_common, dopo=f"bref {nome_bref}" + (f", nato il {data_nascita}" if data_nascita else ""))
         await update.effective_message.reply_text(
             f"✅ Giocatore inserito:\n"
             f"Nome: <b>{nome_common}</b>\n"

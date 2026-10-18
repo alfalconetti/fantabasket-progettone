@@ -209,13 +209,18 @@ async def cb_quintetto(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await q.answer("Solo admin.", show_alert=True)
             return
         n = int(parti[3])
+        from registro import segna_sync
         if team_id in db.controlli(s, n):
             db.togli_controllo(s, n, team_id)
+            segna_sync(update.effective_user, "admin", "controllo formazione tolto", squadre=team_id,
+                       oggetto=f"formazione G{n}", prima="☑️ controllata", dopo="da controllare")
             await q.answer("Tolto")
         else:
             db.segna_controllo(s, n, team_id, uid, _nome_admin(update))
             await q.answer("Controllata")
             await log(context.bot, f"☑️ Formazione G{n} {e(team['nome'])} controllata da {chi(update)}")
+            segna_sync(update.effective_user, "admin", "formazione controllata", squadre=team_id,
+                       oggetto=f"formazione G{n}", prima="da controllare", dopo="☑️ controllata")
         await q.edit_message_text(_testo_editor(team_id, g, admin), parse_mode="HTML", reply_markup=_tastiera(team_id, g, admin))
         return
     if azione in ("ok", "mod"):
@@ -226,6 +231,10 @@ async def cb_quintetto(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         if azione == "ok":
             db.conferma(s, n, team_id, "confermato", uid)
+            from registro import segna_sync
+            segna_sync(update.effective_user, "admin" if admin else "gm",
+                       "quintetto confermato" + (" per conto della squadra" if admin else ""), squadre=team_id,
+                       oggetto=f"quintetto G{n}", dopo="confermato")
             await q.answer("Confermato")
             await log(context.bot, f"✅ Quintetto G{n} {e(team['nome'])} confermato da {chi(update)}" + (" (admin)" if admin else ""))
         else:
@@ -252,8 +261,15 @@ async def cb_quintetto(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if gid not in roster or roster[gid].get("ruolo") != ruolo:
             await q.answer("Non è un giocatore di quel ruolo in squadra.", show_alert=True)
             return
-        nuovo = {**db.quintetto(team_id), ruolo: gid}
+        vecchio_q = db.quintetto(team_id)
+        nuovo = {**vecchio_q, ruolo: gid}
         db.salva_quintetto(team_id, nuovo, "admin" if admin else "gm", uid)
+        from registro import segna_sync
+        segna_sync(update.effective_user, "admin" if admin else "gm",
+                   "quintetto cambiato" + (" per conto della squadra" if admin else ""), squadre=team_id,
+                   giocatore_id=gid, oggetto=f"quintetto, {ruolo}",
+                   prima=(db.nomi_giocatori([vecchio_q[ruolo]]).get(vecchio_q[ruolo]) if vecchio_q.get(ruolo) else "vuoto"),
+                   dopo=roster[gid]["nome_common"])
         if g:
             db.conferma(s, g["numero"], team_id, "modificato", uid)
         extra = ""
@@ -318,6 +334,9 @@ async def cmd_quintetto_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
         await msg.reply_text(f"✅ Formazione della giornata {solo_g} di {e(team['nome'])} corretta (☑️ controllata): {e(elenco)}",
                              parse_mode="HTML")
         await log(context.bot, f"✏️ Formazione G{solo_g} {e(team['nome'])} corretta da {chi(update)}: {e(elenco)}")
+        from registro import segna_sync
+        segna_sync(update.effective_user, "admin", "formazione corretta", squadre=team["id"], oggetto=f"formazione G{solo_g}",
+                   dopo=elenco, nota="a giornata chiusa (☑️ controllata)")
         return
     db.salva_quintetto(team["id"], q, "admin", update.effective_user.id)
     g = prossima_giornata()
@@ -331,6 +350,9 @@ async def cmd_quintetto_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
     await msg.reply_text("✅ " + _testo_editor(team["id"], g)
                          + (f"\n\nAggiornata anche la formazione della giornata in corso ({in_corso['numero']})." if in_corso else ""),
                          parse_mode="HTML")
+    from registro import segna_sync
+    segna_sync(update.effective_user, "admin", "quintetto per conto della squadra", squadre=team["id"], oggetto="quintetto",
+               dopo=elenco, nota=f"anche la formazione della G{in_corso['numero']} in corso" if in_corso else None)
     await log(context.bot, f"✏️ Quintetto {e(team['nome'])} impostato da {chi(update)} (admin): {e(elenco)}"
                            + (f" · anche G{in_corso['numero']} in corso" if in_corso else ""))
 
@@ -389,6 +411,9 @@ async def cmd_quintetti_import(update: Update, context: ContextTypes.DEFAULT_TYP
     from shared.messaggi import manda_lungo
     await manda_lungo(context.bot, update.effective_chat.id, t, "quintetti-import")
     await log(context.bot, f"📥 /quintetti_import di {chi(update)}: {len(ok)} salvati, {len(errori)} errori")
+    from registro import segna_sync
+    segna_sync(update.effective_user, "admin", "quintetti importati", oggetto=f"{len(ok)} squadre",
+               dopo=", ".join(ok)[:500] or "nessuno", nota=f"{len(errori)} errori" if errori else None)
 
 
 def testo_stato(g: dict) -> str:
@@ -506,13 +531,18 @@ async def cb_controlli(update: Update, context: ContextTypes.DEFAULT_TYPE):
     s, n = config.stagione(), int(n)
     g = db.giornata(s, n)
     if team_id != "-":
+        from registro import segna_sync
         if team_id in db.controlli(s, n):
             db.togli_controllo(s, n, team_id)
+            segna_sync(update.effective_user, "admin", "controllo formazione tolto", squadre=team_id,
+                       oggetto=f"formazione G{n}", prima="☑️ controllata", dopo="da controllare")
             await q.answer("Tolto")
         else:
             db.segna_controllo(s, n, team_id, uid, _nome_admin(update))
             await q.answer("Controllata")
             await log(context.bot, f"☑️ Formazione G{n} {e(config.nome(team_id))} controllata da {chi(update)}")
+            segna_sync(update.effective_user, "admin", "formazione controllata", squadre=team_id,
+                       oggetto=f"formazione G{n}", prima="da controllare", dopo="☑️ controllata")
     else:
         await q.answer()
     testo, kb = testo_controlli(g)
@@ -623,6 +653,10 @@ async def job_giornate(context: ContextTypes.DEFAULT_TYPE):
                            if ced_q else "")))
                 except Exception as err:
                     logger.warning("Chiusura al gruppo admin: %s", err)
+            from registro import segna_sync
+            segna_sync(None, "sistema", "giornata chiusa", oggetto=f"giornata {g['numero']}", dopo="quintetti congelati",
+                       nota=(f"senza panchina: {', '.join(mancanti)}" if mancanti else "tutte le panchine arrivate")
+                       + (f"; panchine con ceduti: {len(ced_p)}" if ced_p else ""))
             await log(bot, f"⏰ G{g['numero']} chiusa: quintetti congelati, {len(mancanti)} panchine mancanti"
                            + (f", {len(ced_p)} panchine con ceduti" if ced_p else ""))
             continue

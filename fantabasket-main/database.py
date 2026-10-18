@@ -229,6 +229,9 @@ def migrate_db():
     _migra_registro_unico()
     # v3.11.0 — cambio di stagione: dichiarazioni RFA, contratti rookie "a pezzi"
     _migra_stagioni()
+    # v6.0.0 — registro delle azioni (accountability), condiviso con gli altri bot
+    from shared import azioni
+    azioni.migra(_q)
 
 
 # ── registro unico (v3.10.0) ──────────────────────────────────────────────────

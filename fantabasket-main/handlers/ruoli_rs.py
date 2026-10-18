@@ -141,6 +141,9 @@ async def apri_pendenti(bot, team_id: str, gids: list[int], origine: str, riferi
             vecchio = _ruolo_riacquisto(gid, team_id)
             if vecchio:
                 _registra_ruolo(gid, team_id, vecchio, tipo)
+                from handlers.registro import segna_sync
+                segna_sync(None, "sistema", "ruolo assegnato", squadre=team_id, giocatore_id=gid, oggetto=nome,
+                           dopo=vecchio, nota=f"regola dei {regole.giorni_riacquisto_ruolo()} giorni: il vecchio ruolo")
                 await _annuncia(bot, f"🎽 <b>{_nome_team(team_id)}</b>: {nome} → <b>{vecchio}</b>\n"
                                      f"<i>Regola dei {regole.giorni_riacquisto_ruolo()} giorni: torna col vecchio ruolo.</i>")
                 await _ai_gm(bot, team_id, f"🎽 {nome} torna nel suo vecchio ruolo <b>{vecchio}</b> "
@@ -149,6 +152,9 @@ async def apri_pendenti(bot, team_id: str, gids: list[int], origine: str, riferi
             eleg = eleggibili(gid)
             if len(eleg) == 1:   # una sola posizione eleggibile: niente da scegliere
                 _registra_ruolo(gid, team_id, eleg[0], tipo)
+                from handlers.registro import segna_sync
+                segna_sync(None, "sistema", "ruolo assegnato", squadre=team_id, giocatore_id=gid, oggetto=nome,
+                           dopo=eleg[0], nota="unica posizione eleggibile")
                 await _annuncia(bot, f"🎽 <b>{_nome_team(team_id)}</b>: {nome} → <b>{eleg[0]}</b>\n"
                                      f"<i>Unica posizione eleggibile.</i>")
                 await _ai_gm(bot, team_id, f"🎽 {nome}: ruolo <b>{eleg[0]}</b> assegnato in automatico "
@@ -211,11 +217,16 @@ async def cb_dichiara(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                   parse_mode="HTML")
     await _annuncia(context.bot, f"🎽 <b>{_nome_team(p['team_id'])}</b>: {p['nome_common']} → <b>{ruolo}</b>"
                                  f" <i>({_ORIGINE_TXT.get(p['origine'], p['origine'])}{chi})</i>")
-    # canale log: chi l'ha dichiarato e da dove (accountability)
+    # registro (accountability); l'admin finisce sul canale log nel formato unico, il GM con la riga di sempre
     u = query.from_user
+    from handlers.registro import segna
+    await segna(context.bot, u, "admin" if admin else "gm",
+                "ruolo dichiarato per conto della squadra" if admin else "ruolo dichiarato", squadre=p["team_id"],
+                giocatore_id=p["giocatore_id"], oggetto=p["nome_common"], prima="da dichiarare", dopo=ruolo,
+                nota=_ORIGINE_TXT.get(p["origine"], p["origine"]) + (" · pannello ⏳ Ruoli in sospeso" if admin else ""))
     nome_u = (u.first_name or str(u.id)) + (f" (@{u.username})" if getattr(u, "username", None) else "")
     ch = settings.load_globals().get("log_channel_id_main")
-    if ch:
+    if ch and not admin:
         try:
             await context.bot.send_message(chat_id=ch, parse_mode="HTML", text=(
                 f"🎽 Ruolo dichiarato — <b>{_nome_team(p['team_id'])}</b>: {p['nome_common']} → <b>{ruolo}</b>\n"
@@ -287,6 +298,10 @@ async def job_scadenze(context: ContextTypes.DEFAULT_TYPE):
             _registra_ruolo(p["giocatore_id"], p["team_id"], ruolo, _TIPO_EVENTO.get(p["origine"], "post_trade"))
             _chiudi(p["id"], "estratta", ruolo)
             cambiato = True
+            from handlers.registro import segna_sync
+            segna_sync(None, "sistema", "ruolo estratto", squadre=p["team_id"], giocatore_id=p["giocatore_id"],
+                       oggetto=p["nome_common"], prima="non dichiarato", dopo=ruolo,
+                       nota=f"scadute le {regole.ore_dichiarazione_ruolo()} ore, estratto tra {', '.join(eleg)}")
             await _annuncia(context.bot, f"🎲 <b>{_nome_team(p['team_id'])}</b>: {p['nome_common']} → <b>{ruolo}</b>\n"
                                          f"⏰ <i>Tempo scaduto: ruolo non dichiarato entro {regole.ore_dichiarazione_ruolo()}h, estratto tra {', '.join(eleg)}.</i>")
             await _ai_gm(context.bot, p["team_id"],

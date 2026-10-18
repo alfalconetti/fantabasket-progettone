@@ -172,3 +172,8 @@ Il calcolo dei fantapunti.
 ## v34 (2026-10-18)
 
 - **Panchinario ceduto prima della scadenza** (trade, taglio, 10-day finito: dal registro dei movimenti del bot principale, `shared/rosa.py`): esce dalla panchina e gli altri scalano (Luca, 18/10), con l'avviso nella proposta di convalida («penalità: decidono gli admin»). Prima contava come se fosse ancora suo. Un **titolare** non più in squadra alla scadenza resta nel calcolo (fa fede Yahoo) ma c'è l'avviso per correggerlo con /quintetto_admin. Chi è ceduto dopo la scadenza conta per la vecchia squadra fino a fine giornata, come prima. Vale anche per il live; sul foglio di controllo e nel tab delle formazioni le righe hanno la nota
+
+## v35 (2026-10-19)
+
+- **Registro delle azioni** (main v6.0.0, `registro.py`): calendario importato, foglio Calendario riscritto, partite NBA risincronizzate, tabellini riscaricati, giocatori ESPN scaricati, abbinamenti ESPN, status validi messi e tolti, giornate calcolate e ricalcolate (dal job: sistema; da /ricalcola o 🔄: admin), giornate convalidate, fantapunti ricalcolati (dev) lasciano una riga nel registro condiviso con gli altri bot, con chi, veste e prima → dopo; si consulta dal bot principale. Sul canale log restano le righe di sempre, che avevano già il nome di chi (niente doppioni)
+- Prova: controlli del registro in `louca_risultati`

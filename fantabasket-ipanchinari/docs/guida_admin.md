@@ -110,3 +110,7 @@ Ogni 5 minuti il bot confronta quintetti e panchine con le rose. Un giocatore ch
 | `/soprannomi SQUADRA` | soprannomi di una squadra, da vedere o cancellare |
 | `/ripubblica_panchine [N]` | tutte le panchine della prossima giornata (o della N) di nuovo sul canale, per esempio dopo un cambio di canale |
 | `/guida_admin` | questa guida |
+
+## Registro delle azioni
+
+Le azioni che cambiano qualcosa (panchine e quintetti mandati, confermati, cambiati o corretti, anche per conto di una squadra, formazioni controllate, import, panchine ripubblicate, soprannomi cancellati, chiusura della giornata) lasciano una riga nel registro unico di tutti i bot: chi, in che veste (gm, admin, dev, sistema), cosa, prima → dopo. Sul canale log restano le righe di sempre, col nome di chi. Il registro si consulta dal bot principale (comando registro, o pannello admin → 📜 Registro); i GM vedono le righe della loro squadra.

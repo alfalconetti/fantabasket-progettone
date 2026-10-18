@@ -380,6 +380,8 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.warning("Invio riepilogo broadcast al canale log fallito: %s", e)
 
+    from registro import segna_sync     # sul canale log c'è già il riepilogo coi falliti
+    segna_sync(update.effective_user, "dev", "broadcast ai GM", oggetto=testo[:300], dopo=f"{ok} inviati, {fail} falliti")
     await update.effective_message.reply_text(riepilogo, parse_mode="HTML")
 
 
@@ -421,7 +423,8 @@ async def cmd_offerta(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     from handlers.offerte import _esegui_offerta
-    errore = await _esegui_offerta(context, team, asta_id, importo, update.effective_user.id)
+    errore = await _esegui_offerta(context, team, asta_id, importo, update.effective_user.id,
+                                   chi=update.effective_user, veste="dev")
     if errore:
         await update.effective_message.reply_text(f"❌ {errore}")
     else:

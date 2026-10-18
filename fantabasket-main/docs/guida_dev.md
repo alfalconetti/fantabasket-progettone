@@ -156,6 +156,7 @@ Il bot aste vede la fase nuova entro 5 minuti.
 | `giocatori` | anagrafica: `nome_common`, `nome_bref`, `nome_yahoo`, `nome_norm`, `yahoo_id`, `espn_id` e `nome_espn` (scritti da loucabot, per tabellini e calcolo), `data_nascita` |
 | `contratti` | `importo`, `anni_originali`, `stagione_firma` (da quando parte il contratto, o il pezzo di rookie scale), `tipo` (normale/rookie/10day), `attivo`. Mai cancellati: un contratto chiuso ha `attivo = FALSE` |
 | `transazioni` | **registro unico** di tutto quello che si muove in lega: giocatori, diritti, pick (vedi sotto) |
+| `registro_azioni` | **registro delle azioni** (v6.0.0): chi ha fatto cosa, in tutti i bot (vedi sotto). Non sostituisce `transazioni` |
 | `impatto_taglio` | rate delle spalmature: una riga per squadra, giocatore e stagione |
 | `dpe` | DPE approvate: `importo_originale`, `importo_dpe`, `pre_deadline`, `stagione`, `team_id` (segue il giocatore in trade) |
 | `messaggi_fissi` | messaggi sul canale che il bot modifica invece di riscriverli: `chiave` (es. `riepilogo_rfa:2027`), `chat_id`, `message_id` (v3.13.3) |
@@ -232,6 +233,17 @@ Finché lo storico non esiste (`storico_pick_diritti_presente()`), trade e attiv
 - nessun x0 attivo (non RFA) fuori da rinnovi, draft e RFA, nessun contratto `rookie` oltre il IV anno (v3.11).
 
 Se trova qualcosa scrive al dev. Di solito è una modifica fatta a mano sul DB: si sistema **aggiungendo il movimento mancante**, non cancellando righe.
+
+### Il registro delle azioni (`registro_azioni`, v6.0.0, `shared/azioni.py`)
+
+`transazioni` dice **cosa** si è mosso; `registro_azioni` dice **chi** ha fatto **cosa**, in tutti e quattro i bot, anche le azioni che non muovono giocatori (impostazioni, fasi, penalità, ruoli, aste, panchine, convalide). Una riga: `quando`, `bot` (main/aste/louca/ipa), `chi_id` e `chi_nome`, `veste`, `azione`, `squadre` (array: una trade conta per tutte), `giocatore_id`, `oggetto`, `prima`, `dopo`, `nota`, `dettagli` (JSONB, es. `trade_id`, `asta_id`). La tabella si crea in `migrate_db` (e, se un altro bot parte prima, al primo uso).
+
+- **Veste**: `gm`, `admin`, `dev`, `sistema`. La decide il flusso che chiama (prefisso del bottone, pannello o comando admin), mai un «è admin?»: dal menu normale un admin è `gm`.
+- **Dove va**: sempre nel registro; le vesti `admin` e `dev` anche sul canale log del bot che le fa, nel formato unico (`azioni.riga_log`). `gm` e `sistema` solo nel registro, tranne le righe di log che c'erano già (dichiarazione ruoli, RFA, 10-day scaduti).
+- **Mai bloccante**: si scrive dopo che l'azione è riuscita; `registra` e `azione` non sollevano mai (un errore finisce nel log del processo).
+- **Per bot**: qui `handlers/registro.py` (`segna` = registro + log, `segna_sync` = solo registro, `solo_log` = solo la riga di riassunto di un'azione in blocco, le cui righe sono già nel registro una per una); nel bot aste `registro.py` (`segna`, `segna_asta` che prende squadre, giocatore e oggetto dall'asta); in loucabot e IPanchinari `registro.py` (lì le azioni admin avevano già la riga di log col nome, quindi `segna_sync`). Per le trade `trade_comune.segna_trade` (squadre e contenuto della trade).
+- **Consultazione**: `/registro` (`handlers/registro.py`, filtri in `filtri()`, ricerca in `azioni.cerca`). Admin: tutto; GM: solo le righe con la sua squadra.
+- Le bozze delle trade non hanno una riga per ogni bottone: c'è la riga quando si crea con un import, quando si manda (col contenuto di quel momento) e quando si elimina.
 
 ### Stagioni e contratti finiti (v3.11.0, `handlers/stagione.py`)
 
@@ -343,6 +355,7 @@ ORDER BY t.timestamp, t.id;
 | `decadimento.py` | `/decadimento`, motivi, `/ritiro_fa` |
 | `spalmature.py` | report mensile e `/report_spalmature` |
 | `coerenza.py` | controllo notturno contratti/pick/diritti contro il registro, `/dev_coerenza` |
+| `registro.py` | registro delle azioni: `segna`, `segna_sync`, `solo_log`, `/registro` |
 | `ruoli.py` | dichiarazione di inizio stagione, `/deadline_ruoli` |
 | `ruoli_rs.py` | dichiarazioni post-trade/firma in RS |
 | `cambi_ruolo.py` | `/cambio_ruolo`: ordinario, Erminio, Saedro, forzato, Extra DPE |
@@ -383,6 +396,7 @@ Utile per capire chi risponde a un bottone. In grassetto quelli citati più spes
 | `tagli.py` | `taglia_*` |
 | `cambi_ruolo.py` | **`cr:`** (GM), **`ca:`**/`cradm:` (admin), `sae:` (Saedro) |
 | `dieci_giorni.py` | `td:` (GM), `tda:` (admin che firma), `tdq:` (richiesta), `tdadm:` (pannello) |
+| `registro.py` | `reg:7` (pannello admin → 📜 Registro) |
 | `ruoli.py` | `rl:`, `rladm:`, `rli:` |
 | `ruoli_rs.py` | `rp:`, `rpadm:` |
 | `posizioni.py` | `pos_imp_`, `spe:` |
@@ -615,7 +629,8 @@ Va al canale log alle 00 e alle 12 e allo spegnimento, al gruppo admin il sabato
 2. la voce in `AZIONI_FASE` di `menu.py`;
 3. il comando in `comandi.py` (e in `_fasi_comando` se dipende dalla fase);
 4. **l'equivalente "per conto di" nel pannello admin** (parità GM/admin);
-5. la riga nella guida GM.
+5. **la riga nel registro delle azioni**: `segna(bot, user, "gm"|"admin", azione, squadre=…, giocatore_id=…, prima=…, dopo=…)` dopo che l'azione è riuscita, con la veste del flusso (v6.0.0);
+6. la riga nella guida GM.
 
 La prova `tests/docs/guide_e_menu.py` si accorge se una guida o il menu cita un comando che non esiste.
 

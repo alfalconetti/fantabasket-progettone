@@ -22,6 +22,7 @@ async def go(cb, data, uid):
 def kbt(q): return [b.callback_data for r in (q.kb.inline_keyboard if q.kb else []) for b in r]
 
 # seed
+db._q("DELETE FROM registro_azioni")
 db._q("TRUNCATE giocatori, contratti, pick, rookie, trade, trade_items, trade_squadre, trade_voti, transazioni RESTART IDENTITY CASCADE")
 G={}
 for t in ["team01","team02","team03","team04"]:
@@ -106,6 +107,17 @@ async def main():
     await T.cmd_annulla_trade_admin(upd, types.SimpleNamespace(bot=Bot(),args=[ref],user_data={}))
     ok(db.get_trade(nuovo)["stato"]=="annullata" and db.get_contratto_attivo(G['team01_p0'])["team_id"]=="team01","rollback ok")
     ok({c for c,_ in sent if c!="reply"}>={101,102,103},"annullamento avvisato a tutte le squadre (niente crash)")
+    # registro delle azioni (v6.0.0)
+    reg = db._q("SELECT veste, azione, chi_id, squadre, prima, dopo, dettagli FROM registro_azioni WHERE bot='main' ORDER BY id", many=True)
+    az = [(r["veste"], r["azione"], r["chi_id"]) for r in reg]
+    ok(("gm", "trade inviata al voto dei GM", 101) in az and ("gm", "voto sulla trade", 102) in az
+       and ("gm", "voto sulla trade", 103) in az and ("gm", "trade inviata agli admin", 101) in az, f"registro: invio e voti dei GM {az}")
+    ese = [r for r in reg if r["azione"] == "trade approvata ed eseguita"]
+    ok(len(ese) == 1 and ese[0]["veste"] == "admin" and ese[0]["chi_id"] == 900 and set(ese[0]["squadre"]) == {"team01","team02","team03"}
+       and ese[0]["dopo"] == ref and ese[0]["dettagli"]["trade_id"] == nuovo, "registro: trade eseguita, admin, conta per le tre squadre")
+    ok(any(r["azione"] == "trade annullata" and r["veste"] == "admin" and r["prima"] == ref for r in reg), "registro: trade annullata")
+    rif = next((r for r in reg if r["azione"] == "voto sulla trade" and r["chi_id"] == 103), None)
+    ok(rif and rif["dopo"] == "Gamma: rifiutata", "registro: il rifiuto dice chi e come")
     # scrivi_trade with '?' in old bozza
     t2=db.crea_trade_bozza("team01",3,"2026")
     for o,t in enumerate(["team01","team02","team03"],1): db.aggiungi_squadra_trade(t2,t,o)

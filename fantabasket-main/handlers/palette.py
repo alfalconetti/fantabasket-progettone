@@ -289,11 +289,17 @@ async def cb_pal_salva(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     teams_path = os.environ.get("TEAMS_PATH", "/config/teams.json")
     teams_data = json.load(open(teams_path))
     teams_list = teams_data["teams"] if isinstance(teams_data, dict) else teams_data
+    prima = {}
     for t in teams_list:
         if t["id"] == team_id:
+            prima = {k: t.get(k) for k in pendenti}
             t.update(pendenti)
             break
     json.dump(teams_data, open(teams_path, "w"), indent=2, ensure_ascii=False)
+    from handlers.registro import segna
+    await segna(context.bot, query.from_user, "gm", "palette della squadra", squadre=team_id,
+                oggetto=", ".join(pendenti), prima=", ".join(f"{k} {v or '—'}" for k, v in prima.items()),
+                dopo=", ".join(f"{k} {v or '—'}" for k, v in pendenti.items()))
 
     context.user_data["pal_pendenti"] = {}
     await query.edit_message_text(

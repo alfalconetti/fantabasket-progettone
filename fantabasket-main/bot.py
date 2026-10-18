@@ -36,6 +36,7 @@ from handlers.penalita    import get_handlers as penalita_handlers
 from handlers.impostazioni import get_handlers as impostazioni_handlers
 from handlers.report_ruoli import get_handlers as report_ruoli_handlers
 from handlers.report_dati import get_handlers as report_dati_handlers
+from handlers.registro import get_handlers as registro_handlers
 from handlers.bref        import get_handlers as bref_handlers
 from handlers.nascite     import get_handlers as nascite_handlers
 from handlers.spalmature  import get_handlers as spalmature_handlers
@@ -83,6 +84,9 @@ async def cmd_sync_sheets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         import gas_client
         ok = gas_client.sync_all(sincrono=True)
+        from handlers.registro import segna
+        await segna(context.bot, update.effective_user, "dev", "sync dei fogli", oggetto="tutti i roster",
+                    dopo="fatto" if ok else "fallito")
         if ok:
             await update.effective_message.reply_text("✅ Sync completato.")
         else:
@@ -184,6 +188,8 @@ async def cmd_backup(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.effective_message.reply_text("⏳ Backup in corso...")
     await invia_backup(context, log_channel_id, "manuale", includi_aste_db=True)
+    from handlers.registro import segna_sync
+    segna_sync(update.effective_user, "dev", "backup manuale", dopo="inviato sul canale log")   # il backup è già lì
     await update.effective_message.reply_text("✅ Backup inviato.")
 
 
@@ -194,6 +200,8 @@ async def cmd_reboot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.effective_message.reply_text("🔄 Riavvio in corso...")
     logger.info("Reboot richiesto da dev %d", update.effective_user.id)
+    from handlers.registro import segna_sync
+    segna_sync(update.effective_user, "dev", "riavvio del bot")     # al riavvio arriva il messaggio di avvio
     os.kill(os.getpid(), signal.SIGTERM)
 
 
@@ -344,6 +352,8 @@ def main():
     for h in report_ruoli_handlers():
         app.add_handler(h)
     for h in report_dati_handlers():
+        app.add_handler(h)
+    for h in registro_handlers():
         app.add_handler(h)
     for h in dieci_giorni_handlers():
         app.add_handler(h)

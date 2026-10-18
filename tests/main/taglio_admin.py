@@ -5,6 +5,7 @@ import asyncio, types, json, os
 import database as db
 db.init_db(); db.migrate_db()
 db._q("TRUNCATE giocatori, contratti, transazioni, dpe, impatto_taglio RESTART IDENTITY CASCADE")
+db._q("DELETE FROM registro_azioni")
 ok=lambda c,m: print(("✅" if c else "❌ FAIL"), m)
 def fase(f):
     g=json.load(open(os.environ["GLOBALS_PATH"])); g["fase"]=f; json.dump(g,open(os.environ["GLOBALS_PATH"],"w"))
@@ -40,6 +41,12 @@ ok(not db._qval("SELECT attivo FROM contratti WHERE giocatore_id=%s",(grosso,))
    and db._qval("SELECT count(*) FROM impatto_taglio WHERE giocatore_id=%s",(grosso,))>0
    and db._qval("SELECT count(*) FROM transazioni WHERE giocatore_id=%s AND tipo='cut'",(grosso,))==1, "taglio eseguito: contratto chiuso, movimento e spalmature")
 ok(any("Un admin ha tagliato" in m["text"] for m in msgs) and any("Registrato da un admin" in m["text"] for m in msgs), "avviso al GM e annuncio con il nome dell'admin")
+r = db._q("SELECT * FROM registro_azioni ORDER BY id DESC LIMIT 1", one=True)
+ok(r and r["veste"] == "admin" and r["azione"] == "taglio" and r["squadre"] == ["team01"] and r["giocatore_id"] == grosso
+   and r["prima"] == "20M × 2" and r["dopo"] == "tagliato" and r["chi_nome"] == "Adm (@adm)", f"registro: taglio da admin, prima → dopo {r and dict(r)}")
+logl = [m for m in msgs if m.get("chat_id") == -3]
+ok(len(logl) == 1 and logl[0]["text"].startswith("🛠 admin Adm (@adm) · <b>taglio</b> · Alfa") and "20M × 2 → <b>tagliato</b>" in logl[0]["text"],
+   "canale log: una riga nel formato unico " + (logl[0]["text"] if logl else "nessuna"))
 q=tap(A.cb_adm_taglia_esegui, f"adm_taglia_si:{grosso}:team01")
 ok("non" in q.t.lower() and db._qval("SELECT count(*) FROM transazioni WHERE giocatore_id=%s AND tipo='cut'",(grosso,))==1, "secondo tap: niente doppio taglio")
 ok(db.controlli_coerenza()==[] or all("storico" in p for p in db.controlli_coerenza()), "coerenza dopo il taglio")

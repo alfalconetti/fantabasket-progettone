@@ -290,6 +290,33 @@ def _trade_label(trade: dict) -> str:
     return _label_bozza(trade)
 
 
+# ── registro delle azioni (v6.0.0) ──────────────────────────────────────────────
+
+def descrivi_trade(trade_id: int) -> str:
+    """«LeBron Lakers → Celtics; Lakers 1st 2027 Celtics → Lakers» (per il registro)."""
+    nome = lambda t: (tm.get_team_by_id(t) or {}).get("nome", t)
+    items = db.get_items_trade(trade_id) or []
+    return "; ".join(f"{_label_item(i)} {nome(i['team_id_da'])} → {nome(i['team_id_a'])}" for i in items) or "vuota"
+
+
+def veste_bozza(trade: dict) -> str:
+    """Bozza admin ("admin") → admin, bozza di una squadra → gm (anche se il GM è un admin)."""
+    return "admin" if (trade or {}).get("proposta_da") == "admin" else "gm"
+
+
+async def segna_trade(bot, user, veste: str, azione: str, trade_id: int, **campi) -> None:
+    """Riga del registro per una trade: conta per tutte le squadre coinvolte. Non solleva."""
+    try:
+        from handlers.registro import segna
+        trade = db.get_trade(trade_id) or {}
+        squadre = [s["team_id"] for s in db.get_squadre_trade(trade_id) or []]
+        await segna(bot, user, veste, azione, squadre=squadre,
+                    oggetto=f"{_trade_label(trade) if trade else trade_id}: {descrivi_trade(trade_id)}",
+                    dettagli={"trade_id": trade_id}, **campi)
+    except Exception as e:
+        logger.warning("Registro trade %s: %s", trade_id, e)
+
+
 # ── notifiche alle squadre ──────────────────────────────────────────────────────
 
 async def _notifica_proponente(context, trade_id: int, testo: str) -> None:

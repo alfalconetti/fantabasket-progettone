@@ -248,6 +248,9 @@ async def cmd_importa_calendario(update: Update, context: ContextTypes.DEFAULT_T
     righe += ["", e(esito_foglio[:1].upper() + esito_foglio[1:]) + "."]
     await msg.reply_text("\n".join(righe), parse_mode="HTML")
     logger.info("Calendario importato da %s: %s (%d cambi)", update.effective_user.id, r, len(cambi))
+    from registro import segna_sync
+    segna_sync(update.effective_user, "admin", "calendario importato", oggetto=f"stagione {r['stagione']}",
+               dopo=f"{r['giornate']} giornate, {r['partite']} partite", nota=doc.file_name or "csv")
     await log(context.bot, f"📅 Calendario {r['stagione']} importato da {_chi(update)}: {r['giornate']} giornate, "
                            f"{r['partite']} partite ({e(doc.file_name or 'csv')})"
                            + (f"\nDifferenze con le partite NBA: {len(cal.differenze_file(r['stagione']))} giornate"
@@ -292,6 +295,8 @@ async def cmd_calendario_foglio(update: Update, context: ContextTypes.DEFAULT_TY
     esito = await foglio.aggiorna(config.stagione())
     await update.effective_message.reply_text(("✅ " if not esito.startswith("⚠️") else "") + esito[:1].upper() + esito[1:])
     await log(context.bot, f"📄 /calendario_foglio di {_chi(update)}: {e(esito)}")
+    from registro import segna_sync
+    segna_sync(update.effective_user, "admin", "foglio Calendario riscritto", dopo=esito[:300])
 
 
 async def cmd_nba_sync(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -303,6 +308,9 @@ async def cmd_nba_sync(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cambi = cal.ricalcola()
     await log(context.bot, f"🏀 /nba_sync di {_chi(update)}: {_esito_sync(r)}"
                            + ("\nCambi: " + "; ".join(e(c) for c in cambi) if cambi else ""))
+    from registro import segna_sync
+    segna_sync(update.effective_user, "admin", "partite NBA risincronizzate", dopo=f"{r['giorni']} giorni, {r['partite']} partite",
+               nota="; ".join(cambi)[:500] or None)
     await update.effective_message.reply_text(
         f"✅ {r['giorni']} giorni, {r['partite']} partite salvate."
         + (f"\n⚠️ {len(r['errori'])} giorni non scaricati: {', '.join(x.split(':')[0] for x in r['errori'][:10])}"

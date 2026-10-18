@@ -324,6 +324,10 @@ I cambi che ti lascerebbero sotto i minimi (4 G, 4 F, 2 C) vengono bloccati. Ogn
 
 Gli admin possono dare una penalità alla squadra (panchina in ritardo, formazioni sbagliate e così via): arriva sul canale principale e ti arriva un messaggio con la motivazione. Si sommano nella stagione e ripartono da zero con quella nuova. `/penalita` (o /menu → ⚠️ Penalità) mostra quelle della tua squadra, `/penalita SQUADRA` quelle di un'altra.
 
+## Il registro della tua squadra
+
+**`/registro`** ti manda un file con tutto quello che è stato fatto sulla tua squadra, in tutti i bot (questo, aste, loucabot, IPanchinari): chi, quando, cosa, com'era prima e com'è dopo. Ci sono le tue operazioni e quelle degli admin sulla tua squadra (una trade compare per tutte le squadre coinvolte). Puoi restringere: `/registro 7` (ultimi 7 giorni), `/registro taglio`, `/registro LeBron`, `/registro aste`. Le azioni prima di questa funzione non ci sono.
+
 ## In breve
 
 | Voglio… | Comando |
@@ -340,5 +344,6 @@ Gli admin possono dare una penalità alla squadra (panchina in ritardo, formazio
 | chiudere un contratto (ritiro, altra lega, Cam Thomas) | `/decadimento` |
 | prendere un free agent per 10 giorni | `/firma_10day` |
 | dichiarare o cambiare ruoli | `/dichiarazione_ruoli`, `/cambio_ruolo` |
+| vedere chi ha fatto cosa sulla mia squadra | `/registro` |
 | uscire da un'operazione bloccata | `/annulla` |
 | ricevere questa guida | `/guida` |

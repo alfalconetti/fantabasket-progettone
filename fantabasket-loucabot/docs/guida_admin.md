@@ -117,3 +117,7 @@ Restano agli admin le 72 ore di attesa per le partite rinviate e le penalità.
 | `/set_valid_status GIOCATORE N` | lo status di un giocatore che vale per il calcolo della giornata N, scelto tra quelli degli snapshot |
 | `/calendario [N]`, `/giornata [N]` | come i GM |
 | `/guida_admin` | questa guida |
+
+## Registro delle azioni
+
+Le azioni che cambiano qualcosa (calendario importato, partite e tabellini riscaricati, abbinamenti ESPN, status validi, giornate calcolate, ricalcolate e convalidate) lasciano una riga nel registro unico di tutti i bot: chi, in che veste (gm, admin, dev, sistema), cosa, prima → dopo. Sul canale log restano le righe di sempre, col nome di chi. Il registro si consulta dal bot principale (comando registro, o pannello admin → 📜 Registro); i GM vedono le righe della loro squadra.

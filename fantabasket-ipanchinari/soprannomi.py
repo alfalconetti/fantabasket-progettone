@@ -174,6 +174,11 @@ async def cb_soprannomi(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await q.answer("Già cancellato.")
         else:
             db.elimina_alias(a["id"])
+            from registro import segna_sync
+            segna_sync(update.effective_user, "admin" if config.is_admin(update.effective_user.id)
+                       and update.effective_user.id not in config.gm_ids(team_id) else "gm",
+                       "soprannome cancellato", squadre=team_id, giocatore_id=a["giocatore_id"],
+                       oggetto=f"«{a['alias']}»", prima=nomi[a["giocatore_id"]], dopo="cancellato")
             await q.answer("Cancellato")
             await log(context.bot, f"🏷 Soprannome «{e(a['alias'])}» → {e(nomi[a['giocatore_id']])} cancellato da "
                                    f"{chi(update)} ({e(config.nome(team_id))})")

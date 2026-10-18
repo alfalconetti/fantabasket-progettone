@@ -74,22 +74,22 @@ async def apri_mercato(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
         await update.effective_message.reply_text("⛔ Non sei autorizzato.")
         return
-    admin_label = _admin_label(update.effective_user)
     _set_mercato(True)
     await update.effective_message.reply_text("✅ Mercato FA aperto.")
-    from handlers.helpers import log_warn as _lw
-    await _lw(context, f"🟢 Mercato FA aperto da <b>{admin_label}</b>.")
+    from registro import segna
+    await segna(context.bot, update.effective_user, "admin", "mercato FA", oggetto="mercato", prima="chiuso",
+                dopo="aperto")
 
 
 async def chiudi_mercato(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
         await update.effective_message.reply_text("⛔ Non sei autorizzato.")
         return
-    admin_label = _admin_label(update.effective_user)
     _set_mercato(False)
     await update.effective_message.reply_text("🔒 Mercato FA chiuso.")
-    from handlers.helpers import log_warn as _lw
-    await _lw(context, f"🔒 Mercato FA chiuso da <b>{admin_label}</b>.")
+    from registro import segna
+    await segna(context.bot, update.effective_user, "admin", "mercato FA", oggetto="mercato", prima="aperto",
+                dopo="chiuso")
 
 
 # ── /set_fase ────────────────────────────────────────────────────────────────
