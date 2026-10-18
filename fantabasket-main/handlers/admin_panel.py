@@ -59,6 +59,7 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
         ("⚠️ Penalità",         "pen:adm",     True),
         ("📊 Situazione cap",   "adm:cap",     True),
         ("⚙️ Impostazioni",     "set:home",    True),
+        ("🩺 Controllo dati",   "rdati:md",    True),
     ]
     bottoni = [InlineKeyboardButton(l, callback_data=cb) for l, cb, ok in voci if ok]
     return InlineKeyboardMarkup([bottoni[i:i + 2] for i in range(0, len(bottoni), 2)])

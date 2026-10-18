@@ -280,6 +280,30 @@ ok("Panchina di Alfa" in m.risposte[-1][0] and "Ja Morant" in m.risposte[-1][0] 
 tq = Q.testo_quintetto("team01", db.giornata(S, 2))
 ok("NYK: " in tq and "vs BOS" in tq and "@ MEM" in tq and "PHX: " in tq and "CHA: " in tq, f"partite di ogni titolare nella giornata\n{tq}")
 
+# ── /report_formazioni: quintetti e panchine di tutte le squadre, coi problemi ──
+import report as RP
+md = RP.report(db.giornata(S, 2))
+ok(md.startswith(f"# Formazioni della giornata 2 — stagione {S}") and "aperta: quintetti di adesso" in md
+   and "squadre NBA a media: ATL" in md, "report: intestazione (giornata aperta, quintetti di adesso, squadre a media)")
+ok("| Beta |" in md and "❌ non mandata" in md and "Panchine mancanti: **" in md, "report: panchine mancanti nel riepilogo")
+ok("| Kevon Looney | C | NOP | — | 🔴 Out |" in md and "🟡 Day-To-Day | da seguire" in md, "report: stato degli infortunati accanto al giocatore")
+ok("@ MEM" in md and "vs BOS" in md, "report: partite della giornata di ogni giocatore")
+ok("nessuna partita: media" in md, "report: squadra NBA senza partite (media)")
+ok("**posto vuoto: 0 punti**" in md or "senza id ESPN" in md, "report: posti vuoti o senza id ESPN segnalati")
+ok(RP.scegli_giornata(None)["numero"] == 2 and RP.scegli_giornata(1)["numero"] == 1, "report: senza N la prossima giornata")
+class _B:
+    def __init__(s): s.doc = []
+    async def send_document(s, chat_id, document, filename, caption=None, **k): s.doc.append((filename, document.getvalue()))
+_bb = _B()
+_ctx = types.SimpleNamespace(bot=_bb, args=["2"])
+_u = lambda uid: types.SimpleNamespace(effective_user=types.SimpleNamespace(id=uid), effective_chat=types.SimpleNamespace(id=uid),
+                                       effective_message=Msg())
+asyncio.run(RP.cmd_report_formazioni(_u(101), _ctx))
+_adm = int(config.admin_ids()[0])
+asyncio.run(RP.cmd_report_formazioni(_u(_adm), _ctx))
+ok(len(_bb.doc) == 1 and _bb.doc[0][0].startswith("formazioni-G2-") and b"## Riepilogo" in _bb.doc[0][1],
+   "/report_formazioni N: solo admin, file .md")
+
 # ── orario del promemoria ──
 roma = comune.ROMA
 notte = {"prima_partita": datetime(2026, 10, 21, 1, 0, tzinfo=roma)}
@@ -294,6 +318,7 @@ asyncio.run(Q.job_giornate(CTX))
 ok(db.stato_giornata(S, 1)["chiusa"] and db.formazione(S, 1, "team01")["PG"] == gids["Walter Clayton Jr."]
    and any("Giornata 1 chiusa" in x["text"] and "Beta" in x["text"] for x in BOT.mandati),
    "scadenza passata: quintetti congelati, panchine mancanti agli admin")
+ok("**chiusa**: formazioni congelate" in RP.report(db.giornata(S, 1)), "report di una giornata chiusa: le formazioni congelate")
 db.q("UPDATE lega_giornate SET prima_partita = %s WHERE numero = 2", (datetime.now(timezone.utc) + timedelta(hours=1),))
 BOT.mandati.clear()
 asyncio.run(Q.job_giornate(CTX))

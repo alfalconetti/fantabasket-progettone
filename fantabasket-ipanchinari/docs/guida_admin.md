@@ -45,6 +45,8 @@ Il ruolo di ogni titolare è quello di roster: un giocatore scritto in un ruolo 
 
 `/stato` (o `/stato N`) lo mostra quando vuoi.
 
+**`/report_formazioni`** (o `/report_formazioni N`) manda un file Markdown con quintetti e panchine di tutte le squadre per la prossima giornata (o la N; quella in corso se non ce n'è una aperta), da usare prima della scadenza per sollecitare i GM. Prima della scadenza mostra i quintetti di adesso, a giornata chiusa le formazioni congelate. In cima: panchine mancanti, quintetti non confermati e una riga per squadra con l'avversaria e quanti titolari e panchinari hanno problemi. Poi, squadra per squadra, ogni giocatore con squadra NBA, partite della giornata, stato degli infortunati (ultimo snapshot ESPN) e le note che contano per il calcolo: posto vuoto, panchina non mandata, Out/Doubtful/Questionable, squadra NBA senza partite (media), senza id ESPN (0 punti), non più in squadra, ruolo cambiato, titolare anche in panchina, panchinario non abbinato, panchina di lunghezza sbagliata. Non cambia niente.
+
 **`/quintetti`** mostra tutti i quintetti attuali, una riga per squadra (`PG … · SG … · SF … · PF … · C …`; ⚠️ accanto a un giocatore non più in squadra, — per un ruolo vuoto). **`/quintetti N`** mostra invece le formazioni congelate della giornata N, quelle che usa il calcolo.
 
 **Alla scadenza** i quintetti si congelano: sono quelli della giornata per il calcolo. Nel gruppo admin arriva l'elenco delle squadre senza panchina (penalità).
@@ -100,6 +102,7 @@ Ogni 5 minuti il bot confronta quintetti e panchine con le rose. Un giocatore ch
 | Comando | Cosa fa |
 |---|---|
 | `/stato [N]` | conferme dei quintetti e panchine della giornata |
+| `/report_formazioni [N]` | file .md con quintetti e panchine di tutte le squadre e i problemi (vedi sopra) |
 | `/quintetti [N]` | tutti i quintetti attuali, una riga per squadra; con N le formazioni della giornata N |
 | `/quintetto_admin SQUADRA [GN]` | quintetto di una squadra: senza righe coi bottoni, o 5 righe sotto (anche a giornata in corso); con GN corregge la formazione della giornata N |
 | `/quintetti_import` | quintetti di tutte le squadre |

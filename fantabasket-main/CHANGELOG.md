@@ -1361,3 +1361,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - Changelog del bot principale di nuovo in ordine: le voci 5.7.0–5.9.0 erano finite sopra la 5.6.2, e il bot (avvio, `/dev_version`, didascalie dei backup) e il deploy leggevano «v5.6.2» come versione installata. Il codice installato era già quello giusto
 - Prova nuova in `guide_e_menu`: le versioni di ogni changelog devono essere in ordine crescente
+
+## v5.10.0 (2026-10-18)
+
+- **`/report_dati`** (admin; anche nel pannello, «🩺 Controllo dati»): la salute dei dati in un file Markdown, coi controlli che prima erano sparsi e qualcuno nuovo. Senza id ESPN, ruoli (senza posizioni, senza ruolo in stagione, ruolo fuori dalle eleggibili, minimi impossibili), squadre (cap, floor, slot), contratti da guardare (importo non positivo, 10-day scaduti ancora attivi), anagrafica (data di nascita, mai visti su bref), coerenza del registro. Solo lettura
+- IPanchinari v21: **`/report_formazioni [N]`**, quintetti e panchine di tutte le squadre per una giornata in un file Markdown, coi problemi in evidenza

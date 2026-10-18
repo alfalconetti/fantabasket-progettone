@@ -184,6 +184,19 @@ Le spalmature dalla stagione corrente in poi smettono di pesare su chiunque l'av
    - il giorno prima della deadline i GM in ritardo ricevono un promemoria.
 3. **All'uscita dalla fase** arriva nel gruppo l'elenco di chi è rimasto senza ruolo. Da regolamento, il ruolo si estrae a caso tra quelli possibili.
 
+### Controllo dei dati
+
+**`/report_dati`** (o pannello → **🩺 Controllo dati**) manda un file Markdown con tutto quello che può rompere il calcolo o i controlli, da guardare prima di ogni giornata e dopo mercato e trade. Un riepilogo (✅ o quante cose da guardare) e una tabella per controllo:
+
+- **senza id ESPN**: i loro punti non contano (si abbinano su loucabot);
+- **ruoli**: senza posizioni eleggibili, senza ruolo in stagione, ruolo non più tra le eleggibili, squadre che non possono rispettare i minimi;
+- **squadre**: sopra il cap, sotto il floor in stagione, troppi o troppo pochi giocatori;
+- **contratti**: importo non positivo, 10-day scaduti e ancora attivi;
+- **anagrafica**: senza data di nascita, mai visti su basketball-reference;
+- **registro**: il controllo di coerenza della notte (anche i contratti finiti ancora attivi fuori dalle fasi dei rinnovi).
+
+Non corregge niente.
+
 ### Report dei ruoli
 
 **`/report_ruoli`** (o pannello → **🎽 Ruoli squadre** → **📄 Report ruoli (.md)**) manda un file Markdown con la situazione dei ruoli di tutte le squadre in quel momento, in qualsiasi fase. In cima il riepilogo della lega: per ogni squadra quanti PG, SG, SF, PF e C, guardie, ali e centri rispetto ai minimi, giocatori senza ruolo, dichiarazioni in sospeso, cambi ordinari usati e lo stato dei minimi (✅ rispettati · 🟡 non ancora, ma i giocatori senza ruolo li possono coprire · ❌ mancano posti anche con la scelta migliore). Poi una tabella per squadra con ogni giocatore: ruolo, posizioni eleggibili e note (10-day, Saedro in corso, dichiarazione da fare entro, bozza non confermata, Erminio possibile, ruolo non più tra le eleggibili). Non cambia niente.

@@ -52,9 +52,10 @@ def main():
     import quintetti
     import soprannomi
     import cessioni
+    import report
     app = ApplicationBuilder().token(_token()).post_init(post_init).build()
     from shared import dev_comune
-    for h in (handlers.get_handlers() + quintetti.get_handlers() + panchine.get_handlers() + soprannomi.get_handlers()
+    for h in (handlers.get_handlers() + quintetti.get_handlers() + panchine.get_handlers() + soprannomi.get_handlers() + report.get_handlers()
               + dev_comune.get_handlers(handlers._is_dev, lambda: db.q("SELECT version() AS v", one=True)["v"])):
         app.add_handler(h)
     app.add_error_handler(dev_comune.error_handler("IPanchinari", config.canale_log, config.dev_id))

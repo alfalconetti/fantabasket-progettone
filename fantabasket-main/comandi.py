@@ -82,6 +82,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("guida_admin",         "Guida completa per gli admin"),
         BotCommand("settings",            "Impostazioni e numeri del regolamento"),
         BotCommand("report_ruoli",        "Report dei ruoli di tutte le squadre (.md)"),
+        BotCommand("report_dati",         "Controllo dei dati: cosa può rompere calcolo e controlli (.md)"),
         BotCommand("import_posizioni_eleggibili", "Importa posizioni eleggibili Yahoo (CSV)"),
         BotCommand("set_posizioni_eleggibili",    "Correggi posizioni di un giocatore [nome] [PG,SG]"),
         BotCommand("deadline_ruoli",              "Deadline dichiarazione ruoli [AAAA-MM-GG] [HH:MM]"),

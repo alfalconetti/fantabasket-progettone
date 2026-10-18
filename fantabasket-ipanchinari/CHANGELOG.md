@@ -95,3 +95,7 @@ Primo rilascio: panchine e quintetti.
 ## v20 (2026-10-18)
 
 - Il numero di giocatori della panchina viene da `config/settings.json` (`giocatori_panchina`, default 5) invece che dal codice
+
+## v21 (2026-10-18)
+
+- **`/report_formazioni [N]`** (admin): quintetti e panchine di tutte le squadre per la prossima giornata (o la N) in un file Markdown, da usare prima della scadenza. Riepilogo (avversaria, quintetto confermato o no, panchina mandata, in ritardo o mancante, quanti titolari e panchinari con problemi) e una tabella per squadra con squadra NBA, partite della giornata, stato degli infortunati e note: posto vuoto, panchina non mandata, Out/Doubtful/Questionable, squadra NBA senza partite, senza id ESPN, non più in squadra, ruolo cambiato, titolare anche in panchina, non abbinato, panchina di lunghezza sbagliata. A giornata chiusa le formazioni congelate. Solo lettura
