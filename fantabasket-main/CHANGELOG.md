@@ -1334,10 +1334,13 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - loucabot v29: titolare anche in panchina → in panchina conta 0 (posto tenuto, niente FADD)
 
-## v5.9.0 (2026-10-18)
+## v5.6.2 (2026-10-18)
 
-- **`/report_ruoli`** (admin; anche nel pannello, «🎽 Ruoli squadre» → «📄 Report ruoli (.md)»): un file Markdown coi ruoli di tutte le squadre in quel momento. Riepilogo della lega (ruoli per posizione, guardie/ali/centri sui minimi, senza ruolo, in sospeso, cambi usati, stato dei minimi) e una tabella per squadra con ruolo, eleggibili e note di ogni giocatore (10-day, Saedro, dichiarazione in sospeso, bozza, Erminio, ruolo fuori dalle eleggibili). Solo lettura
-- Gli ultimi numeri del regolamento scritti a mano: avvisi dei minimi dei ruoli (dichiarazione e inizio regular season), cambi ruolo usati nel roster («1/2») e sul foglio Roster («CAMBI RUOLO USATI», «TAGLI GRATUITI USATI») ora seguono settings.json. Sul foglio serve la nuova versione dello script (senza, resta /2 e /3 come prima)
+- loucabot v30: titolare anche in panchina esce dalla panchina (gli altri scalano); `/calendario` anche per un'altra squadra; `/calendario_full`
+
+## v5.7.0 (2026-10-18)
+
+- loucabot v31: alla scadenza le formazioni congelate (quintetti e panchine) sul tab «Calcolo GN» del foglio di controllo, aggiornate se un admin le corregge, fino al calcolo
 
 ## v5.8.0 (2026-10-18)
 
@@ -1349,11 +1352,12 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - Prova nuova `regole_config`: ogni chiave cambiata nel file cambia davvero il comportamento
 - **`/settings` rifatto** (anche nel pannello admin, «⚙️ Impostazioni»): argomenti coi bottoni, nome in italiano, valore, unità e limiti di ogni voce (le chiavi che mancano nel file si vedono al default), pesi dei fantapunti uno per uno, tabelle in sola lettura; si cambia toccando la voce e scrivendo il valore, oppure con `/settings chiave valore`, sempre con anteprima e conferma. Ogni modifica va sul canale principale e sul canale log (con l'admin). Prima cambiava al volo senza conferma, solo sul log, e non toccava liste e dizionari
 
-## v5.7.0 (2026-10-18)
+## v5.9.0 (2026-10-18)
 
-- loucabot v31: alla scadenza le formazioni congelate (quintetti e panchine) sul tab «Calcolo GN» del foglio di controllo, aggiornate se un admin le corregge, fino al calcolo
+- **`/report_ruoli`** (admin; anche nel pannello, «🎽 Ruoli squadre» → «📄 Report ruoli (.md)»): un file Markdown coi ruoli di tutte le squadre in quel momento. Riepilogo della lega (ruoli per posizione, guardie/ali/centri sui minimi, senza ruolo, in sospeso, cambi usati, stato dei minimi) e una tabella per squadra con ruolo, eleggibili e note di ogni giocatore (10-day, Saedro, dichiarazione in sospeso, bozza, Erminio, ruolo fuori dalle eleggibili). Solo lettura
+- Gli ultimi numeri del regolamento scritti a mano: avvisi dei minimi dei ruoli (dichiarazione e inizio regular season), cambi ruolo usati nel roster («1/2») e sul foglio Roster («CAMBI RUOLO USATI», «TAGLI GRATUITI USATI») ora seguono settings.json. Sul foglio serve la nuova versione dello script (senza, resta /2 e /3 come prima)
 
-## v5.6.2 (2026-10-18)
+## v5.9.1 (2026-10-18)
 
-- loucabot v30: titolare anche in panchina esce dalla panchina (gli altri scalano); `/calendario` anche per un'altra squadra; `/calendario_full`
-
+- Changelog del bot principale di nuovo in ordine: le voci 5.7.0–5.9.0 erano finite sopra la 5.6.2, e il bot (avvio, `/dev_version`, didascalie dei backup) e il deploy leggevano «v5.6.2» come versione installata. Il codice installato era già quello giusto
+- Prova nuova in `guide_e_menu`: le versioni di ogni changelog devono essere in ordine crescente

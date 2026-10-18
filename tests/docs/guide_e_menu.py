@@ -90,3 +90,10 @@ for bot, extra in [("fantabasket-main", set()), ("fantabasket-aste-beta", set())
     guide = "".join(leggi(bot, "docs", f"guida_{x}.md") for x in ("gm", "admin", "dev"))
     senza = sorted((registrati(bot) | extra) - citati(guide))
     ok(not senza, f"{bot}: ogni comando è in una guida {senza or ''}")
+
+# v5.9.1: l'ultima voce di ogni changelog è la più recente (è la versione installata per i bot e deploy.sh)
+import re as _re
+for bot in ("fantabasket-main", "fantabasket-aste-beta", "fantabasket-loucabot", "fantabasket-ipanchinari"):
+    voci = _re.findall(r"^## v(\d+(?:\.\d+)*)", leggi(bot, "CHANGELOG.md"), _re.M)
+    num = [tuple(int(x) for x in v.split(".")) for v in voci]
+    ok(num[-1] == max(num), f"{bot}: l'ultima voce del CHANGELOG è la più recente (v{voci[-1]}, la più alta v{voci[num.index(max(num))]})")
