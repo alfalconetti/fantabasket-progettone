@@ -100,6 +100,37 @@ ok(len(ff2) == 1 and "aggiornate" in ff2[0] and len(_inviati) == 2, "un admin co
 db.q("UPDATE ipa_formazioni SET giocatore_id = %s WHERE stagione = %s AND giornata = %s AND team_id = 'team01' AND ruolo = 'C'",
      (gid[9], S, N))
 db.q("UPDATE lega_giornate SET prima_partita = NULL WHERE stagione = %s AND numero = %s", (S, N))
+
+# ── panchinario ceduto prima della scadenza: esce dalla panchina, gli altri scalano (v34) ──
+_scad = datetime(2026, 11, 10, 23, 0, tzinfo=timezone.utc)
+db.q("UPDATE lega_giornate SET prima_partita = %s WHERE stagione = %s AND numero = %s", (_scad, S, N))
+db.q("DELETE FROM transazioni WHERE note = 'prova ceduti'")
+for _g, _mov in [(gid[7], [("signed", None, "team01", 30), ("trade", "team01", "team02", 1)]),     # ceduto prima
+                 (gid[6], [("signed", None, "team01", 30), ("trade", "team01", "team02", -1)]),    # ceduto dopo la scadenza
+                 (gid[2], [("signed", None, "team01", 30), ("cut", "team01", None, 2)])]:         # titolare tagliato prima
+    for _tipo, _da, _a, _ore_prima in _mov:
+        db.q("INSERT INTO transazioni (tipo, oggetto, giocatore_id, team_id_da, team_id_a, stagione, timestamp, note) "
+             "VALUES (%s, 'giocatore', %s, %s, %s, %s, %s, 'prova ceduti')", (_tipo, _g, _da, _a, S, _scad - timedelta(hours=_ore_prima)))
+_c = R.calcola(S, N)
+_alfa = next(r for r in _c["risultati"] if "team01" in (r["casa"], r["trasferta"]))
+_sa = _alfa["sc"] if _alfa["casa"] == "team01" else _alfa["st"]
+_nomi = R._giocatori([gid[7], gid[6], gid[2]], S)
+_at = {x["atleta"] for x in _sa["panchina"] + _sa["titolari"]}   # r6 entra con la FADD
+ok(_nomi[gid[7]]["espn_id"] not in _at and _nomi[gid[6]]["espn_id"] in _at,
+   "panchinario ceduto prima della scadenza: fuori dalla panchina; ceduto dopo: conta per la vecchia squadra")
+ok(any("ceduto prima della scadenza" in a and _nomi[gid[7]]["nome_common"] in a and "penalità" in a for a in _c["avvisi"]),
+   "avviso agli admin: ceduto in panchina (penalità)")
+ok(any("titolare non più in squadra alla scadenza" in a and _nomi[gid[2]]["nome_common"] in a for a in _c["avvisi"]),
+   "titolare tagliato prima della scadenza: avviso (si corregge da Yahoo)")
+_gr = R.griglia(_c)
+_rig = [r for r in _gr["righe"] if len(r) > 3 and r[3] == _nomi[gid[7]]["nome_common"]]
+ok(_rig and "ceduto prima della scadenza" in str(_rig[0][-1]), "foglio di controllo: riga del ceduto con la nota")
+_ff = FF.griglia(S, N)
+ok(any("ceduto prima della scadenza" in str(c) for r in _ff["righe"] for c in r)
+   and any("non più in squadra alla scadenza" in str(c) for r in _ff["righe"] for c in r),
+   "tab delle formazioni: ceduti segnati")
+db.q("DELETE FROM transazioni WHERE note = 'prova ceduti'")
+db.q("UPDATE lega_giornate SET prima_partita = NULL WHERE stagione = %s AND numero = %s", (S, N))
 c = R.calcola(S, N)
 r1, r2 = c["risultati"]
 ok(r1["sc"]["fadd"] and r1["sc"]["fadd"]["esce"]["atleta"] == "r10" and r1["sc"]["fadd"]["entra"]["atleta"] == "r6",

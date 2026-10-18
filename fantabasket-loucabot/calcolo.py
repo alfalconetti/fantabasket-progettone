@@ -156,6 +156,8 @@ def punteggio_squadra(g: dict, quintetto: list[dict], panchina: list[dict], punt
     # dalla panchina e gli altri scalano (Luca, 18/10): niente supplementari né FADD con lui
     titolari = {t.get("atleta") for t in tit if t.get("atleta")}
     pan = [b for b in pan if b.get("atleta") not in titolari]
+    # ceduto prima della scadenza (risultati.calcola, dal registro dei movimenti): fuori, gli altri scalano
+    pan = [b for b in pan if not b.get("ceduto")]
     fadd, avvisi = None, []
     candidati = []
     for i, t in enumerate(tit):

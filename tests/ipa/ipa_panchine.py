@@ -304,6 +304,17 @@ asyncio.run(RP.cmd_report_formazioni(_u(_adm), _ctx))
 ok(len(_bb.doc) == 1 and _bb.doc[0][0].startswith("formazioni-G2-") and b"## Riepilogo" in _bb.doc[0][1],
    "/report_formazioni N: solo admin, file .md")
 
+# ── chiusura: panchinari ceduti prima della scadenza, al gruppo admin (penalità) ──
+db.q("DELETE FROM transazioni WHERE note = 'prova ceduti'")
+for _tipo, _da, _a, _quando in [("signed", None, "team01", ora_ - timedelta(days=30)), ("trade", "team01", "team02", ora_)]:
+    db.q("INSERT INTO transazioni (tipo, oggetto, giocatore_id, team_id_da, team_id_a, stagione, timestamp, note) "
+         "VALUES (%s, 'giocatore', %s, %s, %s, %s, %s, 'prova ceduti')", (_tipo, gids["Kevon Looney"], _da, _a, S, _quando))
+_cp, _cq = Q.ceduti_alla_scadenza(S, db.giornata(S, 2), db.panchine(S, 2))
+ok(_cp == [("Alfa", ["Kevon Looney"])] and _cq == [], "chiusura: panchinario ceduto prima della scadenza trovato (per il gruppo admin)")
+_cp, _ = Q.ceduti_alla_scadenza(S, {**db.giornata(S, 2), "prima_partita": ora_ - timedelta(hours=1)}, db.panchine(S, 2))
+ok(_cp == [], "ceduto dopo la scadenza: non segnalato (conta per la vecchia squadra)")
+db.q("DELETE FROM transazioni WHERE note = 'prova ceduti'")
+
 # ── orario del promemoria ──
 roma = comune.ROMA
 notte = {"prima_partita": datetime(2026, 10, 21, 1, 0, tzinfo=roma)}

@@ -18,7 +18,7 @@ from datetime import timedelta
 import calcolo
 import config
 import db
-from shared import regole
+from shared import regole, rosa
 
 logger = logging.getLogger(__name__)
 RUOLI = ("PG", "SG", "SF", "PF", "C")
@@ -109,6 +109,22 @@ def calcola(stagione: str, n: int, g: dict | None = None, sch: dict | None = Non
                 avvisi.append(f"{nome}: quintetto incompleto ({', '.join(vuoti)}): 0 in quei ruoli")
             if s["panchina"] is None:
                 avvisi.append(f"{nome}: panchina non mandata, si gioca senza supplementari (penalità: decidono gli admin)")
+            # ceduti prima della scadenza (registro dei movimenti): il panchinario esce e gli altri scalano,
+            # il titolare resta (fa fede Yahoo: lo correggono gli admin) ma c'è l'avviso (Luca, 18/10)
+            scad = g.get("prima_partita")
+            ced_p = rosa.ceduti(db.q, t, [x["gid"] for x in b if x["gid"]], scad) if scad else set()
+            for x in b:
+                if x["gid"] in ced_p:
+                    x["ceduto"] = True
+            if ced_p:
+                avvisi.append(f"{nome}: in panchina ma ceduto prima della scadenza: "
+                              f"{', '.join(x['nome'] for x in b if x.get('ceduto'))} (tolto dalla panchina, gli altri scalano; "
+                              "penalità: decidono gli admin)")
+            ced_q = rosa.ceduti(db.q, t, [x["gid"] for x in q if x["gid"]], scad) if scad else set()
+            if ced_q:
+                avvisi.append(f"{nome}: titolare non più in squadra alla scadenza: "
+                              f"{', '.join(x['nome'] for x in q if x['gid'] in ced_q)} (contato com'è: correggere da Yahoo "
+                              "con /quintetto_admin)")
             doppi = [x["nome"] for x in b if x["gid"] and x["gid"] in {y["gid"] for y in q if y["gid"]}]
             if doppi:
                 avvisi.append(f"{nome}: titolare e anche in panchina: {', '.join(doppi)} (tolto dalla panchina, gli altri scalano)")
@@ -265,10 +281,11 @@ def griglia(c: dict) -> dict:
             for x in c["squadre"][t]["quintetto"] + c["squadre"][t]["panchina"]:
                 a = x["atleta"]
                 p = c["punti"].get(a, {"fp": 0.0, "come": "zero", "nota": "senza id ESPN" if x["gid"] else "vuoto"})
-                doppio = x["posto"].startswith("P") and a in tit_atleti
-                if doppio:              # titolare e anche in panchina: fuori dalla panchina (niente notti né ordine sul foglio)
-                    p = {"fp": 0.0, "come": "zero", "nota": "anche titolare: tolto dalla panchina, gli altri scalano",
-                         "squadra": p.get("squadra")}
+                doppio = x["posto"].startswith("P") and (a in tit_atleti or x.get("ceduto"))
+                if doppio:              # fuori dalla panchina (niente notti né ordine sul foglio): anche titolare, o ceduto
+                    p = {"fp": 0.0, "come": "zero", "squadra": p.get("squadra"),
+                         "nota": ("ceduto prima della scadenza: tolto dalla panchina, gli altri scalano" if x.get("ceduto")
+                                  else "anche titolare: tolto dalla panchina, gli altri scalano")}
                 # le due colonne che la formula del punteggio usa, come le ha usate il bot:
                 # a media = la sua squadra non ha giocato (media, o 0 perché indisponibile)
                 zero_indisp = p["come"] == "zero" and p.get("nota", "").startswith("indisponibile")

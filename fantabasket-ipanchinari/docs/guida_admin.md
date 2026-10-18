@@ -49,7 +49,7 @@ Il ruolo di ogni titolare è quello di roster: un giocatore scritto in un ruolo 
 
 **`/quintetti`** mostra tutti i quintetti attuali, una riga per squadra (`PG … · SG … · SF … · PF … · C …`; ⚠️ accanto a un giocatore non più in squadra, — per un ruolo vuoto). **`/quintetti N`** mostra invece le formazioni congelate della giornata N, quelle che usa il calcolo.
 
-**Alla scadenza** i quintetti si congelano: sono quelli della giornata per il calcolo. Nel gruppo admin arriva l'elenco delle squadre senza panchina (penalità).
+**Alla scadenza** i quintetti si congelano: sono quelli della giornata per il calcolo. Nel gruppo admin arriva l'elenco delle squadre senza panchina (penalità) e, se ci sono, le **panchine con giocatori non più in squadra** alla scadenza (ceduti o tagliati prima, secondo il registro del bot principale: penalità, decidete voi; nel calcolo escono dalla panchina e gli altri scalano) e i **titolari non più in squadra** (nel calcolo contano finché non correggete il quintetto da Yahoo). Chi viene ceduto dopo la scadenza conta per la vecchia squadra fino a fine giornata.
 
 **Dopo la scadenza: tenere il segno dei controlli.** **`/controlli`** (o `/controlli N`) mostra le formazioni congelate della giornata in corso (o della N), una per squadra, con ☑️ controllata (chi e quando) o ⬜ da controllare, e accanto lo stato del GM (✅ ✏️ —). Sotto c'è un bottone per squadra: lo tocchi quando hai controllato quella formazione su Yahoo (un altro tocco toglie il segno), 🔄 aggiorna. Se correggi una formazione (`/quintetto_admin SQUADRA`, anche coi bottoni, o `/quintetto_admin SQUADRA G5`) si segna controllata da sola. Lo stesso segno c'è nell'editor di `/quintetto_admin SQUADRA` (☑️ Segna controllata) e in `/stato N` a giornata chiusa.
 

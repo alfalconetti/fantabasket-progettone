@@ -168,3 +168,7 @@ Il calcolo dei fantapunti.
 ## v33 (2026-10-18)
 
 - Dai roster ESPN delle 8:30 si salvano anche gli anni di esperienza NBA di ogni giocatore (`nba_atleti.esperienza`, 0 = esordiente; colonna nuova, creata all'avvio). Li usa il controllo dei dati del bot principale per riconoscere gli esordienti mai visti su basketball-reference
+
+## v34 (2026-10-18)
+
+- **Panchinario ceduto prima della scadenza** (trade, taglio, 10-day finito: dal registro dei movimenti del bot principale, `shared/rosa.py`): esce dalla panchina e gli altri scalano (Luca, 18/10), con l'avviso nella proposta di convalida («penalità: decidono gli admin»). Prima contava come se fosse ancora suo. Un **titolare** non più in squadra alla scadenza resta nel calcolo (fa fede Yahoo) ma c'è l'avviso per correggerlo con /quintetto_admin. Chi è ceduto dopo la scadenza conta per la vecchia squadra fino a fine giornata, come prima. Vale anche per il live; sul foglio di controllo e nel tab delle formazioni le righe hanno la nota

@@ -103,3 +103,7 @@ Primo rilascio: panchine e quintetti.
 ## v22 (2026-10-18)
 
 - `/report_formazioni` prepara il file in un thread: il bot non si blocca mentre lo scrive
+
+## v23 (2026-10-18)
+
+- Alla chiusura della giornata, nel gruppo admin, anche le **panchine con giocatori non più in squadra alla scadenza** (penalità: decidono gli admin; nel calcolo escono e gli altri scalano) e i **titolari non più in squadra** (da correggere da Yahoo). Dal registro dei movimenti del bot principale: chi è ceduto dopo la scadenza non viene segnalato

@@ -565,6 +565,27 @@ async def manda_promemoria(bot, g: dict) -> int:
     return inviati
 
 
+def ceduti_alla_scadenza(s: str, g: dict, panche: dict) -> tuple[list, list]:
+    """([(squadra, [nomi])] panchinari, [(squadra, [nomi])] titolari) che alla scadenza non erano più della
+    squadra, dal registro dei movimenti (shared/rosa.py). I panchinari nel calcolo escono e gli altri scalano."""
+    from shared import rosa
+    scad = g.get("prima_partita")
+    out_p, out_q = [], []
+    for t in config.squadre():
+        p = panche.get(t["id"])
+        righe = (p["righe"] if p and isinstance(p["righe"], list) else []) if p else []
+        ids_p = [r.get("giocatore_id") for r in righe if r.get("giocatore_id")]
+        ids_q = [v for v in db.formazione(s, g["numero"], t["id"]).values() if v]
+        cp = rosa.ceduti(db.q, t["id"], ids_p, scad)
+        cq = rosa.ceduti(db.q, t["id"], ids_q, scad)
+        nomi = db.nomi_giocatori(list(cp | cq))
+        if cp:
+            out_p.append((t["nome"], [nomi.get(x, str(x)) for x in ids_p if x in cp]))
+        if cq:
+            out_q.append((t["nome"], [nomi.get(x, str(x)) for x in ids_q if x in cq]))
+    return out_p, out_q
+
+
 async def job_giornate(context: ContextTypes.DEFAULT_TYPE):
     """Ogni 5 minuti: per le giornate aperte promemoria, riepilogo agli admin e chiusura."""
     bot = context.bot
@@ -583,15 +604,27 @@ async def job_giornate(context: ContextTypes.DEFAULT_TYPE):
             db.segna_stato(s, g["numero"], "chiusa")
             panche = db.panchine(s, g["numero"])
             mancanti = [t["nome"] for t in config.squadre() if t["id"] not in panche]
+            try:
+                ced_p, ced_q = ceduti_alla_scadenza(s, g, panche)
+            except Exception as err:
+                logger.warning("Ceduti alla scadenza: %s", err)
+                ced_p, ced_q = [], []
             if config.gruppo_admin():
                 try:
                     await bot.send_message(chat_id=config.gruppo_admin(), parse_mode="HTML", text=(
                         f"⏰ <b>Giornata {g['numero']} chiusa</b>: quintetti congelati (si correggono anche a giornata "
                         f"in corso con /quintetto_admin)."
-                        + (f"\n❌ Senza panchina ({len(mancanti)}): {e(', '.join(mancanti))}" if mancanti else "\n✅ Tutte le panchine arrivate.")))
+                        + (f"\n❌ Senza panchina ({len(mancanti)}): {e(', '.join(mancanti))}" if mancanti else "\n✅ Tutte le panchine arrivate.")
+                        + ("\n\n⚠️ <b>Panchine con giocatori non più in squadra</b> (escono dalla panchina, gli altri "
+                           "scalano; penalità: decidete voi):\n" + "\n".join(f"• {e(n)}: {e(', '.join(x))}" for n, x in ced_p)
+                           if ced_p else "")
+                        + ("\n\n⚠️ <b>Titolari non più in squadra</b> (nel calcolo contano finché non li correggete da "
+                           "Yahoo con /quintetto_admin):\n" + "\n".join(f"• {e(n)}: {e(', '.join(x))}" for n, x in ced_q)
+                           if ced_q else "")))
                 except Exception as err:
                     logger.warning("Chiusura al gruppo admin: %s", err)
-            await log(bot, f"⏰ G{g['numero']} chiusa: quintetti congelati, {len(mancanti)} panchine mancanti")
+            await log(bot, f"⏰ G{g['numero']} chiusa: quintetti congelati, {len(mancanti)} panchine mancanti"
+                           + (f", {len(ced_p)} panchine con ceduti" if ced_p else ""))
             continue
         p = ora_promemoria(g)
         if not st["promemoria"] and p and ora_ >= p:

@@ -19,6 +19,7 @@ from datetime import datetime, timedelta, timezone
 import config
 import db
 import risultati as R
+from shared import rosa
 
 logger = logging.getLogger(__name__)
 from zoneinfo import ZoneInfo
@@ -76,13 +77,17 @@ def griglia(s: str, n: int, sch: dict | None = None) -> dict:
         for t in (p["casa"], p["trasferta"]):
             x = sch.get(t, {"quintetto": {}, "panchina": None})
             nome_t = config.nome(t)
+            # ceduti prima della scadenza (registro dei movimenti): il panchinario esce, il titolare va corretto
+            ced = rosa.ceduti(db.q, t, [r.get("giocatore_id") for r in (x["panchina"] or []) if r.get("giocatore_id")]
+                              + [v for v in x["quintetto"].values() if v], scad) if scad else set()
             titolari = set()
             for ruolo in R.RUOLI:
                 gid = x["quintetto"].get(ruolo)
                 gg = gioc.get(gid) or {}
                 titolari.add(gid)
                 nuova([nome_t, f"Q-{ruolo}", ruolo, gg.get("nome_common") or "—", nba.get(gg.get("espn_id"), ""),
-                       "" if gid else "posto vuoto: 0"], colore=R.BLU)
+                       ("non più in squadra alla scadenza: da correggere" if gid in ced else "") if gid else "posto vuoto: 0"],
+                      colore=R.BLU)
             if x["panchina"] is None:
                 nuova([nome_t, "P", "", "panchina non mandata", "", "si gioca senza supplementari"], sfondo=R.SF_PANCA, colore=R.BLU)
                 continue
@@ -91,7 +96,8 @@ def griglia(s: str, n: int, sch: dict | None = None) -> dict:
                 gg = gioc.get(gid) or {}
                 nuova([nome_t, f"P{i}", b.get("ruolo") or gg.get("ruolo") or "", gg.get("nome_common") or b.get("testo") or "—",
                        nba.get(gg.get("espn_id"), ""),
-                       "anche titolare: tolto dalla panchina, gli altri scalano" if gid and gid in titolari else ""],
+                       "ceduto prima della scadenza: tolto dalla panchina, gli altri scalano" if gid and gid in ced
+                       else "anche titolare: tolto dalla panchina, gli altri scalano" if gid and gid in titolari else ""],
                       sfondo=R.SF_PANCA, colore=R.BLU)
         nuova()
     return {"nome": f"Calcolo G{n}", "righe": righe, "sfondi": sf, "testi": tx, "pesi": pe, "formati": fo,

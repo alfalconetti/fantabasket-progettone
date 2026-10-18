@@ -1374,3 +1374,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v5.10.2 (2026-10-18)
 
 - Le operazioni lente non bloccano più il bot: i report (`/report_dati`, `/report_ruoli`, e `/report_formazioni` su IPanchinari, v22) e le immagini Typst del roster e degli asset girano in un thread. Prima, mentre lavoravano, il bot si fermava per qualche secondo e le chiamate a Telegram in corso potevano scadere («Errore di rete: Timed out»)
+
+## v5.11.0 (2026-10-18)
+
+- loucabot v34 e IPanchinari v23: il panchinario ceduto o tagliato prima della scadenza esce dalla panchina e gli altri scalano, con la segnalazione al gruppo admin alla chiusura (penalità). Nuovo `shared/rosa.py`: la squadra di un giocatore in un certo momento, dal registro dei movimenti

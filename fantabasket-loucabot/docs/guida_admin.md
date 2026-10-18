@@ -38,7 +38,7 @@ Gli admin sono quelli di `admin_ids` in `globals.json`, gli stessi degli altri b
 
 **Alle 7:45** del giorno dopo l'ultima notte della giornata il bot calcola da solo, coi tabellini definitivi: riscarica partite e tabellini, prende i quintetti congelati alla scadenza e le panchine da IPanchinari e applica le regole qui sotto. Poi:
 - scrive il tab **«Calcolo GN»** del foglio di controllo del calcolo: una riga per giocatore coi fantapunti di ogni notte, la media della stagione, lo status di ogni notte, il punteggio, chi è in campo (FADD), l'ordine dei supplementari, e in cima il riquadro dei risultati. Punteggi, totali, supplementari e vincitore sono **formule** che rifanno i conti del bot: se tutto quadra sul foglio, quadra anche nel bot. I dati scritti dal bot sono in blu, le formule in nero, le righe della FADD in arancione;
-- manda al gruppo admin la proposta: risultati, FADD, avvisi (panchina mancante → senza supplementari, quintetto incompleto, giocatori senza id ESPN), con **✅ Convalida** e **🔄 Ricalcola**.
+- manda al gruppo admin la proposta: risultati, FADD, avvisi (panchina mancante → senza supplementari, quintetto incompleto, giocatori senza id ESPN, panchinari ceduti prima della scadenza → tolti dalla panchina e gli altri scalano, titolari non più in squadra alla scadenza → da correggere da Yahoo), con **✅ Convalida** e **🔄 Ricalcola**.
 
 Se a quell'ora la giornata non si può ancora calcolare (una partita non finita, un tabellino che manca, quintetti non congelati) lo dice sul canale log: quando è pronta, `/ricalcola N`.
 
