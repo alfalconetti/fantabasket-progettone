@@ -164,3 +164,7 @@ Il calcolo dei fantapunti.
 
 - **Numeri del regolamento in `config/settings.json`** (`shared/regole.py`, chiave mancante = valore di oggi): pesi dei fantapunti (`pesi_fantapunti`), bonus casa (`bonus_casa`, `bonus_casa_playoff`), scarto minimo (`scarto_minimo`), giocatori in panchina e quindi supplementari (`giocatori_panchina`). Sul foglio di controllo le righe dei supplementari seguono `giocatori_panchina`
 - **`/dev_ricalcola_fp [STAGIONE]`** (dev): dopo un cambio dei pesi (di solito alla riunione di giugno), ricalcola i fantapunti della stagione dalle statistiche già salvate (tabellini ESPN e medie di basketball-reference), senza riscaricare niente. I risultati già convalidati restano come sono (Luca, 18/10)
+
+## v33 (2026-10-18)
+
+- Dai roster ESPN delle 8:30 si salvano anche gli anni di esperienza NBA di ogni giocatore (`nba_atleti.esperienza`, 0 = esordiente; colonna nuova, creata all'avvio). Li usa il controllo dei dati del bot principale per riconoscere gli esordienti mai visti su basketball-reference

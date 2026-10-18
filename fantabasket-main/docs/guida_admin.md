@@ -192,7 +192,7 @@ Le spalmature dalla stagione corrente in poi smettono di pesare su chiunque l'av
 - **ruoli**: senza posizioni eleggibili, senza ruolo in stagione, ruolo non più tra le eleggibili, squadre che non possono rispettare i minimi;
 - **squadre**: sopra il cap, sotto il floor in stagione, troppi o troppo pochi giocatori;
 - **contratti**: importo non positivo, 10-day scaduti e ancora attivi;
-- **anagrafica**: senza data di nascita, mai visti su basketball-reference;
+- **anagrafica**: senza data di nascita, mai visti su basketball-reference. A parte, con ℹ️ e senza contare tra le cose da guardare, i rookie al primo anno (draft della stagione) e gli esordienti NBA (0 anni di esperienza su ESPN): è normale finché non debuttano. Gli altri di solito sono fermi da tempo (infortunio lungo, senza squadra) o hanno il nome diverso da quello di bref;
 - **registro**: il controllo di coerenza della notte (anche i contratti finiti ancora attivi fuori dalle fasi dei rinnovi).
 
 Non corregge niente.

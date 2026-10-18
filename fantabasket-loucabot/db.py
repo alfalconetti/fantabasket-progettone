@@ -159,6 +159,8 @@ def migra():
             nome       TEXT NOT NULL,
             squadra    TEXT,
             aggiornato TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
+    # v33: anni di esperienza NBA dai roster ESPN (0 = esordiente), per il controllo dei dati del bot principale
+    q("ALTER TABLE nba_atleti ADD COLUMN IF NOT EXISTS esperienza INT")
     # id e nome ESPN nell'anagrafica del bot principale (giocatori.espn_id, nome_espn): è l'unica
     # cosa che loucabot scrive fuori dalle sue tabelle. Le colonne le crea anche il bot principale.
     if q("SELECT to_regclass('giocatori') AS t", one=True)["t"]:
@@ -435,9 +437,10 @@ def salva_atleti(atleti: list[dict]) -> None:
     with get_conn() as conn:
         with conn.cursor() as cur:
             for a in atleti:
-                cur.execute("INSERT INTO nba_atleti (atleta, nome, squadra) VALUES (%(atleta)s, %(nome)s, %(squadra)s) "
+                cur.execute("INSERT INTO nba_atleti (atleta, nome, squadra, esperienza) VALUES (%(atleta)s, %(nome)s, %(squadra)s, %(esperienza)s) "
                             "ON CONFLICT (atleta) DO UPDATE SET nome = EXCLUDED.nome, squadra = EXCLUDED.squadra, "
-                            "aggiornato = NOW()", a)
+                            "esperienza = COALESCE(EXCLUDED.esperienza, nba_atleti.esperienza), aggiornato = NOW()",
+                            {"esperienza": None, **a})
             if len({a["squadra"] for a in atleti}) >= 30:
                 cur.execute("UPDATE nba_atleti SET squadra = NULL, aggiornato = NOW() WHERE NOT (atleta = ANY(%s))",
                             ([a["atleta"] for a in atleti],))

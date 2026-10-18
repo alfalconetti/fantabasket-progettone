@@ -30,6 +30,7 @@ def gioc(n, pos, team, ruolo=None, imp=5, anni=2, firma=None, tipo="normale", es
 
 
 db._q("DELETE FROM bref_stats WHERE stagione = %s", (S,))
+db._q("DELETE FROM nba_atleti WHERE atleta = 'eEsordiente Fa'")
 for i, r in enumerate(["PG", "PG", "SG", "SG", "SF", "SF", "PF", "PF", "C", "C"]):
     gioc(f"Alfa{i}", r, T1, r)
 gioc("Senza Espn", "SF", T2, "SF", espn=False)
@@ -43,6 +44,19 @@ gioc("Dieci", "C", T2, "C", imp=0, tipo="10day", scad=datetime.now(timezone.utc)
 gioc("Senza Nascita", "PF", T2, "PF", nascita=False)
 mai = gioc("Mai Bref", "PF", T2, "PF")
 db._q("DELETE FROM bref_stats WHERE nome_bref = 'Mai Bref'")
+rk = gioc("Rookie Nuovo", "SG", T2, "SG", tipo="rookie")
+db._q("INSERT INTO rookie (giocatore_id, team_id, round, pick_numero, anno_draft, anno_firma, firmato) VALUES (%s,%s,1,3,%s,%s,TRUE)",
+      (rk, T2, S, S))
+vk = gioc("Rookie Vecchio", "SG", T2, "SG", tipo="rookie")
+db._q("INSERT INTO rookie (giocatore_id, team_id, round, pick_numero, anno_draft, anno_firma, firmato) VALUES (%s,%s,1,4,%s,%s,TRUE)",
+      (vk, T2, str(int(S) - 1), S))
+es = gioc("Esordiente Fa", "SF", T2, "SF")
+db._q("""CREATE TABLE IF NOT EXISTS nba_atleti (atleta TEXT PRIMARY KEY, nome TEXT NOT NULL, squadra TEXT,
+         aggiornato TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
+db._q("ALTER TABLE nba_atleti ADD COLUMN IF NOT EXISTS esperienza INT")
+db._q("DELETE FROM nba_atleti WHERE atleta = 'eEsordiente Fa'")
+db._q("INSERT INTO nba_atleti (atleta, nome, squadra, esperienza) VALUES ('eEsordiente Fa', 'Esordiente Fa', 'BOS', 0)")
+db._q("DELETE FROM bref_stats WHERE nome_bref IN ('Rookie Nuovo', 'Rookie Vecchio', 'Esordiente Fa')")
 
 fase("regular-season-fa")
 md = RD.report()
@@ -60,6 +74,12 @@ ok("Corto" not in c, "anni sotto il minimo per l'importo: non segnalati (rinnovi
 ok("Dieci" in c and "scaduto il" in c and "importo non positivo" not in c.split("Dieci")[1].split("\n")[0], "10-day scaduto ancora attivo (importo 0 normale)")
 ok("Senza Nascita" in sez("Senza data di nascita"), "senza data di nascita")
 ok("Mai Bref" in sez("Mai visti su basketball-reference") and "Alfa0" not in sez("Mai visti su basketball-reference"), "mai visti su bref")
+mb, rb = sez("Mai visti su basketball-reference"), sez("Mai visti su bref: rookie e esordienti")
+ok("Rookie Nuovo" not in mb and f"| Rookie Nuovo | rookie al primo anno (draft {S}) |" in rb, "rookie al primo anno: a parte, come normale")
+ok("Esordiente Fa" in rb and "esordiente NBA" in rb and "Esordiente Fa" not in mb, "esordiente NBA (0 anni su ESPN) anche se non è un rookie del fantabasket")
+ok(f"| Rookie Vecchio | rookie del draft {int(S) - 1} |" in mb, "rookie di un draft passato mai visto: da controllare")
+ok("| Mai visti su bref: rookie e esordienti | ℹ️ 2 |" in md and "| Mai visti su basketball-reference | ⚠️ 2 |" in md,
+   "riepilogo: ℹ️ per i rookie (non contano tra le cose da guardare)")
 ok("| Senza id ESPN (i loro punti non contano) | ⚠️ 1 |" in md and "| Coerenza del registro (transazioni) | ⚠️" in md,
    "riepilogo con ✅ e ⚠️ per controllo")
 ok(f"| {tm.get_team_by_id(T1)['nome']} |" not in sez("Minimi dei ruoli impossibili (4 G, 4 F, 2 C)"), "squadra in regola non tra i minimi impossibili")
@@ -81,3 +101,4 @@ ok(len(BOT.doc) == 1 and BOT.doc[0][0].startswith("dati-") and b"## Riepilogo" i
 ok("rdati:md" in [b.callback_data for r in AP._kb_admin_home().inline_keyboard for b in r], "«🩺 Controllo dati» nel pannello admin")
 db._q("TRUNCATE giocatori, contratti, transazioni RESTART IDENTITY CASCADE")
 db._q("DELETE FROM bref_stats WHERE stagione = %s", (S,))
+db._q("DELETE FROM nba_atleti WHERE atleta = 'eEsordiente Fa'")

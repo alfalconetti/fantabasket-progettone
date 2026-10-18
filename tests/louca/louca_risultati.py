@@ -284,6 +284,14 @@ p30 = calcolo.punteggio_giocatori(S, gN, ["r30"])["r30"]
 ok(p30["squadra"] == "NYK" and p30["come"] == "zero", "passato ai Knicks (roster ESPN), che giocano: non prende la media")
 db.salva_atleti([{"atleta": f"x{i}", "nome": "x", "squadra": sq} for i, sq in enumerate(sorted(__import__("nba").NBA))])
 ok(calcolo.punteggio_giocatori(S, gN, ["r30"])["r30"]["squadra"] == "NOP", "non più in nessun roster: vale l'ultimo tabellino")
+import nba as _nba
+_ro = _nba.leggi_roster({"athletes": [{"id": 1, "displayName": "Esordiente", "experience": {"years": 0}},
+                                      {"id": 2, "displayName": "Veterano", "experience": {"years": 9}},
+                                      {"id": 3, "displayName": "Senza Dato"}]}, "BOS")
+ok([a["esperienza"] for a in _ro] == [0, 9, None], "roster ESPN: anni di esperienza (0 = esordiente), se ci sono")
+db.salva_atleti(_ro)
+db.salva_atleti([{"atleta": "1", "nome": "Esordiente", "squadra": "BOS"}])
+ok(db.q("SELECT esperienza FROM nba_atleti WHERE atleta = '1'", one=True)["esperienza"] == 0, "esperienza: un roster senza il dato non la cancella")
 db.q("TRUNCATE nba_atleti")
 
 # ── punteggi live (v18) ──

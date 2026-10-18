@@ -10,7 +10,9 @@ Sezioni (ognuna con ✅ o il numero di cose da guardare):
      squadre che non possono rispettare i minimi.
   3. Squadre: sopra il cap, sotto il floor (in stagione), troppi o troppo pochi giocatori.
   4. Contratti: importo non positivo, 10-day scaduti da più di due giorni e ancora attivi (i contratti finiti ancora attivi li segnala la coerenza, al punto 6).
-  5. Anagrafica: senza data di nascita, mai visti su basketball-reference.
+  5. Anagrafica: senza data di nascita, mai visti su basketball-reference (a parte, come ℹ️, i rookie al
+     primo anno, cioè del draft della stagione, e gli esordienti NBA con 0 anni di esperienza su ESPN:
+     è normale finché non debuttano).
   6. Registro: il controllo di coerenza (database.controlli_coerenza).
 Solo lettura: non corregge niente.
 """
@@ -123,12 +125,24 @@ def controlli(adesso: datetime | None = None) -> list[tuple[str, list[str], list
                 [[nome(r["team_id"]), r["nome_common"]] for r in rows if not r["data_nascita"]],
                 "Servono per età e classifiche: /set_nascita, /nascite_mancanti."))
     try:
-        from handlers.bref import senza_bref
-        mai = [[nome(r["team_id"]), r["nome_common"]] for r in senza_bref()]
+        mai, rookie = [], []
+        for r in senza_bref(s):
+            if r["anno_draft"] == s:
+                rookie.append([nome(r["team_id"]), r["nome_common"], f"rookie al primo anno (draft {s})"])
+            elif r["esperienza"] == 0:
+                rookie.append([nome(r["team_id"]), r["nome_common"], "esordiente NBA (ESPN: 0 anni di esperienza)"])
+            else:
+                perche = ([f"rookie del draft {r['anno_draft']}"] if r["anno_draft"] else []) + \
+                         ([f"ESPN: {r['esperienza']} anni in NBA"] if r["esperienza"] else [])
+                mai.append([nome(r["team_id"]), r["nome_common"], "; ".join(perche) or "—"])
     except Exception as err:
-        mai = [["?", f"controllo non riuscito: {err}"]]
-    out.append(("Mai visti su basketball-reference", ["Squadra", "Giocatore"], mai,
-                "Rookie non ancora entrati, o nome dell'anagrafica diverso da quello di bref (senza fantamedia)."))
+        mai, rookie = [["?", f"controllo non riuscito: {err}", ""]], []
+    out.append(("Mai visti su basketball-reference", ["Squadra", "Giocatore", "Note"], mai,
+                "Senza fantamedia. Di solito: non ha giocato nelle stagioni che ci sono su bref (infortunio lungo, "
+                "senza squadra), oppure il nome dell'anagrafica è diverso da quello di bref (si abbina dal report bref "
+                "delle 9, coi bottoni 🔗)."))
+    out.append(("Mai visti su bref: rookie e esordienti", ["Squadra", "Giocatore", "Perché"], rookie,
+                "Normale finché non debuttano: compaiono su bref alla prima partita giocata.", "info"))
 
     # 6. registro
     try:
@@ -139,6 +153,28 @@ def controlli(adesso: datetime | None = None) -> list[tuple[str, list[str], list
     return out
 
 
+def senza_bref(stagione: str) -> list[dict]:
+    """A roster e mai visti su bref, con l'anno del draft del fantabasket (tabella rookie) e gli anni
+    di esperienza NBA dai roster ESPN (nba_atleti.esperienza di loucabot, se c'è)."""
+    esp = "NULL::int"
+    if db._q("""SELECT 1 AS x FROM information_schema.columns WHERE table_name = 'nba_atleti' AND column_name = 'esperienza'""",
+             one=True):
+        esp = "(SELECT a.esperienza FROM nba_atleti a WHERE a.atleta = g.espn_id)"
+    return db._q(f"""SELECT g.id, g.nome_common, c.team_id,
+                            (SELECT r.anno_draft FROM rookie r WHERE r.giocatore_id = g.id ORDER BY r.anno_draft DESC LIMIT 1) AS anno_draft,
+                            {esp} AS esperienza
+                     FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
+                     WHERE c.attivo AND NOT EXISTS (SELECT 1 FROM bref_stats b WHERE b.nome_bref = g.nome_bref)
+                     ORDER BY c.team_id, g.nome_common""", many=True) or []
+
+
+def _esito(sez: tuple) -> str:
+    r, info = sez[2], len(sez) > 4 and sez[4] == "info"
+    if not r:
+        return "✅"
+    return f"ℹ️ {len(r)}" if info else f"⚠️ {len(r)}"
+
+
 def report(adesso: datetime | None = None) -> str:
     adesso = adesso or datetime.now(timezone.utc)
     try:
@@ -147,14 +183,15 @@ def report(adesso: datetime | None = None) -> str:
     except Exception:
         fase = settings.fase()
     sez = controlli(adesso)
-    da_guardare = sum(1 for _, _, r, _ in sez if r)
+    da_guardare = sum(1 for x in sez if x[2] and _esito(x).startswith("⚠️"))
     righe = [f"# Controllo dei dati — stagione {settings.stagione_corrente()}", "",
              f"Fase: {fase} · {adesso.astimezone(ROMA):%d/%m/%Y %H:%M} (ora italiana)  ",
              f"**{da_guardare}** controlli su {len(sez)} con qualcosa da guardare. Solo lettura: il bot non corregge niente.", "",
              "## Riepilogo", "", "| Controllo | Esito |", "|---|---|"]
-    righe += [f"| {_md(t)} | {'✅' if not r else f'⚠️ {len(r)}'} |" for t, _, r, _ in sez]
-    for t, testa, r, nota in sez:
-        righe += ["", f"## {'✅' if not r else '⚠️'} {_md(t)}", ""]
+    righe += [f"| {_md(x[0])} | {_esito(x)} |" for x in sez]
+    for x in sez:
+        t, testa, r, nota = x[:4]
+        righe += ["", f"## {_esito(x).split()[0]} {_md(t)}", ""]
         if nota:
             righe += [f"_{_md(nota)}_", ""]
         if not r:

@@ -1366,3 +1366,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **`/report_dati`** (admin; anche nel pannello, «🩺 Controllo dati»): la salute dei dati in un file Markdown, coi controlli che prima erano sparsi e qualcuno nuovo. Senza id ESPN, ruoli (senza posizioni, senza ruolo in stagione, ruolo fuori dalle eleggibili, minimi impossibili), squadre (cap, floor, slot), contratti da guardare (importo non positivo, 10-day scaduti ancora attivi), anagrafica (data di nascita, mai visti su bref), coerenza del registro. Solo lettura
 - IPanchinari v21: **`/report_formazioni [N]`**, quintetti e panchine di tutte le squadre per una giornata in un file Markdown, coi problemi in evidenza
+
+## v5.10.1 (2026-10-18)
+
+- `/report_dati`: tra i mai visti su basketball-reference, i **rookie al primo anno** (draft della stagione) e gli **esordienti NBA** (0 anni di esperienza su ESPN) stanno a parte, con ℹ️, e non contano tra le cose da guardare; per gli altri la nota dice se sono rookie di un draft passato (loucabot v33: anni di esperienza dai roster ESPN)

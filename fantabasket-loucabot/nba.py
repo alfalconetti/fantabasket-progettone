@@ -279,7 +279,9 @@ def leggi_roster(dati: dict, squadra: str) -> list[dict]:
         voci = a.get("items") if isinstance(a, dict) and "items" in a else [a]
         for x in voci:
             if isinstance(x, dict) and x.get("id") and x.get("displayName"):
-                out.append({"atleta": str(x["id"]), "nome": x["displayName"], "squadra": squadra})
+                esp = (x.get("experience") or {}).get("years") if isinstance(x.get("experience"), dict) else None
+                out.append({"atleta": str(x["id"]), "nome": x["displayName"], "squadra": squadra,
+                            "esperienza": esp if isinstance(esp, int) else None})
     return out
 
 
