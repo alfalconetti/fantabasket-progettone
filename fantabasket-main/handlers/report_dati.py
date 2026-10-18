@@ -16,6 +16,7 @@ Sezioni (ognuna con ✅ o il numero di cose da guardare):
   6. Registro: il controllo di coerenza (database.controlli_coerenza).
 Solo lettura: non corregge niente.
 """
+import asyncio
 import io
 import logging
 from datetime import datetime, timedelta, timezone
@@ -204,7 +205,7 @@ def report(adesso: datetime | None = None) -> str:
 
 async def _manda(bot, chat_id: int):
     adesso = datetime.now(timezone.utc)
-    testo = report(adesso)
+    testo = await asyncio.to_thread(report, adesso)     # tante query: in un thread, il bot resta libero
     await bot.send_document(chat_id=chat_id, document=io.BytesIO(testo.encode("utf-8")),
                             filename=f"dati-{adesso.astimezone(ROMA):%Y%m%d-%H%M}.md",
                             caption=f"🩺 Controllo dei dati ({adesso.astimezone(ROMA):%d/%m %H:%M})")

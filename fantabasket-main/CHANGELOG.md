@@ -1370,3 +1370,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v5.10.1 (2026-10-18)
 
 - `/report_dati`: tra i mai visti su basketball-reference, i **rookie al primo anno** (draft della stagione) e gli **esordienti NBA** (0 anni di esperienza su ESPN) stanno a parte, con ℹ️, e non contano tra le cose da guardare; per gli altri la nota dice se sono rookie di un draft passato (loucabot v33: anni di esperienza dai roster ESPN)
+
+## v5.10.2 (2026-10-18)
+
+- Le operazioni lente non bloccano più il bot: i report (`/report_dati`, `/report_ruoli`, e `/report_formazioni` su IPanchinari, v22) e le immagini Typst del roster e degli asset girano in un thread. Prima, mentre lavoravano, il bot si fermava per qualche secondo e le chiamate a Telegram in corso potevano scadere («Errore di rete: Timed out»)

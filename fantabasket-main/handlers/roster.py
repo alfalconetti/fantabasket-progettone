@@ -7,6 +7,7 @@ Se team_id è omesso, usa il team del GM che chiama il comando.
 Loghi: config/loghi/{team_id}_logo.png
 Template: roster.typ nella root del bot
 """
+import asyncio
 import logging
 import os
 import subprocess
@@ -368,7 +369,8 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
         tmp.name,
     ]
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    # Typst in un thread: mentre compila il bot continua a rispondere (prima lo bloccava)
+    result = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True)
     if result.returncode != 0:
         logger.error("Typst error: %s", result.stderr)
         raise RuntimeError(f"Errore Typst: {result.stderr[:300]}")
@@ -588,7 +590,8 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
         tmp.name,
     ]
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    # Typst in un thread: mentre compila il bot continua a rispondere (prima lo bloccava)
+    result = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True)
     if result.returncode != 0:
         logger.error("Typst assets error: %s", result.stderr)
         raise RuntimeError(f"Errore Typst: {result.stderr[:300]}")

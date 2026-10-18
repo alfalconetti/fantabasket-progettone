@@ -10,6 +10,7 @@ panchina, senza id ESPN (0 punti), squadra NBA senza partite (a media), Out/Doub
 riepilogo: chi non ha mandato la panchina, chi non ha confermato il quintetto, quanti titolari
 hanno problemi. Solo lettura.
 """
+import asyncio
 import io
 import logging
 
@@ -172,7 +173,7 @@ async def cmd_report_formazioni(update: Update, context: ContextTypes.DEFAULT_TY
     if not g:
         await msg.reply_text("Nessuna giornata da mostrare (calendario non caricato?). Uso: /report_formazioni [N]")
         return
-    testo = report(g)
+    testo = await asyncio.to_thread(report, g)     # tante query: in un thread, il bot resta libero
     nome = f"formazioni-G{g['numero']}-{adesso().astimezone(ROMA):%Y%m%d-%H%M}.md"
     await context.bot.send_document(chat_id=update.effective_chat.id, document=io.BytesIO(testo.encode("utf-8")),
                                     filename=nome, caption=f"🏀 Formazioni della giornata {g['numero']}: quintetti e panchine di tutte le squadre")

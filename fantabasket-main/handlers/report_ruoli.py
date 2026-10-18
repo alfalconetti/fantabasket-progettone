@@ -12,6 +12,7 @@ Stato dei minimi: ✅ rispettati coi ruoli ufficiali; 🟡 non ancora, ma i gioc
 possono coprirli; ❌ mancano N posti anche con la scelta migliore (shared/ruoli_core.deficit_team).
 I minimi vengono da settings.json (shared/regole.py); i 10-day non contano.
 """
+import asyncio
 import io
 import logging
 from datetime import datetime, timezone
@@ -145,7 +146,7 @@ def report(adesso: datetime | None = None) -> str:
 
 async def _manda(bot, chat_id: int, chi: str):
     adesso = datetime.now(timezone.utc)
-    testo = report(adesso)
+    testo = await asyncio.to_thread(report, adesso)     # tante query: in un thread, il bot resta libero
     nome = f"ruoli-{adesso.astimezone(ROMA):%Y%m%d-%H%M}.md"
     await bot.send_document(chat_id=chat_id, document=io.BytesIO(testo.encode("utf-8")), filename=nome,
                             caption=f"🎽 Report ruoli di tutte le squadre ({adesso.astimezone(ROMA):%d/%m %H:%M})")
