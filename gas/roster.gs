@@ -52,11 +52,11 @@ function updateTeamRoster(sheet, team) {
 
   // Tagli gratuiti usati
   sheet.getRange(rowBase + CONFIG.OFFSET_TAGLI, colBase, 1, CONFIG.COLS_PER_TEAM)
-    .setValue(`TAGLI GRATUITI USATI: ${team.tagli_gratuiti_usati || 0}/3`);
+    .setValue(`TAGLI GRATUITI USATI: ${team.tagli_gratuiti_usati || 0}/${team.tagli_gratuiti_max || 3}`);
 
   // Cambi ruolo usati
   sheet.getRange(rowBase + CONFIG.OFFSET_CAMBI_RUOLO, colBase, 1, CONFIG.COLS_PER_TEAM)
-    .setValue(`CAMBI RUOLO USATI: ${team.cambi_ruolo_usati || 0}/2`);
+    .setValue(`CAMBI RUOLO USATI: ${team.cambi_ruolo_usati || 0}/${team.cambi_ruolo_max || 2}`);
 
   // Sotto "TAGLIATI:" una riga dopo l'altra: impatti dei tagli, poi le DIS. (DPE), poi il 10-DAY.
   // Nessun limite per tipo (v5.4.0: prima al massimo 2 impatti); l'area è di

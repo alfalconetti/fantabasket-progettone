@@ -9,6 +9,7 @@ import json
 
 import database as db
 import settings
+from shared import regole
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +152,8 @@ def _build_team_payload(team_id: str) -> dict:
     return {
         "team_id":              team_id,
         "tagli_gratuiti_usati": tagli_usati,
+        "tagli_gratuiti_max":   regole.max_tagli_gratuiti(),
+        "cambi_ruolo_max":      regole.max_cambi_ordinari(),
         "cambi_ruolo_usati":    db._qval(
             "SELECT count(*) FROM cambi_ruolo WHERE team_id = %s AND stagione = %s AND tipo = 'ordinario'",
             (team_id, stagione)) or 0,

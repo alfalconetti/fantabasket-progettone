@@ -184,6 +184,10 @@ Le spalmature dalla stagione corrente in poi smettono di pesare su chiunque l'av
    - il giorno prima della deadline i GM in ritardo ricevono un promemoria.
 3. **All'uscita dalla fase** arriva nel gruppo l'elenco di chi è rimasto senza ruolo. Da regolamento, il ruolo si estrae a caso tra quelli possibili.
 
+### Report dei ruoli
+
+**`/report_ruoli`** (o pannello → **🎽 Ruoli squadre** → **📄 Report ruoli (.md)**) manda un file Markdown con la situazione dei ruoli di tutte le squadre in quel momento, in qualsiasi fase. In cima il riepilogo della lega: per ogni squadra quanti PG, SG, SF, PF e C, guardie, ali e centri rispetto ai minimi, giocatori senza ruolo, dichiarazioni in sospeso, cambi ordinari usati e lo stato dei minimi (✅ rispettati · 🟡 non ancora, ma i giocatori senza ruolo li possono coprire · ❌ mancano posti anche con la scelta migliore). Poi una tabella per squadra con ogni giocatore: ruolo, posizioni eleggibili e note (10-day, Saedro in corso, dichiarazione da fare entro, bozza non confermata, Erminio possibile, ruolo non più tra le eleggibili). Non cambia niente.
+
 ### Durante la stagione
 
 **Ruoli dopo trade e firme.** Pannello → **⏳ Ruoli in sospeso** mostra le dichiarazioni ancora aperte, e puoi farle tu al posto del GM. Dopo 48 ore il bot estrae il ruolo da solo.

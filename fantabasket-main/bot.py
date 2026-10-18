@@ -34,6 +34,7 @@ from handlers.cambi_ruolo import get_handlers as cambi_ruolo_handlers
 from handlers.dieci_giorni import get_handlers as dieci_giorni_handlers
 from handlers.penalita    import get_handlers as penalita_handlers
 from handlers.impostazioni import get_handlers as impostazioni_handlers
+from handlers.report_ruoli import get_handlers as report_ruoli_handlers
 from handlers.bref        import get_handlers as bref_handlers
 from handlers.nascite     import get_handlers as nascite_handlers
 from handlers.spalmature  import get_handlers as spalmature_handlers
@@ -338,6 +339,8 @@ def main():
     for h in cambi_ruolo_handlers():
         app.add_handler(h)
     for h in penalita_handlers():
+        app.add_handler(h)
+    for h in report_ruoli_handlers():
         app.add_handler(h)
     for h in dieci_giorni_handlers():
         app.add_handler(h)

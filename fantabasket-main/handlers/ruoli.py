@@ -35,6 +35,7 @@ import settings
 import teams as tm
 from settings import solo_privato
 from utils import normalizza
+from shared import regole
 
 logger = logging.getLogger(__name__)
 
@@ -98,10 +99,11 @@ def avvisi_vincoli(ruoli: list[str]) -> list[str]:
     g = sum(r in ("PG", "SG") for r in ruoli)
     f = sum(r in ("SF", "PF") for r in ruoli)
     c = sum(r == "C" for r in ruoli)
+    m = regole.minimi_ruolo()
     out = []
-    if g < 4: out.append(f"guardie (PG/SG): {g}/4")
-    if f < 4: out.append(f"ali (SF/PF): {f}/4")
-    if c < 2: out.append(f"centri (C): {c}/2")
+    if g < m["G"]: out.append(f"guardie (PG/SG): {g}/{m['G']}")
+    if f < m["F"]: out.append(f"ali (SF/PF): {f}/{m['F']}")
+    if c < m["C"]: out.append(f"centri (C): {c}/{m['C']}")
     return out
 
 
@@ -573,6 +575,7 @@ async def cb_admin_lista(update: Update, context: ContextTypes.DEFAULT_TYPE):
         icona = "✅" if r["completo"] else ("🟡" if r["ufficiali"] else "❌")
         kb.append([InlineKeyboardButton(f"{icona} {t['nome']} ({r['ufficiali']}/{r['tot']})",
                                         callback_data=f"rl:v:{t['id']}")])
+    kb.append([InlineKeyboardButton("📄 Report ruoli (.md)", callback_data="rrep:md")])
     kb.append([InlineKeyboardButton("← Menu admin", callback_data="adm:home")])
     await query.edit_message_text(
         f"🎽 <b>Ruoli squadre</b> — stagione {_stagione()}\nDeadline: <b>{_deadline_str()}</b>\n"
@@ -688,11 +691,13 @@ async def report_vincoli_inizio_rs(bot) -> None:
         f = sum(r in ("SF", "PF") for r in uff)
         c = sum(r == "C" for r in uff)
         senza = [s["nome"] for s in stato if not s["ufficiale"]]
-        righe.append(f"• <b>{t['nome']}</b>: G {g}/4 · F {f}/4 · C {c}/2"
+        m = regole.minimi_ruolo()
+        righe.append(f"• <b>{t['nome']}</b>: G {g}/{m['G']} · F {f}/{m['F']} · C {c}/{m['C']}"
                      + (f" — senza ruolo: {', '.join(senza)}" if senza else ""))
+    m = regole.minimi_ruolo()
     testo = ("🏀 <b>Inizio regular season — vincoli dei ruoli</b>\n" +
-             ("Tutte le squadre rispettano i minimi (4 guardie, 4 ali, 2 centri). ✅" if not righe else
-              "Squadre che non rispettano i minimi (4 G, 4 F, 2 C), nemmeno con la scelta migliore "
+             (f"Tutte le squadre rispettano i minimi ({m['G']} guardie, {m['F']} ali, {m['C']} centri). ✅" if not righe else
+              f"Squadre che non rispettano i minimi ({m['G']} G, {m['F']} F, {m['C']} C), nemmeno con la scelta migliore "
               "dei ruoli mancanti:\n" + "\n".join(righe) +
               "\n\nSi sistemano con un cambio forzato (/admin_menu → 🔁 Cambi ruolo) o sul mercato."))
     try:

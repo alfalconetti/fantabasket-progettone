@@ -180,7 +180,8 @@ def _cambi_usati(team_id: str, stagione: str) -> str:
                      "AND tipo = 'ordinario'", (team_id, stagione)) or 0
     except Exception:
         n = 0
-    return f"{n}/2"
+    from shared import regole
+    return f"{n}/{regole.max_cambi_ordinari()}"
 
 
 def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None,

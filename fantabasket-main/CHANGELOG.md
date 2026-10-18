@@ -1334,6 +1334,11 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - loucabot v29: titolare anche in panchina → in panchina conta 0 (posto tenuto, niente FADD)
 
+## v5.9.0 (2026-10-18)
+
+- **`/report_ruoli`** (admin; anche nel pannello, «🎽 Ruoli squadre» → «📄 Report ruoli (.md)»): un file Markdown coi ruoli di tutte le squadre in quel momento. Riepilogo della lega (ruoli per posizione, guardie/ali/centri sui minimi, senza ruolo, in sospeso, cambi usati, stato dei minimi) e una tabella per squadra con ruolo, eleggibili e note di ogni giocatore (10-day, Saedro, dichiarazione in sospeso, bozza, Erminio, ruolo fuori dalle eleggibili). Solo lettura
+- Gli ultimi numeri del regolamento scritti a mano: avvisi dei minimi dei ruoli (dichiarazione e inizio regular season), cambi ruolo usati nel roster («1/2») e sul foglio Roster («CAMBI RUOLO USATI», «TAGLI GRATUITI USATI») ora seguono settings.json. Sul foglio serve la nuova versione dello script (senza, resta /2 e /3 come prima)
+
 ## v5.8.0 (2026-10-18)
 
 - **Numeri del regolamento in `config/settings.json`**, letti da `shared/regole.py` per tutti i bot; una chiave che manca vale il valore di oggi, quindi senza toccare il file non cambia niente. Nuove chiavi: `pesi_fantapunti`, `bonus_casa`, `bonus_casa_playoff`, `scarto_minimo`, `giocatori_panchina`, `giorni_riacquisto_ruolo`, `max_cambi_ruolo_ordinari`, `giorni_erminio`, `giorni_saedro`, `max_tagli_gratuiti`, `giorni_10day`, `riduzione_dpe_percento`
