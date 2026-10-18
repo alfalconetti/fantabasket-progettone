@@ -107,7 +107,10 @@ def _sync_roster() -> None:
         logger.warning("GAS sync dopo ruolo RS: %s", e)
 
 
-def _testo_e_tastiera(p: dict) -> tuple[str, InlineKeyboardMarkup | None]:
+def _testo_e_tastiera(p: dict, admin: bool = False) -> tuple[str, InlineKeyboardMarkup | None]:
+    """admin=True (pannello ⏳ Ruoli in sospeso): bottoni «rpa:», che solo un admin può usare; i
+    bottoni del GM («rp:») valgono solo per la sua squadra, anche se è admin."""
+    pre = "rpa" if admin else "rp"
     eleg = eleggibili(p["giocatore_id"])
     scad = p["scadenza"].astimezone(timezone.utc) if p["scadenza"].tzinfo else p["scadenza"]
     ore = max(0, int((scad - datetime.now(timezone.utc)).total_seconds() // 3600))
@@ -117,9 +120,9 @@ def _testo_e_tastiera(p: dict) -> tuple[str, InlineKeyboardMarkup | None]:
     if not eleg:
         return testo + "\n\n⚠️ Posizioni eleggibili non registrate: contatta un admin.", None
     if len(eleg) == 1:
-        kb = [[InlineKeyboardButton(f"✅ Conferma {eleg[0]}", callback_data=f"rp:{p['id']}:{eleg[0]}")]]
+        kb = [[InlineKeyboardButton(f"✅ Conferma {eleg[0]}", callback_data=f"{pre}:{p['id']}:{eleg[0]}")]]
     else:
-        kb = [[InlineKeyboardButton(r, callback_data=f"rp:{p['id']}:{r}") for r in eleg]]
+        kb = [[InlineKeyboardButton(r, callback_data=f"{pre}:{p['id']}:{r}") for r in eleg]]
     return testo, InlineKeyboardMarkup(kb)
 
 
@@ -169,11 +172,16 @@ def _is_admin(user_id: int) -> bool:
 
 async def cb_dichiara(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    _, pid, ruolo = query.data.split(":")
+    pre, pid, ruolo = query.data.split(":")
     p = get_pendente(int(pid))
     uid = query.from_user.id
     gm_team = tm.get_team_by_gm(uid)
-    admin = _is_admin(uid)
+    # «rpa:» dal pannello admin: solo admin, qualsiasi squadra. «rp:» del GM: solo la sua squadra,
+    # anche per un admin (dal menu normale niente superpoteri, Luca 19/10)
+    admin = pre == "rpa" and _is_admin(uid)
+    if pre == "rpa" and not admin:
+        await query.answer("⛔ Solo admin.", show_alert=True)
+        return
     if not p or (not admin and (not gm_team or gm_team["id"] != p["team_id"])):
         await query.answer("⛔ Non puoi dichiarare questo ruolo.", show_alert=True)
         return
@@ -198,11 +206,22 @@ async def cb_dichiara(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     _registra_ruolo(p["giocatore_id"], p["team_id"], ruolo, _TIPO_EVENTO.get(p["origine"], "post_trade"))
     _chiudi(p["id"], "dichiarata", ruolo)
-    chi = " (da admin)" if admin and (not gm_team or gm_team["id"] != p["team_id"]) else ""
+    chi = " (da admin)" if admin else ""                 # dal pannello: sempre segnato, anche sulla propria squadra
     await query.edit_message_text(f"✅ <b>{p['nome_common']}</b>: ruolo <b>{ruolo}</b> ufficiale{chi}.",
                                   parse_mode="HTML")
     await _annuncia(context.bot, f"🎽 <b>{_nome_team(p['team_id'])}</b>: {p['nome_common']} → <b>{ruolo}</b>"
                                  f" <i>({_ORIGINE_TXT.get(p['origine'], p['origine'])}{chi})</i>")
+    # canale log: chi l'ha dichiarato e da dove (accountability)
+    u = query.from_user
+    nome_u = (u.first_name or str(u.id)) + (f" (@{u.username})" if getattr(u, "username", None) else "")
+    ch = settings.load_globals().get("log_channel_id_main")
+    if ch:
+        try:
+            await context.bot.send_message(chat_id=ch, parse_mode="HTML", text=(
+                f"🎽 Ruolo dichiarato — <b>{_nome_team(p['team_id'])}</b>: {p['nome_common']} → <b>{ruolo}</b>\n"
+                + (f"da admin {nome_u} (pannello ⏳ Ruoli in sospeso)" if admin else f"dal GM {nome_u}")))
+        except Exception as e:
+            logger.warning("Log ruolo dichiarato: %s", e)
     _sync_roster()
 
 
@@ -235,7 +254,7 @@ async def cb_lista_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(f"⏳ <b>{len(aperte)}</b> dichiarazioni in sospeso — puoi dichiarare al posto del GM:",
                                   parse_mode="HTML")
     for p in aperte:
-        testo, kb = _testo_e_tastiera(p)
+        testo, kb = _testo_e_tastiera(p, admin=True)
         await query.message.reply_text(testo, parse_mode="HTML", reply_markup=kb)
 
 
@@ -281,7 +300,7 @@ async def job_scadenze(context: ContextTypes.DEFAULT_TYPE):
 
 def get_handlers() -> list:
     return [
-        CallbackQueryHandler(cb_dichiara,     pattern=r"^rp:\d+:(PG|SG|SF|PF|C)$"),
+        CallbackQueryHandler(cb_dichiara,     pattern=r"^rpa?:\d+:(PG|SG|SF|PF|C)$"),
         CallbackQueryHandler(cb_lista_team,   pattern=r"^rp:list$"),
         CallbackQueryHandler(cb_lista_admin,  pattern=r"^rpadm:list$"),
     ]

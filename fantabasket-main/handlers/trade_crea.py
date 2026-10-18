@@ -636,10 +636,10 @@ async def import_ricevi_testo(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
         return IMPORT_ATTENDI_TESTO
 
-    # GM non può importare trade che non lo coinvolgono (gli admin sì)
+    # un GM non importa trade che non lo coinvolgono, nemmeno se è admin (dal menu normale niente
+    # superpoteri, Luca 19/10: le trade degli altri si importano dal pannello admin)
     team_ids_trade = [sq.team_id for sq in squadre]
-    is_admin       = user.id in [int(a) for a in settings.load_globals().get("admin_ids", [])]
-    if not is_admin and team and team["id"] not in team_ids_trade:
+    if team and team["id"] not in team_ids_trade:
         await update.effective_message.reply_text(
             "❌ Non puoi importare una trade che non ti coinvolge.\n"
             "Contatta un admin per proporre questa trade."

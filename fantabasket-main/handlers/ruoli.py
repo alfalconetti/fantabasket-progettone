@@ -167,10 +167,13 @@ def _is_admin(user_id: int) -> bool:
     return user_id in [int(a) for a in settings.admin_ids()]
 
 
-def _accesso(user_id: int, team_id: str) -> str | None:
-    """None se può operare su team_id, altrimenti il motivo."""
-    if _is_admin(user_id):
-        return None
+def _accesso(user_id: int, team_id: str, admin_mode: bool = False) -> str | None:
+    """None se può operare su team_id, altrimenti il motivo. Modalità admin (pannello admin,
+    /dichiarazione_ruoli SQUADRA, callback «rla:») solo per gli admin, su qualsiasi squadra e senza
+    fase né deadline. Modalità GM («rl:», menu normale) per tutti, admin compresi (Luca, 19/10: dal
+    menu normale un admin non ha superpoteri): solo la propria squadra, in fase e prima della deadline."""
+    if admin_mode:
+        return None if _is_admin(user_id) else "⛔ Solo admin."
     t = tm.get_team_by_gm(user_id)
     if not t or t["id"] != team_id:
         return "⛔ Puoi dichiarare solo i ruoli della tua squadra."
@@ -217,14 +220,20 @@ def _label(s: dict) -> str:
     return f"{icona} {s['scelta']} · {s['nome']}"
 
 
-def _kb_vista(team_id: str, stato: list) -> InlineKeyboardMarkup:
-    righe = [[InlineKeyboardButton(_label(s), callback_data=f"rl:g:{team_id}:{s['gid']}")]
+def _p(admin: bool) -> str:
+    """Prefisso delle callback: «rla» in modalità admin, «rl» in modalità GM."""
+    return "rla" if admin else "rl"
+
+
+def _kb_vista(team_id: str, stato: list, admin: bool = False) -> InlineKeyboardMarkup:
+    p = _p(admin)
+    righe = [[InlineKeyboardButton(_label(s), callback_data=f"{p}:g:{team_id}:{s['gid']}")]
              for s in stato]
     righe.append([
-        InlineKeyboardButton("📥 Importa da testo", callback_data=f"rl:i:{team_id}"),
-        InlineKeyboardButton("✅ Conferma",         callback_data=f"rl:c:{team_id}"),
+        InlineKeyboardButton("📥 Importa da testo", callback_data=f"{p}:i:{team_id}"),
+        InlineKeyboardButton("✅ Conferma",         callback_data=f"{p}:c:{team_id}"),
     ])
-    righe.append([InlineKeyboardButton("✖️ Chiudi", callback_data="rl:close")])
+    righe.append([InlineKeyboardButton("✖️ Chiudi", callback_data=f"{p}:close")])
     return InlineKeyboardMarkup(righe)
 
 
@@ -233,7 +242,7 @@ async def _mostra_vista(update: Update, team_id: str, admin: bool, nuovo: bool =
     if not stato:
         testo, kb = "Il roster è vuoto.", None
     else:
-        testo, kb = _testo_vista(team_id, stato, admin), _kb_vista(team_id, stato)
+        testo, kb = _testo_vista(team_id, stato, admin), _kb_vista(team_id, stato, admin)
     if update.callback_query and not nuovo:
         await update.callback_query.edit_message_text(testo, parse_mode="HTML", reply_markup=kb)
     else:
@@ -246,9 +255,11 @@ async def _mostra_vista(update: Update, team_id: str, admin: bool, nuovo: bool =
 async def cmd_dichiarazione_ruoli(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     team_id = None
-    if context.args and _is_admin(uid):
+    admin_mode = False
+    if context.args and _is_admin(uid):          # /dichiarazione_ruoli SQUADRA: modalità admin
         t = tm.get_team_by_query(" ".join(context.args))
         team_id = t["id"] if t else None
+        admin_mode = bool(team_id)
     if team_id is None:
         t = tm.get_team_by_gm(uid)
         if not t:
@@ -256,11 +267,11 @@ async def cmd_dichiarazione_ruoli(update: Update, context: ContextTypes.DEFAULT_
                 "⛔ Non sei registrato come GM." + (" Da admin: /dichiarazione_ruoli <squadra>" if _is_admin(uid) else ""))
             return
         team_id = t["id"]
-    motivo = _accesso(uid, team_id)
+    motivo = _accesso(uid, team_id, admin_mode)
     if motivo:
         await update.effective_message.reply_text(motivo)
         return
-    await _mostra_vista(update, team_id, admin=_admin_su_altro(uid, team_id))
+    await _mostra_vista(update, team_id, admin=admin_mode)
 
 
 async def cb_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -278,25 +289,21 @@ async def cb_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await _mostra_vista(update, t["id"], admin=False)
 
 
-def _admin_su_altro(uid: int, team_id: str) -> bool:
-    t = tm.get_team_by_gm(uid)
-    return _is_admin(uid) and (not t or t["id"] != team_id)
-
-
 async def cb_ruoli(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     uid = query.from_user.id
-    if query.data == "rl:close":
+    if query.data in ("rl:close", "rla:close"):
         await query.answer()
         await query.edit_message_text("Dichiarazione ruoli chiusa. Le bozze restano salvate.")
         return
     parti = query.data.split(":")
+    admin = parti[0] == "rla"                            # modalità admin: solo dal pannello o /dichiarazione_ruoli SQUADRA
     azione, team_id = parti[1], parti[2]
-    motivo = _accesso(uid, team_id)
+    motivo = _accesso(uid, team_id, admin)
     if motivo:
         await query.answer(motivo, show_alert=True)
         return
-    admin = _admin_su_altro(uid, team_id)
+    p = _p(admin)
 
     if azione == "v":
         await query.answer()
@@ -313,17 +320,17 @@ async def cb_ruoli(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not s["eleggibili"]:
             testo = (f"⚠️ <b>{s['nome']}</b> non ha posizioni eleggibili registrate.\n"
                      f"Un admin deve impostarle con /set_posizioni_eleggibili.")
-            kb = [[InlineKeyboardButton("← Indietro", callback_data=f"rl:v:{team_id}")]]
+            kb = [[InlineKeyboardButton("← Indietro", callback_data=f"{p}:v:{team_id}")]]
         else:
             stato_txt = f"ufficiale: <b>{s['ufficiale']}</b>" if s["ufficiale"] else "nessun ruolo ufficiale"
             testo = (f"🎽 <b>{s['nome']}</b>\nEleggibile: {', '.join(s['eleggibili'])} · {stato_txt}\n\n"
                      f"Scegli il ruolo:")
-            kb = [[InlineKeyboardButton(("● " if p == s["scelta"] else "") + p,
-                                        callback_data=f"rl:s:{team_id}:{gid}:{p}")
-                   for p in s["eleggibili"]]]
+            kb = [[InlineKeyboardButton(("● " if r == s["scelta"] else "") + r,
+                                        callback_data=f"{p}:s:{team_id}:{gid}:{r}")
+                   for r in s["eleggibili"]]]
             if s["bozza"]:
-                kb.append([InlineKeyboardButton("🗑 Togli la scelta", callback_data=f"rl:x:{team_id}:{gid}")])
-            kb.append([InlineKeyboardButton("← Indietro", callback_data=f"rl:v:{team_id}")])
+                kb.append([InlineKeyboardButton("🗑 Togli la scelta", callback_data=f"{p}:x:{team_id}:{gid}")])
+            kb.append([InlineKeyboardButton("← Indietro", callback_data=f"{p}:v:{team_id}")])
         await query.edit_message_text(testo, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(kb))
 
     elif azione in ("s", "x"):                            # salva / togli bozza
@@ -344,7 +351,7 @@ async def cb_ruoli(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not r["da_confermare"]:
             testo = "Non ci sono scelte nuove da confermare." + (
                 f"\n\nMancano ancora: {', '.join(s['nome'] for s in r['mancanti'])}" if r["mancanti"] else "")
-            kb = [[InlineKeyboardButton("← Indietro", callback_data=f"rl:v:{team_id}")]]
+            kb = [[InlineKeyboardButton("← Indietro", callback_data=f"{p}:v:{team_id}")]]
         else:
             righe = ["✅ <b>Conferma ruoli</b>\n", "Diventano ufficiali:"]
             for s in r["da_confermare"]:
@@ -357,8 +364,8 @@ async def cb_ruoli(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if avv:
                 righe.append("⚠️ Vincoli roster: " + ", ".join(avv) + " (solo avviso in offseason)")
             testo = "\n".join(righe)
-            kb = [[InlineKeyboardButton("✅ Confermo", callback_data=f"rl:ok:{team_id}"),
-                   InlineKeyboardButton("← Indietro", callback_data=f"rl:v:{team_id}")]]
+            kb = [[InlineKeyboardButton("✅ Confermo", callback_data=f"{p}:ok:{team_id}"),
+                   InlineKeyboardButton("← Indietro", callback_data=f"{p}:v:{team_id}")]]
         await query.edit_message_text(testo, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(kb))
 
     elif azione == "ok":                                  # conferma definitiva
@@ -370,7 +377,7 @@ async def cb_ruoli(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Ufficiali: <b>{r['ufficiali']}/{r['tot']}</b>"
             + (f"\n⚠️ Mancano ancora: {', '.join(s['nome'] for s in r['mancanti'])}" if r["mancanti"] else ""),
             parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🎽 Torna ai ruoli", callback_data=f"rl:v:{team_id}")]]))
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🎽 Torna ai ruoli", callback_data=f"{p}:v:{team_id}")]]))
         await _log_conferma(context, team_id, nuovi, r, query.from_user, admin)
         try:
             # Sync del roster di TUTTE le squadre (un'unica chiamata, foglio Scelte escluso)
@@ -448,13 +455,14 @@ def abbina(nome: str, stato: list) -> tuple[str, dict | None, list]:
 
 async def cb_import_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
-    team_id = query.data.split(":")[2]
-    motivo = _accesso(query.from_user.id, team_id)
+    parti = query.data.split(":")
+    team_id, admin = parti[2], parti[0] == "rla"
+    motivo = _accesso(query.from_user.id, team_id, admin)
     if motivo:
         await query.answer(motivo, show_alert=True)
         return ConversationHandler.END
     await query.answer()
-    context.user_data["rl_import"] = {"team_id": team_id}
+    context.user_data["rl_import"] = {"team_id": team_id, "admin": admin}
     await query.edit_message_text(
         "📥 <b>Importa ruoli da testo</b>\n\nMandami un messaggio con una riga per giocatore:\n"
         "<code>LeBron SF\nCurry PG\nJokic C</code>\n\n"
@@ -548,7 +556,7 @@ async def _chiudi_import(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.callback_query.edit_message_text("\n".join(righe), parse_mode="HTML")
     else:
         await msg.reply_text("\n".join(righe), parse_mode="HTML")
-    await _mostra_vista(update, team_id, _admin_su_altro(update.effective_user.id, team_id), nuovo=True)
+    await _mostra_vista(update, team_id, bool(imp.get("admin")), nuovo=True)
     return ConversationHandler.END
 
 
@@ -574,7 +582,7 @@ async def cb_admin_lista(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for t, r in stato_lega():
         icona = "✅" if r["completo"] else ("🟡" if r["ufficiali"] else "❌")
         kb.append([InlineKeyboardButton(f"{icona} {t['nome']} ({r['ufficiali']}/{r['tot']})",
-                                        callback_data=f"rl:v:{t['id']}")])
+                                        callback_data=f"rla:v:{t['id']}")])
     kb.append([InlineKeyboardButton("📄 Report ruoli (.md)", callback_data="rrep:md")])
     kb.append([InlineKeyboardButton("← Menu admin", callback_data="adm:home")])
     await query.edit_message_text(
@@ -711,7 +719,7 @@ async def report_vincoli_inizio_rs(bot) -> None:
 
 def get_handlers() -> list:
     conv_import = ConversationHandler(
-        entry_points=[CallbackQueryHandler(cb_import_start, pattern=r"^rl:i:[\w-]+$")],
+        entry_points=[CallbackQueryHandler(cb_import_start, pattern=r"^rla?:i:[\w-]+$")],
         states={
             ATTENDI_TESTO:  [MessageHandler(filters.TEXT & ~filters.COMMAND, ricevi_testo)],
             CONFERMA_FUZZY: [CallbackQueryHandler(cb_fuzzy, pattern=r"^rli:[yn]$")],
@@ -725,5 +733,5 @@ def get_handlers() -> list:
         CommandHandler("deadline_ruoli", cmd_deadline_ruoli),
         CallbackQueryHandler(cb_home, pattern=r"^rl:home$"),
         CallbackQueryHandler(cb_admin_lista, pattern=r"^rladm:list$"),
-        CallbackQueryHandler(cb_ruoli, pattern=r"^rl:(close|[vgsxc]:[\w-]+(:\d+(:[A-Z]{1,2})?)?|ok:[\w-]+)$"),
+        CallbackQueryHandler(cb_ruoli, pattern=r"^rla?:(close|[vgsxc]:[\w-]+(:\d+(:[A-Z]{1,2})?)?|ok:[\w-]+)$"),
     ]

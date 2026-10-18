@@ -182,11 +182,12 @@ def _kb_riepilogo_non_valida(trade_id: int) -> InlineKeyboardMarkup:
 # ── chi può toccare una bozza ───────────────────────────────────────────────────
 
 def _puo_gestire_bozza(uid: int, trade: dict) -> bool:
-    """Bozza del GM che la sta usando, o bozza admin ("admin") per un admin."""
+    """Bozza del GM che la sta usando, o bozza admin ("admin") per un admin. La bozza di un GM la
+    tocca solo quel GM, anche se è admin un altro (Luca, 19/10)."""
     if trade["proposta_da"] == "admin":
         return settings.is_admin(uid)
     team = tm.get_team_by_gm(uid)
-    return bool(team and team["id"] == trade["proposta_da"]) or settings.is_admin(uid)
+    return bool(team and team["id"] == trade["proposta_da"])
 
 
 async def _bozza_non_modificabile(query, trade_id: int) -> bool:

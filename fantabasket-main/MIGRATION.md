@@ -1,6 +1,6 @@
 # Messaggio di migrazione — Fantabasket Progettone
 
-**Stato: v5.11.0 · bot aste v67 · loucabot v34 · IPanchinari v23** (13/10/2026)
+**Stato: v5.12.1 · bot aste v67 · loucabot v34 · IPanchinari v23** (13/10/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 
@@ -64,7 +64,7 @@ fantabasket-progettone/
 **Codice**
 - Modifiche chirurgiche; `update.effective_message` ovunque; fasi sempre con i trattini.
 - Bot principale: `@solo_privato` su tutto tranne `/roster`, `/assets`, `/team_diff`; `@richiede_fase` per i comandi di fase; `per_message=False` nei ConversationHandler; `/annulla` globale (`group=-1`).
-- Parità GM/admin: ogni azione GM ha l'equivalente "per conto di" nel pannello admin. L'admin che è anche GM, nei flussi GM, agisce con le regole dei GM.
+- Parità GM/admin: ogni azione GM ha l'equivalente "per conto di" nel pannello admin. L'admin che è anche GM, nei flussi GM, agisce con le regole dei GM: solo la sua squadra, stesse fasi e scadenze (Luca, 19/10: «dal menu normale niente superpoteri, assolutamente»). I poteri da admin solo dal pannello e dai comandi admin, con callback distinte (`rla:`/`rl:` ruoli, `rpa:`/`rp:` ruoli in sospeso); mai `is_admin` come scorciatoia in un controllo dei flussi GM (prova `admin_poteri`).
 - Un comando GM legato a una fase va in `comandi.py` (`_fasi_comando`) e in `AZIONI_FASE` del menu.
 - Un tipo nuovo di `transazioni` o `cambi_ruolo` va in `_allinea_check` (`migrate_db`) e in `schema.sql`.
 - Schema SQLite del bot aste solo additivo (deve restare leggibile dal v48).

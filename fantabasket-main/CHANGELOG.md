@@ -1378,3 +1378,16 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v5.11.0 (2026-10-18)
 
 - loucabot v34 e IPanchinari v23: il panchinario ceduto o tagliato prima della scadenza esce dalla panchina e gli altri scalano, con la segnalazione al gruppo admin alla chiusura (penalità). Nuovo `shared/rosa.py`: la squadra di un giocatore in un certo momento, dal registro dei movimenti
+
+## v5.12.0 (2026-10-19)
+
+- **Dal menu normale un admin non ha superpoteri** (Luca, 19/10). Un admin che è anche GM, dai flussi dei GM, ha le stesse regole degli altri: solo la sua squadra, stesse fasi e scadenze. Corretti i punti dove non era così:
+  - dichiarazione ruoli: dal `/menu` e da `/dichiarazione_ruoli` l'admin poteva modificare dopo la deadline (e altre squadre). Ora la modalità admin c'è solo dal pannello (🎽 Ruoli squadre, anche per la propria squadra) e con `/dichiarazione_ruoli SQUADRA`, con bottoni suoi (`rla:`)
+  - ruoli da dichiarare dopo trade e firme: i bottoni mandati al GM valgono solo per la sua squadra; quelli del pannello ⏳ Ruoli in sospeso (`rpa:`) solo per gli admin
+  - import di una trade: un GM admin non importa più dal suo flusso trade che non lo coinvolgono (si fa dal pannello admin)
+  - bozze trade: la bozza di un GM la tocca solo quel GM
+- Prova nuova `admin_poteri`
+
+## v5.12.1 (2026-10-19)
+
+- Ruoli da dichiarare dopo trade e firme: ogni dichiarazione ha una riga sul canale log con chi l'ha fatta e da dove (GM, o admin dal pannello ⏳ Ruoli in sospeso); sul canale principale «(da admin)» c'è sempre quando è un admin dal pannello, anche sulla propria squadra
