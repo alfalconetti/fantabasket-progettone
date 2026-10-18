@@ -80,19 +80,26 @@ async def cmd_sync_sheets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     g = load_globals()
     if update.effective_user.id != g.get("dev_id"):
         return
-    await update.effective_message.reply_text("⏳ Sync in corso...")
-    try:
-        import gas_client
-        ok = gas_client.sync_all(sincrono=True)
-        from handlers.registro import segna
-        await segna(context.bot, update.effective_user, "dev", "sync dei fogli", oggetto="tutti i roster",
-                    dopo="fatto" if ok else "fallito")
-        if ok:
-            await update.effective_message.reply_text("✅ Sync completato.")
-        else:
-            await update.effective_message.reply_text("❌ Sync fallito — controlla i log.")
-    except Exception as e:
-        await update.effective_message.reply_text(f"❌ Errore: {e}")
+    await update.effective_message.reply_text("⏳ Sync in corso (fino a 3 minuti)...")
+    msg = update.effective_message
+
+    async def lavoro():
+        try:
+            import asyncio
+            import gas_client
+            ok = await asyncio.to_thread(gas_client.sync_all, True)
+            from handlers.registro import segna
+            await segna(context.bot, update.effective_user, "dev", "sync dei fogli", oggetto="tutti i roster",
+                        dopo="fatto" if ok else "fallito")
+            await msg.reply_text("✅ Sync completato." if ok else "❌ Sync fallito — controlla i log.")
+        except Exception as e:
+            await msg.reply_text(f"❌ Errore: {e}")
+    # in background (v6.0.1): GAS ci mette anche un paio di minuti, e nel frattempo il bot risponde agli altri
+    app = getattr(context, "application", None)
+    if app:
+        app.create_task(lavoro())
+    else:
+        await lavoro()
 
 
 async def cmd_annulla_globale(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -182,7 +182,10 @@ def _do_sync(router_url: str, router_token: str, payload: dict, attempt: int = 1
             },
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        # il router aspetta GAS fino a 170s (roster di 24 squadre: spesso più di 30s); prima qui 30s,
+        # e /sync_sheets diceva «fallito» mentre il foglio si aggiornava, e il sync in background
+        # ripartiva da capo dopo 30s (v6.0.1)
+        with urllib.request.urlopen(req, timeout=180) as resp:
             result = json.loads(resp.read().decode())
             logger.info("GAS sync OK: %s", result)
     except Exception as e:
@@ -231,7 +234,7 @@ def sync_teams(team_ids: list[str] | None = None) -> bool:
 
 
 def sync_teams_sync(team_ids: list[str] | None = None) -> bool:
-    """Sync sincrono di tutte le squadre — per comandi manuali come /sync_sheets. Timeout 60s."""
+    """Sync sincrono di tutte le squadre — per comandi manuali come /sync_sheets. Timeout 180s."""
     team_ids = _tutte()
     router_url, router_token = _get_config()
     if not router_url or not router_token:

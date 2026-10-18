@@ -1410,3 +1410,9 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - Le colonne «chi» e «veste» in `transazioni` e `cambi_ruolo` previste nella lista delle cose da fare non servono più: il registro delle azioni ha chi, veste e giocatore per ogni movimento
 - `/dev_player`: le modifiche ai campi anagrafici ora lasciano traccia anche loro (prima solo quelle ai contratti e ai rookie, e sul canale log del bot aste)
 - Guide (GM, admin, dev) e MIGRATION aggiornate; prove: `registro_azioni`, controlli del registro nelle prove di trade e taglio admin
+
+## v6.0.1 (2026-10-19)
+
+- `/sync_sheets` diceva «❌ Sync fallito» anche quando il foglio si aggiornava: il bot aspettava il router al massimo 30 secondi, e il roster di 24 squadre su GAS ne prende di più. Ora il bot aspetta fino a 3 minuti e il router fino a 170 secondi anche per Roster, Scelte e BrefRaw (come già per Calendario e calcolo di loucabot). Lo stesso timeout faceva ripartire dopo 30 secondi i sync automatici che in realtà stavano andando: il foglio veniva riscritto due volte
+- `/sync_sheets` gira in background: mentre aspetta GAS il bot risponde agli altri
+

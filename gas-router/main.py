@@ -64,7 +64,7 @@ async def roster(payload: GASPayload, authorization: str = Header(...)):
         "action": payload.action,
         "teams":  payload.teams or [],
     }
-    return await _forward(_get_gas_roster_url(), gas_payload)
+    return await _forward(_get_gas_roster_url(), gas_payload, timeout=170.0)   # 24 squadre: GAS ci mette più di 30s
 
 
 @app.post("/gas/scelte")
@@ -76,7 +76,7 @@ async def scelte(payload: GASPayload, authorization: str = Header(...)):
         "anni":   payload.anni or [],
         "teams":  payload.teams or [],
     }
-    return await _forward(_get_gas_scelte_url(), gas_payload)
+    return await _forward(_get_gas_scelte_url(), gas_payload, timeout=170.0)
 
 
 @app.post("/gas/bref")
@@ -89,7 +89,7 @@ async def bref(payload: GASPayload, authorization: str = Header(...)):
         "action": "bref_raw",
         "csv":    payload.csv or "",
     }
-    return await _forward(_get_gas_roster_url(), gas_payload)
+    return await _forward(_get_gas_roster_url(), gas_payload, timeout=170.0)
 
 
 @app.post("/gas/calendario")
