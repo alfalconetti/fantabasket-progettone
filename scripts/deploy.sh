@@ -120,7 +120,7 @@ print("\n".join(map(str, v)) if isinstance(v, list) else ("" if v is None else s
         echo "Niente commit. Per tornare indietro:"
         echo "  cd $R && git checkout -- . && git clean -fd -- fantabasket-main fantabasket-aste-beta shared tests scripts"
         echo "  docker compose exec -T postgres psql -U fantabasket -d fantabasket -q < $BK   # solo se serve il database di prima"
-        echo "  docker compose up --build -d ${RIAVVIA[*]}"
+        echo "  docker compose up --build -d --force-recreate ${RIAVVIA[*]}"
     }
 
     # 5. riavvio e controlli
@@ -131,7 +131,9 @@ print("\n".join(map(str, v)) if isinstance(v, list) else ("" if v is None else s
         echo "🔄 $S…"
         # l'output di build e avvio (le rotelline) va in un file: si vede solo se qualcosa va storto
         local OUT; OUT="$(mktemp)"
-        if ! docker compose up --build -d "$S" >"$OUT" 2>&1; then
+        # --force-recreate: si riavvia sempre, anche se l'immagine non è cambiata (es. cambia solo shared/,
+        # che è montato: senza riavvio il bot continuerebbe a usare il codice vecchio, e niente messaggio di avvio)
+        if ! docker compose up --build -d --force-recreate "$S" >"$OUT" 2>&1; then
             echo "❌ Build o avvio di $S non riusciti:"; tail -30 "$OUT"; rm -f "$OUT"
             torna_indietro; exit 1
         fi
@@ -178,7 +180,7 @@ print("\n".join(map(str, v)) if isinstance(v, list) else ("" if v is None else s
     echo
     echo "✅ v$VER installata."
     echo "   Backup di prima: $BK"
-    echo "   Per tornare indietro: cd $R && git revert --no-edit HEAD && git push && docker compose up --build -d ${RIAVVIA[*]}"
+    echo "   Per tornare indietro: cd $R && git revert --no-edit HEAD && git push && docker compose up --build -d --force-recreate ${RIAVVIA[*]}"
     echo "   (e, se serve, il database: docker compose exec -T postgres psql -U fantabasket -d fantabasket -q < $BK)"
 }
 

@@ -1391,3 +1391,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v5.12.1 (2026-10-19)
 
 - Ruoli da dichiarare dopo trade e firme: ogni dichiarazione ha una riga sul canale log con chi l'ha fatta e da dove (GM, o admin dal pannello ⏳ Ruoli in sospeso); sul canale principale «(da admin)» c'è sempre quando è un admin dal pannello, anche sulla propria squadra
+
+## v5.12.2 (2026-10-19)
+
+- `deploy.sh`: i servizi in `riavvia` si riavviano sempre (`--force-recreate`). Prima `docker compose up --build -d` lasciava acceso il container se la sua immagine non era cambiata: niente riavvio (e niente messaggio di avvio sul canale log) per loucabot e IPanchinari quando cambiavano solo altri bot, e soprattutto niente codice nuovo quando cambiava solo `shared/`, che è montato e non sta nell'immagine
+- MIGRATION: accountability degli admin nella lista delle cose da fare
