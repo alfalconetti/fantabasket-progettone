@@ -81,7 +81,7 @@ fantabasket-progettone/
 | `deadline_ruoli` | scadenza della dichiarazione ruoli (`/deadline_ruoli`) |
 | `repo_url` | link alla guida di ripristino nella didascalia dei backup |
 
-**settings.json** (condiviso, si legge a ogni chiamata, `/settings chiave valore` per cambiarlo):
+**settings.json** (condiviso, si legge a ogni chiamata; si cambia con `/settings`, `handlers/impostazioni.py`: catalogo `GRUPPI` con nome, tipo, limiti e unità di ogni chiave, chiavi sconosciute in «Altre», tabelle in sola lettura; anteprima e conferma, scrittura atomica di una sola chiave rileggendo il file, messaggio sul canale principale e sul log; un peso dei fantapunti riscrive subito il trigger di `bref_stats`). **Una chiave nuova di settings.json va aggiunta a `GRUPPI`** (la prova `impostazioni` controlla che ogni chiave del file e di `regole.DEFAULT` abbia una voce):
 
 - **cap:** `cap_regular` 150, `cap_offseason` 165, `salary_floor` 115;
 - **roster:** `roster_max` 15, `roster_min_regular` 10, `roster_min_guardie`/`ali`/`centri` 4/4/2;
@@ -90,7 +90,9 @@ fantabasket-progettone/
 - **regole varie:** `stepien_anni` 4, `ore_comunicazione_ruolo` 48;
 - **Doncic:** `doncic_soglia_1` 20 e `doncic_soglia_2` 25 (le due fasce della formula, `stagione.doncic`);
 - **tabelle:** `rookie_scale` (per fascia di pick, anno per anno: importo e anni; la usano attivazione diritti e cambio di stagione), `tabella_minimo_contratto` (per i rinnovi normali, non ancora usata);
-- **tempi del bot aste:** `durata_asta_ore`, `timeout_*`, `rilancio_minimo`.
+- **tempi del bot aste:** `durata_asta_ore`, `timeout_*`, `rilancio_minimo`;
+- **numeri del regolamento** (v5.8.0, letti da `shared/regole.py` per tutti i bot; chiave mancante = default, tra parentesi): `pesi_fantapunti` (dizionario `pts`, `ast`, `oreb`, `dreb`, `tpm`, `fga`, `fgm`, `fta`, `ftm`, `stl`, `blk`, `tov`: 0,5 2 2 1,25 1,5 −0,5 1 −0,75 1 2 2 −2; una statistica che manca vale il default), `bonus_casa` (3), `bonus_casa_playoff` (5), `scarto_minimo` (5), `giocatori_panchina` (5: anche il numero massimo di supplementari), `roster_min_guardie`/`_ali`/`_centri` (4/4/2), `ore_comunicazione_ruolo` (48), `giorni_riacquisto_ruolo` (60), `max_cambi_ruolo_ordinari` (2), `giorni_erminio` (14), `giorni_saedro` (10), `max_tagli_gratuiti` (3), `giorni_10day` (10), `riduzione_dpe_percento` (25). Si rileggono quando il file cambia, senza riavvio.
+- **pesi dei fantapunti:** i fantapunti si salvano quando si scarica un tabellino (`nba_tabellini.fp`, loucabot) e la fantamedia di basketball-reference la scrive un trigger su `bref_stats` (`regole.allinea_bref`, all'avvio del bot principale: fino alla v5.7 era una colonna generata coi pesi nello schema). Dopo un cambio di `pesi_fantapunti`: **`/dev_ricalcola_fp [STAGIONE]` su loucabot** (riscrive il trigger e ricalcola tabellini e bref della stagione dalle statistiche salvate; i risultati convalidati restano).
 
 `tests/config/settings.json` ha gli stessi valori: se cambi uno, cambia l'altro.
 
@@ -430,7 +432,7 @@ Lo specchietto completo, regola per regola del regolamento con il codice e la pr
 
 ### Tagli e spalmature (`tagli.py`)
 
-- **Gratuito:** 1M x1 con meno di 3 tagli gratuiti già fatti nella stagione (`MAX_TAGLI_GRATUITI`). Dal quarto, spalmatura 1x1.
+- **Gratuito:** 1M x1 con meno di 3 tagli gratuiti già fatti nella stagione (`max_tagli_gratuiti` in settings.json). Dal quarto, spalmatura 1x1.
 - **Sopra i 5M:** percentuali per anni residui (x1: 50-30-20; x2: 60-50-50-40; x3: 70-70-60-50-50), arrotondate per eccesso, con l'eccedenza tolta dal fondo senza scendere sotto 1 (7x1 → 4-2-1).
 - **Fino a 5M:** tabella fissa `_TABELLA_SPALMATA_BASSA`.
 - **Controlli e scrittura:** `_valuta_taglio` / `TaglioNonEseguibile` bloccano in RS sotto i 10 e se si scopre un ruolo, e un contratto finito (x0: non pesa e scade da solo). `esegui_taglio` scrive contratto, transazione e rate in un'unica transazione; `dopo_taglio` annuncia e sincronizza. GM e pannello admin passano entrambi da qui (v3.10.0).

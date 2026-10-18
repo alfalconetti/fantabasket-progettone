@@ -1,6 +1,6 @@
 # Messaggio di migrazione — Fantabasket Progettone
 
-**Stato: v5.7.0 · bot aste v66 · loucabot v31 · IPanchinari v19** (13/10/2026)
+**Stato: v5.8.0 · bot aste v67 · loucabot v32 · IPanchinari v20** (13/10/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 
@@ -91,7 +91,7 @@ fantabasket-progettone/
 
 **globals.json** (lo scrive il bot principale; gli altri lo leggono): `fase`, `stagione_corrente` (`"2026"` = 2026-27), `mercato_aperto`, `admin_ids`, `dev_id`, `admin_group_id`, `main_channel_id`, `channel_id` (aste), `log_channel_id` (aste), `log_channel_id_main`, `log_channel_id_louca`, `log_channel_id_ipa`, `canale_panchinari_id`, `trade_deadline`, `deadline_ruoli`, `repo_url`.
 
-**settings.json** (condiviso, `/settings chiave valore`): `cap_offseason` 165, `cap_regular` 150, `salary_floor` 115, `roster_max` 15, `roster_min_regular` 10, …
+**settings.json** (condiviso, `/settings chiave valore`): `cap_offseason` 165, `cap_regular` 150, `salary_floor` 115, `roster_max` 15, `roster_min_regular` 10, … Dalla v5.8.0 anche i numeri del regolamento sparsi nel codice (pesi dei fantapunti, bonus casa, scarto, panchina, minimi dei ruoli, cambi ruolo, tagli gratuiti, 10-day, DPE, riacquisto), letti da `shared/regole.py` con i default di oggi: elenco in `fantabasket-main/docs/guida_dev.md`. Restano nel codice solo valori tecnici (limiti di Telegram, soglie di somiglianza, paginazioni).
 
 **Fasi** (cambio con `/set_fase`, con anteprima e conferma; il bot aste non cambia fase):
 ```
@@ -118,6 +118,7 @@ Lo specchietto completo regolamento ↔ codice ↔ prove, con i testi proposti p
 - **RFA**: si dichiara e si cambia quante volte si vuole fino all'inizio delle aste RFA (anche nel draft). In trade prima delle aste la dichiarazione decade (chi lo cede ne dichiara un altro, per chi lo riceve è un x0 che non pesa); dalle aste in poi segue il giocatore, massimo uno per squadra. Sui canali: una riga per evento sul log, un riepilogo unico aggiornato sul canale principale.
 - **Ruoli**: PG/SG/SF/PF/C tra le posizioni eleggibili; minimi 4G/4F/2C; dichiarazione a inizio stagione, in RS dichiarazioni post-trade/firma entro 48 h (poi estrazione) e regola dei 60 giorni; cambi ordinari 2 a stagione, Erminio (14 giorni dall'aggiunta della posizione), Saedro (10 giorni, una volta), forzati admin che non contano.
 - **Partita** (loucabot): fantapunti = punto +0,5, assist +2, rimb. off. +2, dif. +1,25, tripla +1,5, tiro tentato −0,5 e segnato +1, libero tentato −0,75 e segnato +1, recupero +2, stoppata +2, palla persa −2. Più partite nella giornata → media (uno 0 con 0 minuti non conta, uno 0 con dei minuti sì), arrotondata all'ottavo come la media della stagione (Luca, 13/10: solo ,00 ,13 ,25 ,38 ,50 ,63 ,75 ,88; la metà per eccesso, come ROUND dei fogli; `loucabot/numeri.py`); squadre NBA senza partite → media della stagione, 0 se indisponibile; FADD anche quando la squadra del titolare non gioca (deciso con Luca il 13/10), poi la panchina scala e resta di 4; supplementari sul Calendario come soli punti dei supplementari; vince chi ha 5 o più punti di scarto bonus casa compreso (3, playoff 5), poi supplementari con la panchina, pari fino al decimo uomo → trasferta. Vale il calcolo delle squadre a media dalle partite NBA, non le note del calendario.
+- **Cambi dei numeri del regolamento** (Luca, 18/10): si decidono alla riunione di lega di giugno e si cambiano in `settings.json`. Se cambiano i pesi dei fantapunti: `/dev_ricalcola_fp` su loucabot per la stagione nuova; le giornate già convalidate non si ricalcolano mai.
 
 ---
 

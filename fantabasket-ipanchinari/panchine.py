@@ -26,6 +26,7 @@ from telegram.ext import CallbackQueryHandler, ContextTypes, MessageHandler, fil
 import abbina
 import config
 import db
+from shared import regole
 from comune import FAVORE, ROMA, adesso, aperta, chi, e, log, ora, prossima_giornata, stati
 
 logger = logging.getLogger(__name__)
@@ -40,8 +41,8 @@ def problemi(b: dict, roster: list[dict]) -> list[str]:
     d = b["dati"]
     nomi = _nomi(roster)
     out = []
-    if len(d["righe"]) != abbina.MAX_PANCHINA:
-        out.append(f"la panchina è di {abbina.MAX_PANCHINA} giocatori, mai meno: qui ce ne sono {len(d['righe'])}")
+    if len(d["righe"]) != regole.giocatori_panchina():
+        out.append(f"la panchina è di {regole.giocatori_panchina()} giocatori, mai meno: qui ce ne sono {len(d['righe'])}")
     scelti = [r.get("scelto") for r in d["righe"]]
     for i, r in enumerate(d["righe"], 1):
         if not r.get("scelto"):
@@ -133,9 +134,9 @@ def crea_bozza(chat_id: int, team_id: str, testo: str, fonte: str = "gm", numero
     titolo, righe, err = abbina.leggi_messaggio(testo)
     if err:
         return None, err
-    if len(righe) < abbina.MAX_PANCHINA:
-        return None, (f"La panchina è di {abbina.MAX_PANCHINA} giocatori, mai meno: ne ho letti {len(righe)}. "
-                      f"Rimandamela con tutte e {abbina.MAX_PANCHINA} le righe (o usa /build_panchina).")
+    if len(righe) < regole.giocatori_panchina():
+        return None, (f"La panchina è di {regole.giocatori_panchina()} giocatori, mai meno: ne ho letti {len(righe)}. "
+                      f"Rimandamela con tutte e {regole.giocatori_panchina()} le righe (o usa /build_panchina).")
     rip = abbina.ripetute(righe)
     if rip:
         doppie = sorted({r for r in righe if abbina.chiave(r) in rip})
@@ -224,14 +225,14 @@ async def cb_panchina(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if azione in ("b", "u", "bv"):                        # builder
         if azione == "b":
             gid = int(parti[3])
-            if gid in nomi and gid not in {r["scelto"] for r in d["righe"]} and len(d["righe"]) < abbina.MAX_PANCHINA:
+            if gid in nomi and gid not in {r["scelto"] for r in d["righe"]} and len(d["righe"]) < regole.giocatori_panchina():
                 d["righe"].append({"testo": nomi[gid], "candidati": [gid], "scelto": gid, "certo": True})
         elif azione == "u" and d["righe"]:
             d["righe"].pop()
         db.aggiorna_bozza(bid, d)
         b = db.bozza(bid)
         await q.answer()
-        if len(d["righe"]) >= abbina.MAX_PANCHINA:
+        if len(d["righe"]) >= regole.giocatori_panchina():
             testo, tasti = anteprima(b)
         else:
             testo, tasti = builder(b, roster)
@@ -416,7 +417,7 @@ def builder(b: dict, roster: list[dict]) -> tuple[str, K]:
     scelti = [r["scelto"] for r in d["righe"]]
     titolari = set(db.quintetto(b["team_id"]).values())
     liberi = [g for g in roster if g["id"] not in titolari and g["id"] not in scelti]
-    if len(liberi) < abbina.MAX_PANCHINA - len(scelti):    # rosa corta: si possono scegliere anche i titolari
+    if len(liberi) < regole.giocatori_panchina() - len(scelti):    # rosa corta: si possono scegliere anche i titolari
         liberi += [g for g in roster if g["id"] in titolari and g["id"] not in scelti]
     g = db.giornata(b["stagione"], b["giornata"])
     righe = [f"🪑 <b>Panchina di {e(config.nome(b['team_id']))} per la giornata {b['giornata']}</b>"
@@ -424,7 +425,7 @@ def builder(b: dict, roster: list[dict]) -> tuple[str, K]:
              f"Scadenza: {ora(g['prima_partita']) if g else '?'}", ""]
     st, quando = stati([x["id"] for x in liberi] + scelti)
     righe += [f"{i}. {e(r['testo'])}{st.get(r['scelto'], '')}" for i, r in enumerate(d["righe"], 1)] or ["(ancora nessuno)"]
-    righe += ["", f"Scegli il panchinaro n. {len(scelti) + 1}:" if len(scelti) < abbina.MAX_PANCHINA else ""]
+    righe += ["", f"Scegli il panchinaro n. {len(scelti) + 1}:" if len(scelti) < regole.giocatori_panchina() else ""]
     if quando:
         righe.append(f"<i>{quando}</i>")
     tasti = [[B(f"{x['nome_common']}" + (f" ({x['ruolo']})" if x.get("ruolo") else "") + (" ⭐ titolare" if x["id"] in titolari else "")

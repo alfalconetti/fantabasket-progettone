@@ -17,10 +17,11 @@ import database as db
 import settings
 from settings import solo_privato, richiede_fase, FASI_TRADE_APERTE
 import teams as tm
+from shared import regole
 
 logger = logging.getLogger(__name__)
 
-MAX_TAGLI_GRATUITI = 3  # dal regolamento: max 3 tagli 1x1 gratuiti a stagione
+# tagli 1x1 gratuiti a stagione: regole.max_tagli_gratuiti() (config/settings.json, 3)
 
 
 def _e_taglio_gratuito(importo: int, anni_residui: int) -> bool:
@@ -154,7 +155,7 @@ def _valuta_taglio(team: dict, gid: int) -> dict:
     usati = db.get_tagli_gratuiti_usati(team["id"], stagione)
     # 1x1: gratuito solo entro i 3 a stagione; dal 4° è un taglio normale (spalmatura 1x1).
     # Prima il 4° 1x1 era vietato, ma il regolamento consente tagli illimitati.
-    gratuito = _e_taglio_gratuito(contratto["importo"], anni_res) and usati < MAX_TAGLI_GRATUITI
+    gratuito = _e_taglio_gratuito(contratto["importo"], anni_res) and usati < regole.max_tagli_gratuiti()
     rate = [] if gratuito else calcola_impatto_taglio(contratto["importo"], anni_res, stagione)
     avviso = None
     if settings.fase() in settings.FASI_RUOLI_RS:
@@ -198,13 +199,13 @@ async def _mostra_anteprima_taglio(msg_or_query, team: dict, gid: int,
             f"✂️ <b>Taglio senza impatto — {nome}</b>\n\n"
             f"Contratto: <b>1M × 1 anno</b>\n"
             f"✅ Nessun impatto taglio sul cap.\n"
-            f"Tagli gratuiti rimanenti dopo questo: <b>{MAX_TAGLI_GRATUITI - v['usati'] - 1}/{MAX_TAGLI_GRATUITI}</b>"
+            f"Tagli gratuiti rimanenti dopo questo: <b>{regole.max_tagli_gratuiti() - v['usati'] - 1}/{regole.max_tagli_gratuiti()}</b>"
         )
     else:
         righe = [f"✂️ <b>Taglio — {nome}</b>\n",
                  f"Contratto: {c['importo']}M × {v['anni_res']} anni residui\n"]
         if _e_taglio_gratuito(c["importo"], v["anni_res"]):
-            righe.append(f"<i>Tagli 1x1 gratuiti già usati ({MAX_TAGLI_GRATUITI}/{MAX_TAGLI_GRATUITI}): "
+            righe.append(f"<i>Tagli 1x1 gratuiti già usati ({regole.max_tagli_gratuiti()}/{regole.max_tagli_gratuiti()}): "
                          f"questo pesa sul cap.</i>\n")
         righe.append("<b>Impatto taglio sul cap:</b>")
         righe += [f"  • Stagione {r['stagione']}: {r['importo']}M" for r in v["rate"]]
@@ -252,10 +253,10 @@ def testi_taglio(team: dict, v: dict) -> tuple[str, str]:
     if v["gratuito"]:
         usati = v["usati"] + 1
         risposta = (f"✅ <b>{nome}</b> tagliato gratuitamente.\n"
-                    f"Tagli gratuiti usati questa stagione: <b>{usati}/{MAX_TAGLI_GRATUITI}</b>")
+                    f"Tagli gratuiti usati questa stagione: <b>{usati}/{regole.max_tagli_gratuiti()}</b>")
         canale = (f"✂️ <b>{team['gm_nome']}</b> taglia <b>{nome}</b>\n"
                   f"Contratto: {c['importo']}M × 1 anno — nessun impatto\n"
-                  f"Tagli gratuiti rimasti: <b>{MAX_TAGLI_GRATUITI - usati}/{MAX_TAGLI_GRATUITI}</b>")
+                  f"Tagli gratuiti rimasti: <b>{regole.max_tagli_gratuiti() - usati}/{regole.max_tagli_gratuiti()}</b>")
     else:
         righe_imp = "\n".join(f"  • {r['stagione']}: {r['importo']}M" for r in rate)
         risposta = (f"✅ <b>{nome}</b> tagliato.\n\nImpatto taglio:\n{righe_imp}"

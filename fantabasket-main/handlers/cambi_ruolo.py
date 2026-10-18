@@ -29,14 +29,11 @@ import settings
 import teams as tm
 from settings import solo_privato
 from validators.ruoli import deficit_team
-from shared import ruoli_core as core
+from shared import regole, ruoli_core as core
 
 logger = logging.getLogger(__name__)
 
 RUOLI = core.RUOLI
-MAX_ORDINARI = 2
-GIORNI_ERMINIO = 14
-GIORNI_SAEDRO = 10
 TIPI = {"o": "ordinario", "e": "erminio", "s": "saedro", "f": "forzato_admin", "d": "dpe_extra"}
 ETICHETTE = {"ordinario": "cambio ordinario", "erminio": "Erminio (ruolo aggiunto)",
              "saedro": "Saedro (10 day)", "forzato_admin": "forzato dagli admin",
@@ -114,7 +111,7 @@ def ruoli_erminio(gid: int) -> set[str]:
         return set()
     nuove, vecchie = set(righe[0]["posizioni"].split(",")), set(righe[1]["posizioni"].split(","))
     giorno = righe[0]["data_yahoo"] or righe[0]["timestamp"].date()
-    if (date.today() - giorno).days > GIORNI_ERMINIO:
+    if (date.today() - giorno).days > regole.giorni_erminio():
         return set()
     return (nuove - vecchie) & set(RUOLI)
 
@@ -137,10 +134,10 @@ def verifica(team_id: str, gid: int, nuovo: str, tipo: str, admin: bool) -> tupl
         errori.append(f"{nuovo} non è tra le posizioni eleggibili.")
     if tipo == "ordinario" and nuovo in ruoli_erminio(gid):
         errori.append("Per questo ruolo è disponibile l'Erminio (gratuito): usa quello.")
-    if tipo == "ordinario" and ordinari_usati(team_id) >= MAX_ORDINARI:
-        errori.append(f"Cambi ordinari esauriti ({MAX_ORDINARI}/{MAX_ORDINARI}).")
+    if tipo == "ordinario" and ordinari_usati(team_id) >= regole.max_cambi_ordinari():
+        errori.append(f"Cambi ordinari esauriti ({regole.max_cambi_ordinari()}/{regole.max_cambi_ordinari()}).")
     if tipo == "erminio" and nuovo not in ruoli_erminio(gid):
-        errori.append(f"Erminio non applicabile: {nuovo} non è una posizione aggiunta negli ultimi {GIORNI_ERMINIO} giorni.")
+        errori.append(f"Erminio non applicabile: {nuovo} non è una posizione aggiunta negli ultimi {regole.giorni_erminio()} giorni.")
     if tipo == "saedro" and saedro_usata(team_id):
         errori.append("Saedro già usata in questa stagione.")
     if tipo == "forzato_admin" and not admin:
@@ -161,7 +158,7 @@ def verifica(team_id: str, gid: int, nuovo: str, tipo: str, admin: bool) -> tupl
 
 def applica(team_id: str, gid: int, nuovo: str, tipo: str) -> str:
     g = next(x for x in roster_ruoli(team_id) if x["gid"] == gid)
-    scadenza = datetime.now(timezone.utc) + timedelta(days=GIORNI_SAEDRO) if tipo == "saedro" else None
+    scadenza = datetime.now(timezone.utc) + timedelta(days=regole.giorni_saedro()) if tipo == "saedro" else None
     db._q("""INSERT INTO cambi_ruolo (giocatore_id, team_id, ruolo_da, ruolo_a, stagione, tipo, scadenza, ruolo_ripristino)
              VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
           (gid, team_id, g["ruolo"], nuovo, _stagione(), tipo, scadenza,
@@ -199,9 +196,9 @@ async def _esegui(bot, team_id: str, gid: int, nuovo: str, tipo: str, chi: str) 
     nome = (db.get_giocatore(gid) or {}).get("nome_common", str(gid))
     extra = ""
     if tipo == "ordinario":
-        extra = f" — cambi usati {ordinari_usati(team_id)}/{MAX_ORDINARI}"
+        extra = f" — cambi usati {ordinari_usati(team_id)}/{regole.max_cambi_ordinari()}"
     elif tipo == "saedro":
-        fine = (datetime.now(timezone.utc) + timedelta(days=GIORNI_SAEDRO)).strftime("%d/%m")
+        fine = (datetime.now(timezone.utc) + timedelta(days=regole.giorni_saedro())).strftime("%d/%m")
         extra = f" — fino al {fine}, poi torna {vecchio}"
     await _annuncia(bot, f"🔁 <b>{_nome_team(team_id)}</b>: {nome} {vecchio} → <b>{nuovo}</b>\n"
                          f"<i>{ETICHETTE[tipo]}{extra}{chi}</i>")
@@ -233,7 +230,7 @@ def _vista_team(team_id: str, admin: bool):
     p = "ca" if admin else "cr"
     usati = ordinari_usati(team_id)
     testo = (f"🔁 <b>Cambio ruolo — {_nome_team(team_id)}</b>" + (" <i>(admin)</i>" if admin else "") +
-             f"\nCambi ordinari usati: <b>{usati}/{MAX_ORDINARI}</b> · Saedro: "
+             f"\nCambi ordinari usati: <b>{usati}/{regole.max_cambi_ordinari()}</b> · Saedro: "
              f"{'usata' if saedro_usata(team_id) else 'disponibile'}")
     rimasti_dpe, ruoli_dpe = dpe_extra(team_id)
     if rimasti_dpe:
@@ -329,7 +326,7 @@ async def cb_cambio(update: Update, context: ContextTypes.DEFAULT_TYPE):
             stato = "❌ " + errori[0] if errori else ("⚠️ " + avvisi[0] if avvisi else "✅ possibile")
             righe.append(f"• <b>{(ETICHETTE[TIPI[k]][:1].upper() + ETICHETTE[TIPI[k]][1:])}</b>: {stato}")
             if not errori:
-                label = {"o": f"Ordinario ({ordinari_usati(team_id)}/{MAX_ORDINARI})", "e": "✨ Erminio (ruolo aggiunto)",
+                label = {"o": f"Ordinario ({ordinari_usati(team_id)}/{regole.max_cambi_ordinari()})", "e": "✨ Erminio (ruolo aggiunto)",
                          "s": "⏳ Saedro (10 day)" + ("" if admin_mode else " — richiedi"), "f": "🛠 Forzato admin",
                          "d": f"🏥 Extra DPE (gratuito, {rimasti_dpe} disponibil{'e' if rimasti_dpe == 1 else 'i'})"}[k]
                 passo = "cf" if k == "o" else "do"
@@ -343,7 +340,7 @@ async def cb_cambio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         n = ordinari_usati(team_id) + 1
         await query.edit_message_text(
             f"Confermi il <b>cambio ordinario</b> {g['nome'] if g else gid}: {g['ruolo'] if g else '?'} → <b>{nuovo}</b>?\n"
-            f"Userai il cambio <b>{n}/{MAX_ORDINARI}</b> di questa stagione.",
+            f"Userai il cambio <b>{n}/{regole.max_cambi_ordinari()}</b> di questa stagione.",
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("✅ Confermo", callback_data=f"{p}:do:{team_id}:{gid}:{nuovo}:o"),
@@ -385,7 +382,7 @@ async def _richiedi_saedro(bot, team_id: str, gid: int, nuovo: str, user):
     attuale = next((x["ruolo"] for x in roster_ruoli(team_id) if x["gid"] == gid), "?")
     nel_ruolo = [x["nome"] for x in roster_ruoli(team_id) if x["ruolo"] == nuovo]
     testo = (f"⏳ <b>Richiesta Saedro</b> — {_nome_team(team_id)} ({user.first_name or user.id})\n"
-             f"{nome}: {attuale} → <b>{nuovo}</b> per {GIORNI_SAEDRO} giorni\n\n"
+             f"{nome}: {attuale} → <b>{nuovo}</b> per {regole.giorni_saedro()} giorni\n\n"
              f"Giocatori della squadra in ruolo {nuovo}: <b>{', '.join(nel_ruolo) or 'nessuno'}</b>\n"
              f"<i>Da approvare se nessuno di questi è disponibile (OUT o fuori rotazione).</i>")
     kb = InlineKeyboardMarkup([[
@@ -437,7 +434,7 @@ async def cb_admin_teams(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer(FUORI_FASE, show_alert=True)
         return
     await query.answer()
-    kb = [[InlineKeyboardButton(f"{t['nome']} ({ordinari_usati(t['id'])}/{MAX_ORDINARI})",
+    kb = [[InlineKeyboardButton(f"{t['nome']} ({ordinari_usati(t['id'])}/{regole.max_cambi_ordinari()})",
                                 callback_data=f"ca:t:{t['id']}")] for t in tm.get_all_teams()]
     kb.append([InlineKeyboardButton("← Menu admin", callback_data="adm:home")])
     await query.edit_message_text("🔁 <b>Cambi ruolo</b> — scegli la squadra\n<i>Tra parentesi i cambi ordinari usati.</i>",

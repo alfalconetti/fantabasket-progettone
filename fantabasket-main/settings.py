@@ -52,14 +52,19 @@ def max_roster() -> int:
 def min_roster() -> int:
     return get()["roster_min_regular"]
 
+# minimi per ruolo, ore per dichiarare il ruolo e gli altri numeri del regolamento: shared/regole.py
+# (stesso settings.json, con i default se la chiave manca)
 def min_guardie() -> int:
-    return get()["roster_min_guardie"]
+    from shared import regole
+    return regole.minimi_ruolo()["G"]
 
 def min_ali() -> int:
-    return get()["roster_min_ali"]
+    from shared import regole
+    return regole.minimi_ruolo()["F"]
 
 def min_centri() -> int:
-    return get()["roster_min_centri"]
+    from shared import regole
+    return regole.minimi_ruolo()["C"]
 
 def slot_massimo() -> int:
     """Alias di max_roster()."""
@@ -80,7 +85,8 @@ def soglia_anni_3() -> int:
     return get()["soglia_anni_3"]
 
 def ore_comunicazione_ruolo() -> int:
-    return get()["ore_comunicazione_ruolo"]
+    from shared import regole
+    return regole.ore_dichiarazione_ruolo()
 
 def doncic_soglia_1() -> int:
     return get()["doncic_soglia_1"]

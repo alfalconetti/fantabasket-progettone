@@ -11,7 +11,7 @@ Effetti per fase:
   regular-season-deadline               → nessuno slot liberato
                                           (cambio ruolo aggiuntivo — da implementare con i ruoli)
 
-Decurtazione: importo - ceil(importo * 0.25), il contratto torna normale alla stagione successiva
+Decurtazione: importo - ceil(importo * 0.25) (riduzione_dpe_percento in config/settings.json), il contratto torna normale alla stagione successiva
               (la riga dpe è legata alla stagione corrente, non tocca la tabella contratti)
 """
 import logging
@@ -24,6 +24,7 @@ import database as db
 import settings
 from settings import solo_privato, richiede_fase
 import teams as tm
+from shared import regole
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ FASI_DPE = (
 def _importo_dpe(importo: int) -> int:
     """Contratto ridotto del 25%, con la riduzione arrotondata per eccesso
     (regolamento: Klay 5 → 3, cioè 5 − ceil(1,25))."""
-    return importo - math.ceil(importo * 0.25)
+    return importo - math.ceil(importo * regole.riduzione_dpe())
 
 
 # ── /dpe ─────────────────────────────────────────────────────────────────────

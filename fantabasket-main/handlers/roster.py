@@ -328,9 +328,9 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
 
     # Tagli e cambi ruolo — placeholder, da collegare a DB quando implementato
     stagione_str = settings.stagione_corrente()
-    from handlers.tagli import MAX_TAGLI_GRATUITI
+    from shared import regole
     _tagli_used  = db.get_tagli_gratuiti_usati(team["id"], stagione_str)
-    tagli_usati  = f"{_tagli_used}/{MAX_TAGLI_GRATUITI}"
+    tagli_usati  = f"{_tagli_used}/{regole.max_tagli_gratuiti()}"
     cambi_usati  = _cambi_usati(team["id"], stagione)
 
     # Genera in file temporaneo
@@ -542,9 +542,9 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
     eta_list = [e for e in eta_list if e is not None]
     eta_str  = f"{sum(eta_list)/len(eta_list):.1f}" if eta_list else "—"
 
-    from handlers.tagli import MAX_TAGLI_GRATUITI
+    from shared import regole
     _tagli_used = db.get_tagli_gratuiti_usati(team_id, stagione)
-    tagli_usati = f"{_tagli_used}/{MAX_TAGLI_GRATUITI}"
+    tagli_usati = f"{_tagli_used}/{regole.max_tagli_gratuiti()}"
     cambi_usati = _cambi_usati(team["id"], stagione)
 
     logo = _logo_path(team_id)

@@ -20,15 +20,17 @@ Partita (esito): vince chi ha 5 o più punti di scarto, bonus casa compreso (3, 
 altrimenti si aggiungono i panchinari uno alla volta, in ordine (supplementari); pari anche dopo
 l'ultimo → vince la squadra in trasferta.
 
+I numeri (bonus casa, scarto, giocatori in panchina) sono in config/settings.json (shared/regole.py).
+
 Restano agli admin: i 72 ore di attesa per le partite rinviate, le penalità.
 """
 from datetime import timedelta
 
 import db
 from numeri import ottavi
+from shared import regole
 
 STATI_DISPONIBILE = {"probable", "active", "available"}
-SCARTO = 5
 
 
 def indisponibile(stato: str | None) -> bool:
@@ -176,13 +178,15 @@ def punteggio_squadra(g: dict, quintetto: list[dict], panchina: list[dict], punt
             "fadd": fadd, "avvisi": avvisi}
 
 
-def esito(casa: dict, trasferta: dict, bonus: float = 3) -> dict:
+def esito(casa: dict, trasferta: dict, bonus: float | None = None) -> dict:
     """casa, trasferta: risultati di punteggio_squadra. → {vince: casa/trasferta, casa, trasferta, supplementari}"""
+    bonus = regole.bonus_casa() if bonus is None else bonus
+    SCARTO, N = regole.scarto_minimo(), regole.giocatori_panchina()
     c, t = casa["totale"] + bonus, trasferta["totale"]
-    pc = [x["fp"] for x in casa["panchina"]] + [0.0] * 5
-    pt = [x["fp"] for x in trasferta["panchina"]] + [0.0] * 5
+    pc = [x["fp"] for x in casa["panchina"]] + [0.0] * N
+    pt = [x["fp"] for x in trasferta["panchina"]] + [0.0] * N
     supp = 0
-    while abs(c - t) < SCARTO and supp < 5:
+    while abs(c - t) < SCARTO and supp < N:
         c, t = c + pc[supp], t + pt[supp]
         supp += 1
     if abs(c - t) >= SCARTO:

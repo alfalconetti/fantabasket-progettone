@@ -87,7 +87,7 @@ testo può dirlo meglio:
 | Regola | Stato | Dove | Prova |
 |---|---|---|---|
 | 24 franchigie in due conference, calendario, playoff a 12 | ✋ Yahoo e admin | `numero_teams` solo per i controlli | `regolamento_numeri` |
-| Fantapunti (punto +0,5, assist +2, rimbalzi +2/+1,25, tripla +1,5, tiri −0,5/+1, liberi −0,75/+1, rubata +2, stoppata +2, perse −2) | ✅ per la fantamedia di bref (Doncic, rinnovi, report) | `main/bref_schema.sql`, colonna `fantamedia` | `regolamento_numeri` |
+| Fantapunti (punto +0,5, assist +2, rimbalzi +2/+1,25, tripla +1,5, tiri −0,5/+1, liberi −0,75/+1, rubata +2, stoppata +2, perse −2) | ✅ fantamedia di bref (Doncic, rinnovi, report) e fantapunti dei tabellini ESPN (calcolo) | `pesi_fantapunti` in settings.json (`shared/regole.py`): trigger su `bref_stats.fantamedia`, `loucabot/nba.fantapunti`; dopo un cambio `/dev_ricalcola_fp` | `regolamento_numeri`, `regole_config`, `louca_calcolo` |
 | Formazioni, panchina sul canale, overtime, regola FADD, bonus casa 3 (5 nei playoff) | ✋ oggi | Yahoo e canale panchinari | — |
 | Bot panchine | 🔜 v4.0 | — | — |
 
@@ -114,7 +114,7 @@ per fantapunti** (0–10,99 → 1 … 45+ → 35), in `settings.json` `tabella_m
 | Protezioni sulle 1st, non sulle 2nd | 🤝 mostrate se scritte nel database (`pick.protezioni`), non si impostano dal bot | `trade_comune._label_item` | — |
 | Pick scambiabili dei 6 draft successivi | ✅ le pick dell'anno +6 nascono entrando nei rinnovi | `main/handlers/stagione.crea_pick_anno` | `stagione` |
 | Ruolo dei giocatori presi in trade o in FA entro 48 ore, se no a caso | ✅ | `main/handlers/ruoli_rs.py` (trade, diritti), `aste/handlers/firma.py` (firma) | — |
-| Ripreso entro 60 giorni: vecchio ruolo | ✅ | `shared/ruoli_core.ruolo_riacquisto` (`GIORNI_RIACQUISTO`) | `regolamento_numeri` (costante) |
+| Ripreso entro 60 giorni: vecchio ruolo | ✅ | `shared/ruoli_core.ruolo_riacquisto` (`giorni_riacquisto_ruolo` in settings.json) | `regolamento_numeri`, `regole_config` |
 | Schierato titolare senza comunicare il ruolo: vale quello di Yahoo | ✋ | admin | — |
 | Ritiro o altro campionato: libera slot e cap, anche le spalmature | 🤝 su richiesta, approva un admin | `main/handlers/decadimento.applica_decadimento`, `db.cancella_spalmate_ritirato`; `/ritiro_fa` e report mensile per i free agent con spalmature | `revisione_regolamento`, `report_spalmature` |
 
@@ -128,7 +128,7 @@ per fantapunti** (0–10,99 → 1 … 45+ → 35), in `settings.json` `tabella_m
 
 | Regola | Stato | Dove | Prova |
 |---|---|---|---|
-| 3 tagli gratuiti a stagione dei 1x1, poi tagli illimitati | ✅ | `main/handlers/tagli.MAX_TAGLI_GRATUITI`, `_e_taglio_gratuito` | `revisione_regolamento`, `regolamento_numeri` |
+| 3 tagli gratuiti a stagione dei 1x1, poi tagli illimitati | ✅ | `max_tagli_gratuiti` in settings.json, `main/handlers/tagli._e_taglio_gratuito` | `revisione_regolamento`, `regolamento_numeri` |
 | Spalmature 50-30-20, 60-50-50-40, 70-70-60-50-50, somma uguale al contratto | ✅ | `tagli.calcola_impatto_taglio` | `regolamento_numeri` |
 | Tabella fino a 5M | ✅ voce per voce | `tagli._TABELLA_SPALMATA_BASSA` | `regolamento_numeri` |
 | Rifirmato dalla stessa squadra: stipendi sommati | ✅ le spalmature restano e si sommano al contratto nuovo | `shared/cap.py` (`impatto_taglio`) | `pg_rfa_30giorni_dpe` |
@@ -212,9 +212,9 @@ per fantapunti** (0–10,99 → 1 … 45+ → 35), in `settings.json` `tabella_m
 | Regola | Stato | Dove | Prova |
 |---|---|---|---|
 | Ruoli tra quelli di Yahoo, comunicati prima della RS | ✅ `/dichiarazione_ruoli` nella fase ruoli | `main/handlers/ruoli.py`, posizioni in `posizioni.py` | — |
-| In RS e playoff al massimo 2 cambi, non cumulabili né cedibili | ✅ | `cambi_ruolo.MAX_ORDINARI` | `regolamento_numeri` (costante) |
-| Erminio: gratuito nelle due settimane dopo che Yahoo aggiunge il ruolo | ✅ | `cambi_ruolo.ruoli_erminio` (`GIORNI_ERMINIO` = 14), `/data_erminio` | `regolamento_numeri` (costante) |
-| Saedro: una volta a stagione, 10 giorni, valutata dagli admin | ✅ richiesta e approvazione, ritorno automatico | `cambi_ruolo.cb_saedro`, `job_fine_saedro` | `regolamento_numeri` (costante) |
+| In RS e playoff al massimo 2 cambi, non cumulabili né cedibili | ✅ | `max_cambi_ruolo_ordinari` in settings.json | `regolamento_numeri`, `regole_config` |
+| Erminio: gratuito nelle due settimane dopo che Yahoo aggiunge il ruolo | ✅ | `cambi_ruolo.ruoli_erminio` (`giorni_erminio` = 14 in settings.json), `/data_erminio` | `regolamento_numeri`, `regole_config` |
+| Saedro: una volta a stagione, 10 giorni, valutata dagli admin | ✅ richiesta e approvazione, ritorno automatico | `cambi_ruolo.cb_saedro`, `job_fine_saedro` | `regolamento_numeri`, `regole_config` |
 | Sempre nel rispetto dei minimi dei ruoli | ✅ | `cambi_ruolo.verifica` (`deficit_team`), `ruoli_core.deficit_minimo` | `regolamento_numeri` (minimi) |
 
 ## Luxury e salary floor

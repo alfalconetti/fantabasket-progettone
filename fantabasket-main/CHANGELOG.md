@@ -1334,6 +1334,16 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - loucabot v29: titolare anche in panchina → in panchina conta 0 (posto tenuto, niente FADD)
 
+## v5.8.0 (2026-10-18)
+
+- **Numeri del regolamento in `config/settings.json`**, letti da `shared/regole.py` per tutti i bot; una chiave che manca vale il valore di oggi, quindi senza toccare il file non cambia niente. Nuove chiavi: `pesi_fantapunti`, `bonus_casa`, `bonus_casa_playoff`, `scarto_minimo`, `giocatori_panchina`, `giorni_riacquisto_ruolo`, `max_cambi_ruolo_ordinari`, `giorni_erminio`, `giorni_saedro`, `max_tagli_gratuiti`, `giorni_10day`, `riduzione_dpe_percento`
+- Corretto: `roster_min_guardie`/`_ali`/`_centri` e `ore_comunicazione_ruolo` c'erano già in settings.json ma il codice usava 4/4/2 e 48 scritti a mano (cambiarli non faceva niente). Ora contano
+- La fantamedia di basketball-reference (`bref_stats.fantamedia`) usa i pesi di settings.json: da colonna generata coi pesi nello schema diventa una colonna scritta da un trigger, aggiornato all'avvio (conversione automatica, valori già presenti invariati)
+- loucabot v32 (`/dev_ricalcola_fp` dopo un cambio dei pesi), IPanchinari v20, bot aste v67
+- Un valore storto in settings.json (testo, infinito, chiave sconosciuta tra i pesi) non fa mai cadere un bot: vale il default, con un avviso nel log una volta sola; con il file illeggibile si usa l'ultima lettura buona. Conversione di `bref_stats` in un'unica transazione, pesi come NUMERIC (provata sulla copia vera del database: 582 righe, fantamedia identiche anche ricalcolate)
+- Prova nuova `regole_config`: ogni chiave cambiata nel file cambia davvero il comportamento
+- **`/settings` rifatto** (anche nel pannello admin, «⚙️ Impostazioni»): argomenti coi bottoni, nome in italiano, valore, unità e limiti di ogni voce (le chiavi che mancano nel file si vedono al default), pesi dei fantapunti uno per uno, tabelle in sola lettura; si cambia toccando la voce e scrivendo il valore, oppure con `/settings chiave valore`, sempre con anteprima e conferma. Ogni modifica va sul canale principale e sul canale log (con l'admin). Prima cambiava al volo senza conferma, solo sul log, e non toccava liste e dizionari
+
 ## v5.7.0 (2026-10-18)
 
 - loucabot v31: alla scadenza le formazioni congelate (quintetti e panchine) sul tab «Calcolo GN» del foglio di controllo, aggiornate se un admin le corregge, fino al calcolo

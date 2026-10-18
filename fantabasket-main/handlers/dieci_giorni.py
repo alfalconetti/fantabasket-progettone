@@ -38,14 +38,13 @@ import nomi
 import settings
 import teams as tm
 from settings import solo_privato
-from shared import ruoli_core as core
+from shared import regole, ruoli_core as core
 
 logger = logging.getLogger(__name__)
 ROMA = ZoneInfo("Europe/Rome")
 ET = ZoneInfo("America/New_York")
 
 FASI_10DAY = {"regular-season-fa"}
-GIORNI = 10
 ORA_FINE_GIORNATA = time(12, 0)    # la giornata finisce il giorno dopo l'ultima notte, alle 12 (ora di Roma)
 FUORI_FASE = "❌ Il 10-day si firma solo in regular season, prima della chiusura della free agency."
 REGOLE = ("• una volta a stagione per squadra, prima della chiusura della free agency\n"
@@ -123,7 +122,7 @@ def giornate_aperte(base: datetime, ora: datetime | None = None, stagione: str |
     vale la fine della giornata (giorno dopo l'ultima notte, alle 12)."""
     stagione = stagione or _stagione()
     ora = ora or datetime.now(timezone.utc)
-    firma = base - timedelta(days=GIORNI)
+    firma = base - timedelta(days=regole.giorni_10day())
     convalidate = _convalidate(stagione)
     aperte = []
     for g in _giornate(stagione):
@@ -302,7 +301,7 @@ def _elenco_ruolo(team_id: str, ruolo: str) -> str:
 def registra(team_id: str, gid: int, ruolo: str, chi: str) -> dict:
     """Contratto, movimento e ruolo in una transazione. {contratto_id, scadenza}."""
     s = _stagione()
-    base = datetime.now(timezone.utc) + timedelta(days=GIORNI)
+    base = datetime.now(timezone.utc) + timedelta(days=regole.giorni_10day())
     with db.get_conn() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("SELECT id FROM giocatori WHERE id = %s FOR UPDATE", (gid,))

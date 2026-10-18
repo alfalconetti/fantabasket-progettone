@@ -18,10 +18,10 @@ from datetime import timedelta
 import calcolo
 import config
 import db
+from shared import regole
 
 logger = logging.getLogger(__name__)
 RUOLI = ("PG", "SG", "SF", "PF", "C")
-BONUS = {"regular": 3, "playoff": 5}
 
 
 # ── dati di IPanchinari (stesso database) ──────────────────────────────────────
@@ -118,7 +118,7 @@ def calcola(stagione: str, n: int, g: dict | None = None, sch: dict | None = Non
             squadre[t] = {"quintetto": q, "panchina": b}
     atleti = [x["atleta"] for s in squadre.values() for x in s["quintetto"] + s["panchina"] if x["atleta"]]
     punti = calcolo.punteggio_giocatori(stagione_nba, g, atleti)
-    bonus = BONUS.get(g.get("tipo") or "regular", 3)
+    bonus = regole.bonus_casa(playoff=(g.get("tipo") == "playoff"))
     risultati = []
     for p in partite:
         sc = calcolo.punteggio_squadra(g, squadre[p["casa"]]["quintetto"], squadre[p["casa"]]["panchina"], punti)
@@ -234,12 +234,13 @@ def griglia(c: dict) -> dict:
         return len(righe)                      # numero di riga (1 = prima)
 
     nuova([f"Calcolo giornata {g['numero']} · stagione {c['stagione']} · notti {g['dal']:%d/%m}–{g['al']:%d/%m}"], peso="bold")
-    r_par = nuova(["Bonus casa", c["bonus"], "Scarto minimo", calcolo.SCARTO,
+    r_par = nuova(["Bonus casa", c["bonus"], "Scarto minimo", regole.scarto_minimo(),
                    "Dati del bot in blu, formule in nero: il foglio rifà i conti del bot. Le correzioni si fanno dal bot "
                    "(/set_valid_status, quintetto e panchina della giornata), poi Ricalcola: il tab si riscrive."])
     for i in (1, 3):
         sf[-1][i], tx[-1][i] = SF_PARAM, BLU
     BON, SCA = f"$B${r_par}", f"$D${r_par}"
+    NP = regole.giocatori_panchina()           # supplementari: uno per panchinaro
     nuova()
     np = len(c["risultati"])
     nuova(["Partita", "Casa", "Punti casa", "Trasferta", "Punti trasferta", "Suppl.", "Punti suppl. casa",
@@ -310,7 +311,7 @@ def griglia(c: dict) -> dict:
         nuova(["", "", "", "Suppl.", f"+ {casa}", f"Tot. {casa}", "", f"+ {tr}", f"Tot. {tr}", "Scarto", "Decide?"],
               peso="bold")
         prima_s = len(righe) + 1
-        for k2 in range(1, 6):
+        for k2 in range(1, NP + 1):
             rr_ = len(righe) + 1
             gia = f"ABS($K${r_reg})>={SCA}" if k2 == 1 else f'OR(ABS($K${r_reg})>={SCA},COUNTIF(K{prima_s}:K{rr_ - 1},"sì")>0)'
             nuova(["", "", "", k2, f"=SUMIFS({P}{c1}:{P}{c2},{O}{c1}:{O}{c2},{k2})",
@@ -323,7 +324,7 @@ def griglia(c: dict) -> dict:
         nuova(["", "", "", "Risultato", "Vince",
                f'=IF(ABS(K{r_reg})>={SCA},IF(K{r_reg}>0,"{casa}","{tr}"),IFERROR(IF(INDEX(J{prima_s}:J{ultima_s},'
                f'MATCH("sì",K{prima_s}:K{ultima_s},0))>0,"{casa}","{tr}"),"{tr}"))', "", "Suppl.",
-               f'=IF(ABS(K{r_reg})>={SCA},0,IFERROR(MATCH("sì",K{prima_s}:K{ultima_s},0),5))',
+               f'=IF(ABS(K{r_reg})>={SCA},0,IFERROR(MATCH("sì",K{prima_s}:K{ultima_s},0),{NP}))',
                "pari anche dopo tutta la panchina: vince la squadra in trasferta"], sfondo=SF_TOT, peso="bold")
         nuova()
         # riquadro dei risultati in cima

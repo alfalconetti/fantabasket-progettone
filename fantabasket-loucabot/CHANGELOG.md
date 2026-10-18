@@ -160,3 +160,7 @@ Il calcolo dei fantapunti.
 
 - **Formazioni sul foglio di controllo alla scadenza**: quando IPanchinari congela la giornata, il tab «Calcolo GN» mostra subito gli schierati (per partita e squadra: quintetto, panchina in ordine, ruolo, squadra NBA; panchina non mandata, posti vuoti e titolari anche in panchina segnati), senza punteggi né formule. Si riscrive entro 5 minuti se un admin corregge formazioni o panchine (riga sul canale log); il calcolo della mattina lo sostituisce con quello completo. Tabella nuova `lega_foglio_formazioni` (creata all'avvio)
 
+## v32 (2026-10-18)
+
+- **Numeri del regolamento in `config/settings.json`** (`shared/regole.py`, chiave mancante = valore di oggi): pesi dei fantapunti (`pesi_fantapunti`), bonus casa (`bonus_casa`, `bonus_casa_playoff`), scarto minimo (`scarto_minimo`), giocatori in panchina e quindi supplementari (`giocatori_panchina`). Sul foglio di controllo le righe dei supplementari seguono `giocatori_panchina`
+- **`/dev_ricalcola_fp [STAGIONE]`** (dev): dopo un cambio dei pesi (di solito alla riunione di giugno), ricalcola i fantapunti della stagione dalle statistiche già salvate (tabellini ESPN e medie di basketball-reference), senza riscaricare niente. I risultati già convalidati restano come sono (Luca, 18/10)

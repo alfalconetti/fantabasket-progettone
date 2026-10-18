@@ -6,18 +6,18 @@ la funzione di query del bot chiamante:
     q(sql, params=(), one=False, many=False) -> dict | list[dict] | None
 (nel main è database._q, nel bot aste pg_client.q).
 
-Vincoli del regolamento: almeno 4 guardie (PG/SG), 4 ali (SF/PF), 2 centri (C).
+Vincoli del regolamento: almeno 4 guardie (PG/SG), 4 ali (SF/PF), 2 centri (C)
+(config/settings.json, shared/regole.py).
 """
 import random
 
+from shared import regole
+
 RUOLI = ["PG", "SG", "SF", "PF", "C"]
 CATEGORIA = {"PG": "G", "SG": "G", "SF": "F", "PF": "F", "C": "C"}
-MINIMI = {"G": 4, "F": 4, "C": 2}
 
 # Fasi con ruoli attivi: dichiarazioni post-trade/firma e cambi ruolo
 FASI_RUOLI_RS = {"regular-season-fa", "regular-season-deadline", "playoff"}
-
-GIORNI_RIACQUISTO = 60
 
 
 # ── calcolo puro ──────────────────────────────────────────────────────────────
@@ -28,6 +28,7 @@ def deficit_minimo(fissi: list[str], flessibili: list[set[str]]) -> int:
     g = sum(CATEGORIA.get(r) == "G" for r in fissi)
     f = sum(CATEGORIA.get(r) == "F" for r in fissi)
     c = sum(CATEGORIA.get(r) == "C" for r in fissi)
+    MINIMI = regole.minimi_ruolo()        # config/settings.json: roster_min_guardie, _ali, _centri
     cap = lambda n, k: min(n, MINIMI[k])
     stati = {(cap(g, "G"), cap(f, "F"), cap(c, "C"))}
     for eleggibili in flessibili:
@@ -86,10 +87,10 @@ def scelta_valida(q, team_id: str, stagione: str, gid: int, ruolo: str, in_arriv
 
 
 def ruolo_riacquisto(q, gid: int, team_id: str) -> str | None:
-    """Regola dei 60 giorni: il vecchio ruolo, se la squadra ha avuto il giocatore di recente."""
+    """Regola dei 60 giorni (giorni_riacquisto_ruolo): il vecchio ruolo, se la squadra ha avuto il giocatore di recente."""
     uscito = q("""SELECT 1 AS x FROM movimenti_giocatori WHERE giocatore_id = %s AND team_id_da = %s
                   AND timestamp >= NOW() - (%s || ' days')::interval LIMIT 1""",
-               (gid, team_id, str(GIORNI_RIACQUISTO)), one=True)
+               (gid, team_id, str(regole.giorni_riacquisto_ruolo())), one=True)
     if not uscito:
         return None
     r = q("""SELECT ruolo_a FROM cambi_ruolo WHERE giocatore_id = %s AND team_id = %s

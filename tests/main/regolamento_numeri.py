@@ -5,7 +5,7 @@ prima questa prova, poi settings.json o il codice. Lo specchietto completo regol
 prova è in docs/regolamento_e_codice.md."""
 import math
 import database as db, settings
-from shared import ruoli_core
+from shared import regole, ruoli_core
 from handlers import stagione as S, tagli as T, dpe as D
 db.init_db()
 ok = lambda c, m: print(("✅" if c else "❌ FAIL"), m)
@@ -13,9 +13,9 @@ s = settings.get()
 
 # Roster, cap, floor (capitoli Roster, Mercato, Luxury e salary floor, Lega)
 ok((s["roster_min_regular"], s["roster_max"]) == (10, 15), "roster da 10 a 15 giocatori")
-ok(ruoli_core.MINIMI == {"G": 4, "F": 4, "C": 2}
+ok(regole.minimi_ruolo() == {"G": 4, "F": 4, "C": 2}
    and (s["roster_min_guardie"], s["roster_min_ali"], s["roster_min_centri"]) == (4, 4, 2),
-   "almeno 4 guardie, 4 ali, 2 centri (anche in shared/ruoli_core)")
+   "almeno 4 guardie, 4 ali, 2 centri (letti da settings.json da shared/regole)")
 ok((s["cap_regular"], s["cap_offseason"], s["salary_floor"]) == (150, 165, 115), "cap 150, luxury 165 in preseason, floor 115")
 ok(s["numero_teams"] == 24, "24 franchigie")
 
@@ -35,8 +35,8 @@ ok(DM(base[:-1], [{"PF", "C"}]) == 0 and DM(base[:-1], [{"PF", "SF"}]) == 1
    and DM(base[:-2], [{"C", "PF"}, {"C", "SG"}]) == 0,
    "minimi dei ruoli: chi arriva copre il buco con una delle sue posizioni eleggibili")
 from handlers import cambi_ruolo as CR
-ok(ruoli_core.GIORNI_RIACQUISTO == 60, "ripreso entro 60 giorni: torna nel vecchio ruolo")
-ok((CR.MAX_ORDINARI, CR.GIORNI_ERMINIO, CR.GIORNI_SAEDRO) == (2, 14, 10),
+ok(regole.giorni_riacquisto_ruolo() == 60, "ripreso entro 60 giorni: torna nel vecchio ruolo")
+ok((regole.max_cambi_ordinari(), regole.giorni_erminio(), regole.giorni_saedro()) == (2, 14, 10),
    "2 cambi ruolo a stagione, Erminio entro due settimane, Saedro di 10 giorni")
 
 # Tabella dei compensi minimi per fantapunti (draft iniziale, minimi dei rinnovi)
@@ -45,7 +45,7 @@ TABELLA = [(0, 1), (10.99, 1), (11, 2), (14.99, 2), (15, 5), (19.99, 5), (20, 10
 ok(all(settings.minimo_contratto_per_media(fp) == m for fp, m in TABELLA), "tabella dei compensi minimi per fantapunti")
 
 # Tagli
-ok(T.MAX_TAGLI_GRATUITI == 3 and T._e_taglio_gratuito(1, 1) and not T._e_taglio_gratuito(2, 1)
+ok(regole.max_tagli_gratuiti() == 3 and T._e_taglio_gratuito(1, 1) and not T._e_taglio_gratuito(2, 1)
    and not T._e_taglio_gratuito(1, 2), "3 tagli gratuiti a stagione, solo 1x1")
 BASSI = {(1, 1): [1], (2, 1): [1, 1], (3, 1): [1, 1, 1], (4, 1): [2, 1, 1],
          (1, 2): [1, 1], (2, 2): [1, 1, 1, 1], (3, 2): [2, 2, 1, 1], (4, 2): [2, 2, 2, 2],

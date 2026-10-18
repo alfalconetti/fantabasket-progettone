@@ -36,7 +36,6 @@ from handlers.admin_offerte import (
 logger = logging.getLogger(__name__)
 
 
-DURATA_ASTA_H = 18
 GLOBALS_PATH  = os.environ.get("GLOBALS_PATH", "/config/globals.json")
 
 

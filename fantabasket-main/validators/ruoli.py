@@ -3,7 +3,7 @@ Vincoli di ruolo del roster — involucro del modulo condiviso shared/ruoli_core
 (stessa logica usata dal bot aste). Mantiene l'interfaccia usata da trade e ruoli.
 """
 import database as db
-from shared.ruoli_core import CATEGORIA, MINIMI, deficit_minimo  # noqa: F401 (riesportati)
+from shared.ruoli_core import CATEGORIA, deficit_minimo  # noqa: F401 (riesportati)
 from shared import ruoli_core as core
 
 

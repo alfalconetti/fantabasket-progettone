@@ -136,13 +136,14 @@ def _coppia(v: str) -> tuple[int, int]:
     return int(a or 0), int(b or 0)
 
 
-def fantapunti(t: dict) -> float:
-    """Regolamento: punto +0,5, assist +2, rimbalzo offensivo +2, difensivo +1,25, tripla segnata +1,5,
-    tiro dal campo tentato −0,5 e segnato +1, libero tentato −0,75 e segnato +1, recupero +2,
-    stoppata +2, palla persa −2."""
-    return round(0.5 * t["pts"] + 2 * t["ast"] + 2 * t["oreb"] + 1.25 * t["dreb"] + 1.5 * t["tpm"]
-                 - 0.5 * t["fga"] + t["fgm"] - 0.75 * t["fta"] + t["ftm"]
-                 + 2 * t["stl"] + 2 * t["blk"] - 2 * t["tov"], 2)
+def fantapunti(t: dict, pesi: dict | None = None) -> float:
+    """Regolamento (pesi_fantapunti in config/settings.json, default in shared/regole.py): punto +0,5,
+    assist +2, rimbalzo offensivo +2, difensivo +1,25, tripla segnata +1,5, tiro dal campo tentato −0,5
+    e segnato +1, libero tentato −0,75 e segnato +1, recupero +2, stoppata +2, palla persa −2.
+    Si calcolano quando si scarica il tabellino e si salvano: dopo un cambio dei pesi, /dev_ricalcola_fp."""
+    from shared import regole
+    pesi = pesi or regole.pesi_fantapunti()
+    return round(sum(float(p) * float(t.get(k) or 0) for k, p in pesi.items()), 2)
 
 
 def leggi_tabellino(dati: dict, partita: str) -> list[dict]:

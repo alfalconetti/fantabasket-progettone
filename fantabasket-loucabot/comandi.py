@@ -49,6 +49,7 @@ def liste_comandi() -> dict:
         BotCommand("dev_giornata", "Stato di una giornata [N]"),
         BotCommand("dev_prova_calcolo", "Prova del calcolo: GG/MM/AAAA GG/MM/AAAA"),
         BotCommand("dev_prova_live",    "Prova del live su notti vere, anche preseason [GG/MM/AAAA …|stop]"),
+        BotCommand("dev_ricalcola_fp",  "Fantapunti coi pesi di settings.json [STAGIONE]"),
         BotCommand("dev_log",     "Ultime righe di log [N]"),
         BotCommand("dev_pg",      "Connessione a PostgreSQL"),
         BotCommand("reboot",      "Riavvia il bot"),

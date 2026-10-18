@@ -25,13 +25,11 @@ from telegram.ext import ContextTypes, CallbackQueryHandler
 import database as db
 import settings
 import teams as tm
-from shared import ruoli_core as core
+from shared import regole, ruoli_core as core
 
 logger = logging.getLogger(__name__)
 
 RUOLI = core.RUOLI
-ORE_DICHIARAZIONE = 48
-GIORNI_RIACQUISTO = core.GIORNI_RIACQUISTO
 _TIPO_EVENTO = {"trade": "post_trade", "firma": "post_firma", "rookie": "post_firma"}
 _ORIGINE_TXT = {"trade": "post-trade", "firma": "post-firma", "rookie": "attivazione diritti"}
 
@@ -141,9 +139,9 @@ async def apri_pendenti(bot, team_id: str, gids: list[int], origine: str, riferi
             if vecchio:
                 _registra_ruolo(gid, team_id, vecchio, tipo)
                 await _annuncia(bot, f"🎽 <b>{_nome_team(team_id)}</b>: {nome} → <b>{vecchio}</b>\n"
-                                     f"<i>Regola dei {GIORNI_RIACQUISTO} giorni: torna col vecchio ruolo.</i>")
+                                     f"<i>Regola dei {regole.giorni_riacquisto_ruolo()} giorni: torna col vecchio ruolo.</i>")
                 await _ai_gm(bot, team_id, f"🎽 {nome} torna nel suo vecchio ruolo <b>{vecchio}</b> "
-                                           f"(regola dei {GIORNI_RIACQUISTO} giorni), non serve dichiararlo.")
+                                           f"(regola dei {regole.giorni_riacquisto_ruolo()} giorni), non serve dichiararlo.")
                 continue
             eleg = eleggibili(gid)
             if len(eleg) == 1:   # una sola posizione eleggibile: niente da scegliere
@@ -155,7 +153,7 @@ async def apri_pendenti(bot, team_id: str, gids: list[int], origine: str, riferi
                 continue
             pid = db._qval("""INSERT INTO ruoli_pendenti (giocatore_id, team_id, origine, riferimento, scadenza)
                               VALUES (%s, %s, %s, %s, NOW() + (%s || ' hours')::interval) RETURNING id""",
-                           (gid, team_id, origine, riferimento, str(ORE_DICHIARAZIONE)))
+                           (gid, team_id, origine, riferimento, str(regole.ore_dichiarazione_ruolo())))
             testo, kb = _testo_e_tastiera(get_pendente(pid))
             await _ai_gm(bot, team_id, testo, kb)
         except Exception as e:
@@ -271,9 +269,9 @@ async def job_scadenze(context: ContextTypes.DEFAULT_TYPE):
             _chiudi(p["id"], "estratta", ruolo)
             cambiato = True
             await _annuncia(context.bot, f"🎲 <b>{_nome_team(p['team_id'])}</b>: {p['nome_common']} → <b>{ruolo}</b>\n"
-                                         f"⏰ <i>Tempo scaduto: ruolo non dichiarato entro {ORE_DICHIARAZIONE}h, estratto tra {', '.join(eleg)}.</i>")
+                                         f"⏰ <i>Tempo scaduto: ruolo non dichiarato entro {regole.ore_dichiarazione_ruolo()}h, estratto tra {', '.join(eleg)}.</i>")
             await _ai_gm(context.bot, p["team_id"],
-                         f"⏰ Tempo scaduto: non hai dichiarato il ruolo di <b>{p['nome_common']}</b> entro {ORE_DICHIARAZIONE}h, "
+                         f"⏰ Tempo scaduto: non hai dichiarato il ruolo di <b>{p['nome_common']}</b> entro {regole.ore_dichiarazione_ruolo()}h, "
                          f"estratto <b>{ruolo}</b>.")
         if cambiato:
             _sync_roster()

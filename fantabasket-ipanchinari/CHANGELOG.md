@@ -91,3 +91,7 @@ Primo rilascio: panchine e quintetti.
 ## v19 (2026-10-16)
 
 - **`/soprannomi tutti`** (admin): tutti i soprannomi della lega in un file .md, dal più sospetto (somiglianza col nome del giocatore da 0 a 1: sotto 0,5 «sospetti», cioè col nome non c'entrano), e i sospetti nel messaggio; si cancellano con /soprannomi SQUADRA
+
+## v20 (2026-10-18)
+
+- Il numero di giocatori della panchina viene da `config/settings.json` (`giocatori_panchina`, default 5) invece che dal codice

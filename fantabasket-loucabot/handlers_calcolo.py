@@ -351,6 +351,39 @@ async def cb_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.edit_message_text(testo, parse_mode="HTML", reply_markup=tasti)
 
 
+def ricalcola_fp(stagione: str) -> dict:
+    """Fantapunti della stagione coi pesi di adesso (config/settings.json), dalle statistiche già salvate:
+    i tabellini di ESPN (nba_tabellini.fp) e le medie di basketball-reference (bref_stats.fantamedia,
+    tabella del bot principale: il trigger si riscrive coi pesi nuovi e ricalcola). I risultati già
+    convalidati (lega_risultati) restano come sono."""
+    from shared import regole
+    expr = regole.espressione_sql(prefisso="t.")
+    n_tab = db.q(f"""WITH x AS (UPDATE nba_tabellini t SET fp = ROUND(({expr})::numeric, 2) FROM nba_partite p
+                                WHERE p.espn_id = t.partita AND p.stagione = %s RETURNING 1)
+                     SELECT COUNT(*) AS n FROM x""", (stagione,), one=True)["n"]
+    n_bref = 0
+    if db.q("SELECT to_regclass('bref_stats') AS t", one=True)["t"]:
+        regole.allinea_bref(db.q)
+        n_bref = db.q("""WITH x AS (UPDATE bref_stats SET stagione = stagione WHERE stagione = %s RETURNING 1)
+                         SELECT COUNT(*) AS n FROM x""", (stagione,), one=True)["n"]
+    return {"tabellini": n_tab, "bref": n_bref}
+
+
+async def cmd_dev_ricalcola_fp(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/dev_ricalcola_fp [STAGIONE] (solo dev): dopo un cambio di pesi_fantapunti in settings.json."""
+    if not (config.dev_id() and update.effective_user.id == config.dev_id()):
+        return
+    from handlers import log
+    from shared import regole
+    s = context.args[0] if context.args else config.stagione()
+    r = ricalcola_fp(s)
+    pesi = ", ".join(f"{k} {testo_punti(float(v))}" for k, v in regole.pesi_fantapunti().items())
+    t = (f"🔁 Fantapunti della stagione {s} ricalcolati coi pesi di adesso: {r['tabellini']} righe di tabellini ESPN, "
+         f"{r['bref']} righe di basketball-reference. Risultati già convalidati non toccati.\nPesi: {pesi}")
+    await update.effective_message.reply_text(t)
+    await log(context.bot, t)
+
+
 def get_handlers() -> list:
     return [
         CommandHandler("set_valid_status", cmd_set_valid_status),
@@ -361,4 +394,5 @@ def get_handlers() -> list:
         CommandHandler("espn_mancanti", cmd_espn_mancanti),
         CommandHandler("espn_abbina", cmd_espn_abbina),
         CommandHandler("fantapunti", cmd_fantapunti),
+        CommandHandler("dev_ricalcola_fp", cmd_dev_ricalcola_fp),
     ]

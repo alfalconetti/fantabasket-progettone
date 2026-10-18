@@ -15,10 +15,11 @@ import difflib
 import re
 import unicodedata
 
+from shared import regole
+
 SUFFISSI = {"jr", "sr", "ii", "iii", "iv", "v"}
 _LETTERE = str.maketrans({"đ": "d", "Đ": "d", "ø": "o", "Ø": "o", "ł": "l", "Ł": "l", "ß": "ss", "æ": "ae"})
 RE_NUMERO = re.compile(r"^\s*(?:\d{1,2}\s*[.)\-:°]|[-•*·–—]|\d{1,2}\s+(?=\D))\s*")
-MAX_PANCHINA = 5
 SOGLIA = 0.55          # sotto: nessun candidato credibile
 STACCO = 0.15          # il primo deve staccare il secondo di tanto per essere sicuro
 
@@ -49,9 +50,9 @@ def leggi_messaggio(testo: str) -> tuple[str | None, list[str], str | None]:
         return None, [], "messaggio vuoto"
     righe = blocchi[-1]
     titolo = [" ".join(b) for b in blocchi[:-1]]
-    if len(righe) > MAX_PANCHINA:
-        titolo.append(" ".join(righe[:-MAX_PANCHINA]))
-        righe = righe[-MAX_PANCHINA:]
+    if len(righe) > regole.giocatori_panchina():
+        titolo.append(" ".join(righe[:-regole.giocatori_panchina()]))
+        righe = righe[-regole.giocatori_panchina():]
     righe = [RE_NUMERO.sub("", r).strip() or r for r in righe]
     return ("\n".join(titolo).strip() or None), righe, None
 

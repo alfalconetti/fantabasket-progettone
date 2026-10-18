@@ -89,6 +89,12 @@ def migrate_db():
     _allinea_check("cambi_ruolo", (
         "iniziale", "ordinario", "erminio", "saedro", "forzato_admin",
         "post_trade", "post_firma", "dpe_extra"))
+    # v5.8.0 — fantamedia di bref_stats coi pesi dei fantapunti di settings.json (trigger)
+    try:
+        from shared import regole
+        regole.allinea_bref(_q)
+    except Exception as e:
+        logger.warning("bref_stats.fantamedia: trigger non aggiornato (%s)", e)
     # v3.7.0 — giocatori trovati su Basketball-Reference e non in anagrafica:
     # proposti al dev, che li crea tutti o li ignora (gli ignorati non tornano)
     _q("""

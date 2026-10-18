@@ -80,7 +80,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("set_cap_penalizzato", "Penalità cap di una squadra [team_id] [valore]"),
         BotCommand("annulla_admin",       "Esci da operazione admin bloccata"),
         BotCommand("guida_admin",         "Guida completa per gli admin"),
-        BotCommand("settings",            "Modifica settings [chiave] [valore]"),
+        BotCommand("settings",            "Impostazioni e numeri del regolamento"),
         BotCommand("import_posizioni_eleggibili", "Importa posizioni eleggibili Yahoo (CSV)"),
         BotCommand("set_posizioni_eleggibili",    "Correggi posizioni di un giocatore [nome] [PG,SG]"),
         BotCommand("deadline_ruoli",              "Deadline dichiarazione ruoli [AAAA-MM-GG] [HH:MM]"),

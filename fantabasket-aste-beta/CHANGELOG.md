@@ -638,3 +638,6 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 
 - Il 10-day contract del bot principale (contratto `10day`) non pesa sul cap e non occupa uno slot anche qui (`shared/cap.py`); durante il 10-day il giocatore non è un free agent, alla scadenza torna nella lista
 
+## v67 — numeri del regolamento in settings.json
+
+- Tolta la costante `DURATA_ASTA_H` (18), mai usata: la durata delle aste è da sempre `durata_asta_ore` di settings.json. I minimi per ruolo usati dai controlli dei ruoli (`shared/ruoli_core`) ora vengono da settings.json

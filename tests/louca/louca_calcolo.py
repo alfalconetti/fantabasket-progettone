@@ -275,4 +275,29 @@ else:
     print("ℹ️ tabella giocatori assente (lancia prima le prove del bot principale): abbinamento non provato")
 ok(calcolo.norm("Nikola Đurišić") == calcolo.norm("Nikola Durisic") and calcolo.norm("Kelly Oubre Jr.") == "kellyoubre",
    "nomi normalizzati")
+# ── numeri del regolamento da config/settings.json (v31, shared/regole.py) ──
+from shared import regole
+import handlers_calcolo as HC
+SP = os.environ["SETTINGS_PATH"]; _orig = json.load(open(SP)); _giro = [0]
+def _scrivi(**k):
+    json.dump({**_orig, **k}, open(SP, "w")); _giro[0] += 1
+    os.utime(SP, (os.path.getmtime(SP) + 100 * _giro[0],) * 2)
+_scrivi(scarto_minimo=3, giocatori_panchina=3, bonus_casa=0, bonus_casa_playoff=1)
+ok(calcolo.esito(sq(100), sq(103.5))["vince"] == "trasferta" and calcolo.esito(sq(100), sq(103.5))["supplementari"] == 0,
+   "scarto minimo e bonus casa da settings.json (3 e 0): 3,5 di scarto bastano")
+e5 = calcolo.esito(sq(100, (1, 1, 1, 1, 9)), sq(101, (1, 1, 1, 1, 1)))
+ok(e5["supplementari"] == 3 and e5["vince"] == "trasferta", "giocatori in panchina da settings.json (3): al massimo 3 supplementari")
+bridges = next(r for r in tab if r["nome"] == "Mikal Bridges")
+_scrivi(pesi_fantapunti={"pts": 1})
+ok(nba.fantapunti(bridges) == 41.25 + 0.5 * bridges["pts"], "pesi dei fantapunti da settings.json (punto +1, gli altri come prima)")
+partita("401810723", "2026-03-01", "NYK", "SAS", stagione="2025"); db.salva_tabellino("401810723", tab)
+r = HC.ricalcola_fp("2025")
+fp_db = float(db.q("SELECT fp FROM nba_tabellini WHERE partita = '401810723' AND nome = 'Mikal Bridges'", one=True)["fp"])
+ok(r["tabellini"] == len(tab) and fp_db == 41.25 + 0.5 * bridges["pts"],
+   f"/dev_ricalcola_fp: tabellini già salvati ricalcolati coi pesi nuovi ({r['tabellini']} righe, Bridges {fp_db})")
+_scrivi()
+HC.ricalcola_fp("2025")
+ok(float(db.q("SELECT fp FROM nba_tabellini WHERE partita = '401810723' AND nome = 'Mikal Bridges'", one=True)["fp"]) == 41.25,
+   "di nuovo i pesi del regolamento: 41,25")
+json.dump(_orig, open(SP, "w"))
 db.q("TRUNCATE nba_tabellini, nba_infortuni, nba_atleti, nba_partite, lega_status_validi")

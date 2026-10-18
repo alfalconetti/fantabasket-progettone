@@ -40,9 +40,10 @@ for bot, testi in {
                               ("/start", funzione("fantabasket-aste-beta/handlers/offerte.py", "start_deep_link"))],
 }.items():
     reg = registrati(bot)
-    tutti = registrati("fantabasket-main") | registrati("fantabasket-aste-beta")
+    # v5.8.0: anche quelli di loucabot (es. /dev_ricalcola_fp dopo un cambio dei pesi dei fantapunti)
+    tutti = registrati("fantabasket-main") | registrati("fantabasket-aste-beta") | registrati("fantabasket-loucabot")
     for nome, t in testi:
-        # la guida dev cita anche i comandi dell'altro bot
+        # la guida dev cita anche i comandi degli altri bot
         mancanti = sorted(citati(t) - (tutti if nome == "guida dev" else reg))
         ok(not mancanti, f"{bot} {nome}: comandi citati tutti esistenti {mancanti or ''}")
     menu = set(re.findall(r'BotCommand\(\s*"(\w+)"', leggi(bot, "comandi.py")))
@@ -50,8 +51,8 @@ for bot, testi in {
     menu |= set(re.findall(r'else "(\w+)"', leggi(bot, "comandi.py")))
     ok(not (menu - reg), f"{bot} menu '/': tutti i comandi esistono {sorted(menu - reg) or ''}")
 
-# v3.13.0: lo specchietto regolamento ↔ codice cita comandi dei due bot
-tutti = registrati("fantabasket-main") | registrati("fantabasket-aste-beta")
+# v3.13.0: lo specchietto regolamento ↔ codice cita comandi dei due bot (e, dalla v5.8.0, di loucabot)
+tutti = registrati("fantabasket-main") | registrati("fantabasket-aste-beta") | registrati("fantabasket-loucabot")
 mancanti = sorted(citati(leggi("docs/regolamento_e_codice.md")) - tutti)
 ok(not mancanti, f"docs/regolamento_e_codice.md: comandi citati tutti esistenti {mancanti or ''}")
 

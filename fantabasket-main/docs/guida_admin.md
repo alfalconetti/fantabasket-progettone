@@ -244,7 +244,8 @@ Se sembrano indietro, il dev può forzare un aggiornamento completo con `/sync_s
 
 ## Varie
 
-- **`/settings`** mostra le impostazioni di gioco; `/settings chiave valore` ne cambia una. Esempio: `/settings salary_floor 115`.
+- **`/settings`** (anche dal pannello admin, «⚙️ Impostazioni»): le impostazioni di gioco divise per argomento (cap e roster, contratti, ruoli, tagli/DPE/10-day, partita, fantapunti, aste, sistema, tabelle), col nome in italiano, il valore di adesso e l'unità; *(default)* vuol dire che nel file non c'è e vale il valore del regolamento. Tocchi una voce, scrivi il nuovo valore (con i limiti indicati; la virgola va bene), vedi l'anteprima vecchio → nuovo e confermi. Ogni modifica va sul canale principale e sul canale log (con chi l'ha fatta), e i bot la usano subito, senza riavvio. Scorciatoia: `/settings chiave valore` (es. `/settings salary_floor 115`, `/settings pesi_fantapunti.dreb 1,5`), sempre con conferma. Le tabelle (rookie scale, minimi dei contratti) si vedono ma si cambiano nel file.
+- **Pesi dei fantapunti**: si cambiano uno per uno da «🧮 Fantapunti» (di solito dopo la riunione di giugno). Valgono subito per i tabellini nuovi; per ricalcolare quelli della stagione già scaricati il dev lancia il comando dev di loucabot che ricalcola i fantapunti (`dev_ricalcola_fp`). Le giornate convalidate restano come sono.
 - **`teams.json`** (condiviso col bot aste) contiene nomi, GM e colori. Le modifiche valgono dal riavvio. I loghi stanno in `config/loghi/{team_id}_logo.png`.
 - **`/annulla_admin`** esce da un'operazione admin rimasta bloccata.
 
