@@ -51,10 +51,12 @@ async def cmd_dpe(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("⛔ Non sei registrato come GM.")
         return
 
+    from handlers import nav
+    navig = InlineKeyboardMarkup([[nav.menu(), nav.chiudi()]])
     stagione = settings.stagione_corrente()
     roster   = db.get_roster_team(team["id"], senza_10day=True)
     if not roster:
-        await update.effective_message.reply_text("Il tuo roster è vuoto.")
+        await nav.mostra(update, "Il tuo roster è vuoto.", reply_markup=navig)
         return
 
     # Filtra giocatori che non hanno già una DPE attiva questa stagione
@@ -63,9 +65,8 @@ async def cmd_dpe(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not db.get_dpe_attiva(r["giocatore_id"], stagione) and not r.get("x0")   # x0: contratto finito
     ]
     if not eligibili:
-        await update.effective_message.reply_text(
-            "❌ Tutti i giocatori del tuo roster hanno già una DPE attiva questa stagione."
-        )
+        await nav.mostra(update, "❌ Tutti i giocatori del tuo roster hanno già una DPE attiva questa stagione.",
+                         reply_markup=navig)
         return
 
     bottoni = [
@@ -75,8 +76,9 @@ async def cmd_dpe(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )]
         for r in eligibili
     ]
-    await update.effective_message.reply_text(
-        "Seleziona il giocatore per cui richiedere la DPE\n"
+    bottoni.append([nav.menu(), nav.chiudi()])
+    await nav.mostra(update,
+        "🏥 <b>DPE</b> — seleziona il giocatore per cui richiedere la DPE\n"
         "<i>(giocatore dichiarato ufficialmente out for the season)</i>:",
         reply_markup=InlineKeyboardMarkup(bottoni),
         parse_mode="HTML",

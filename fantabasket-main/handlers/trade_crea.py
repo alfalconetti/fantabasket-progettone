@@ -34,7 +34,8 @@ async def cmd_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.effective_message.reply_text("⛔ Non sei registrato come GM.")
         return ConversationHandler.END
 
-    await update.effective_message.reply_text(
+    from handlers import nav
+    await nav.mostra(update,                       # dal menu Trade: al posto del menu
         "🔄 <b>Nuova trade</b>\n\nQuante squadre sono coinvolte?" + _ANNULLA_HINT,
         parse_mode="HTML",
         reply_markup=_kb_n_squadre(),
@@ -390,6 +391,8 @@ async def _prossimo_item_da_assegnare(query, context, trade_id: int, squadre: li
         )]
         for t in altri
     ]
+    from handlers.trade_comune import _btn_annulla
+    bottoni.append([_btn_annulla()])
 
     rimasti = len(items_pending)
     await query.edit_message_text(
@@ -614,11 +617,14 @@ async def cmd_import(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not team:
         await update.effective_message.reply_text("⛔ Non sei registrato come GM.")
         return ConversationHandler.END
-    await update.effective_message.reply_text(
+    from handlers import nav
+    from handlers.trade_comune import _btn_annulla
+    await nav.mostra(update,
         "📥 <b>Import trade</b>\n\n"
         "Invia il testo della trade nel formato standard.\n\n"
         "<i>Per annullare: /annulla_trade</i>",
         parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("← Trade", callback_data="trade_x:menu"), _btn_annulla()]]),
     )
     return IMPORT_ATTENDI_TESTO
 

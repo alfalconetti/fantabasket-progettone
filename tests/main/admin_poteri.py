@@ -25,7 +25,8 @@ ok(RU._accesso(ADMIN_GM, MIO, admin_mode=True) is None and RU._accesso(ADMIN_GM,
 ok(RU._accesso(SOLO_GM, ALTRO, admin_mode=True) == "⛔ Solo admin.", "la modalità admin è solo per gli admin")
 kb = RU._kb_vista(MIO, [{"gid": 1, "nome": "X", "eleggibili": ["PG"], "ufficiale": None, "bozza": None, "auto": "PG", "scelta": "PG"}], admin=False)
 kba = RU._kb_vista(MIO, [{"gid": 1, "nome": "X", "eleggibili": ["PG"], "ufficiale": None, "bozza": None, "auto": "PG", "scelta": "PG"}], admin=True)
-cb = lambda k: [b.callback_data for r in k.inline_keyboard for b in r]
+cb = lambda k: [b.callback_data for r in k.inline_keyboard for b in r
+                if b.callback_data not in ("menu:home", "rladm:list")]      # navigazione (v6.1.0)
 ok(all(c.startswith("rl:") for c in cb(kb)) and all(c.startswith("rla:") for c in cb(kba)), "bottoni distinti: rl: (GM) e rla: (admin)")
 risposte = []
 class Q:

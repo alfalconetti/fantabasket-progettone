@@ -144,17 +144,20 @@ async def cmd_attiva_diritti(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.effective_message.reply_text("⛔ Non sei registrato come GM.")
         return ConversationHandler.END
 
+    from handlers import nav
     diritti = db.get_diritti_2nd_team(team["id"])
     if not diritti:
-        await update.effective_message.reply_text("Non hai diritti di 2nd pick da attivare.")
+        await nav.mostra(update, "Non hai diritti di 2nd pick da attivare.",
+                         reply_markup=InlineKeyboardMarkup([[nav.menu(), nav.chiudi()]]))
         return ConversationHandler.END
 
     bottoni = [
         [InlineKeyboardButton(_label_diritto(r), callback_data=f"att_r:{r['id']}")]
         for r in diritti
     ]
-    await update.effective_message.reply_text(
-        "Seleziona il rookie da firmare:" + _ANNULLA_HINT,
+    bottoni.append([nav.menu(), nav.chiudi()])
+    await nav.mostra(update,
+        "🏀 <b>Rookie</b> — seleziona il rookie da firmare:" + _ANNULLA_HINT, parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(bottoni),
     )
     return SCEGLI_ROOKIE

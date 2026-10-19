@@ -93,6 +93,7 @@ def _kb_giocatore(gid: int) -> InlineKeyboardMarkup:
         righe.append([InlineKeyboardButton(
             f"⚠️ {campo}", callback_data=f"dp:r:{gid}:{campo}"
         )])
+    righe.append([InlineKeyboardButton("✖️ Chiudi", callback_data="nav:x")])
     return InlineKeyboardMarkup(righe)
 
 
@@ -134,7 +135,7 @@ async def cmd_dev_player(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             callback_data=f"dp:sel:{r['id']}"
         )]
         for r in results[:10]
-    ]
+    ] + [[InlineKeyboardButton("✖️ Chiudi", callback_data="nav:x")]]
     await update.effective_message.reply_text(
         f"Trovati {len(results)} giocatori. Seleziona:" + _HINT,
         parse_mode="HTML",

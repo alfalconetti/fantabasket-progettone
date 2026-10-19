@@ -22,17 +22,21 @@ logger = logging.getLogger(__name__)
 
 @solo_privato
 async def cmd_mie_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from handlers import nav
     user = update.effective_user
     team = tm.get_team_by_gm(user.id)
     if not team:
         await update.effective_message.reply_text("⛔ Non sei registrato come GM.")
         return
+    navig = [nav.indietro("menu:trade", "← Trade"), nav.chiudi()]
 
     bozze   = db.get_bozze_team(team["id"])
     pending = db.get_trade_in_votazione(team["id"])
 
     if not bozze and not pending:
-        await update.effective_message.reply_text("Nessuna trade attiva.")
+        await nav.mostra(update, "📝 Nessuna bozza e nessuna trade da votare.\n\n"
+                                 "<i>Tutte le tue trade, anche inviate o rifiutate: 📂 Le mie trade (/my_trades)</i>",
+                         parse_mode="HTML", reply_markup=InlineKeyboardMarkup([navig]))
         return
 
     righe = []
@@ -56,11 +60,8 @@ async def cmd_mie_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"👀 {_trade_label(t)}", callback_data=f"trade_vedi:{t['id']}"
             )])
     righe.append("\n<i>Tutte le tue trade, anche inviate o rifiutate: /my_trades</i>")
-
-    kb = InlineKeyboardMarkup(bottoni) if bottoni else None
-    await update.effective_message.reply_text(
-        "\n".join(righe), parse_mode="HTML", reply_markup=kb
-    )
+    bottoni.append(navig)
+    await nav.mostra(update, "\n".join(righe), parse_mode="HTML", reply_markup=InlineKeyboardMarkup(bottoni))
 
 
 # ── /my_trades ────────────────────────────────────────────────────────────────
@@ -86,8 +87,10 @@ def _altre_squadre(trade_id: int, team_id: str) -> str:
 
 def _testo_lista_my_trades(team_id: str):
     trades = db.get_trade_team(team_id)
+    from handlers import nav
+    navig = [nav.indietro("menu:trade", "← Trade"), nav.chiudi()]
     if not trades:
-        return "📂 <b>Le tue trade</b>\n\nNessuna trade.", None
+        return "📂 <b>Le tue trade</b>\n\nNessuna trade.", InlineKeyboardMarkup([navig])
     righe, kb = ["📂 <b>Le tue trade</b> <i>(ultime {})</i>\n".format(len(trades))], []
     for t in trades:
         stato = _STATI.get(t["stato"], t["stato"])
@@ -96,6 +99,7 @@ def _testo_lista_my_trades(team_id: str):
                      f"<i>({chi}, {_data_breve(t['aggiornato'])})</i>")
         kb.append([InlineKeyboardButton(f"{stato.split(' ')[0]} {_trade_label(t)}", callback_data=f"mt:v:{t['id']}")])
     righe.append("\n" + " · ".join(_STATI.values()))
+    kb.append(navig)
     return "\n".join(righe), InlineKeyboardMarkup(kb)
 
 

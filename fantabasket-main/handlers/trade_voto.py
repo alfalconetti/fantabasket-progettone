@@ -115,7 +115,7 @@ async def cb_trade_vedi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kb = InlineKeyboardMarkup([[
         InlineKeyboardButton("✅ Accetto", callback_data=f"trade_voto:si:{trade_id}:{team['id']}"),
         InlineKeyboardButton("❌ Rifiuto", callback_data=f"trade_voto:no:{trade_id}:{team['id']}"),
-    ]])
+    ], [InlineKeyboardButton("← Bozze", callback_data="menu:trade_bozze")]])
     await query.edit_message_text(testo, parse_mode="HTML", reply_markup=kb)
 
 

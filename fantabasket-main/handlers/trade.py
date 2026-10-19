@@ -36,6 +36,7 @@ from handlers.trade_modifica import (
     cmd_edit_trade,
 )
 from handlers.trade_liste import cb_my_trades, cmd_mie_trade, cmd_my_trades
+from handlers.trade_comune import cb_annulla_trade
 
 
 # ── /annulla_trade ─────────────────────────────────────────────────────────────
@@ -117,6 +118,7 @@ def get_handlers() -> list:
         fallbacks=[
             CommandHandler("annulla_trade", cmd_annulla_trade),
             CommandHandler("annulla",       cmd_annulla_trade),
+            CallbackQueryHandler(cb_annulla_trade, pattern=r"^trade_x(:menu)?$"),
         ],
         per_user=True,
         per_chat=True,
@@ -148,6 +150,7 @@ def get_handlers() -> list:
         fallbacks=[
             CommandHandler("annulla_trade", cmd_annulla_trade),
             CommandHandler("annulla",       cmd_annulla_trade),
+            CallbackQueryHandler(cb_annulla_trade, pattern=r"^trade_x(:menu)?$"),
         ],
         per_user=True,
         per_chat=True,
@@ -192,6 +195,7 @@ def get_handlers() -> list:
         fallbacks=[
             CommandHandler("annulla_trade", cmd_annulla_trade),
             CallbackQueryHandler(cb_edit_back, pattern=r"^edit_back:\d+$"),
+            CallbackQueryHandler(cb_annulla_trade, pattern=r"^trade_x(:menu)?$"),
         ],
         per_user=True,
         per_chat=True,

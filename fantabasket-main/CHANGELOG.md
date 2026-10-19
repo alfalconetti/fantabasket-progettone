@@ -1416,3 +1416,21 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - `/sync_sheets` diceva «❌ Sync fallito» anche quando il foglio si aggiornava: il bot aspettava il router al massimo 30 secondi, e il roster di 24 squadre su GAS ne prende di più. Ora il bot aspetta fino a 3 minuti e il router fino a 170 secondi anche per Roster, Scelte e BrefRaw (come già per Calendario e calcolo di loucabot). Lo stesso timeout faceva ripartire dopo 30 secondi i sync automatici che in realtà stavano andando: il foglio veniva riscritto due volte
 - `/sync_sheets` gira in background: mentre aspetta GAS il bot risponde agli altri
 
+## v6.1.0 (2026-10-19)
+
+- **Menu a bottoni con una via d'uscita** (Luca, 19/10): ogni schermata ha ← verso quella di prima, 🏠 Menu o ✖️ Chiudi (`handlers/nav.py`, `nav:x` toglie il messaggio). /menu e /admin_menu con ✖️ Chiudi; 📝 Bozze e 📂 Le mie trade con ← Trade (prima da Le mie trade non si tornava indietro); builder delle trade (GM e admin) con ✖️ Annulla in ogni passo e ← Trade all'inizio; tagli, rookie, DPE, decadimento, cambi ruolo, rinnovi e RFA con 🏠 Menu (lato admin ← Squadre e ← Menu admin); /settings con ← Menu admin; esiti di taglio e DPE admin con ← Menu admin; /dev_player con Chiudi. Dal /menu le schermate si aprono al posto del menu invece che in un messaggio nuovo sotto. Il pannello admin riparte da qualsiasi bottone anche a metà di un'operazione (`allow_reentry`)
+- **`/palette` rifatta**: il menu mostra i colori veri (quelli scelti o «automatico», ricavato dal colore dell'intestazione; prima mostrava dei default che non erano quelli usati), nomi chiari, hex anche senza # o in tre cifre, ♻️ Automatico per tornare al colore di partenza, ← Indietro mentre scrivi, anteprima delle assets per i colori di pick e diritti (prima sempre il roster, dove quei colori non si vedono), 👁 Anteprima con roster e assets, ✖️ Chiudi senza salvare. Un altro comando non chiude più la palette
+- **Testo sempre leggibile su roster e assets**: intestazione, riga dei titoli e anni delle pick avevano il testo sempre bianco (illeggibile su un colore chiaro), i nomi normali sempre neri (illeggibili su righe scure), il testo dei diritti nero: ora chiaro o scuro a seconda dello sfondo, anche sui colori automatici (`roster.colori_effettivi`, `roster.input_colori`). La DPE in rosso su una riga scura prende il riquadro chiaro come i rookie
+- **`/my_team`**: nome squadra e nome GM, ✖️ Chiudi e ← Indietro. Tolti «Colore» e «Colore 2», che finivano in teams.json ma non li leggeva nessuno (i colori sono in /palette). I bottoni hanno il prefisso `myt:` (prima `mt:`, lo stesso di /my_trades) e valgono sempre sulla squadra di chi preme
+- **`/team_diff` nel menu comandi dei gruppi**, insieme a /roster e /assets
+- **DPE su un 1x1** (Luca, 19/10): prima della deadline chiude il contratto come un decadimento (niente riga DPE, slot libero), detto nell'anteprima del GM, nella richiesta agli admin e nel pannello. 1x2 e 1x3 restano una DPE normale (0M quest'anno, poi tornano); dopo la deadline anche l'1x1 resta DPE (cambio ruolo in più)
+- Prova `menu_palette`; guide GM, admin e dev aggiornate
+
+## v6.1.1 (2026-10-19)
+
+- Le DPE su un 1x1 già approvate prima della deadline (prima della v6.1.0, es. Ben Simmons) diventano decadimenti all'avvio, una volta sola: contratto chiuso, movimento «decadimento», riga DPE tolta, riga nel registro (sistema), fogli aggiornati. Così il giocatore non resta nel roster a 0M con la DPE. Le DPE su 1x2/1x3 e quelle dopo la deadline restano come sono
+
+## v6.1.2 (2026-10-19)
+
+- **Annullata la DPE su un 1x1 = decadimento** della v6.1.0 e la migrazione della v6.1.1 (nessuna delle due è mai stata installata): la DPE su un 1x1 resta una DPE normale, quest'anno 0M sul cap e niente slot, come prima. Un decadimento chiuderebbe il contratto, mentre a fine stagione l'x0 si può dichiarare RFA (gli x0 non si rinnovano); e la DPE conta nei minimi dei ruoli. Le DPE già fatte (es. Ben Simmons) restano come sono
+- Il resto della v6.1.0 (menu con ← e ✖️ Chiudi, /palette, /my_team, /team_diff nei gruppi) resta

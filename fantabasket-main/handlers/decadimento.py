@@ -62,7 +62,8 @@ async def cmd_decadimento(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         bottoni.append([InlineKeyboardButton(label, callback_data=f"dec_giocat:{r['giocatore_id']}")])
     bottoni.append([InlineKeyboardButton("❌ Annulla", callback_data="dec_annulla")])
 
-    await update.effective_message.reply_text(
+    from handlers import nav
+    await nav.mostra(update,
         "⚠️ <b>Decadimento contratto</b>\n\n"
         "Seleziona il giocatore il cui contratto è decaduto "
         "(ritiro, firma in altra lega, ecc.).\n\n"

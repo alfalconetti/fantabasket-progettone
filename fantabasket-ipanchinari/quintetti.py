@@ -77,8 +77,11 @@ def leggi_quintetto(team_id: str, righe: list[str]) -> tuple[dict[str, int], lis
     return out, errori
 
 
-def incompatibilita(team_id: str, q: dict[str, int] | None = None) -> list[str]:
-    """Titolari che non sono più a roster o sono anche nella panchina della prossima giornata."""
+def incompatibilita(team_id: str, q: dict[str, int] | None = None, admin: bool = False,
+                    breve: bool = False) -> list[str]:
+    """Titolari che non sono più a roster o sono anche in panchina. Il testo cambia per chi legge:
+    al GM (se vuoi aggiorna il quintetto), all'admin (cosa fare: avvisare il GM prima della scadenza,
+    dopo è un errore della panchina), breve per gli elenchi (/stato, riepilogo)."""
     s = config.stagione()
     q = q if q is not None else db.quintetto(team_id)
     roster = {g["id"]: g for g in db.roster(team_id, s)}
@@ -88,13 +91,38 @@ def incompatibilita(team_id: str, q: dict[str, int] | None = None) -> list[str]:
             out.append(f"{ruolo}: il titolare non è più in squadra")
         elif roster[gid].get("ruolo") and roster[gid]["ruolo"] != ruolo:
             out.append(f"{roster[gid]['nome_common']} ora è {roster[gid]['ruolo']}, non {ruolo}")
+    # panchine da guardare: quella della prossima giornata (aperta) e, per l'admin, quella della
+    # giornata in corso già chiusa (le sue modifiche valgono anche per quella)
+    da_vedere = []
     g = prossima_giornata(s)
-    p = db.panchina(s, g["numero"], team_id) if g else None
-    if p:
+    if g:
+        da_vedere.append((g, False))
+    if admin:
+        gc = giornata_in_corso(s)
+        if gc and db.stato_giornata(s, gc["numero"])["chiusa"] and (not g or gc["numero"] != g["numero"]):
+            da_vedere.append((gc, True))
+    for gg, chiusa in da_vedere:
+        p = db.panchina(s, gg["numero"], team_id)
+        if not p:
+            continue
         in_panca = {r["giocatore_id"] for r in p["righe"]}
         for ruolo, gid in q.items():
-            if gid in in_panca:
-                out.append(f"{roster.get(gid, {}).get('nome_common', gid)} è titolare ({ruolo}) e anche in panchina: se vuoi aggiorna il quintetto ({FAVORE}), altrimenti se ne occupa un admin")
+            if gid not in in_panca:
+                continue
+            nome = roster.get(gid, {}).get("nome_common", gid)
+            if breve:
+                out.append(f"{nome} titolare ({ruolo}) e in panchina G{gg['numero']}")
+            elif not admin:
+                out.append(f"{nome} è titolare ({ruolo}) e anche in panchina: se vuoi aggiorna il quintetto ({FAVORE}), "
+                           f"altrimenti se ne occupa un admin")
+            elif not chiusa:
+                out.append(f"{nome} è titolare ({ruolo}) e anche nella panchina della giornata {gg['numero']}: avvisa "
+                           f"il GM di togliere {nome} dalla panchina e rimandarla entro la scadenza ({ora(gg['prima_partita'])}). "
+                           f"Se non lo fa, nel calcolo {nome} conta da titolare e in panchina gli altri scalano")
+            else:
+                out.append(f"{nome} è titolare ({ruolo}) e anche nella panchina della giornata {gg['numero']}, già "
+                           f"iniziata: la panchina non si cambia più, è un errore del GM. Nel calcolo {nome} conta da "
+                           f"titolare e in panchina gli altri scalano; l'eventuale penalità la decidono gli admin")
     return out
 
 
@@ -152,6 +180,7 @@ def _tastiera(team_id: str, g: dict | None, admin: bool = False) -> K:
             fatto = team_id in db.controlli(config.stagione(), gc["numero"])
             tasti.append([B(f"↩️ Togli controllata G{gc['numero']}" if fatto else f"☑️ Segna controllata G{gc['numero']}",
                             callback_data=f"q:ck:{team_id}:{gc['numero']}")])
+    tasti.append([B("✖️ Chiudi", callback_data=f"q:x:{team_id}")])
     return K(tasti)
 
 
@@ -160,7 +189,7 @@ def _testo_editor(team_id: str, g: dict | None, admin: bool = False) -> str:
     if g:
         t.append(f"Giornata {g['numero']} · scadenza {ora(g['prima_partita'])}")
     t += ["", testo_quintetto(team_id, g)]
-    inc = incompatibilita(team_id)
+    inc = incompatibilita(team_id, admin=admin)
     if inc:
         t += ["", "⚠️ " + "\n⚠️ ".join(e(x) for x in inc)]
     if g:
@@ -237,6 +266,14 @@ async def cb_quintetto(update: Update, context: ContextTypes.DEFAULT_TYPE):
                        oggetto=f"quintetto G{n}", dopo="confermato")
             await q.answer("Confermato")
             await log(context.bot, f"✅ Quintetto G{n} {e(team['nome'])} confermato da {chi(update)}" + (" (admin)" if admin else ""))
+            # dopo la conferma il menu si chiude (Luca, 19/10): resta il riepilogo, e come cambiarlo
+            await q.edit_message_text(
+                f"✅ <b>Quintetto confermato per la giornata {n}</b>" + (f" ({e(team['nome'])}, da admin)" if admin else "")
+                + f"\n\n{testo_quintetto(team_id, gg)}\n\n"
+                + (f"Per cambiarlo: /quintetto_admin {e(team['nome'])}." if admin else
+                   f"Puoi cambiarlo in qualsiasi momento con /quintetto (per la giornata {n} fino a {ora(gg['prima_partita'])})."),
+                parse_mode="HTML")
+            return
         else:
             await q.answer()
         g = gg
@@ -282,6 +319,12 @@ async def cb_quintetto(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.answer("Fatto")
         await log(context.bot, f"✏️ Quintetto {e(team['nome'])}: {ruolo} {e(roster[gid]['nome_common'])} ({chi(update)}"
                                + (", admin" if admin else "") + f"){extra}")
+    elif azione == "x":
+        await q.answer()
+        await q.edit_message_text(_testo_editor(team_id, g, admin)
+                                  + ("\n\n<i>Per riaprirlo: /quintetto_admin " + e(team["nome"]) + "</i>" if admin
+                                     else "\n\n<i>Per riaprirlo: /quintetto</i>"), parse_mode="HTML")
+        return
     else:
         await q.answer()
     await q.edit_message_text(_testo_editor(team_id, g, admin), parse_mode="HTML", reply_markup=_tastiera(team_id, g, admin))
@@ -428,7 +471,7 @@ def testo_stato(g: dict) -> str:
         c = conf.get(t["id"])
         stato_q = "✅" if c and c["stato"] == "confermato" else "✏️" if c else "—"
         p = panche.get(t["id"])
-        inc = incompatibilita(t["id"])
+        inc = incompatibilita(t["id"], breve=True)
         righe.append(f"{stato_q} quintetto · {'🪑' if p else '❌'} panchina"
                      + ((" · ☑️" if t["id"] in ctrl else " · ⬜") if chiusa else "") + f" · {e(t['nome'])}"
                      + (f" ⚠️ {e('; '.join(inc))}" if inc else ""))
@@ -443,6 +486,34 @@ def testo_stato(g: dict) -> str:
     if senza_panca:
         righe += [f"<b>Panchine mancanti ({len(senza_panca)})</b>: {e(', '.join(senza_panca))}"]
     return "\n".join(righe)
+
+
+def md_stato(g: dict) -> str:
+    """/stato in Markdown (v24): la stessa situazione in una tabella, più leggibile del messaggio."""
+    s = config.stagione()
+    conf, panche = db.conferme(s, g["numero"]), db.panchine(s, g["numero"])
+    chiusa = db.stato_giornata(s, g["numero"])["chiusa"]
+    ctrl = db.controlli(s, g["numero"]) if chiusa else {}
+    md = lambda x: str(x if x is not None else "").replace("|", "\\|").replace("\n", " ")
+    righe = [f"# Stato della giornata {g['numero']}", "",
+             f"Scadenza: {ora(g['prima_partita'])} · {'chiusa (formazioni congelate)' if chiusa else 'aperta'} · "
+             f"estratto il {adesso().astimezone(ROMA):%d/%m/%Y %H:%M}", "",
+             "| Squadra | Quintetto | Panchina | " + ("Formazione | " if chiusa else "") + "Problemi |",
+             "|---|---|---|" + ("---|" if chiusa else "") + "---|"]
+    for t in config.squadre():
+        c = conf.get(t["id"])
+        p = panche.get(t["id"])
+        stato_q = "✅ confermato" if c and c["stato"] == "confermato" else "✏️ modificato" if c else "— da controllare"
+        panca = ("❌ non mandata" if not p else ("⏰ in ritardo" if p.get("in_ritardo") else "🪑 mandata")
+                 + (f" ({ora(p.get('inviata'))})" if p.get("inviata") else ""))
+        cella_c = ""
+        if chiusa:
+            x = ctrl.get(t["id"])
+            cella_c = (f"☑️ {md(x.get('da_nome') or '?')}" if x else "⬜ da controllare") + " | "
+        righe.append(f"| {md(t['nome'])} | {stato_q} | {md(panca)} | {cella_c}{md('; '.join(incompatibilita(t['id'], breve=True)))} |")
+    righe += ["", f"Quintetti non confermati: {sum(1 for t in config.squadre() if t['id'] not in conf)} · "
+                  f"panchine mancanti: {sum(1 for t in config.squadre() if t['id'] not in panche)}"]
+    return "\n".join(righe) + "\n"
 
 
 def testo_quintetti(n: int | None = None) -> str:
@@ -564,6 +635,11 @@ async def cmd_stato(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     from shared.messaggi import manda_lungo
     await manda_lungo(context.bot, update.effective_chat.id, testo_stato(g), f"stato-G{g['numero']}")
+    import io
+    await context.bot.send_document(chat_id=update.effective_chat.id,                 # la tabella (v24)
+                                    document=io.BytesIO(md_stato(g).encode("utf-8")),
+                                    filename=f"stato-G{g['numero']}-{adesso().astimezone(ROMA):%Y%m%d-%H%M}.md",
+                                    caption=f"📋 Stato della giornata {g['numero']} in tabella")
 
 
 # ── job: promemoria, riepilogo, chiusura ───────────────────────────────────────
@@ -575,7 +651,8 @@ def promemoria(t: dict, g: dict) -> tuple[str, K]:
     inc = incompatibilita(t["id"])
     if inc:
         testo += "\n\n⚠️ " + "\n⚠️ ".join(e(x) for x in inc)
-    testo += (f"\n\nVa bene così o vuoi cambiarlo? Confermarlo o aggiornarlo qui {FAVORE}.\n"
+    testo += (f"\n\nVa bene così o vuoi cambiarlo? Confermarlo o aggiornarlo qui {FAVORE}. "
+               "Puoi cambiarlo in qualsiasi momento con /quintetto, anche dopo averlo confermato.\n"
                "La panchina invece sì: mandamela qui, 5 giocatori, uno per riga.")
     tasti = K([[B("✅ Confermo", callback_data=f"q:ok:{t['id']}:{g['numero']}"),
                 B("✏️ Modifico", callback_data=f"q:mod:{t['id']}:{g['numero']}")]])

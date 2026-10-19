@@ -43,7 +43,9 @@ Il ruolo di ogni titolare è quello di roster: un giocatore scritto in un ruolo 
 - 🪑 panchina mandata · ❌ mancante;
 - ⚠️ incompatibilità (titolare non più in squadra o in un altro ruolo, anche in panchina, ruolo vuoto).
 
-`/stato` (o `/stato N`) lo mostra quando vuoi.
+`/stato` (o `/stato N`) lo mostra quando vuoi: il messaggio e, sotto, lo stesso in un file Markdown con la tabella (squadra, quintetto, panchina, formazione controllata, problemi), più comodo da leggere.
+
+**Titolare anche in panchina, nell'editor di `/quintetto_admin`.** Il bot ti dice cosa fare: se la giornata della panchina non è ancora iniziata, avvisa il GM di togliere il giocatore dalla panchina e rimandarla entro la scadenza; se è già iniziata la panchina non si cambia più ed è un errore del GM (nel calcolo il giocatore conta da titolare e in panchina gli altri scalano; l'eventuale penalità la decidete voi).
 
 **`/report_formazioni`** (o `/report_formazioni N`) manda un file Markdown con quintetti e panchine di tutte le squadre per la prossima giornata (o la N; quella in corso se non ce n'è una aperta), da usare prima della scadenza per sollecitare i GM. Prima della scadenza mostra i quintetti di adesso, a giornata chiusa le formazioni congelate. In cima: panchine mancanti, quintetti non confermati e una riga per squadra con l'avversaria e quanti titolari e panchinari hanno problemi. Poi, squadra per squadra, ogni giocatore con squadra NBA, partite della giornata, stato degli infortunati (ultimo snapshot ESPN) e le note che contano per il calcolo: posto vuoto, panchina non mandata, Out/Doubtful/Questionable, squadra NBA senza partite (media), senza id ESPN (0 punti), non più in squadra, ruolo cambiato, titolare anche in panchina, panchinario non abbinato, panchina di lunghezza sbagliata. Non cambia niente.
 
@@ -76,7 +78,7 @@ Stessa anteprima e stessi bottoni del GM; sul canale, in fondo al messaggio, c'�
 
 La panchina è sempre di 5 giocatori: con meno righe il bot non la prende, il builder pubblica solo al quinto.
 
-Una panchina che arriva dopo la scadenza vale per la giornata successiva: per quella appena chiusa decidono gli admin.
+Durante una giornata in corso il bot non accetta panchine, né dai GM né con `/panchina_admin SQUADRA` (senza GN): dalla scadenza fino alle 6 di mattina del giorno dopo l'ultimo giorno NBA della giornata, cioè di quello in cui comincia la successiva. Prima una panchina arrivata a giornata iniziata valeva in silenzio per la giornata dopo. Per quella in corso si corregge con `/panchina_admin SQUADRA GN`.
 
 **Correggere la panchina di una giornata già chiusa** (per il calcolo): `/panchina_admin SQUADRA G5` e sotto le righe (o senza righe, col builder). Si pubblica anche a scadenza passata (sul canale si aggiorna il messaggio), i ruoli dei panchinari si congelano di nuovo, e il bot ricorda di lanciare `/ricalcola 5` su loucabot.
 

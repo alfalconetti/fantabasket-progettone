@@ -2,17 +2,20 @@
 /palette — Personalizzazione colori roster/assets per il proprio team.
 
 Flusso:
-  /palette → keyboard con campi colore
-  Premi campo → chiedi hex
-  Mandi hex → anteprima PNG
-  Conferma → salva in teams.json
-  Salva tutto → scrive tutti i campi confermati
+  /palette → un bottone per ogni colore (col valore di adesso, o «automatico»)
+  Premi un colore → scrivi l'hex (#1A237E, 1A237E, #abc) oppure ♻️ Automatico, o ← Indietro
+  → anteprima (roster, o assets per pick e diritti) → ✅ Usa questo / 🔄 Un altro / ← Indietro
+  💾 Salva scrive tutti i colori scelti in teams.json, 👁 Anteprima mostra roster e assets insieme
+
+Contrasto (v6.1.0): qualsiasi colore si scelga, il testo sopra diventa chiaro o scuro da solo
+(roster.input_colori), comprese intestazione, riga dei titoli e anni delle pick, che prima erano
+sempre bianchi (illeggibili su un'intestazione chiara). «Automatico» = il colore che il template
+ricava da quello dell'intestazione (prima il menu mostrava valori di default che non erano quelli
+usati davvero).
 """
-import json
 import logging
 import os
 import re
-import tempfile
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -20,11 +23,11 @@ from telegram.ext import (
     MessageHandler, ConversationHandler, filters,
 )
 
-import database as db
 import settings
 import teams as tm
 from settings import solo_privato
-from handlers.roster import _genera_roster_png, _genera_assets_png
+from handlers import roster as R
+from handlers.roster import colori_effettivi, _contrasto, DEFAULT_HEADER
 
 logger = logging.getLogger(__name__)
 
@@ -32,298 +35,288 @@ logger = logging.getLogger(__name__)
 PAL_MENU, PAL_ATTENDI_HEX, PAL_ANTEPRIMA = range(30, 33)
 
 CAMPI_COLORE = {
-    "colore_header":   "🎨 Header / sfondo principale",
-    "colore_riga1":    "▦ Riga alternata 1",
-    "colore_riga2":    "▦ Riga alternata 2",
-    "colore_sezione":  "📋 Sfondo sezioni (footer, leggenda)",
-    "colore_pick":     "📦 Sfondo sezione pick (solo assets)",
-    "colore_diritti":  "🔑 Sfondo sezione diritti (solo assets)",
+    "colore_header":   "🎨 Intestazione",
+    "colore_riga1":    "▦ Righe dispari",
+    "colore_riga2":    "▦ Righe pari",
+    "colore_sezione":  "📋 Leggenda e riquadro del cap",
+    "colore_pick":     "📦 Sezione pick (assets)",
+    "colore_diritti":  "🔑 Sezione diritti (assets)",
 }
-
-DEFAULTS = {
-    "colore_header":  "#1A237E",
-    "colore_riga1":   "#C5CAE9",
-    "colore_riga2":   "#FFFFFF",
-    "colore_sezione": "#E8EAF6",
-    "colore_pick":    "#E8EAF6",
-    "colore_diritti": "#E8EAF6",
-}
-
-_HEX_RE = re.compile(r'^#[0-9A-Fa-f]{6}$')
-
-# Campi per cui un colore scuro è problematico (testo scuro sopra)
-_CAMPI_LEGGIBILITA = {"colore_riga1", "colore_riga2", "colore_sezione", "colore_pick", "colore_diritti"}
-_SOGLIA_LUMINANZA  = 0.15  # sotto questa soglia il colore è considerato troppo scuro
+_EFFETTIVO = {"colore_header": "header", "colore_riga1": "riga1", "colore_riga2": "riga2",
+              "colore_sezione": "sezione", "colore_pick": "pick", "colore_diritti": "diritti"}
+_SOLO_ASSETS = {"colore_pick", "colore_diritti"}
+AUTO = ""          # valore pendente che vuol dire «torna automatico» (il campo si toglie da teams.json)
 
 
-def _luminanza(hex_color: str) -> float:
-    """Luminanza relativa WCAG (0=nero, 1=bianco)."""
-    hex_color = hex_color.lstrip("#")
-    r, g, b = (int(hex_color[i:i+2], 16) / 255 for i in (0, 2, 4))
-    def linearize(c):
-        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
-    return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b)
+def normalizza_hex(testo: str) -> str | None:
+    """'#1a237e', '1A237E', '#abc' → '#1A237E' / '#AABBCC'; None se non è un colore."""
+    t = (testo or "").strip().lstrip("#")
+    if re.fullmatch(r"[0-9A-Fa-f]{3}", t):
+        t = "".join(c * 2 for c in t)
+    if not re.fullmatch(r"[0-9A-Fa-f]{6}", t):
+        return None
+    return "#" + t.upper()
 
 
-def _warning_colore(campo: str, hex_color: str) -> str:
-    """Restituisce warning se il colore è troppo scuro, stringa vuota altrimenti."""
-    if campo in _CAMPI_LEGGIBILITA and _luminanza(hex_color) < _SOGLIA_LUMINANZA:
-        return "\n⚠️ <b>Attenzione:</b> questo colore è molto scuro — il testo potrebbe essere illeggibile."
-    return ""
+def _team_con(team: dict, pendenti: dict) -> dict:
+    """La squadra coi colori pendenti applicati («automatico» = campo tolto)."""
+    t = dict(team)
+    for k, v in pendenti.items():
+        if v == AUTO:
+            t.pop(k, None)
+        else:
+            t[k] = v
+    return t
 
 
-def _get_palette(team: dict) -> dict:
-    """Ritorna la palette corrente del team (con defaults)."""
-    return {k: team.get(k) or DEFAULTS[k] for k in CAMPI_COLORE}
+def _valore(team: dict, campo: str) -> str:
+    """'#1A237E' se scelto, 'automatico (#C5CAE9)' se no."""
+    if campo == "colore_header":
+        return team.get(campo) or f"automatico ({DEFAULT_HEADER})"
+    if team.get(campo):
+        return team[campo]
+    return f"automatico ({colori_effettivi(team)[_EFFETTIVO[campo]].upper()})"
+
+
+def _note(team: dict) -> str:
+    """Avvisi sulla palette (il testo è sempre leggibile: si adatta da solo)."""
+    c = colori_effettivi(team)
+    note = []
+    if _contrasto(c["riga1"], c["riga2"]) < 1.12:
+        note.append("ℹ️ Le righe pari e dispari quasi non si distinguono.")
+    return ("\n" + "\n".join(note)) if note else ""
 
 
 def _kb_palette(team: dict, pendenti: dict) -> InlineKeyboardMarkup:
-    """Keyboard con tutti i campi colore. Mostra ✏️ se modificato ma non salvato."""
-    palette = _get_palette(team)
-    palette.update(pendenti)
+    t = _team_con(team, pendenti)
     bottoni = []
     for campo, label in CAMPI_COLORE.items():
-        valore = palette[campo]
         mod = " ✏️" if campo in pendenti else ""
-        bottoni.append([InlineKeyboardButton(
-            f"{label}: {valore}{mod}",
-            callback_data=f"pal_campo:{campo}"
-        )])
+        bottoni.append([InlineKeyboardButton(f"{label}: {_valore(t, campo)}{mod}", callback_data=f"pal_campo:{campo}")])
     bottoni.append([
         InlineKeyboardButton("👁 Anteprima", callback_data="pal_anteprima"),
-        InlineKeyboardButton("💾 Salva",     callback_data="pal_salva"),
+        InlineKeyboardButton("💾 Salva" + (f" ({len(pendenti)})" if pendenti else ""), callback_data="pal_salva"),
     ])
-    bottoni.append([InlineKeyboardButton("❌ Annulla", callback_data="pal_annulla")])
+    bottoni.append([InlineKeyboardButton("✖️ Chiudi senza salvare", callback_data="pal_annulla")])
     return InlineKeyboardMarkup(bottoni)
+
+
+def _testo_menu(team: dict, pendenti: dict) -> str:
+    return (f"🎨 <b>Palette colori — {team['nome']}</b>\n\n"
+            "Tocca un colore per cambiarlo. Il testo sopra ogni colore diventa chiaro o scuro da solo, "
+            "così resta sempre leggibile. «Automatico» = ricavato dal colore dell'intestazione."
+            + (f"\n\n✏️ {len(pendenti)} modifiche da salvare." if pendenti else "")
+            + _note(_team_con(team, pendenti)))
+
+
+def _kb_attendi(campo: str) -> InlineKeyboardMarkup:
+    righe = [] if campo == "colore_header" else [[InlineKeyboardButton("♻️ Automatico", callback_data=f"pal_auto:{campo}")]]
+    return InlineKeyboardMarkup(righe + [[InlineKeyboardButton("← Indietro", callback_data="pal_back")]])
 
 
 def _kb_conferma_campo(campo: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([[
-        InlineKeyboardButton("✅ Conferma", callback_data=f"pal_ok:{campo}"),
-        InlineKeyboardButton("🔄 Riprova",  callback_data=f"pal_campo:{campo}"),
-        InlineKeyboardButton("← Indietro", callback_data="pal_back"),
-    ]])
+        InlineKeyboardButton("✅ Usa questo", callback_data=f"pal_ok:{campo}"),
+        InlineKeyboardButton("🔄 Un altro",   callback_data=f"pal_campo:{campo}"),
+    ], [InlineKeyboardButton("← Indietro", callback_data="pal_back")]])
+
+
+def _stato(context) -> tuple[dict | None, dict]:
+    team = tm.get_team_by_id(context.user_data.get("pal_team_id", ""))
+    return team, context.user_data.setdefault("pal_pendenti", {})
+
+
+async def _menu(query_o_msg, context, testo_extra: str = "", nuovo: bool = False) -> int:
+    team, pendenti = _stato(context)
+    if not team:
+        return ConversationHandler.END
+    testo = (testo_extra + "\n\n" if testo_extra else "") + _testo_menu(team, pendenti)
+    if nuovo or not hasattr(query_o_msg, "edit_message_text"):
+        msg = query_o_msg.message if hasattr(query_o_msg, "message") and query_o_msg.message else query_o_msg
+        await msg.reply_text(testo, parse_mode="HTML", reply_markup=_kb_palette(team, pendenti))
+    else:
+        await query_o_msg.edit_message_text(testo, parse_mode="HTML", reply_markup=_kb_palette(team, pendenti))
+    return PAL_MENU
+
+
+async def _manda_png(msg, team_preview: dict, assets: bool, caption: str, kb=None):
+    png_path = None
+    try:
+        stagione = settings.stagione_corrente()
+        gen = R._genera_assets_png if assets else R._genera_roster_png
+        png_path = await gen(team_preview, stagione)
+        with open(png_path, "rb") as f:
+            await msg.reply_photo(photo=f, caption=caption, parse_mode="HTML", reply_markup=kb)
+    finally:
+        if png_path and os.path.exists(png_path):
+            os.unlink(png_path)
 
 
 @solo_privato
 async def cmd_palette(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    user = update.effective_user
-    team = tm.get_team_by_gm(user.id)
+    team = tm.get_team_by_gm(update.effective_user.id)
     if not team:
         await update.effective_message.reply_text("⛔ Non sei registrato come GM.")
         return ConversationHandler.END
-
     context.user_data["pal_team_id"] = team["id"]
     context.user_data["pal_pendenti"] = {}
-
-    await update.effective_message.reply_text(
-        f"🎨 <b>Palette colori — {team['nome']}</b>\n\n"
-        "Seleziona un campo per modificarlo.",
-        parse_mode="HTML",
-        reply_markup=_kb_palette(team, {}),
-    )
-    return PAL_MENU
+    return await _menu(update.effective_message, context)
 
 
 async def cb_pal_campo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
     campo = query.data.split(":")[1]
+    if campo not in CAMPI_COLORE:
+        return PAL_MENU
+    team, pendenti = _stato(context)
+    if not team:
+        return ConversationHandler.END
     context.user_data["pal_campo_corrente"] = campo
-    label = CAMPI_COLORE.get(campo, campo)
-    team_id = context.user_data["pal_team_id"]
-    team = tm.get_team_by_id(team_id)
-    pendenti = context.user_data.get("pal_pendenti", {})
-    palette = _get_palette(team)
-    palette.update(pendenti)
-    attuale = palette[campo]
-    await query.edit_message_text(
-        f"🎨 <b>{label}</b>\n\nValore attuale: <code>{attuale}</code>\n\n"
-        "Invia il nuovo colore in formato hex (es. <code>#1A237E</code>):",
-        parse_mode="HTML",
-    )
+    testo = (f"🎨 <b>{CAMPI_COLORE[campo]}</b>\n\nAdesso: <code>{_valore(_team_con(team, pendenti), campo)}</code>\n\n"
+             "Scrivi il nuovo colore in esadecimale, per esempio <code>#1A237E</code> (va bene anche senza #)."
+             + ("\nOppure ♻️ Automatico per tornare al colore ricavato dall'intestazione." if campo != "colore_header" else ""))
+    if query.message and query.message.photo:          # dall'anteprima: messaggio nuovo, la foto resta
+        try:
+            await query.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        await query.message.reply_text(testo, parse_mode="HTML", reply_markup=_kb_attendi(campo))
+    else:
+        await query.edit_message_text(testo, parse_mode="HTML", reply_markup=_kb_attendi(campo))
     return PAL_ATTENDI_HEX
 
 
 async def msg_pal_hex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    testo = (update.effective_message.text or "").strip()
-    if not _HEX_RE.match(testo):
+    campo = context.user_data.get("pal_campo_corrente")
+    team, pendenti = _stato(context)
+    if not campo or not team:
+        return ConversationHandler.END
+    hex_val = normalizza_hex(update.effective_message.text)
+    if not hex_val:
         await update.effective_message.reply_text(
-            "❌ Formato non valido. Usa un colore hex come <code>#1A237E</code>.",
-            parse_mode="HTML",
-        )
+            "❌ Non è un colore. Scrivilo in esadecimale, per esempio <code>#1A237E</code>.",
+            parse_mode="HTML", reply_markup=_kb_attendi(campo))
         return PAL_ATTENDI_HEX
-
-    campo = context.user_data["pal_campo_corrente"]
-    context.user_data["pal_hex_candidato"] = testo
-
-    warning = _warning_colore(campo, testo)
-
-    # Genera anteprima PNG con il nuovo colore
-    team_id = context.user_data["pal_team_id"]
-    team = tm.get_team_by_id(team_id)
-    pendenti = {**context.user_data.get("pal_pendenti", {}), campo: testo}
-    team_preview = {**team, **pendenti}
-
-    await update.effective_message.reply_text("⏳ Generazione anteprima...")
-    png_path = None
+    context.user_data["pal_hex_candidato"] = hex_val
+    prova = _team_con(team, {**pendenti, campo: hex_val})
+    await update.effective_message.reply_text("⏳ Preparo l'anteprima…")
     try:
-        stagione = settings.stagione_corrente()
-        png_path = await _genera_roster_png(team_preview, stagione)
-        with open(png_path, "rb") as f:
-            await update.effective_message.reply_photo(
-                photo=f,
-                caption=f"👁 Anteprima con <b>{CAMPI_COLORE[campo]}</b> = <code>{testo}</code>{warning}",
-                parse_mode="HTML",
-                reply_markup=_kb_conferma_campo(campo),
-            )
+        await _manda_png(update.effective_message, prova, campo in _SOLO_ASSETS,
+                         f"👁 <b>{CAMPI_COLORE[campo]}</b> = <code>{hex_val}</code>{_note(prova)}",
+                         _kb_conferma_campo(campo))
     except Exception as e:
-        await update.effective_message.reply_text(f"❌ Errore anteprima: {e}")
+        logger.warning("Anteprima palette: %s", e)
+        await update.effective_message.reply_text(f"❌ Anteprima non riuscita: {e}", reply_markup=_kb_attendi(campo))
         return PAL_ATTENDI_HEX
-    finally:
-        if png_path and os.path.exists(png_path):
-            os.unlink(png_path)
-
     return PAL_ANTEPRIMA
 
 
-async def cb_pal_riprova(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Riprova da PAL_ANTEPRIMA: manda nuovo messaggio e disabilita bottoni foto."""
+async def cb_pal_auto(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
     campo = query.data.split(":")[1]
-    context.user_data["pal_campo_corrente"] = campo
-    label = CAMPI_COLORE.get(campo, campo)
-    team_id = context.user_data["pal_team_id"]
-    team = tm.get_team_by_id(team_id)
-    pendenti = context.user_data.get("pal_pendenti", {})
-    palette = _get_palette(team)
-    palette.update(pendenti)
-    attuale = palette[campo]
-    try:
-        await query.edit_message_reply_markup(reply_markup=None)
-    except Exception:
-        pass
-    await query.message.reply_text(
-        f"🎨 <b>{label}</b>\n\nValore attuale: <code>{attuale}</code>\n\n"
-        "Invia il nuovo colore in formato hex (es. <code>#1A237E</code>):",
-        parse_mode="HTML",
-    )
-    return PAL_ATTENDI_HEX
+    if campo in CAMPI_COLORE and campo != "colore_header":
+        _, pendenti = _stato(context)
+        pendenti[campo] = AUTO
+    return await _menu(query, context, f"♻️ <b>{CAMPI_COLORE.get(campo, campo)}</b>: automatico (non ancora salvato).")
 
 
 async def cb_pal_ok(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
     campo = query.data.split(":")[1]
-    hex_val = context.user_data["pal_hex_candidato"]
-    context.user_data.setdefault("pal_pendenti", {})[campo] = hex_val
-
-    team_id = context.user_data["pal_team_id"]
-    team = tm.get_team_by_id(team_id)
-    pendenti = context.user_data["pal_pendenti"]
-
+    hex_val = context.user_data.get("pal_hex_candidato")
+    if campo not in CAMPI_COLORE or not hex_val:
+        return await _menu(query, context, nuovo=True)
+    _, pendenti = _stato(context)
+    pendenti[campo] = hex_val
     try:
         await query.edit_message_reply_markup(reply_markup=None)
     except Exception:
         pass
-    await query.message.reply_text(
-        f"✅ <code>{campo}</code> → <code>{hex_val}</code> (non ancora salvato)\n\n"
-        "Continua a modificare o premi 💾 Salva.",
-        parse_mode="HTML",
-        reply_markup=_kb_palette(team, pendenti),
-    )
-    return PAL_MENU
+    return await _menu(query, context, f"✅ <b>{CAMPI_COLORE[campo]}</b> → <code>{hex_val}</code> (non ancora salvato).",
+                       nuovo=True)
 
 
 async def cb_pal_back(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-    team_id = context.user_data["pal_team_id"]
-    team = tm.get_team_by_id(team_id)
-    pendenti = context.user_data.get("pal_pendenti", {})
-    try:
-        await query.edit_message_reply_markup(reply_markup=None)
-    except Exception:
-        pass
-    await query.message.reply_text(
-        "🎨 Menu palette:",
-        reply_markup=_kb_palette(team, pendenti),
-    )
-    return PAL_MENU
+    if query.message and query.message.photo:
+        try:
+            await query.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        return await _menu(query, context, nuovo=True)
+    return await _menu(query, context)
 
 
 async def cb_pal_anteprima(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
-    await query.answer("⏳ Generazione anteprima...")
-    team_id = context.user_data["pal_team_id"]
-    team = tm.get_team_by_id(team_id)
-    pendenti = context.user_data.get("pal_pendenti", {})
-    team_preview = {**team, **pendenti}
-    stagione = settings.stagione_corrente()
-    png_path = None
+    await query.answer("⏳ Preparo l'anteprima…")
+    team, pendenti = _stato(context)
+    if not team:
+        return ConversationHandler.END
+    prova = _team_con(team, pendenti)
     try:
-        png_path = await _genera_roster_png(team_preview, stagione)
-        with open(png_path, "rb") as f:
-            await query.message.reply_photo(
-                photo=f,
-                caption="👁 Anteprima palette corrente",
-            )
+        await _manda_png(query.message, prova, False, "👁 Roster con questa palette")
+        await _manda_png(query.message, prova, True, "👁 Assets con questa palette")
     except Exception as e:
-        await query.message.reply_text(f"❌ Errore anteprima: {e}")
-    finally:
-        if png_path and os.path.exists(png_path):
-            os.unlink(png_path)
-    return PAL_MENU
+        await query.message.reply_text(f"❌ Anteprima non riuscita: {e}")
+    return await _menu(query, context, nuovo=True)
 
 
 async def cb_pal_salva(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
-    await query.answer()
-    team_id = context.user_data["pal_team_id"]
-    pendenti = context.user_data.get("pal_pendenti", {})
+    team, pendenti = _stato(context)
+    if not team:
+        await query.answer()
+        return ConversationHandler.END
     if not pendenti:
         await query.answer("Nessuna modifica da salvare.", show_alert=True)
         return PAL_MENU
-
-    teams_path = os.environ.get("TEAMS_PATH", "/config/teams.json")
-    teams_data = json.load(open(teams_path))
-    teams_list = teams_data["teams"] if isinstance(teams_data, dict) else teams_data
-    prima = {}
-    for t in teams_list:
-        if t["id"] == team_id:
-            prima = {k: t.get(k) for k in pendenti}
-            t.update(pendenti)
-            break
-    json.dump(teams_data, open(teams_path, "w"), indent=2, ensure_ascii=False)
+    await query.answer()
+    prima = {k: team.get(k) for k in pendenti}
+    for k, v in pendenti.items():
+        tm.set_campo_team(team["id"], k, v)          # "" = automatico: il campo si toglie
     from handlers.registro import segna
-    await segna(context.bot, query.from_user, "gm", "palette della squadra", squadre=team_id,
-                oggetto=", ".join(pendenti), prima=", ".join(f"{k} {v or '—'}" for k, v in prima.items()),
-                dopo=", ".join(f"{k} {v or '—'}" for k, v in pendenti.items()))
-
+    await segna(context.bot, query.from_user, "gm", "palette della squadra", squadre=team["id"],
+                oggetto=", ".join(CAMPI_COLORE[k] for k in pendenti),
+                prima=", ".join(f"{k} {v or 'automatico'}" for k, v in prima.items()),
+                dopo=", ".join(f"{k} {v or 'automatico'}" for k, v in pendenti.items()))
     context.user_data["pal_pendenti"] = {}
     await query.edit_message_text(
-        f"✅ Palette salvata per <b>{tm.get_team_by_id(team_id)['nome']}</b>.",
+        f"✅ Palette salvata per <b>{team['nome']}</b>: vale da subito per /roster e /assets.",
         parse_mode="HTML",
     )
     return ConversationHandler.END
 
 
+def _pulisci(context):
+    for k in ("pal_team_id", "pal_pendenti", "pal_campo_corrente", "pal_hex_candidato"):
+        context.user_data.pop(k, None)
+
+
 async def cmd_pal_annulla(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handler /annulla e timeout — termina la conversazione palette."""
-    context.user_data.pop("pal_team_id", None)
-    context.user_data.pop("pal_pendenti", None)
-    context.user_data.pop("pal_campo_corrente", None)
-    context.user_data.pop("pal_hex_candidato", None)
+    """/annulla durante la palette: si chiude senza salvare (gli altri comandi funzionano normalmente)."""
+    _pulisci(context)
     if update.effective_message:
-        await update.effective_message.reply_text("❌ Palette annullata, nessuna modifica salvata.")
+        await update.effective_message.reply_text("✖️ Palette chiusa, nessuna modifica salvata.")
     return ConversationHandler.END
 
 
 async def cb_pal_annulla(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-    await query.edit_message_text("❌ Palette annullata, nessuna modifica salvata.")
+    _pulisci(context)
+    try:
+        if query.message and query.message.photo:
+            await query.edit_message_reply_markup(reply_markup=None)
+            await query.message.reply_text("✖️ Palette chiusa, nessuna modifica salvata.")
+        else:
+            await query.edit_message_text("✖️ Palette chiusa, nessuna modifica salvata.")
+    except Exception:
+        pass
     return ConversationHandler.END
 
 
@@ -332,30 +325,31 @@ def get_handlers() -> list:
         entry_points=[CommandHandler("palette", cmd_palette)],
         states={
             PAL_MENU: [
-                CallbackQueryHandler(cb_pal_campo,    pattern=r"^pal_campo:.+$"),
+                CallbackQueryHandler(cb_pal_campo,     pattern=r"^pal_campo:.+$"),
                 CallbackQueryHandler(cb_pal_anteprima, pattern=r"^pal_anteprima$"),
-                CallbackQueryHandler(cb_pal_salva,    pattern=r"^pal_salva$"),
-                CallbackQueryHandler(cb_pal_annulla,  pattern=r"^pal_annulla$"),
+                CallbackQueryHandler(cb_pal_salva,     pattern=r"^pal_salva$"),
             ],
             PAL_ATTENDI_HEX: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, msg_pal_hex),
-                CallbackQueryHandler(cb_pal_campo,    pattern=r"^pal_campo:.+$"),
+                CallbackQueryHandler(cb_pal_auto,  pattern=r"^pal_auto:.+$"),
+                CallbackQueryHandler(cb_pal_back,  pattern=r"^pal_back$"),
+                CallbackQueryHandler(cb_pal_campo, pattern=r"^pal_campo:.+$"),
             ],
             PAL_ANTEPRIMA: [
-                CallbackQueryHandler(cb_pal_ok,      pattern=r"^pal_ok:.+$"),
-                CallbackQueryHandler(cb_pal_riprova, pattern=r"^pal_campo:.+$"),
-                CallbackQueryHandler(cb_pal_back,    pattern=r"^pal_back$"),
+                CallbackQueryHandler(cb_pal_ok,    pattern=r"^pal_ok:.+$"),
+                CallbackQueryHandler(cb_pal_campo, pattern=r"^pal_campo:.+$"),
+                CallbackQueryHandler(cb_pal_back,  pattern=r"^pal_back$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, msg_pal_hex),   # un altro hex senza toccare 🔄
             ],
         },
         fallbacks=[
-            CallbackQueryHandler(cb_pal_annulla,  pattern=r"^pal_annulla$"),
+            CallbackQueryHandler(cb_pal_annulla, pattern=r"^pal_annulla$"),
             CommandHandler("annulla", cmd_pal_annulla),
-            MessageHandler(filters.ALL, cmd_pal_annulla),
         ],
         allow_reentry=True,
         per_user=True,
         per_chat=True,
         per_message=False,
-        conversation_timeout=300,
+        conversation_timeout=600,
     )
     return [conv]

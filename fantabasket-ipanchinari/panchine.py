@@ -27,7 +27,8 @@ import abbina
 import config
 import db
 from shared import regole
-from comune import FAVORE, ROMA, adesso, aperta, chi, e, log, ora, prossima_giornata, stati
+import comune
+from comune import FAVORE, ROMA, adesso, aperta, chi, e, log, ora, prossima_giornata, stati, testo_panchine_bloccate
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +129,9 @@ def crea_bozza(chat_id: int, team_id: str, testo: str, fonte: str = "gm", numero
         if err:
             return None, err
     else:
+        blocco = comune.panchine_bloccate(s)
+        if blocco:
+            return None, testo_panchine_bloccate(blocco)
         g = prossima_giornata(s)
     if not g:
         return None, "Non c'è una giornata aperta: il calendario non è ancora caricato o la stagione è finita."
@@ -313,7 +317,8 @@ async def pubblica(update, context, b: dict):
         db.chiudi_bozza(b["id"])
         await q.answer("La scadenza è passata.", show_alert=True)
         await q.edit_message_text("⏰ La scadenza di questa giornata è passata mentre confermavi: la panchina non è "
-                                  "stata pubblicata. Rimandala: varrà per la giornata successiva; per questa scrivi a un admin.")
+                                  "stata pubblicata. Per questa giornata scrivi a un admin; quella della giornata "
+                                  "successiva si manda dalla mattina dopo l'ultima partita (dalle 6).")
         return
     roster = db.roster(b["team_id"], b["stagione"])
     pb = problemi(b, roster)
@@ -454,6 +459,10 @@ async def apri_builder(msg, chat_id: int, team_id: str, fonte: str = "gm", numer
             await msg.reply_text(f"❌ {err}")
             return
     else:
+        blocco = comune.panchine_bloccate(s)
+        if blocco:
+            await msg.reply_text(testo_panchine_bloccate(blocco))
+            return
         g = prossima_giornata(s)
     if not g:
         await msg.reply_text("Non c'è una giornata aperta.")
@@ -480,11 +489,16 @@ async def cmd_panchina(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not team:
         await update.effective_message.reply_text("Non risulti GM di nessuna squadra.")
         return
-    g = prossima_giornata()
+    blocco = comune.panchine_bloccate()            # giornata in corso: si vede la sua panchina
+    g = blocco or prossima_giornata()
     if not g:
         await update.effective_message.reply_text("Non c'è una giornata aperta.")
         return
     p = db.panchina(config.stagione(), g["numero"], team["id"])
+    if not p and blocco:
+        await update.effective_message.reply_text(f"Per la giornata {g['numero']}, in corso, non hai mandato la panchina.\n\n"
+                                                  + testo_panchine_bloccate(blocco))
+        return
     if not p:
         await update.effective_message.reply_text(
             f"Per la giornata {g['numero']} (scadenza {ora(g['prima_partita'])}) non hai ancora mandato la panchina: "

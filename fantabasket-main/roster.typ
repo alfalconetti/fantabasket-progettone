@@ -6,6 +6,10 @@
 #let colore_riga1  = sys.inputs.at("colore_riga1")
 #let colore_riga2  = sys.inputs.at("colore_riga2")
 #let colore_sez    = sys.inputs.at("colore_sezione")
+#let _ton_hdr     = rgb(sys.inputs.at("text_on_header", default: "#ffffff"))        // testo sull'intestazione
+#let _ton_hdr_m   = rgb(sys.inputs.at("text_on_header_muted", default: "#cccccc"))
+#let _ton_dark    = rgb(sys.inputs.at("text_on_dark", default: "#ffffff"))          // testo sulla riga dei titoli
+#let _ton_dark_m  = rgb(sys.inputs.at("text_on_dark_muted", default: "#cccccc"))
 #let _ton_r1       = rgb(sys.inputs.at("text_on_riga1"))
 #let _ton_r2       = rgb(sys.inputs.at("text_on_riga2"))
 #let _ton_sez      = rgb(sys.inputs.at("text_on_sezione"))
@@ -74,12 +78,12 @@
         image(logo_path, width: 40pt, height: 40pt, fit: "contain")
       } else {
         block(width: 40pt, height: 40pt, fill: c_dark, radius: 4pt)[
-          #align(center + horizon)[#text(6pt, fill: c_subhdr, weight: "bold")[LOGO]]
+          #align(center + horizon)[#text(6pt, fill: _ton_dark_m, weight: "bold")[LOGO]]
         ]
       },
       stack(spacing: 3pt,
-        text(13pt, weight: "bold", fill: white)[#team_nome],
-        text(8pt, fill: c_subhdr)[#team_gm],
+        text(13pt, weight: "bold", fill: _ton_hdr)[#team_nome],
+        text(8pt, fill: _ton_hdr_m)[#team_gm],
       )
     )
   ]
@@ -100,11 +104,11 @@
     if calc.odd(i) { c_row_odd } else { c_row_even }
   },
   // intestazione
-  [#align(center)[#text(6.5pt, weight: "bold", fill: white)[RUOLO]]],
-  [#text(8pt, weight: "bold", fill: white)[GIOCATORE]],
-  [#align(center)[#text(6.5pt, weight: "bold", fill: white)[#fm_label]]],
-  [#align(center)[#text(8pt, weight: "bold", fill: white)[\$]]],
-  [#align(center)[#text(8pt, weight: "bold", fill: white)[Y]]],
+  [#align(center)[#text(6.5pt, weight: "bold", fill: _ton_dark)[RUOLO]]],
+  [#text(8pt, weight: "bold", fill: _ton_dark)[GIOCATORE]],
+  [#align(center)[#text(6.5pt, weight: "bold", fill: _ton_dark)[#fm_label]]],
+  [#align(center)[#text(8pt, weight: "bold", fill: _ton_dark)[\$]]],
+  [#align(center)[#text(8pt, weight: "bold", fill: _ton_dark)[Y]]],
   // giocatori
   ..if extra_g.len() > 0 { (table.hline(y: n_base + 1, stroke: 2pt + c_dark),) } else { () },
   ..giocatori.enumerate().map(((i, g)) => {
@@ -115,10 +119,10 @@
                     else if g.flag == "R3"  { (c_r3,  true) }
                     else if g.flag == "A"   { (c_rfa, true) }
                     else if g.flag == "D"   { (c_10d, true) }
-                    else                     { (black, false) }
+                    else                     { (none, false) }
     let ha_dpe = g.importo_orig != ""
-    let fc_nome = if ha_dpe { c_dpe } else { fc }
     let tc = if calc.odd(i) { _ton_r1 } else { _ton_r2 }
+    let fc_nome = if ha_dpe { c_dpe } else if fc == none { tc } else { fc }   // nomi normali: testo leggibile sulla riga
     let cella_importo = if is_vuoto {
       [#align(center)[]]
     } else if ha_dpe {

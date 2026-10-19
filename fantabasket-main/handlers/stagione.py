@@ -637,12 +637,21 @@ def _cb(admin_team: str | None, *parti) -> str:
     return ":".join(["sga", admin_team, *parti] if admin_team else ["sg", *parti])
 
 
+def _navigazione(admin_team: str | None, rfa: bool) -> list:
+    """Riga in fondo (v6.1.0): il GM torna al menu, l'admin all'elenco delle squadre."""
+    if admin_team:
+        return [InlineKeyboardButton("← Squadre", callback_data=f"sga:scegli:{'rfa' if rfa else 'rr'}"),
+                InlineKeyboardButton("← Menu admin", callback_data="adm:home")]
+    return [InlineKeyboardButton("🏠 Menu", callback_data="menu:home"),
+            InlineKeyboardButton("✖️ Chiudi", callback_data="nav:x")]
+
+
 def _testo_rinnovi(team: dict, admin_team: str | None) -> tuple[str, InlineKeyboardMarkup]:
     cand = candidati_rinnovo_rookie(team["id"])
     if not cand:
         testo = (f"🔁 <b>Rinnovi rookie — {html.escape(team['nome'])}</b>\n\n"
                  f"Nessun rookie a fine II anno da rinnovare.")
-        return testo, None
+        return testo, InlineKeyboardMarkup([_navigazione(admin_team, False)])
     righe = [f"🔁 <b>Rinnovi rookie — {html.escape(team['nome'])}</b>",
              "<i>Rookie a fine II anno (x0). Se non li rinnovi puoi dichiararli RFA, altrimenti "
              "all'inizio della FA tornano free agent. Rinnovi illimitati, non contano nei 2.</i>", ""]
@@ -652,6 +661,7 @@ def _testo_rinnovi(team: dict, admin_team: str | None) -> tuple[str, InlineKeybo
                      f"<b>{c['importo_nuovo']}x2</b> ({html.escape(c['spiegazione'])})")
         kb.append([InlineKeyboardButton(f"{c['nome_common']} → {c['importo_nuovo']}x2",
                                         callback_data=_cb(admin_team, "rrg", str(c["giocatore_id"])))])
+    kb.append(_navigazione(admin_team, False))
     return "\n".join(righe), InlineKeyboardMarkup(kb)
 
 
@@ -672,7 +682,8 @@ def _testo_rfa(team: dict, admin_team: str | None) -> tuple[str, InlineKeyboardM
         kb.append([InlineKeyboardButton("❌ Nessun RFA", callback_data=_cb(admin_team, "rfano"))])
     if not cand:
         righe.append("\nNessun giocatore con il contratto finito.")
-    return "\n".join(righe), (InlineKeyboardMarkup(kb) if kb else None)
+    kb.append(_navigazione(admin_team, True))
+    return "\n".join(righe), InlineKeyboardMarkup(kb)
 
 
 async def _annuncia(bot, testo: str):

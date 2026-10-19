@@ -250,8 +250,9 @@ def _vista_team(team_id: str, admin: bool):
         else:
             label = f"{g['ruolo']} · {g['nome']}"
         kb.append([InlineKeyboardButton(label, callback_data=f"{p}:g:{team_id}:{g['gid']}")])
-    kb.append([InlineKeyboardButton("← Squadre", callback_data="cradm:teams") if admin
-               else InlineKeyboardButton("✖️ Chiudi", callback_data="cr:close")])
+    kb.append([InlineKeyboardButton("← Squadre", callback_data="cradm:teams")] if admin
+              else [InlineKeyboardButton("🏠 Menu", callback_data="menu:home"),
+                    InlineKeyboardButton("✖️ Chiudi", callback_data="cr:close")])
     return testo, InlineKeyboardMarkup(kb)
 
 

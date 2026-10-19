@@ -47,12 +47,43 @@ _ANNULLA_HINT = "\n<i>Per annullare: /annulla_trade</i>"
 
 # ── helpers UI ─────────────────────────────────────────────────────────────────
 
+ANNULLA_TRADE = "trade_x"
+
+
+def _btn_annulla() -> InlineKeyboardButton:
+    """✖️ Annulla nelle schermate del builder (v6.1.0): chiude la conversazione, la bozza a metà
+    si annulla (come /annulla_trade). Gestito da cb_annulla_trade, nei fallback dei builder."""
+    return InlineKeyboardButton("✖️ Annulla", callback_data=ANNULLA_TRADE)
+
+
+async def cb_annulla_trade(update, context) -> int:
+    from telegram.ext import ConversationHandler
+    q = update.callback_query
+    await q.answer()
+    for chiave in ("trade_id", "adm_trade_id"):
+        tid = context.user_data.pop(chiave, None)
+        if tid:
+            db.cambia_stato_trade(tid, ("bozza",), "annullata")   # solo una bozza, mai una trade inviata
+    for chiave in ("trade_squadre_ordine", "trade_squadra_corrente_idx", "trade_squadre_corrente_idx",
+                   "adm_trade_squadre", "adm_trade_squadre_left"):
+        context.user_data.pop(chiave, None)
+    try:
+        if q.data.endswith(":menu"):                   # ← Trade: si esce dal builder e si torna al menu Trade
+            from handlers.menu import _TESTO_TRADE, _kb_menu_trade
+            await q.edit_message_text(_TESTO_TRADE, parse_mode="HTML", reply_markup=_kb_menu_trade())
+        else:
+            await q.edit_message_text("✖️ Trade annullata.")
+    except Exception:
+        pass
+    return ConversationHandler.END
+
+
 def _kb_n_squadre() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([[
         InlineKeyboardButton("2 squadre", callback_data="trade_n:2"),
         InlineKeyboardButton("3 squadre", callback_data="trade_n:3"),
         InlineKeyboardButton("4 squadre", callback_data="trade_n:4"),
-    ]])
+    ], [InlineKeyboardButton("← Trade", callback_data=ANNULLA_TRADE + ":menu"), _btn_annulla()]])
 
 
 def _kb_squadre(escludi: list[str]) -> InlineKeyboardMarkup:
@@ -62,6 +93,7 @@ def _kb_squadre(escludi: list[str]) -> InlineKeyboardMarkup:
         for t in tutti if t["id"] not in escludi
     ]
     righe = [bottoni[i:i+2] for i in range(0, len(bottoni), 2)]
+    righe.append([_btn_annulla()])
     return InlineKeyboardMarkup(righe)
 
 
@@ -73,6 +105,7 @@ def _kb_asset_menu(trade_id: int, team_id: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton("📋 Diritti",   callback_data=f"trade_am:d:{trade_id}:{team_id}"),
         ],
         [InlineKeyboardButton("✅ Conferma squadra", callback_data=f"trade_am:ok:{trade_id}:{team_id}")],
+        [_btn_annulla()],
     ])
 
 

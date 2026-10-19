@@ -55,6 +55,63 @@ def _text_on_muted(hex_color: str) -> str:
         return "#555555"
 
 
+DEFAULT_HEADER = "#1A237E"
+
+
+def _hex_ok(x) -> bool:
+    return isinstance(x, str) and len(x) == 7 and x.startswith("#") and all(c in "0123456789abcdefABCDEF" for c in x[1:])
+
+
+def _mescola(hex_color: str, verso: str, quota: float) -> str:
+    """Come lighten/darken di Typst sui colori RGB: verso il bianco (lighten) o il nero (darken)."""
+    h = hex_color.lstrip("#")
+    c = [int(h[i:i + 2], 16) for i in (0, 2, 4)]
+    t = 255 if verso == "bianco" else 0
+    return "#" + "".join(f"{round(v + (t - v) * quota):02x}" for v in c)
+
+
+def colori_effettivi(team: dict) -> dict:
+    """I colori che finiscono davvero nell'immagine (v6.1.0): quelli scelti con /palette, oppure quelli
+    automatici che il template ricava dal colore dell'intestazione. Servono per scegliere il colore del
+    testo sopra ogni sfondo (chiaro o scuro, sempre leggibile) e per l'anteprima di /palette."""
+    p = team.get("colore_header") if _hex_ok(team.get("colore_header")) else DEFAULT_HEADER
+    scelto = lambda k: team.get(k) if _hex_ok(team.get(k)) else ""
+    dark = _mescola(p, "nero", 0.20)
+    sez = scelto("colore_sezione") or _mescola(p, "bianco", 0.85)
+    return {
+        "header": p, "dark": dark,
+        "riga1": scelto("colore_riga1") or _mescola(p, "bianco", 0.75),
+        "riga2": scelto("colore_riga2") or "#ffffff",
+        "sezione": sez,
+        "footer": scelto("colore_sezione") or dark,
+        "pick": scelto("colore_pick") or _mescola(p, "bianco", 0.90),
+        "diritti": scelto("colore_diritti") or _mescola(p, "bianco", 0.95),
+    }
+
+
+def input_colori(team: dict) -> list[str]:
+    """Gli --input dei colori per roster.typ e assets.typ: sfondi e, per ognuno, il testo leggibile."""
+    c = colori_effettivi(team)
+    scelto = lambda k: team.get(k) if _hex_ok(team.get(k)) else ""
+    coppie = {
+        "colore_header": c["header"],
+        "colore_riga1": scelto("colore_riga1"), "colore_riga2": scelto("colore_riga2"),
+        "colore_sezione": scelto("colore_sezione"), "colore_pick": scelto("colore_pick"),
+        "colore_diritti": scelto("colore_diritti"),
+        "text_on_header": _text_on(c["header"]), "text_on_header_muted": _text_on_muted(c["header"]),
+        "text_on_dark": _text_on(c["dark"]), "text_on_dark_muted": _text_on_muted(c["dark"]),
+        "text_on_riga1": _text_on(c["riga1"]), "text_on_riga2": _text_on(c["riga2"]),
+        "text_on_sezione": _text_on(c["sezione"]), "text_on_sezione_muted": _text_on_muted(c["sezione"]),
+        "text_on_footer": _text_on(c["footer"]), "text_on_footer_muted": _text_on_muted(c["footer"]),
+        "text_on_pick": _text_on(c["pick"]), "text_on_pick_muted": _text_on_muted(c["pick"]),
+        "text_on_dir": _text_on(c["diritti"]),
+    }
+    out = []
+    for k, v in coppie.items():
+        out += ["--input", f"{k}={v}"]
+    return out
+
+
 def _footer_color(colore_primario: str, colore_sezione: str) -> str:
     """Colore effettivo del footer: c_sezione se impostato, altrimenti c_dark (primary.darken(20%))."""
     if colore_sezione and colore_sezione.startswith("#"):
@@ -236,11 +293,11 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
         nome = r["nome_common"].replace("|", " ").replace(";", " ")
         # Badge: calcolato sulla riga specifica dove finisce il giocatore
         # indice pari (0,2,4...) → colore_riga1, dispari → colore_riga2
-        c_r1 = team_colori.get("colore_riga1", "#FFFFFF") if team_colori else "#FFFFFF"
-        c_r2 = team_colori.get("colore_riga2", "#FFFFFF") if team_colori else "#FFFFFF"
+        eff = colori_effettivi(team_colori or {})
         # Typst usa calc.odd(i): i dispari → _ton_r1/colore_riga1, i pari → colore_riga2
-        sfondo_riga = c_r2 if idx % 2 == 0 else c_r1
-        badge = "badge" if _needs_badge(flag, sfondo_riga) else ""
+        sfondo_riga = eff["riga2"] if idx % 2 == 0 else eff["riga1"]
+        badge = "badge" if (_needs_badge(flag, sfondo_riga)
+                            or (ha_dpe and _contrasto("#C62828", sfondo_riga) < _BADGE_SOGLIA)) else ""
         ruolo = ruoli.get(r["giocatore_id"], "")
         eleg  = (posizioni.get(r["giocatore_id"]) or "").replace(",", "/")
         dpe   = importo_orig if ha_dpe else ""
@@ -319,11 +376,7 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
     eta_list = [e for e in eta_list if e is not None]
     eta_str  = f"{sum(eta_list)/len(eta_list):.1f}" if eta_list else "—"
 
-    # Colori
-    colore  = team.get("colore_header", "#1A237E")
-    c_riga1   = team.get("colore_riga1",   "")
-    c_riga2   = team.get("colore_riga2",   "")
-    c_sezione = team.get("colore_sezione", "")
+    # Colori: input_colori(team) più sotto
 
     # Logo
     logo = _logo_path(team_id)
@@ -343,17 +396,7 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
         "typst", "compile",
         "--input", f"team_nome={team['nome']}",
         "--input", f"team_gm={team.get('gm_nome', '')}",
-        "--input", f"colore_header={colore}",
-
-        "--input", f"colore_riga1={c_riga1}",
-        "--input", f"colore_riga2={c_riga2}",
-        "--input", f"colore_sezione={c_sezione}",
-        "--input", f"text_on_riga1={_text_on(c_riga1)}",
-        "--input", f"text_on_riga2={_text_on(c_riga2)}",
-        "--input", f"text_on_sezione={_text_on(c_sezione)}",
-        "--input", f"text_on_sezione_muted={_text_on_muted(c_sezione)}",
-        "--input", f"text_on_footer={_text_on(_footer_color(colore, c_sezione))}",
-        "--input", f"text_on_footer_muted={_text_on_muted(_footer_color(colore, c_sezione))}",
+        *input_colori(team),
         "--input", f"salary_cap={salary}",
         "--input", f"salary_detail={salary_detail}",
         "--input", f"eta_media={eta_str}",
@@ -559,22 +602,7 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
         "typst", "compile",
         "--input", f"team_nome={team['nome']}",
         "--input", f"team_gm={team.get('gm_nome', '')}",
-        "--input", f"colore_header={team.get('colore_header', '#1A237E')}",
-
-        "--input", f"colore_riga1={team.get('colore_riga1', '')}",
-        "--input", f"colore_riga2={team.get('colore_riga2', '')}",
-        "--input", f"colore_sezione={team.get('colore_sezione', '')}",
-        "--input", f"colore_pick={team.get('colore_pick', '')}",
-        "--input", f"colore_diritti={team.get('colore_diritti', '')}",
-        "--input", f"text_on_riga1={_text_on(team.get('colore_riga1', ''))}",
-        "--input", f"text_on_riga2={_text_on(team.get('colore_riga2', ''))}",
-        "--input", f"text_on_sezione={_text_on(team.get('colore_sezione', ''))}",
-        "--input", f"text_on_sezione_muted={_text_on_muted(team.get('colore_sezione', ''))}",
-        "--input", f"text_on_footer={_text_on(_footer_color(team.get('colore_header', '#1A237E'), team.get('colore_sezione', '')))}",
-        "--input", f"text_on_footer_muted={_text_on_muted(_footer_color(team.get('colore_header', '#1A237E'), team.get('colore_sezione', '')))}",
-        "--input", f"text_on_pick={_text_on(team.get('colore_pick', ''))}",
-        "--input", f"text_on_pick_muted={_text_on_muted(team.get('colore_pick', ''))}",
-        "--input", f"text_on_dir={_text_on(team.get('colore_diritti', ''))}",
+        *input_colori(team),
         "--input", f"salary_cap={cap_totale}",
         "--input", f"salary_detail={salary_detail}",
         "--input", f"eta_media={eta_str}",

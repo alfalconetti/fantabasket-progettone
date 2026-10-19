@@ -322,6 +322,9 @@ def main():
     app.add_handler(CommandHandler("annulla", cmd_annulla_globale), group=-1)
     app.add_handler(CommandHandler("sync_sheets", cmd_sync_sheets))
 
+    from handlers.nav import get_handlers as nav_handlers   # ✖️ Chiudi, valido per tutti i menu (v6.1.0)
+    for h in nav_handlers():
+        app.add_handler(h)
     for h in menu_handlers():
         app.add_handler(h)
     for h in trade_handlers():

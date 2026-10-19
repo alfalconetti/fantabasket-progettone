@@ -233,7 +233,9 @@ def _kb_vista(team_id: str, stato: list, admin: bool = False) -> InlineKeyboardM
         InlineKeyboardButton("📥 Importa da testo", callback_data=f"{p}:i:{team_id}"),
         InlineKeyboardButton("✅ Conferma",         callback_data=f"{p}:c:{team_id}"),
     ])
-    righe.append([InlineKeyboardButton("✖️ Chiudi", callback_data=f"{p}:close")])
+    righe.append([InlineKeyboardButton("← Squadre", callback_data="rladm:list") if admin
+                  else InlineKeyboardButton("🏠 Menu", callback_data="menu:home"),
+                  InlineKeyboardButton("✖️ Chiudi", callback_data=f"{p}:close")])
     return InlineKeyboardMarkup(righe)
 
 

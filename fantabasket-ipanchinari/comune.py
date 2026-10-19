@@ -50,6 +50,29 @@ def giornata_in_corso(stagione: str | None = None, quando=None) -> dict | None:
                  if scadenza(g) and scadenza(g) <= quando and g["al"] >= oggi), None)
 
 
+def panchine_bloccate(stagione: str | None = None, quando=None) -> dict | None:
+    """La giornata in corso durante la quale non si accettano panchine (v24, Luca 19/10): dalla sua
+    scadenza fino alle 6:00 (Roma) del giorno dopo il suo ultimo giorno NBA, cioè del giorno in cui
+    comincia la giornata seguente. Prima una panchina mandata a giornata iniziata valeva in silenzio
+    per la giornata dopo. None se si possono mandare."""
+    quando = quando or adesso()
+    for g in db.giornate(stagione or config.stagione()):
+        s = scadenza(g)
+        if not s or s > quando:
+            continue
+        fine = datetime.combine(g["al"] + timedelta(days=1), dtime(6, 0), tzinfo=ROMA)
+        if quando < fine:
+            return g
+    return None
+
+
+def testo_panchine_bloccate(g: dict) -> str:
+    fine = datetime.combine(g["al"] + timedelta(days=1), dtime(6, 0), tzinfo=ROMA)
+    return (f"⏳ Al momento non accetto panchine: c'è la giornata {g['numero']} in corso. "
+            f"Quella della giornata successiva si manda da {ora(fine)} in poi. "
+            f"Per correggere la panchina della giornata {g['numero']} scrivi a un admin.")
+
+
 def ora_promemoria(g: dict):
     """Le 8:00 (Roma) dell'ultimo giorno prima della prima partita: se si gioca di notte, la
     mattina prima; se la prima partita è nel pomeriggio italiano, la mattina stessa."""

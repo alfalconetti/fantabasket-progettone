@@ -99,9 +99,10 @@ async def cmd_taglia(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not context.args:
         # Mostra roster con bottoni
+        from handlers import nav
         roster = [r for r in db.get_roster_team(team["id"], senza_10day=True) or [] if not r.get("x0")]   # x0 scadono da soli
         if not roster:
-            await update.effective_message.reply_text("Il tuo roster è vuoto.")
+            await nav.mostra(update, "Il tuo roster è vuoto.", reply_markup=InlineKeyboardMarkup([[nav.menu(), nav.chiudi()]]))
             return
         bottoni = [
             [InlineKeyboardButton(
@@ -110,10 +111,9 @@ async def cmd_taglia(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )]
             for r in roster
         ]
-        await update.effective_message.reply_text(
-            "Seleziona il giocatore da tagliare:",
-            reply_markup=InlineKeyboardMarkup(bottoni),
-        )
+        bottoni.append([nav.menu(), nav.chiudi()])
+        await nav.mostra(update, "✂️ <b>Tagli</b> — seleziona il giocatore da tagliare:", parse_mode="HTML",
+                         reply_markup=InlineKeyboardMarkup(bottoni))
         return
 
     try:

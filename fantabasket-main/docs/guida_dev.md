@@ -96,7 +96,7 @@ fantabasket-progettone/
 
 `tests/config/settings.json` ha gli stessi valori: se cambi uno, cambia l'altro.
 
-**teams.json:** per squadra `id` (`teamXX`), `nome`, `gm_nome`, `gm_ids` (anche più di uno), `colore`/`colore2`, i colori della palette (`colore_header`, `colore_riga1`, …) e `cap_penalizzato`.
+**teams.json:** per squadra `id` (`teamXX`), `nome`, `gm_nome`, `gm_ids` (anche più di uno), `colore`/`colore2` (vecchi, non li legge nessuno), i colori della palette (`colore_header`, `colore_riga1`, …) e `cap_penalizzato`.
 
 **secrets/:**
 
@@ -363,7 +363,8 @@ ORDER BY t.timestamp, t.id;
 | `posizioni.py` | import e correzione delle posizioni eleggibili, `/data_erminio` |
 | `roster.py` | `/roster`, `/assets` (Typst) |
 | `team_diff.py` | `/team_diff` |
-| `palette.py`, `myteam.py` | colori e dati squadra |
+| `palette.py`, `myteam.py` | colori e dati squadra (colori effettivi e testo leggibile: `roster.colori_effettivi`, `roster.input_colori`) |
+| `nav.py` | navigazione dei menu: ✖️ Chiudi (`nav:x`), 🏠 Menu, ←, `mostra()` (da un bottone modifica il messaggio invece di mandarne uno nuovo) |
 | `admin_panel.py` | `/admin_menu`, fasi, DPE e tagli admin, `/registra_firma`, `/list`, `/set_cap_penalizzato`, situazione cap |
 | `bref.py` | job Basketball-Reference e conferma dei giocatori nuovi |
 | `nascite.py` | `/set_nascita`, `/nascite_mancanti` |
@@ -402,6 +403,9 @@ Utile per capire chi risponde a un bottone. In grassetto quelli citati più spes
 | `posizioni.py` | `pos_imp_`, `spe:` |
 | `myteam.py` | `mt:<campo>:<team>` |
 | `palette.py` | `pal_*` |
+| `myteam.py` | `myt:` (prima `mt:`, che è di `trade_liste.py`) |
+| `nav.py` | `nav:x` (✖️ Chiudi, ovunque) |
+| `trade_comune.py` | `trade_x` (✖️ Annulla nel builder), `trade_x:menu` (← Trade) |
 | `bref.py` | `brefn:` |
 | `nascite.py` | `nasc:` |
 | `dev_player.py` | `dp:` |
@@ -629,8 +633,9 @@ Va al canale log alle 00 e alle 12 e allo spegnimento, al gruppo admin il sabato
 2. la voce in `AZIONI_FASE` di `menu.py`;
 3. il comando in `comandi.py` (e in `_fasi_comando` se dipende dalla fase);
 4. **l'equivalente "per conto di" nel pannello admin** (parità GM/admin);
-5. **la riga nel registro delle azioni**: `segna(bot, user, "gm"|"admin", azione, squadre=…, giocatore_id=…, prima=…, dopo=…)` dopo che l'azione è riuscita, con la veste del flusso (v6.0.0);
-6. la riga nella guida GM.
+5. **una via d'uscita in ogni schermata coi bottoni** (← verso la schermata di prima, 🏠 Menu o ✖️ Chiudi, `handlers/nav.py`; v6.1.0);
+6. **la riga nel registro delle azioni**: `segna(bot, user, "gm"|"admin", azione, squadre=…, giocatore_id=…, prima=…, dopo=…)` dopo che l'azione è riuscita, con la veste del flusso (v6.0.0);
+7. la riga nella guida GM.
 
 La prova `tests/docs/guide_e_menu.py` si accorge se una guida o il menu cita un comando che non esiste.
 

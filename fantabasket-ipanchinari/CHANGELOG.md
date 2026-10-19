@@ -112,3 +112,12 @@ Primo rilascio: panchine e quintetti.
 
 - **Registro delle azioni** (main v6.0.0, `registro.py`): panchine mandate e corrette (GM, o admin per conto), quintetti cambiati e confermati (GM, o admin per conto), quintetto e formazione corretti da /quintetto_admin, quintetti importati, formazioni controllate ☑️ e controlli tolti, panchine ripubblicate, soprannomi cancellati, chiusura della giornata (sistema) lasciano una riga nel registro condiviso con gli altri bot, con chi, veste e prima → dopo; si consulta dal bot principale. Sul canale log restano le righe di sempre, che avevano già il nome di chi (niente doppioni)
 - Prova: controlli del registro in `ipa_panchine`
+
+## v25 (2026-10-19)
+
+- **Quintetto**: dopo ✅ Confermo il messaggio si chiude e resta il riepilogo, con scritto che si cambia in qualsiasi momento con /quintetto (prima restava aperto l'editor coi bottoni e non si capiva se era fatta). Nel promemoria la stessa frase. L'editor ha ✖️ Chiudi
+- **Titolare anche in panchina, visto da un admin** (editor di /quintetto_admin): non più «se vuoi aggiorna il quintetto» (pensato per il GM) ma cosa fare: prima della scadenza avvisare il GM di cambiare la panchina; a giornata iniziata è un errore del GM (nel calcolo il titolare conta, in panchina gli altri scalano, penalità agli admin). Guarda anche la panchina della giornata in corso. Negli elenchi (/stato, riepilogo) la versione breve
+- **`/stato`** manda anche un file Markdown con la tabella (squadra, quintetto, panchina, formazione controllata, problemi)
+- **Niente panchine durante la giornata in corso** (Luca, 19/10): dalla scadenza alle 6:00 del giorno dopo l'ultimo giorno NBA della giornata (quello in cui comincia la successiva) il bot risponde che c'è una giornata in corso, anche a /build_panchina e a /panchina_admin senza GN. Prima una panchina arrivata a giornata iniziata valeva in silenzio per la giornata dopo. /panchina in quelle ore mostra quella della giornata in corso
+- Prove: controlli nuovi in `ipa_panchine`
+

@@ -41,6 +41,7 @@ def liste_comandi(fase: str) -> dict:
     cmd_group = [
         BotCommand("roster",  "Roster squadra [team_id] [DD-MM-YY]"),
         BotCommand("assets",  "Asset completi squadra [team_id]"),
+        BotCommand("team_diff", "Variazioni roster [team_id] [da] [a]"),
     ]
     cmd_base = cmd_group + [
         BotCommand("menu",           "Menu principale"),
@@ -64,7 +65,6 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("decadimento",    "Segnala contratto decaduto (ritiro, altra lega)"),
         BotCommand("my_team",        "Info e impostazioni del tuo team"),
         BotCommand("palette",        "Personalizza colori roster/assets"),
-        BotCommand("team_diff",      "Variazioni roster [team_id] [da] [a]"),
         BotCommand("annulla_trade",  "Annulla la trade in corso"),
         BotCommand("annulla",        "Esci da qualsiasi conversazione bloccata"),
         BotCommand("guida",          "Guida completa per i GM"),

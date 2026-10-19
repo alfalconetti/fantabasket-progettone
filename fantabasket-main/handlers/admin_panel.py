@@ -63,7 +63,8 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
         ("📜 Registro",         "reg:7",       True),
     ]
     bottoni = [InlineKeyboardButton(l, callback_data=cb) for l, cb, ok in voci if ok]
-    return InlineKeyboardMarkup([bottoni[i:i + 2] for i in range(0, len(bottoni), 2)])
+    from handlers import nav
+    return InlineKeyboardMarkup([bottoni[i:i + 2] for i in range(0, len(bottoni), 2)] + [[nav.chiudi()]])
 
 
 def _testo_admin_home() -> str:
@@ -165,7 +166,7 @@ async def cb_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                 InlineKeyboardButton("2", callback_data="adm_n:2"),
                 InlineKeyboardButton("3", callback_data="adm_n:3"),
                 InlineKeyboardButton("4", callback_data="adm_n:4"),
-            ]])
+            ], [InlineKeyboardButton("← Trade", callback_data="adm:trade")]])
         )
         return ADMIN_TRADE_BUILD_N
 
@@ -173,6 +174,7 @@ async def cb_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await query.edit_message_text(
             "📥 <b>Import trade</b>\n\nInvia il testo della trade." + _ANNULLA_HINT,
             parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("← Trade", callback_data="adm:trade")]]),
         )
         return ADMIN_IMPORT_TESTO
 
@@ -288,7 +290,9 @@ async def cb_adm_taglia_esegui(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.edit_message_text(str(e))
         return
     risposta, _ = testi_taglio(team, v)
-    await query.edit_message_text(risposta, parse_mode="HTML")
+    await query.edit_message_text(risposta, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(
+        [[InlineKeyboardButton("✂️ Altro taglio", callback_data="adm:taglia"),
+          InlineKeyboardButton("← Menu admin", callback_data="adm:home")]]))
     admin = update.effective_user
     await dopo_taglio(context.bot, team, v, admin_nome=admin.first_name or admin.username or str(admin.id), user=admin)
     logger.info("Taglio admin: team=%s giocatore=%s admin=%d", team_id, gid_s, admin.id)
@@ -395,7 +399,8 @@ async def cb_adm_dpe_conferma(update: Update, context: ContextTypes.DEFAULT_TYPE
                                       user=update.effective_user)
     if not errore:
         db.chiudi_richiesta("dpe", gid, "approvata", _admin_tag(update.effective_user))  # eventuale richiesta del GM
-    await query.edit_message_text(errore or esito, parse_mode="HTML")
+    await query.edit_message_text(errore or esito, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(
+        [[InlineKeyboardButton("← Menu admin", callback_data="adm:home")]]))
 
 
 # ── Admin build trade ─────────────────────────────────────────────────────────
@@ -419,6 +424,8 @@ async def cb_adm_n_squadre(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         for t in tutti
     ]
     righe = [bottoni[i:i+2] for i in range(0, len(bottoni), 2)]
+    from handlers.trade_comune import _btn_annulla
+    righe.append([_btn_annulla()])
     await query.edit_message_text(
         f"Seleziona le {n} squadre coinvolte:" + _ANNULLA_HINT,
         parse_mode="HTML",
@@ -449,6 +456,8 @@ async def cb_adm_seleziona_squadra(update: Update, context: ContextTypes.DEFAULT
             for t in tutti if t["id"] not in ordine
         ]
         righe = [bottoni[i:i+2] for i in range(0, len(bottoni), 2)]
+        from handlers.trade_comune import _btn_annulla
+        righe.append([_btn_annulla()])
         await query.edit_message_text(
             f"Seleziona ancora {n - len(ordine)} squadra/e:" + _ANNULLA_HINT,
             parse_mode="HTML",
@@ -1102,6 +1111,7 @@ async def _esegui_registra_firma(update_or_query, context, giocatore, team_id, t
 
 
 def get_handlers() -> list:
+    from handlers.trade_comune import cb_annulla_trade
     from handlers.trade import (
         TRADE_ASSET_MENU, TRADE_ASSET_GIOCATORI, TRADE_ASSET_PICK, TRADE_ASSET_DIRITTI,
         TRADE_ASSEGNA_DEST, TRADE_NOTA, TRADE_RIEPILOGO,
@@ -1177,10 +1187,12 @@ def get_handlers() -> list:
         fallbacks=[
             CommandHandler("annulla_admin", cmd_annulla_admin),
             CommandHandler("annulla_trade", cmd_annulla_trade),
+            CallbackQueryHandler(cb_annulla_trade, pattern=r"^trade_x(:menu)?$"),
         ],
         per_user=True,
         per_chat=True,
         conversation_timeout=300,
+        allow_reentry=True,          # ← Menu admin / ← Trade funzionano anche a metà di un'operazione
     )
 
     return [

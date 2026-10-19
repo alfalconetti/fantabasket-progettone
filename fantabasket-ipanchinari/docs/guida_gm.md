@@ -28,6 +28,8 @@ Il bot ti risponde con l'anteprima: accanto a ogni riga il giocatore che ha capi
 
 La panchina vale per **la prossima giornata**, quella la cui scadenza (la prima partita NBA) non è ancora passata. Fino alla scadenza puoi rimandarla quante volte vuoi: vale l'ultima, e sul canale il bot modifica il messaggio della tua panchina (in fondo "🔁 ultima modifica" con l'ora) invece di mandarne uno nuovo.
 
+**Durante una giornata in corso il bot non accetta panchine**: dalla scadenza fino alle 6 di mattina del giorno in cui comincia la giornata successiva ti risponde che c'è una giornata in corso. Da lì in poi mandi quella della giornata nuova. Per correggere la panchina della giornata in corso scrivi a un admin.
+
 Il bot non prende una panchina con **righe duplicate** (la stessa riga scritta due volte, anche con maiuscole diverse): ogni panchinaro va scritto in modo diverso. Non pubblica se i giocatori non sono 5, se uno non è della tua squadra, se c'è due volte o se la scadenza è passata (anche mentre stavi confermando). Se un panchinaro risulta titolare nel quintetto del bot, te lo segnala ma pubblica lo stesso: per il quintetto fa fede Yahoo, quindi puoi aggiornarlo con `/quintetto` (non sei obbligato: è un favore agli admin) oppure lasciare che se ne occupi un admin.
 
 **Coi bottoni.** Se preferisci, `/build_panchina`: scegli i panchinari uno alla volta, in ordine. Ti propone solo i giocatori della tua squadra che non sono nel quintetto e non hai già scelto (i titolari, segnati ⭐, solo se non ne restano abbastanza); ↩️ toglie l'ultimo. Al quinto passa da solo all'anteprima con Pubblica. Sul canale escono i nomi dei giocatori, a meno che non usi la CAI mode.
@@ -55,10 +57,10 @@ Il quintetto **non va rimandato ogni giornata**: resta quello finché non lo cam
 
 **Il promemoria.** Alle 8 di mattina dell'ultimo giorno prima della giornata (se si gioca di notte, la mattina prima) il bot ti manda il tuo quintetto con le partite di ogni titolare nella giornata, e due bottoni:
 
-- **✅ Confermo**: va bene così;
-- **✏️ Modifico**: si apre il quintetto e cambi chi vuoi.
+- **✅ Confermo**: va bene così (il messaggio si chiude e resta il riepilogo);
+- **✏️ Modifico**: si apre il quintetto e cambi chi vuoi (✖️ Chiudi quando hai finito).
 
-I bottoni valgono fino alla scadenza della giornata. Se non fai niente non succede niente di male: gli admin controllano il tuo quintetto su Yahoo.
+Anche dopo aver confermato puoi cambiarlo in qualsiasi momento con `/quintetto`. I bottoni valgono fino alla scadenza della giornata. Se non fai niente non succede niente di male: gli admin controllano il tuo quintetto su Yahoo.
 
 **`/quintetto`** te lo mostra quando vuoi: tocca il ruolo da cambiare e scegli il giocatore (ti propone solo quelli di quel ruolo).
 

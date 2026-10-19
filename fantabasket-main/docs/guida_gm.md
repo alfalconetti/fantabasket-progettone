@@ -56,7 +56,11 @@ Il comando funziona anche in altri modi:
 
 Funziona anche per un'altra squadra (`/team_diff team07`) o tra due date a scelta (`/team_diff team07 01-10-26 15-10-26`).
 
-**`/my_team`** serve a cambiare nome squadra, nome GM e colori. **`/palette`** personalizza i colori delle immagini di roster e assets, con un'anteprima prima di salvare.
+`/roster`, `/assets` e `/team_diff` funzionano anche nei gruppi della lega, e li trovi nel menu dei comandi del gruppo.
+
+**`/my_team`** serve a cambiare nome squadra e nome GM. **`/palette`** personalizza i colori delle immagini di roster e assets: tocchi un colore (intestazione, righe pari e dispari, leggenda e cap, pick, diritti), scrivi il colore in esadecimale (`#1A237E`, anche senza #) o scegli ♻️ Automatico (ricavato dal colore dell'intestazione), vedi l'anteprima e alla fine 💾 Salva. Qualsiasi colore scegli, il testo sopra diventa chiaro o scuro da solo, così resta sempre leggibile.
+
+In tutti i menu a bottoni c'è un modo per uscire: ← per tornare alla schermata di prima, 🏠 Menu, oppure ✖️ Chiudi.
 
 ---
 

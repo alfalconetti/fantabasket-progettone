@@ -65,6 +65,8 @@ def _kb_menu_principale(fase: str, team_id: str | None = None) -> InlineKeyboard
                 for label, cb, fasi in AZIONI_FASE if fase in fasi()]
     righe = [bottoni[i:i + 2] for i in range(0, len(bottoni), 2)]
     righe.append([InlineKeyboardButton(label, callback_data=cb) for label, cb in AZIONI_SEMPRE])
+    from handlers import nav
+    righe.append([nav.chiudi()])
     return InlineKeyboardMarkup(righe)
 
 
@@ -130,24 +132,20 @@ async def cb_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif azione == "trade_bozze":
         # Come /bozze
         from handlers.trade import cmd_mie_trade
-        await query.edit_message_text("📝 Carico bozze...", parse_mode="HTML")
-        await cmd_mie_trade(update, context)
+        await cmd_mie_trade(update, context)          # al posto del menu, con ← Trade
 
     elif azione == "tagli":
         # Mostra subito il roster con bottoni taglio
         from handlers.tagli import cmd_taglia
-        await query.edit_message_text("✂️ <b>Tagli</b> — seleziona giocatore:", parse_mode="HTML")
-        await cmd_taglia(update, context)
+        await cmd_taglia(update, context)              # al posto del menu, con 🏠 Menu
 
     elif azione == "rookie":
         # Mostra subito i diritti 2nd disponibili
         from handlers.rookie import cmd_attiva_diritti
-        await query.edit_message_text("🏀 <b>Rookie</b> — seleziona giocatore:", parse_mode="HTML")
         await cmd_attiva_diritti(update, context)
 
     elif azione == "dpe":
         from handlers.dpe import cmd_dpe
-        await query.edit_message_text("🏥 <b>DPE</b> — seleziona giocatore:", parse_mode="HTML")
         await cmd_dpe(update, context)
 
     elif azione == "roster":

@@ -198,7 +198,8 @@ def home() -> tuple[str, K]:
     kb = [B(n, callback_data=f"set:g:{g}") for g, n in gruppi()]
     return ("⚙️ <b>Impostazioni</b>\nScegli un argomento. Ogni modifica chiede conferma e va sul canale log e sul "
             "canale principale.\nScorciatoia: <code>/settings chiave valore</code>",
-            K([kb[i:i + 2] for i in range(0, len(kb), 2)]))
+            K([kb[i:i + 2] for i in range(0, len(kb), 2)]
+              + [[B("← Menu admin", callback_data="adm:home"), B("✖️ Chiudi", callback_data="nav:x")]]))
 
 
 def _riga(v: tuple) -> str:

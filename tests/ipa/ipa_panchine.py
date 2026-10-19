@@ -379,6 +379,11 @@ premi(900, f"q:s:team01:PG:{gids['Walter Clayton Jr.']}")
 ok(db.quintetto("team01")["PG"] == gids["Walter Clayton Jr."] and db.formazione(S, 1, "team01")["PG"] == gids["Walter Clayton Jr."],
    "admin coi bottoni a giornata in corso: aggiorna anche la formazione")
 m = Msg("/panchina_admin Alfa"); asyncio.run(P.cmd_panchina_admin(upd(900, m), CTX))
+ok("non accetto panchine" in m.risposte[-1][0] and "giornata 1 in corso" in m.risposte[-1][0],
+   "giornata 1 in corso: niente panchine per la giornata dopo (fino alle 6 del giorno in cui comincia) " + m.risposte[-1][0])
+import comune as _CO
+_blocco = _CO.panchine_bloccate; _CO.panchine_bloccate = lambda *a, **k: None       # come la mattina dopo
+m = Msg("/panchina_admin Alfa"); asyncio.run(P.cmd_panchina_admin(upd(900, m), CTX))
 t, k = m.risposte[-1]
 bid = int(bottoni(k["reply_markup"])[0].split(":")[2])
 ok("Panchina di Alfa" in t and db.bozza(bid)["fonte"] == "admin" and any(b.startswith(f"pb:b:{bid}:") for b in bottoni(k["reply_markup"])),
@@ -389,6 +394,7 @@ bid = int(bottoni(m.risposte[-1][1]["reply_markup"])[-2].split(":")[2])
 BOT.mandati.clear(); premi(900, f"pb:ok:{bid}")
 ok(any(x["chat_id"] == -500 and "✍️ admin U900 · 🔁 ultima modifica" in x["text"] for x in BOT.mandati),
    "panchina inserita da un admin: sul canale quale admin")
+# le prove che seguono mandano panchine con la giornata 1 in corso: si resta «la mattina dopo»
 
 # ── soprannomi: vederli, cancellarli, seguono il giocatore ──
 m = Msg("/soprannomi"); CTX.args = []; asyncio.run(SO.cmd_soprannomi(upd(101, m), CTX))
@@ -525,6 +531,48 @@ m = Msg("/quintetto_admin Alfa G2\nJalen Brunson\nBooker\nBridges\nGrant William
 ok("team01" in db.controlli(S, 2) and "controllata" in m.risposte[-1][0], "correzione della formazione G2: controllata da sola")
 m = Msg(); u = upd(900, m); CTX.args = ["2"]; asyncio.run(Q.cmd_stato(u, CTX)); CTX.args = []
 ok(any("☑️ · Alfa" in x["text"] for x in BOT.mandati[-3:]) or "☑️ · Alfa" in str(m.risposte), "/stato 2: ☑️ accanto a chi è controllato")
+
+# ── v24: il quintetto si chiude dopo la conferma, avvisi per l'admin, /stato in tabella, panchine a giornata in corso ──
+import comune as CO
+from datetime import datetime as _dt, time as _tm
+# a questo punto le giornate 1 e 2 sono chiuse: una giornata 3 aperta
+giornata(3, CO.adesso() + timedelta(days=2), d1 + timedelta(days=4), d1 + timedelta(days=5), [])
+qc = premi(101, "q:ok:team01:3")
+ok(qc.testi and "Quintetto confermato per la giornata 3" in qc.testi[-1][0] and not qc.testi[-1][1].get("reply_markup")
+   and "/quintetto" in qc.testi[-1][0], "Confermo: il menu si chiude, resta il riepilogo con /quintetto per cambiarlo")
+ok("in qualsiasi momento con /quintetto" in Q.promemoria(config.squadra("team01"), db.giornata(S, 3))[0],
+   "promemoria: si può cambiare in qualsiasi momento con /quintetto")
+ok(f"q:x:team01" in bottoni(Q._tastiera("team01", db.giornata(S, 3))), "editor del quintetto: ✖️ Chiudi")
+qx = premi(101, "q:x:team01")
+ok(qx.testi and not qx.testi[-1][1].get("reply_markup") and "/quintetto" in qx.testi[-1][0], "✖️ Chiudi: senza bottoni, dice come riaprirlo")
+tit = db.quintetto("team01")["SG"]
+db.salva_panchina(S, 3, "team01", None, [{"giocatore_id": tit, "testo": "x"}])
+nome_t = db.nomi_giocatori([tit])[tit]
+gm_t, adm_t, br_t = (Q.incompatibilita("team01"), Q.incompatibilita("team01", admin=True),
+                     Q.incompatibilita("team01", breve=True))
+ok(any("se vuoi aggiorna il quintetto" in x for x in gm_t), "al GM: se vuoi aggiorna il quintetto")
+ok(any(f"avvisa il GM di togliere {nome_t} dalla panchina" in x and "entro la scadenza" in x for x in adm_t)
+   and not any("se vuoi aggiorna" in x for x in adm_t), "all'admin: avvisa il GM di cambiare la panchina entro la scadenza " + str(adm_t))
+ok(any(f"{nome_t} titolare (SG) e in panchina G3" == x for x in br_t), "negli elenchi: la versione breve")
+_gc = Q.giornata_in_corso(S)
+db.salva_panchina(S, _gc["numero"], "team01", None, [{"giocatore_id": tit, "testo": "x"}])
+adm_t = Q.incompatibilita("team01", admin=True)
+ok(any("già iniziata" in x and "penalità" in x for x in adm_t), "giornata già iniziata: è un errore, gli altri scalano, penalità agli admin")
+mdx = Q.md_stato(db.giornata(S, 3))
+ok("| Squadra | Quintetto | Panchina | Problemi |" in mdx and "| Alfa |" in mdx and "in panchina G3" in mdx, "/stato in Markdown: tabella")
+m = Msg("/stato"); CTX.args = []
+docs = []
+async def _doc(**k): docs.append(k)
+BOT.send_document = _doc
+asyncio.run(Q.cmd_stato(upd(900, m), CTX))
+ok(docs and docs[-1]["filename"].startswith("stato-G3-") and docs[-1]["filename"].endswith(".md"), "/stato manda anche il file .md")
+g1 = dict(db.giornata(S, 1))
+_vere = CO.db.giornate; CO.db.giornate = lambda *_a, **_k: [g1]
+fine = _dt.combine(g1["al"] + timedelta(days=1), _tm(6, 0), tzinfo=CO.ROMA)
+ok(_blocco(S, fine - timedelta(minutes=1))["numero"] == 1 and _blocco(S, fine + timedelta(minutes=1)) is None
+   and _blocco(S, CO.scadenza(g1) - timedelta(minutes=1)) is None,
+   "panchine bloccate dalla scadenza alle 6 del giorno dopo l'ultimo giorno NBA della giornata")
+CO.db.giornate = _vere
 
 # pulizia
 ids = list(gids.values())

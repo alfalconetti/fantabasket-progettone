@@ -4,13 +4,16 @@
 Campi editabili:
   - nome squadra
   - nome GM
-  - colore primario (#RRGGBB)
-  - colore secondario (#RRGGBB, opzionale)
 
+I colori di roster e assets si cambiano con /palette (v6.1.0: i vecchi «Colore» e «Colore 2» di
+qui finivano in teams.json ma nessuno li leggeva, cioè non cambiavano niente).
+
+Callback myt:<campo> (prima mt:, lo stesso prefisso di /my_trades: un bottone delle trade premuto
+con /my_team aperto finiva qui), myt:home, myt:x. La squadra è sempre quella del GM che preme.
 I dati vengono salvati in teams.json.
 """
+import html
 import logging
-import re
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -24,115 +27,86 @@ from settings import solo_privato
 logger = logging.getLogger(__name__)
 
 SCEGLI_CAMPO, INSERISCI_VALORE = range(2)
-_ANNULLA_HINT = "\n<i>Per annullare: /annulla</i>"
-_RE_HEX = re.compile(r'^#[0-9A-Fa-f]{6}$')
+CAMPI = {"nome": "nome della squadra", "gm_nome": "tuo nome GM"}
 
 
 def _testo_myteam(team: dict) -> str:
-    colore  = team.get("colore", "non impostato")
-    colore2 = team.get("colore2", "non impostato")
     return (
-        f"🏀 <b>{team['nome']}</b>\n"
-        f"👤 GM: <b>{team.get('gm_nome', '—')}</b>\n"
-        f"🎨 Colore: <b>{colore}</b>\n"
-        f"🎨 Colore 2: <b>{colore2}</b>\n"
-        f"<code>ID: {team['id']}</code>"
+        f"🏀 <b>{html.escape(team['nome'])}</b>\n"
+        f"👤 GM: <b>{html.escape(team.get('gm_nome', '—'))}</b>\n"
+        f"<code>ID: {team['id']}</code>\n\n"
+        f"<i>I colori di roster e assets si cambiano con /palette.</i>"
     )
 
 
-def _kb_myteam(team_id: str) -> InlineKeyboardMarkup:
+def _kb_myteam() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✏️ Nome squadra",  callback_data=f"mt:nome:{team_id}")],
-        [InlineKeyboardButton("✏️ Nome GM",       callback_data=f"mt:gm_nome:{team_id}")],
-        [InlineKeyboardButton("🎨 Colore",        callback_data=f"mt:colore:{team_id}")],
-        [InlineKeyboardButton("🎨 Colore 2",      callback_data=f"mt:colore2:{team_id}")],
+        [InlineKeyboardButton("✏️ Nome squadra", callback_data="myt:nome"),
+         InlineKeyboardButton("✏️ Nome GM",      callback_data="myt:gm_nome")],
+        [InlineKeyboardButton("✖️ Chiudi",        callback_data="myt:x")],
     ])
 
 
 @solo_privato
 async def cmd_my_team(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    user = update.effective_user
-    team = tm.get_team_by_gm(user.id)
+    team = tm.get_team_by_gm(update.effective_user.id)
     if not team:
         await update.effective_message.reply_text("⛔ Non sei registrato come GM.")
         return ConversationHandler.END
-
-    await update.effective_message.reply_text(
-        _testo_myteam(team),
-        parse_mode="HTML",
-        reply_markup=_kb_myteam(team["id"]),
-    )
+    await update.effective_message.reply_text(_testo_myteam(team), parse_mode="HTML", reply_markup=_kb_myteam())
     return SCEGLI_CAMPO
 
 
 async def cb_scegli_campo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
+    team = tm.get_team_by_gm(query.from_user.id)
+    if not team:
+        await query.answer("⛔ Non sei registrato come GM.", show_alert=True)
+        return ConversationHandler.END
     await query.answer()
-    _, campo, team_id = query.data.split(":")
-
-    context.user_data["mt_campo"]   = campo
-    context.user_data["mt_team_id"] = team_id
-
-    label = {
-        "nome":    "nome della squadra",
-        "gm_nome": "tuo nome GM",
-        "colore":  "colore primario (formato #RRGGBB, es. #1A237E)",
-        "colore2": "colore secondario (formato #RRGGBB, oppure 'nessuno' per rimuoverlo)",
-    }.get(campo, campo)
-
+    campo = query.data.split(":")[1]
+    if campo == "x":
+        context.user_data.pop("mt_campo", None)
+        await query.edit_message_text(_testo_myteam(team), parse_mode="HTML")
+        return ConversationHandler.END
+    if campo == "home" or campo not in CAMPI:
+        context.user_data.pop("mt_campo", None)
+        await query.edit_message_text(_testo_myteam(team), parse_mode="HTML", reply_markup=_kb_myteam())
+        return SCEGLI_CAMPO
+    context.user_data["mt_campo"] = campo
     await query.edit_message_text(
-        f"Inserisci il nuovo <b>{label}</b>:" + _ANNULLA_HINT,
-        parse_mode="HTML",
-    )
+        f"Scrivi il nuovo <b>{CAMPI[campo]}</b>:", parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("← Indietro", callback_data="myt:home")]]))
     return INSERISCI_VALORE
 
 
 async def ricevi_valore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    valore   = update.effective_message.text.strip()
-    campo    = context.user_data.pop("mt_campo", None)
-    team_id  = context.user_data.pop("mt_team_id", None)
-
-    if not campo or not team_id:
+    valore = (update.effective_message.text or "").strip()
+    campo = context.user_data.pop("mt_campo", None)
+    team = tm.get_team_by_gm(update.effective_user.id)
+    if campo not in CAMPI or not team:
         await update.effective_message.reply_text("❌ Sessione scaduta. Riprova con /my_team.")
         return ConversationHandler.END
-
-    # Validazione colore
-    if campo in ("colore", "colore2"):
-        if campo == "colore2" and valore.lower() in ("nessuno", "no", "-"):
-            valore = ""
-        elif not _RE_HEX.match(valore):
-            await update.effective_message.reply_text(
-                "❌ Formato colore non valido. Usa #RRGGBB (es. #1A237E)." + _ANNULLA_HINT,
-                parse_mode="HTML",
-            )
-            return INSERISCI_VALORE
-
-    if not valore and campo == "colore":
+    if not valore or len(valore) > 40:
+        context.user_data["mt_campo"] = campo
         await update.effective_message.reply_text(
-            "❌ Il colore primario non può essere vuoto." + _ANNULLA_HINT,
-            parse_mode="HTML",
-        )
+            "❌ Scrivi un testo tra 1 e 40 caratteri.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("← Indietro", callback_data="myt:home")]]))
         return INSERISCI_VALORE
 
-    # Salva in teams.json
-    prima = (tm.get_team_by_id(team_id) or {}).get(campo)
-    tm.set_campo_team(team_id, campo, valore)
+    prima = team.get(campo)
+    tm.set_campo_team(team["id"], campo, valore)
     from handlers.registro import segna
-    await segna(context.bot, update.effective_user, "gm", "dati della squadra", squadre=team_id, oggetto=campo,
-                prima=prima or "—", dopo=valore or "—")
-
-    team = tm.get_team_by_id(team_id)
-    await update.effective_message.reply_text(
-        f"✅ Aggiornato.\n\n{_testo_myteam(team)}",
-        parse_mode="HTML",
-        reply_markup=_kb_myteam(team_id),
-    )
+    await segna(context.bot, update.effective_user, "gm", "dati della squadra", squadre=team["id"], oggetto=campo,
+                prima=prima or "—", dopo=valore)
+    team = tm.get_team_by_id(team["id"])
+    await update.effective_message.reply_text(f"✅ Aggiornato.\n\n{_testo_myteam(team)}", parse_mode="HTML",
+                                              reply_markup=_kb_myteam())
     return SCEGLI_CAMPO
 
 
 async def cmd_annulla(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.pop("mt_campo", None)
-    context.user_data.pop("mt_team_id", None)
     await update.effective_message.reply_text("Operazione annullata.")
     return ConversationHandler.END
 
@@ -142,15 +116,17 @@ def get_handlers() -> list:
         entry_points=[CommandHandler("my_team", cmd_my_team)],
         states={
             SCEGLI_CAMPO: [
-                CallbackQueryHandler(cb_scegli_campo, pattern=r"^mt:.+:.+$"),
+                CallbackQueryHandler(cb_scegli_campo, pattern=r"^myt:[a-z_]+$"),
             ],
             INSERISCI_VALORE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, ricevi_valore),
+                CallbackQueryHandler(cb_scegli_campo, pattern=r"^myt:[a-z_]+$"),
             ],
         },
         fallbacks=[CommandHandler("annulla", cmd_annulla)],
         per_user=True,
         per_chat=True,
         conversation_timeout=300,
+        allow_reentry=True,
     )
     return [conv]
