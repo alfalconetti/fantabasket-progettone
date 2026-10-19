@@ -66,3 +66,24 @@ db._q("DELETE FROM contratti WHERE giocatore_id = ANY(%s)", (list(gid.values()),
 db._q("DELETE FROM bref_nuovi WHERE nome_bref LIKE 'Nikola Topi%%' OR nome_bref LIKE 'Zacc%%' OR nome_bref LIKE 'Gioc %%'")
 db._q("DELETE FROM bref_stats WHERE nome_bref LIKE 'Gioc %%'")
 db._q("DELETE FROM giocatori WHERE nome_bref LIKE 'Nikola Topi%%' OR nome_bref LIKE 'Zacc%%' OR nome_bref LIKE 'Gioc %%'")
+
+# ── stagione non ancora iniziata su bref (v6.1.3): niente «Import beautifulsoup4 failed», niente BrefRaw svuotato ──
+import pandas as _pd, bref_scraper as BS, gas_client as _gc
+def _senza_tabelle(*a, **k):
+    assert k.get("flavor") == "lxml", "read_html senza flavor=lxml: ripiega su bs4"
+    raise ValueError("No tables found")
+_pd.read_html = _senza_tabelle
+try:
+    BS.scrape_bref_df("2099"); ok(False, "pagina senza tabella: doveva dare BrefVuoto")
+except BS.BrefVuoto:
+    ok(True, "pagina senza tabella (stagione non iniziata) → BrefVuoto")
+_inviati, _fogli = [], []
+_gc.sync_bref_raw = lambda csv: _fogli.append(csv) or True
+_g = dict(settings.load_globals()); _g.update(fase="regular-season-fa", log_channel_id_main=-77)
+_vecchio_lg = settings.load_globals; settings.load_globals = lambda: _g
+class _B:
+    async def send_message(self, **k): _inviati.append(k)
+asyncio.run(BR.job_bref(types.SimpleNamespace(bot=_B())))
+settings.load_globals = _vecchio_lg
+ok(len(_inviati) == 1 and _inviati[0]["text"].startswith("⏳ Bref") and "❌" not in _inviati[0]["text"] and not _fogli,
+   f"job bref a stagione non iniziata: ⏳ sul canale log, foglio BrefRaw non toccato {_inviati}")

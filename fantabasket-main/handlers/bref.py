@@ -126,8 +126,16 @@ async def job_bref(context: ContextTypes.DEFAULT_TYPE) -> None:
     stagione_bref = str(int(g.get("stagione_corrente", 2026)) + 1)
     log_ch = g.get("log_channel_id_main")
     try:
-        from bref_scraper import run_giornaliero
+        from bref_scraper import run_giornaliero, BrefVuoto
         esito = await asyncio.to_thread(run_giornaliero, stagione_bref)
+    except BrefVuoto as e:
+        # stagione non ancora iniziata su bref: niente errore, niente foglio BrefRaw svuotato
+        logger.info("Bref %s: %s", stagione_bref, e)
+        if log_ch:
+            await context.bot.send_message(chat_id=log_ch, parse_mode="HTML",
+                                           text=f"⏳ Bref {stagione_bref}: tabella non ancora disponibile "
+                                                "(stagione non iniziata su basketball-reference), riprovo domani.")
+        return
     except Exception as e:
         logger.error("Bref scraper fallito: %s", e)
         if log_ch:

@@ -100,6 +100,10 @@ def _safe_int(val) -> int | None:
         return None
 
 
+class BrefVuoto(Exception):
+    """La pagina della stagione non c'è ancora o non ha la tabella (prima della prima partita)."""
+
+
 def scrape_bref(anno: str) -> list[dict]:
     """Scarica e pulisce la tabella per_game da basketball-reference."""
     return _righe_da_df(scrape_bref_df(anno))
@@ -112,7 +116,18 @@ def scrape_bref_df(anno: str):
     import pandas as pd
     url = BREF_BASE.format(anno=anno)
     logger.info("Scraping %s", url)
-    dfs = pd.read_html(url, storage_options=HEADERS)
+    # flavor="lxml": senza, se lxml non trova tabelle pandas riprova con bs4 (non installato) e l'errore
+    # vero («No tables found», es. stagione non ancora iniziata) diventa «Import beautifulsoup4 failed»
+    try:
+        dfs = pd.read_html(url, storage_options=HEADERS, flavor="lxml")
+    except ValueError as e:
+        if "no tables found" in str(e).lower():
+            raise BrefVuoto(f"nessuna tabella per_game in {url}") from e
+        raise
+    except Exception as e:
+        if getattr(e, "code", None) == 404:
+            raise BrefVuoto(f"pagina non ancora pubblicata: {url}") from e
+        raise
     df = dfs[0]
 
     # Rimuovi header ripetuti

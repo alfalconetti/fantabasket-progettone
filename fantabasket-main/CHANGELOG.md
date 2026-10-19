@@ -1434,3 +1434,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **Annullata la DPE su un 1x1 = decadimento** della v6.1.0 e la migrazione della v6.1.1 (nessuna delle due è mai stata installata): la DPE su un 1x1 resta una DPE normale, quest'anno 0M sul cap e niente slot, come prima. Un decadimento chiuderebbe il contratto, mentre a fine stagione l'x0 si può dichiarare RFA (gli x0 non si rinnovano); e la DPE conta nei minimi dei ruoli. Le DPE già fatte (es. Ben Simmons) restano come sono
 - Il resto della v6.1.0 (menu con ← e ✖️ Chiudi, /palette, /my_team, /team_diff nei gruppi) resta
+
+## v6.1.3 (2026-10-19)
+
+- **Bref a stagione non ancora iniziata**: il job delle 10 diceva «❌ Bref scraper fallito: Import beautifulsoup4 failed». In realtà la pagina della nuova stagione su basketball-reference non ha ancora la tabella: pandas non la trovava con lxml e ripiegava su bs4, che non è installato, e l'errore vero spariva. Ora la lettura usa solo lxml e, se la tabella (o la pagina) non c'è ancora, sul canale log arriva «⏳ Bref 2027: tabella non ancora disponibile, riprovo domani», senza toccare il foglio BrefRaw. Gli altri errori restano ❌ col messaggio vero
