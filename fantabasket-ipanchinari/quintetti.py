@@ -209,12 +209,33 @@ def _testo_editor(team_id: str, g: dict | None, admin: bool = False) -> str:
     return "\n".join(t)
 
 
+def giornata_comandi(s: str | None = None) -> tuple[dict | None, dict | None]:
+    """(prossima giornata, giornata in corso che blocca). Dalla scadenza di una giornata alle 6:00 del
+    giorno dopo il suo ultimo giorno NBA (come per le panchine, Luca 20/10) i comandi non lavorano
+    ancora per la giornata dopo: prossima = None e blocco = la giornata in corso."""
+    import comune
+    blocco = comune.panchine_bloccate(s)
+    return (None if blocco else prossima_giornata(s)), blocco
+
+
+def testo_quintetto_bloccato(g: dict) -> str:
+    from comune import dtime, datetime as _dt
+    fine = _dt.combine(g["al"] + timedelta(days=1), dtime(6, 0), tzinfo=ROMA)
+    return (f"⏳ C'è la giornata {g['numero']} in corso: il quintetto per la giornata successiva si cambia da "
+            f"{ora(fine)} in poi. Per correggere la formazione della giornata {g['numero']} scrivi a un admin.")
+
+
 async def cmd_quintetto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     team = config.squadra_del_gm(update.effective_user.id)
     if not team:
         await update.effective_message.reply_text("Non risulti GM di nessuna squadra. Admin: /quintetto_admin SQUADRA.")
         return
-    g = prossima_giornata()
+    g, blocco = giornata_comandi()
+    if blocco:
+        await update.effective_message.reply_text(
+            f"🏀 <b>Quintetto di {e(team['nome'])}</b>\n\n{testo_quintetto(team['id'], blocco)}\n\n"
+            + e(testo_quintetto_bloccato(blocco)), parse_mode="HTML")
+        return
     await update.effective_message.reply_text(_testo_editor(team["id"], g), parse_mode="HTML",
                                               reply_markup=_tastiera(team["id"], g))
 
@@ -231,7 +252,11 @@ async def cb_quintetto(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     team = config.squadra(team_id)
     s = config.stagione()
-    g = prossima_giornata(s)
+    g, blocco = giornata_comandi(s)
+    if blocco and not admin and azione in ("c", "s", "ok", "mod"):
+        # giornata in corso: il GM non cambia né conferma (vale per la successiva solo dalle 6)
+        await q.answer(testo_quintetto_bloccato(blocco)[:190], show_alert=True)
+        return
     if azione == "ck":
         admin = config.is_admin(uid)
         if not admin:
@@ -354,8 +379,17 @@ async def cmd_quintetto_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
         await msg.reply_text("Uso: /quintetto_admin SQUADRA (nome o id) nella prima riga, sotto i 5 titolari. "
                              "Con G5 dopo la squadra corregge la formazione della giornata 5.")
         return
-    if not [r for r in righe[1:] if r.strip()] and not solo_g:
-        g = prossima_giornata()
+    if not [r for r in righe[1:] if r.strip()]:
+        in_corso = giornata_in_corso()
+        if solo_g and not (in_corso and in_corso["numero"] == solo_g):
+            # una giornata chiusa ma non più in corso: coi bottoni si cambierebbe il quintetto di oggi
+            await msg.reply_text(f"Per correggere la formazione della giornata {solo_g} scrivi sotto i 5 titolari, una "
+                                 f"riga per giocatore:\n/quintetto_admin {e(team['nome'])} G{solo_g}\nPG …\nSG …\nSF …\nPF …\nC …",
+                                 parse_mode="HTML")
+            return
+        # senza righe (anche con il GN della giornata in corso): l'editor coi bottoni; da admin ogni
+        # cambio vale anche per la formazione della giornata in corso
+        g, _ = giornata_comandi()
         await msg.reply_text(_testo_editor(team["id"], g, admin=True), parse_mode="HTML",
                              reply_markup=_tastiera(team["id"], g, admin=True))
         return
@@ -382,7 +416,7 @@ async def cmd_quintetto_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
                    dopo=elenco, nota="a giornata chiusa (☑️ controllata)")
         return
     db.salva_quintetto(team["id"], q, "admin", update.effective_user.id)
-    g = prossima_giornata()
+    g, _ = giornata_comandi()
     if g:
         db.conferma(s, g["numero"], team["id"], "modificato", update.effective_user.id)
     in_corso = giornata_in_corso(s)
@@ -629,7 +663,11 @@ async def cmd_stato(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("⛔ Solo admin.")
         return
     n = int(context.args[0]) if context.args and context.args[0].isdigit() else None
-    g = db.giornata(config.stagione(), n) if n else prossima_giornata()
+    if n:
+        g = db.giornata(config.stagione(), n)
+    else:                                           # giornata in corso fino alle 6: quella
+        g, blocco = giornata_comandi()
+        g = blocco or g
     if not g:
         await update.effective_message.reply_text("Nessuna giornata.")
         return

@@ -47,7 +47,8 @@ def scegli_giornata(n: int | None) -> dict | None:
     s = config.stagione()
     if n:
         return db.giornata(s, n)
-    return prossima_giornata(s) or giornata_in_corso(s)
+    import comune
+    return comune.panchine_bloccate(s) or prossima_giornata(s) or giornata_in_corso(s)   # in corso fino alle 6
 
 
 def report(g: dict) -> str:

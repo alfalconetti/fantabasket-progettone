@@ -1450,3 +1450,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.1.6 (2026-10-20)
 
 - **Approva su una trade già approvata**: con un doppio tocco, o due admin quasi insieme, il secondo Approva riscriveva il messaggio nel gruppo admin con tutta la bozza e «ℹ️ Non approvabile: stato ✅ approvata», cancellando il «✅ approvata ed eseguita» del primo e facendo pensare a un errore. Ora il messaggio dice «✅ Trade TRADE-… già approvata ed eseguita da X (data e ora). Non serve fare altro», senza bozza e senza bottoni. Lo stesso per Rifiuta, e per due Approva arrivati insieme (il secondo non dice più «Trade non eseguita, resta da approvare»). La trade veniva comunque eseguita una volta sola
+
+## v6.1.7 (2026-10-20)
+
+- **IPanchinari v27**: `/quintetto_admin SQUADRA GN` senza righe apre l'editor coi bottoni. Nessun cambio al bot principale
+- IPanchinari v27: fino alle 6 del giorno dopo l'ultima notte della giornata, `/quintetto`, `/stato` e i report restano sulla giornata in corso

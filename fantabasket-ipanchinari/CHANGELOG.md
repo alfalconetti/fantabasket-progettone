@@ -125,3 +125,8 @@ Primo rilascio: panchine e quintetti.
 
 - **`/edit`** (Luca, 20/10): la panchina già mandata per la prossima giornata, una riga per giocatore. Il bottone del giocatore cambia il soprannome (scritto in chat, ♻️ nome vero); ⬆️ ⬇️ spostano; 🔄 cambia: con un altro già in panchina i due si scambiano il posto e ognuno tiene il suo soprannome, con uno fuori panchina entra al suo posto col nome vero. Il titolo resta; ✅ Pubblica aggiorna il messaggio sul canale. Lo stesso editor anche dall'anteprima di una panchina nuova (🛠). Admin: `/edit SQUADRA`. A giornata in corso è bloccato come le panchine nuove
 - Guide GM, admin e dev; prove nuove in `ipa_panchine`
+
+## v27 (2026-10-20)
+
+- **`/quintetto_admin SQUADRA GN` senza righe** (Luca, 20/10): con il GN della giornata in corso apre l'editor coi bottoni (ogni cambio vale anche per la sua formazione), invece di «manca PG, SG, SF, PF, C». Con il GN di una giornata chiusa ma non più in corso spiega come scrivere i 5 titolari sotto
+- **Fino alle 6 i comandi restano sulla giornata in corso** (Luca, 20/10), come già le panchine: dalla scadenza alle 6:00 del giorno dopo l'ultimo giorno NBA della giornata `/quintetto` mostra il quintetto senza bottoni e dice da quando si cambia; i bottoni vecchi del GM (cambio, Confermo, Modifico) sono bloccati. L'admin con `/quintetto_admin` continua a correggere la formazione della giornata in corso, senza il Conferma della giornata dopo. `/stato` e i report senza numero mostrano la giornata in corso

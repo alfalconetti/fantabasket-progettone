@@ -358,6 +358,9 @@ ok(db.formazione(S, 1, "team01")["PG"] == gids["Jalen Brunson"] and db.quintetto
    "con G1: corregge solo la formazione della giornata 1")
 ok("non è ancora chiusa" in admin("/quintetto_admin Alfa G2\nBrunson\nBooker\nBridges\nGrant Williams\nMark Williams"),
    "G di una giornata non chiusa: rifiutato")
+_m = Msg("/quintetto_admin Alfa G1"); asyncio.run(Q.cmd_quintetto_admin(upd(900, _m), CTX))
+ok("✏️ PG" in str([b.text for r_ in _m.risposte[-1][1]["reply_markup"].inline_keyboard for b in r_])
+   and "manca" not in _m.risposte[-1][0], "con G1 della giornata in corso e senza righe: l'editor coi bottoni, non «manca PG…»")
 
 # ── /quintetti: una riga per squadra ──
 m = Msg("/quintetti"); CTX.args = []; asyncio.run(Q.cmd_quintetti(upd(900, m), CTX))
@@ -618,6 +621,14 @@ ok("non c'è ancora una panchina" in m.risposte[-1][0], "/edit senza panchina ma
 CO.panchine_bloccate = lambda *a, **k: db.giornata(S, 3)
 m = Msg("/edit"); asyncio.run(P.cmd_edit(upd(101, m), CTX))
 ok("🛠" not in m.risposte[-1][0], "/edit a giornata in corso: rifiutato")
+# giornata in corso fino alle 6: il quintetto non lavora ancora per la giornata dopo (Luca, 20/10)
+m = Msg("/quintetto"); asyncio.run(Q.cmd_quintetto(upd(101, m), CTX))
+ok("giornata 3 in corso" in m.risposte[-1][0] and not m.risposte[-1][1].get("reply_markup"), "/quintetto a giornata in corso: niente bottoni, dice da quando")
+ok(premi(101, "q:c:team01:PG").risposte and "in corso" in (premi(101, "q:c:team01:PG").risposte[-1] or ""), "bottoni vecchi del GM: bloccati")
+_m = Msg("/quintetto_admin Alfa"); asyncio.run(Q.cmd_quintetto_admin(upd(900, _m), CTX))
+_bs = [b.callback_data for r_ in _m.risposte[-1][1]["reply_markup"].inline_keyboard for b in r_]
+ok(any(x.startswith("q:c:team01") for x in _bs) and not any(x.startswith("q:ok:") for x in _bs),
+   "admin a giornata in corso: editor sì (vale per la formazione in corso), niente Conferma della giornata dopo")
 CO.panchine_bloccate = _vb
 
 # pulizia
