@@ -111,6 +111,8 @@ Chiede conferma nel gruppo se l'asta era annullata, o se qualcuno finirebbe col 
 
 Rimanda il messaggio e riattiva le scadenze automatiche. Non cambia niente nel database. Funziona sulle aste chiuse o in pareggio.
 
+**Il GM ti ha detto gli anni ma non riesce a firmare** (o vi siete accordati diversamente entro le 48 ore): `/firma_per_conto 42`, o senza numero per l'elenco delle aste che aspettano gli anni. Stessi bottoni del GM: anni, poi il ruolo se siamo in regular season, poi conferma; stessi controlli (anni minimi per fascia, ruoli). Sul canale esce l'annuncio di sempre, i GM della squadra ricevono «l'admin … ha completato la firma per te», e sul canale log e nel registro risulta tua, «per conto della squadra». Vale anche per gli anni del vincitore di una RFA (poi il pareggio va avanti come sempre). Il pareggio del proprietario no: per quello c'è `/force_esito`.
+
 **Il messaggio dell'asta nel canale è rimasto indietro**, per esempio non mostra l'ultima offerta: `/forza_aggiornamento 42` lo riscrive con i dati giusti.
 
 **Il messaggio nel canale è stato cancellato**: `/ripubblica_asta 42` ne pubblica uno nuovo e lo collega all'asta. Senza, ogni rilancio darebbe errore sul canale log.

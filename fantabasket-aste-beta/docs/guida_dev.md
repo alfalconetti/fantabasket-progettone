@@ -283,7 +283,7 @@ Visibilità:
 | guardare | `/list`, `/listteams`, `/team`, `/aste`, `/all_aste`, `/firme`, `/stato_asta` |
 | per conto di una squadra | `/apri_asta`, `/crea_offerta`, `/nuova_rfa` |
 | correggere | `/annulla_offerta`, `/chiudi_asta`, `/annulla_asta`, `/riapri_asta`, `/estendi_asta`, `/sposta_asta` |
-| recupero | `/force_esito`, `/forza_aggiornamento`, `/ripubblica_asta` |
+| recupero | `/force_esito`, `/forza_aggiornamento`, `/ripubblica_asta`, `/firma_per_conto` (v69: callback `pc_firma*`, stessi handler di `firma*` con `_squadra_che_firma` che per conto accetta solo admin; `_registra_firma_finale(per_conto=True)`) |
 | mercato | `/apri_mercato`, `/chiudi_mercato` (emergenza) |
 | aiuto | `/admin`, `/guida_admin` |
 

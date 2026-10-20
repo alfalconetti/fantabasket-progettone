@@ -282,6 +282,21 @@ async def _invia_ad_admin_dopo_voti(context, trade_id: int):
                             f"ora è in attesa degli admin.", escludi=("admin",))
 
 
+def _gia_gestita(trade: dict | None) -> str:
+    """Il bottone Approva/Rifiuta premuto su una trade che non è più da approvare (un altro admin è
+    arrivato prima, doppio tocco, approvata dal pannello): cosa è successo, al posto della bozza."""
+    t = trade or {}
+    if t.get("stato") == "approvata":
+        quando = format_dt(t["approvata_at"].astimezone(ROME)) if t.get("approvata_at") else ""
+        return (f"✅ <b>Trade {t.get('trade_ref') or _trade_label(t)} già approvata ed eseguita</b>"
+                + (f" da {html.escape(str(t['approvata_da']))}" if t.get("approvata_da") else "")
+                + (f" ({quando})" if quando else "") + ".\n<i>Non serve fare altro: l'annuncio è già sul canale.</i>")
+    if not t:
+        return "ℹ️ Trade non trovata."
+    return (f"ℹ️ La trade {_trade_label(t)} non è più da approvare: "
+            f"{_STATI.get(t.get('stato'), t.get('stato'))}" + (f" ({html.escape(t['note'])})" if t.get("note") else "") + ".")
+
+
 async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Admin approva o rifiuta la trade."""
     query = update.callback_query
@@ -298,10 +313,7 @@ async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Solo se è ancora in approvazione: mai sopra una trade già approvata ed eseguita
         if not db.cambia_stato_trade(trade_id, ("in_approvazione",), "rifiutata_admin",
                                      note=f"Rifiutata dagli admin ({admin_nome})"):
-            t = db.get_trade(trade_id) or {}
-            await query.edit_message_text(
-                query.message.text_html + f"\n\nℹ️ <b>Già gestita</b>: stato {_STATI.get(t.get('stato'), t.get('stato'))}.",
-                parse_mode="HTML")
+            await query.edit_message_text(_gia_gestita(db.get_trade(trade_id)), parse_mode="HTML")
             return
         t = db.get_trade(trade_id) or {}
         from handlers.trade_comune import segna_trade
@@ -314,9 +326,7 @@ async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     trade    = db.get_trade(trade_id)
     if not trade or trade["stato"] != "in_approvazione":
-        await query.edit_message_text(
-            query.message.text_html + f"\n\nℹ️ <b>Non approvabile</b>: stato "
-            f"{_STATI.get((trade or {}).get('stato'), (trade or {}).get('stato'))}.", parse_mode="HTML")
+        await query.edit_message_text(_gia_gestita(trade), parse_mode="HTML")
         return
 
     # Genera trade_ref (MAX progressivo per evitare collisioni)
@@ -331,6 +341,10 @@ async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await _esegui_trade(context, trade_id, trade_ref, approvata_da=admin_nome, user=admin_user)
     except TradeNonEseguibile as e:
+        t_ora = db.get_trade(trade_id)
+        if (t_ora or {}).get("stato") != "in_approvazione":     # due Approva quasi insieme: l'altro è arrivato prima
+            await query.edit_message_text(_gia_gestita(t_ora), parse_mode="HTML")
+            return
         await query.edit_message_text(
             f"❌ <b>Trade non eseguita</b>: {e}.\nNessuna modifica è stata salvata; la trade resta da approvare.",
             parse_mode="HTML", reply_markup=query.message.reply_markup)   # Approva/Rifiuta restano

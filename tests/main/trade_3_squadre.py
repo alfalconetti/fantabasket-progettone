@@ -102,6 +102,12 @@ async def main():
     ok(db._qval("SELECT team_id FROM rookie WHERE giocatore_id=%s",(rk,))=="team01","diritti spostati")
     ok({c for c,_ in sent}>={101,102,103,-1},"tutti avvisati + canale")
     ref=db.get_trade(nuovo)["trade_ref"]
+    # secondo Approva (doppio tocco o un altro admin): dice che è già fatta, senza ripetere la bozza
+    q=await go(T.cb_admin_trade,f"trade_admin:ok:{nuovo}",900)
+    ok(q.t and q.t.startswith(f"✅ <b>Trade {ref} già approvata ed eseguita</b> da U900") and "Non approvabile" not in q.t and not q.kb,
+       f"Approva su una trade già approvata: messaggio chiaro {q.t}")
+    q=await go(T.cb_admin_trade,f"trade_admin:no:{nuovo}",900)
+    ok(q.t and "già approvata ed eseguita" in q.t and db.get_trade(nuovo)["stato"]=="approvata", "Rifiuta su una trade già approvata: idem, niente cambia")
     # annulla_trade_admin
     sent.clear(); msg=Msg(); upd=types.SimpleNamespace(effective_user=types.SimpleNamespace(id=900,first_name="Adm"),effective_message=msg,effective_chat=types.SimpleNamespace(type="private"),message=msg)
     await T.cmd_annulla_trade_admin(upd, types.SimpleNamespace(bot=Bot(),args=[ref],user_data={}))

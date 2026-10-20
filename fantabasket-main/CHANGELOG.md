@@ -1442,3 +1442,11 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.1.4 (2026-10-20)
 
 - **IPanchinari v26**: `/edit` per modificare la panchina già mandata (ordine, cambi, soprannomi) coi bottoni. Nessun cambio al bot principale
+
+## v6.1.5 (2026-10-20)
+
+- **Bot aste v69**: `/firma_per_conto` per scegliere gli anni di una firma al posto del GM vincitore. Nessun cambio al bot principale
+
+## v6.1.6 (2026-10-20)
+
+- **Approva su una trade già approvata**: con un doppio tocco, o due admin quasi insieme, il secondo Approva riscriveva il messaggio nel gruppo admin con tutta la bozza e «ℹ️ Non approvabile: stato ✅ approvata», cancellando il «✅ approvata ed eseguita» del primo e facendo pensare a un errore. Ora il messaggio dice «✅ Trade TRADE-… già approvata ed eseguita da X (data e ora). Non serve fare altro», senza bozza e senza bottoni. Lo stesso per Rifiuta, e per due Approva arrivati insieme (il secondo non dice più «Trade non eseguita, resta da approvare»). La trade veniva comunque eseguita una volta sola

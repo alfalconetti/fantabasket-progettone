@@ -49,6 +49,7 @@ def liste_comandi(fase: str, mercato_fa: bool, offerte: bool) -> dict:
         BotCommand("aste", "Aste in corso"),
         BotCommand("all_aste", "Tutte le aste, anche chiuse"),
         BotCommand("firme", "Firme recenti"),
+        BotCommand("firma_per_conto", "Anni (e ruolo) di una firma al posto del GM vincitore"),
     ]
     if mercato_fa:
         admin.append(BotCommand("apri_asta", "Apri un'asta FA per conto di una squadra"))

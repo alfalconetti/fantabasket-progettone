@@ -649,3 +649,8 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 - Senza PostgreSQL il bot funziona come prima: la riga nel registro manca (avviso nel log del processo), quella sul canale log arriva
 - Prova: `registro_aste`
 
+## v69 (2026-10-20)
+
+- **`/firma_per_conto [asta_id]`** (admin, Luca 20/10): scegliere anni (e ruolo in regular season) al posto del GM vincitore entro le 48 ore, con gli stessi bottoni e controlli del GM (callback `pc_firma*`). Senza id l'elenco delle aste che aspettano gli anni. Annuncio sul canale principale di sempre, i GM della squadra avvisati in privato, nel registro e sul canale log come admin «per conto della squadra». Anche per gli anni del vincitore di una RFA; il pareggio resta al proprietario (`/force_esito`)
+- Anche la scelta degli anni di una RFA da parte del GM finisce nel registro
+- Prova `firma_per_conto`

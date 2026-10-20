@@ -357,6 +357,7 @@ async def cmd_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "\n"
         "<b>🚑 Se qualcosa si inceppa</b>\n"
         "/force_esito &lt;asta_id&gt; — rimanda al GM il messaggio di firma o pareggio\n"
+        "/firma_per_conto [asta_id] — scegli tu anni (e ruolo) al posto del GM vincitore\n"
         "/forza_aggiornamento &lt;asta_id&gt; — riscrive il messaggio dell'asta nel canale\n"
         "/ripubblica_asta &lt;asta_id&gt; — ripubblica il messaggio se è stato cancellato\n"
         "/backup_ora — backup subito sul canale log\n"
@@ -370,6 +371,11 @@ async def cmd_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ── registrazione ───────────────────────────────────────────────────────────────
+
+async def _firma_per_conto(update, context):
+    from handlers.firma import cmd_firma_per_conto
+    await cmd_firma_per_conto(update, context)
+
 
 def get_handlers():
     return [
@@ -399,6 +405,7 @@ def get_handlers():
         CommandHandler("ripubblica_asta",       ripubblica_asta),
         CommandHandler("forza_aggiornamento",   forza_aggiornamento),
         CommandHandler("force_esito",           force_esito),
+        CommandHandler("firma_per_conto",       _firma_per_conto),
         CommandHandler("estendi_asta",          estendi_asta),
         CommandHandler("sposta_asta",           sposta_asta),
         CommandHandler("stato_asta",            stato_asta),

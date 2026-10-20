@@ -105,7 +105,7 @@ async def _concludi_rfa_senza_contratto(context, asta_id: int):
 async def _registra_firma_finale(
     context, asta_id: int, anni: int, team_id: str,
     query=None, importo_override: int = None, pareggiato: bool = False,
-    ruolo: str | None = None, nota_tempo: str | None = None, user=None,
+    ruolo: str | None = None, nota_tempo: str | None = None, user=None, per_conto: bool = False,
 ) -> str | None:
     """
     Gestisce SEMPRE:
@@ -195,8 +195,10 @@ async def _registra_firma_finale(
         azione = "firma RFA (pareggio non esercitato)"
     else:
         azione = "firma dopo l'asta FA"
+    if per_conto:                                   # /firma_per_conto: un admin al posto del GM
+        azione += " per conto della squadra"
     from registro import segna_asta
-    await segna_asta(context.bot, chi, "gm" if chi else "sistema", azione, asta, team_id,
+    await segna_asta(context.bot, chi, ("admin" if per_conto else "gm") if chi else "sistema", azione, asta, team_id,
                      prima="asta", dopo=f"{importo}M × {anni}" + (f", {ruolo}" if ruolo else ""),
                      nota="; ".join(scaduti) or None)
 
