@@ -382,8 +382,11 @@ premi(900, f"q:s:team01:PG:{gids['Walter Clayton Jr.']}")
 ok(db.quintetto("team01")["PG"] == gids["Walter Clayton Jr."] and db.formazione(S, 1, "team01")["PG"] == gids["Walter Clayton Jr."],
    "admin coi bottoni a giornata in corso: aggiorna anche la formazione")
 m = Msg("/panchina_admin Alfa"); asyncio.run(P.cmd_panchina_admin(upd(900, m), CTX))
+ok("giornata 1" in m.risposte[-1][0] and "correzione (giornata chiusa)" in m.risposte[-1][0],
+   "admin a giornata 1 in corso: /panchina_admin SQUADRA corregge la giornata 1, non la successiva " + m.risposte[-1][0][:80])
+m = Msg("/build_panchina"); asyncio.run(P.cmd_build_panchina(upd(101, m), CTX))
 ok("non accetto panchine" in m.risposte[-1][0] and "giornata 1 in corso" in m.risposte[-1][0],
-   "giornata 1 in corso: niente panchine per la giornata dopo (fino alle 6 del giorno in cui comincia) " + m.risposte[-1][0])
+   "GM a giornata 1 in corso: niente panchine per la giornata dopo (fino alle 6 del giorno in cui comincia) " + m.risposte[-1][0])
 import comune as _CO
 _blocco = _CO.panchine_bloccate; _CO.panchine_bloccate = lambda *a, **k: None       # come la mattina dopo
 m = Msg("/panchina_admin Alfa"); asyncio.run(P.cmd_panchina_admin(upd(900, m), CTX))
@@ -621,6 +624,18 @@ ok("non c'è ancora una panchina" in m.risposte[-1][0], "/edit senza panchina ma
 CO.panchine_bloccate = lambda *a, **k: db.giornata(S, 3)
 m = Msg("/edit"); asyncio.run(P.cmd_edit(upd(101, m), CTX))
 ok("🛠" not in m.risposte[-1][0], "/edit a giornata in corso: rifiutato")
+# admin a giornata in corso (Luca, 20/10): /edit SQUADRA e /panchina_admin SQUADRA correggono quella in corso
+_chiusa = db.stato_giornata(S, 3)["chiusa"]
+if not _chiusa:
+    db.q("INSERT INTO ipa_stato_giornata (stagione, giornata, chiusa) VALUES (%s, 3, NOW()) "
+         "ON CONFLICT (stagione, giornata) DO UPDATE SET chiusa = NOW()", (S,))
+m = Msg("/edit Alfa"); CTX.args = ["Alfa"]; asyncio.run(P.cmd_edit(upd(900, m), CTX)); CTX.args = []
+ok("🛠" in m.risposte[-1][0] and "correzione (giornata chiusa)" in m.risposte[-1][0], "admin: /edit SQUADRA a giornata in corso corregge quella")
+m = Msg("/panchina_admin Alfa"); asyncio.run(P.cmd_panchina_admin(upd(900, m), CTX))
+ok("correzione (giornata chiusa)" in m.risposte[-1][0] and "non accetto" not in m.risposte[-1][0],
+   "admin: /panchina_admin SQUADRA a giornata in corso apre la correzione")
+m = Msg("/edit"); asyncio.run(P.cmd_edit(upd(101, m), CTX))
+ok("non accetto panchine" in m.risposte[-1][0], "il GM resta bloccato")
 # giornata in corso fino alle 6: il quintetto non lavora ancora per la giornata dopo (Luca, 20/10)
 m = Msg("/quintetto"); asyncio.run(Q.cmd_quintetto(upd(101, m), CTX))
 ok("giornata 3 in corso" in m.risposte[-1][0] and not m.risposte[-1][1].get("reply_markup"), "/quintetto a giornata in corso: niente bottoni, dice da quando")

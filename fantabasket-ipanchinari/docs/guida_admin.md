@@ -80,7 +80,7 @@ Stessa anteprima e stessi bottoni del GM; sul canale, in fondo al messaggio, c'�
 
 La panchina è sempre di 5 giocatori: con meno righe il bot non la prende, il builder pubblica solo al quinto.
 
-Durante una giornata in corso il bot non accetta panchine, né dai GM né con `/panchina_admin SQUADRA` (senza GN): dalla scadenza fino alle 6 di mattina del giorno dopo l'ultimo giorno NBA della giornata, cioè di quello in cui comincia la successiva. Prima una panchina arrivata a giornata iniziata valeva in silenzio per la giornata dopo. Per quella in corso si corregge con `/panchina_admin SQUADRA GN`.
+Durante una giornata in corso il bot non accetta panchine dai GM: dalla scadenza fino alle 6 di mattina del giorno dopo l'ultimo giorno NBA della giornata, cioè di quello in cui comincia la successiva. Prima una panchina arrivata a giornata iniziata valeva in silenzio per la giornata dopo. Tu invece in quella finestra con `/panchina_admin SQUADRA` (anche senza GN) e con `/edit SQUADRA` correggi la panchina **della giornata in corso** (✏️ correzione); dopo il calcolo, `/ricalcola N` su loucabot.
 
 **Correggere la panchina di una giornata già chiusa** (per il calcolo): `/panchina_admin SQUADRA G5` e sotto le righe (o senza righe, col builder). Si pubblica anche a scadenza passata (sul canale si aggiorna il messaggio), i ruoli dei panchinari si congelano di nuovo, e il bot ricorda di lanciare `/ricalcola 5` su loucabot.
 

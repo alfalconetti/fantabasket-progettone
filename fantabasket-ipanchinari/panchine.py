@@ -127,9 +127,20 @@ def _giornata_correzione(s: str, numero: int) -> tuple[dict | None, str | None]:
     return g, None
 
 
+def _correzione_in_corso(s: str) -> int | None:
+    """Admin a giornata in corso (Luca, 20/10): senza GN si corregge la panchina della giornata in
+    corso, come con GN, invece di «non accetto panchine» (quello vale per i GM)."""
+    blocco = comune.panchine_bloccate(s)
+    if blocco and db.stato_giornata(s, blocco["numero"])["chiusa"]:
+        return blocco["numero"]
+    return None
+
+
 def crea_bozza(chat_id: int, team_id: str, testo: str, fonte: str = "gm", numero: int | None = None) -> tuple[dict | None, str | None]:
     """(bozza, errore). Con `numero` (admin): correzione della panchina della giornata N, già chiusa."""
     s = config.stagione()
+    if not numero and fonte == "admin":
+        numero = _correzione_in_corso(s)
     if numero:
         g, err = _giornata_correzione(s, numero)
         if err:
@@ -450,7 +461,8 @@ def editor(b: dict) -> tuple[str, K]:
     nomi = _nomi(roster)
     g = db.giornata(b["stagione"], b["giornata"])
     st, quando = stati([r.get("scelto") for r in d["righe"]])
-    righe = [f"🛠 <b>Panchina di {e(config.nome(b['team_id']))} · giornata {b['giornata']}</b>",
+    righe = [f"🛠 <b>Panchina di {e(config.nome(b['team_id']))} · giornata {b['giornata']}</b>"
+             + (" · ✏️ correzione (giornata chiusa)" if d.get("correzione") else ""),
              f"Scadenza: {ora(g['prima_partita']) if g else '?'}", ""]
     if d.get("titolo"):
         righe += [f"<i>{e(d['titolo'])}</i>", ""]
@@ -560,23 +572,30 @@ async def cmd_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await msg.reply_text("Non risulti GM di nessuna squadra." + (" Admin: /edit SQUADRA." if config.is_admin(uid) else ""))
             return
     s = config.stagione()
-    blocco = comune.panchine_bloccate(s)
-    if blocco:
-        await msg.reply_text(testo_panchine_bloccate(blocco))
-        return
-    g = prossima_giornata(s)
+    correzione = _correzione_in_corso(s) if fonte == "admin" else None
+    if correzione:                                   # admin a giornata in corso: si corregge quella
+        g = db.giornata(s, correzione)
+    else:
+        blocco = comune.panchine_bloccate(s)
+        if blocco:
+            await msg.reply_text(testo_panchine_bloccate(blocco)
+                                 + ("\nAdmin: /edit SQUADRA o /panchina_admin SQUADRA G" + str(blocco["numero"])
+                                    if config.is_admin(uid) else ""))
+            return
+        g = prossima_giornata(s)
     if not g:
         await msg.reply_text("Non c'è una giornata aperta.")
         return
     p = db.panchina(s, g["numero"], team["id"])
     if not p:
-        await msg.reply_text(f"Per la giornata {g['numero']} non c'è ancora una panchina da modificare: mandami le righe "
-                             "o usa /build_panchina.")
+        await msg.reply_text(f"Per la giornata {g['numero']} non c'è ancora una panchina da modificare: "
+                             + (f"/panchina_admin {team['nome']} per crearla." if fonte == "admin" else
+                                "mandami le righe o usa /build_panchina."))
         return
     righe = [{"testo": r["testo"], "candidati": [r["giocatore_id"]], "scelto": r["giocatore_id"], "certo": True}
              for r in p["righe"]]
     bid = db.nuova_bozza(update.effective_chat.id, team["id"], s, g["numero"],
-                         {"titolo": p["titolo"], "righe": righe, "correzione": False, "edit": True}, fonte)
+                         {"titolo": p["titolo"], "righe": righe, "correzione": bool(correzione), "edit": True}, fonte)
     testo, tasti = editor(db.bozza(bid))
     await msg.reply_text(testo, parse_mode="HTML", reply_markup=tasti)
 
@@ -613,6 +632,8 @@ def builder(b: dict, roster: list[dict]) -> tuple[str, K]:
 
 async def apri_builder(msg, chat_id: int, team_id: str, fonte: str = "gm", numero: int | None = None):
     s = config.stagione()
+    if not numero and fonte == "admin":
+        numero = _correzione_in_corso(s)
     if numero:
         g, err = _giornata_correzione(s, numero)
         if err:

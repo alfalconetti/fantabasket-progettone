@@ -1455,3 +1455,4 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **IPanchinari v27**: `/quintetto_admin SQUADRA GN` senza righe apre l'editor coi bottoni. Nessun cambio al bot principale
 - IPanchinari v27: fino alle 6 del giorno dopo l'ultima notte della giornata, `/quintetto`, `/stato` e i report restano sulla giornata in corso
+- IPanchinari v27: da admin, a giornata in corso, `/edit SQUADRA` e `/panchina_admin SQUADRA` correggono la panchina della giornata in corso
