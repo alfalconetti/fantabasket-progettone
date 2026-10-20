@@ -574,6 +574,52 @@ ok(_blocco(S, fine - timedelta(minutes=1))["numero"] == 1 and _blocco(S, fine + 
    "panchine bloccate dalla scadenza alle 6 del giorno dopo l'ultimo giorno NBA della giornata")
 CO.db.giornate = _vere
 
+# ── v26: /edit — ordine, cambi e soprannomi della panchina già mandata ──
+_vb = CO.panchine_bloccate; CO.panchine_bloccate = lambda *a, **k: None
+_p5 = ["Dominick Barlow", "Walter Clayton Jr.", "Nique Clifford", "Kevon Looney", "Josh Hart"]
+_p5 = [n for n in _p5 if db.q("SELECT 1 FROM contratti WHERE giocatore_id=%s AND team_id='team01'", (gids[n],), one=True)]
+_p5 += [n for n in ["Grant Williams", "Mark Williams", "Jalen Brunson", "Devin Booker"] if n not in _p5][:5 - len(_p5)]
+db.salva_panchina(S, 3, "team01", "Titolo", [{"giocatore_id": gids[n], "testo": ("Il Barlow" if i == 0 else n)}
+                                             for i, n in enumerate(_p5)])
+m = Msg("/edit"); CTX.args = []
+asyncio.run(P.cmd_edit(upd(101, m), CTX))
+t, k = m.risposte[-1]
+bid = int(next(x for x in bottoni(k["reply_markup"]) if x.startswith("pb:ok:")).split(":")[2])
+ok("🛠" in t and "1. Il Barlow → <b>" in t and all(f"pb:{a}:{bid}:0" in bottoni(k["reply_markup"]) for a in ("n", "su", "gi", "sw")),
+   "/edit: la panchina mandata, ogni riga con ✏️ ⬆️ ⬇️ 🔄")
+rig = lambda: P.db.bozza(bid)["dati"]["righe"]
+ok(premi(101, f"pb:su:{bid}:0").risposte == ["È già il primo."], "⬆️ sul primo: niente")
+premi(101, f"pb:gi:{bid}:0")
+ok([r["scelto"] for r in rig()][:2] == [gids[_p5[1]], gids[_p5[0]]] and rig()[1]["testo"] == "Il Barlow", "⬇️: scende di uno, col suo soprannome")
+qs = premi(101, f"pb:sw:{bid}:1")
+bs = bottoni(qs.testi[-1][1]["reply_markup"])
+fuori = next(n for n in NOMI_PROVA if n not in _p5 and db.q("SELECT 1 FROM contratti WHERE giocatore_id=%s AND team_id='team01'", (gids[n],), one=True))
+ok(f"pb:sp:{bid}:1:{gids[_p5[3]]}" in bs and f"pb:sp:{bid}:1:{gids[fuori]}" in bs, "🔄: gli altri panchinari e chi non è in panchina")
+premi(101, f"pb:sp:{bid}:1:{gids[_p5[3]]}")
+ok(rig()[1]["scelto"] == gids[_p5[3]] and rig()[3]["scelto"] == gids[_p5[0]] and rig()[3]["testo"] == "Il Barlow",
+   "🔄 con uno in panchina: si scambiano il posto, il soprannome segue il giocatore")
+premi(101, f"pb:sp:{bid}:3:{gids[fuori]}")
+ok(rig()[3]["scelto"] == gids[fuori] and rig()[3]["testo"] == fuori and gids[_p5[0]] not in [r["scelto"] for r in rig()],
+   "🔄 con uno fuori: entra al suo posto, col nome vero")
+qn = premi(101, f"pb:n:{bid}:0")
+ok("Soprannome per" in qn.testi[-1][0] and f"pb:cn:{bid}" in bottoni(qn.testi[-1][1]["reply_markup"]), "✏️: chiede il soprannome")
+mm = manda(101, "El Mago")
+ok(rig()[0]["testo"] == "El Mago" and "🛠" in mm.risposte[-1][0], "il soprannome scritto torna all'editor")
+premi(101, f"pb:n:{bid}:0"); premi(101, f"pb:cn:{bid}")
+ok(rig()[0]["testo"] == P.db.nomi_giocatori([rig()[0]["scelto"]])[rig()[0]["scelto"]], "♻️ Nome vero")
+premi(101, f"pb:n:{bid}:1"); premi(101, f"pb:cs:{bid}")
+ok(P.db.bozza(bid)["dati"].get("cai_passo") is None and not P.db.bozza(bid)["dati"].get("cai_singolo"), "↩️ dal soprannome: niente cambia")
+BOT.mandati.clear(); premi(101, f"pb:ok:{bid}")
+pp = db.panchina(S, 3, "team01")
+ok([r["giocatore_id"] for r in pp["righe"]] == [r["scelto"] for r in rig()] and pp["titolo"] == "Titolo"
+   and any("🔁 ultima modifica" in x["text"] for x in BOT.mandati), "✅ Pubblica: salvata col titolo, sul canale come modifica")
+m = Msg("/edit"); asyncio.run(P.cmd_edit(upd(102, m), CTX))
+ok("non c'è ancora una panchina" in m.risposte[-1][0], "/edit senza panchina mandata: lo dice")
+CO.panchine_bloccate = lambda *a, **k: db.giornata(S, 3)
+m = Msg("/edit"); asyncio.run(P.cmd_edit(upd(101, m), CTX))
+ok("🛠" not in m.risposte[-1][0], "/edit a giornata in corso: rifiutato")
+CO.panchine_bloccate = _vb
+
 # pulizia
 ids = list(gids.values())
 db.q("DELETE FROM cambi_ruolo WHERE giocatore_id = ANY(%s)", (ids,))

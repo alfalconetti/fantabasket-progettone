@@ -76,6 +76,8 @@ Dominik Arcade Boy Barlow
 
 Stessa anteprima e stessi bottoni del GM; sul canale, in fondo al messaggio, c'è scritto "✍️ admin" col tuo nome e l'ora (per le panchine dei GM "✍️ GM"), e nel log risulta fatta da te. **Senza righe** (`/panchina_admin SQUADRA`) si apre il builder coi bottoni di quella squadra, con la 😎 CAI mode.
 
+**`/edit SQUADRA`** (in privato): la panchina già mandata da quella squadra per la prossima giornata, coi bottoni del GM (soprannome, ⬆️ ⬇️, 🔄). Sul canale risulta modificata da te.
+
 La panchina è sempre di 5 giocatori: con meno righe il bot non la prende, il builder pubblica solo al quinto.
 
 Durante una giornata in corso il bot non accetta panchine, né dai GM né con `/panchina_admin SQUADRA` (senza GN): dalla scadenza fino alle 6 di mattina del giorno dopo l'ultimo giorno NBA della giornata, cioè di quello in cui comincia la successiva. Prima una panchina arrivata a giornata iniziata valeva in silenzio per la giornata dopo. Per quella in corso si corregge con `/panchina_admin SQUADRA GN`.

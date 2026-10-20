@@ -34,6 +34,14 @@ Il bot non prende una panchina con **righe duplicate** (la stessa riga scritta d
 
 **Coi bottoni.** Se preferisci, `/build_panchina`: scegli i panchinari uno alla volta, in ordine. Ti propone solo i giocatori della tua squadra che non sono nel quintetto e non hai già scelto (i titolari, segnati ⭐, solo se non ne restano abbastanza); ↩️ toglie l'ultimo. Al quinto passa da solo all'anteprima con Pubblica. Sul canale escono i nomi dei giocatori, a meno che non usi la CAI mode.
 
+**Modificarla: /edit.** Riapre la panchina che hai già mandato per la prossima giornata, una riga per giocatore:
+
+- tocca il **giocatore** per cambiargli il soprannome (scrivilo in chat; ♻️ torna al nome vero);
+- ⬆️ ⬇️ lo spostano di un posto;
+- 🔄 lo cambia: con un altro **già in panchina** i due si scambiano il posto, ognuno col suo soprannome; con uno **che non è in panchina** quello entra al suo posto, col suo nome (poi se vuoi gli dai un soprannome).
+
+Il titolo resta quello di prima. ✅ Pubblica aggiorna il messaggio sul canale. Anche dall'anteprima di una panchina nuova c'è 🛠 per fare lo stesso. Come sempre, fino alla scadenza.
+
 **😎 CAI mode.** Nell'anteprima del builder c'è il bottone 😎 CAI mode: il bot ti chiede il titolo e poi il soprannome di ogni panchinaro, uno alla volta. Scrivili come messaggio; ⏭️ Salta lascia quello che c'è, ✅ Fine torna subito all'anteprima. Sul canale escono titolo e soprannomi, e il bot se li ricorda anche per quando mandi la panchina come messaggio. Se a metà ci ripensi e mandi una panchina intera come messaggio, vale quella.
 
 **Infortunati.** Nei bottoni del builder, nella scelta del quintetto, nell'anteprima e nel promemoria accanto a ogni giocatore c'è il suo stato sulla lista infortunati di ESPN (🔴 Out, 🟠 Doubtful, 🟡 Questionable o Day-To-Day, 🟢 Probable; niente se è sano), con l'ora dell'ultimo aggiornamento (ogni 4 ore, e mezz'ora prima della prima partita del giorno). È solo un aiuto: per il calcolo valgono le regole del regolamento.

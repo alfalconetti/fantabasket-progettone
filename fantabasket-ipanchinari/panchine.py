@@ -14,6 +14,10 @@ pb:v:<bozza> torna all'anteprima. Builder (/build_panchina): pb:b:<bozza>:<gid> 
 pb:u:<bozza> togli l'ultimo (al quinto si passa all'anteprima). CAI mode (dall'anteprima del builder):
 pb:cai:<bozza> inizia (titolo, poi i soprannomi uno alla volta, risposte come messaggi) ·
 pb:cs:<bozza> salta · pb:cf:<bozza> fine.
+Editor (/edit, o 🛠 dall'anteprima): pb:e:<bozza> apri · pb:n:<bozza>:<i> soprannome della riga i (risposta come
+messaggio, ♻️ pb:cn:<bozza> torna al nome vero) · pb:su / pb:gi:<bozza>:<i> sposta su / giù · pb:sw:<bozza>:<i>
+cambia · pb:sp:<bozza>:<i>:<gid> con gid (se è già in panchina le due righe si scambiano il posto, ognuna col suo
+soprannome; se no entra al posto della riga i col suo nome).
 La panchina è sempre di 5 giocatori, mai meno. Un panchinaro che nel quintetto del bot è titolare
 non blocca: fa fede Yahoo, il bot lo segnala al GM (può aggiornare il quintetto, non è obbligatorio:
 è un favore agli admin) e sul canale log.
@@ -107,6 +111,8 @@ def anteprima(b: dict) -> tuple[str, K]:
         fondo.insert(0, B("✅ Pubblica", callback_data=f"pb:ok:{b['id']}"))
     if d.get("builder") and d["righe"]:
         tasti.append([B("😎 CAI mode: titolo e soprannomi", callback_data=f"pb:cai:{b['id']}")])
+    if d["righe"] and all(r.get("scelto") for r in d["righe"]):
+        tasti.append([B("🛠 Ordine, cambi e soprannomi", callback_data=f"pb:e:{b['id']}")])
     tasti.append(fondo)
     return "\n".join(righe), K(tasti)
 
@@ -211,6 +217,9 @@ async def cb_panchina(update: Update, context: ContextTypes.DEFAULT_TYPE):
     roster = db.roster(b["team_id"], b["stagione"])
     nomi = _nomi(roster)
     d = b["dati"]
+    if azione in ("e", "n", "su", "gi", "sw", "sp", "cn") or (azione == "cs" and d.get("cai_singolo")):
+        await cb_editor(q, b, azione, parti, roster, nomi)
+        return
     if azione in ("cai", "cs", "cf"):                     # CAI mode
         if azione == "cai":
             d["cai_passo"] = 0
@@ -394,12 +403,18 @@ def domanda_cai(b: dict) -> tuple[str, K]:
         nome = _nomi(db.roster(b["team_id"], b["stagione"])).get(r["scelto"], "?")
         testo = (f"😎 Soprannome per <b>{e(nome)}</b> ({passo}/{len(d['righe'])})"
                  + (f"\nOra: <i>{e(r['testo'])}</i>" if r["testo"] != nome else "") + "\n\nScrivimelo qui.")
+    if d.get("cai_singolo"):                          # dall'editor: un solo soprannome, poi si torna lì
+        return testo, K([[B("♻️ Nome vero", callback_data=f"pb:cn:{b['id']}"),
+                          B("↩️ Indietro", callback_data=f"pb:cs:{b['id']}")]])
     return testo, K([[B("⏭️ Salta", callback_data=f"pb:cs:{b['id']}"), B("✅ Fine", callback_data=f"pb:cf:{b['id']}")]])
 
 
 def avanza_cai(b: dict) -> dict:
     d = b["dati"]
-    d["cai_passo"] = d["cai_passo"] + 1 if d["cai_passo"] < len(d["righe"]) else None
+    if d.pop("cai_singolo", False):
+        d["cai_passo"] = None
+    else:
+        d["cai_passo"] = d["cai_passo"] + 1 if d["cai_passo"] < len(d["righe"]) else None
     db.aggiorna_bozza(b["id"], d)
     return db.bozza(b["id"])
 
@@ -413,12 +428,157 @@ async def risposta_cai(msg, b: dict):
         else:
             d["righe"][d["cai_passo"] - 1]["testo"] = " ".join(testo.split())[:100]
         db.aggiorna_bozza(b["id"], d)
+    singolo = db.bozza(b["id"])["dati"].get("cai_singolo")
     b = avanza_cai(db.bozza(b["id"]))
     if b["dati"].get("cai_passo") is None:
+        if singolo:
+            t, k = editor(b)
+            await msg.reply_text(t, parse_mode="HTML", reply_markup=k)
+            return
         await manda_anteprima(msg, b)
     else:
         t, k = domanda_cai(b)
         await msg.reply_text(t, parse_mode="HTML", reply_markup=k)
+
+
+# ── editor (/edit): ordine, cambi e soprannomi riga per riga ──────────────────
+
+def editor(b: dict) -> tuple[str, K]:
+    d = b["dati"]
+    bid = b["id"]
+    roster = db.roster(b["team_id"], b["stagione"])
+    nomi = _nomi(roster)
+    g = db.giornata(b["stagione"], b["giornata"])
+    st, quando = stati([r.get("scelto") for r in d["righe"]])
+    righe = [f"🛠 <b>Panchina di {e(config.nome(b['team_id']))} · giornata {b['giornata']}</b>",
+             f"Scadenza: {ora(g['prima_partita']) if g else '?'}", ""]
+    if d.get("titolo"):
+        righe += [f"<i>{e(d['titolo'])}</i>", ""]
+    for i, r in enumerate(d["righe"], 1):
+        nome = nomi.get(r.get("scelto"), "❓ non più in squadra")
+        righe.append(f"{i}. {e(r['testo'])}" + (f" → <b>{e(nome)}</b>" if r["testo"] != nome else "")
+                     + st.get(r.get("scelto"), ""))
+    if quando:
+        righe += ["", f"<i>{quando}</i>"]
+    righe += ["", "Tocca un giocatore per il soprannome · ⬆️⬇️ sposta · 🔄 cambia (con un altro in panchina si "
+                  "scambiano il posto, ognuno col suo soprannome)."]
+    pb = problemi(b, roster)
+    if pb:
+        righe += ["", "⚠️ " + "\n⚠️ ".join(e(x) for x in pb)]
+    tasti = [[B(f"✏️ {i + 1}. {r['testo']}"[:40], callback_data=f"pb:n:{bid}:{i}"),
+              B("⬆️", callback_data=f"pb:su:{bid}:{i}"), B("⬇️", callback_data=f"pb:gi:{bid}:{i}"),
+              B("🔄", callback_data=f"pb:sw:{bid}:{i}")] for i, r in enumerate(d["righe"])]
+    fondo = [B("❌ Annulla", callback_data=f"pb:no:{bid}")]
+    if not pb:
+        fondo.insert(0, B("✅ Pubblica", callback_data=f"pb:ok:{bid}"))
+    tasti.append([B("👁 Anteprima", callback_data=f"pb:v:{bid}")])
+    tasti.append(fondo)
+    return "\n".join(righe), K(tasti)
+
+
+async def cb_editor(q, b: dict, azione: str, parti: list[str], roster: list[dict], nomi: dict):
+    bid, d = b["id"], b["dati"]
+    righe = d["righe"]
+    i = int(parti[3]) if len(parti) > 3 else None
+    if i is not None and not 0 <= i < len(righe):
+        await q.answer("Riga non trovata: riapri con /edit.", show_alert=True)
+        return
+    if azione in ("su", "gi"):
+        j = i - 1 if azione == "su" else i + 1
+        if not 0 <= j < len(righe):
+            await q.answer("È già il primo." if azione == "su" else "È già l'ultimo.")
+            return
+        righe[i], righe[j] = righe[j], righe[i]
+    elif azione == "n":                                    # soprannome: la risposta arriva come messaggio
+        d["cai_passo"], d["cai_singolo"] = i + 1, True
+        db.aggiorna_bozza(bid, d)
+        await q.answer()
+        testo, tasti = domanda_cai(db.bozza(bid))
+        await q.edit_message_text(testo, parse_mode="HTML", reply_markup=tasti)
+        return
+    elif azione == "cn":                                   # ♻️ torna al nome vero
+        p = d.get("cai_passo")
+        if p:
+            r = righe[p - 1]
+            r["testo"] = nomi.get(r.get("scelto"), r["testo"])
+        d["cai_passo"] = None
+        d.pop("cai_singolo", None)
+    elif azione == "cs":                                   # ↩️ dal soprannome: niente cambia
+        d["cai_passo"] = None
+        d.pop("cai_singolo", None)
+    elif azione == "sw":
+        r = righe[i]
+        in_panca = {x.get("scelto"): j for j, x in enumerate(righe)}
+        titolari = set(db.quintetto(b["team_id"]).values())
+        fuori = [g for g in roster if g["id"] not in in_panca]
+        st, _ = stati([x.get("scelto") for j, x in enumerate(righe) if j != i] + [g["id"] for g in fuori])
+        tasti = [[B(f"🔁 {j + 1}. {x['testo']}"[:60] + st.get(x.get("scelto"), ""),
+                    callback_data=f"pb:sp:{bid}:{i}:{x['scelto']}")]
+                 for j, x in enumerate(righe) if j != i and x.get("scelto")]
+        tasti += [[B(f"➕ {g['nome_common']}" + (f" ({g['ruolo']})" if g.get("ruolo") else "")
+                     + (" ⭐ titolare" if g["id"] in titolari else "") + st.get(g["id"], ""),
+                     callback_data=f"pb:sp:{bid}:{i}:{g['id']}")] for g in fuori]
+        tasti.append([B("↩️ Indietro", callback_data=f"pb:e:{bid}")])
+        await q.answer()
+        await q.edit_message_text(f"🔄 Riga {i + 1}: «{e(r['testo'])}» ({e(nomi.get(r.get('scelto'), '?'))})\n\n"
+                                  "🔁 scambia il posto con un altro panchinaro (ognuno tiene il suo soprannome)\n"
+                                  "➕ metti al suo posto un giocatore che non è in panchina",
+                                  parse_mode="HTML", reply_markup=K(tasti))
+        return
+    elif azione == "sp":
+        gid = int(parti[4])
+        if gid not in nomi:
+            await q.answer("Non è più nella tua squadra.", show_alert=True)
+            return
+        j = next((k for k, x in enumerate(righe) if x.get("scelto") == gid), None)
+        if j is not None:                                  # già in panchina: si scambiano il posto
+            righe[i], righe[j] = righe[j], righe[i]
+        else:                                              # entra al posto della riga i, col suo nome
+            righe[i] = {"testo": nomi[gid], "candidati": [gid], "scelto": gid, "certo": True}
+    db.aggiorna_bozza(bid, d)
+    await q.answer()
+    testo, tasti = editor(db.bozza(bid))
+    await q.edit_message_text(testo, parse_mode="HTML", reply_markup=tasti)
+
+
+async def cmd_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/edit: la panchina già mandata per la prossima giornata, da modificare coi bottoni (ordine,
+    cambi, soprannomi). Admin: /edit SQUADRA per conto di una squadra."""
+    msg = update.effective_message
+    uid = update.effective_user.id
+    fonte = "gm"
+    if context.args and config.is_admin(uid):
+        from shared.squadre import cerca_squadra
+        team = cerca_squadra(" ".join(context.args), config.squadre())
+        if not team:
+            await msg.reply_text("Squadra non trovata. Uso: /edit SQUADRA (nome o id).")
+            return
+        fonte = "admin"
+    else:
+        team = config.squadra_del_gm(uid)
+        if not team:
+            await msg.reply_text("Non risulti GM di nessuna squadra." + (" Admin: /edit SQUADRA." if config.is_admin(uid) else ""))
+            return
+    s = config.stagione()
+    blocco = comune.panchine_bloccate(s)
+    if blocco:
+        await msg.reply_text(testo_panchine_bloccate(blocco))
+        return
+    g = prossima_giornata(s)
+    if not g:
+        await msg.reply_text("Non c'è una giornata aperta.")
+        return
+    p = db.panchina(s, g["numero"], team["id"])
+    if not p:
+        await msg.reply_text(f"Per la giornata {g['numero']} non c'è ancora una panchina da modificare: mandami le righe "
+                             "o usa /build_panchina.")
+        return
+    righe = [{"testo": r["testo"], "candidati": [r["giocatore_id"]], "scelto": r["giocatore_id"], "certo": True}
+             for r in p["righe"]]
+    bid = db.nuova_bozza(update.effective_chat.id, team["id"], s, g["numero"],
+                         {"titolo": p["titolo"], "righe": righe, "correzione": False, "edit": True}, fonte)
+    testo, tasti = editor(db.bozza(bid))
+    await msg.reply_text(testo, parse_mode="HTML", reply_markup=tasti)
 
 
 # ── builder coi bottoni (/build_panchina) ──────────────────────────────────────
@@ -511,7 +671,7 @@ async def cmd_panchina(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🪑 Panchina della giornata {g['numero']} (scadenza {ora(g['prima_partita'])})\n"
         + (f"<i>{e(p['titolo'])}</i>\n" if p["titolo"] else "")
         + "\n".join(f"{i}. {e(r['testo'])} → {e(nomi.get(r['giocatore_id'], '?'))}" for i, r in enumerate(p["righe"], 1))
-        + "\n\nPer cambiarla mandami di nuovo le righe.", parse_mode="HTML")
+        + "\n\nPer cambiarla: /edit (ordine, cambi, soprannomi) o mandami di nuovo le righe.", parse_mode="HTML")
 
 
 def testo_da_salvata(p: dict) -> str:
@@ -631,6 +791,7 @@ def get_handlers() -> list:
     return [
         CommandHandler("panchina", cmd_panchina, filters=filters.ChatType.PRIVATE),
         CommandHandler("build_panchina", cmd_build_panchina, filters=filters.ChatType.PRIVATE),
+        CommandHandler("edit", cmd_edit, filters=filters.ChatType.PRIVATE),
         CommandHandler("panchina_admin", cmd_panchina_admin),
         CommandHandler("ripubblica_panchine", cmd_ripubblica_panchine),
         CallbackQueryHandler(cb_panchina, pattern=r"^pb:"),

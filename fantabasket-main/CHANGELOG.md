@@ -1438,3 +1438,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.1.3 (2026-10-19)
 
 - **Bref a stagione non ancora iniziata**: il job delle 10 diceva «❌ Bref scraper fallito: Import beautifulsoup4 failed». In realtà la pagina della nuova stagione su basketball-reference non ha ancora la tabella: pandas non la trovava con lxml e ripiegava su bs4, che non è installato, e l'errore vero spariva. Ora la lettura usa solo lxml e, se la tabella (o la pagina) non c'è ancora, sul canale log arriva «⏳ Bref 2027: tabella non ancora disponibile, riprovo domani», senza toccare il foglio BrefRaw. Gli altri errori restano ❌ col messaggio vero
+
+## v6.1.4 (2026-10-20)
+
+- **IPanchinari v26**: `/edit` per modificare la panchina già mandata (ordine, cambi, soprannomi) coi bottoni. Nessun cambio al bot principale

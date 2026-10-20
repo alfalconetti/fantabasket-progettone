@@ -121,3 +121,7 @@ Primo rilascio: panchine e quintetti.
 - **Niente panchine durante la giornata in corso** (Luca, 19/10): dalla scadenza alle 6:00 del giorno dopo l'ultimo giorno NBA della giornata (quello in cui comincia la successiva) il bot risponde che c'è una giornata in corso, anche a /build_panchina e a /panchina_admin senza GN. Prima una panchina arrivata a giornata iniziata valeva in silenzio per la giornata dopo. /panchina in quelle ore mostra quella della giornata in corso
 - Prove: controlli nuovi in `ipa_panchine`
 
+## v26 (2026-10-20)
+
+- **`/edit`** (Luca, 20/10): la panchina già mandata per la prossima giornata, una riga per giocatore. Il bottone del giocatore cambia il soprannome (scritto in chat, ♻️ nome vero); ⬆️ ⬇️ spostano; 🔄 cambia: con un altro già in panchina i due si scambiano il posto e ognuno tiene il suo soprannome, con uno fuori panchina entra al suo posto col nome vero. Il titolo resta; ✅ Pubblica aggiorna il messaggio sul canale. Lo stesso editor anche dall'anteprima di una panchina nuova (🛠). Admin: `/edit SQUADRA`. A giornata in corso è bloccato come le panchine nuove
+- Guide GM, admin e dev; prove nuove in `ipa_panchine`
