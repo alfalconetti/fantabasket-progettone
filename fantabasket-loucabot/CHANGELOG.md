@@ -177,3 +177,7 @@ Il calcolo dei fantapunti.
 
 - **Registro delle azioni** (main v6.0.0, `registro.py`): calendario importato, foglio Calendario riscritto, partite NBA risincronizzate, tabellini riscaricati, giocatori ESPN scaricati, abbinamenti ESPN, status validi messi e tolti, giornate calcolate e ricalcolate (dal job: sistema; da /ricalcola o 🔄: admin), giornate convalidate, fantapunti ricalcolati (dev) lasciano una riga nel registro condiviso con gli altri bot, con chi, veste e prima → dopo; si consulta dal bot principale. Sul canale log restano le righe di sempre, che avevano già il nome di chi (niente doppioni)
 - Prova: controlli del registro in `louca_risultati`
+
+## v36 (2026-10-20)
+
+- Messaggio live: una riga vuota tra una partita e l'altra (Luca, 20/10)

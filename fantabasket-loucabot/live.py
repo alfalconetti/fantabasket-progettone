@@ -249,7 +249,9 @@ def esito_live(r: dict, casa: str, tr: str) -> str:
 def testo(c: dict, ora: datetime, prova: bool = False) -> str:
     g = c["giornata"]
     righe = [f"🔴 <b>Giornata {g['numero']} · punteggi live</b>", ""]
-    for r in c["risultati"]:
+    for i, r in enumerate(c["risultati"]):
+        if i:
+            righe.append("")                       # una riga vuota tra una partita e l'altra (Luca, 20/10)
         casa, tr = config.nome(r["casa"]), config.nome(r["trasferta"])
         righe.append(f"<b>{e(casa)}</b> {tp(r['punti_casa'])} – {tp(r['punti_trasferta'])} <b>{e(tr)}</b>")
         lc, pc = _da_giocare(c, r["sc"]["titolari"])
