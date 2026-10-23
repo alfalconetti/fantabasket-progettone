@@ -136,6 +136,11 @@ from utils import cognome as _cognome
 
 logger = logging.getLogger(__name__)
 
+# Risoluzione (v6.4.4, Luca 23/10: «sempre un filo sgranate»): senza --ppi Typst usa 144, cioè un
+# roster largo 600 pixel che il telefono ingrandisce. Roster 300pt × 288 = 1200 px, asset 420pt × 240
+# = 1400 px; anche gli asset più lunghi (~700pt) restano sotto i 2560 px oltre cui Telegram rimpicciolisce.
+PPI_ROSTER = 288
+PPI_ASSETS = 240
 TYPST_TEMPLATE  = os.path.join(os.path.dirname(__file__), "..", "roster.typ")
 ASSETS_TEMPLATE = os.path.join(os.path.dirname(__file__), "..", "assets.typ")
 LOGHI_DIR       = os.environ.get("LOGHI_DIR", "/config/loghi")
@@ -407,7 +412,7 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
         "--input", f"fm_label={fm_label}",
         "--input", f"fm_nota={fm_nota}",
         "--input", f"fine_10day={'' if as_of else _fine_10day(team_id)}",
-        "--root", "/",
+        "--root", "/", "--ppi", str(PPI_ROSTER),
         os.path.abspath(TYPST_TEMPLATE),
         tmp.name,
     ]
@@ -608,7 +613,7 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
         "--input", f"fine_10day={_fine_10day(team_id)}",
         "--input", f"picks={picks_str}",
         "--input", f"diritti={diritti_str}",
-        "--root", "/",
+        "--root", "/", "--ppi", str(PPI_ASSETS),
         os.path.abspath(ASSETS_TEMPLATE),
         tmp.name,
     ]

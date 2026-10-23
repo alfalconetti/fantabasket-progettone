@@ -1529,3 +1529,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **Ricerca delle squadre per una parola sola** (Luca, 23/10; `shared/squadre.py`, vale in tutti i bot: `/roster`, `/assets`, `/team_diff`, `/team`, `/partita`, `/notte`, `/calendario`, comandi admin di IPanchinari): «Paris» trova il GM Cristian Paris, «redskins» Montecelio Redskins, anche l'inizio di una parola («redsk»), una parola quasi uguale («redskin») e parole mescolate di squadra e GM («paris redskins»). Una parola identica vince su un inizio («Rossi» non è Rossini); se va bene per più squadre non ne sceglie una a caso. In `/partita` anche per dividere due squadre scritte attaccate
 - IPanchinari v31: **avvisi dell'injury report** ai GM, in privato, per ogni cambio di stato ESPN di un giocatore della rosa; `/toggle_injures` per spegnerli e riaccenderli. loucabot v44: la prima sera di ogni giornata l'injury report ogni mezz'ora dalle 19 alla prima partita (`orari.injury_fitti`). Prova `ipa_injury`
+
+## v6.4.4 (2026-10-23)
+
+- **Roster e asset nitidi** (Luca, 23/10: «sempre un filo sgranate»): Typst si chiamava senza `--ppi`, cioè a 144 dpi, e il roster usciva largo 600 pixel (il telefono lo ingrandiva). Ora roster a 288 dpi (1200 pixel) e asset a 240 (1400 pixel; anche gli asset più lunghi restano sotto i 2560 pixel oltre cui Telegram rimpicciolisce). Vale anche per l'anteprima di `/palette` e per l'invio a tutte le squadre
+

@@ -84,7 +84,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `report_dati` | main | `/report_dati`: la salute dei dati in Markdown |
 | `bref_abbina` | main | abbinamento dei nomi di Basketball-Reference (automatico senza accenti, bottoni per i simili, log); stagione non ancora iniziata su bref: ⏳, foglio BrefRaw non toccato |
 | `penalita` | main | penalità degli admin (motivazione, canale, GM, log, foglio Scelte), revoca, conteggio per stagione |
-| `dieci_giorni` | main | 10-day contract: richiesta, approvazione, firma dell'admin, regole, niente cap né slot, scadenza a fine giornata; `roster.typ` e `assets.typ` compilano (pick, diritti, chi è fuori dai 15 sotto) |
+| `dieci_giorni` | main | 10-day contract: richiesta, approvazione, firma dell'admin, regole, niente cap né slot, scadenza a fine giornata; `roster.typ` e `assets.typ` compilano (pick, diritti, chi è fuori dai 15 sotto) e con la risoluzione giusta (`PPI_ROSTER`, `PPI_ASSETS`) |
 | `registro_aste` | aste + PG | registro delle azioni dal bot aste: squadre e giocatore dall'asta, azioni admin sul canale log del bot aste, offerte dei GM solo nel registro |
 | `tempo_scaduto` | aste + PG | decisioni d'ufficio a tempo scaduto (3 anni di penale, anni minimi RFA, pareggio non deciso) dette nell'annuncio sul canale |
 | `louca_risultati` | loucabot | calcolo definitivo dalle formazioni di IPanchinari (FADD, medie, supplementari, titolare anche in panchina a 0), foglio «Calcolo GN» confrontato con LibreOffice, proposta, convalida, risultati definitivi sul canale e live cancellato, avviso se cambia un esito, live (riga per squadra «devono giocare / rigiocare (finora)»), `/notte`, `/partita` (dati, immagine, argomenti, giornata di default) |

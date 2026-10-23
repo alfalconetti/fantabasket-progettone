@@ -189,6 +189,10 @@ try:
     _alt = lambda b: _st.unpack(">I", b[20:24])[0]
     ok(all(_png[_t, "fuori"][:4] == b"\x89PNG" and _alt(_png[_t, "fuori"]) > _alt(_png[_t, "base"]) for _t in ("roster", "assets")),
        "roster.typ e assets.typ compilano (pick, diritti, anno senza pick) e chi è fuori dai 15 aggiunge righe sotto")
+    _src = open(_o.path.join(base, "handlers", "roster.py")).read()
+    ok(300 * R.PPI_ROSTER / 72 >= 1000 and 420 * R.PPI_ASSETS / 72 >= 1000 and 700 * R.PPI_ASSETS / 72 <= 2560
+       and _src.count('"--ppi", str(PPI_ROSTER)') == 1 and _src.count('"--ppi", str(PPI_ASSETS)') == 1,
+       "roster e asset larghi almeno 1000 pixel (non sgranati), asset lunghi sotto i 2560 di Telegram")
 except ImportError:
     pass
 except Exception as err:
