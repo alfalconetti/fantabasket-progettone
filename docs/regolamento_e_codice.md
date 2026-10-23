@@ -2,7 +2,7 @@
 
 Per ogni regola del regolamento: se il bot la applica, dove sta nel codice e quale prova la
 controlla. Riferimento: *FANTA NBA – REGOLAMENTO UFFICIALE*, versione dell'11/10/2026 (18 pagine).
-Stato del codice: v3.13.3, bot aste v63.
+Stato del codice: v6.3.5, bot aste v71, loucabot v40, IPanchinari v29.
 
 | Segno | Significato |
 |---|---|
@@ -88,8 +88,12 @@ testo può dirlo meglio:
 |---|---|---|---|
 | 24 franchigie in due conference, calendario, playoff a 12 | ✋ Yahoo e admin | `numero_teams` solo per i controlli | `regolamento_numeri` |
 | Fantapunti (punto +0,5, assist +2, rimbalzi +2/+1,25, tripla +1,5, tiri −0,5/+1, liberi −0,75/+1, rubata +2, stoppata +2, perse −2) | ✅ fantamedia di bref (Doncic, rinnovi, report) e fantapunti dei tabellini ESPN (calcolo) | `pesi_fantapunti` in settings.json (`shared/regole.py`): trigger su `bref_stats.fantamedia`, `loucabot/nba.fantapunti`; dopo un cambio `/dev_ricalcola_fp` | `regolamento_numeri`, `regole_config`, `louca_calcolo` |
-| Formazioni, panchina sul canale, overtime, regola FADD, bonus casa 3 (5 nei playoff) | ✋ oggi | Yahoo e canale panchinari | — |
-| Bot panchine | 🔜 v4.0 | — | — |
+| Formazioni (quintetto di Yahoo, un giocatore per ruolo) e panchina di 5 sul canale Panchinari, entro la prima partita della giornata | ✅ IPanchinari (quintetto congelato alla scadenza, panchina dal messaggio del GM); fa fede Yahoo, gli admin correggono | `ipanchinari/quintetti.py`, `ipanchinari/panchine.py`, `ipa_formazioni`, `ipa_panchine` | `ipa_panchine` |
+| Punteggio del giocatore: media delle sue partite nella giornata; se la sua squadra NBA non gioca, media della stagione (0 se indisponibile) | ✅ | `loucabot/calcolo.punteggio_giocatori` | `louca_calcolo`, `louca_risultati` |
+| Regola FADD: titolare che non ha giocato e risulta indisponibile, sostituito dal primo panchinaro del suo ruolo | ✅ | `loucabot/calcolo._fadd_possibile`, `punteggio_squadra` | `louca_calcolo`, `louca_risultati` |
+| Titolare messo anche in panchina: in panchina quella posizione vale 0, gli altri non scalano (Luca, 23/10) | ✅ | `loucabot/calcolo.punteggio_squadra` (`doppio`) | `louca_calcolo`, `louca_risultati` |
+| Bonus casa 3 (5 nei playoff), scarto minimo 5, supplementari coi panchinari in ordine (pari → trasferta) | ✅ | `loucabot/calcolo.esito`; `bonus_casa`, `scarto_minimo`, `giocatori_panchina` in settings.json | `louca_calcolo`, `regolamento_numeri` |
+| Risultati convalidati da un admin, sul canale e sul foglio Calendario | 🤝 calcolo alle 7:45, convalida dell'admin | `loucabot/handlers_risultati.py`, `live.pubblica_definitivo` | `louca_risultati` |
 
 ## Draft iniziale
 

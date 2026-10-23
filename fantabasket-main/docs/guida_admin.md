@@ -203,7 +203,7 @@ Non corregge niente.
 
 ### Durante la stagione
 
-**Ruoli dopo trade e firme.** Pannello → **⏳ Ruoli in sospeso** mostra le dichiarazioni ancora aperte, e puoi farle tu al posto del GM. Dopo 48 ore il bot estrae il ruolo da solo.
+**Ruoli dopo trade e firme.** Pannello → **⏳ Ruoli in sospeso** mostra le dichiarazioni ancora aperte, e puoi farle tu al posto del GM. Dopo 48 ore il bot estrae il ruolo da solo. Dopo una trade sul canale principale c'è **un solo messaggio** con i ruoli di tutti i giocatori arrivati, che si aggiorna da solo (dichiarati dal GM o da te, assegnati in automatico, estratti); per le firme resta un annuncio per giocatore.
 
 **Cambi ruolo per conto di una squadra.** Pannello → **🔁 Cambi ruolo** → squadra, solo in regular season e playoff:
 
@@ -222,7 +222,7 @@ Non corregge niente.
 
 ## Basketball-Reference e date di nascita
 
-Ogni mattina alle 10, in regular season e playoff, il bot scarica le statistiche da Basketball-Reference, aggiorna il foglio **BrefRaw** e scrive sul canale log quanti giocatori ha aggiornato e chi ha cambiato squadra NBA.
+Ogni giorno alle 12 (orario in `config/settings.json`, `"orari": {"bref": "12:00"}`), in regular season e playoff, il bot scarica le statistiche da Basketball-Reference, aggiorna il foglio **BrefRaw** e scrive sul canale log quanti giocatori ha aggiornato e chi ha cambiato squadra NBA.
 
 I giocatori nuovi, che non sono ancora nell'anagrafica, arrivano al dev con ✅ Crea tutti / ❌ Ignora. Accanto a ognuno ci sono i nomi simili già presenti, per evitare doppioni.
 
@@ -268,6 +268,8 @@ La veste la decide il flusso, non chi sei: dal `/menu` normale sei **gm** anche 
 Il registro si tiene per sempre. Le azioni fatte prima della v6.0.0 non ci sono (per quelle restano i movimenti in `/team_diff` e i canali log).
 
 ## Varie
+
+**Orari dei job.** In `config/settings.json`, sotto `"orari"` (ora di Roma, "HH:MM"), si cambiano senza un rilascio: per esempio `"orari": {"bref": "11:00", "calcolo": "07:45"}`. L'elenco con i valori di partenza è in `shared/regole.py` (`ORARI`). I job giornalieri li leggono all'avvio: dopo un cambio riavvia il bot (`docker compose restart bot-main`, `loucabot`, …); il blocco delle panchine e il promemoria dei quintetti di IPanchinari valgono subito.
 
 - **`/settings`** (anche dal pannello admin, «⚙️ Impostazioni»): le impostazioni di gioco divise per argomento (cap e roster, contratti, ruoli, tagli/DPE/10-day, partita, fantapunti, aste, sistema, tabelle), col nome in italiano, il valore di adesso e l'unità; *(default)* vuol dire che nel file non c'è e vale il valore del regolamento. Tocchi una voce, scrivi il nuovo valore (con i limiti indicati; la virgola va bene), vedi l'anteprima vecchio → nuovo e confermi. Ogni modifica va sul canale principale e sul canale log (con chi l'ha fatta), e i bot la usano subito, senza riavvio. Scorciatoia: `/settings chiave valore` (es. `/settings salary_floor 115`, `/settings pesi_fantapunti.dreb 1,5`), sempre con conferma. Le tabelle (rookie scale, minimi dei contratti) si vedono ma si cambiano nel file.
 - **Pesi dei fantapunti**: si cambiano uno per uno da «🧮 Fantapunti» (di solito dopo la riunione di giugno). Valgono subito per i tabellini nuovi; per ricalcolare quelli della stagione già scaricati il dev lancia il comando dev di loucabot che ricalcola i fantapunti (`dev_ricalcola_fp`). Le giornate convalidate restano come sono.

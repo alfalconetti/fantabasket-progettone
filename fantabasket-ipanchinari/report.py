@@ -131,7 +131,7 @@ def report(g: dict) -> str:
                 note.append(f"ora è {r_att}")
                 grave = True
             if any(r.get("giocatore_id") == gid for r in righe_p):
-                note.append("anche in panchina (lì non conta, gli altri scalano)")
+                note.append("anche in panchina (lì quella posizione vale 0, gli altri non scalano)")
             prob_t += grave or bool(note)
             tab.append(f"| Q-{ruolo} | {_md(nomi.get(gid, gid))} | {ruolo} | {sq} | {_md(part)} | {_md(stato)} | "
                        f"{_md('; '.join(note))} |")

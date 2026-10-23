@@ -170,6 +170,7 @@ def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None)
         esce = fadd["esce"].get("atleta") if fadd else None
         entra = fadd["entra"].get("atleta") if fadd else None
         in_supp = [b.get("atleta") for b in sq_calc["panchina"][:supp]]
+        tit_atleti = {y.get("atleta") for y in orig["quintetto"] if y.get("atleta")}
         righe = []
         for i, x in enumerate(orig["quintetto"] + orig["panchina"]):
             tit = i < len(orig["quintetto"])
@@ -189,12 +190,16 @@ def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None)
                 conta, tag = tp(p.get("fp", 0.0)), "entra"
             elif x.get("ceduto"):
                 tag = "ceduto"
+            elif a and a in tit_atleti:                   # titolare anche in panchina: lì vale 0 (Luca, 23/10)
+                conta, tag = "0", "doppio"
             elif a and a in in_supp:
                 conta, tag = tp(p.get("fp", 0.0)), f"S{in_supp.index(a) + 1}"
             if p.get("come") == "media" and (tit or tag in ("entra",) or tag.startswith("S")):
                 note.append(f"{x.get('nome')}: {p.get('nota') or 'a media'}")
             m = (c.get("dettaglio") or {}).get("medie", {}).get(a) if a else None
             righe.append({"posto": (x.get("ruolo") or "") if tit else str(i - len(orig["quintetto"]) + 1),
+                          # in panchina il ruolo (quello della giornata: congelato alla scadenza) tra parentesi
+                          "ruolo": "" if tit else (x.get("ruolo") or ""),
                           "titolare": tit, "nome": x.get("nome") or "—", "nba": sq_nba or "", "celle": celle,
                           "media": tp(m) if m is not None else ("0,00" if a else ""),
                           "conta": conta, "tag": tag})

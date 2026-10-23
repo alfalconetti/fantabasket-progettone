@@ -59,6 +59,10 @@ Il testo "non è obbligatorio, fa fede Yahoo, è un favore agli admin" sta in `c
 
 **Job** `job_giornate` ogni 5 minuti, per ogni giornata con scadenza: scaduta e non chiusa → `congela_quintetti` + avviso al gruppo admin; altrimenti promemoria a `comune.ora_promemoria` (le 8:00 Roma dell'ultimo giorno prima della scadenza) e riepilogo 2 ore prima, ognuno una volta sola (`ipa_stato_giornata`).
 
+**Giornata in corso** (v27, `quintetti.giornata_comandi`, `comune.fine_blocco`): dalla scadenza alle 6:00 (`orari.fine_blocco_panchine`) del giorno dopo l'ultima notte i comandi non lavorano per la giornata dopo: niente panchine dai GM, `/quintetto` senza bottoni, `/stato` e i report sulla giornata in corso; l'admin con `/edit SQUADRA`, `/panchina_admin SQUADRA` (anche senza GN) e `/quintetto_admin` corregge la giornata in corso (`panchine._correzione_in_corso`).
+
+**Medie nei builder** (v28): `db.medie_fp(gids, stagione)` (media dei fantapunti dai tabellini di loucabot, stagione regolare e play-in, chi è entrato in campo), `comune.medie(gids)` → `{gid: " · 32,5"}` (0 senza partite) accanto ai nomi in `builder`, `editor`, lista di 🔄, scelta della riga e scelta del quintetto.
+
 ## 4b. Comandi dev
 
 Solo per `dev_id`, nel menu `/` del dev.

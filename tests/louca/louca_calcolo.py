@@ -130,11 +130,16 @@ S = calcolo.punteggio_squadra(G, Q, B, P)
 ok(S["fadd"] and S["fadd"]["esce"]["atleta"] == "3" and S["fadd"]["entra"]["atleta"] == "8" and S["totale"] == 94,
    f"FADD: il titolare PG senza partite e sempre col tag lascia il posto al primo panchinaro PG (totale 94) {S['fadd']}")
 ok([x["atleta"] for x in S["panchina"]] == ["9", "5"], "dopo la FADD la panchina scala")
-# titolare messo anche in panchina (quintetto corretto copiando Yahoo): esce dalla panchina, gli altri scalano
+# titolare messo anche in panchina (quintetto corretto copiando Yahoo): in panchina quella posizione vale 0,
+# gli altri non scalano (Luca, 23/10)
 Bd = [{"atleta": "1", "ruolo": "SF", "nome": "Uno"}, {"atleta": "3", "ruolo": "PG", "nome": "Tre"}] + B
 Sd = calcolo.punteggio_squadra(G, Q, Bd, P)
-ok([x["atleta"] for x in Sd["panchina"]] == ["9", "5"] and Sd["fadd"]["entra"]["atleta"] == "8" and Sd["totale"] == 94,
-   "titolare anche in panchina: esce dalla panchina, gli altri scalano, niente FADD con lui (nemmeno al posto di se stesso)")
+ok([x["atleta"] for x in Sd["panchina"]] == ["1", "3", "9", "5"] and [x["fp"] for x in Sd["panchina"][:2]] == [0.0, 0.0]
+   and Sd["fadd"]["entra"]["atleta"] == "8" and Sd["totale"] == 94,
+   "titolare anche in panchina: resta al suo posto in panchina e vale 0 (gli altri non scalano), niente FADD con lui")
+Es = calcolo.esito({"totale": 100, "panchina": Sd["panchina"]}, {"totale": 103, "panchina": [{"fp": 10.0}] * 4}, 0)
+ok(Es["supplementari"] >= 1 and Es["casa"] == 100 and Es["trasferta"] == 113,
+   "nei supplementari, al giro del doppione la squadra prende 0")
 S2 = calcolo.punteggio_squadra(G, Q, [B[0]], P)
 ok(S2["fadd"] is None and S2["totale"] == 82 and any("nessun panchinaro" in a for a in S2["avvisi"]),
    "FADD possibile ma nessun panchinaro del ruolo: resta lo 0, con l'avviso")

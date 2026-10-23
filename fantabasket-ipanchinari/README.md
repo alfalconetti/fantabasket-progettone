@@ -77,6 +77,7 @@ giornata per il calcolo) e al gruppo admin va l'elenco delle panchine mancanti.
 | Comando | Chi | Cosa |
 |---|---|---|
 | (messaggio con le righe) | GM | la panchina della prossima giornata |
+| `/edit` (admin: `/edit SQUADRA`) | GM | la panchina già mandata coi bottoni: soprannome, ⬆️ ⬇️, 🔄 cambio; da admin a giornata in corso corregge quella |
 | `/build_panchina` | GM | la panchina coi bottoni: un panchinaro alla volta, solo giocatori non nel quintetto; con 😎 CAI mode titolo e soprannomi, sennò sul canale i nomi |
 | `/panchina` | GM | la panchina mandata, coi nomi veri |
 | `/quintetto` | GM | il quintetto: cambialo o confermalo (non obbligatorio, fa fede Yahoo) |

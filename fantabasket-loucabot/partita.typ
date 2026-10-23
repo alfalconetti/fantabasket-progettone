@@ -62,6 +62,14 @@
   })
 ]
 
+// squadre NBA a media nella giornata: subito sotto il tabellone (Luca, 23/10)
+#if dati.media_nba != "" {
+  block(width: 100%, fill: rgb("#FFF3E0"), inset: (x: 14pt, y: 7pt), stroke: (bottom: 0.5pt + rgb("#F0C890")))[
+    #text(9pt, fill: arancio, weight: "bold")[A MEDIA IN QUESTA GIORNATA] #h(6pt)
+    #text(9pt, fill: rgb("#5A3A00"))[squadre NBA senza partite: #dati.media_nba (i loro giocatori valgono la media della stagione)]
+  ]
+}
+
 // ── una squadra ──
 #let cella(c) = {
   if c.k == "fp" { text(weight: "bold")[#c.t] }
@@ -78,6 +86,7 @@
   else if t == "media" { text(fill: arancio, weight: "bold")[#r.conta #text(7pt)[MEDIA]] }
   else if t.starts-with("S") { text(fill: viola, weight: "bold")[#r.conta #text(7pt)[#t]] }
   else if t == "ceduto" { text(fill: grigio, size: 8pt)[ceduto] }
+  else if t == "doppio" { text(fill: grigio)[0 #text(7pt)[ANCHE TITOLARE]] }
   else if t == "vuoto" { text(fill: grigio)[0 #text(7pt)[VUOTO]] }
   else { text(weight: "bold")[#r.conta] }
 }
@@ -104,6 +113,7 @@
     ..s.righe.enumerate().map(((i, r)) => {
       let sep = if i == 5 { (table.cell(colspan: 5 + nn, fill: lilla, inset: (x: 5pt, y: 3pt))[#text(7pt, weight: "bold", fill: viola_scuro, tracking: 0.5pt)[PANCHINA]],) } else { () }
       let nome = if r.tag == "esce" { text(fill: grigio)[#strike[#r.nome]] } else if r.titolare or r.tag == "entra" { text(weight: "bold")[#r.nome] } else { [#r.nome] }
+      let nome = if r.at("ruolo", default: "") != "" { [#nome #text(8pt, fill: grigio)[(#r.ruolo)]] } else { nome }
       sep + (
         text(8pt, fill: grigio, weight: "bold")[#r.posto], nome, text(8pt, fill: grigio)[#r.nba], text(8.5pt, fill: grigio)[#r.media],
         ..r.celle.map(cella), conta(r),
@@ -124,11 +134,10 @@
 #squadra(b)
 
 // ── note ──
-#if dati.note.len() > 0 or dati.media_nba != "" {
+#if dati.note.len() > 0 {
   v(10pt)
   pad(x: 14pt, block(width: 100%, fill: lilla2, stroke: 0.5pt + bordo, radius: 6pt, inset: 9pt)[
     #set text(8pt, fill: rgb("#3A3150"))
-    #if dati.media_nba != "" [• Squadre NBA senza partite nella giornata (i loro giocatori a media): #dati.media_nba \ ]
     #for n in dati.note [• #n \ ]
   ])
 }

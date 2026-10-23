@@ -97,7 +97,7 @@ def griglia(s: str, n: int, sch: dict | None = None) -> dict:
                 nuova([nome_t, f"P{i}", b.get("ruolo") or gg.get("ruolo") or "", gg.get("nome_common") or b.get("testo") or "—",
                        nba.get(gg.get("espn_id"), ""),
                        "ceduto prima della scadenza: tolto dalla panchina, gli altri scalano" if gid and gid in ced
-                       else "anche titolare: tolto dalla panchina, gli altri scalano" if gid and gid in titolari else ""],
+                       else "anche titolare: in panchina questa posizione vale 0, gli altri non scalano" if gid and gid in titolari else ""],
                       sfondo=R.SF_PANCA, colore=R.BLU)
         nuova()
     return {"nome": f"Calcolo G{n}", "righe": righe, "sfondi": sf, "testi": tx, "pesi": pe, "formati": fo,

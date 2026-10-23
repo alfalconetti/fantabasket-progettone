@@ -118,11 +118,11 @@ def incompatibilita(team_id: str, q: dict[str, int] | None = None, admin: bool =
             elif not chiusa:
                 out.append(f"{nome} è titolare ({ruolo}) e anche nella panchina della giornata {gg['numero']}: avvisa "
                            f"il GM di togliere {nome} dalla panchina e rimandarla entro la scadenza ({ora(gg['prima_partita'])}). "
-                           f"Se non lo fa, nel calcolo {nome} conta da titolare e in panchina gli altri scalano")
+                           f"Se non lo fa, nel calcolo {nome} conta da titolare e in panchina quella posizione vale 0 (gli altri non scalano)")
             else:
                 out.append(f"{nome} è titolare ({ruolo}) e anche nella panchina della giornata {gg['numero']}, già "
                            f"iniziata: la panchina non si cambia più, è un errore del GM. Nel calcolo {nome} conta da "
-                           f"titolare e in panchina gli altri scalano; l'eventuale penalità la decidono gli admin")
+                           f"titolare e in panchina quella posizione vale 0 (gli altri non scalano); l'eventuale penalità la decidono gli admin")
     return out
 
 

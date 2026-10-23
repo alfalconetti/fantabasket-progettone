@@ -72,6 +72,28 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `rfa_proprietario` | aste (isolato) | il proprietario non offre sul proprio RFA neanche con `/offerta` |
 | `menu_e_listteams` | aste + PG | menu "/" per fase e ruolo, `/listteams` compatto, `/reset_rfa` disattivato |
 | `autoslot` | aste + PG | `/autoslot` e `/autocap` contano davvero negli slot e nel cap |
+| `ruoli_trade` | main | ruoli dopo una trade in un messaggio unico sul canale: automatici, dichiarati, estratti, «tutti ufficiali»; le firme restano a parte |
+| `date_comandi` | main | `shared/date_comandi`: tutti i formati di data, date impossibili, data e ora, date di nascita a 2 cifre |
+| `firma_per_conto` | aste + PG | `/firma_per_conto`: elenco, solo admin, stessi bottoni del GM, annuncio sul canale, GM avvisati, registro «per conto» |
+| `registro_azioni` | main | registro delle azioni: una riga per azione (chi, veste, cosa, squadre, prima → dopo), admin e dev anche sul canale log, `/registro` (admin tutto, GM la sua squadra), il registro non fa mai fallire un'azione |
+| `menu_palette` | main | menu a bottoni sempre con ← o ✖️ Chiudi, `/palette` (colori veri, automatico, anteprime, testo leggibile), `/my_team`, `/team_diff` nei gruppi, DPE su un 1x1 normale |
+| `admin_poteri` | main | dal menu normale un admin che è anche GM ha le regole dei GM; i poteri da admin solo dal pannello e dai comandi admin |
+| `regole_config` | main | i numeri del regolamento in settings.json (`shared/regole.py`) si leggono davvero, senza riavvio; default se mancano; fantamedia bref coi pesi |
+| `impostazioni` | main | `/settings`: argomenti coi bottoni, anteprima e conferma, canali; ogni chiave del file e di `regole.DEFAULT` ha una voce |
+| `report_ruoli` | main | `/report_ruoli`: i ruoli di tutte le squadre in Markdown (riepilogo, minimi, note) |
+| `report_dati` | main | `/report_dati`: la salute dei dati in Markdown |
+| `bref_abbina` | main | abbinamento dei nomi di Basketball-Reference (automatico senza accenti, bottoni per i simili, log); stagione non ancora iniziata su bref: ⏳, foglio BrefRaw non toccato |
+| `penalita` | main | penalità degli admin (motivazione, canale, GM, log, foglio Scelte), revoca, conteggio per stagione |
+| `dieci_giorni` | main | 10-day contract: richiesta, approvazione, firma dell'admin, regole, niente cap né slot, scadenza a fine giornata |
+| `registro_aste` | aste + PG | registro delle azioni dal bot aste: squadre e giocatore dall'asta, azioni admin sul canale log del bot aste, offerte dei GM solo nel registro |
+| `tempo_scaduto` | aste + PG | decisioni d'ufficio a tempo scaduto (3 anni di penale, anni minimi RFA, pareggio non deciso) dette nell'annuncio sul canale |
+| `louca_risultati` | loucabot | calcolo definitivo dalle formazioni di IPanchinari (FADD, medie, supplementari, titolare anche in panchina a 0), foglio «Calcolo GN» confrontato con LibreOffice, proposta, convalida, risultati definitivi sul canale e live cancellato, avviso se cambia un esito, live (riga per squadra «devono giocare / rigiocare (finora)»), `/notte`, `/partita` (dati, immagine, argomenti, giornata di default) |
+| `louca_foglio` | loucabot | il foglio Calendario costruito dal CSV: intestazioni con le squadre a media, punteggi regolamentari e supplementari |
+| `louca_classifica` | loucabot | classifica (avulsa, `/classifica`, `/classifica_full`, immagini Typst) dai risultati convalidati |
+| `ipa_panchine` | IPanchinari | panchine da messaggio e coi bottoni, `/edit`, soprannomi, quintetti, promemoria, riepilogo, chiusura, giornata in corso fino alle 6 (GM bloccati, admin correggono), medie nei builder |
+| `ipa_errori` | IPanchinari | error handler comune: «not modified» ignorato, errori di rete solo sul canale log, gli altri anche al dev |
+| `router_health` | router | le richieste a /health dei router non finiscono nei log |
+| `gas_node` | GAS | gli script `gas/*.gs` provati con node e finti oggetti di Google (senza node si saltano) |
 | `louca_calendario` | loucabot | CSV del calendario, import, partite NBA da ESPN (risposta vera ridotta), TBD, squadre a media e scadenze, cambi, `/calendario`, canale log |
 | `louca_calcolo` | loucabot | tabellino ESPN vero ridotto (NYK-SAS 1/3/2026) e formula dei fantapunti, infortunati, punteggio nella giornata (partite, media, zero, rinviate), FADD, supplementari e bonus casa, abbinamento ESPN |
 | `giocatore_id` | aste + PG | l'asta ricorda l'id del giocatore: la firma non crea doppioni se il nome cambia |

@@ -155,10 +155,13 @@ def punteggio_squadra(g: dict, quintetto: list[dict], panchina: list[dict], punt
     zero = {"fp": 0.0, "come": "zero", "nota": "senza id ESPN"}
     tit = [{**x, **punteggi.get(x.get("atleta"), zero)} for x in quintetto]
     pan = [{**x, **punteggi.get(x.get("atleta"), zero)} for x in panchina]
-    # un titolare messo anche in panchina (es. quintetto corretto dall'admin copiando Yahoo): esce
-    # dalla panchina e gli altri scalano (Luca, 18/10): niente supplementari né FADD con lui
+    # un titolare messo anche in panchina (es. quintetto corretto dall'admin copiando Yahoo): in panchina
+    # quella posizione vale 0 e gli altri NON scalano (Luca, 23/10; prima usciva e gli altri scalavano):
+    # niente FADD con lui, e nei supplementari a quel giro la squadra prende 0
     titolari = {t.get("atleta") for t in tit if t.get("atleta")}
-    pan = [b for b in pan if b.get("atleta") not in titolari]
+    pan = [{**b, "fp": 0.0, "come": "zero", "doppio": True,
+            "nota": "titolare e anche in panchina: in panchina quella posizione vale 0"}
+           if b.get("atleta") in titolari else b for b in pan]
     # ceduto prima della scadenza (risultati.calcola, dal registro dei movimenti): fuori, gli altri scalano
     pan = [b for b in pan if not b.get("ceduto")]
     fadd, avvisi = None, []
@@ -170,6 +173,8 @@ def punteggio_squadra(g: dict, quintetto: list[dict], panchina: list[dict], punt
         elif motivo:
             avvisi.append(f"{t.get('nome', t.get('atleta'))}: {motivo}")
     for j, b in enumerate(pan):
+        if b.get("doppio"):                                  # il titolare messo anche in panchina non entra
+            continue
         i = next((i for i, _ in candidati if tit[i].get("ruolo") and tit[i].get("ruolo") == b.get("ruolo")), None)
         if i is not None:
             motivo = dict(candidati)[i]

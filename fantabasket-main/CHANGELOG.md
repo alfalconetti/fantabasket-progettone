@@ -1492,3 +1492,19 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.3.3 (2026-10-23)
 
 - loucabot: in `/partita` i totali in fondo, sotto la colonna «Conta»
+
+## v6.3.4 (2026-10-23)
+
+- loucabot: in `/partita` le squadre NBA a media sotto il tabellone
+
+## v6.3.5 (2026-10-23)
+
+- loucabot v40: **titolare anche in panchina**, in panchina quella posizione vale 0 e gli altri non scalano (prima scalavano); `/partita` col ruolo dei panchinari. IPanchinari v29: testi degli avvisi allineati
+
+## v6.3.6 (2026-10-23)
+
+- **Documentazione al passo** con tutto quello di oggi: guide admin e dev di loucabot (live, convalida e definitivi, `/notte`, `/partita`, titolare anche in panchina, orari, foglio col tema scuro), guida admin e dev del bot principale (ruoli dopo le trade in un messaggio, orari in configurazione, bref alle 12, date nei comandi), guida dev di IPanchinari (giornata in corso fino alle 6, medie nei builder), README di loucabot e IPanchinari (`/partita`, `/notte`, `/risultati`, `/edit`), `tests/README.md` con tutte le prove, `docs/regolamento_e_codice.md` (formazioni, punteggio, FADD, titolare anche in panchina, bonus e supplementari, convalida)
+
+## v6.3.7 (2026-10-23)
+
+- loucabot v41: `/player` con posizioni eleggibili, ruolo e stato del contratto

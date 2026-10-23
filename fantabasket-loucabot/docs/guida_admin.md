@@ -60,15 +60,20 @@ Il foglio di controllo è un file Google a parte (`CALCOLO_SPREADSHEET_ID` in `g
 
 ---
 
+**Titolare anche in panchina** (quintetto corretto copiando Yahoo, per esempio): nel calcolo conta da titolare, e in panchina **quella posizione vale 0** (gli altri non scalano: ai supplementari, a quel giro, la squadra prende 0; non entra per la FADD). Un panchinaro **ceduto** prima della scadenza invece esce dalla panchina e gli altri scalano. Tutti e due arrivano negli avvisi.
+
+**Il foglio di calcolo** ha tutte le celle con lo sfondo bianco esplicito: si legge anche col tema scuro dell'app di Google Fogli.
+
 ## I punteggi live
 
-Alla palla a due della prima partita della giornata il bot pubblica sul canale principale un messaggio con tutte le partite della giornata: punteggio di casa e trasferta (bonus casa compreso) e, quando dei 10 in campo ne restano al massimo 4 da giocare, l'esito "al momento" (chi vince, coi supplementari se servono); con più di 4 ancora da giocare nessun esito. Accanto, tra i 5 in campo, quanti stanno giocando adesso (🏀) e quanti hanno ancora una partita della giornata, stanotte o nelle notti dopo (⏳). È il calcolo vero (medie, media della stagione, FADD, supplementari) sui tabellini live di ESPN. Sotto c'è scritto che sono **risultati provvisori, da valutare e convalidare da un admin**, e l'ora dell'ultimo aggiornamento.
+Alla palla a due della prima partita della giornata il bot pubblica sul canale principale un messaggio con tutte le partite della giornata: punteggio di casa e trasferta (bonus casa compreso) e, quando dei 10 in campo ne restano al massimo 4 da giocare, l'esito "al momento" (chi vince, coi supplementari se servono); con più di 4 ancora da giocare nessun esito. Accanto, quanti dei 10 titolari stanno giocando adesso (🏀) e, sotto ogni partita, una riga per squadra: «devono giocare N · devono rigiocare N (finora X)», cioè i titolari che non hanno ancora una partita finita, quelli che ne hanno finita una e ne hanno un'altra, e i fantapunti già fatti da questi ultimi. Tra una partita e l'altra c'è una riga vuota. È il calcolo vero (medie, media della stagione, FADD, supplementari) sui tabellini live di ESPN. Sotto c'è scritto che sono **risultati provvisori, da valutare e convalidare da un admin**, e l'ora dell'ultimo aggiornamento.
 
 - Si aggiorna (modificando lo stesso messaggio) **ogni 10 minuti** dalla prima partita di ogni notte della giornata **fino alle 8 di mattina**, poi **una volta alle 10:05**: è il controllo della notte appena finita a giornata in corso. Riscarica tutte le partite di quella notte (ESPN a volte riassegna le statistiche) e aggiorna il messaggio; se è cambiato il tabellino di un giocatore schierato, sul canale log arriva una riga con le differenze. Dopo l'ultima notte non riscarica: l'ha appena fatto il controllo del calcolo delle 10:00, che avvisa il gruppo admin.
 - Formazioni: quelle congelate da IPanchinari alla scadenza (nei primi minuti, finché IPanchinari non chiude la giornata, i quintetti di quel momento).
 - Se ESPN non risponde si salta il giro e si riprova dopo 20 minuti; sul canale log una riga (al massimo una all'ora).
 - **`/live`**: aggiorna subito, senza aspettare i 10 minuti (se nessuna giornata è in corso, ti manda l'anteprima della prossima). Anche `/dev_prova_calcolo` manda l'anteprima del messaggio live.
-- Fa fede sempre il calcolo delle 7:45 convalidato: il live è solo una stima.
+- Fa fede sempre il calcolo delle 7:45 convalidato: il live è solo una stima. **Alla convalida** il messaggio live si cancella (e non si aggiorna più) ed esce quello dei risultati definitivi; vedi sopra.
+- Gli orari (fine delle notti alle 8, controllo delle 10) si cambiano in `config/settings.json` sotto `"orari"` (`fine_live_notte`, `controllo_tabellini`), poi riavvio di loucabot.
 
 ---
 

@@ -90,7 +90,7 @@ ff = asyncio.run(FF.aggiorna(ora=_t0 + timedelta(hours=1), manda=_gas_ff))
 _tab = _inviati[0]["righe"] if _inviati else []
 _cel = [c for r in _tab for c in r]
 ok(len(ff) == 1 and _inviati[0]["nome"] == f"Calcolo G{N}" and "Q-PG" in _cel and "P1" in _cel and "panchina non mandata" in _cel
-   and any("tolto dalla panchina" in str(x) for x in _cel) and not any(str(x).startswith("=") for x in _cel),
+   and any("questa posizione vale 0" in str(x) for x in _cel) and not any(str(x).startswith("=") for x in _cel),
    "alla scadenza: tab «Calcolo GN» coi soli schierati (quintetti, panchine in ordine), niente formule")
 ok(asyncio.run(FF.aggiorna(ora=_t0 + timedelta(hours=1), manda=_gas_ff)) == [] and len(_inviati) == 1, "niente cambi: non riscrive")
 db.q("UPDATE ipa_formazioni SET giocatore_id = %s WHERE stagione = %s AND giornata = %s AND team_id = 'team01' AND ruolo = 'C'",
@@ -142,9 +142,9 @@ ok(r2["sc"]["fadd"] and r2["sc"]["fadd"]["esce"]["atleta"] == "r5" and r2["sc"][
 ok(c["punti"]["r30"]["come"] == "media" and c["punti"]["r30"]["fp"] == 18, "squadra a media, disponibile: media della stagione")
 ok(any("Delta: panchina non mandata" in a for a in c["avvisi"]) and any("Delta: quintetto incompleto (Q-SF)" in a for a in c["avvisi"]),
    "avvisi: panchina mancante e quintetto incompleto")
-ok(len(r2["sc"]["panchina"]) == 2 and "r21" not in [x["atleta"] for x in r2["sc"]["panchina"]]
+ok([x["atleta"] for x in r2["sc"]["panchina"]] == ["r30", "r26", "r21"] and r2["sc"]["panchina"][2]["fp"] == 0
    and any("Gamma: titolare e anche in panchina: Prova 21" in a for a in c["avvisi"]),
-   "dopo la FADD la panchina di Gamma scala; r21, titolare e anche in panchina, esce dalla panchina (con l'avviso)")
+   "dopo la FADD la panchina di Gamma scala; r21, titolare e anche in panchina, resta al suo posto e vale 0 (con l'avviso)")
 ok(r1["supplementari"] == 1 and r1["supp_casa"] == 9 and r1["supp_trasferta"] == 29,
    f"partita 1 ai supplementari: soli punti dei supplementari {r1['punti_casa']} {r1['punti_trasferta']} {r1['supp_casa']} {r1['supp_trasferta']}")
 
@@ -183,12 +183,12 @@ if shutil.which("soffice"):
            f"{rb['supplementari']} {rb['supp_casa']} {rb['supp_trasferta']} {vince_bot}")
     ip = gr["colonne"]["punteggio"]
     nomi = {f"Prova {i}": f"r{i}" for i in range(1, 41)}
-    doppio = lambda r: r[1].startswith("P") and "tolto dalla panchina" in r[-1]
+    doppio = lambda r: r[1].startswith("P") and ("tolto dalla panchina" in r[-1] or "questa posizione vale 0" in r[-1])
     diversi = [(r[3], r[ip], c["punti"][nomi[r[3]]]["fp"]) for r in foglio if len(r) > ip and r[3] in nomi and not doppio(r)
                and num(r[ip]) != c["punti"][nomi[r[3]]]["fp"]]
     ok(not diversi, f"punteggio di ogni giocatore: foglio = bot {diversi[:3]}")
     dd = [r for r in foglio if len(r) > ip and r[3] == "Prova 21" and doppio(r)]
-    ok(len(dd) == 1 and num(dd[0][ip]) == 0, f"foglio: il titolare che è anche in panchina, lì vale 0 e senza ordine {dd}")
+    ok(len(dd) == 1 and num(dd[0][ip]) == 0, f"foglio: il titolare che è anche in panchina, lì vale 0 (e tiene la sua posizione) {dd}")
 else:
     print("⚠️ LibreOffice non c'è: confronto col foglio saltato")
 
@@ -586,8 +586,12 @@ ok(PLY.cerca("prova 1") and PLY.cerca("prova 1")[0]["id"] == gid1, "/player: ric
 db.q("INSERT INTO contratti (giocatore_id, team_id, importo, anni_originali, stagione_firma, tipo) VALUES (%s, 'team01', 12, 3, %s, 'normale')",
      (gid1, S))
 sc = PLY.scheda(gid1)
-ok("🏆 Fantabasket: <b>Alfa</b>" in sc and "12 × 3 anni" in sc, "/player: squadra e contratto " + sc.split("\n")[3])
+ok("🏆 Fantabasket: <b>Alfa</b>" in sc and "12M × 3 anni rimasti" in sc and "📋 Posizioni eleggibili" in sc and "🎽 Ruolo" in sc,
+   "/player: posizioni eleggibili, squadra, ruolo e stato del contratto\n" + sc)
+db.q("UPDATE contratti SET stagione_firma = %s WHERE giocatore_id = %s", (str(int(S) - 3), gid1))
+ok("contratto finito (x0)" in PLY.scheda(gid1), "/player: contratto x0 e RFA")
 db.q("DELETE FROM contratti WHERE giocatore_id = %s", (gid1,))
+ok("svincolato</b> (free agent)" in PLY.scheda(gid1), "/player: svincolato")
 # pulizia
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (list(gid.values()),))
 db.q("TRUNCATE nba_tabellini, nba_infortuni, lega_giornate, lega_partite, nba_partite, lega_risultati, lega_calcoli, lega_live")

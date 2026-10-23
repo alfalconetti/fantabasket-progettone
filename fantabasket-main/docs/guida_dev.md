@@ -96,6 +96,10 @@ fantabasket-progettone/
 
 `tests/config/settings.json` ha gli stessi valori: se cambi uno, cambia l'altro.
 
+**Orari dei job** (v6.2.0): `"orari"` in settings.json, `{"nome": "HH:MM"}`; `shared/regole.orario(nome)` → `datetime.time` (senza fuso: chi lo usa mette Roma), default ed elenco in `shared/regole.ORARI`; un valore storto vale il default con un avviso nel log. Non è in `regole.DEFAULT` (non è un numero): in `/settings` compare tra le tabelle in sola lettura.
+
+**Date nei comandi** (v6.2.1): `shared/date_comandi.leggi_data` (GG/MM/AAAA, GG/MM/AA, AAAA-MM-GG, con - / .), `leggi_ora`, `leggi_data_ora` (data e ora con uno spazio o una T). Ogni comando nuovo con una data usa questi.
+
 **teams.json:** per squadra `id` (`teamXX`), `nome`, `gm_nome`, `gm_ids` (anche più di uno), `colore`/`colore2` (vecchi, non li legge nessuno), i colori della palette (`colore_header`, `colore_riga1`, …) e `cap_penalizzato`.
 
 **secrets/:**
@@ -179,7 +183,8 @@ Il bot aste vede la fase nuova entro 5 minuti.
 | `cambi_ruolo` + vista `ruolo_attuale` | event log dei ruoli (`iniziale`, `ordinario`, `erminio`, `saedro`, `forzato_admin`, `post_trade`, `post_firma`, `dpe_extra`, …) |
 | `posizioni_eleggibili` + vista `posizioni_attuali` | event log delle posizioni Yahoo (una riga solo se il set cambia; `data_yahoo` per Erminio) |
 | `ruoli_bozze` | dichiarazione di inizio stagione non ancora confermata |
-| `ruoli_pendenti` | dichiarazioni post-trade/firma in RS (48 ore) |
+| `ruoli_pendenti` | dichiarazioni post-trade/firma in RS (48 ore); anche i ruoli assegnati in automatico (stato `assegnata`, `nota` col perché) |
+| `ruoli_messaggi` | il messaggio unico dei ruoli di una trade sul canale (riferimento → chat, messaggio), v6.2.0 |
 
 **Richieste, code e dati esterni**
 
@@ -357,7 +362,7 @@ ORDER BY t.timestamp, t.id;
 | `coerenza.py` | controllo notturno contratti/pick/diritti contro il registro, `/dev_coerenza` |
 | `registro.py` | registro delle azioni: `segna`, `segna_sync`, `solo_log`, `/registro` |
 | `ruoli.py` | dichiarazione di inizio stagione, `/deadline_ruoli` |
-| `ruoli_rs.py` | dichiarazioni post-trade/firma in RS |
+| `ruoli_rs.py` | dichiarazioni post-trade/firma in RS; per le trade un messaggio unico sul canale (`testo_trade`, `aggiorna_messaggio_trade`) aggiornato a ogni dichiarazione, assegnazione ed estrazione |
 | `cambi_ruolo.py` | `/cambio_ruolo`: ordinario, Erminio, Saedro, forzato, Extra DPE |
 | `dieci_giorni.py` | `/firma_10day` (GM, richiesta), `/firma_10day_admin`, approvazione, pannello, scadenza |
 | `posizioni.py` | import e correzione delle posizioni eleggibili, `/data_erminio` |

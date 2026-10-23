@@ -5,8 +5,9 @@ roster e infortunati di ESPN già nel database (niente richieste a ESPN).
 
 - NBA: squadra dei roster ESPN di adesso (se no quella dell'ultimo tabellino), status dall'ultimo
   snapshot degli infortunati (assente = sano).
-- Fantabasket: squadra, ruolo della stagione, contratto (importo × anni rimasti; rookie, 10-day,
-  DPE, x0), o svincolato.
+- Fantabasket (Luca, 23/10): posizioni eleggibili sempre; se firmato squadra, ruolo della stagione
+  (o la dichiarazione aperta) e stato del contratto (importo × anni rimasti e fino a quando, rookie,
+  10-day, DPE, x0 e RFA); se no free agent o diritti rookie di chi.
 - Stagione: partite di regular season e play-in che contano (come la media del calcolo: uno 0 con
   0 minuti no), media dei fantapunti all'ottavo, medie per partita e percentuali al tiro.
 - Ultime 5 partite.
@@ -74,27 +75,56 @@ def scheda(gid: int) -> str:
     else:
         righe.append("🇺🇸 NBA: <i>non abbinato a ESPN (niente statistiche)</i>")
 
-    # ── fantabasket ──
+    # ── fantabasket (Luca, 23/10): posizioni eleggibili sempre; se firmato ruolo e stato del contratto ──
+    def _q1(sql, params):
+        try:
+            return db.q(sql, params, one=True)
+        except Exception:                      # tabella del bot principale che manca (prove, database vuoto)
+            return None
+    pos = _q1("SELECT posizioni FROM posizioni_attuali WHERE giocatore_id = %s", (gid,))
+    eleg = [r for r in ("PG", "SG", "SF", "PF", "C") if r in set(((pos or {}).get("posizioni") or "").split(","))]
+    righe.append("📋 Posizioni eleggibili: " + (f"<b>{', '.join(eleg)}</b>" if eleg else "<i>non registrate</i>"))
     c = db.q("""SELECT c.*, (SELECT r.ruolo FROM ruolo_attuale r WHERE r.giocatore_id = c.giocatore_id AND r.stagione = %s LIMIT 1) AS ruolo,
                        (SELECT d.importo_dpe FROM dpe d WHERE d.giocatore_id = c.giocatore_id AND d.team_id = c.team_id
                          AND d.stagione = %s LIMIT 1) AS importo_dpe
                 FROM contratti c WHERE c.giocatore_id = %s AND c.attivo LIMIT 1""", (s, s, gid), one=True)
     if c:
-        anni = int(c["anni_originali"]) - (int(s) - int(c["stagione_firma"]))
-        if c["tipo"] == "10day":
-            contratto = "10-day"
+        righe.append(f"🏆 Fantabasket: <b>{e(config.nome(c['team_id']))}</b>")
+        # ruolo della stagione, o la dichiarazione ancora aperta
+        pend = _q1("SELECT scadenza FROM ruoli_pendenti WHERE giocatore_id = %s AND team_id = %s AND stato = 'aperta' LIMIT 1",
+                   (gid, c["team_id"]))
+        if c.get("ruolo"):
+            righe.append(f"🎽 Ruolo: <b>{e(c['ruolo'])}</b>")
+        elif pend:
+            righe.append(f"🎽 Ruolo: <i>da dichiarare entro {pend['scadenza'].astimezone(__import__('zoneinfo').ZoneInfo('Europe/Rome')):%d/%m %H:%M}</i>")
         else:
-            contratto = f"{c['importo']} × {max(anni, 0)} {'anno' if anni == 1 else 'anni'}"
-            if anni <= 0:
-                contratto = f"{c['importo']} (x0, ultimo anno finito)"
-            if c["tipo"] == "rookie":
-                contratto += " · rookie"
-            if c.get("importo_dpe") is not None:
-                contratto += f" · DPE (pesa {c['importo_dpe']})"
-        ruolo = f" · {e(c['ruolo'])}" if c.get("ruolo") else ""
-        righe.append(f"🏆 Fantabasket: <b>{e(config.nome(c['team_id']))}</b>{ruolo} · {e(contratto)}")
+            righe.append("🎽 Ruolo: <i>non ancora ufficiale</i>")
+        # stato del contratto
+        anni = int(c["anni_originali"]) - (int(s) - int(c["stagione_firma"]))
+        fine = int(c["stagione_firma"]) + int(c["anni_originali"]) - 1
+        stagione_txt = lambda y: f"{y}-{str(y + 1)[-2:]}"
+        if c["tipo"] == "10day":
+            contratto = "10-day" + (f", firmato il {c['firmato_at']:%d/%m}" if c.get("firmato_at") else "")
+        elif anni <= 0:
+            rfa = _q1("SELECT 1 AS x FROM rfa_dichiarati WHERE contratto_id = %s AND stato = 'attiva'", (c["id"],))
+            contratto = (f"{c['importo']}M, contratto finito (x0)" + (" · dichiarato RFA" if rfa else
+                         " · a fine stagione la squadra può dichiararlo RFA"))
+        else:
+            contratto = (f"{c['importo']}M × {anni} {'anno' if anni == 1 else 'anni'} rimasti (fino al {stagione_txt(fine)}; "
+                         f"firmato nel {stagione_txt(int(c['stagione_firma']))} per {c['anni_originali']})")
+        if c["tipo"] == "rookie":
+            contratto += " · contratto rookie"
+        if c.get("importo_dpe") is not None:
+            contratto += f" · 🏥 DPE quest'anno (pesa {c['importo_dpe']}M)"
+        righe.append(f"📝 Contratto: {e(contratto)}")
     else:
-        righe.append("🏆 Fantabasket: <b>svincolato</b>")
+        diritti = _q1("""SELECT team_id, scadenza_diritti FROM rookie WHERE giocatore_id = %s AND NOT firmato
+                         AND NOT diritti_scaduti ORDER BY id DESC LIMIT 1""", (gid,))
+        if diritti:
+            righe.append(f"🏆 Fantabasket: <b>svincolato</b>, diritti rookie di <b>{e(config.nome(diritti['team_id']))}</b>"
+                         + (f" (scadono il {diritti['scadenza_diritti']:%d/%m/%Y})" if diritti.get("scadenza_diritti") else ""))
+        else:
+            righe.append("🏆 Fantabasket: <b>svincolato</b> (free agent)")
 
     if not a:
         return "\n".join(righe)

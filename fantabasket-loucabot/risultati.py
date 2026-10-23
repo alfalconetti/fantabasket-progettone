@@ -127,7 +127,7 @@ def calcola(stagione: str, n: int, g: dict | None = None, sch: dict | None = Non
                               "con /quintetto_admin)")
             doppi = [x["nome"] for x in b if x["gid"] and x["gid"] in {y["gid"] for y in q if y["gid"]}]
             if doppi:
-                avvisi.append(f"{nome}: titolare e anche in panchina: {', '.join(doppi)} (tolto dalla panchina, gli altri scalano)")
+                avvisi.append(f"{nome}: titolare e anche in panchina: {', '.join(doppi)} (in panchina quella posizione vale 0, gli altri non scalano)")
             senza = [x["nome"] for x in q + b if x["gid"] and not x["atleta"]]
             if senza:
                 avvisi.append(f"{nome}: senza id ESPN, contano 0: {', '.join(senza)} (/espn_abbina)")
@@ -280,6 +280,8 @@ def griglia(c: dict) -> dict:
             esce = fadd["esce"]["atleta"] if fadd else None
             entra = fadd["entra"]["atleta"] if fadd else None
             in_campo = {x.get("atleta") for x in s["titolari"]}
+            # l'ordine dei supplementari: solo per le righe della panchina (un titolare che è anche in
+            # panchina ha lo stesso atleta: la sua riga da titolare non deve prendere il numero)
             ordine = {x.get("atleta"): i for i, x in enumerate(s["panchina"], 1) if x.get("atleta")}
             prima = len(righe) + 1
             tit_atleti = {y["atleta"] for y in c["squadre"][t]["quintetto"] if y["atleta"]}
@@ -287,10 +289,11 @@ def griglia(c: dict) -> dict:
                 a = x["atleta"]
                 p = c["punti"].get(a, {"fp": 0.0, "come": "zero", "nota": "senza id ESPN" if x["gid"] else "vuoto"})
                 doppio = x["posto"].startswith("P") and (a in tit_atleti or x.get("ceduto"))
-                if doppio:              # fuori dalla panchina (niente notti né ordine sul foglio): anche titolare, o ceduto
+                if doppio:              # niente notti: ceduto (fuori, senza ordine, gli altri scalano) o anche titolare
+                    # (vale 0 ma tiene la sua posizione nell'ordine dei supplementari, Luca 23/10)
                     p = {"fp": 0.0, "come": "zero", "squadra": p.get("squadra"),
                          "nota": ("ceduto prima della scadenza: tolto dalla panchina, gli altri scalano" if x.get("ceduto")
-                                  else "anche titolare: tolto dalla panchina, gli altri scalano")}
+                                  else "anche titolare: in panchina questa posizione vale 0, gli altri non scalano")}
                 # le due colonne che la formula del punteggio usa, come le ha usate il bot:
                 # a media = la sua squadra non ha giocato (media, o 0 perché indisponibile)
                 zero_indisp = p["come"] == "zero" and p.get("nota", "").startswith("indisponibile")
@@ -312,7 +315,8 @@ def griglia(c: dict) -> dict:
                 valori = [nome_t, x["posto"], x["ruolo"] or "", x["nome"], nba] + notti + \
                          [det["medie"].get(a, 0.0) if a else 0.0, "sì" if a_media else "no"] + stati + \
                          ["sì" if indisp else "no", punteggio, come,
-                          "sì" if a in in_campo and a and not doppio else "no", ordine.get(a, "") if a else "", nota.strip()]
+                          "sì" if a in in_campo and a and not doppio else "no",
+                          ordine.get(a, "") if a and x["posto"].startswith("P") and not x.get("ceduto") else "", nota.strip()]
                 fondo = SF_FADD if (a and a in (esce, entra)) else (SF_PANCA if x["posto"].startswith("P") else SF_BIANCO)
                 nuova(valori, sfondo=fondo, colore=BLU)
                 for i in (iPUN, iCOME):

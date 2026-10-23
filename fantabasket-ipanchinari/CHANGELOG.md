@@ -136,3 +136,7 @@ Primo rilascio: panchine e quintetti.
 
 - **Media fantapunti nei builder** (Luca, 23/10): accanto ai giocatori nei bottoni di `/build_panchina`, `/edit` (anche nel testo dell'editor e nella lista di 🔄) e del quintetto, la media fantapunti della stagione in corso (0 senza partite), dai tabellini di loucabot (`db.medie_fp`, `comune.medie`)
 - Orari di fine blocco delle panchine (6:00) e del promemoria dei quintetti (8:00) da `orari` in settings.json
+
+## v29 (2026-10-23)
+
+- Testi degli avvisi sul titolare anche in panchina allineati alla regola giusta: in panchina quella posizione vale 0, gli altri non scalano

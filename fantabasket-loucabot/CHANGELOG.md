@@ -203,3 +203,13 @@ Il calcolo dei fantapunti.
 - `/partita` su una giornata convalidata: in testa il risultato salvato (quello ufficiale); se il ricalcolo di oggi darebbe altro, la prima nota lo dice. **Squadra NBA nelle giornate vecchie**: per una giornata finita da più di una settimana il calcolo (e quindi un ricalcolo o `/partita` mesi dopo) non usa più i roster ESPN di adesso per chi non ha giocato, ma l'ultimo tabellino prima della fine della giornata (dopo una trade NBA avrebbe preso la squadra nuova)
 - `/partita` senza argomenti: dopo la convalida passa alla giornata nuova solo dalle 16 (`orari.partita_nuova`) del suo primo giorno, fino ad allora mostra quella appena finita (Luca, 23/10)
 - `/partita`: i totali di ogni squadra in fondo alla tabella, sotto la colonna «Conta» (titolari, bonus casa, totale, supplementari), invece che in alto a destra (Luca, 23/10)
+- `/partita`: le squadre NBA a media nella giornata in una fascia subito sotto il tabellone, invece che tra le note (Luca, 23/10)
+
+## v40 (2026-10-23)
+
+- **Titolare anche in panchina** (Luca, 23/10: «ricordavo male»): in panchina quella posizione vale 0 e gli altri **non** scalano (prima usciva dalla panchina e gli altri scalavano); niente FADD con lui e, nei supplementari, a quel giro la squadra prende 0. Lo stesso sul foglio di calcolo (la riga tiene il suo numero d'ordine, vale 0) e negli avvisi. I panchinari ceduti prima della scadenza restano come prima (fuori, gli altri scalano)
+- `/partita`: il ruolo dei panchinari tra parentesi (quello della giornata), e il titolare anche in panchina con «0 ANCHE TITOLARE»
+
+## v41 (2026-10-23)
+
+- **`/player`** (Luca, 23/10): le posizioni eleggibili sempre; se firmato squadra, ruolo della stagione (o la dichiarazione aperta con la scadenza) e lo stato del contratto su una riga sua: importo × anni rimasti e fino a quale stagione (firmato quando, per quanti anni), rookie, 10-day, DPE di quest'anno, x0 (contratto finito: dichiarato RFA o dichiarabile); se svincolato, free agent o diritti rookie di quale squadra
