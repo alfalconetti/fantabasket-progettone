@@ -175,13 +175,60 @@ async def cmd_player(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text("Quale?", reply_markup=K([[B(x["nome_common"] + (" ✅" if x["a_roster"] else ""),
                                                            callback_data=f"pl:{x['id']}")] for x in trovati]))
         return
-    await msg.reply_text(scheda(trovati[0]["id"]), parse_mode="HTML")
+    await manda(msg, trovati[0]["id"])
+
+
+def _foto(gid: int) -> str | None:
+    import foto
+    g = db.q("SELECT espn_id FROM giocatori WHERE id = %s", (gid,), one=True)
+    return foto.percorso(g["espn_id"]) if g and g.get("espn_id") else None
+
+
+async def manda(msg, gid: int) -> None:
+    """La scheda; con la foto ESPN se c'è già (foto.py: si scarica di notte, qui mai). La didascalia di
+    una foto arriva a 1024 caratteri: oltre, la foto e sotto il testo."""
+    t = scheda(gid)
+    f = _foto(gid)
+    img = None
+    if f:
+        try:
+            img = immagine(gid, f)
+        except Exception as err:                          # Typst o foto rovinata: solo testo
+            import logging
+            logging.getLogger(__name__).warning("Foto di /player: %s", err)
+    if not img:
+        await msg.reply_text(t, parse_mode="HTML")
+        return
+    if len(t) <= 1024:
+        await msg.reply_photo(img, caption=t, parse_mode="HTML")
+        return
+    await msg.reply_photo(img)
+    await msg.reply_text(t, parse_mode="HTML")
+
+
+def immagine(gid: int, f: str) -> bytes:
+    """La foto ESPN (trasparente) su uno sfondo viola 640×420 col nome (foto_player.typ): su
+    Telegram una PNG trasparente può uscire su fondo nero, e una foto piccola si vede sgranata."""
+    import json, os, typst
+    g = db.q("SELECT nome_common, espn_id FROM giocatori WHERE id = %s", (gid,), one=True) or {}
+    sq = db.squadre_roster([g.get("espn_id")]).get(g.get("espn_id")) if g.get("espn_id") else None
+    c = db.q("SELECT team_id FROM contratti WHERE giocatore_id = %s AND attivo LIMIT 1", (gid,), one=True)
+    sotto = " · ".join(x for x in (sq or "", config.nome(c["team_id"]) if c else "") if x)
+    tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "foto_player.typ")
+    return typst.compile(tpl, root="/", format="png", ppi=144,
+                         sys_inputs={"dati": json.dumps({"foto": os.path.abspath(f), "nome": g.get("nome_common", ""),
+                                                          "sotto": sotto}, ensure_ascii=False)})
 
 
 async def cb_player(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
-    await q.edit_message_text(scheda(int(q.data.split(":")[1])), parse_mode="HTML")
+    gid = int(q.data.split(":")[1])
+    if _foto(gid):                                   # con la foto: il «Quale?» si toglie, la scheda arriva sotto
+        await q.edit_message_text("🏀 ⬇️")
+        await manda(q.message, gid)
+        return
+    await q.edit_message_text(scheda(gid), parse_mode="HTML")
 
 
 def get_handlers() -> list:

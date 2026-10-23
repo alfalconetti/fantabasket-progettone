@@ -40,7 +40,7 @@ Scrivi `/calendario` e vedi la giornata in corso, o la prossima se non ne è in 
 
 ## Un giocatore: `/player`
 
-`/player Wembanyama` (basta un pezzo del nome; se ce n'è più d'uno ti fa scegliere): la squadra NBA di adesso e lo status degli infortunati, le posizioni eleggibili, la squadra del fantabasket col ruolo (o la dichiarazione ancora aperta) e lo stato del contratto (importo, anni rimasti e fino a quale stagione, rookie, 10-day, DPE, contratto finito x0 e se è dichiarato RFA), oppure free agent o i diritti rookie di chi, poi la stagione: partite, media dei fantapunti (la stessa che usa il calcolo), minuti, punti, rimbalzi, assist, recuperi, stoppate, perse e percentuali al tiro, e le ultime 5 partite coi fantapunti.
+`/player Wembanyama` (basta un pezzo del nome; se ce n'è più d'uno ti fa scegliere), con la foto ESPN del giocatore quando il bot l'ha già (le scarica piano piano di notte): la squadra NBA di adesso e lo status degli infortunati, le posizioni eleggibili, la squadra del fantabasket col ruolo (o la dichiarazione ancora aperta) e lo stato del contratto (importo, anni rimasti e fino a quale stagione, rookie, 10-day, DPE, contratto finito x0 e se è dichiarato RFA), oppure free agent o i diritti rookie di chi, poi la stagione: partite, media dei fantapunti (la stessa che usa il calcolo), minuti, punti, rimbalzi, assist, recuperi, stoppate, perse e percentuali al tiro, e le ultime 5 partite coi fantapunti.
 
 ---
 

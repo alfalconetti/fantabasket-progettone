@@ -1508,3 +1508,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.3.7 (2026-10-23)
 
 - loucabot v41: `/player` con posizioni eleggibili, ruolo e stato del contratto
+
+## v6.4.0 (2026-10-23)
+
+- loucabot v42: foto dei giocatori da ESPN (scaricate piano di notte, cartella `config/foto`), `/player` con la foto. Nel docker-compose una cartella nuova per loucabot (`./config/foto:/foto`, la crea il deploy)
+- loucabot: la foto di `/player` più grande e su sfondo viola col nome

@@ -80,6 +80,8 @@ def main():
     app.job_queue.run_repeating(job_prepartita, interval=timedelta(minutes=10), first=120)
     # punteggi live: il job guarda ogni minuto, aggiorna ogni 10 (live.cosa_fare)
     app.job_queue.run_repeating(live.job_live, interval=timedelta(minutes=1), first=60)
+    import foto                                      # foto dei giocatori: una al minuto, solo nella notte americana
+    app.job_queue.run_repeating(foto.job_foto, interval=timedelta(minutes=1), first=75)
     # formazioni congelate sul foglio di controllo (e le correzioni degli admin), fino al calcolo
     app.job_queue.run_repeating(formazioni_foglio.job_formazioni, interval=timedelta(minutes=5), first=90)
     logger.info("loucabot %s avviato.", BOT_VERSION)

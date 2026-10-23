@@ -213,3 +213,9 @@ Il calcolo dei fantapunti.
 ## v41 (2026-10-23)
 
 - **`/player`** (Luca, 23/10): le posizioni eleggibili sempre; se firmato squadra, ruolo della stagione (o la dichiarazione aperta con la scadenza) e lo stato del contratto su una riga sua: importo × anni rimasti e fino a quale stagione (firmato quando, per quanti anni), rookie, 10-day, DPE di quest'anno, x0 (contratto finito: dichiarato RFA o dichiarabile); se svincolato, free agent o diritti rookie di quale squadra
+
+## v42 (2026-10-23)
+
+- **Foto dei giocatori da ESPN** (Luca, 23/10, `foto.py`): scaricate piano, solo nella notte americana (2–6 a New York), una al minuto, per i giocatori a roster (prima le mancanti, poi chi ha cambiato squadra, poi le più vecchie di 14 giorni); versione piccola dal combiner di ESPN; un 429 ferma tutto per 20 ore. In `config/foto` sul server: nel docker-compose una cartella in scrittura `./config/foto:/foto` (`FOTO_DIR`)
+- **`/player` con la foto** quando c'è (didascalia; se il testo è lungo, foto e testo sotto); senza foto come prima, `/player` non scarica mai niente
+- `/player`: la foto (520×380 dal combiner di ESPN, nitida sul telefono) composta con Typst su uno sfondo viola 640×420 col nome, la squadra NBA e quella del fantabasket (`foto_player.typ`): una PNG trasparente su Telegram può uscire su fondo nero e una foto piccola si vede sgranata

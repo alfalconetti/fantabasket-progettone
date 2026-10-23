@@ -104,6 +104,10 @@ Restano agli admin le 72 ore di attesa per le partite rinviate e le penalità.
 
 ---
 
+## Foto dei giocatori
+
+Il bot scarica da ESPN le foto dei giocatori a roster **piano piano, solo di notte negli Stati Uniti** (dalle 8 alle 12 italiane circa), una al minuto, per non farsi limitare: la prima volta servono un paio di notti, poi aggiorna solo chi cambia squadra e, ogni 14 giorni, le altre. Stanno in `config/foto` sul server (non in git; se si perdono si riscaricano). `/player` mostra la foto quando c'è.
+
 ## Comandi
 
 | Comando | Cosa fa |

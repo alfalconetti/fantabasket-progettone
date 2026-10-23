@@ -592,6 +592,37 @@ db.q("UPDATE contratti SET stagione_firma = %s WHERE giocatore_id = %s", (str(in
 ok("contratto finito (x0)" in PLY.scheda(gid1), "/player: contratto x0 e RFA")
 db.q("DELETE FROM contratti WHERE giocatore_id = %s", (gid1,))
 ok("svincolato</b> (free agent)" in PLY.scheda(gid1), "/player: svincolato")
+# ── foto ESPN (Luca, 23/10): di notte una alla volta, poi /player con la foto ──
+import foto as FO, tempfile, os
+FO.CARTELLA = tempfile.mkdtemp(); FO.INDICE = os.path.join(FO.CARTELLA, "indice.json")
+db.q("INSERT INTO contratti (giocatore_id, team_id, importo, anni_originali, stagione_firma, tipo) VALUES (%s, 'team01', 5, 2, %s, 'normale')", (gid1, S))
+ok("r1" in FO.da_scaricare(), "foto: il giocatore a roster senza foto è in coda")
+PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 3000
+class _Risp:
+    def __init__(s, c, b): s.status_code, s.content = c, b
+class _Cli:
+    def __init__(s, codici): s.codici, s.url = list(codici), []
+    async def get(s, url): s.url.append(url); c = s.codici.pop(0); return _Risp(c, PNG if c == 200 else b"")
+    async def aclose(s): pass
+_c = _Cli([404, 200])
+ok(asyncio.run(FO.scarica("r1", _c)) and FO.percorso("r1") and "combiner" in _c.url[0] and "w=520" in _c.url[0] and "full/r1.png" in _c.url[1],
+   "foto: prima la piccola (combiner), se non c'è l'intera; salvata in cartella")
+ok("r1" not in FO.da_scaricare(), "foto presa: esce dalla coda")
+ok(not asyncio.run(FO.scarica("r2", _Cli([404, 404]))) and FO._indice()["r2"].get("mancante"), "foto che ESPN non ha: segnata mancante")
+import base64 as _b64                      # una PNG vera (1×1 trasparente) per comporre la foto con Typst
+open(os.path.join(FO.CARTELLA, "r1.png"), "wb").write(_b64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="))
+_im = PLY.immagine(gid1, FO.percorso("r1"))
+ok(_im[:8] == b"\x89PNG\r\n\x1a\n" and len(_im) > 5000, "/player: la foto composta su sfondo viola (Typst)")
+_inviate = []
+class _MsgF:
+    async def reply_photo(s, f, caption=None, **k): _inviate.append(("foto", caption))
+    async def reply_text(s, t, **k): _inviate.append(("testo", t))
+asyncio.run(PLY.manda(_MsgF(), gid1))
+ok(_inviate and _inviate[0][0] == "foto" and (_inviate[0][1] or (len(_inviate) > 1 and "Prova 1" in _inviate[1][1])),
+   "/player con la foto (didascalia, o foto e testo sotto se lungo)")
+ok(asyncio.run(FO.job_foto(types.SimpleNamespace())) is None, "job delle foto: fuori dalla notte americana non fa niente (o una sola foto)")
+db.q("DELETE FROM contratti WHERE giocatore_id = %s", (gid1,))
 # pulizia
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (list(gid.values()),))
 db.q("TRUNCATE nba_tabellini, nba_infortuni, lega_giornate, lega_partite, nba_partite, lega_risultati, lega_calcoli, lega_live")

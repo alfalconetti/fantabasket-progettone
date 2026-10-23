@@ -89,12 +89,14 @@ services:
       PG_PASSWORD_FILE: /run/secrets/pg_password
       GAS_ROUTER_URL: http://gas-router:8000          # foglio Calendario
       GAS_ROUTER_TOKEN_FILE: /run/secrets/gas_router_token
+      FOTO_DIR: /foto                                 # foto dei giocatori da ESPN (foto.py), scritte dal bot
     secrets:
       - bot_token_loucabot
       - pg_password
       - gas_router_token
     volumes:
       - ./config:/config:ro
+      - ./config/foto:/foto                           # unica cartella di config/ in scrittura (non in git)
       - ./shared:/app/shared:ro
 
 
