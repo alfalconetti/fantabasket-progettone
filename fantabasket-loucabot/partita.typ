@@ -1,0 +1,143 @@
+// Una sfida del fantabasket (loucabot, partita.py → /partita): verticale, tinte viola (Yahoo).
+// Dati in sys.inputs.dati (JSON).
+#let dati = json(bytes(sys.inputs.at("dati")))
+
+#let viola = rgb("#5F01D1")        // il viola di Yahoo
+#let viola_scuro = rgb("#39007D")
+#let viola_medio = rgb("#7B3FE4")
+#let lilla = rgb("#EFE7FD")        // righe chiare
+#let lilla2 = rgb("#F7F3FE")
+#let bordo = rgb("#D6C8F5")
+#let grigio = rgb("#6B6480")
+#let verde = rgb("#1B8A4B")
+#let arancio = rgb("#C26A00")
+#let rosso = rgb("#C0392B")
+
+#set page(width: 560pt, height: auto, margin: 0pt, fill: white)
+#set block(spacing: 0pt)
+#set text(font: "Liberation Sans", size: 9.5pt, fill: rgb("#1D1630"))
+
+#let logo(s, d) = if s.logo != "" {
+  box(clip: true, radius: 50%, width: d, height: d, image(s.logo, width: d, height: d, fit: "cover"))
+} else {
+  box(width: d, height: d, radius: 50%, fill: white.transparentize(75%),
+    align(center + horizon, text(size: d * 0.36, weight: "bold", fill: white)[#s.nome.slice(0, 1)]))
+}
+
+// ── tabellone ──
+#let a = dati.squadre.at(0)
+#let b = dati.squadre.at(1)
+// chi vince alla fine (calcolata o convalidata) in grassetto, l'altra squadra no
+#let finale = dati.stato == "convalidata" or dati.stato == "calcolata"
+#let peso(s) = if not finale or s.vince { "bold" } else { "regular" }
+#let lato(s, dx) = {
+  let nome = [#text(13pt, weight: peso(s), fill: white)[#s.nome] \ #text(8.5pt, fill: white.transparentize(30%))[#if s.gm != "" [GM #s.gm · ]#if s.lato == "casa" [casa] else [trasferta]]]
+  if dx { grid(columns: (1fr, auto), column-gutter: 8pt, align: (right + horizon, horizon), align(right, nome), logo(s, 40pt)) }
+  else { grid(columns: (auto, 1fr), column-gutter: 8pt, align: horizon, logo(s, 40pt), nome) }
+}
+#let punti(s) = text(28pt, weight: peso(s), fill: if dati.stato == "da giocare" { white.transparentize(40%) } else if s.vince or not finale { white } else { white.transparentize(30%) })[#if dati.stato == "da giocare" [–] else [#s.punti]]
+#let etichetta(t, c) = box(fill: c, radius: 4pt, inset: (x: 6pt, y: 2.5pt))[#text(8pt, weight: "bold", fill: white)[#t]]
+
+#block(width: 100%, fill: gradient.linear(viola_scuro, viola, angle: 0deg), inset: (x: 14pt, y: 12pt))[
+  #align(center)[#text(9pt, weight: "bold", fill: white.transparentize(25%), tracking: 0.6pt)[#upper(dati.titolo) · #dati.date]]
+  #v(12pt)
+  #grid(columns: (1fr, auto, 1fr), column-gutter: 10pt, align: horizon,
+    lato(a, false),
+    align(center)[
+      #punti(a) #h(4pt) #text(22pt, fill: white.transparentize(50%))[–] #h(4pt) #punti(b)
+      // supplementari: centrati sotto i regolamentari, più piccoli ma leggibili (Luca, 23/10)
+      #if dati.supplementari > 0 [
+        #v(-6pt)
+        #text(8pt, weight: "bold", fill: white.transparentize(30%), tracking: 0.5pt)[SUPPLEMENTARI#if dati.supplementari > 1 [ ×#dati.supplementari]] \
+        #text(16pt, weight: peso(a), fill: white)[#a.supp] #h(3pt) #text(13pt, fill: white.transparentize(50%))[–] #h(3pt) #text(16pt, weight: peso(b), fill: white)[#b.supp]
+      ]
+    ],
+    lato(b, true))
+  #v(8pt)
+  #align(center, {
+    if dati.stato == "convalidata" { etichetta("CONVALIDATA", verde) }
+    else if dati.stato == "calcolata" { etichetta("CALCOLATA · DA CONVALIDARE", arancio) }
+    else if dati.stato == "in corso" { etichetta("IN CORSO · PROVVISORIO", rosso) }
+    else { etichetta("DA GIOCARE", viola_medio) }
+  })
+]
+
+// ── una squadra ──
+#let cella(c) = {
+  if c.k == "fp" { text(weight: "bold")[#c.t] }
+  else if c.k == "live" { text(weight: "bold", fill: rosso)[#c.t] }
+  else if c.k == "dnp" { text(fill: grigio)[DNP] }
+  else if c.k == "prossima" { text(fill: viola_medio, size: 8.5pt)[#c.t] }
+  else if c.k == "rinviata" { text(fill: arancio, size: 8.5pt)[#c.t] }
+  else { [] }
+}
+#let conta(r) = {
+  let t = r.tag
+  if t == "esce" { text(fill: grigio)[↓ FADD] }
+  else if t == "entra" { text(fill: verde, weight: "bold")[↑ #r.conta] }
+  else if t == "media" { text(fill: arancio, weight: "bold")[#r.conta #text(7pt)[MEDIA]] }
+  else if t.starts-with("S") { text(fill: viola, weight: "bold")[#r.conta #text(7pt)[#t]] }
+  else if t == "ceduto" { text(fill: grigio, size: 8pt)[ceduto] }
+  else if t == "vuoto" { text(fill: grigio)[0 #text(7pt)[VUOTO]] }
+  else { text(weight: "bold")[#r.conta] }
+}
+
+#let squadra(s) = {
+  let nn = dati.notti.len()
+  block(width: 100%, inset: (x: 14pt, top: 12pt, bottom: 6pt))[
+    #grid(columns: (auto, 1fr), column-gutter: 8pt, align: horizon,
+      box(width: 5pt, height: 16pt, fill: viola, radius: 2pt),
+      [#text(12pt, weight: "bold")[#s.nome] #h(4pt) #text(8.5pt, fill: grigio)[#if s.lato == "casa" [casa] else [trasferta]]])
+  ]
+  pad(x: 14pt, table(
+    columns: (24pt, 1fr, 30pt, 38pt) + (50pt,) * nn + (62pt,),
+    align: (center + horizon, left + horizon, center + horizon, center + horizon) + (center + horizon,) * nn + (right + horizon,),
+    inset: (x: 5pt, y: 5.5pt),
+    stroke: (x, y) => (
+      bottom: if y == 0 { 1pt + viola } else { 0.5pt + bordo },
+      left: if x == 4 or x == 4 + nn { 1.5pt + viola.transparentize(40%) } else { 0pt },
+    ),
+    fill: (x, y) => if y == 0 { lilla } else if x >= 4 and x < 4 + nn { lilla2 } else { white },
+    ..([], [Giocatore], [NBA], [Media]).map(t => text(7.5pt, weight: "bold", fill: viola_scuro)[#t]),
+    ..dati.notti.map(t => text(7.5pt, weight: "bold", fill: viola_scuro)[#t]),
+    text(7.5pt, weight: "bold", fill: viola_scuro)[Conta],
+    ..s.righe.enumerate().map(((i, r)) => {
+      let sep = if i == 5 { (table.cell(colspan: 5 + nn, fill: lilla, inset: (x: 5pt, y: 3pt))[#text(7pt, weight: "bold", fill: viola_scuro, tracking: 0.5pt)[PANCHINA]],) } else { () }
+      let nome = if r.tag == "esce" { text(fill: grigio)[#strike[#r.nome]] } else if r.titolare or r.tag == "entra" { text(weight: "bold")[#r.nome] } else { [#r.nome] }
+      sep + (
+        text(8pt, fill: grigio, weight: "bold")[#r.posto], nome, text(8pt, fill: grigio)[#r.nba], text(8.5pt, fill: grigio)[#r.media],
+        ..r.celle.map(cella), conta(r),
+      )
+    }).flatten(),
+    // i totali in fondo, sotto «Conta» (Luca, 23/10)
+    table.cell(colspan: 4 + nn, align: right, stroke: (top: 1pt + viola))[#text(8.5pt, fill: grigio)[Titolari]],
+    table.cell(stroke: (top: 1pt + viola))[#text(9pt, weight: "bold")[#s.totale]],
+    ..(if s.bonus != "" { (table.cell(colspan: 4 + nn, align: right)[#text(8.5pt, fill: grigio)[Bonus casa]], [#text(9pt)[+#s.bonus]]) } else { () }),
+    table.cell(colspan: 4 + nn, align: right, fill: lilla)[#text(9.5pt, weight: "bold", fill: viola_scuro)[Totale]],
+    table.cell(fill: lilla)[#text(11pt, weight: "bold", fill: viola)[#s.punti]],
+    ..(if s.supp != "" { (table.cell(colspan: 4 + nn, align: right)[#text(8.5pt, fill: grigio)[Supplementari]], [#text(9.5pt, weight: "bold", fill: viola)[#s.supp]]) } else { () }),
+  ))
+}
+
+#squadra(a)
+#v(4pt)
+#squadra(b)
+
+// ── note ──
+#if dati.note.len() > 0 or dati.media_nba != "" {
+  v(10pt)
+  pad(x: 14pt, block(width: 100%, fill: lilla2, stroke: 0.5pt + bordo, radius: 6pt, inset: 9pt)[
+    #set text(8pt, fill: rgb("#3A3150"))
+    #if dati.media_nba != "" [• Squadre NBA senza partite nella giornata (i loro giocatori a media): #dati.media_nba \ ]
+    #for n in dati.note [• #n \ ]
+  ])
+}
+#v(8pt)
+#pad(x: 14pt, bottom: 10pt)[
+  #text(7.5pt, fill: grigio)[
+    #text(fill: verde, weight: "bold")[↑] entra per la FADD · #text(fill: grigio)[↓ FADD] esce ·
+    #text(fill: viola, weight: "bold")[S1…] supplementari · #text(fill: arancio, weight: "bold")[MEDIA] a media ·
+    #text(fill: viola_medio)[vs / \@] deve giocare · DNP non è entrato ·
+    Media = media fantapunti della stagione all'inizio della giornata (vale se la sua squadra NBA non gioca) ·
+    Conta = la media delle sue partite nella giornata · bonus casa +#dati.bonus #h(1fr) #dati.aggiornato]
+]

@@ -533,6 +533,49 @@ ok("notte del 10/11" in _tn and "giornata 7" in _tn and "<b>Quintetto</b>" in _t
    and ("vs " in _tn or "@ " in _tn),
    "/notte: quintetto e panchina della squadra in quella notte\n" + _tn)
 
+# ── /partita (Luca, 21 e 23/10) ──
+import partita as PA
+from numeri import testo as tp
+_c7 = LV.calcolo(S, N); _r7 = _c7["risultati"][0]
+_d7 = PA.dati(S, N, _r7["casa"], _r7["trasferta"])
+_s0 = _d7["squadre"][0]
+ok(len(_d7["notti"]) == 3 and _d7["notti"][0].endswith(f"{DAL:%d/%m}") and len(_s0["righe"]) >= 5
+   and all(len(x["celle"]) == 3 for x in _s0["righe"]) and _s0["lato"] == "casa",
+   f"/partita: una colonna per notte (con la data), quintetto e panchina {_d7['notti']}")
+_k = {c["k"] for x in _d7["squadre"][0]["righe"] + _d7["squadre"][1]["righe"] for c in x["celle"]}
+ok(_k <= {"fp", "dnp", "prossima", "live", "rinviata", "vuota"} and "fp" in _k, f"/partita: celle fp / DNP / vs @ / vuote {_k}")
+_png = PA.immagine(_d7)
+if _os_pa := __import__("os").environ.get("PARTITA_PNG"): open(_os_pa, "wb").write(_png)
+ok(_png[:8] == b"\x89PNG\r\n\x1a\n" and len(_png) > 20000, "/partita: immagine Typst")
+_sl = db.q("SELECT * FROM lega_risultati WHERE stagione = %s AND giornata = %s AND casa = %s", (S, N, _r7["casa"]), one=True)
+if _sl and _sl.get("convalidato"):
+    db.q("UPDATE lega_risultati SET punti_casa = punti_casa + 1 WHERE stagione = %s AND giornata = %s AND casa = %s", (S, N, _r7["casa"]))
+    _d8 = PA.dati(S, N, _r7["casa"], _r7["trasferta"])
+    ok(_d8["squadre"][0]["punti"] == tp(float(_sl["punti_casa"]) + 1) and "risultato convalidato" in _d8["note"][0],
+       "giornata convalidata: in testa il risultato salvato; se il ricalcolo di oggi differisce lo dice")
+    db.q("UPDATE lega_risultati SET punti_casa = punti_casa - 1 WHERE stagione = %s AND giornata = %s AND casa = %s", (S, N, _r7["casa"]))
+_sq = config.squadre()
+ok(PA.leggi_argomenti(["Alfa", "G3"], _sq)[:2] == ([config.squadra("team01")], 3), "/partita Alfa G3")
+ok([t["id"] for t in PA.leggi_argomenti(["Alfa", "-", "Beta"], _sq)[0]] == ["team01", "team02"]
+   and [t["id"] for t in PA.leggi_argomenti(["Alfa", "Beta"], _sq)[0]] == ["team01", "team02"], "/partita Alfa - Beta e Alfa Beta")
+ok(PA.leggi_argomenti(["Nessunaaa", "Zzzz"], _sq)[2], "squadra che non c'è: errore")
+_conv = {x["giornata"] for x in db.q("SELECT giornata FROM lega_calcoli WHERE stagione = %s AND stato = 'convalidata'", (S,), many=True) or []}
+_aperte = [g["numero"] for g in db.giornate(S) if g["numero"] not in _conv]
+ok(PA.giornata_di_default(S)["numero"] == (min(_aperte) if _aperte else max(g["numero"] for g in db.giornate(S))),
+   "giornata di default: la prima non convalidata (la stessa fino alla convalida)")
+from datetime import date as _dd
+_vg, _vq = PA.db.giornate, PA.db.q
+PA.db.giornate = lambda s_: [{"numero": 1, "dal": _dd(2026, 10, 20), "al": _dd(2026, 10, 22)},
+                             {"numero": 2, "dal": _dd(2026, 10, 23), "al": _dd(2026, 10, 25)}]
+PA.db.q = lambda sql, params=None, **k: [{"giornata": 1}] if "stato = 'convalidata'" in sql else _vq(sql, params, **k)
+ok(PA.giornata_di_default(S, datetime(2026, 10, 23, 15, 59, tzinfo=ROMA))["numero"] == 1
+   and PA.giornata_di_default(S, datetime(2026, 10, 23, 16, 0, tzinfo=ROMA))["numero"] == 2,
+   "G1 convalidata: la G2 solo dalle 16 del suo primo giorno, prima ancora la G1")
+PA.db.q = lambda sql, params=None, **k: [] if "stato = 'convalidata'" in sql else _vq(sql, params, **k)
+ok(PA.giornata_di_default(S, datetime(2026, 10, 24, 12, 0, tzinfo=ROMA))["numero"] == 1, "G1 non ancora convalidata: resta la G1")
+PA.db.giornate, PA.db.q = _vg, _vq
+ok(PA.sfide(S, _r7["casa"], _r7["trasferta"]) and all(x["giornata"] for x in PA.sfide(S, _r7["casa"])), "sfide tra due squadre")
+
 # ── /player ──
 import player as PLY
 gid1 = next(v for k, v in gid.items() if db.q("SELECT espn_id FROM giocatori WHERE id = %s", (v,), one=True)["espn_id"] == "r1")

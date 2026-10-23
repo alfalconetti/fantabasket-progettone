@@ -21,6 +21,7 @@ def liste_comandi() -> dict:
         BotCommand("risultati",  "Come /giornata: i risultati di una giornata [N]"),
         BotCommand("notte",      "I tuoi schierati in una notte NBA [SQUADRA] [DATA]"),
         BotCommand("player",     "Un giocatore: squadra NBA e fantabasket, media, statistiche"),
+        BotCommand("partita", "Una sfida in dettaglio (immagine) [SQUADRA] [GN] o SQUADRA - SQUADRA"),
         BotCommand("classifica", "La classifica (immagine)"),
         BotCommand("classifica_full", "La classifica con tutte le statistiche"),
         BotCommand("classifica_conference", "La classifica divisa per conference"),

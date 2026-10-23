@@ -1475,3 +1475,20 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.2.2 (2026-10-23)
 
 - loucabot v38: `/notte` (gli schierati di una squadra in una notte NBA); a una nuova convalida dopo un ricalcolo il messaggio dei definitivi si modifica e solo se cambia un esito esce un avviso in più
+
+## v6.3.0 (2026-10-23)
+
+- loucabot v39: `/partita`, la sfida come immagine (tabellone, quintetti e panchine notte per notte, quello che conta davvero, FADD, medie, supplementari)
+
+## v6.3.1 (2026-10-23)
+
+- loucabot v39: in `/partita` la media della stagione di ogni giocatore, supplementari sotto il punteggio, chi vince in grassetto
+- loucabot: `/partita` su una giornata convalidata mostra il risultato ufficiale; per le giornate vecchie la squadra NBA è quella di allora
+
+## v6.3.2 (2026-10-23)
+
+- loucabot: `/partita` senza argomenti mostra la giornata appena finita fino alle 16 del primo giorno della nuova (`orari.partita_nuova`)
+
+## v6.3.3 (2026-10-23)
+
+- loucabot: in `/partita` i totali in fondo, sotto la colonna «Conta»

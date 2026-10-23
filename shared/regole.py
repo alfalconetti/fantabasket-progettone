@@ -213,6 +213,7 @@ ORARI = {
     "fine_live_notte": "08:00",         # ultimo aggiornamento del live della notte
     "sync_nba": "08:30",                # partite, tabellini, infortunati
     "controllo_tabellini": "10:00",     # tabellini corretti da ESPN? (il live si aggiorna 5 minuti dopo)
+    "partita_nuova": "16:00",           # /partita senza argomenti passa alla giornata nuova dalle 16 del suo primo giorno
     # IPanchinari
     "fine_blocco_panchine": "06:00",    # giorno dopo l'ultima notte: si apre la giornata successiva
     "promemoria_quintetti": "08:00",    # dell'ultimo giorno prima della prima partita
