@@ -1,7 +1,7 @@
 """
 Basketball-Reference — job giornaliero e giocatori nuovi (v3.7.0).
 
-Job (10:00, solo regular season e playoff), una sola richiesta alla pagina per_game:
+Job (12:00, `orari.bref` in settings.json; solo regular season e playoff), una sola richiesta alla pagina per_game:
 - append in bref_stats per chi ha giocato (G aumentate);
 - foglio BrefRaw sincronizzato con la tabella (formule del foglio collegate);
 - messaggio sul canale log: giocatori aggiornati + 🔀 cambi squadra NBA;

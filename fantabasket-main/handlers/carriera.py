@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 ROMA = ZoneInfo("Europe/Rome")
 DAL = date(2026, 7, 25)                 # nasce il bot: da qui partono le due timeline
 TEMPLATE = os.path.join(os.path.dirname(__file__), "..", "carriera.typ")
-PPI = 220
+PPI = 288                               # pagina di 400pt (v6.5.2, più stretta) → 1600 pixel di larghezza
 LOGHI_DIR = os.environ.get("LOGHI_DIR", "/config/loghi")
 FOTO_DIR = os.environ.get("FOTO_DIR") or os.path.join(os.environ.get("CONFIG_DIR", "/config"), "foto")
 GRIGIO_FA = "#9AA3B5"
@@ -122,6 +122,11 @@ def _contratto(r: dict) -> str:
     return f"{r['importo']}M × {r['anni_originali']}" + (" · rookie" if r.get("tipo_contratto") == "rookie" or r.get("rookie_scale") else "")
 
 
+def _ref(r: dict) -> str:
+    """« · TRADE-2026-014»: il numero della trade, per ritrovarla (Luca, 23/10)."""
+    return f" · {r['trade_ref']}" if r.get("trade_ref") else ""
+
+
 def eventi_fanta(gid: int) -> list[dict]:
     """[{quando, tipo, etichetta, titolo, dettaglio, sq (dopo l'evento: dict o None = free agent)}]."""
     mov = db.movimenti_carriera(gid, datetime.combine(DAL, datetime.min.time(), tzinfo=ROMA))
@@ -140,7 +145,7 @@ def eventi_fanta(gid: int) -> list[dict]:
             if tipo == "iniziale":
                 ev = ("draft", "Draft", r["team_id_a"], (draft or "diritti rookie") + " · diritti all'avvio del bot")
             elif tipo in ("traded", "trade"):
-                ev = ("trade", "Trade diritti", r["team_id_a"], f"diritti rookie da {nome(r['team_id_da'])}")
+                ev = ("trade", "Trade diritti", r["team_id_a"], f"diritti rookie da {nome(r['team_id_da'])}" + _ref(r))
             elif tipo == "rookie_diritti_scaduti":
                 ev = ("scadenza", "Diritti scaduti", None, f"diritti di {nome(r['team_id_da'])} scaduti senza firma")
         elif ((tipo in ("signed", "firma", "iniziale") and "migrazione iniziale" in nota.lower() or tipo == "iniziale")
@@ -156,7 +161,7 @@ def eventi_fanta(gid: int) -> list[dict]:
         elif tipo == "rookie_firma":
             ev = ("rookie", "Firma rookie", r["team_id_a"], (draft + " · " if draft else "") + (_contratto(r) or "contratto rookie"))
         elif tipo in ("traded", "trade"):
-            ev = ("trade", "Trade", r["team_id_a"], f"da {nome(r['team_id_da'])}")
+            ev = ("trade", "Trade", r["team_id_a"], f"da {nome(r['team_id_da'])}" + _ref(r))
         elif tipo in ("cut", "taglio"):
             ev = ("taglio", "Taglio", None, f"tagliato da {nome(r['team_id_da'])}")
         elif tipo in ("decadimento", "decaduto", "expired"):
@@ -247,6 +252,7 @@ def righe_timeline(fanta: list[dict], nba: list[dict]) -> list[dict]:
     squadra del momento scritta piano."""
     giorni = sorted({x["quando"].astimezone(ROMA).date() for x in fanta + nba})
     out, sf, sn = [], None, None
+    # più eventi nello stesso giorno (due trade di fila): una riga ciascuno, la data solo sulla prima (Luca, 23/10)
     for g in giorni:
         f = [x for x in fanta if x["quando"].astimezone(ROMA).date() == g]
         n = [x for x in nba if x["quando"].astimezone(ROMA).date() == g]
@@ -255,7 +261,7 @@ def righe_timeline(fanta: list[dict], nba: list[dict]) -> list[dict]:
                 sf = f[i]["sq"]
             if i < len(n):
                 sn = n[i]["sq"]
-            out.append({"giorno": f"{g:%d/%m}", "anno": f"{g:%Y}",
+            out.append({"giorno": f"{g:%d/%m}", "anno": f"{g:%Y}", "mostra_data": i == 0,
                         "fanta": _carta(f[i]) if i < len(f) else None, "nba": _carta(n[i]) if i < len(n) else None,
                         "fanta_sq": sf, "nba_sq": sn,
                         "fanta_resta": "" if i < len(f) else (sf["nome"] if sf else "Free agent"),

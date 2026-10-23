@@ -1553,3 +1553,16 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - `/carriera`: un rookie del draft 2026 già sotto contratto all'avvio del bot parte dal **Draft** (anno, giro, numero e contratto rookie), non da «All'avvio»; quelli dei draft precedenti restano «All'avvio» (il loro draft è prima del bot). Prova in `carriera`
 
+## v6.5.2 (2026-10-23)
+
+- `/carriera` **più stretta** (Luca, 23/10: stessa idea delle due timeline affiancate, ma da leggere sul telefono senza zoom): pagina di 400pt invece di 560, contratto sotto il nome invece che in una terza colonna, schede compatte (logo piccolo accanto al tipo, nome e dettaglio a tutta larghezza), colonna delle date più stretta; risoluzione 288 dpi (1600 pixel)
+
+## v6.5.3 (2026-10-23)
+
+- `/carriera`: nelle schede delle trade (giocatore e diritti) il **numero della trade** (es. TRADE-2026-014), per ritrovarla; più eventi nello stesso giorno (due trade di fila) restano una scheda ciascuno, in ordine, ma la **data solo sulla prima**. Prova in `carriera`
+
+## v6.5.4 (2026-10-23)
+
+- **Foglio Roster coi nomi di Basketball-Reference** (Luca, 23/10): righe dei giocatori, DIS., 10-DAY, tagli e rookie scale col nome di bref, quello delle righe di BrefRaw a cui si agganciano le formule del foglio (prima il nome dei bot: con accenti e suffissi scritti diversamente, es. «Jokić», «Jr.», le formule non trovavano niente); chi non ha il nome bref resta col nome dei bot (`gas_client.nomi_foglio`). Nel controllo dei dati (`/report_dati`) l'elenco, come informazione, di chi ha i due nomi diversi. Prove in `sync_fogli` e `report_dati`
+- Commento del job bref allineato all'orario delle 12
+

@@ -23,8 +23,11 @@ def c(gid, t, imp, anni, att=True, tipo="normale"):
 def tx(tipo, gid, da, a, cid, ts, note=None, trade=None, oggetto="giocatore"):
     db._q("INSERT INTO transazioni (tipo, oggetto, giocatore_id, team_id_da, team_id_a, stagione, contratto_id, timestamp, note, trade_id) "
           "VALUES (%s, %s, %s, %s, %s, '2026', %s, %s, %s, %s)", (tipo, oggetto, gid, da, a, cid, ts, note, trade))
+_nt = [0]
 def trade():
-    return db._qval("INSERT INTO trade (stato, stagione, n_squadre, proposta_da) VALUES ('approvata', '2026', 2, 'team01') RETURNING id")
+    _nt[0] += 1
+    return db._qval("INSERT INTO trade (stato, stagione, n_squadre, proposta_da, trade_ref) VALUES ('approvata', '2026', 2, 'team01', %s) RETURNING id",
+                    (f"TRADE-2026-{_nt[0]:03d}",))
 
 p = g("Gio Prova", "e1")
 c1 = c(p, "team01", 10, 3, att=False)
@@ -60,6 +63,17 @@ et = [(x["etichetta"], x["titolo"]) for x in f]
 nomi = {t: C.tm.get_team_by_id(t)["nome"] for t in ("team01", "team02", "team04")}
 ok(et == [("All'avvio", nomi["team01"]), ("Trade", nomi["team02"]), ("Taglio", "Free agent"), ("Firma FA", nomi["team04"]), ("DPE", nomi["team04"])],
    f"fantabasket: avvio, trade, (trade annullata sparita), taglio, firma all'asta, DPE; niente prima del 25/07 {et}")
+ok("TRADE-2026-001" in f[1]["dettaglio"], f"trade col suo numero, per ritrovarla: {f[1]['dettaglio']}")
+# due trade nello stesso giorno: due righe, la data solo sulla prima
+dd = g("Doppio Scambio")
+cd = c(dd, "team03", 5, 2)
+tx("signed", dd, None, "team01", cd, "2026-07-25 22:00+02", "migrazione iniziale")
+tx("traded", dd, "team01", "team02", cd, "2026-11-03 10:00+01", None, trade())
+tx("traded", dd, "team02", "team03", cd, "2026-11-03 18:00+01", None, trade())
+rd = [x for x in C.righe_timeline(C.eventi_fanta(dd), []) if x["giorno"] == "03/11"]
+ok(len(rd) == 2 and rd[0]["mostra_data"] and not rd[1]["mostra_data"] and rd[0]["fanta_sq"]["nome"] != rd[1]["fanta_sq"]["nome"]
+   and "TRADE-2026-003" in rd[0]["fanta"]["dettaglio"] and "TRADE-2026-004" in rd[1]["fanta"]["dettaglio"],
+   "due trade nello stesso giorno: due schede in ordine, ognuna col suo numero e la sua squadra, la data una volta sola")
 ok("10M × 3" in f[0]["dettaglio"] and "2026-27" in f[0]["dettaglio"] and f"da {nomi['team01']}" in f[1]["dettaglio"]
    and "asta vinta: 3M × 1" in f[3]["dettaglio"] and "pesa 1M invece di 3M" in f[4]["dettaglio"], "dettagli: contratto, da chi, asta, DPE")
 fr = C.eventi_fanta(r)

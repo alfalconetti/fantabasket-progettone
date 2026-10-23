@@ -54,7 +54,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `dpe_trade_tagli` | main | DPE che segue il giocatore in trade (validazione = cap reale, annullamento), taglio bloccato se scopre i ruoli in RS |
 | `report_spalmature` | main | report mensile: free agent con spalmature, ultima partita bref, Cam Thomas, esclusi i sotto contratto e le stagioni passate |
 | `penalita_cap` | main | `/set_cap_penalizzato`: solo admin, scrive teams.json, tetto RS ridotto e offseason a 165 |
-| `sync_fogli` | main | il foglio Roster si aggiorna sempre per tutte le squadre |
+| `sync_fogli` | main | il foglio Roster si aggiorna sempre per tutte le squadre ; payload vero del foglio Roster coi nomi di Basketball-Reference (righe, 10-DAY, tagli), nome dei bot se manca |
 | `registro_unico` | main | migrazione al registro unico (tagli pre-bot, trade rimesse approvate, storico di pick e diritti con trade annullate e pre-bot), movimenti scritti da trade/annullamento/attivazione/scadenza, `roster_attuale`, controllo di coerenza, ricostruzione che si ferma su dati incoerenti |
 | `taglio_admin` | main | il taglio dal pannello admin usa lo stesso codice dei GM: scelta della squadra, anteprima, minimi di regular season, scrittura atomica, avviso al GM |
 | `team_diff` | main | contratti nei due momenti, DPE, cambio contratto, niente falsi cambi tra stagioni |
@@ -81,7 +81,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `regole_config` | main | i numeri del regolamento in settings.json (`shared/regole.py`) si leggono davvero, senza riavvio; default se mancano; fantamedia bref coi pesi |
 | `impostazioni` | main | `/settings`: argomenti coi bottoni, anteprima e conferma, canali; ogni chiave del file e di `regole.DEFAULT` ha una voce |
 | `report_ruoli` | main | `/report_ruoli`: i ruoli di tutte le squadre in Markdown (riepilogo, minimi, note) |
-| `report_dati` | main | `/report_dati`: la salute dei dati in Markdown |
+| `report_dati` | main | `/report_dati`: la salute dei dati in Markdown ; nomi diversi tra bot e foglio Roster come informazione |
 | `bref_abbina` | main | abbinamento dei nomi di Basketball-Reference (automatico senza accenti, bottoni per i simili, log); stagione non ancora iniziata su bref: ⏳, foglio BrefRaw non toccato |
 | `penalita` | main | penalità degli admin (motivazione, canale, GM, log, foglio Scelte), revoca, conteggio per stagione |
 | `carriera` | main | `/carriera`: movimenti nel fantabasket dal 25/07 (avvio, trade, trade annullata sparita, taglio, firma all'asta, DPE; niente prima), rookie dal draft, NBA dalla squadra al 25/07 coi cambi da ESPN (`nba_movimenti` di loucabot) e da Basketball-Reference senza doppioni, righe in parallelo con la barra, testata e riassunto, template che compila anche senza movimenti, comando coi bottoni |

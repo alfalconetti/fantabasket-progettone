@@ -82,6 +82,14 @@ ok("| Mai visti su bref: rookie e esordienti | ℹ️ 2 |" in md and "| Mai vist
    "riepilogo: ℹ️ per i rookie (non contano tra le cose da guardare)")
 ok("| Senza id ESPN (i loro punti non contano) | ⚠️ 1 |" in md and "| Coerenza del registro (transazioni) | ⚠️" in md,
    "riepilogo con ✅ e ⚠️ per controllo")
+# v6.5.4: nome sul foglio Roster (bref) diverso da quello dei bot, solo come informazione
+_x = db._q("SELECT g.id, g.nome_common, g.nome_bref FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id WHERE c.attivo ORDER BY g.id LIMIT 1", one=True)
+db._q("UPDATE giocatori SET nome_bref = %s WHERE id = %s", (_x["nome_common"] + " Jr.", _x["id"]))
+md3 = RD.report()
+_s = md3.split("Nome sul foglio Roster diverso da quello dei bot")[-1].split("\n## ")[0]
+ok(f"| {_x['nome_common']} | {_x['nome_common']} Jr. |" in _s and "| Nome sul foglio Roster diverso da quello dei bot | ℹ️ 1 |" in md3,
+   "nomi diversi tra bot e foglio Roster: elencati come informazione")
+db._q("UPDATE giocatori SET nome_bref = %s WHERE id = %s", (_x["nome_bref"], _x["id"]))
 ok(f"| {tm.get_team_by_id(T1)['nome']} |" not in sez("Minimi dei ruoli impossibili (4 G, 4 F, 2 C)"), "squadra in regola non tra i minimi impossibili")
 fase("offseason-rinnovi")
 md2 = RD.report()

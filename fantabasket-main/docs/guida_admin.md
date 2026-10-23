@@ -251,7 +251,7 @@ Dal pannello, 📋 sulla squadra mostra l'elenco con 🗑 Revoca: dopo la confer
 
 Il bot aggiorna i fogli dopo ogni operazione:
 
-- **Roster:** ruoli, cap con penalità, tagli e cambi ruolo usati, DPE. I contratti finiti (x0) non compaiono, perché non pesano; l'RFA dichiarato c'è, con la sigla A.
+- **Roster:** ruoli, cap con penalità, tagli e cambi ruolo usati, DPE. I contratti finiti (x0) non compaiono, perché non pesano; l'RFA dichiarato c'è, con la sigla A. I giocatori hanno il **nome di Basketball-Reference** (quello delle righe di BrefRaw, a cui si agganciano le formule; per chi non ce l'ha il nome dei bot): chi ha i due nomi diversi lo trovi nel controllo dei dati (`/report_dati`, «Nome sul foglio Roster diverso da quello dei bot»).
 - **Scelte:** pick e diritti, con il tag `[STEPIEN]`; sotto il GM «Penalità: N» se la squadra ne ha in questa stagione.
 - **BrefRaw:** le statistiche del mattino.
 

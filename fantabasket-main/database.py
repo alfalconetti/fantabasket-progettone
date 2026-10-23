@@ -729,8 +729,9 @@ def movimenti_carriera(gid: int, dal) -> list:
     in ordine, col contratto. Legge `transazioni` perché servono anche i diritti (oggetto
     'diritti'): solo lettura, solo questo giocatore."""
     return _q("""SELECT t.id, t.timestamp, t.tipo, t.oggetto, t.team_id_da, t.team_id_a, t.stagione, t.trade_id,
-                        t.rookie_scale, t.note, c.importo, c.anni_originali, c.stagione_firma, c.tipo AS tipo_contratto
-                 FROM transazioni t LEFT JOIN contratti c ON c.id = t.contratto_id
+                        t.rookie_scale, t.note, c.importo, c.anni_originali, c.stagione_firma, c.tipo AS tipo_contratto,
+                        tr.trade_ref
+                 FROM transazioni t LEFT JOIN contratti c ON c.id = t.contratto_id LEFT JOIN trade tr ON tr.id = t.trade_id
                  WHERE t.giocatore_id = %s AND t.oggetto IN ('giocatore', 'diritti') AND t.timestamp >= %s
                  ORDER BY t.timestamp, t.id""", (gid, dal), many=True) or []
 
@@ -1025,12 +1026,13 @@ def get_pick_team(team_id: str) -> list:
 def get_rookie_scale_per_anno(anno_draft: int) -> dict:
     """
     Ritorna i dati per una colonna della rookie scale:
+    (v6.5.4: i nomi sono quelli di Basketball-Reference, come nel resto del foglio Roster)
     - picks: lista di 24 slot (None se vuoto) con nome e flag # se non più in scala
     - diritti: lista di giocatori con diritti 2nd attivati (firmato=TRUE) in quell'anno
     """
     # Pick round 1 — ordinate per pick_numero, max 24
     picks_raw = _q(
-        """SELECT r.pick_numero, g.nome_common,
+        """SELECT r.pick_numero, COALESCE(NULLIF(TRIM(g.nome_bref), ''), g.nome_common) AS nome_common,
                   (r.firmato = TRUE AND c.tipo != 'rookie') AS fuori_scala
            FROM rookie r
            JOIN giocatori g ON g.id = r.giocatore_id
@@ -1055,7 +1057,7 @@ def get_rookie_scale_per_anno(anno_draft: int) -> dict:
 
     # Diritti 2nd attivati in quell'anno (firmato=TRUE, anno_firma=anno_draft)
     diritti_raw = _q(
-        """SELECT g.nome_common
+        """SELECT COALESCE(NULLIF(TRIM(g.nome_bref), ''), g.nome_common) AS nome_common
            FROM rookie r
            JOIN giocatori g ON g.id = r.giocatore_id
            WHERE r.round = 2 AND r.firmato = TRUE AND r.anno_firma = %s

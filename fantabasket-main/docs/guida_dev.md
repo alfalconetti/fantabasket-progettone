@@ -331,7 +331,7 @@ ORDER BY t.timestamp, t.id;
 | `teams.py` | `get_team_by_id`, `get_team_by_gm`, `get_team_by_query` (fuzzy: id → nome esatto → prefisso → difflib 0.6, in `shared/squadre.py`, la stessa di `/team` nel bot aste), `set_campo_team` |
 | `comandi.py` | menu "/" di Telegram per scope e fase (`_fasi_comando`) |
 | `scheduler.py` | backup, sync fogli, coda GAS, scadenza diritti |
-| `gas_client.py` | payload dei fogli Roster e Scelte, `sync_after_*`, `sync_bref_raw` |
+| `gas_client.py` | payload dei fogli Roster e Scelte, `sync_after_*`, `sync_bref_raw`; sul Roster i nomi di Basketball-Reference (`nomi_foglio`, v6.5.4: le formule si agganciano a BrefRaw per nome) |
 | `bref_scraper.py` | scraping per_game di Basketball-Reference (anche standalone con `--migrate`) |
 | `nomi.py` | abbinamento nomi severo (`/set_nascita`, giocatori bref nuovi) |
 | `utils.py`, `log_buffer.py` | fuso `ROME`, formattazione date, normalizzazione; buffer per `/dev_log` |

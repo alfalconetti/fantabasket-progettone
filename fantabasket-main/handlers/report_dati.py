@@ -144,6 +144,13 @@ def controlli(adesso: datetime | None = None) -> list[tuple[str, list[str], list
                 "delle 9, coi bottoni 🔗)."))
     out.append(("Mai visti su bref: rookie e esordienti", ["Squadra", "Giocatore", "Perché"], rookie,
                 "Normale finché non debuttano: compaiono su bref alla prima partita giocata.", "info"))
+    # v6.5.4 (Luca, 23/10): sul foglio Roster va il nome di bref; qui chi ce l'ha diverso da quello dei bot
+    out.append(("Nome sul foglio Roster diverso da quello dei bot", ["Squadra", "Nei bot", "Sul foglio (bref)"],
+                [[nome(r["team_id"]), r["nome_common"], r["nome_bref"]] for r in rows
+                 if (r["nome_bref"] or "").strip() and r["nome_bref"].strip() != r["nome_common"].strip()],
+                "Solo per sapere: sul foglio Roster c'è il nome di Basketball-Reference, quello delle righe di BrefRaw a cui "
+                "si agganciano le formule (prima andava il nome dei bot, e per questi giocatori le formule non trovavano niente).",
+                "info"))
 
     # 6. registro
     try:

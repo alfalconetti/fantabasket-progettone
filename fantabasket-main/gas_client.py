@@ -47,6 +47,18 @@ def _fine_10day(team_id: str) -> str:
         return ""
 
 
+def nomi_foglio(ids) -> dict:
+    """{giocatore_id: nome per il foglio Roster}: il nome di Basketball-Reference, quello delle righe di
+    BrefRaw a cui si agganciano le formule del foglio (Luca, 23/10; prima il nome comune, che con accenti
+    e suffissi scritti diversamente non trovava le statistiche). Senza nome bref, il nome comune."""
+    ids = [i for i in set(ids) if i]
+    if not ids:
+        return {}
+    righe = db._q("SELECT id, COALESCE(NULLIF(TRIM(nome_bref), ''), nome_common) AS nome FROM giocatori WHERE id = ANY(%s)",
+                  (ids,), many=True) or []
+    return {r["id"]: r["nome"] for r in righe}
+
+
 def _build_team_payload(team_id: str) -> dict:
     """Costruisce il payload JSON per un team da inviare al GAS."""
     stagione  = settings.stagione_corrente()
@@ -84,10 +96,14 @@ def _build_team_payload(team_id: str) -> dict:
     dieci = [r for r in giocatori if r.get("tipo_contratto") == "10day"]
     giocatori = [r for r in giocatori if r.get("tipo_contratto") != "10day"]
 
+    dpe_attive = db.get_dpe_attive_team(team_id, stagione)
+    nf = nomi_foglio([r["giocatore_id"] for r in roster] + [i.get("giocatore_id") for i in impatti]
+                     + [d.get("giocatore_id") for d in dpe_attive])
+    nome_f = lambda r, k="giocatore_id": nf.get(r.get(k), r["nome_common"])
     giocatori_payload = [
         {
             "ruolo":   ruoli.get(r["giocatore_id"], ""),
-            "nome":    r["nome_common"],
+            "nome":    nome_f(r),
             "importo": r["importo"],
             "anni":    max(0, db.anni_residui(r, stagione)),
             "flag":    _flag(r),
@@ -101,7 +117,7 @@ def _build_team_payload(team_id: str) -> dict:
     from collections import defaultdict
     impatti_by_giocatore = defaultdict(list)
     for imp in impatti:
-        impatti_by_giocatore[imp["nome_common"]].append(imp["importo"])
+        impatti_by_giocatore[nome_f(imp)].append(imp["importo"])
 
     impatti_payload = []
     for nome, rate in impatti_by_giocatore.items():
@@ -137,11 +153,10 @@ def _build_team_payload(team_id: str) -> dict:
 
     rookie_scale = _q_rookie_scale(anni_colonne)
 
-    # DPE attive per questo team
-    dpe_attive = db.get_dpe_attive_team(team_id, stagione)
+    # DPE attive per questo team (lette sopra, coi nomi del foglio)
     dpe_payload = [
         {
-            "nome":          d["nome_common"],
+            "nome":          nome_f(d),
             "importo_orig":  d["importo_originale"],
             "importo_dpe":   d["importo_dpe"],
             "anni":          max(0, db.anni_residui(d, stagione)),
@@ -161,7 +176,7 @@ def _build_team_payload(team_id: str) -> dict:
         "giocatori":            giocatori_payload,
         "impatti_tagli":        impatti_payload,
         "dpe":                  dpe_payload,
-        "dieci_giorni":         [{"nome": r["nome_common"], "ruolo": ruoli.get(r["giocatore_id"], ""),
+        "dieci_giorni":         [{"nome": nome_f(r), "ruolo": ruoli.get(r["giocatore_id"], ""),
                                   "fine": _fine_10day(team_id)} for r in dieci],
         "rookie_scale":         rookie_scale,
         "anni_colonne":         anni_colonne,
