@@ -161,6 +161,15 @@ def migra():
             aggiornato TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
     # v33: anni di esperienza NBA dai roster ESPN (0 = esordiente), per il controllo dei dati del bot principale
     q("ALTER TABLE nba_atleti ADD COLUMN IF NOT EXISTS esperienza INT")
+    # v47 (Luca, 23/10, per /carriera): ogni cambio di squadra NBA visto nei roster ESPN delle 8:30
+    q("""CREATE TABLE IF NOT EXISTS nba_movimenti (
+            id      SERIAL PRIMARY KEY,
+            atleta  TEXT NOT NULL,                          -- id ESPN
+            giorno  DATE NOT NULL,                          -- giorno NBA (costa est) in cui il bot l'ha visto
+            da      TEXT,                                   -- squadra di prima (NULL: non era in nessun roster)
+            a       TEXT,                                   -- squadra nuova (NULL: uscito da tutti i roster)
+            preso   TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
+    q("CREATE INDEX IF NOT EXISTS idx_nba_movimenti_atleta ON nba_movimenti (atleta, giorno)")
     # id e nome ESPN nell'anagrafica del bot principale (giocatori.espn_id, nome_espn): è l'unica
     # cosa che loucabot scrive fuori dalle sue tabelle. Le colonne le crea anche il bot principale.
     if q("SELECT to_regclass('giocatori') AS t", one=True)["t"]:
@@ -431,17 +440,31 @@ def abbina(giocatore_id: int, atleta: str, nome_espn: str, metodo: str) -> None:
     logger.info("ESPN %s ↔ giocatore %s (%s, %s)", atleta, giocatore_id, nome_espn, metodo)
 
 
-def salva_atleti(atleti: list[dict]) -> None:
+def salva_atleti(atleti: list[dict], giorno=None) -> None:
     """I roster ESPN. Se ci sono tutte e 30 le squadre, chi non è più in nessun roster (tagliato,
-    free agent NBA) resta senza squadra."""
+    free agent NBA) resta senza squadra. Ogni cambio di squadra di un atleta già noto finisce in
+    nba_movimenti (v47, per /carriera): da una squadra all'altra, o fuori da tutti i roster."""
+    if giorno is None:
+        from datetime import datetime as _dt
+        from zoneinfo import ZoneInfo as _Z
+        giorno = _dt.now(_Z("America/New_York")).date()
+    prima = {r["atleta"]: r["squadra"] for r in (q("SELECT atleta, squadra FROM nba_atleti", many=True) or [])}
+    tutti = len({a["squadra"] for a in atleti}) >= 30
     with get_conn() as conn:
         with conn.cursor() as cur:
             for a in atleti:
+                if a["atleta"] in prima and prima[a["atleta"]] != a["squadra"]:
+                    cur.execute("INSERT INTO nba_movimenti (atleta, giorno, da, a) VALUES (%s, %s, %s, %s)",
+                                (a["atleta"], giorno, prima[a["atleta"]], a["squadra"]))
                 cur.execute("INSERT INTO nba_atleti (atleta, nome, squadra, esperienza) VALUES (%(atleta)s, %(nome)s, %(squadra)s, %(esperienza)s) "
                             "ON CONFLICT (atleta) DO UPDATE SET nome = EXCLUDED.nome, squadra = EXCLUDED.squadra, "
                             "esperienza = COALESCE(EXCLUDED.esperienza, nba_atleti.esperienza), aggiornato = NOW()",
                             {"esperienza": None, **a})
-            if len({a["squadra"] for a in atleti}) >= 30:
+            if tutti:
+                visti = {a["atleta"] for a in atleti}
+                for atleta, sq in prima.items():
+                    if sq and atleta not in visti:
+                        cur.execute("INSERT INTO nba_movimenti (atleta, giorno, da, a) VALUES (%s, %s, %s, NULL)", (atleta, giorno, sq))
                 cur.execute("UPDATE nba_atleti SET squadra = NULL, aggiornato = NOW() WHERE NOT (atleta = ANY(%s))",
                             ([a["atleta"] for a in atleti],))
 

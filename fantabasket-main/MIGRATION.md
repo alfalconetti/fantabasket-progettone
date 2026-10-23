@@ -1,6 +1,6 @@
 # Messaggio di migrazione — Fantabasket Progettone
 
-**Stato: v6.4.6 · bot aste v71 · loucabot v46 · IPanchinari v31** (23/10/2026)
+**Stato: v6.5.1 · bot aste v71 · loucabot v47 · IPanchinari v31** (23/10/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 
@@ -239,7 +239,7 @@ PostgreSQL 16 locale, database `fbt` (utente `fb`), configurazione finta in `tes
 **Futuro lontano** (idee di Luca, 14/10: nessuna fretta)
 - **Assistente `/chiedi`**: risponde a domande su regolamento e bot e indirizza al comando o al bot giusto. Base: ricerca locale nelle sezioni di regolamento e guide (gira sul M910q senza consumare, risponde sempre con la fonte). Sopra, se gratis: un'API gratuita (Groq o Cerebras: limiti giornalieri ampi per una lega, niente addestramento sui dati; **non** Gemini gratis, che usa i dati e per gli utenti UE consente solo il piano a pagamento) che riscrive la risposta solo dai pezzi trovati; se l'API non risponde, la sola ricerca. Modellino locale (Ollama, 2-4B) solo come ultima spiaggia: sul M910q lento e impreciso sui dettagli. Per le decisioni rimanda sempre agli admin.
 - **Bot delle statistiche**: ora che nel database ci sono tabellini, fantapunti, formazioni, panchine, risultati e movimenti, statistiche per giocatore, squadra e stagione (migliori e peggiori, rendimento dei panchinari e delle FADD, scontri diretti, andamento, quanto rende un contratto per milione, eccetera), magari con immagini Typst come il roster.
-  - **`/carriera GIOCATORE`** (il pallino di Luca): la grafica in stile Transfermarkt ma coi loghi delle squadre del fantabasket. La carriera nella lega: squadre, contratti (importo e anni), firme, trade, tagli, rinnovi, DPE, 10-day, rookie, con le date; dai movimenti del registro (`transazioni`), che dal 25 luglio sono dati veri. Accanto, la carriera NBA reale. Immagine Typst come roster e asset, loghi da `assets/`.
+  - ~~`/carriera GIOCATORE`~~ **prima versione nella v6.5.0** (bot principale, `handlers/carriera.py`; Luca, 23/10: due timeline in parallelo dal 25/07/2026, fantabasket e NBA, toni blu). Da fare: loghi NBA veri (`config/loghi/nba/<SIGLA>.png`), draft NBA dei giocatori (dalla scheda ESPN), spostarla nel bot delle statistiche.
 - **Dashboard in LAN per Luca** (solo LAN/Tailscale, nessuna porta aperta sul router): interfacce comode e curate per le cose che coi bot sono macchinose (quintetti e controlli, correzioni di formazioni e panchine, status validi, convalida e ricalcolo, 10-day, situazione cap e roster, stato dei job e dei rilasci). Oggi c'è NocoDB in sola lettura (`nocodb`, di solito spenta): la dashboard nuova sarebbe una web app sua, che scrive passando dalle stesse funzioni dei bot (stesse regole e controlli, log sul canale).
 
 ---

@@ -335,6 +335,7 @@ ORDER BY t.timestamp, t.id;
 | `bref_scraper.py` | scraping per_game di Basketball-Reference (anche standalone con `--migrate`) |
 | `nomi.py` | abbinamento nomi severo (`/set_nascita`, giocatori bref nuovi) |
 | `utils.py`, `log_buffer.py` | fuso `ROME`, formattazione date, normalizzazione; buffer per `/dev_log` |
+| `carriera.typ` | template Typst di `/carriera` (toni blu, due timeline; v6.5.0) |
 | `roster.typ`, `assets.typ` | template Typst delle immagini (v6.4.2: stessi input di sempre; `#set block(spacing: 0pt)`, righe vuote basse, etichetta «FUORI DAI 15» sopra chi sta sotto la riga spessa, il riquadro `badge` quando il colore del contratto non contrasta, footer a riquadri col colore `_ton_ftr` in trasparenza; risoluzione in `handlers/roster.py`: `PPI_ROSTER` 288, `PPI_ASSETS` 240, cioè 1200 e 1400 pixel di larghezza) |
 | `validators/trade.py` | validazione trade: cap, roster, floor, Stepien, ruoli, struttura a 3+ |
 | `validators/ruoli.py` | involucro di `shared/ruoli_core.py` |
@@ -343,6 +344,7 @@ ORDER BY t.timestamp, t.id;
 
 | File | Cosa contiene |
 |---|---|
+| `carriera.py` | `/carriera` (v6.5.0): `eventi_fanta` (`database.movimenti_carriera` dal 25/07/2026, più `dpe`; trade annullate tolte con l'annullamento, stesso `trade_id`), `eventi_nba` (squadra al 25/07, `nba_movimenti` di loucabot, cambi nelle righe di `bref_stats`; un cambio di bref già visto da ESPN nei 30 giorni prima non si ripete), `righe_timeline`, `dati`, `genera_png` (Typst a 220 dpi); `NBA` = nomi e colori delle 30 squadre; loghi NBA da `config/loghi/nba/<SIGLA>.png`; callback `car:<id>` |
 | `menu.py` | `/menu` per fase (`AZIONI_FASE`, `AZIONI_SEMPRE`), `/guida`, `/guida_admin` |
 | `trade.py` | registrazione di comandi, bottoni e conversazioni delle trade (`get_handlers`), `/annulla_trade`; in testa l'indice dei moduli `trade_*` |
 | `trade_comune.py` | stati delle conversazioni, `_STATI`, testo del riepilogo, tastiere, chi può toccare una bozza, annuncio sul canale, notifiche alle squadre |

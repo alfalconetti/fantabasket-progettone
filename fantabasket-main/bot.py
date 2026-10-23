@@ -21,6 +21,7 @@ from handlers.menu        import get_handlers as menu_handlers
 from handlers.roster      import get_handlers as roster_handlers
 from handlers.myteam      import get_handlers as myteam_handlers
 from handlers.team_diff   import get_handlers as team_diff_handlers
+from handlers.carriera    import get_handlers as carriera_handlers
 from handlers.admin_panel import get_handlers as admin_panel_handlers
 from handlers.dev_player  import get_handlers as dev_player_handlers
 from handlers.dev         import get_handlers as dev_handlers
@@ -338,6 +339,8 @@ def main():
     for h in myteam_handlers():
         app.add_handler(h)
     for h in team_diff_handlers():
+        app.add_handler(h)
+    for h in carriera_handlers():
         app.add_handler(h)
     for h in admin_panel_handlers():
         app.add_handler(h)

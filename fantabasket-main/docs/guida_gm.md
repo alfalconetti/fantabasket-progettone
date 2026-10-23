@@ -43,6 +43,8 @@ Il comando funziona anche in altri modi:
 
 **`/assets`** è il roster più tutto il resto: le pick anno per anno (una scheda per anno: piene quelle tue, col solo bordo e «da …» quelle prese da altri) e i diritti sui rookie. Se vedi il tag rosso **STEPIEN** su una tua prima scelta, vuol dire che non puoi cederla senza violare la Stepien Rule.
 
+**`/carriera GIOCATORE`** manda un'immagine con la carriera del giocatore dal 25 luglio 2026, quando è nato il bot: a sinistra i movimenti nel fantabasket (in rosa all'avvio o il draft, firme, trade, tagli, DPE, 10-day), a destra le squadre NBA vere, con le date al centro e una barra col colore della squadra di ogni periodo. Le trade poi annullate non compaiono. I cambi di squadra NBA vengono dai roster ESPN e da Basketball-Reference: per quelli visti solo lì la data è quella della prima partita con la squadra nuova. Funziona anche nei gruppi.
+
 **`/team_diff`** ti dice cosa è cambiato nell'ultima settimana: chi è arrivato, chi è uscito e chi ha cambiato contratto (per esempio per una DPE, un rinnovo o un rookie che passa al II anno, 12x2 → 13x1). Esempio di risposta:
 
 ```
@@ -56,7 +58,7 @@ Il comando funziona anche in altri modi:
 
 Funziona anche per un'altra squadra (`/team_diff team07`) o tra due date a scelta (`/team_diff team07 01-10-26 15-10-26`).
 
-`/roster`, `/assets` e `/team_diff` funzionano anche nei gruppi della lega, e li trovi nel menu dei comandi del gruppo.
+`/roster`, `/assets`, `/team_diff` e `/carriera` funzionano anche nei gruppi della lega, e li trovi nel menu dei comandi del gruppo.
 
 **`/my_team`** serve a cambiare nome squadra e nome GM. **`/palette`** personalizza i colori delle immagini di roster e assets: tocchi un colore (intestazione, righe pari e dispari, leggenda e cap, pick, diritti), scrivi il colore in esadecimale (`#1A237E`, anche senza #) o scegli ♻️ Automatico (ricavato dal colore dell'intestazione), vedi l'anteprima e alla fine 💾 Salva. Qualsiasi colore scegli, il testo sopra diventa chiaro o scuro da solo, così resta sempre leggibile.
 

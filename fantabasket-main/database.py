@@ -724,6 +724,16 @@ def _qval(sql: str, params=()):
 def get_giocatore(gid: int) -> dict | None:
     return _q("SELECT * FROM giocatori WHERE id = %s", (gid,), one=True)
 
+def movimenti_carriera(gid: int, dal) -> list:
+    """Per /carriera (v6.5.0): i movimenti del giocatore e dei suoi diritti rookie dal giorno `dal`,
+    in ordine, col contratto. Legge `transazioni` perché servono anche i diritti (oggetto
+    'diritti'): solo lettura, solo questo giocatore."""
+    return _q("""SELECT t.id, t.timestamp, t.tipo, t.oggetto, t.team_id_da, t.team_id_a, t.stagione, t.trade_id,
+                        t.rookie_scale, t.note, c.importo, c.anni_originali, c.stagione_firma, c.tipo AS tipo_contratto
+                 FROM transazioni t LEFT JOIN contratti c ON c.id = t.contratto_id
+                 WHERE t.giocatore_id = %s AND t.oggetto IN ('giocatore', 'diritti') AND t.timestamp >= %s
+                 ORDER BY t.timestamp, t.id""", (gid, dal), many=True) or []
+
 def cerca_giocatori(nome_norm: str) -> list:
     return _q(
         "SELECT * FROM giocatori WHERE nome_norm ILIKE %s ORDER BY nome_common",

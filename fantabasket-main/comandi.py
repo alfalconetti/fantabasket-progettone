@@ -42,6 +42,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("roster",  "Roster squadra [team_id] [DD-MM-YY]"),
         BotCommand("assets",  "Asset completi squadra [team_id]"),
         BotCommand("team_diff", "Variazioni roster [team_id] [da] [a]"),
+        BotCommand("carriera", "Carriera di un giocatore: fantabasket e NBA [nome]"),
     ]
     cmd_base = cmd_group + [
         BotCommand("menu",           "Menu principale"),

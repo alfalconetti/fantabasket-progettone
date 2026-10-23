@@ -237,3 +237,7 @@ Il calcolo dei fantapunti.
 ## v46 (2026-10-23)
 
 - `/player`: sotto un contratto firmato nella prima stagione del bot (2026-27) la nota in corsivo che i contratti firmati prima risultano firmati quell'anno (`NOTA_FIRMA`, fino al 2028: `NOTA_FIRMA_FINO_AL`)
+
+## v47 (2026-10-23)
+
+- **Cambi di squadra NBA salvati** (`nba_movimenti`, per `/carriera` del bot principale): `db.salva_atleti` confronta i roster ESPN delle 8:30 con quelli del giorno prima e segna ogni cambio col giorno (da una squadra all'altra, di nuovo in un roster, fuori da tutti i roster)

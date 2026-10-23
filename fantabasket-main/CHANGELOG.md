@@ -1543,3 +1543,13 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - **Nomi di squadre e GM da admin** (Luca, 23/10): `/edit_team [SQUADRA]` o «✏️ Nomi squadre e GM» nel pannello admin aprono il pannello di `/my_team` per qualsiasi squadra (nome squadra, nome GM); registro e canale log con veste admin. Vale subito in tutti i bot (rileggono `teams.json` a ogni uso: la guida admin diceva «dal riavvio»). Prova in `menu_palette`
 - loucabot v46: `/player` con una nota in corsivo sotto il contratto firmato nel 2026-27: il bot è nato nel 2026, quindi i contratti firmati prima risultano firmati quell'anno (fino al 2028)
 - Roadmap (MIGRATION): riassegnare una franchigia a un GM nuovo dal bot
+
+## v6.5.0 (2026-10-23)
+
+- **`/carriera GIOCATORE`** (Luca, 23/10; nel bot principale per ora, poi nel bot delle statistiche): immagine Typst in toni blu con due timeline in parallelo dal 25/07/2026, quando è nato il bot. A sinistra il fantabasket (in rosa all'avvio o il draft coi soli diritti, firme all'asta e manuali, rookie, 10-day, trade, tagli, decadimenti, rinnovi, DPE; le trade annullate spariscono con il loro annullamento), a destra la NBA reale (la squadra al 25/07, poi i cambi dai roster ESPN e da Basketball-Reference, senza doppioni). Al centro le date, accanto una barra col colore della squadra di ogni periodo; in testa foto, posizioni, età, squadre e contratto di adesso, in fondo un riassunto. Loghi del fantabasket veri, NBA segnaposto finché non si caricano in `config/loghi/nba/<SIGLA>.png`. Anche nei gruppi. Prova `carriera`
+- loucabot v47: i cambi di squadra NBA visti nei roster ESPN delle 8:30 si salvano (`nba_movimenti`, con il giorno), anche l'uscita da tutti i roster
+
+## v6.5.1 (2026-10-23)
+
+- `/carriera`: un rookie del draft 2026 già sotto contratto all'avvio del bot parte dal **Draft** (anno, giro, numero e contratto rookie), non da «All'avvio»; quelli dei draft precedenti restano «All'avvio» (il loro draft è prima del bot). Prova in `carriera`
+
