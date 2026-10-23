@@ -99,6 +99,27 @@ ff2 = asyncio.run(FF.aggiorna(ora=_t0 + timedelta(hours=2), manda=_gas_ff))
 ok(len(ff2) == 1 and "aggiornate" in ff2[0] and len(_inviati) == 2, "un admin corregge una formazione: il tab si riscrive")
 db.q("UPDATE ipa_formazioni SET giocatore_id = %s WHERE stagione = %s AND giornata = %s AND team_id = 'team01' AND ruolo = 'C'",
      (gid[9], S, N))
+# ── foglio provvisorio a metà giornata (alle 10 dei giorni in mezzo; Luca, 23/10) ──
+import calcolo as _CA
+_oggi_vero = _CA.oggi_et
+_CA.oggi_et = lambda: DAL                                  # primo giorno: nessuna notte finita
+ok(asyncio.run(FF.parziali(ora=_t0 + timedelta(hours=3), manda=_gas_ff, scarica=False)) == [], "prima notte non ancora finita: niente foglio provvisorio")
+_CA.oggi_et = lambda: DAL + timedelta(days=1)              # finita la prima notte
+_n0 = len(_inviati)
+_fp = asyncio.run(FF.parziali(ora=_t0 + timedelta(hours=3), manda=_gas_ff, scarica=False))
+_tp = _inviati[-1]["righe"] if len(_inviati) > _n0 else []
+ok(len(_fp) == 1 and f"fino al {DAL:%d/%m}" in _fp[0] and "PROVVISORIO" in str(_tp[0][0]) and f"notti fino al {DAL:%d/%m}" in str(_tp[0][0])
+   and any(str(x).startswith("=") for r in _tp for x in r),
+   "dopo la prima notte: tab col calcolo (formule) e PROVVISORIO nel titolo, notti fino a ieri")
+ok(asyncio.run(FF.aggiorna(ora=_t0 + timedelta(hours=3), manda=_gas_ff)) == [], "dopo il provvisorio il job delle formazioni non lo sovrascrive")
+db.q("UPDATE ipa_formazioni SET giocatore_id = %s WHERE stagione = %s AND giornata = %s AND team_id = 'team01' AND ruolo = 'C'",
+     (gid[16], S, N))
+_ff3 = asyncio.run(FF.aggiorna(ora=_t0 + timedelta(hours=4), manda=_gas_ff))
+ok(len(_ff3) == 1 and "provvisorio" in _ff3[0] and "PROVVISORIO" in str(_inviati[-1]["righe"][0][0]),
+   "correzione di un admin a giornata iniziata: il tab si riscrive col calcolo provvisorio, non con le sole formazioni")
+db.q("UPDATE ipa_formazioni SET giocatore_id = %s WHERE stagione = %s AND giornata = %s AND team_id = 'team01' AND ruolo = 'C'",
+     (gid[9], S, N))
+_CA.oggi_et = _oggi_vero
 db.q("UPDATE lega_giornate SET prima_partita = NULL WHERE stagione = %s AND numero = %s", (S, N))
 
 # ── panchinario ceduto prima della scadenza: esce dalla panchina, gli altri scalano (v34) ──

@@ -229,3 +229,7 @@ Il calcolo dei fantapunti.
 
 - Injury report ogni mezz'ora nella prima sera di ogni giornata, dalle 19 (`orari.injury_fitti`) alla prima partita (`handlers_calcolo.job_injury_fitti`): IPanchinari avvisa i GM dei cambi. Una sola richiesta a ESPN ogni volta
 - Ricerca delle squadre per una parola sola anche in `/partita`, `/notte`, `/calendario` (`shared/squadre.per_parole`)
+
+## v45 (2026-10-23)
+
+- **Foglio di controllo provvisorio** (`formazioni_foglio.job_parziale`, alle `orari.foglio_parziale`, 10:00): nelle giornate chiuse e non ancora calcolate, dopo almeno una notte, il tab «Calcolo GN» col calcolo fino alla notte appena finita (lo stesso del live: chi deve ancora giocare conta 0, la FADD a giornata finita), formule comprese, titolo PROVVISORIO su sfondo arancio chiaro. Prima scarica partite e tabellini delle notti passate. Il job delle formazioni, se un admin corregge dopo la prima notte, riscrive col calcolo provvisorio invece che con le sole formazioni

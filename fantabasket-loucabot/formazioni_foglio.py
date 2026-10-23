@@ -6,8 +6,13 @@ controllo esce l'elenco degli schierati: per ogni partita, per ogni squadra, i 5
 e la panchina in ordine, col ruolo e la squadra NBA. Niente punteggi né formule: quelli arrivano
 col calcolo della mattina dopo l'ultima notte, che riscrive lo stesso tab per intero.
 
+Nei giorni in mezzo alla giornata (Luca, 23/10), alle `orari.foglio_parziale` (10:00), il tab si
+riscrive col calcolo fino alla notte appena finita, con PROVVISORIO nel titolo (`scrivi_parziale`,
+lo stesso calcolo del live: chi deve ancora giocare conta 0 per ora e la FADD si decide a giornata
+finita). L'ultimo giorno resta il calcolo delle 7:45.
+
 Se un admin corregge una formazione o una panchina a giornata chiusa, il tab si riscrive al giro
-dopo (job ogni 5 minuti, che confronta un'impronta delle formazioni con quella dell'ultima
+dopo (col calcolo provvisorio se è già passata almeno una notte) (job ogni 5 minuti, che confronta un'impronta delle formazioni con quella dell'ultima
 scrittura: tabella lega_foglio_formazioni). Dopo il calcolo il job non tocca più la giornata
 (le correzioni passano da /ricalcola).
 """
@@ -119,6 +124,22 @@ def da_scrivere(s: str, ora: datetime) -> list[int]:
     return out
 
 
+def notti_passate(g: dict, oggi) -> bool:
+    """È già finita almeno una notte della giornata? (oggi = giorno NBA di adesso, costa est)"""
+    return g["dal"] < oggi
+
+
+async def scrivi_parziale(s: str, n: int, oggi, manda=None) -> dict:
+    """Il tab «Calcolo GN» col calcolo fino alla notte appena finita, PROVVISORIO nel titolo."""
+    import foglio
+    c = R.calcola(s, n)
+    ultima = min(c["giornata"]["al"], oggi - timedelta(days=1))
+    c["provvisorio"] = (f"notti fino al {ultima:%d/%m}, aggiornato il {datetime.now(ROMA):%d/%m alle %H:%M}. Chi deve ancora "
+                        "giocare per ora conta 0, la FADD si decide a giornata finita; il definitivo arriva col calcolo "
+                        "della mattina dopo l'ultima notte")
+    return await foglio.manda_gas("calcolo", R.payload_foglio(R.griglia(c)), manda)
+
+
 async def aggiorna(bot=None, ora: datetime | None = None, manda=None) -> list[str]:
     """Scrive il tab delle giornate la cui formazione è cambiata dall'ultima scrittura."""
     import foglio
@@ -133,17 +154,66 @@ async def aggiorna(bot=None, ora: datetime | None = None, manda=None) -> list[st
         prima = db.q("SELECT firma FROM lega_foglio_formazioni WHERE stagione = %s AND giornata = %s", (s, n), one=True)
         if prima and prima["firma"] == f:
             continue
-        r = await foglio.manda_gas("calcolo", R.payload_foglio(griglia(s, n, sch)), manda)
+        from calcolo import oggi_et
+        g = db.giornata(s, n)
+        parziale = notti_passate(g, oggi_et())
+        r = await (scrivi_parziale(s, n, oggi_et(), manda) if parziale else foglio.manda_gas("calcolo", R.payload_foglio(griglia(s, n, sch)), manda))
         if r.get("error"):
             raise RuntimeError(str(r["error"])[:200])
         db.q("""INSERT INTO lega_foglio_formazioni (stagione, giornata, firma) VALUES (%s, %s, %s)
                 ON CONFLICT (stagione, giornata) DO UPDATE SET firma = EXCLUDED.firma, scritto = NOW()""", (s, n, f))
-        fatti.append(f"📋 Formazioni della giornata {n} sul foglio di controllo ({'aggiornate' if prima else 'congelate'})")
+        fatti.append(f"📋 Formazioni della giornata {n} sul foglio di controllo ({'aggiornate' if prima else 'congelate'}"
+                     + (", col calcolo provvisorio" if parziale else "") + ")")
     if bot and fatti:
         from handlers import log
         for t in fatti:
             await log(bot, t)
     return fatti
+
+
+async def parziali(bot=None, ora: datetime | None = None, manda=None, scarica=True) -> list[str]:
+    """Alle 10: il tab provvisorio di ogni giornata chiusa, non calcolata, con almeno una notte finita."""
+    import foglio
+    from calcolo import oggi_et
+    if not manda and not foglio.configurato():
+        return []
+    ora = ora or datetime.now(timezone.utc)
+    s = config.stagione()
+    oggi = oggi_et()
+    fatti = []
+    for n in da_scrivere(s, ora):
+        g = db.giornata(s, n)
+        if not notti_passate(g, oggi):
+            continue
+        if scarica:                               # partite e tabellini delle notti passate, come il calcolo delle 7:45
+            import nba
+            import handlers_calcolo as hc
+            giorni = [g["dal"] + timedelta(days=i) for i in range((min(g["al"], oggi - timedelta(days=1)) - g["dal"]).days + 1)]
+            await nba.sincronizza(giorni)
+            await hc.aggiorna_tabellini()
+        r = await scrivi_parziale(s, n, oggi, manda)
+        if r.get("error"):
+            fatti.append(f"⚠️ Foglio provvisorio della giornata {n} non scritto: {str(r['error'])[:200]}")
+            continue
+        db.q("""INSERT INTO lega_foglio_formazioni (stagione, giornata, firma) VALUES (%s, %s, %s)
+                ON CONFLICT (stagione, giornata) DO UPDATE SET firma = EXCLUDED.firma, scritto = NOW()""",
+             (s, n, firma(R.schieramenti(s, n))))
+        fatti.append(f"📋 Giornata {n}: foglio di controllo provvisorio aggiornato (notti fino al "
+                     f"{min(g['al'], oggi - timedelta(days=1)):%d/%m})")
+    if bot and fatti:
+        from handlers import log
+        for t in fatti:
+            await log(bot, t)
+    return fatti
+
+
+async def job_parziale(context):
+    try:
+        await parziali(context.bot)
+    except Exception as err:
+        logger.warning("Foglio provvisorio: %s", err)
+        from handlers import log
+        await log(context.bot, f"⚠️ Foglio provvisorio delle 10: {type(err).__name__}: {str(err)[:200]}")
 
 
 async def job_formazioni(context):

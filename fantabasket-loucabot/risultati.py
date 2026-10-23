@@ -213,6 +213,7 @@ SF_TESTA, SF_PART, SF_PANCA, SF_FADD, SF_TOT, SF_PARAM = "#1f3864", "#d9e1f2", "
 # Sfondo esplicito anche per le celle «normali» (Luca, 23/10): senza, col tema scuro di Google Fogli
 # (app) le celle vuote diventano scure e il testo blu e nero non si legge. Bianco = uguale nei due temi.
 SF_BIANCO = "#ffffff"
+SF_PROVVISORIO = "#fce4d6"            # titolo del tab provvisorio (giornata in corso), arancio chiaro
 
 
 def _col(i: int) -> str:
@@ -254,7 +255,11 @@ def griglia(c: dict) -> dict:
         fo.append([formato] * W)
         return len(righe)                      # numero di riga (1 = prima)
 
-    nuova([f"Calcolo giornata {g['numero']} · stagione {c['stagione']} · notti {g['dal']:%d/%m}–{g['al']:%d/%m}"], peso="bold")
+    titolo = f"Calcolo giornata {g['numero']} · stagione {c['stagione']} · notti {g['dal']:%d/%m}–{g['al']:%d/%m}"
+    if c.get("provvisorio"):                   # giornata in corso (formazioni_foglio.scrivi_parziale)
+        nuova([f"{titolo} · PROVVISORIO: {c['provvisorio']}"], sfondo=SF_PROVVISORIO, peso="bold")
+    else:
+        nuova([titolo], peso="bold")
     r_par = nuova(["Bonus casa", c["bonus"], "Scarto minimo", regole.scarto_minimo(),
                    "Dati del bot in blu, formule in nero: il foglio rifà i conti del bot. Le correzioni si fanno dal bot "
                    "(/set_valid_status, quintetto e panchina della giornata), poi Ricalcola: il tab si riscrive."])

@@ -72,6 +72,7 @@ def main():
     app.job_queue.run_daily(job_sync, time=regole.orario("sync_nba").replace(tzinfo=ROME))        # partite, tabellini, infortunati
     app.job_queue.run_daily(handlers_risultati.job_calcolo, time=regole.orario("calcolo").replace(tzinfo=ROME))     # calcolo definitivo
     app.job_queue.run_daily(handlers_risultati.job_controllo, time=regole.orario("controllo_tabellini").replace(tzinfo=ROME))   # tabellini corretti da ESPN?
+    app.job_queue.run_daily(formazioni_foglio.job_parziale, time=regole.orario("foglio_parziale").replace(tzinfo=ROME))   # foglio provvisorio a metà giornata
     # snapshot degli infortunati ogni 4 ore (anche di notte) e 30 minuti prima della prima partita
     # del giorno: per il calcolo conta quello subito prima delle partite, il più recente è lo
     # stato che IPanchinari mostra; dopo una settimana resta solo quello che conta (job_sync)

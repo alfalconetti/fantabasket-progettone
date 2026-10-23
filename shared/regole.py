@@ -212,7 +212,8 @@ ORARI = {
     "calcolo": "07:45",                 # calcolo definitivo, il mattino dopo l'ultima notte
     "fine_live_notte": "08:00",         # ultimo aggiornamento del live della notte
     "sync_nba": "08:30",                # partite, tabellini, infortunati
-    "controllo_tabellini": "10:00",     # tabellini corretti da ESPN? (il live si aggiorna 5 minuti dopo)
+    "controllo_tabellini": "10:00",
+    "foglio_parziale": "10:00",         # tab «Calcolo GN» provvisorio nei giorni in mezzo alla giornata (l'ultimo: calcolo delle 7:45)     # tabellini corretti da ESPN? (il live si aggiorna 5 minuti dopo)
     "partita_nuova": "16:00",           # /partita senza argomenti passa alla giornata nuova dalle 16 del suo primo giorno
     "injury_fitti": "19:00",            # primo giorno di una giornata: injury report ogni mezz'ora da qui alla prima partita
     # IPanchinari

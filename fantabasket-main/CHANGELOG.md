@@ -1534,3 +1534,6 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **Roster e asset nitidi** (Luca, 23/10: «sempre un filo sgranate»): Typst si chiamava senza `--ppi`, cioè a 144 dpi, e il roster usciva largo 600 pixel (il telefono lo ingrandiva). Ora roster a 288 dpi (1200 pixel) e asset a 240 (1400 pixel; anche gli asset più lunghi restano sotto i 2560 pixel oltre cui Telegram rimpicciolisce). Vale anche per l'anteprima di `/palette` e per l'invio a tutte le squadre
 
+## v6.4.5 (2026-10-23)
+
+- loucabot v45: **foglio di controllo aggiornato a metà giornata** (Luca, 23/10): alle 10 (`orari.foglio_parziale`) dei giorni in mezzo il tab «Calcolo GN» si riscrive col calcolo fino alla notte appena finita, con le formule e PROVVISORIO nel titolo; dopo la prima notte anche le correzioni degli admin lo riscrivono col calcolo. L'ultimo giorno resta il calcolo delle 7:45
