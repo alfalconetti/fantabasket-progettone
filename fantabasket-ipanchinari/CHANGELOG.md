@@ -140,3 +140,13 @@ Primo rilascio: panchine e quintetti.
 ## v29 (2026-10-23)
 
 - Testi degli avvisi sul titolare anche in panchina allineati alla regola giusta: in panchina quella posizione vale 0, gli altri non scalano
+
+## v30 (2026-10-23)
+
+- «a media» diventa «prendono la media» (Luca, 23/10): nei builder «nessuna partita (prende la media)», nel report delle formazioni
+
+## v31 (2026-10-23)
+
+- **Avvisi dell'injury report** (Luca, 23/10; `infortuni.py`): quando ESPN cambia lo stato di un giocatore della squadra (anche uscito dalla lista = di nuovo disponibile) il bot lo scrive in privato ai GM, col dettaglio e il ruolo se è nel quintetto; tutti i giocatori della rosa, a qualsiasi ora. Nessun cambio si perde se loucabot prende più snapshot tra un giro e l'altro; uno snapshot incompleto (meno della metà dei giocatori) non manda avvisi
+- **`/toggle_injures`**: spegne e riaccende gli avvisi, ricordato sotto ogni avviso
+- Ricerca delle squadre per una parola sola (`/soprannomi`, `/quintetto_admin`, `/panchina_admin`…)

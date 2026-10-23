@@ -144,7 +144,7 @@ def ricalcola(stagione: str | None = None, oggi: date | None = None) -> list[str
                 cambi.append(f"giornata {g['numero']}: la prima partita passa da "
                              f"{ora(g['prima_partita'])} a {ora(c['prima_partita'])}")
             if (c["media"] or []) != (g["media"] or []) and g["media"] is not None:
-                cambi.append(f"giornata {g['numero']}: a media {', '.join(c['media'] or []) or 'nessuno'} "
+                cambi.append(f"giornata {g['numero']}: prendono la media {', '.join(c['media'] or []) or 'nessuno'} "
                              f"(prima {', '.join(g['media'] or []) or 'nessuno'})")
         db.salva_calcolo(stagione, g["numero"], c["prima_partita"], c["media"])
     return cambi

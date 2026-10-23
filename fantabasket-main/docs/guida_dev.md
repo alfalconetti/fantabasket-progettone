@@ -335,7 +335,7 @@ ORDER BY t.timestamp, t.id;
 | `bref_scraper.py` | scraping per_game di Basketball-Reference (anche standalone con `--migrate`) |
 | `nomi.py` | abbinamento nomi severo (`/set_nascita`, giocatori bref nuovi) |
 | `utils.py`, `log_buffer.py` | fuso `ROME`, formattazione date, normalizzazione; buffer per `/dev_log` |
-| `roster.typ`, `assets.typ` | template Typst delle immagini |
+| `roster.typ`, `assets.typ` | template Typst delle immagini (v6.4.2: stessi input di sempre; `#set block(spacing: 0pt)`, righe vuote basse, etichetta «FUORI DAI 15» sopra chi sta sotto la riga spessa, il riquadro `badge` quando il colore del contratto non contrasta, footer a riquadri col colore `_ton_ftr` in trasparenza) |
 | `validators/trade.py` | validazione trade: cap, roster, floor, Stepien, ruoli, struttura a 3+ |
 | `validators/ruoli.py` | involucro di `shared/ruoli_core.py` |
 

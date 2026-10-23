@@ -97,46 +97,56 @@
 
 #set page(width: 420pt, height: auto, margin: 0pt, fill: white)
 #set text(font: "Liberation Sans", size: 9pt)
+#set block(spacing: 0pt)                 // niente strisce bianche tra un blocco e l'altro
+
+#let pieni = base_g.filter(g => g.flag != "VUOTO").len()
+#let stemma(d) = box(width: d, height: d, radius: 50%, clip: true, fill: c_dark,
+  stroke: 1.5pt + _ton_hdr.transparentize(55%),
+  if logo_path != "" { image(logo_path, width: d, height: d, fit: "contain") }
+  else { align(center + horizon, text(d * 0.42, weight: "bold", fill: _ton_dark)[#team_nome.slice(0, 1)]) })
+#let sezione(t, colore) = text(7pt, weight: "bold", fill: colore, tracking: 0.8pt)[#t]
 
 // ── header ────────────────────────────────────────────────────────────────────
-#block(width: 100%, fill: c_primary)[
-  #pad(x: 8pt, y: 6pt)[
-    #grid(columns: (40pt, 1fr), gutter: 8pt, align: horizon,
-      if logo_path != "" {
-        image(logo_path, width: 40pt, height: 40pt, fit: "contain")
-      } else {
-        block(width: 40pt, height: 40pt, fill: c_dark, radius: 4pt)[
-          #align(center + horizon)[#text(6pt, fill: _ton_dark_m, weight: "bold")[LOGO]]
-        ]
-      },
-      stack(spacing: 3pt,
-        text(13pt, weight: "bold", fill: _ton_hdr)[#team_nome],
-        text(8pt, fill: _ton_hdr_m)[#team_gm],
-      )
-    )
-  ]
+#block(width: 100%, fill: gradient.linear(c_primary, c_primary.darken(12%), angle: 0deg), inset: (x: 12pt, y: 10pt))[
+  #grid(columns: (auto, 1fr, auto), column-gutter: 10pt, align: horizon,
+    stemma(46pt),
+    stack(spacing: 4pt,
+      text(15pt, weight: "bold", fill: _ton_hdr)[#team_nome],
+      text(8pt, fill: _ton_hdr_m)[#team_gm · età media #eta_media]),
+    align(right, stack(spacing: 3pt,
+      text(6.5pt, weight: "bold", fill: _ton_hdr_m, tracking: 0.6pt)[SALARY CAP],
+      text(14pt, weight: "bold", fill: _ton_hdr)[#salary_cap M],
+      ..if salary_detail != "" and salary_detail != salary_cap {
+        let parts = salary_detail.split("+")
+        (text(6.5pt, fill: _ton_hdr_m)[contratti #parts.at(0, default: "")M · tagli #parts.at(1, default: "0")M],)
+      } else { () })),
+  )
 ]
 
 // ── roster ────────────────────────────────────────────────────────────────────
+#let titolo(t, al: center) = align(al, text(6.5pt, weight: "bold", fill: _ton_dark, tracking: 0.5pt)[#t])
 #table(
-  columns:  (30pt, 1fr, 26pt, 20pt),
-  rows:     17pt,
+  columns:  (32pt, 1fr, 56pt, 30pt),
+  rows:     (16pt,) + base_g.map(g => if g.flag == "VUOTO" { 12pt } else { 18pt })
+            + if extra_g.len() > 0 { (13pt,) + extra_g.map(_ => 18pt) } else { () },
   inset:    (x: 6pt, y: 0pt),
   align:    horizon + left,
-  stroke:   none,
+  stroke:   (x, y) => if y > 0 { (bottom: 0.4pt + c_dark.transparentize(88%)) } else { none },
   fill: (col, row) => {
     if row == 0 { return c_dark }
-    let i = row - 1
+    if extra_g.len() > 0 and row == n_base + 1 { return c_sezione }
+    let i = if extra_g.len() > 0 and row > n_base + 1 { row - 2 } else { row - 1 }
     let g = giocatori.at(i, default: none)
     if g == none { return white }
     if calc.odd(i) { c_row_odd } else { c_row_even }
   },
-  [#align(center)[#text(6.5pt, weight: "bold", fill: _ton_dark)[RUOLO]]],
-  [#text(7.5pt, weight: "bold", fill: _ton_dark)[GIOCATORE]],
-  [#align(center)[#text(7.5pt, weight: "bold", fill: _ton_dark)[\$]]],
-  [#align(center)[#text(7.5pt, weight: "bold", fill: _ton_dark)[Y]]],
-  ..if extra_g.len() > 0 { (table.hline(y: n_base + 1, stroke: 2pt + c_dark),) } else { () },
+  titolo[RUOLO], titolo(al: left)[GIOCATORI · #pieni/#roster_max], titolo[\$], titolo[ANNI],
+  ..if extra_g.len() > 0 { (table.hline(y: n_base + 1, stroke: 1.5pt + c_dark),) } else { () },
   ..giocatori.enumerate().map(((i, g)) => {
+    // fuori dai 15 (DPE che libera lo slot, 10-day): sotto la riga spessa, con un'etichetta
+    let etichetta = if extra_g.len() > 0 and i == n_base {
+      (table.cell(colspan: 4, inset: (x: 6pt, y: 0pt))[#text(6pt, weight: "bold", fill: _ton_sez, tracking: 0.6pt)[FUORI DAI 15]],)
+    } else { () }
     let is_vuoto = g.flag == "VUOTO"
     let (fc, bold) = if g.flag == "R0"    { (c_r0,  true) }
                 else if g.flag == "R1"    { (c_r1,  true) }
@@ -148,122 +158,85 @@
     let ha_dpe = g.importo_orig != ""
     let tc = if calc.odd(i) { _ton_r1 } else { _ton_r2 }
     let fc_nome = if ha_dpe { c_dpe } else if fc == none { tc } else { fc }   // nomi normali: testo leggibile sulla riga
-    let cella_importo = if is_vuoto {
-      [#align(center)[]]
-    } else if ha_dpe {
-      [#align(center)[
-        #text(7pt, fill: c_dpe, weight: "bold", overhang: false)[#strike[#g.importo_orig]#sym.space#g.importo]
-      ]]
+    let cella_importo = if is_vuoto { [] } else if ha_dpe {
+      align(center, [#text(6pt, fill: c_dpe.transparentize(30%))[#strike[#g.importo_orig]] #text(8.5pt, fill: c_dpe, weight: "bold")[#g.importo]])
     } else {
-      [#align(center)[#text(8pt, fill: tc, weight: "bold")[#g.importo]]]
+      align(center, text(8.5pt, fill: tc, weight: "bold")[#g.importo])
     }
-    (
-      if is_vuoto { [] } else { [#align(center)[#text(7.5pt, fill: tc, weight: "bold")[#g.ruolo]]] },
-      if is_vuoto { [] } else {
-        [#{
-          let t = text(8pt, fill: fc_nome, weight: if bold or ha_dpe {"bold"} else {"regular"})[#g.nome]
+    etichetta + if is_vuoto {
+      ([], text(6.5pt, fill: tc.transparentize(65%), style: "italic")[posto libero], [], [])
+    } else {
+      (
+        align(center, box(fill: c_dark, radius: 3pt, inset: (x: 3pt, y: 2pt), width: 21pt,
+          align(center, text(7pt, fill: _ton_dark, weight: "bold")[#if g.ruolo != "" [#g.ruolo] else [–]]))),
+        {
+          if fc != none or ha_dpe { box(width: 2.5pt, height: 10pt, radius: 1pt, fill: if ha_dpe { c_dpe } else { fc }, baseline: 25%); h(4pt) }
+          let t = text(8.5pt, fill: fc_nome, weight: if bold or ha_dpe {"bold"} else {"regular"})[#g.nome]
           if g.badge == "badge" { box(fill: white.transparentize(25%), radius: 2pt, inset: (x: 2pt, y: 1pt), t) } else { t }
-        }]
-      },
-      cella_importo,
-      if is_vuoto { [] } else { [#align(center)[#text(8pt, fill: tc)[#g.anni]]] },
-    )
+        },
+        cella_importo,
+        align(center, text(8.5pt, fill: tc)[#g.anni]),
+      )
+    }
   }).flatten(),
 )
 
-// ── leggenda rookie ───────────────────────────────────────────────────────────
+// ── leggenda ──────────────────────────────────────────────────────────────────
 #let has_rookie = giocatori.any(g => g.flag != "VUOTO" and g.flag.starts-with("R"))
 #let has_rfa    = giocatori.any(g => g.flag == "A")
 #let has_dpe    = giocatori.any(g => g.flag != "VUOTO" and g.importo_orig != "")
 #let has_10d    = giocatori.any(g => g.flag == "D")
+#let voce(c, t) = box(inset: (right: 8pt), [#box(width: 7pt, height: 7pt, radius: 2pt, fill: c, baseline: 10%) #text(7pt, fill: _ton_sez, weight: "bold")[#t]])
 #if has_rookie or has_rfa or has_dpe or has_10d {
-  block(width: 100%, fill: c_sezione)[
-    #pad(x: 6pt, y: 3pt)[
-      #if giocatori.any(g => g.flag == "R0") [#text(7pt, fill: c_r0,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno I ]  ]
-      #if giocatori.any(g => g.flag == "R1") [#text(7pt, fill: c_r1,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno II ]  ]
-      #if giocatori.any(g => g.flag == "R2") [#text(7pt, fill: c_r2,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno III ]  ]
-      #if giocatori.any(g => g.flag == "R3") [#text(7pt, fill: c_r3,  weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[Anno IV ]  ]
-      #if has_rfa                             [#text(7pt, fill: c_rfa, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[RFA]  ]
-      #if has_dpe                             [#text(7pt, fill: c_dpe, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[DPE]  ]
-      #if has_10d [#text(7pt, fill: c_10d, weight: "bold")[■ ]#text(7pt, fill: _ton_sez, weight: "bold")[10-day#if fine_10day != "" [ #fine_10day]]]
-    ]
+  block(width: 100%, fill: c_sezione, inset: (x: 10pt, y: 5pt))[
+    #if giocatori.any(g => g.flag == "R0") { voce(c_r0)[Anno I] }
+    #if giocatori.any(g => g.flag == "R1") { voce(c_r1)[Anno II] }
+    #if giocatori.any(g => g.flag == "R2") { voce(c_r2)[Anno III] }
+    #if giocatori.any(g => g.flag == "R3") { voce(c_r3)[Anno IV] }
+    #if has_rfa { voce(c_rfa)[RFA] }
+    #if has_dpe { voce(c_dpe)[DPE] }
+    #if has_10d { voce(c_10d)[10-day#if fine_10day != "" [ #fine_10day]] }
   ]
 }
 
 // ── pick ──────────────────────────────────────────────────────────────────────
+// propria: gettone pieno; presa da un'altra squadra: gettone col bordo e la squadra d'origine
+#let gettone(p) = {
+  let propria = p.by == "Propria" or p.by == ""
+  let dentro = [#text(8.5pt, weight: "bold")[#p.round]#if not propria [#h(3pt)#text(7pt)[da #p.by]]]
+  box(inset: (bottom: 4pt), {
+    if propria { box(fill: c_dark, radius: 8pt, inset: (x: 7pt, y: 3pt), text(fill: _ton_dark, dentro)) }
+    else { box(stroke: 1pt + _ton_pick.transparentize(40%), radius: 8pt, inset: (x: 7pt, y: 3pt), text(fill: _ton_pick, dentro)) }
+    if p.stepien { h(3pt); box(fill: c_dpe, radius: 2pt, inset: (x: 3pt, y: 2pt), text(5.5pt, weight: "bold", fill: white)[STEPIEN]) }
+  })
+}
 #if anni_pick.len() > 0 {
-  block(width: 100%, fill: c_pick_bg)[
-    #pad(x: 6pt, y: 6pt)[
-      #text(7.5pt, weight: "bold", fill: _ton_pick)[PICK]
-      #v(5pt)
-      #grid(
-        columns: (1fr, 1fr, 1fr),
-        gutter:  6pt,
-        ..anni_pick.map(anno => {
-          let anno_picks = picks_parsed.at(anno, default: ())
-          block(width: 100%)[
-            #block(fill: c_primary, radius: 2pt, inset: (x: 4pt, y: 2pt), width: 100%)[
-              #align(center)[#text(8.5pt, weight: "bold", fill: _ton_hdr)[#anno]]
-            ]
-            #v(2pt)
-            #if anno_picks.len() == 0 {
-              block(below: 0pt)[
-                #text(6.5pt, fill: _ton_pick_m)[—]
-              ]
-            } else {
-              for p in anno_picks {
-                let is_propria = p.by == "Propria" or p.by == ""
-                block(below: 3pt)[
-                  #text(9pt,
-                    fill: _ton_pick,
-                    weight: if is_propria { "bold" } else { "regular" }
-                  )[
-                    #if is_propria [★] else [○] #p.round#if not is_propria [ #text(8pt, fill: _ton_pick_m)[(#p.by)]]#if p.stepien [ #text(6.5pt, weight: "bold", fill: c_dpe)[STEPIEN]]
-                  ]
-                ]
-              }
+  block(width: 100%, fill: c_pick_bg, inset: (x: 10pt, top: 9pt, bottom: 6pt))[
+    #block(below: 7pt, sezione([PICK], _ton_pick))
+    #grid(columns: (1fr,) * calc.min(anni_pick.len(), 3), column-gutter: 6pt, row-gutter: 6pt,
+      ..anni_pick.map(anno => {
+        let anno_picks = picks_parsed.at(anno, default: ())
+        block(width: 100%, radius: 5pt, clip: true, fill: _ton_pick.transparentize(93%))[
+          #block(width: 100%, fill: c_primary, inset: (y: 3pt))[#align(center, text(9pt, weight: "bold", fill: _ton_hdr)[#anno])]
+          #block(inset: (x: 6pt, top: 6pt, bottom: 2pt))[
+            #set par(leading: 2pt)
+            #if anno_picks.len() == 0 [#text(7.5pt, fill: _ton_pick_m, style: "italic")[nessuna pick]] else {
+              for p in anno_picks { gettone(p); linebreak() }
             }
           ]
-        })
-      )
-    ]
+        ]
+      })
+    )
   ]
 }
 
 // ── diritti ───────────────────────────────────────────────────────────────────
 #if diritti_raw != "" {
-  block(width: 100%, fill: c_dir_bg)[
-    #pad(x: 6pt, y: 5pt)[
-      #text(8pt, weight: "bold", fill: _ton_dir)[DIRITTI ROOKIE]
-      #v(3pt)
-      #text(8pt, fill: _ton_dir)[#diritti_raw]
-    ]
+  block(width: 100%, fill: c_dir_bg, inset: (x: 10pt, y: 8pt))[
+    #block(below: 6pt, sezione([DIRITTI ROOKIE], _ton_dir))
+    #for d in diritti_raw.split(", ") {
+      box(inset: (right: 5pt, bottom: 3pt), box(stroke: 0.8pt + _ton_dir.transparentize(55%), radius: 8pt, inset: (x: 7pt, y: 3pt), text(8pt, fill: _ton_dir)[#d]))
+    }
   ]
 }
-
-// ── footer ────────────────────────────────────────────────────────────────────
-#block(width: 100%, fill: if colore_sez != "" { c_sezione } else { c_dark })[
-  #pad(x: 6pt, y: 5pt)[
-    #grid(columns: (1fr, auto),
-      [#text(8pt, weight: "bold", fill: _ton_ftr)[SALARY CAP]],
-      [#text(8pt, weight: "bold", fill: _ton_ftr)[#salary_cap M]],
-    )
-    #if salary_detail != "" and salary_detail != salary_cap [
-      #v(1pt)
-      #let parts = salary_detail.split("+")
-      #grid(columns: (1fr, auto),
-        [#text(6.5pt, fill: _ton_ftr_m)[  contratti]],
-        [#text(6.5pt, fill: _ton_ftr_m)[#parts.at(0, default: "")M]],
-      )
-      #grid(columns: (1fr, auto),
-        [#text(6.5pt, fill: _ton_ftr_m)[  impatto tagli]],
-        [#text(6.5pt, fill: _ton_ftr_m)[#parts.at(1, default: "0")M]],
-      )
-    ]
-    #v(3pt)
-    #grid(columns: (1fr, auto),
-      [#text(7.5pt, fill: _ton_ftr_m)[ETA MEDIA]],
-      [#text(7.5pt, fill: _ton_ftr)[#eta_media]],
-    )
-  ]
-]
+#block(width: 100%, height: 4pt, fill: c_dark)

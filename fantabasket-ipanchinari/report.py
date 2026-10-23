@@ -100,7 +100,7 @@ def report(g: dict) -> str:
     righe = [f"# Formazioni della giornata {n} — stagione {s}", "",
              f"Scadenza: {ora(g.get('prima_partita'))} · giorni NBA {g['dal']:%d/%m}–{g['al']:%d/%m} · "
              f"{'**chiusa**: formazioni congelate (quelle del calcolo)' if chiusa else 'aperta: quintetti di adesso, possono ancora cambiare'}  ",
-             f"Infortunati: ultimo snapshot ESPN {ora(quando) if quando else '— (nessuno)'} · squadre NBA a media: "
+             f"Infortunati: ultimo snapshot ESPN {ora(quando) if quando else '— (nessuno)'} · prendono la media: "
              f"{', '.join(sorted(media)) or 'nessuna'}  ",
              f"Report del {adesso().astimezone(ROMA):%d/%m/%Y %H:%M} (ora italiana). Su Yahoo fa fede il quintetto vero: "
              "qui quello che sa il bot.", ""]

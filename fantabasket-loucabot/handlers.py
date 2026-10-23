@@ -54,7 +54,7 @@ def _riga_giornata(g: dict) -> str:
         righe.append(f"⏰ Formazione e panchina entro <b>{cal.ora(g['prima_partita'])}</b> (prima partita NBA)")
     media = g["media"] if g.get("media") is not None else g.get("media_file")
     if media:
-        righe.append(f"📉 A media (senza partite NBA): <b>{', '.join(media)}</b>")
+        righe.append(f"📉 Prendono la media (senza partite NBA): <b>{', '.join(media)}</b>")
     return "\n".join(righe)
 
 
@@ -371,7 +371,7 @@ async def job_sync(context: ContextTypes.DEFAULT_TYPE):
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     testo = ("<b>loucabot</b> — calendario e punteggi della lega. Guida completa: /guida\n\n"
              "/calendario — la tua giornata: avversario, casa o trasferta, entro quando mettere la formazione, "
-             "chi è a media, le prossime giornate. /calendario N per un'altra giornata\n"
+             "chi prende la media, le prossime giornate. /calendario N per un'altra giornata\n"
              "/calendario_full [SQUADRA] — tutto il calendario di una squadra, coi risultati\n"
              "/giornata [N] — tutte le partite di una giornata, coi risultati quando sono convalidati\n"
              "/player NOME — dove gioca nella NBA e nel fantabasket, contratto, media e statistiche della stagione\n"

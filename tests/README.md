@@ -67,7 +67,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `apri_asta_admin` | aste (isolato) | `/apri_asta`: nome esatto/omonimi/fuzzy, cap, squadra, importo, mercato chiuso |
 | `apertura_gm` | aste (isolato) | apertura del GM passata dalla funzione comune |
 | `cap_asta_chiusa` | aste (isolato) | un'asta chiusa e non firmata impegna ancora cap e slot |
-| `team_ricerca` | aste (isolato) | `/team` trova la squadra come `/roster` (id, nome, GM, inizio, errore di battitura), senza argomento la propria |
+| `team_ricerca` | aste (isolato) | `/team` trova la squadra come `/roster` (id, nome, GM, inizio, una parola sola del nome della squadra o del GM, errore di battitura; ambigua → nessuna), senza argomento la propria |
 | `regolamento_numeri_aste` | aste (isolato) | i numeri del regolamento nel bot aste: durata dell'asta, tempi di firma e pareggio, anni minimi, soglie del pareggio RFA |
 | `rfa_proprietario` | aste (isolato) | il proprietario non offre sul proprio RFA neanche con `/offerta` |
 | `menu_e_listteams` | aste + PG | menu "/" per fase e ruolo, `/listteams` compatto, `/reset_rfa` disattivato |
@@ -84,7 +84,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `report_dati` | main | `/report_dati`: la salute dei dati in Markdown |
 | `bref_abbina` | main | abbinamento dei nomi di Basketball-Reference (automatico senza accenti, bottoni per i simili, log); stagione non ancora iniziata su bref: ⏳, foglio BrefRaw non toccato |
 | `penalita` | main | penalità degli admin (motivazione, canale, GM, log, foglio Scelte), revoca, conteggio per stagione |
-| `dieci_giorni` | main | 10-day contract: richiesta, approvazione, firma dell'admin, regole, niente cap né slot, scadenza a fine giornata |
+| `dieci_giorni` | main | 10-day contract: richiesta, approvazione, firma dell'admin, regole, niente cap né slot, scadenza a fine giornata; `roster.typ` e `assets.typ` compilano (pick, diritti, chi è fuori dai 15 sotto) |
 | `registro_aste` | aste + PG | registro delle azioni dal bot aste: squadre e giocatore dall'asta, azioni admin sul canale log del bot aste, offerte dei GM solo nel registro |
 | `tempo_scaduto` | aste + PG | decisioni d'ufficio a tempo scaduto (3 anni di penale, anni minimi RFA, pareggio non deciso) dette nell'annuncio sul canale |
 | `louca_risultati` | loucabot | calcolo definitivo dalle formazioni di IPanchinari (FADD, medie, supplementari, titolare anche in panchina a 0), foglio «Calcolo GN» confrontato con LibreOffice, proposta, convalida, risultati definitivi sul canale e live cancellato, avviso se cambia un esito, live (riga per squadra «devono giocare / rigiocare (finora)»), `/notte`, `/partita` (dati, immagine, argomenti, giornata di default) |
@@ -92,8 +92,10 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `louca_classifica` | loucabot | classifica (avulsa, `/classifica`, `/classifica_full`, immagini Typst) dai risultati convalidati |
 | `ipa_panchine` | IPanchinari | panchine da messaggio e coi bottoni, `/edit`, soprannomi, quintetti, promemoria, riepilogo, chiusura, giornata in corso fino alle 6 (GM bloccati, admin correggono), medie nei builder |
 | `ipa_errori` | IPanchinari | error handler comune: «not modified» ignorato, errori di rete solo sul canale log, gli altri anche al dev |
+| `ipa_injury` | IPanchinari | avvisi dell'injury report: punto di partenza senza avvisi, confronto con l'ultimo visto (più snapshot nel frattempo), un messaggio per GM con prima → dopo, dettaglio e ruolo nel quintetto, uscito dalla lista = disponibile, GM che non ha avviato il bot saltato, `/toggle_injures` (spegne, riaccende, solo GM e in privato), snapshot incompleto senza avvisi; loucabot: finestra delle 19 → prima partita della prima sera |
 | `router_health` | router | le richieste a /health dei router non finiscono nei log |
 | `gas_node` | GAS | gli script `gas/*.gs` provati con node e finti oggetti di Google (senza node si saltano) |
+| `backup_foto` | main | il backup contiene tutta config/ tranne le foto dei giocatori (config/foto) |
 | `louca_calendario` | loucabot | CSV del calendario, import, partite NBA da ESPN (risposta vera ridotta), TBD, squadre a media e scadenze, cambi, `/calendario`, canale log |
 | `louca_calcolo` | loucabot | tabellino ESPN vero ridotto (NYK-SAS 1/3/2026) e formula dei fantapunti, infortunati, punteggio nella giornata (partite, media, zero, rinviate), FADD, supplementari e bonus casa, abbinamento ESPN |
 | `giocatore_id` | aste + PG | l'asta ricorda l'id del giocatore: la firma non crea doppioni se il nome cambia |

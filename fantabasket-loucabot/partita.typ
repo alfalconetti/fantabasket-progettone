@@ -62,11 +62,11 @@
   })
 ]
 
-// squadre NBA a media nella giornata: subito sotto il tabellone (Luca, 23/10)
+// squadre NBA che prendono la media nella giornata: subito sotto il tabellone (Luca, 23/10)
 #if dati.media_nba != "" {
   block(width: 100%, fill: rgb("#FFF3E0"), inset: (x: 14pt, y: 7pt), stroke: (bottom: 0.5pt + rgb("#F0C890")))[
-    #text(9pt, fill: arancio, weight: "bold")[A MEDIA IN QUESTA GIORNATA] #h(6pt)
-    #text(9pt, fill: rgb("#5A3A00"))[squadre NBA senza partite: #dati.media_nba (i loro giocatori valgono la media della stagione)]
+    #text(9pt, fill: arancio, weight: "bold")[PRENDONO LA MEDIA IN QUESTA GIORNATA] #h(6pt)
+    #text(9pt, fill: rgb("#5A3A00"))[#dati.media_nba (squadre NBA senza partite: i loro giocatori prendono la media della stagione)]
   ]
 }
 
@@ -99,9 +99,9 @@
       [#text(12pt, weight: "bold")[#s.nome] #h(4pt) #text(8.5pt, fill: grigio)[#if s.lato == "casa" [casa] else [trasferta]]])
   ]
   pad(x: 14pt, table(
-    columns: (24pt, 1fr, 30pt, 38pt) + (50pt,) * nn + (62pt,),
+    columns: (24pt, 1fr, 30pt, 38pt) + (50pt,) * nn + (64pt,),
     align: (center + horizon, left + horizon, center + horizon, center + horizon) + (center + horizon,) * nn + (right + horizon,),
-    inset: (x: 5pt, y: 5.5pt),
+    inset: (x: 5pt, y: 4pt),
     stroke: (x, y) => (
       bottom: if y == 0 { 1pt + viola } else { 0.5pt + bordo },
       left: if x == 4 or x == 4 + nn { 1.5pt + viola.transparentize(40%) } else { 0pt },
@@ -109,17 +109,27 @@
     fill: (x, y) => if y == 0 { lilla } else if x >= 4 and x < 4 + nn { lilla2 } else { white },
     ..([], [Giocatore], [NBA], [Media]).map(t => text(7.5pt, weight: "bold", fill: viola_scuro)[#t]),
     ..dati.notti.map(t => text(7.5pt, weight: "bold", fill: viola_scuro)[#t]),
-    text(7.5pt, weight: "bold", fill: viola_scuro)[Conta],
+    text(7.5pt, weight: "bold", fill: viola_scuro)[Punti \ effettivi],
     ..s.righe.enumerate().map(((i, r)) => {
       let sep = if i == 5 { (table.cell(colspan: 5 + nn, fill: lilla, inset: (x: 5pt, y: 3pt))[#text(7pt, weight: "bold", fill: viola_scuro, tracking: 0.5pt)[PANCHINA]],) } else { () }
       let nome = if r.tag == "esce" { text(fill: grigio)[#strike[#r.nome]] } else if r.titolare or r.tag == "entra" { text(weight: "bold")[#r.nome] } else { [#r.nome] }
       let nome = if r.at("ruolo", default: "") != "" { [#nome #text(8pt, fill: grigio)[(#r.ruolo)]] } else { nome }
+      // headshot ESPN tondo accanto al nome (Luca, 23/10): la foto è un mezzo busto largo (520×380),
+      // la si ingrandisce e si tiene la parte alta, dove c'è la faccia; senza foto le iniziali
+      let testa = if r.at("foto", default: "") != "" {
+        box(width: 20pt, height: 20pt, radius: 50%, clip: true, fill: lilla, stroke: 0.6pt + bordo,
+          place(top + left, dx: -10.5pt, image(r.foto, height: 30pt, width: 41pt)))
+      } else {
+        box(width: 20pt, height: 20pt, radius: 50%, fill: lilla, stroke: 0.6pt + bordo,
+          align(center + horizon, text(7pt, weight: "bold", fill: viola)[#r.nome.split(" ").filter(p => p != "").map(p => p.slice(0, 1)).slice(0, calc.min(2, r.nome.split(" ").filter(p => p != "").len())).join()]))
+      }
+      let nome = box(baseline: 30%, testa) + h(6pt) + nome
       sep + (
         text(8pt, fill: grigio, weight: "bold")[#r.posto], nome, text(8pt, fill: grigio)[#r.nba], text(8.5pt, fill: grigio)[#r.media],
         ..r.celle.map(cella), conta(r),
       )
     }).flatten(),
-    // i totali in fondo, sotto «Conta» (Luca, 23/10)
+    // i totali in fondo, sotto «Punti effettivi» (Luca, 23/10)
     table.cell(colspan: 4 + nn, align: right, stroke: (top: 1pt + viola))[#text(8.5pt, fill: grigio)[Titolari]],
     table.cell(stroke: (top: 1pt + viola))[#text(9pt, weight: "bold")[#s.totale]],
     ..(if s.bonus != "" { (table.cell(colspan: 4 + nn, align: right)[#text(8.5pt, fill: grigio)[Bonus casa]], [#text(9pt)[+#s.bonus]]) } else { () }),
@@ -145,8 +155,8 @@
 #pad(x: 14pt, bottom: 10pt)[
   #text(7.5pt, fill: grigio)[
     #text(fill: verde, weight: "bold")[↑] entra per la FADD · #text(fill: grigio)[↓ FADD] esce ·
-    #text(fill: viola, weight: "bold")[S1…] supplementari · #text(fill: arancio, weight: "bold")[MEDIA] a media ·
+    #text(fill: viola, weight: "bold")[S1…] supplementari · #text(fill: arancio, weight: "bold")[MEDIA] prende la media ·
     #text(fill: viola_medio)[vs / \@] deve giocare · DNP non è entrato ·
-    Media = media fantapunti della stagione all'inizio della giornata (vale se la sua squadra NBA non gioca) ·
-    Conta = la media delle sue partite nella giornata · bonus casa +#dati.bonus #h(1fr) #dati.aggiornato]
+    Media = media fantapunti della stagione all'inizio della giornata (la prende se la sua squadra NBA non gioca) ·
+    Punti effettivi = quelli che contano: la media delle sue partite nella giornata · bonus casa +#dati.bonus #h(1fr) #dati.aggiornato]
 ]

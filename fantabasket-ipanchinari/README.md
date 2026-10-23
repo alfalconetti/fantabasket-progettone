@@ -82,6 +82,7 @@ giornata per il calcolo) e al gruppo admin va l'elenco delle panchine mancanti.
 | `/panchina` | GM | la panchina mandata, coi nomi veri |
 | `/quintetto` | GM | il quintetto: cambialo o confermalo (non obbligatorio, fa fede Yahoo) |
 | `/soprannomi [SQUADRA]` | GM | i soprannomi riconosciuti per i giocatori della squadra: vederli e cancellarli; di un'altra squadra solo guardarli |
+| `/toggle_injures` | GM | spegne o riaccende gli avvisi dell'injury report (ogni cambio di stato ESPN di un giocatore della squadra, in privato) |
 | `/start`, `/guida` | tutti | come si usa, la guida (file) |
 | `/stato [N]` | admin | conferme e panchine di una giornata |
 | `/controlli [N]` | admin | formazioni della giornata chiusa da segnare controllate su Yahoo |
@@ -98,7 +99,8 @@ giornata per il calcolo) e al gruppo admin va l'elenco delle panchine mancanti.
 
 | File | Contenuto |
 |---|---|
-| `bot.py` | avvio, handler, job ogni 5 minuti, errori al canale log e al dev |
+| `bot.py` | avvio, handler, job ogni 5 minuti (e ogni 2 per l'injury report), errori al canale log e al dev |
+| `infortuni.py` | avvisi dell'injury report ai GM, `/toggle_injures` |
 | `comandi.py` | menu `/` per scope: privato, admin, dev |
 | `abbina.py` | lettura del messaggio e abbinamento delle righe ai giocatori |
 | `panchine.py` | messaggio del GM, anteprima, bottoni, pubblicazione sul canale |

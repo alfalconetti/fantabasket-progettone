@@ -1513,3 +1513,19 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - loucabot v42: foto dei giocatori da ESPN (scaricate piano di notte, cartella `config/foto`), `/player` con la foto. Nel docker-compose una cartella nuova per loucabot (`./config/foto:/foto`, la crea il deploy)
 - loucabot: la foto di `/player` più grande e su sfondo viola col nome
+
+## v6.4.1 (2026-10-23)
+
+- **Backup senza le foto dei giocatori**: `config/foto` (decine di MB, loucabot le riscarica da ESPN da solo) non entra più nel backup, che resta lontano dal limite di 50 MB di Telegram (`scheduler._SALTA`); `docs/RECOVERY.md` lo dice. Prova `backup_foto`
+
+## v6.4.2 (2026-10-23)
+
+- **Roster e asset più curati** (Luca, 23/10: stessi colori e stessi dati, `roster.typ` e `assets.typ`): niente più strisce bianche tra i blocchi; intestazione con stemma tondo e salary cap (contratti e tagli sotto), negli asset anche l'età media; ruolo in un'etichetta, barretta col colore del contratto davanti al nome (il riquadro chiaro quando il colore non si legge resta come prima); posti liberi in righe basse con «posto libero» e il conteggio «N/15» in intestazione; chi è fuori dai 15 sotto la riga spessa con l'etichetta «FUORI DAI 15»; nel roster età media, tagli e cambi ruolo in tre riquadri; pick in una scheda per anno (piene le proprie, col bordo e «da …» le altrui, STEPIEN rosso), diritti rookie uno per etichetta
+- loucabot v43: `/partita` con la foto di ogni giocatore accanto al nome (dalla cartella delle foto; senza foto le iniziali); «Conta» diventa **«Punti effettivi»**, «a media» diventa **«prendono la media»** (anche in `/calendario`, nelle note di `/partita`, negli avvisi agli admin)
+- IPanchinari v30: nei builder «nessuna partita (prende la media)»; nel report delle formazioni «prendono la media»
+- Da fare (MIGRATION): foglio di calcolo aggiornato alle 10 dei giorni in mezzo alla giornata; notifiche dell'injury report su IPanchinari (da valutare)
+
+## v6.4.3 (2026-10-23)
+
+- **Ricerca delle squadre per una parola sola** (Luca, 23/10; `shared/squadre.py`, vale in tutti i bot: `/roster`, `/assets`, `/team_diff`, `/team`, `/partita`, `/notte`, `/calendario`, comandi admin di IPanchinari): «Paris» trova il GM Cristian Paris, «redskins» Montecelio Redskins, anche l'inizio di una parola («redsk»), una parola quasi uguale («redskin») e parole mescolate di squadra e GM («paris redskins»). Una parola identica vince su un inizio («Rossi» non è Rossini); se va bene per più squadre non ne sceglie una a caso. In `/partita` anche per dividere due squadre scritte attaccate
+- IPanchinari v31: **avvisi dell'injury report** ai GM, in privato, per ogni cambio di stato ESPN di un giocatore della rosa; `/toggle_injures` per spegnerli e riaccenderli. loucabot v44: la prima sera di ogni giornata l'injury report ogni mezz'ora dalle 19 alla prima partita (`orari.injury_fitti`). Prova `ipa_injury`

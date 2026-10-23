@@ -10,6 +10,17 @@ ok(trovati == casi, f"id, nome, GM, inizio, errore di battitura, niente {trovati
 import sys; sys.path.insert(0, "..")
 from shared.squadre import cerca_squadra
 ok(cerca_squadra("", tm.get_all_teams()) is None and cerca_squadra("  ", tm.get_all_teams()) is None, "testo vuoto: nessuna squadra")
+# v6.4.3 (Luca, 23/10): una parola sola di un nome di due parole, squadra o GM
+_S = [{"id": "t1", "nome": "Montecelio Redskins", "gm_nome": "Cristian Paris"},
+      {"id": "t2", "nome": "No Trade Knicks", "gm_nome": "Marco Rossi"},
+      {"id": "t3", "nome": "Red Devils", "gm_nome": "Mario Rossini"}]
+_c = {q: (cerca_squadra(q, _S) or {}).get("id") for q in
+      ("Paris", "redskins", "Redskin", "redsk", "paris redskins", "Rossi", "rossin", "knicks", "Devils", "zzzz")}
+ok(_c == {"Paris": "t1", "redskins": "t1", "Redskin": "t1", "redsk": "t1", "paris redskins": "t1", "Rossi": "t2",
+          "rossin": "t3", "knicks": "t2", "Devils": "t3", "zzzz": None},
+   f"parola per parola: cognome del GM, seconda parola della squadra, inizio, errore, mescolate; Rossi ≠ Rossini {_c}")
+from shared.squadre import per_parole
+ok(per_parole("ross", _S) is None, "parola che va bene per due squadre (Rossi, Rossini): nessuna, non una a caso")
 
 
 class Msg:

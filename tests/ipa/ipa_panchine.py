@@ -289,7 +289,7 @@ ok("NYK: " in tq and "vs BOS" in tq and "@ MEM" in tq and "PHX: " in tq and "CHA
 import report as RP
 md = RP.report(db.giornata(S, 2))
 ok(md.startswith(f"# Formazioni della giornata 2 — stagione {S}") and "aperta: quintetti di adesso" in md
-   and "squadre NBA a media: ATL" in md, "report: intestazione (giornata aperta, quintetti di adesso, squadre a media)")
+   and "prendono la media: ATL" in md, "report: intestazione (giornata aperta, quintetti di adesso, squadre a media)")
 ok("| Beta |" in md and "❌ non mandata" in md and "Panchine mancanti: **" in md, "report: panchine mancanti nel riepilogo")
 ok("| Kevon Looney | C | NOP | — | 🔴 Out |" in md and "🟡 Day-To-Day | da seguire" in md, "report: stato degli infortunati accanto al giocatore")
 ok("@ MEM" in md and "vs BOS" in md, "report: partite della giornata di ogni giocatore")

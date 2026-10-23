@@ -15,7 +15,7 @@ import config
 from shared import regole
 import db
 from handlers import get_handlers, job_sync
-from handlers_calcolo import job_infortuni, job_prepartita
+from handlers_calcolo import job_infortuni, job_injury_fitti, job_prepartita
 
 logging.basicConfig(format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", level=logging.INFO)
 # niente riga per ogni chiamata all'API di Telegram: contiene il token nell'URL e riempie i log
@@ -78,6 +78,8 @@ def main():
     for ora in ORE_SNAPSHOT:
         app.job_queue.run_daily(job_infortuni, time=ora)
     app.job_queue.run_repeating(job_prepartita, interval=timedelta(minutes=10), first=120)
+    # prima sera di una giornata: injury report ogni mezz'ora dalle 19 alla prima partita (IPanchinari avvisa i GM)
+    app.job_queue.run_repeating(job_injury_fitti, interval=timedelta(minutes=5), first=150)
     # punteggi live: il job guarda ogni minuto, aggiorna ogni 10 (live.cosa_fare)
     app.job_queue.run_repeating(live.job_live, interval=timedelta(minutes=1), first=60)
     import foto                                      # foto dei giocatori: una al minuto, solo nella notte americana

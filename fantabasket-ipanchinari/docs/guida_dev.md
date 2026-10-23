@@ -53,6 +53,8 @@ Legge: `contratti`, `giocatori` (anche `espn_id`), `ruolo_attuale` (bot principa
 
 **Cessioni** (`cessioni.py`, `job_cessioni` ogni 5 minuti): per ogni squadra confronta con la rosa il quintetto, la panchina della prossima giornata e formazione e panchina della giornata in corso (se chiusa); per ogni giocatore uscito avviso ai GM (con la squadra nuova, `db.squadra_attuale`) e riga sul log, una volta sola (`ipa_cessioni`).
 
+**Avvisi dell'injury report** (`infortuni.py`, `job_injury` ogni 2 minuti): l'ultimo snapshot di `nba_infortuni` confrontato con l'ultimo già visto (`ipa_injury_visto`, una riga; se è stato cancellato, col penultimo), così più snapshot presi nel frattempo non fanno perdere cambi; la prima volta solo il punto di partenza. `cambi`: ogni cambio di stato (assente dalla lista = disponibile). Per ogni squadra i giocatori della rosa (`db.roster`, via `espn_id`) con un cambio: un messaggio ai GM (`config.gm_ids`) tranne chi li ha spenti (`ipa_injury_spenti`), con dettaglio ESPN e il ruolo se è nel quintetto del bot; in fondo `PIEDE` con `/toggle_injures`. GM che non ha avviato il bot: si salta. Snapshot con meno della metà dei giocatori del precedente (`SOGLIA_INCOMPLETO`): nessun avviso, riga sul log. `/toggle_injures` (solo in privato, solo GM) accende e spegne.
+
 **Stato ESPN** (`comune.stati`, `db.stati_espn`): dall'ultimo snapshot di `nba_infortuni` di loucabot (ogni 4 ore e prima delle partite) via `giocatori.espn_id`; bottoni del builder e di `pb:r`/`pb:t`, anteprima, scelta del ruolo nel quintetto, `testo_quintetto` (promemoria). Senza snapshot non mostra niente.
 
 Il testo "non è obbligatorio, fa fede Yahoo, è un favore agli admin" sta in `comune.FAVORE`: va in ogni messaggio che invita ad aggiornare il quintetto.

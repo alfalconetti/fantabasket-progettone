@@ -46,7 +46,9 @@ Il titolo resta quello di prima. ✅ Pubblica aggiorna il messaggio sul canale. 
 
 **😎 CAI mode.** Nell'anteprima del builder c'è il bottone 😎 CAI mode: il bot ti chiede il titolo e poi il soprannome di ogni panchinaro, uno alla volta. Scrivili come messaggio; ⏭️ Salta lascia quello che c'è, ✅ Fine torna subito all'anteprima. Sul canale escono titolo e soprannomi, e il bot se li ricorda anche per quando mandi la panchina come messaggio. Se a metà ci ripensi e mandi una panchina intera come messaggio, vale quella.
 
-**Infortunati.** Nei bottoni del builder, nella scelta del quintetto, nell'anteprima e nel promemoria accanto a ogni giocatore c'è il suo stato sulla lista infortunati di ESPN (🔴 Out, 🟠 Doubtful, 🟡 Questionable o Day-To-Day, 🟢 Probable; niente se è sano), con l'ora dell'ultimo aggiornamento (ogni 4 ore, e mezz'ora prima della prima partita del giorno). È solo un aiuto: per il calcolo valgono le regole del regolamento.
+**Infortunati.** Nei bottoni del builder, nella scelta del quintetto, nell'anteprima e nel promemoria accanto a ogni giocatore c'è il suo stato sulla lista infortunati di ESPN (🔴 Out, 🟠 Doubtful, 🟡 Questionable o Day-To-Day, 🟢 Probable; niente se è sano), con l'ora dell'ultimo aggiornamento (ogni 4 ore, mezz'ora prima della prima partita del giorno e, la prima sera di ogni giornata, ogni mezz'ora dalle 19 alla prima partita). È solo un aiuto: per il calcolo valgono le regole del regolamento.
+
+**Avvisi dell'injury report.** Quando ESPN cambia lo stato di un giocatore della tua squadra (per esempio 🟢 Probable → 🔴 Out, oppure esce dalla lista ed è di nuovo disponibile) il bot te lo scrive in privato, col dettaglio di ESPN e, se è nel tuo quintetto, il ruolo. Vale per tutti i giocatori della rosa, schierati o no, a qualsiasi ora. **`/toggle_injures`** li spegne; riscrivilo per riaccenderli. Perché arrivino devi aver avviato il bot in privato almeno una volta.
 
 `/panchina` ti mostra la panchina che hai mandato, coi nomi veri.
 

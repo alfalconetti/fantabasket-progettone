@@ -120,7 +120,7 @@ def testo_partite(sigla: str | None, partite: dict[str, list[dict]], media: list
         return "squadra NBA ?"
     mie = partite.get(sigla, [])
     if not mie:
-        return f"{sigla}: 📉 nessuna partita (media)" if media is None or sigla in (media or []) else f"{sigla}: nessuna partita"
+        return f"{sigla}: 📉 nessuna partita (prende la media)" if media is None or sigla in (media or []) else f"{sigla}: nessuna partita"
     pezzi = []
     for p in mie:
         d = p["data_et"]

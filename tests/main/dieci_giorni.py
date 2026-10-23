@@ -172,6 +172,23 @@ try:
                                     "logo_path": "", "giocatori": s3, "fm_label": "FP 25-26", "fm_nota": "* FP 26-27"})
     svg = pdf if isinstance(pdf, (bytes, str)) else pdf[0]
     ok("FP 26-27" in (svg.decode() if isinstance(svg, bytes) else svg) or True, "roster.typ compila con FP e la legenda dell'asterisco")
+    # v6.4.2: roster e asset col nuovo aspetto, con un 10-day fuori dai 15 (testo convertito in tracciati: si
+    # controlla che compilino e che l'immagine cresca con la riga in più)
+    _in = {k: "#336699" if k.startswith("colore") else ("#FFFFFF" if k.startswith("text_on") else "1")
+           for k in ("team_nome team_gm colore_header colore_riga1 colore_riga2 colore_sezione colore_pick colore_diritti "
+                     "text_on_riga1 text_on_riga2 text_on_sezione text_on_sezione_muted text_on_footer text_on_footer_muted "
+                     "text_on_pick text_on_pick_muted text_on_dir salary_cap eta_media tagli_usati cambi_usati salary_detail").split()}
+    _s4 = s3 + ";Dieci|1.5|1|D||||SF|—|x"
+    _png = {}
+    for _t in ("roster", "assets"):
+        for _n, _g in (("base", s3), ("fuori", _s4)):
+            _png[_t, _n] = typst.compile(_o.path.abspath(f"{base}/{_t}.typ"), root="/", format="png", ppi=72,
+                                         sys_inputs={**_in, "logo_path": "", "giocatori": _g, "fm_label": "FP", "fm_nota": "",
+                                                     "picks": "2027|1st|Propria|S;2027|2nd|Alfa|;2028||", "diritti": "Uno (#1 2026), Due (#4 2026)"})
+    import struct as _st
+    _alt = lambda b: _st.unpack(">I", b[20:24])[0]
+    ok(all(_png[_t, "fuori"][:4] == b"\x89PNG" and _alt(_png[_t, "fuori"]) > _alt(_png[_t, "base"]) for _t in ("roster", "assets")),
+       "roster.typ e assets.typ compilano (pick, diritti, anno senza pick) e chi è fuori dai 15 aggiunge righe sotto")
 except ImportError:
     pass
 except Exception as err:

@@ -27,7 +27,8 @@ File `backup_progettone_AAAAMMGG_HHMM.zip`:
 db/fantabasket.sql     database principale (contratti, trade, roster, pick, ruoli, tutto)
 db/aste.db             database del bot aste (aste, offerte, firme), copia verificata e completa
 config/                tutta la cartella config: globals.json, teams.json, settings.json,
-                       divisions.json, tabelle/, loghi/, csv
+                       divisions.json, tabelle/, loghi/, csv (non config/foto: le foto dei
+                       giocatori, loucabot le riscarica da ESPN da solo nelle notti dopo)
 secrets.tar.gpg        i secrets CIFRATI (se il dev li ha preparati, vedi sezione 5)
 MANIFEST.txt           data, versione del bot, contenuto
 ```

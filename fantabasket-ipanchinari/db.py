@@ -136,6 +136,13 @@ def migra():
             dove         TEXT NOT NULL,                 -- quintetto / panchina G<n> / formazione G<n>
             avvisato     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             PRIMARY KEY (team_id, giocatore_id, dove))""")
+    # v30: avvisi dell'injury report (infortuni.py)
+    q("""CREATE TABLE IF NOT EXISTS ipa_injury_visto (
+            id     INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+            preso  TIMESTAMPTZ NOT NULL)                  -- l'ultimo snapshot di nba_infortuni già confrontato""")
+    q("""CREATE TABLE IF NOT EXISTS ipa_injury_spenti (
+            utente  BIGINT PRIMARY KEY,                   -- GM che ha spento gli avvisi con /toggle_injures
+            quando  TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
 
 
 # ── letture dagli altri bot ────────────────────────────────────────────────────

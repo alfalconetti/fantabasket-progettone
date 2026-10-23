@@ -28,7 +28,9 @@ logger = logging.getLogger(__name__)
 #   MANIFEST.txt            data, versione, contenuto
 
 SECRETS_CIFRATI = os.environ.get("SECRETS_CIFRATI", "/secrets_cifrati/secrets.tar.gpg")
-_SALTA = {"__pycache__"}
+# foto: le foto dei giocatori di loucabot (config/foto, v6.4.0), decine di MB che si riscaricano da
+# ESPN da sole: nel backup peserebbero (limite Telegram 50 MB) senza servire al ripristino
+_SALTA = {"__pycache__", "foto"}
 _MAX_FILE = 20 * 1024 * 1024   # file di config oltre i 20 MB: saltati (limite Telegram 50 MB)
 
 

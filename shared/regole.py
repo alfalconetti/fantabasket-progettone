@@ -214,6 +214,7 @@ ORARI = {
     "sync_nba": "08:30",                # partite, tabellini, infortunati
     "controllo_tabellini": "10:00",     # tabellini corretti da ESPN? (il live si aggiorna 5 minuti dopo)
     "partita_nuova": "16:00",           # /partita senza argomenti passa alla giornata nuova dalle 16 del suo primo giorno
+    "injury_fitti": "19:00",            # primo giorno di una giornata: injury report ogni mezz'ora da qui alla prima partita
     # IPanchinari
     "fine_blocco_panchine": "06:00",    # giorno dopo l'ultima notte: si apre la giornata successiva
     "promemoria_quintetti": "08:00",    # dell'ultimo giorno prima della prima partita

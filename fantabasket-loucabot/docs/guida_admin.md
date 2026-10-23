@@ -81,7 +81,7 @@ Alla palla a due della prima partita della giornata il bot pubblica sul canale p
 
 **Tabellini.** A partita finita il bot scarica da ESPN il tabellino e salva statistiche e fantapunti di ogni giocatore NBA. Lo fa alle 8:30; `/tabellini` lo fa subito, per le partite finite che ancora non ce l'hanno.
 
-**Infortunati.** ESPN dà solo lo stato di adesso, quindi il bot ne salva uno snapshot (dai ruoli dell'offseason fino ai playoff; nelle altre fasi no) ogni 4 ore, anche di notte (0:30, 4:30, 8:30, 12:30, 16:30, 20:30), più uno 30 minuti prima della prima partita NBA del giorno (il report subito prima delle partite). Per il calcolo, di ogni giorno conta lo snapshot subito prima della prima partita; il più recente è lo stato che IPanchinari mostra accanto ai giocatori. Si tengono tutti gli snapshot dell'ultima settimana; per i giorni più vecchi resta solo quello che conta. Anche `/tabellini` ne salva uno. Servono per due regole:
+**Infortunati.** ESPN dà solo lo stato di adesso, quindi il bot ne salva uno snapshot (dai ruoli dell'offseason fino ai playoff; nelle altre fasi no) ogni 4 ore, anche di notte (0:30, 4:30, 8:30, 12:30, 16:30, 20:30), più uno 30 minuti prima della prima partita NBA del giorno (il report subito prima delle partite) e, la prima sera di ogni giornata, uno ogni mezz'ora dalle 19 alla prima partita (`orari.injury_fitti`): IPanchinari avvisa i GM di ogni cambio di stato dei loro giocatori. Per il calcolo, di ogni giorno conta lo snapshot subito prima della prima partita; il più recente è lo stato che IPanchinari mostra accanto ai giocatori. Si tengono tutti gli snapshot dell'ultima settimana; per i giorni più vecchi resta solo quello che conta. Anche `/tabellini` ne salva uno. Servono per due regole:
 - chi è in una squadra a media prende 0 invece della media se nello snapshot che conta di ogni giorno della giornata risulta indisponibile (stato diverso da Probable);
 - la FADD (il panchinaro che entra al posto del titolare che non ha giocato): il titolare deve avere il tag in tutti i giorni in cui la sua squadra ha giocato, o in tutta la giornata se la sua squadra non ha giocato. La panchina scala e resta di 4: al quinto supplementare quella squadra aggiunge 0. Se manca lo snapshot di uno di quei giorni il bot non sostituisce e lo segnala: decide un admin.
 
@@ -106,7 +106,7 @@ Restano agli admin le 72 ore di attesa per le partite rinviate e le penalità.
 
 ## Foto dei giocatori
 
-Il bot scarica da ESPN le foto dei giocatori a roster **piano piano, solo di notte negli Stati Uniti** (dalle 8 alle 12 italiane circa), una al minuto, per non farsi limitare: la prima volta servono un paio di notti, poi aggiorna solo chi cambia squadra e, ogni 14 giorni, le altre. Stanno in `config/foto` sul server (non in git; se si perdono si riscaricano). `/player` mostra la foto quando c'è.
+Il bot scarica da ESPN le foto dei giocatori a roster **piano piano, solo di notte negli Stati Uniti** (dalle 8 alle 12 italiane circa), una al minuto, per non farsi limitare: la prima volta servono un paio di notti, poi aggiorna solo chi cambia squadra e, ogni 14 giorni, le altre. Stanno in `config/foto` sul server (non in git e **non nel backup**: se si perdono, il bot le riscarica da solo). `/player` mostra la foto quando c'è.
 
 ## Comandi
 

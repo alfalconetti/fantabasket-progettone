@@ -88,6 +88,38 @@ async def job_prepartita(context: ContextTypes.DEFAULT_TYPE):
         await job_infortuni(context)
 
 
+def finestra_fitta(ora_, giornate: list[dict]):
+    """La giornata il cui primo giorno è in corso tra le `orari.injury_fitti` (19:00 a Roma del suo
+    primo giorno NBA) e la prima partita, o None (Luca, 23/10: injury report ogni mezz'ora)."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from shared import regole
+    roma = ZoneInfo("Europe/Rome")
+    for g in giornate:
+        pp = g.get("prima_partita")
+        if not pp or pp <= ora_:
+            continue
+        inizio = datetime.combine(g["dal"], regole.orario("injury_fitti"), tzinfo=roma)
+        if inizio <= ora_ < pp:
+            return g
+    return None
+
+
+async def job_injury_fitti(context: ContextTypes.DEFAULT_TYPE):
+    """Ogni 5 minuti: nella sera della prima notte di una giornata, dalle 19 alla prima partita,
+    uno snapshot degli infortunati ogni mezz'ora (IPanchinari avvisa i GM dei cambi). Una sola
+    richiesta a ESPN per tutta la lega."""
+    from datetime import datetime, timedelta, timezone
+    if not config.snapshot_attivi():
+        return
+    ora_ = datetime.now(timezone.utc)
+    if not finestra_fitta(ora_, db.giornate(config.stagione())):
+        return
+    if db.q("SELECT 1 FROM nba_infortuni WHERE preso >= %s LIMIT 1", (ora_ - timedelta(minutes=29),), one=True):
+        return
+    await job_infortuni(context)
+
+
 async def job_infortuni(context: ContextTypes.DEFAULT_TYPE):
     from handlers import log
     if not config.snapshot_attivi():          # fuori stagione (dai rinnovi alla FA) non servono

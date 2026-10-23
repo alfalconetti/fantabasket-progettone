@@ -102,10 +102,11 @@ def leggi_argomenti(args: list[str], squadre: list[dict]) -> tuple[list[dict], i
     intera = cerca_squadra(testo, squadre)
     parole = testo.split()
     # due nomi attaccati («Alfa Beta»): una divisione in cui entrambe le metà sono squadre (nome esatto o inizio)
-    from shared.squadre import normalizza
+    from shared.squadre import normalizza, per_parole
     def esatta(q):
         qn = normalizza(q)
-        return next((t for t in squadre if t["id"] == q or any(normalizza(c).startswith(qn) for c in (t.get("nome", ""), t.get("gm_nome", "")) if c)), None)
+        return next((t for t in squadre if t["id"] == q or any(normalizza(c).startswith(qn) for c in (t.get("nome", ""), t.get("gm_nome", "")) if c)),
+                    None) or per_parole(q, squadre)
     for i in range(1, len(parole)):
         x, y = esatta(" ".join(parole[:i])), esatta(" ".join(parole[i:]))
         if x and y and x["id"] != y["id"] and not (intera and normalizza(intera.get("nome", "")) == normalizza(testo)):
@@ -136,6 +137,7 @@ def _cella(x: dict | None, a: str | None, sq: str | None, d, partite_giorno: dic
 
 
 def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None) -> dict:
+    import foto
     import live
     ora = ora or datetime.now(timezone.utc)
     g = db.giornata(s, n)
@@ -195,14 +197,14 @@ def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None)
             elif a and a in in_supp:
                 conta, tag = tp(p.get("fp", 0.0)), f"S{in_supp.index(a) + 1}"
             if p.get("come") == "media" and (tit or tag in ("entra",) or tag.startswith("S")):
-                note.append(f"{x.get('nome')}: {p.get('nota') or 'a media'}")
+                note.append(f"{x.get('nome')}: {p.get('nota') or 'prende la media'}")
             m = (c.get("dettaglio") or {}).get("medie", {}).get(a) if a else None
             righe.append({"posto": (x.get("ruolo") or "") if tit else str(i - len(orig["quintetto"]) + 1),
                           # in panchina il ruolo (quello della giornata: congelato alla scadenza) tra parentesi
                           "ruolo": "" if tit else (x.get("ruolo") or ""),
                           "titolare": tit, "nome": x.get("nome") or "—", "nba": sq_nba or "", "celle": celle,
                           "media": tp(m) if m is not None else ("0,00" if a else ""),
-                          "conta": conta, "tag": tag})
+                          "conta": conta, "tag": tag, "foto": (foto.percorso(a) or "") if a else ""})
         if fadd:
             note.append(f"FADD {config.nome(t)}: esce {fadd['esce'].get('nome')} ({fadd.get('motivo')}), "
                         f"entra {fadd['entra'].get('nome')} dalla panchina, stesso ruolo")

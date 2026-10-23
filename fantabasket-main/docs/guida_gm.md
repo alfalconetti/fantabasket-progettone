@@ -25,14 +25,14 @@ Due cose da sapere:
 
 ## Guardare la squadra
 
-**`/roster`** ti manda un'immagine del tuo roster. Per ogni giocatore vedi:
+**`/roster`** ti manda un'immagine del tuo roster. In alto il logo, il salary cap (con contratti e impatto dei tagli) e quanti posti sono occupati su 15. Per ogni giocatore vedi:
 
-- il ruolo a sinistra;
-- le posizioni eleggibili in corsivo accanto al nome;
-- la fantamedia (colonna FM);
-- il contratto: i rookie hanno il colore del loro anno di scala (dal I al IV).
+- il ruolo a sinistra, in un'etichetta;
+- le posizioni eleggibili accanto al nome;
+- la fantamedia;
+- il contratto: i rookie hanno il colore del loro anno di scala (dal I al IV), RFA, DPE e 10-day il loro colore, con una barretta colorata davanti al nome. Se il colore non si leggerebbe sullo sfondo della riga, il nome ha un riquadro chiaro dietro.
 
-In fondo trovi cap, tagli gratuiti usati e cambi ruolo usati.
+I posti liberi sono righe basse con scritto «posto libero». Chi sta fuori dai 15 (il 10-day, la DPE che libera lo slot) è in fondo, sotto una riga più spessa e l'etichetta «FUORI DAI 15». In fondo, tre riquadri: età media, tagli senza impatto usati e cambi ruolo usati.
 
 Dalla fase dei rinnovi all'inizio della free agency i contratti finiti compaiono con durata **0** (per esempio 10x0) e non entrano nel cap. L'RFA dichiarato è segnato con la sigla **A** e invece nel cap c'è.
 
@@ -41,7 +41,7 @@ Il comando funziona anche in altri modi:
 - `/roster team07` oppure `/roster Rossi` → il roster di un'altra squadra (basta una parte del nome della squadra o del GM)
 - `/roster 15-01-26` → il tuo roster com'era il 15 gennaio 2026
 
-**`/assets`** è il roster più tutto il resto: le pick anno per anno (★ quelle tue, ○ quelle prese da altri) e i diritti sui rookie. Se vedi il tag rosso **STEPIEN** su una tua prima scelta, vuol dire che non puoi cederla senza violare la Stepien Rule.
+**`/assets`** è il roster più tutto il resto: le pick anno per anno (una scheda per anno: piene quelle tue, col solo bordo e «da …» quelle prese da altri) e i diritti sui rookie. Se vedi il tag rosso **STEPIEN** su una tua prima scelta, vuol dire che non puoi cederla senza violare la Stepien Rule.
 
 **`/team_diff`** ti dice cosa è cambiato nell'ultima settimana: chi è arrivato, chi è uscito e chi ha cambiato contratto (per esempio per una DPE, un rinnovo o un rookie che passa al II anno, 12x2 → 13x1). Esempio di risposta:
 

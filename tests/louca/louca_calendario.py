@@ -107,7 +107,7 @@ t = comando(H.cmd_calendario, 101, ["1"])
 ok("Giornata 1" in t and "in casa (+3)" in t and "Beta" in t and "G2" in t and "✈️" in t,
    "/calendario: giornata, avversario, casa, le prossime")
 t = comando(H.cmd_calendario, 101, ["3"])
-ok("A media" in t and "CLE, DEN" in t, "/calendario: squadre a media")
+ok("Prendono la media" in t and "CLE, DEN" in t, "/calendario: squadre che prendono la media")
 t = comando(H.cmd_giornata, 999, ["2"])
 ok("Delta – Alfa" in t and "Beta – Gamma" in t, "/giornata: tutte le partite")
 ok("Solo admin" in comando(H.cmd_importa_calendario, 101), "/importa_calendario solo admin")

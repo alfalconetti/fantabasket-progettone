@@ -80,7 +80,7 @@ offensivo +2, difensivo +1,25, tripla +1,5, tiro dal campo tentato −0,5 e segn
 tentato −0,75 e segnato +1, recupero +2, stoppata +2, palla persa −2. Verificata il 12/10/2026
 sul vecchio foglio: tutte le 141 righe del 17/01/2026 uguali al centesimo.
 
-**Infortunati.** ESPN dà solo lo stato di adesso, quindi il bot ne salva uno snapshot (dai ruoli dell'offseason ai playoff) ogni 4 ore, anche di notte (0:30, 4:30, 8:30, 12:30, 16:30, 20:30), più uno 30 minuti prima della prima partita NBA del giorno (il report subito prima delle partite). Per il calcolo, di ogni giorno conta lo snapshot subito prima della prima partita; il più recente è lo stato che IPanchinari mostra accanto ai giocatori. Si tengono tutti gli snapshot dell'ultima settimana; per i giorni più vecchi resta solo quello che conta.
+**Infortunati.** ESPN dà solo lo stato di adesso, quindi il bot ne salva uno snapshot (dai ruoli dell'offseason ai playoff) ogni 4 ore, anche di notte (0:30, 4:30, 8:30, 12:30, 16:30, 20:30), più uno 30 minuti prima della prima partita NBA del giorno (il report subito prima delle partite) e, la prima sera di ogni giornata, uno ogni mezz'ora dalle 19 alla prima partita (`orari.injury_fitti`): IPanchinari avvisa i GM di ogni cambio di stato dei loro giocatori. Per il calcolo, di ogni giorno conta lo snapshot subito prima della prima partita; il più recente è lo stato che IPanchinari mostra accanto ai giocatori. Si tengono tutti gli snapshot dell'ultima settimana; per i giorni più vecchi resta solo quello che conta.
 
 **Giocatore nella giornata** (`calcolo.punteggio_giocatori`):
 - ha giocato → media matematica delle partite giocate nella giornata (uno 0 con 0 minuti non
@@ -121,7 +121,7 @@ riscarica i tabellini: se ESPN ne ha corretto uno di un giocatore schierato, avv
 
 | Comando | Chi | Cosa |
 |---|---|---|
-| `/calendario [N] [SQUADRA]` | tutti | la giornata tua o di una squadra (avversario, casa o trasferta, scadenza, squadre a media) e le prossime |
+| `/calendario [N] [SQUADRA]` | tutti | la giornata tua o di una squadra (avversario, casa o trasferta, scadenza, squadre che prendono la media) e le prossime |
 | `/calendario_full [SQUADRA]` | tutti | tutto il calendario di una squadra, coi risultati delle giornate convalidate |
 | `/giornata [N]` (o `/risultati`) | tutti | le partite di una giornata, coi risultati convalidati |
 | `/partita [SQUADRA] [GN]` · `/partita SQUADRA - SQUADRA` | tutti | una sfida come immagine: tabellone, quintetti e panchine notte per notte, quello che conta, FADD, medie, supplementari |

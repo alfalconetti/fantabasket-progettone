@@ -1,6 +1,6 @@
 # Guida GM — loucabot
 
-loucabot è il bot del campionato: il calendario della lega, le scadenze per la formazione, le squadre NBA a media e, man mano, i punteggi. Roster, trade e tagli restano nel bot principale, le aste nel bot delle aste.
+loucabot è il bot del campionato: il calendario della lega, le scadenze per la formazione, le squadre NBA che prendono la media e, man mano, i punteggi. Roster, trade e tagli restano nel bot principale, le aste nel bot delle aste.
 
 Funziona in privato e nei gruppi. In privato ti riconosce come GM della tua squadra.
 
@@ -12,7 +12,7 @@ Scrivi `/calendario` e vedi la giornata in corso, o la prossima se non ne è in 
 
 - **le date** della giornata (giorni NBA, cioè della costa est americana);
 - **⏰ entro quando mettere formazione e panchina**: l'ora della prima partita NBA della giornata, in ora italiana. È la scadenza del regolamento: la panchina va inserita prima dell'inizio della prima partita;
-- **📉 le squadre NBA a media**: quelle che nella giornata non giocano. I loro giocatori prendono la media (ma chi è infortunato o squalificato prende 0);
+- **📉 le squadre NBA che prendono la media**: quelle che nella giornata non giocano. I loro giocatori prendono la media (ma chi è infortunato o squalificato prende 0);
 - **🏀 il tuo avversario**, e se giochi in casa (+3 punti) o in trasferta;
 - **le prossime tre giornate**: 🏠 in casa, ✈️ in trasferta.
 
@@ -26,7 +26,7 @@ Scrivi `/calendario` e vedi la giornata in corso, o la prossima se non ne è in 
 
 `/notte` mostra i tuoi schierati in una notte NBA: per ogni titolare e panchinaro la partita (vs / @ e avversario), l'orario se deve ancora giocare, i fantapunti se ha giocato (🏀 se è in campo adesso, DNP se non è entrato), 🩹 se è nel rapporto infortuni, e il totale dei titolari. Senza niente la tua squadra e la notte in corso (fino a mezzogiorno di New York, cioè le 18 da noi, quella appena passata); `/notte Alfa`, `/notte 21/10`, `/notte Marco 21/10/26` per un'altra squadra (nome, id o GM) o un'altra notte. I fantapunti sono provvisori fino alla convalida.
 
-`/partita` manda l'immagine di una sfida: in alto il tabellone (punteggi, supplementari, se è in corso, calcolata o convalidata), sotto le due squadre con quintetto e panchina, una colonna per ogni notte della giornata (i fantapunti, DNP se la sua squadra ha giocato ma lui no, «vs XXX» o «@XXX» se deve ancora giocare, vuota se non gioca) e la colonna **Conta**, quello che il giocatore porta davvero: la media delle sue partite nella giornata, MEDIA se la sua squadra NBA non gioca, ↓ FADD se è uscito, ↑ se è entrato per la FADD, S1, S2… se ha giocato i supplementari. Sotto, le spiegazioni (FADD, medie, supplementari). Senza niente la tua partita della giornata in corso (la stessa fino alla convalida; la successiva dalle 16 del suo primo giorno); `/partita Alfa G3`, oppure `/partita Alfa - Beta` per le sfide tra due squadre nella stagione (se sono più d'una scegli coi bottoni).
+`/partita` manda l'immagine di una sfida: in alto il tabellone (punteggi, supplementari, se è in corso, calcolata o convalidata), sotto le due squadre con quintetto e panchina, una colonna per ogni notte della giornata (i fantapunti, DNP se la sua squadra ha giocato ma lui no, «vs XXX» o «@XXX» se deve ancora giocare, vuota se non gioca) e la colonna **Punti effettivi**, quello che il giocatore porta davvero: la media delle sue partite nella giornata, MEDIA se la sua squadra NBA non gioca, ↓ FADD se è uscito, ↑ se è entrato per la FADD, S1, S2… se ha giocato i supplementari. Sotto, le spiegazioni (FADD, medie, supplementari). Senza niente la tua partita della giornata in corso (la stessa fino alla convalida; la successiva dalle 16 del suo primo giorno); `/partita Alfa G3`, oppure `/partita Alfa - Beta` per le sfide tra due squadre nella stagione (se sono più d'una scegli coi bottoni).
 
 `/giornata` (o `/risultati`) elenca le 12 partite della giornata in corso (o la prossima), `/giornata 12` quelle della 12. Va bene anche nei gruppi. Per le giornate già convalidate dagli admin ci sono anche i risultati (chi vince in grassetto, i supplementari se ci sono stati); una giornata calcolata ma non ancora convalidata lo dice. Anche `/calendario` mostra il risultato della tua partita quando c'è.
 
@@ -46,9 +46,9 @@ Scrivi `/calendario` e vedi la giornata in corso, o la prossima se non ne è in 
 
 ## Da dove vengono questi dati
 
-Il calendario della lega lo importano gli admin. Le partite NBA il bot le scarica da ESPN e le ricontrolla ogni mattina: se l'NBA sposta una partita, la scadenza o le squadre a media di una giornata possono cambiare, e il bot si aggiorna da solo (gli admin ricevono un avviso).
+Il calendario della lega lo importano gli admin. Le partite NBA il bot le scarica da ESPN e le ricontrolla ogni mattina: se l'NBA sposta una partita, la scadenza o le squadre che prendono la media in una giornata possono cambiare, e il bot si aggiorna da solo (gli admin ricevono un avviso).
 
-Se le squadre a media scritte nel calendario pubblicato e quelle del bot non coincidono, vale il bot: le calcola dalle partite NBA vere.
+Se le squadre che prendono la media scritte nel calendario pubblicato e quelle del bot non coincidono, vale il bot: le calcola dalle partite NBA vere.
 
 ## I punteggi
 

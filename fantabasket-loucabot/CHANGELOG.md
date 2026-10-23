@@ -219,3 +219,13 @@ Il calcolo dei fantapunti.
 - **Foto dei giocatori da ESPN** (Luca, 23/10, `foto.py`): scaricate piano, solo nella notte americana (2–6 a New York), una al minuto, per i giocatori a roster (prima le mancanti, poi chi ha cambiato squadra, poi le più vecchie di 14 giorni); versione piccola dal combiner di ESPN; un 429 ferma tutto per 20 ore. In `config/foto` sul server: nel docker-compose una cartella in scrittura `./config/foto:/foto` (`FOTO_DIR`)
 - **`/player` con la foto** quando c'è (didascalia; se il testo è lungo, foto e testo sotto); senza foto come prima, `/player` non scarica mai niente
 - `/player`: la foto (520×380 dal combiner di ESPN, nitida sul telefono) composta con Typst su uno sfondo viola 640×420 col nome, la squadra NBA e quella del fantabasket (`foto_player.typ`): una PNG trasparente su Telegram può uscire su fondo nero e una foto piccola si vede sgranata
+
+## v43 (2026-10-23)
+
+- `/partita`: la foto ESPN di ogni giocatore in un tondo accanto al nome (ritagliata sulla faccia; senza foto le iniziali)
+- Parole più chiare (Luca, 23/10): la colonna «Conta» di `/partita` è **«Punti effettivi»**; «a media» è **«prendono la media»** (`/partita`, `/calendario`, avvisi del calendario agli admin)
+
+## v44 (2026-10-23)
+
+- Injury report ogni mezz'ora nella prima sera di ogni giornata, dalle 19 (`orari.injury_fitti`) alla prima partita (`handlers_calcolo.job_injury_fitti`): IPanchinari avvisa i GM dei cambi. Una sola richiesta a ESPN ogni volta
+- Ricerca delle squadre per una parola sola anche in `/partita`, `/notte`, `/calendario` (`shared/squadre.per_parole`)
