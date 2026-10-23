@@ -31,21 +31,21 @@ import nomi
 
 logger = logging.getLogger(__name__)
 
-_RE_DATA = re.compile(r"^(?P<nome>.+?)\s+(?:(?P<g>\d{1,2})[-/.](?P<m>\d{1,2})[-/.](?P<a>\d{4})"
-                      r"|(?P<a2>\d{4})-(?P<m2>\d{1,2})-(?P<g2>\d{1,2}))\s*$")
+_RE_DATA = re.compile(r"^(?P<nome>.+?)\s+(?P<data>\d{1,4}[-/.]\d{1,2}[-/.]\d{2,4})\s*$")
 
 
 def _parse_riga(riga: str) -> tuple[str, date] | None:
+    """«Nome GG-MM-AAAA», e gli altri formati di shared/date_comandi (anche l'anno a 2 cifre: per una
+    data di nascita un anno «futuro» è del Novecento, 05/03/99 = 1999)."""
+    from shared.date_comandi import leggi_data
     m = _RE_DATA.match(riga.strip())
     if not m:
         return None
-    try:
-        if m.group("a"):
-            d = date(int(m.group("a")), int(m.group("m")), int(m.group("g")))
-        else:
-            d = date(int(m.group("a2")), int(m.group("m2")), int(m.group("g2")))
-    except ValueError:
+    d = leggi_data(m.group("data"))
+    if not d:
         return None
+    if d.year > date.today().year:
+        d = d.replace(year=d.year - 100)
     if not (1960 <= d.year <= date.today().year - 15):
         return None
     return m.group("nome").strip(), d

@@ -654,3 +654,11 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 - **`/firma_per_conto [asta_id]`** (admin, Luca 20/10): scegliere anni (e ruolo in regular season) al posto del GM vincitore entro le 48 ore, con gli stessi bottoni e controlli del GM (callback `pc_firma*`). Senza id l'elenco delle aste che aspettano gli anni. Annuncio sul canale principale di sempre, i GM della squadra avvisati in privato, nel registro e sul canale log come admin «per conto della squadra». Anche per gli anni del vincitore di una RFA; il pareggio resta al proprietario (`/force_esito`)
 - Anche la scelta degli anni di una RFA da parte del GM finisce nel registro
 - Prova `firma_per_conto`
+
+## v70 (2026-10-23)
+
+- Orario del controllo del cap stagionale da `orari` in settings.json (default 13:00, come prima)
+
+## v71 (2026-10-23)
+
+- `/sposta_asta`: la data in tutti i formati di `shared/date_comandi` (GG/MM/AA HH:MM, GG/MM/AAAA HH:MM, AAAA-MM-GGTHH:MM)

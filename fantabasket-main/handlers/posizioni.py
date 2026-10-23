@@ -392,12 +392,10 @@ async def cmd_data_erminio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _is_admin(update.effective_user.id):
         await update.effective_message.reply_text("⛔ Comando riservato agli admin.")
         return
-    try:
-        giorno = date.fromisoformat(context.args[-1]) if len(context.args or []) >= 2 else None
-    except ValueError:
-        giorno = None
+    from shared.date_comandi import leggi_data
+    giorno = leggi_data(context.args[-1]) if len(context.args or []) >= 2 else None
     if not giorno:
-        await update.effective_message.reply_text("Uso: /data_erminio <nome giocatore> <AAAA-MM-GG>")
+        await update.effective_message.reply_text("Uso: /data_erminio <nome giocatore> <GG/MM/AAAA> (anche GG/MM/AA o AAAA-MM-GG)")
         return
     nome = " ".join(context.args[:-1])
     candidati, esatto = _cerca_giocatori(nome)

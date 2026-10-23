@@ -204,6 +204,11 @@ async def _avvia(context, coro):
         await coro
 
 
+def _chi_nome(update) -> str:
+    u = update.effective_user
+    return (u.full_name or u.first_name or str(u.id)) if u else "un admin"
+
+
 async def cb_risultati(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     if not config.is_admin(update.effective_user.id):
@@ -225,6 +230,12 @@ async def cb_risultati(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.answer("Convalidata")
         import foglio
         esito = await foglio.aggiorna(s)
+        try:                                             # canale: risultati definitivi, via il live (Luca, 23/10)
+            import live
+            esito += "; " + await live.pubblica_definitivo(context.bot, s, n, _chi_nome(update))
+        except Exception as err:
+            logger.warning("Risultati definitivi sul canale G%s: %s", n, err)
+            esito += f"; ⚠️ risultati definitivi non pubblicati sul canale ({str(err)[:120]})"
         ora = datetime.now(timezone.utc).astimezone(__import__("zoneinfo").ZoneInfo("Europe/Rome"))
         try:
             await q.edit_message_reply_markup(reply_markup=None)
@@ -254,7 +265,10 @@ async def cmd_dev_prova_calcolo(update: Update, context: ContextTypes.DEFAULT_TY
     import handlers_calcolo as hc
     msg = update.effective_message
     try:
-        dal, al = [datetime.strptime(x, "%d/%m/%Y").date() for x in (context.args or [])[:2]]
+        from shared.date_comandi import leggi_data
+        dal, al = [leggi_data(x) for x in (context.args or [])[:2]]
+        if not dal or not al:
+            raise ValueError("data")
         assert dal <= al <= dal + timedelta(days=4)
     except Exception:
         await msg.reply_text("Uso: /dev_prova_calcolo GG/MM/AAAA GG/MM/AAAA (da 1 a 5 giorni NBA già giocati, es. 01/03/2026 03/03/2026)")

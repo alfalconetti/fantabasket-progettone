@@ -50,7 +50,7 @@ Se a quell'ora la giornata non si può ancora calcolare (una partita non finita,
 
 Poi **🔄 Ricalcola** (o `/ricalcola N`): il bot riscarica i tabellini della giornata, ricalcola, riscrive il tab e manda una proposta nuova; quella vecchia perde i bottoni.
 
-**✅ Convalida**: solo allora i risultati si salvano e il foglio **Calendario** si aggiorna (punti col bonus casa nella riga della partita, i soli punti dei supplementari nella riga sotto). Il bottone di una proposta superata non convalida niente.
+**✅ Convalida**: solo allora i risultati si salvano e il foglio **Calendario** si aggiorna (punti col bonus casa nella riga della partita, i soli punti dei supplementari nella riga sotto). Sul canale principale esce il messaggio dei **risultati definitivi** e quello live si cancella (da lì il live di quella giornata non si aggiorna più). Se dopo un ricalcolo (per esempio dopo il controllo delle 10) convalidi di nuovo, si **modifica** lo stesso messaggio dei definitivi; un messaggio in più, in risposta, solo se cambia chi vince una partita. Il bottone di una proposta superata non convalida niente.
 
 **Alle 10:00** il bot riscarica i tabellini delle giornate calcolate da poco o ancora da convalidare: se ESPN ne ha corretto qualcuno di un giocatore schierato, avvisa il gruppo admin con le differenze e il bottone 🔄 Ricalcola. Vale anche per una giornata già convalidata: si ricalcola e si riconvalida.
 

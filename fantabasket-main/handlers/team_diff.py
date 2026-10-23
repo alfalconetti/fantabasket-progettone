@@ -145,12 +145,11 @@ async def cmd_team_diff(update: Update, context: ContextTypes.DEFAULT_TYPE):
     dates  = []
 
     for arg in args:
-        try:
-            d = datetime.strptime(arg, "%d-%m-%y").replace(tzinfo=timezone.utc)
-            dates.append(d)
+        from shared.date_comandi import leggi_data
+        g = leggi_data(arg)                         # GG-MM-AA come prima, e tutti gli altri formati
+        if g:
+            dates.append(datetime(g.year, g.month, g.day, tzinfo=timezone.utc))
             continue
-        except ValueError:
-            pass
         t = tm.get_team_by_query(arg)
         if t:
             team = t

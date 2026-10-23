@@ -1006,13 +1006,13 @@ async def cmd_trade_deadline(update: Update, context: ContextTypes.DEFAULT_TYPE)
         avviso = avviso_trade_deadline(s)
         if avviso:
             righe.append(avviso)
-        righe.append("\nPer cambiarla: <code>/trade_deadline AAAA-MM-GG</code>")
+        righe.append("\nPer cambiarla: <code>/trade_deadline GG/MM/AAAA</code> (anche GG/MM/AA o AAAA-MM-GG)")
         await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
         return
-    try:
-        d = date.fromisoformat(context.args[0])
-    except ValueError:
-        await update.effective_message.reply_text("❌ Formato non valido. Es: /trade_deadline 2027-02-05")
+    from shared.date_comandi import leggi_data
+    d = leggi_data(context.args[0])
+    if not d:
+        await update.effective_message.reply_text("❌ Formato non valido. Es: /trade_deadline 05/02/2027")
         return
     if not inizio <= d <= fine:
         await update.effective_message.reply_text(

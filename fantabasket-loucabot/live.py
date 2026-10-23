@@ -33,8 +33,10 @@ from numeri import testo as tp
 logger = logging.getLogger(__name__)
 ROMA = ZoneInfo("Europe/Rome")
 OGNI = timedelta(minutes=10)
-FINE_NOTTE = time(8, 0)               # fine degli aggiornamenti della notte (mattino dopo, Roma)
-ORA_CONTROLLO = time(10, 5)           # dopo il controllo dei tabellini delle 10 (handlers_risultati.job_controllo)
+from shared import regole as _rg       # orari in settings.json («orari»), letti all'avvio
+FINE_NOTTE = _rg.orario("fine_live_notte")      # fine degli aggiornamenti della notte (mattino dopo, Roma)
+# 5 minuti dopo il controllo dei tabellini (handlers_risultati.job_controllo)
+ORA_CONTROLLO = (datetime.combine(date(2000, 1, 1), _rg.orario("controllo_tabellini")) + timedelta(minutes=5)).time()
 DOPO_ERRORE = timedelta(minutes=20)
 FINITE = ("STATUS_FINAL", "STATUS_POSTPONED", "STATUS_CANCELED")
 NON_INIZIATE = ("STATUS_SCHEDULED", "STATUS_POSTPONED", "STATUS_CANCELED")
@@ -54,6 +56,13 @@ def migra() -> None:
               prossimo    TIMESTAMPTZ,                   -- dopo un errore di ESPN: non prima di
               errore_log  TIMESTAMPTZ,                   -- ultimo errore scritto sul canale log
               PRIMARY KEY (stagione, giornata))""")
+    # v37 (Luca, 23/10): alla convalida il live si cancella (chiuso: niente più aggiornamenti) e sul
+    # canale esce il messaggio dei risultati definitivi (definitivo_id: a una nuova convalida si modifica)
+    db.q("ALTER TABLE lega_live ADD COLUMN IF NOT EXISTS chiuso TIMESTAMPTZ")
+    db.q("ALTER TABLE lega_live ADD COLUMN IF NOT EXISTS definitivo_id BIGINT")
+    # esiti al momento della pubblicazione: a una nuova convalida (ricalcolo dopo il controllo delle 10)
+    # si confrontano e, se cambia chi vince, esce un messaggio in più (Luca, 23/10)
+    db.q("ALTER TABLE lega_live ADD COLUMN IF NOT EXISTS esiti JSONB")
 
 
 def stato(s: str, n: int) -> dict | None:
@@ -178,6 +187,36 @@ def _da_giocare(c: dict, giocatori: list[dict]) -> tuple[int, int]:
     return live, poi
 
 
+def ancora_in_ballo(c: dict, giocatori: list[dict]) -> tuple[int, int, float]:
+    """(devono giocare, devono rigiocare, punti fatti finora da chi deve rigiocare) tra i titolari
+    indicati (Luca, 23/10): chi ha ancora una partita della giornata (in corso o da iniziare) e non ne
+    ha ancora finita nessuna; chi ne ha già finita almeno una e ne ha un'altra, coi fantapunti che ha
+    già fatto nella giornata (quelli in ballo: possono cambiare con la partita che gli resta)."""
+    partite = db.partite_nba(c["giornata"]["dal"], c["giornata"]["al"])
+    det = c.get("dettaglio") or {}
+    notti, medie = det.get("notti") or {}, det.get("medie") or {}
+    giocare = rigiocare = 0
+    in_ballo = 0.0
+    for x in giocatori:
+        a = x.get("atleta")
+        sq = (c["punti"].get(a) or {}).get("squadra")
+        if not a or not sq:
+            continue
+        sue = [p for p in partite if sq in (p["casa"], p["trasferta"])]
+        restano = [p for p in sue if p["stato"] not in FINITE]
+        if not restano:
+            continue
+        finite = {p["data_et"] for p in sue if p["stato"] in FINITE}
+        fatte = {d: fp for d, fp in (notti.get(a) or {}).items() if d in finite}
+        if fatte:
+            rigiocare += 1
+            in_ballo += sum(float(fp or 0) for fp in fatte.values())
+        else:
+            giocare += 1
+    _ = medie
+    return giocare, rigiocare, round(in_ballo, 2)
+
+
 def avvisi_brevi(c: dict) -> list[str]:
     """Gli avvisi del calcolo, una riga per squadra (per l'anteprima agli admin)."""
     import re
@@ -259,8 +298,7 @@ def testo(c: dict, ora: datetime, prova: bool = False) -> str:
         stato_g = []
         if lc or lt:
             stato_g.append(f"🏀 in campo {lc}–{lt}")
-        if pc or pt:
-            stato_g.append(f"⏳ da giocare {pc}–{pt}")
+        # «⏳ da giocare» per squadra, per esteso, nelle righe sotto (Luca, 23/10)
         vuoti = [n for n, sq in ((casa, r["sc"]), (tr, r["st"])) if not any(x.get("atleta") for x in sq["titolari"])]
         if vuoti:                                  # senza giocatori non c'è niente da stimare
             pezzi = [f"⚠️ quintetto vuoto: {e(', '.join(vuoti))}"] + stato_g
@@ -268,6 +306,13 @@ def testo(c: dict, ora: datetime, prova: bool = False) -> str:
             pezzi = ([] if lc + lt + pc + pt > MAX_DA_GIOCARE else [f"▶ {esito_live(r, casa, tr)}"]) + stato_g
         if pezzi:
             righe.append("   " + " · ".join(pezzi))
+        # chi manca, per squadra e per esteso (Luca, 23/10): quanti devono ancora giocare, quanti
+        # rigiocano (hanno già una partita finita) e quanti punti hanno fatto finora (quelli in ballo)
+        for nome, sq in ((casa, r["sc"]), (tr, r["st"])):
+            dg, dr, finora = ancora_in_ballo(c, sq["titolari"])
+            if dg or dr:
+                righe.append(f"   {e(nome)}: devono giocare {dg} · devono rigiocare {dr}"
+                             + (f" (finora {tp(finora)})" if dr else ""))
     righe += ["", f"<i>Risultati provvisori, stimati sui tabellini live di ESPN con le regole del calcolo (bonus casa "
                   f"+{c['bonus']:g}, FADD, supplementari): li valuta e convalida un admin.\n"
                   f"Ultimo aggiornamento: {ora.astimezone(ROMA):%d/%m alle %H:%M}</i>"]
@@ -309,6 +354,83 @@ async def aggiorna(bot, g: dict, d: date | None, ora: datetime, controllo: bool 
                       for r in c["risultati"])
 
 
+def _esiti(s: str, n: int) -> dict[str, dict]:
+    """{casa: {vince, trasferta, punti}} dei risultati convalidati."""
+    righe = db.q("""SELECT casa, trasferta, vince, punti_casa, punti_trasferta FROM lega_risultati
+                    WHERE stagione = %s AND giornata = %s AND convalidato IS NOT NULL""", (s, n), many=True) or []
+    return {r["casa"]: {"vince": r["vince"], "trasferta": r["trasferta"],
+                        "punti": [float(r["punti_casa"] or 0), float(r["punti_trasferta"] or 0)]} for r in righe}
+
+
+def testo_definitivo(s: str, g: dict, chi: str, quando: datetime, aggiornato: bool = False) -> str:
+    """Il messaggio sul canale principale coi risultati convalidati (Luca, 23/10)."""
+    from handlers import riga_partita
+    righe = [f"🏁 <b>Giornata {g['numero']} · risultati definitivi</b> · notti {g['dal']:%d/%m}–{g['al']:%d/%m}", ""]
+    for i, p in enumerate(db.partite_giornata(s, g["numero"])):
+        if i:
+            righe.append("")
+        righe.append(riga_partita(s, g["numero"], p))
+    righe += ["", f"<i>{'🔄 Aggiornati dopo il ricontrollo dei tabellini' if aggiornato else 'Convalidati'} da {e(chi)} "
+                  f"il {quando.astimezone(ROMA):%d/%m alle %H:%M}. Dettagli: /giornata {g['numero']}</i>"]
+    return "\n".join(righe)
+
+
+async def pubblica_definitivo(bot, s: str, n: int, chi: str, quando: datetime | None = None) -> str:
+    """Alla convalida: messaggio dei risultati definitivi sul canale principale (a una nuova convalida
+    si modifica lo stesso) e il messaggio live cancellato; da lì il live non si aggiorna più.
+    Restituisce una riga di esito."""
+    quando = quando or datetime.now(timezone.utc)
+    migra()                                              # colonne nuove anche se il bot non è ripartito
+    canale = config.globali().get("main_channel_id")
+    g = db.giornata(s, n)
+    st = stato(s, n) or {}
+    esito = []
+    nuovi = _esiti(s, n)
+    vecchi = st.get("esiti") or {}
+    if isinstance(vecchi, str):
+        import json
+        vecchi = json.loads(vecchi)
+    if canale and g:
+        t = testo_definitivo(s, g, chi, quando, aggiornato=bool(st.get("definitivo_id")))
+        fatto = False
+        if st.get("definitivo_id"):
+            try:
+                await bot.edit_message_text(chat_id=canale, message_id=st["definitivo_id"], text=t, parse_mode="HTML")
+                fatto = True
+            except Exception as err:
+                fatto = "not modified" in str(err).lower()
+        if not fatto:
+            m = await bot.send_message(chat_id=canale, text=t, parse_mode="HTML")
+            _salva(s, n, definitivo_id=m.message_id)
+        esito.append("risultati definitivi sul canale" + (" (aggiornati)" if fatto else ""))
+        # nuova convalida: se cambia chi vince una partita, un messaggio in più (il resto solo modificato)
+        cambiati = [(c, v, nuovi[c]) for c, v in vecchi.items() if c in nuovi and v.get("vince") != nuovi[c]["vince"]]
+        if cambiati:
+            righe = [f"⚠️ <b>Giornata {n}: cambia un risultato</b> dopo il ricontrollo dei tabellini ESPN", ""]
+            for c, _v, nv in cambiati:
+                vince = c if nv["vince"] == "casa" else nv["trasferta"]
+                perde = nv["trasferta"] if nv["vince"] == "casa" else c
+                righe.append(f"• Ora vince <b>{e(config.nome(vince))}</b> su {e(config.nome(perde))} "
+                             f"({tp(nv['punti'][0])} – {tp(nv['punti'][1])})")
+            righe += ["", "<i>Il messaggio dei risultati definitivi qui sopra è aggiornato.</i>"]
+            try:
+                await bot.send_message(chat_id=canale, text="\n".join(righe), parse_mode="HTML",
+                                       reply_to_message_id=st.get("definitivo_id") or None)
+            except Exception as err:
+                logger.warning("Avviso esito cambiato G%s: %s", n, err)
+            esito.append(f"{len(cambiati)} esiti cambiati: avviso sul canale")
+    if st.get("message_id") and not st.get("chiuso"):
+        try:
+            await bot.delete_message(chat_id=st["chat_id"], message_id=st["message_id"])
+            esito.append("live cancellato")
+        except Exception as err:                         # più vecchio di 48 ore: Telegram non lo cancella
+            logger.info("Live G%s: non cancellato (%s)", n, err)
+            esito.append("live non cancellabile (più di 48 ore): cancellalo a mano")
+    import json
+    _salva(s, n, chiuso=quando, esiti=json.dumps(nuovi))
+    return ", ".join(esito) or "niente da pubblicare (manca main_channel_id)"
+
+
 async def tick(bot, ora: datetime | None = None, scarica_fn=None) -> list[str]:
     """Un giro del job: per ogni giornata attiva l'aggiornamento che serve adesso."""
     from handlers import log
@@ -318,6 +440,8 @@ async def tick(bot, ora: datetime | None = None, scarica_fn=None) -> list[str]:
     for g in giornate_attive(s, ora):
         g = {**g, "stagione": s}
         st = stato(s, g["numero"])
+        if st and st.get("chiuso"):                        # giornata convalidata: il live non c'è più
+            continue
         quale, d = cosa_fare(g, ora, st)
         if not quale:
             continue

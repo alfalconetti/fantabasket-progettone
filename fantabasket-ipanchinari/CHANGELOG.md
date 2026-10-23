@@ -131,3 +131,8 @@ Primo rilascio: panchine e quintetti.
 - **`/quintetto_admin SQUADRA GN` senza righe** (Luca, 20/10): con il GN della giornata in corso apre l'editor coi bottoni (ogni cambio vale anche per la sua formazione), invece di «manca PG, SG, SF, PF, C». Con il GN di una giornata chiusa ma non più in corso spiega come scrivere i 5 titolari sotto
 - **Fino alle 6 i comandi restano sulla giornata in corso** (Luca, 20/10), come già le panchine: dalla scadenza alle 6:00 del giorno dopo l'ultimo giorno NBA della giornata `/quintetto` mostra il quintetto senza bottoni e dice da quando si cambia; i bottoni vecchi del GM (cambio, Confermo, Modifico) sono bloccati. L'admin con `/quintetto_admin` continua a correggere la formazione della giornata in corso, senza il Conferma della giornata dopo. `/stato` e i report senza numero mostrano la giornata in corso
 - **Admin a giornata in corso** (Luca, 20/10): `/edit SQUADRA` e `/panchina_admin SQUADRA` (anche senza GN) correggono la panchina della giornata in corso, invece di «non accetto panchine» (che resta per i GM)
+
+## v28 (2026-10-23)
+
+- **Media fantapunti nei builder** (Luca, 23/10): accanto ai giocatori nei bottoni di `/build_panchina`, `/edit` (anche nel testo dell'editor e nella lista di 🔄) e del quintetto, la media fantapunti della stagione in corso (0 senza partite), dai tabellini di loucabot (`db.medie_fp`, `comune.medie`)
+- Orari di fine blocco delle panchine (6:00) e del promemoria dei quintetti (8:00) da `orari` in settings.json

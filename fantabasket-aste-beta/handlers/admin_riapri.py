@@ -130,11 +130,13 @@ async def sposta_asta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         from zoneinfo import ZoneInfo
         rome = ZoneInfo("Europe/Rome")
-        nuovo_naive = datetime.fromisoformat(context.args[1])
+        from shared.date_comandi import leggi_data_ora
+        nuovo_naive = leggi_data_ora(" ".join(context.args[1:3]))
         nuovo = nuovo_naive.replace(tzinfo=rome).astimezone(timezone.utc)
     except Exception:
         await update.effective_message.reply_text(
-            "❌ Formato data non valido. Usa: <code>YYYY-MM-DDTHH:MM</code>",
+            "❌ Formato data non valido. Usa: <code>GG/MM/AAAA HH:MM</code> (anche GG/MM/AA, o il vecchio "
+            "<code>AAAA-MM-GGTHH:MM</code>)",
             parse_mode="HTML",
         )
         return

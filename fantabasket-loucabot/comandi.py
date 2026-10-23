@@ -18,6 +18,8 @@ def liste_comandi() -> dict:
         BotCommand("calendario", "La giornata tua o di una squadra [N] [SQUADRA]"),
         BotCommand("calendario_full", "Tutto il calendario di una squadra, coi risultati [SQUADRA]"),
         BotCommand("giornata",   "Tutte le partite di una giornata [N], coi risultati"),
+        BotCommand("risultati",  "Come /giornata: i risultati di una giornata [N]"),
+        BotCommand("notte",      "I tuoi schierati in una notte NBA [SQUADRA] [DATA]"),
         BotCommand("player",     "Un giocatore: squadra NBA e fantabasket, media, statistiche"),
         BotCommand("classifica", "La classifica (immagine)"),
         BotCommand("classifica_full", "La classifica con tutte le statistiche"),

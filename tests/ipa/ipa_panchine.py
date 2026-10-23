@@ -218,8 +218,8 @@ ok("→ <b>Kevon Looney</b> 🔴 Out" in m.risposte[0][0] and "Infortunati da ES
    "anteprima: stato ESPN accanto al giocatore, con l'ora dell'aggiornamento")
 db.chiudi_bozza(int(bottoni(m.risposte[0][1]["reply_markup"])[-2].split(":")[2]))
 qb = premi(101, "q:c:team01:SG")
-ok(any("Devin Booker 🟡 Day-To-Day" in b.text for riga in qb.testi[-1][1]["reply_markup"].inline_keyboard for b in riga),
-   "scelta del quintetto: stato nei bottoni")
+ok(any("Devin Booker · 0,0 🟡 Day-To-Day" in b.text for riga in qb.testi[-1][1]["reply_markup"].inline_keyboard for b in riga),
+   "scelta del quintetto: media e stato nei bottoni " + str([b.text for riga in qb.testi[-1][1]["reply_markup"].inline_keyboard for b in riga]))
 ok("Devin Booker</b>" not in Q.testo_quintetto("team01", None) and "Devin Booker 🟡 Day-To-Day" in Q.testo_quintetto("team01", None),
    "quintetto (promemoria, /quintetto): stato accanto al titolare")
 
@@ -231,8 +231,8 @@ bid = int(tasti[0].split(":")[2])
 tit = set(db.quintetto("team01").values())
 proposti = {int(x.split(":")[3]) for x in tasti if x.startswith("pb:b:")}
 ok(proposti and not (proposti & tit) and gids["Josh Hart"] in proposti, "builder: solo giocatori della squadra non nel quintetto")
-ok(any("Kevon Looney (C) 🔴 Out" in b.text for riga in k["reply_markup"].inline_keyboard for b in riga),
-   "builder: stato ESPN nei bottoni")
+ok(any(b.text.startswith("Kevon Looney (C) · ") and "🔴 Out" in b.text for riga in k["reply_markup"].inline_keyboard for b in riga),
+   "builder: media e stato ESPN nei bottoni")
 qb = premi(101, f"pb:b:{bid}:{gids['Josh Hart']}")
 ok(f"pb:b:{bid}:{gids['Josh Hart']}" not in bottoni(qb.testi[-1][1]["reply_markup"]) and "1. Josh Hart" in qb.testi[-1][0],
    "builder: il giocatore scelto non si ripropone")
@@ -636,6 +636,13 @@ ok("correzione (giornata chiusa)" in m.risposte[-1][0] and "non accetto" not in 
    "admin: /panchina_admin SQUADRA a giornata in corso apre la correzione")
 m = Msg("/edit"); asyncio.run(P.cmd_edit(upd(101, m), CTX))
 ok("non accetto panchine" in m.risposte[-1][0], "il GM resta bloccato")
+# media fantapunti nei builder (Luca, 23/10)
+_esp = db.q("SELECT espn_id FROM giocatori WHERE id = %s", (gids["Ja Morant"],), one=True)["espn_id"]
+ldb.salva_tabellino("p1", [{"partita": "p1", "atleta": _esp, "nome": "Ja Morant", "squadra": "MEM", "titolare": True, "giocato": True,
+                            "minuti": 30, "pts": 0, "fgm": 0, "fga": 0, "tpm": 0, "tpa": 0, "ftm": 0, "fta": 0, "oreb": 0, "dreb": 0,
+                            "ast": 0, "stl": 0, "blk": 0, "tov": 0, "pf": 0, "fp": 32.5}])
+_md = CO.medie([gids["Ja Morant"], gids["Josh Hart"]])
+ok(_md.get(gids["Ja Morant"]) == " · 32,5" and _md.get(gids["Josh Hart"]) == " · 0,0", f"medie fantapunti della stagione (0 senza partite) {_md}")
 # giornata in corso fino alle 6: il quintetto non lavora ancora per la giornata dopo (Luca, 20/10)
 m = Msg("/quintetto"); asyncio.run(Q.cmd_quintetto(upd(101, m), CTX))
 ok("giornata 3 in corso" in m.risposte[-1][0] and not m.risposte[-1][1].get("reply_markup"), "/quintetto a giornata in corso: niente bottoni, dice da quando")

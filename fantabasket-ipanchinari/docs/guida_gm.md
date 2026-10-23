@@ -34,6 +34,8 @@ Il bot non prende una panchina con **righe duplicate** (la stessa riga scritta d
 
 **Coi bottoni.** Se preferisci, `/build_panchina`: scegli i panchinari uno alla volta, in ordine. Ti propone solo i giocatori della tua squadra che non sono nel quintetto e non hai già scelto (i titolari, segnati ⭐, solo se non ne restano abbastanza); ↩️ toglie l'ultimo. Al quinto passa da solo all'anteprima con Pubblica. Sul canale escono i nomi dei giocatori, a meno che non usi la CAI mode.
 
+Accanto a ogni giocatore, nei bottoni del builder, di /edit e del quintetto, c'è la sua **media fantapunti** della stagione (0 se non ha ancora giocato).
+
 **Modificarla: /edit.** Riapre la panchina che hai già mandato per la prossima giornata, una riga per giocatore:
 
 - tocca il **giocatore** per cambiargli il soprannome (scrivilo in chat; ♻️ torna al nome vero);

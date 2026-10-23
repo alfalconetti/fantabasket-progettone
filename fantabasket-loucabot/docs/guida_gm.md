@@ -24,7 +24,9 @@ Scrivi `/calendario` e vedi la giornata in corso, o la prossima se non ne è in 
 
 ## Tutte le partite: `/giornata`
 
-`/giornata` elenca le 12 partite della giornata in corso (o la prossima), `/giornata 12` quelle della 12. Va bene anche nei gruppi. Per le giornate già convalidate dagli admin ci sono anche i risultati (chi vince in grassetto, i supplementari se ci sono stati); una giornata calcolata ma non ancora convalidata lo dice. Anche `/calendario` mostra il risultato della tua partita quando c'è.
+`/notte` mostra i tuoi schierati in una notte NBA: per ogni titolare e panchinaro la partita (vs / @ e avversario), l'orario se deve ancora giocare, i fantapunti se ha giocato (🏀 se è in campo adesso, DNP se non è entrato), 🩹 se è nel rapporto infortuni, e il totale dei titolari. Senza niente la tua squadra e la notte in corso (fino a mezzogiorno di New York, cioè le 18 da noi, quella appena passata); `/notte Alfa`, `/notte 21/10`, `/notte Marco 21/10/26` per un'altra squadra (nome, id o GM) o un'altra notte. I fantapunti sono provvisori fino alla convalida.
+
+`/giornata` (o `/risultati`) elenca le 12 partite della giornata in corso (o la prossima), `/giornata 12` quelle della 12. Va bene anche nei gruppi. Per le giornate già convalidate dagli admin ci sono anche i risultati (chi vince in grassetto, i supplementari se ci sono stati); una giornata calcolata ma non ancora convalidata lo dice. Anche `/calendario` mostra il risultato della tua partita quando c'è.
 
 ## La classifica: `/classifica` e `/classifica_full`
 
@@ -50,7 +52,7 @@ Se le squadre a media scritte nel calendario pubblicato e quelle del bot non coi
 
 Il bot scarica ogni mattina i tabellini delle partite della notte e calcola i fantapunti di ogni giocatore con la formula del regolamento (punto +0,5, assist +2, rimbalzo offensivo +2, difensivo +1,25, tripla +1,5, tiro dal campo tentato −0,5 e segnato +1, libero tentato −0,75 e segnato +1, recupero +2, stoppata +2, palla persa −2). Il risultato di ogni giornata lo calcola il bot la mattina dopo l'ultima notte, dai quintetti e dalle panchine di IPanchinari: chi ha giocato più partite prende la media (uno 0 con 0 minuti non conta), arrotondata all'ottavo (dopo la virgola solo ,00 ,13 ,25 ,38 ,50 ,63 ,75 ,88), chi è in una squadra NBA che non gioca prende la sua media della stagione (0 se è infortunato tutta la giornata), con la FADD e i supplementari del regolamento. Gli admin lo controllano sul foglio di calcolo e lo convalidano: solo allora finisce sul foglio Calendario.
 
-**Punteggi live.** Durante la giornata, sul canale principale c'è un messaggio con tutte le partite che si aggiorna ogni 10 minuti dalla prima partita di ogni notte fino alle 8 di mattina (e un'ultima volta verso le 10): punteggi, chi vince al momento (solo quando dei 10 in campo ne restano al massimo 4 da giocare), quanti dei tuoi 5 in campo stanno giocando (🏀) e quanti hanno ancora una partita nella giornata (⏳). Sono **provvisori**: fanno fede i risultati convalidati dagli admin.
+**Punteggi live.** Durante la giornata, sul canale principale c'è un messaggio con tutte le partite che si aggiorna ogni 10 minuti dalla prima partita di ogni notte fino alle 8 di mattina (e un'ultima volta verso le 10): punteggi, chi vince al momento (solo quando dei 10 in campo ne restano al massimo 4 da giocare), quanti dei 10 titolari stanno giocando adesso (🏀) e, per ogni squadra, una riga come «devono giocare 2 · devono rigiocare 2 (finora 60,50)»: quanti titolari non sono ancora scesi in campo, e quanti hanno già giocato ma hanno un'altra partita nella giornata, coi punti che quelli hanno fatto finora (in ballo, perché la partita che manca può cambiarli). Sono **provvisori**: alla convalida degli admin il messaggio live sparisce ed esce quello dei **risultati definitivi**.
 
 ---
 

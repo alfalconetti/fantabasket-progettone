@@ -441,17 +441,12 @@ async def cmd_roster(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     for arg in args:
         # Prova a parsare come data DD-MM-YYYY o DD-MM-YY
-        try:
-            from datetime import datetime, timezone
-            if not arg[0].isdigit():
-                raise ValueError  # non è una data, prova come team
-            fmt = "%d-%m-%Y" if len(arg) == 10 else "%d-%m-%y"
-            as_of = datetime.strptime(arg, fmt).replace(
-                hour=23, minute=59, tzinfo=timezone.utc
-            )
+        from datetime import datetime, timezone
+        from shared.date_comandi import leggi_data
+        g = leggi_data(arg) if arg[:1].isdigit() else None
+        if g:
+            as_of = datetime(g.year, g.month, g.day, 23, 59, tzinfo=timezone.utc)
             continue
-        except ValueError:
-            pass
         # Altrimenti è un team_id o nome squadra/GM
         team = tm.get_team_by_query(arg)
         if not team:

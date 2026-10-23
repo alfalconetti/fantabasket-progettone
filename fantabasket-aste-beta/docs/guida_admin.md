@@ -97,7 +97,7 @@ Chiede conferma nel gruppo se l'asta era annullata, o se qualcuno finirebbe col 
 
 - `/estendi_asta 42 6` → 6 ore in più;
 - `/estendi_asta 42 -3` → 3 ore in meno;
-- `/sposta_asta 42 2026-11-15T20:00` → scadenza precisa, in ora di Roma.
+- `/sposta_asta 42 15/11/26 20:00` → scadenza precisa, in ora di Roma (la data anche GG/MM/AAAA o AAAA-MM-GG; va bene anche il vecchio 2026-11-15T20:00).
 
 ---
 

@@ -127,7 +127,7 @@ Il bot rifiuta gli anni sbagliati (da 20M almeno 2 anni, da 35M obbligatori 3) e
 
 **Rookie:** pannello → **🏀 Attiva diritti** → squadra → giocatore. Il contratto è quello della rookie scale, in qualsiasi fase.
 
-I diritti delle seconde al secondo anno scadono 10 giorni prima della trade deadline, che si imposta ogni stagione con `/trade_deadline 2027-02-05` (senza data ti mostra quella attuale e quando scadono i diritti). La data deve cadere nella stagione in corso:
+I diritti delle seconde al secondo anno scadono 10 giorni prima della trade deadline, che si imposta ogni stagione con `/trade_deadline 05/02/2027` (senza data ti mostra quella attuale e quando scadono i diritti). La data deve cadere nella stagione in corso:
 
 - nei 3 giorni prima ti arriva un avviso nel gruppo;
 - il giorno della scadenza arriva il bottone **Conferma scadenza**, che libera i giocatori e lo annuncia.
@@ -173,11 +173,11 @@ Le spalmature dalla stagione corrente in poi smettono di pesare su chiunque l'av
 
 - **`/import_posizioni_eleggibili`** carica il CSV `yahoo_id;nome;team;posizioni` preso da Yahoo. Ti mostra un'anteprima (abbinati, posizioni cambiate, nomi ambigui, giocatori sotto contratto senza posizioni) e salva solo quando confermi.
 - **`/set_posizioni_eleggibili Jokic C,PF`** corregge un singolo giocatore.
-- **`/data_erminio Jokic 2026-11-03`** dice al bot quando Yahoo ha aggiunto l'ultima posizione. La finestra Erminio di 14 giorni parte da lì; senza, parte dalla data dell'import.
+- **`/data_erminio Jokic 03/11/2026`** dice al bot quando Yahoo ha aggiunto l'ultima posizione. La finestra Erminio di 14 giorni parte da lì; senza, parte dalla data dell'import.
 
 ### Dichiarazione di inizio stagione
 
-1. **Prima di entrare nella fase**, imposta la scadenza con `/deadline_ruoli 2026-10-20 23:59`. Così l'annuncio esce già con la data.
+1. **Prima di entrare nella fase**, imposta la scadenza con `/deadline_ruoli 20/10/2026 23:59`. Così l'annuncio esce già con la data.
 2. **Durante la fase:**
    - pannello → **🎽 Ruoli squadre** mostra chi ha finito (✅), chi è a metà (🟡) e chi non ha iniziato (❌), e ti fa dichiarare al posto di qualsiasi squadra;
    - ogni giorno alle 17 arriva un riepilogo sul canale log;
@@ -280,3 +280,5 @@ Il registro si tiene per sempre. Le azioni fatte prima della v6.0.0 non ci sono 
 - ogni sabato alle 00:30 anche nel gruppo admin.
 
 Come si ripristina: `docs/RECOVERY.md` nella cartella principale del repo.
+
+**Date nei comandi.** Ovunque ci sia una data va bene GG/MM/AAAA, GG/MM/AA o AAAA-MM-GG, con `-`, `/` o `.` (20/10/2026, 20-10-26, 2026-10-20). Con l'anno a 2 cifre è sempre giorno, mese, anno.

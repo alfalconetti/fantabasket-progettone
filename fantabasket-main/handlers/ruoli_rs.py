@@ -64,9 +64,9 @@ def _registra_ruolo(gid: int, team_id: str, ruolo: str, tipo: str) -> None:
     core.registra_ruolo(db._q, gid, team_id, ruolo, _stagione(), tipo)
 
 
-def _chiudi(pid: int, stato: str, ruolo: str | None) -> None:
-    db._q("UPDATE ruoli_pendenti SET stato = %s, ruolo = %s, chiuso = NOW() WHERE id = %s",
-          (stato, ruolo, pid))
+def _chiudi(pid: int, stato: str, ruolo: str | None, nota: str | None = None) -> None:
+    db._q("UPDATE ruoli_pendenti SET stato = %s, ruolo = %s, chiuso = NOW(), nota = COALESCE(%s, nota) WHERE id = %s",
+          (stato, ruolo, nota, pid))
 
 
 def _scelta_rispetta_vincoli(p: dict, ruolo: str) -> bool:
@@ -107,6 +107,78 @@ def _sync_roster() -> None:
         logger.warning("GAS sync dopo ruolo RS: %s", e)
 
 
+# ══ messaggio unico per trade (Luca, 23/10) ══════════════════════════════════
+# I ruoli dei giocatori arrivati con una trade stanno in un solo messaggio sul canale principale, che
+# si aggiorna a ogni dichiarazione, assegnazione automatica o estrazione (tabella ruoli_messaggi).
+
+def _per_trade(p: dict | None) -> bool:
+    return bool(p and p.get("origine") == "trade" and p.get("riferimento"))
+
+
+def testo_trade(riferimento: str) -> str | None:
+    righe_db = db._q("""SELECT p.*, g.nome_common FROM ruoli_pendenti p JOIN giocatori g ON g.id = p.giocatore_id
+                        WHERE p.origine = 'trade' AND p.riferimento = %s ORDER BY p.team_id, p.id""",
+                     (riferimento,), many=True) or []
+    if not righe_db:
+        return None
+    from utils import format_dt
+    out = [f"🎽 <b>Ruoli dopo la trade {riferimento}</b>"]
+    squadra = None
+    aperte = 0
+    for p in righe_db:
+        if p["team_id"] != squadra:
+            squadra = p["team_id"]
+            out += ["", f"<b>{_nome_team(squadra)}</b>"]
+        st = p["stato"]
+        if st == "aperta":
+            aperte += 1
+            out.append(f"• {p['nome_common']} → ⏳ da dichiarare entro {format_dt(p['scadenza'])}")
+        elif st == "dichiarata":
+            out.append(f"• {p['nome_common']} → <b>{p['ruolo']}</b> <i>({p.get('nota') or 'dichiarato dal GM'})</i>")
+        elif st == "assegnata":
+            out.append(f"• {p['nome_common']} → <b>{p['ruolo']}</b> <i>({p.get('nota') or 'assegnato in automatico'})</i>")
+        elif st == "estratta":
+            out.append(f"• {p['nome_common']} → <b>{p['ruolo']}</b> 🎲 <i>({p.get('nota') or 'estratto: tempo scaduto'})</i>")
+        elif st == "senza_posizioni":
+            out.append(f"• {p['nome_common']} → ⚠️ posizioni eleggibili mancanti: lo assegna un admin")
+        else:
+            out.append(f"• <s>{p['nome_common']}</s> <i>(non più in squadra)</i>")
+    out += ["", "✅ Tutti i ruoli sono ufficiali." if not aperte else
+            f"<i>Chi non dichiara entro {regole.ore_dichiarazione_ruolo()}h: ruolo estratto tra quelli eleggibili.</i>"]
+    return "\n".join(out)
+
+
+async def aggiorna_messaggio_trade(bot, riferimento: str) -> None:
+    """Pubblica o aggiorna il messaggio dei ruoli della trade sul canale principale."""
+    ch = settings.load_globals().get("main_channel_id")
+    t = testo_trade(riferimento)
+    if not ch or not t:
+        return
+    m = db._q("SELECT * FROM ruoli_messaggi WHERE riferimento = %s", (riferimento,), one=True)
+    try:
+        if m:
+            try:
+                await bot.edit_message_text(chat_id=m["chat_id"], message_id=m["message_id"], text=t, parse_mode="HTML")
+                db._q("UPDATE ruoli_messaggi SET aggiornato = NOW() WHERE riferimento = %s", (riferimento,))
+                return
+            except Exception as e:
+                if "not modified" in str(e).lower():
+                    return
+                logger.warning("Messaggio ruoli %s non modificabile (%s): ne mando uno nuovo", riferimento, e)
+        nuovo = await bot.send_message(chat_id=ch, text=t, parse_mode="HTML")
+        db._q("""INSERT INTO ruoli_messaggi (riferimento, chat_id, message_id) VALUES (%s, %s, %s)
+                 ON CONFLICT (riferimento) DO UPDATE SET chat_id = EXCLUDED.chat_id, message_id = EXCLUDED.message_id,
+                 aggiornato = NOW()""", (riferimento, ch, nuovo.message_id))
+    except Exception as e:
+        logger.warning("Messaggio ruoli %s sul canale: %s", riferimento, e)
+
+
+def _assegnata(gid: int, team_id: str, origine: str, riferimento: str | None, ruolo: str, nota: str) -> None:
+    """Un ruolo assegnato in automatico, segnato tra le dichiarazioni (per il messaggio della trade)."""
+    db._q("""INSERT INTO ruoli_pendenti (giocatore_id, team_id, origine, riferimento, scadenza, stato, ruolo, chiuso, nota)
+             VALUES (%s, %s, %s, %s, NOW(), 'assegnata', %s, NOW(), %s)""", (gid, team_id, origine, riferimento, ruolo, nota))
+
+
 def _testo_e_tastiera(p: dict, admin: bool = False) -> tuple[str, InlineKeyboardMarkup | None]:
     """admin=True (pannello ⏳ Ruoli in sospeso): bottoni «rpa:», che solo un admin può usare; i
     bottoni del GM («rp:») valgono solo per la sua squadra, anche se è admin."""
@@ -144,8 +216,12 @@ async def apri_pendenti(bot, team_id: str, gids: list[int], origine: str, riferi
                 from handlers.registro import segna_sync
                 segna_sync(None, "sistema", "ruolo assegnato", squadre=team_id, giocatore_id=gid, oggetto=nome,
                            dopo=vecchio, nota=f"regola dei {regole.giorni_riacquisto_ruolo()} giorni: il vecchio ruolo")
-                await _annuncia(bot, f"🎽 <b>{_nome_team(team_id)}</b>: {nome} → <b>{vecchio}</b>\n"
-                                     f"<i>Regola dei {regole.giorni_riacquisto_ruolo()} giorni: torna col vecchio ruolo.</i>")
+                if origine == "trade" and riferimento:
+                    _assegnata(gid, team_id, origine, riferimento, vecchio,
+                               f"regola dei {regole.giorni_riacquisto_ruolo()} giorni: il vecchio ruolo")
+                else:
+                    await _annuncia(bot, f"🎽 <b>{_nome_team(team_id)}</b>: {nome} → <b>{vecchio}</b>\n"
+                                         f"<i>Regola dei {regole.giorni_riacquisto_ruolo()} giorni: torna col vecchio ruolo.</i>")
                 await _ai_gm(bot, team_id, f"🎽 {nome} torna nel suo vecchio ruolo <b>{vecchio}</b> "
                                            f"(regola dei {regole.giorni_riacquisto_ruolo()} giorni), non serve dichiararlo.")
                 continue
@@ -155,8 +231,11 @@ async def apri_pendenti(bot, team_id: str, gids: list[int], origine: str, riferi
                 from handlers.registro import segna_sync
                 segna_sync(None, "sistema", "ruolo assegnato", squadre=team_id, giocatore_id=gid, oggetto=nome,
                            dopo=eleg[0], nota="unica posizione eleggibile")
-                await _annuncia(bot, f"🎽 <b>{_nome_team(team_id)}</b>: {nome} → <b>{eleg[0]}</b>\n"
-                                     f"<i>Unica posizione eleggibile.</i>")
+                if origine == "trade" and riferimento:
+                    _assegnata(gid, team_id, origine, riferimento, eleg[0], "unica posizione eleggibile")
+                else:
+                    await _annuncia(bot, f"🎽 <b>{_nome_team(team_id)}</b>: {nome} → <b>{eleg[0]}</b>\n"
+                                         f"<i>Unica posizione eleggibile.</i>")
                 await _ai_gm(bot, team_id, f"🎽 {nome}: ruolo <b>{eleg[0]}</b> assegnato in automatico "
                                            f"(unica posizione eleggibile), non serve dichiararlo.")
                 continue
@@ -167,6 +246,8 @@ async def apri_pendenti(bot, team_id: str, gids: list[int], origine: str, riferi
             await _ai_gm(bot, team_id, testo, kb)
         except Exception as e:
             logger.warning("apri_pendenti %s/%s: %s", team_id, gid, e)
+    if origine == "trade" and riferimento:
+        await aggiorna_messaggio_trade(bot, riferimento)
     _sync_roster()
 
 
@@ -199,6 +280,8 @@ async def cb_dichiara(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not db._q("SELECT 1 FROM roster_attuale WHERE giocatore_id = %s AND team_id = %s",
                  (p["giocatore_id"], p["team_id"]), one=True):
         _chiudi(p["id"], "annullata", None)
+        if _per_trade(p):
+            await aggiorna_messaggio_trade(context.bot, p["riferimento"])
         await query.answer("Il giocatore non è più in questa squadra.", show_alert=True)
         await query.edit_message_text(f"🎽 {p['nome_common']}: non è più in squadra, dichiarazione annullata.")
         return
@@ -211,12 +294,15 @@ async def cb_dichiara(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await query.answer()
     _registra_ruolo(p["giocatore_id"], p["team_id"], ruolo, _TIPO_EVENTO.get(p["origine"], "post_trade"))
-    _chiudi(p["id"], "dichiarata", ruolo)
+    _chiudi(p["id"], "dichiarata", ruolo, "dichiarato da un admin" if admin else "dichiarato dal GM")
     chi = " (da admin)" if admin else ""                 # dal pannello: sempre segnato, anche sulla propria squadra
     await query.edit_message_text(f"✅ <b>{p['nome_common']}</b>: ruolo <b>{ruolo}</b> ufficiale{chi}.",
                                   parse_mode="HTML")
-    await _annuncia(context.bot, f"🎽 <b>{_nome_team(p['team_id'])}</b>: {p['nome_common']} → <b>{ruolo}</b>"
-                                 f" <i>({_ORIGINE_TXT.get(p['origine'], p['origine'])}{chi})</i>")
+    if _per_trade(p):                                    # trade: il messaggio unico si aggiorna
+        await aggiorna_messaggio_trade(context.bot, p["riferimento"])
+    else:
+        await _annuncia(context.bot, f"🎽 <b>{_nome_team(p['team_id'])}</b>: {p['nome_common']} → <b>{ruolo}</b>"
+                                     f" <i>({_ORIGINE_TXT.get(p['origine'], p['origine'])}{chi})</i>")
     # registro (accountability); l'admin finisce sul canale log nel formato unico, il GM con la riga di sempre
     u = query.from_user
     from handlers.registro import segna
@@ -283,10 +369,14 @@ async def job_scadenze(context: ContextTypes.DEFAULT_TYPE):
                              (p["giocatore_id"], p["team_id"]), one=True)
             if not a_roster:
                 _chiudi(p["id"], "annullata", None)
+                if _per_trade(p):
+                    await aggiorna_messaggio_trade(context.bot, p["riferimento"])
                 continue
             eleg = eleggibili(p["giocatore_id"])
             if not eleg:
                 _chiudi(p["id"], "senza_posizioni", None)
+                if _per_trade(p):
+                    await aggiorna_messaggio_trade(context.bot, p["riferimento"])
                 gruppo = settings.load_globals().get("admin_group_id")
                 if gruppo:
                     await context.bot.send_message(
@@ -296,14 +386,17 @@ async def job_scadenze(context: ContextTypes.DEFAULT_TYPE):
                 continue
             ruolo = core.estrai_ruolo(db._q, p["team_id"], _stagione(), p["giocatore_id"])
             _registra_ruolo(p["giocatore_id"], p["team_id"], ruolo, _TIPO_EVENTO.get(p["origine"], "post_trade"))
-            _chiudi(p["id"], "estratta", ruolo)
+            _chiudi(p["id"], "estratta", ruolo, f"estratto tra {', '.join(eleg)}: tempo scaduto")
             cambiato = True
             from handlers.registro import segna_sync
             segna_sync(None, "sistema", "ruolo estratto", squadre=p["team_id"], giocatore_id=p["giocatore_id"],
                        oggetto=p["nome_common"], prima="non dichiarato", dopo=ruolo,
                        nota=f"scadute le {regole.ore_dichiarazione_ruolo()} ore, estratto tra {', '.join(eleg)}")
-            await _annuncia(context.bot, f"🎲 <b>{_nome_team(p['team_id'])}</b>: {p['nome_common']} → <b>{ruolo}</b>\n"
-                                         f"⏰ <i>Tempo scaduto: ruolo non dichiarato entro {regole.ore_dichiarazione_ruolo()}h, estratto tra {', '.join(eleg)}.</i>")
+            if _per_trade(p):
+                await aggiorna_messaggio_trade(context.bot, p["riferimento"])
+            else:
+                await _annuncia(context.bot, f"🎲 <b>{_nome_team(p['team_id'])}</b>: {p['nome_common']} → <b>{ruolo}</b>\n"
+                                             f"⏰ <i>Tempo scaduto: ruolo non dichiarato entro {regole.ore_dichiarazione_ruolo()}h, estratto tra {', '.join(eleg)}.</i>")
             await _ai_gm(context.bot, p["team_id"],
                          f"⏰ Tempo scaduto: non hai dichiarato il ruolo di <b>{p['nome_common']}</b> entro {regole.ore_dichiarazione_ruolo()}h, "
                          f"estratto <b>{ruolo}</b>.")

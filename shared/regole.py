@@ -191,3 +191,49 @@ def giorni_10day() -> int:
 
 def riduzione_dpe() -> float:
     return float(valore("riduzione_dpe_percento")) / 100
+
+
+# ── orari dei job (Luca, 23/10) ───────────────────────────────────────────────
+# In settings.json: "orari": {"bref": "12:00", ...} (ora di Roma, "HH:MM"); una chiave che manca o
+# scritta male vale il default. Gli orari dei job giornalieri si leggono all'avvio: dopo un cambio
+# serve un riavvio del bot, non un rilascio. Quelli letti al momento (fine del blocco delle panchine,
+# promemoria di IPanchinari, fine del live) valgono subito.
+ORARI = {
+    # bot principale
+    "bref": "12:00",                    # basketball-reference aggiorna in tarda mattinata (prima le 10)
+    "scadenza_diritti": "09:00",
+    "promemoria_deadline_ruoli": "10:00",
+    "report_ruoli": "17:00",
+    "report_nascite": "09:30",          # il lunedì
+    "report_spalmature": "09:45",       # il 1° del mese
+    "coerenza": "01:00",
+    "backup_settimanale": "00:30",      # il sabato
+    # loucabot
+    "calcolo": "07:45",                 # calcolo definitivo, il mattino dopo l'ultima notte
+    "fine_live_notte": "08:00",         # ultimo aggiornamento del live della notte
+    "sync_nba": "08:30",                # partite, tabellini, infortunati
+    "controllo_tabellini": "10:00",     # tabellini corretti da ESPN? (il live si aggiorna 5 minuti dopo)
+    # IPanchinari
+    "fine_blocco_panchine": "06:00",    # giorno dopo l'ultima notte: si apre la giornata successiva
+    "promemoria_quintetti": "08:00",    # dell'ultimo giorno prima della prima partita
+    # bot aste
+    "check_cap_stagionale": "13:00",
+}
+
+
+def orario(nome: str):
+    """L'orario `nome` (datetime.time, senza fuso: il fuso lo mette chi lo usa, sempre Roma)."""
+    from datetime import time
+    d = ORARI[nome]
+    v = (_settings().get("orari") or {}).get(nome) if isinstance(_settings().get("orari"), dict) else None
+    for x in (v, d):
+        if x is None:
+            continue
+        try:
+            h, m = str(x).strip().replace(".", ":").split(":")
+            t = time(int(h), int(m))
+            return t
+        except (ValueError, TypeError):
+            if x is v:
+                _avvisa("settings.json: orari.%s = %r non è un orario HH:MM, uso %s", nome, v, d)
+    raise ValueError(nome)

@@ -148,6 +148,21 @@ def roster(team_id: str, stagione: str) -> list[dict]:
                 WHERE c.attivo AND c.team_id = %s ORDER BY g.nome_common""", (stagione, team_id), many=True) or []
 
 
+def medie_fp(gids: list[int], stagione: str) -> dict[int, float]:
+    """{giocatore: media fantapunti della stagione} sulle partite giocate finora (come le medie del
+    calcolo: stagione regolare e play-in, chi è entrato in campo). Chi non ha partite non c'è."""
+    gids = [g for g in gids if g]
+    if not gids:
+        return {}
+    righe = q("""SELECT g.id, AVG(t.fp)::float AS media FROM giocatori g
+                 JOIN nba_tabellini t ON t.atleta = g.espn_id
+                 JOIN nba_partite p ON p.espn_id = t.partita
+                 WHERE g.id = ANY(%s) AND p.stagione = %s AND p.tipo = ANY(%s)
+                   AND t.giocato AND NOT (t.fp = 0 AND t.minuti = 0) GROUP BY g.id""",
+              (list(gids), stagione, [2, 5]), many=True) or []
+    return {r["id"]: r["media"] for r in righe}
+
+
 def giornate(stagione: str) -> list[dict]:
     return q("SELECT * FROM lega_giornate WHERE stagione = %s ORDER BY numero", (stagione,), many=True) or []
 

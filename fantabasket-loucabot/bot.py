@@ -12,6 +12,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder
 
 import config
+from shared import regole
 import db
 from handlers import get_handlers, job_sync
 from handlers_calcolo import job_infortuni, job_prepartita
@@ -67,9 +68,9 @@ def main():
               + classifica.get_handlers()) + dev_comune.get_handlers(_is_dev, lambda: db.q("SELECT version() AS v", one=True)["v"]):
         app.add_handler(h)
     app.add_error_handler(dev_comune.error_handler("loucabot", config.canale_log, config.dev_id))
-    app.job_queue.run_daily(job_sync, time=dtime(8, 30, tzinfo=ROME))        # partite, tabellini, infortunati
-    app.job_queue.run_daily(handlers_risultati.job_calcolo, time=dtime(7, 45, tzinfo=ROME))     # calcolo definitivo
-    app.job_queue.run_daily(handlers_risultati.job_controllo, time=dtime(10, 0, tzinfo=ROME))   # tabellini corretti da ESPN?
+    app.job_queue.run_daily(job_sync, time=regole.orario("sync_nba").replace(tzinfo=ROME))        # partite, tabellini, infortunati
+    app.job_queue.run_daily(handlers_risultati.job_calcolo, time=regole.orario("calcolo").replace(tzinfo=ROME))     # calcolo definitivo
+    app.job_queue.run_daily(handlers_risultati.job_controllo, time=regole.orario("controllo_tabellini").replace(tzinfo=ROME))   # tabellini corretti da ESPN?
     # snapshot degli infortunati ogni 4 ore (anche di notte) e 30 minuti prima della prima partita
     # del giorno: per il calcolo conta quello subito prima delle partite, il più recente è lo
     # stato che IPanchinari mostra; dopo una settimana resta solo quello che conta (job_sync)

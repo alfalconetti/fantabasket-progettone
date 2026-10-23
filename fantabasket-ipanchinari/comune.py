@@ -60,14 +60,33 @@ def panchine_bloccate(stagione: str | None = None, quando=None) -> dict | None:
         s = scadenza(g)
         if not s or s > quando:
             continue
-        fine = datetime.combine(g["al"] + timedelta(days=1), dtime(6, 0), tzinfo=ROMA)
+        fine = fine_blocco(g)
         if quando < fine:
             return g
     return None
 
 
+def fine_blocco(g: dict) -> datetime:
+    """Quando si apre la giornata dopo g: alle 6:00 (orari.fine_blocco_panchine) del giorno dopo la sua
+    ultima notte."""
+    from shared import regole
+    return datetime.combine(g["al"] + timedelta(days=1), regole.orario("fine_blocco_panchine"), tzinfo=ROMA)
+
+
+def medie(gids) -> dict:
+    """{giocatore: « · 32,5»} da mettere accanto al nome nei builder (Luca, 23/10): la media
+    fantapunti della stagione in corso, 0 per chi non ha ancora giocato (come nel calcolo)."""
+    try:
+        m = db.medie_fp(list(gids), config.stagione())
+    except Exception as err:                       # senza tabellini (prove, database vuoto): niente medie
+        import logging
+        logging.getLogger(__name__).info("Medie fantapunti: %s", err)
+        return {}
+    return {g: f" · {m.get(g, 0):.1f}".replace(".", ",") for g in gids if g}
+
+
 def testo_panchine_bloccate(g: dict) -> str:
-    fine = datetime.combine(g["al"] + timedelta(days=1), dtime(6, 0), tzinfo=ROMA)
+    fine = fine_blocco(g)
     return (f"⏳ Al momento non accetto panchine: c'è la giornata {g['numero']} in corso. "
             f"Quella della giornata successiva si manda da {ora(fine)} in poi. "
             f"Per correggere la panchina della giornata {g['numero']} scrivi a un admin.")
@@ -80,7 +99,8 @@ def ora_promemoria(g: dict):
     if not s:
         return None
     s_roma = s.astimezone(ROMA)
-    p = datetime.combine(s_roma.date(), dtime(8, 0), tzinfo=ROMA)
+    from shared import regole
+    p = datetime.combine(s_roma.date(), regole.orario("promemoria_quintetti"), tzinfo=ROMA)
     if p >= s_roma:
         p -= timedelta(days=1)
     return p

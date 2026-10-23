@@ -219,8 +219,8 @@ def giornata_comandi(s: str | None = None) -> tuple[dict | None, dict | None]:
 
 
 def testo_quintetto_bloccato(g: dict) -> str:
-    from comune import dtime, datetime as _dt
-    fine = _dt.combine(g["al"] + timedelta(days=1), dtime(6, 0), tzinfo=ROMA)
+    from comune import fine_blocco
+    fine = fine_blocco(g)
     return (f"⏳ C'è la giornata {g['numero']} in corso: il quintetto per la giornata successiva si cambia da "
             f"{ora(fine)} in poi. Per correggere la formazione della giornata {g['numero']} scrivi a un admin.")
 
@@ -310,7 +310,9 @@ async def cb_quintetto(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         att = db.quintetto(team_id).get(ruolo)
         st, quando = stati([x["id"] for x in roster])
-        tasti = [[B(("• " if x["id"] == att else "") + x["nome_common"] + st.get(x["id"], ""),
+        import comune
+        md = comune.medie([x["id"] for x in roster])
+        tasti = [[B(("• " if x["id"] == att else "") + x["nome_common"] + md.get(x["id"], "") + st.get(x["id"], ""),
                     callback_data=f"q:s:{team_id}:{ruolo}:{x['id']}")]
                  for x in roster] + [[B("↩️ Indietro", callback_data=f"q:v:{team_id}")]]
         await q.answer()

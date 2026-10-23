@@ -243,7 +243,8 @@ def main():
     rome = ZoneInfo("Europe/Rome")
 
     # Check cap stagionale: ogni giorno alle 13:00
-    app.job_queue.run_daily(check_cap_stagionale, time=dtime(13, 0, tzinfo=rome))
+    from shared import regole as _rg
+    app.job_queue.run_daily(check_cap_stagionale, time=_rg.orario("check_cap_stagionale").replace(tzinfo=rome))
 
     # Validazione numero_teams vs teams.json all'avvio
     import teams as _tm_check

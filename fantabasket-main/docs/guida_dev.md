@@ -595,7 +595,7 @@ I comandi legati a una fase sono in `_fasi_comando`.
 - **Deploy Apps Script:** `clasp push` dalla cartella `gas/` (escluso `globals.gs`, che ha la config vera e non va mai nello zip). La nuova versione si pubblica da Gestisci deployment → matita → Nuova versione. Un "Nuovo deployment" cambia l'URL: vanno aggiornati i secrets.
 - **Il foglio dice "Sync fallito":** chiama la web app dal container gas-router; se risponde HTML, il `<title>` dice l'errore.
 
-**Basketball-Reference** (`bref_scraper.py` + `handlers/bref.py`). Ogni mattina alle 10, una sola richiesta per_game, che serve a:
+**Basketball-Reference** (`bref_scraper.py` + `handlers/bref.py`). Ogni giorno alle 12 (`orari.bref` in settings.json; prima alle 10, ma bref aggiorna in tarda mattinata), una sola richiesta per_game, che serve a:
 
 - aggiungere righe a `bref_stats` per chi ha giocato;
 - aggiornare il foglio BrefRaw;

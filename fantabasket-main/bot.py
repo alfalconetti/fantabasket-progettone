@@ -290,7 +290,7 @@ async def _guest_handler(update: Update, context) -> None:
 
 
 async def _bref_scraper_job(context) -> None:
-    """Job giornaliero alle 10:00 (solo regular season e playoff): vedi handlers/bref.py."""
+    """Job giornaliero (orari.bref, default 12:00; solo regular season e playoff): vedi handlers/bref.py."""
     from handlers.bref import job_bref
     await job_bref(context)
 
@@ -398,6 +398,9 @@ def main():
 
     # Backup giornaliero ogni 12 ore
     from datetime import time as dtime
+    from shared import regole as _rg
+    def _ora(nome):                       # orari dei job in settings.json («orari»), default in shared/regole.py
+        return _rg.orario(nome).replace(tzinfo=ROME)
     for ora in [0, 12]:
         app.job_queue.run_daily(
             backup_giornaliero,
@@ -405,8 +408,8 @@ def main():
         )
     # Dichiarazione ruoli: promemoria deadline (10:00) e report sul canale log (17:00)
     from handlers.ruoli import job_promemoria_deadline, job_report_giornaliero
-    app.job_queue.run_daily(job_promemoria_deadline, time=dtime(10, 0, tzinfo=ROME))
-    app.job_queue.run_daily(job_report_giornaliero,  time=dtime(17, 0, tzinfo=ROME))
+    app.job_queue.run_daily(job_promemoria_deadline, time=_ora("promemoria_deadline_ruoli"))
+    app.job_queue.run_daily(job_report_giornaliero,  time=_ora("report_ruoli"))
     # Ruoli in regular season: estrazione per le dichiarazioni scadute (48h)
     from handlers.ruoli_rs import job_scadenze
     app.job_queue.run_repeating(job_scadenze, interval=900, first=120)
@@ -417,27 +420,27 @@ def main():
     # Backup settimanale sabato alle 00:30 (PTB: days 0 = domenica … 6 = sabato)
     app.job_queue.run_daily(
         backup_settimanale,
-        time=dtime(0, 30, tzinfo=ROME),
+        time=_ora("backup_settimanale"),
         days=(6,),
     )
-    # Scraper bref ogni mattina alle 10:00
+    # Scraper bref ogni giorno (orari.bref, default 12:00: basketball-reference aggiorna in tarda mattinata)
     app.job_queue.run_daily(
         _bref_scraper_job,
-        time=dtime(10, 0, tzinfo=ROME),
+        time=_ora("bref"),
     )
     # Date di nascita mancanti: report al dev il lunedì alle 9:30
     from handlers.nascite import job_report_nascite
-    app.job_queue.run_daily(job_report_nascite, time=dtime(9, 30, tzinfo=ROME), days=(1,))  # PTB: 0 = domenica, 1 = lunedì
+    app.job_queue.run_daily(job_report_nascite, time=_ora("report_nascite"), days=(1,))  # PTB: 0 = domenica, 1 = lunedì
     # Spalmature di free agent (possibili ritirati): il 1° di ogni mese alle 9:45 al gruppo admin
     from handlers.spalmature import job_report_spalmature
-    app.job_queue.run_monthly(job_report_spalmature, when=dtime(9, 45, tzinfo=ROME), day=1)
+    app.job_queue.run_monthly(job_report_spalmature, when=_ora("report_spalmature"), day=1)
     # Controllo di coerenza contratti/registro ogni notte all'01:00 (v3.10.0)
     from handlers.coerenza import job_coerenza
-    app.job_queue.run_daily(job_coerenza, time=dtime(1, 0, tzinfo=ROME))
+    app.job_queue.run_daily(job_coerenza, time=_ora("coerenza"))
     # Check scadenza diritti ogni mattina alle 9:00
     app.job_queue.run_daily(
         check_scadenza_diritti,
-        time=dtime(9, 0, tzinfo=ROME),
+        time=_ora("scadenza_diritti"),
     )
 
     app.add_handler(TypeHandler(Update, _guest_handler), group=99)

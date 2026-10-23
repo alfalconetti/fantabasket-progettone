@@ -212,6 +212,14 @@ def migrate_db():
         )
     """)
     _q("CREATE INDEX IF NOT EXISTS idx_ruoli_pendenti_aperti ON ruoli_pendenti (team_id) WHERE stato = 'aperta'")
+    # v6.2.0 (Luca, 23/10): i ruoli di una trade in un messaggio unico sul canale, aggiornato; anche
+    # quelli assegnati in automatico (stato «assegnata», con la nota del perché) stanno qui
+    _q("ALTER TABLE ruoli_pendenti ADD COLUMN IF NOT EXISTS nota TEXT")
+    _q("""CREATE TABLE IF NOT EXISTS ruoli_messaggi (
+            riferimento  TEXT PRIMARY KEY,           -- es. TRADE-2026-031
+            chat_id      BIGINT NOT NULL,
+            message_id   BIGINT NOT NULL,
+            aggiornato   TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
 
     # v3.2.0 — dichiarazione ruoli: bozze persistenti (sopravvivono ai riavvii)
     _q("""

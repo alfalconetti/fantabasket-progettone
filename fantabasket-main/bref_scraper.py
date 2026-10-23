@@ -1,7 +1,7 @@
 """
 bref_scraper.py — Scraping giornaliero Basketball Reference
 Aggiunge una riga per ogni giocatore che ha aumentato G rispetto all'ultima snapshot.
-Gira ogni mattina alle 10 via scheduler del bot-main (run_giornaliero): stessa
+Gira ogni giorno alle 12 (orari.bref in settings.json) via scheduler del bot-main (run_giornaliero): stessa
 richiesta per bref_stats, foglio BrefRaw, cambi squadra e giocatori nuovi.
 
 Uso standalone:

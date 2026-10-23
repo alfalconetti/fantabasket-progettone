@@ -61,7 +61,7 @@ def griglia(s: str, n: int, sch: dict | None = None) -> dict:
     W = len(COL)
     righe, sf, tx, pe, fo = [], [], [], [], []
 
-    def nuova(valori=None, sfondo="", colore=R.NERO, peso="normal"):
+    def nuova(valori=None, sfondo=R.SF_BIANCO, colore=R.NERO, peso="normal"):
         v = list(valori or []) + [""] * (W - len(valori or []))
         righe.append(v[:W]); sf.append([sfondo] * W); tx.append([colore] * W); pe.append([peso] * W); fo.append([""] * W)
 

@@ -1457,3 +1457,21 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - IPanchinari v27: fino alle 6 del giorno dopo l'ultima notte della giornata, `/quintetto`, `/stato` e i report restano sulla giornata in corso
 - IPanchinari v27: da admin, a giornata in corso, `/edit SQUADRA` e `/panchina_admin SQUADRA` correggono la panchina della giornata in corso
 - loucabot v36: nel messaggio live una riga vuota tra una partita e l'altra
+
+## v6.2.0 (2026-10-23)
+
+- **Ruoli dopo una trade in un messaggio unico** (Luca, 23/10): sul canale principale un messaggio per trade con i ruoli di tutti i giocatori arrivati, che si aggiorna a ogni dichiarazione (del GM o di un admin), assegnazione automatica (una sola posizione eleggibile, regola dei 60 giorni) ed estrazione allo scadere delle 48 ore; prima un annuncio per giocatore. Le firme e l'attivazione dei diritti restano come prima. Tabella `ruoli_messaggi`, colonna `ruoli_pendenti.nota`, stato «assegnata» per i ruoli automatici
+- **Orari dei job in configurazione** (Luca, 23/10): `"orari"` in config/settings.json ("HH:MM", ora di Roma), default ed elenco in `shared/regole.ORARI`. **Bref alle 12** invece che alle 10 (basketball-reference aggiorna la tabella in tarda mattinata). I job giornalieri leggono l'orario all'avvio: dopo un cambio serve un riavvio, non un rilascio
+- loucabot v37: risultati definitivi sul canale alla convalida e live cancellato; nel live «devono giocare · devono rigiocare (in ballo)»; `/risultati`; righe vuote nei report; foglio di calcolo leggibile col tema scuro
+- IPanchinari v28: media fantapunti nei builder; bot aste v70: orario del controllo del cap da configurazione
+- Prove: `ruoli_trade` nuova, controlli nuovi in `louca_risultati` e `ipa_panchine`
+
+## v6.2.1 (2026-10-23)
+
+- **Live, «finora»** (Luca, 23/10): la riga di ogni squadra ora dice «devono giocare N · devono rigiocare N (finora X)», con X i fantapunti già fatti nella giornata da chi deve rigiocare (quelli in ballo), non più le medie
+- **Date nei comandi in un formato solo** (Luca, 20/10): `/deadline_ruoli`, `/trade_deadline`, `/data_erminio`, `/set_nascita`, `/team_diff`, `/roster` (data), `/sposta_asta` (bot aste), `/dev_prova_calcolo` e `/dev_prova_live` (loucabot) accettano GG/MM/AAAA, GG/MM/AA, AAAA-MM-GG, con - / o . (`shared/date_comandi.py`); anno a 2 cifre sempre giorno/mese/anno; per le date di nascita un anno a 2 cifre «futuro» è del Novecento (05/03/99 = 1999). `/sposta_asta` anche «GG/MM/AA HH:MM» oltre al vecchio AAAA-MM-GGTHH:MM
+- Prova `date_comandi`
+
+## v6.2.2 (2026-10-23)
+
+- loucabot v38: `/notte` (gli schierati di una squadra in una notte NBA); a una nuova convalida dopo un ricalcolo il messaggio dei definitivi si modifica e solo se cambia un esito esce un avviso in più

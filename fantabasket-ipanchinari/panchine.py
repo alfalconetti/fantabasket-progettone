@@ -273,7 +273,8 @@ async def cb_panchina(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ids = [g["id"] for g in roster if g["id"] not in altri]
             extra = []
         st, _ = stati(ids)
-        tasti = [[B(nomi[g] + (" (" + (next((x["ruolo"] for x in roster if x["id"] == g), "") or "") + ")") + st.get(g, ""),
+        md = comune.medie(ids)
+        tasti = [[B(nomi[g] + (" (" + (next((x["ruolo"] for x in roster if x["id"] == g), "") or "") + ")") + md.get(g, "") + st.get(g, ""),
                     callback_data=f"pb:s:{bid}:{i}:{g}")] for g in ids]
         tasti += extra + [[B("↩️ Indietro", callback_data=f"pb:v:{bid}")]]
         await q.answer()
@@ -466,10 +467,11 @@ def editor(b: dict) -> tuple[str, K]:
              f"Scadenza: {ora(g['prima_partita']) if g else '?'}", ""]
     if d.get("titolo"):
         righe += [f"<i>{e(d['titolo'])}</i>", ""]
+    md = comune.medie([r.get("scelto") for r in d["righe"]])
     for i, r in enumerate(d["righe"], 1):
         nome = nomi.get(r.get("scelto"), "❓ non più in squadra")
         righe.append(f"{i}. {e(r['testo'])}" + (f" → <b>{e(nome)}</b>" if r["testo"] != nome else "")
-                     + st.get(r.get("scelto"), ""))
+                     + md.get(r.get("scelto"), "") + st.get(r.get("scelto"), ""))
     if quando:
         righe += ["", f"<i>{quando}</i>"]
     righe += ["", "Tocca un giocatore per il soprannome · ⬆️⬇️ sposta · 🔄 cambia (con un altro in panchina si "
@@ -524,10 +526,11 @@ async def cb_editor(q, b: dict, azione: str, parti: list[str], roster: list[dict
         titolari = set(db.quintetto(b["team_id"]).values())
         fuori = [g for g in roster if g["id"] not in in_panca]
         st, _ = stati([x.get("scelto") for j, x in enumerate(righe) if j != i] + [g["id"] for g in fuori])
-        tasti = [[B(f"🔁 {j + 1}. {x['testo']}"[:60] + st.get(x.get("scelto"), ""),
+        md = comune.medie([x.get("scelto") for x in righe] + [g["id"] for g in fuori])
+        tasti = [[B(f"🔁 {j + 1}. {x['testo']}"[:50] + md.get(x.get("scelto"), "") + st.get(x.get("scelto"), ""),
                     callback_data=f"pb:sp:{bid}:{i}:{x['scelto']}")]
                  for j, x in enumerate(righe) if j != i and x.get("scelto")]
-        tasti += [[B(f"➕ {g['nome_common']}" + (f" ({g['ruolo']})" if g.get("ruolo") else "")
+        tasti += [[B(f"➕ {g['nome_common']}" + (f" ({g['ruolo']})" if g.get("ruolo") else "") + md.get(g["id"], "")
                      + (" ⭐ titolare" if g["id"] in titolari else "") + st.get(g["id"], ""),
                      callback_data=f"pb:sp:{bid}:{i}:{g['id']}")] for g in fuori]
         tasti.append([B("↩️ Indietro", callback_data=f"pb:e:{bid}")])
@@ -620,8 +623,9 @@ def builder(b: dict, roster: list[dict]) -> tuple[str, K]:
     righe += ["", f"Scegli il panchinaro n. {len(scelti) + 1}:" if len(scelti) < regole.giocatori_panchina() else ""]
     if quando:
         righe.append(f"<i>{quando}</i>")
-    tasti = [[B(f"{x['nome_common']}" + (f" ({x['ruolo']})" if x.get("ruolo") else "") + (" ⭐ titolare" if x["id"] in titolari else "")
-                + st.get(x["id"], ""),
+    md = comune.medie([x["id"] for x in liberi])
+    tasti = [[B(f"{x['nome_common']}" + (f" ({x['ruolo']})" if x.get("ruolo") else "") + md.get(x["id"], "")
+                + (" ⭐ titolare" if x["id"] in titolari else "") + st.get(x["id"], ""),
                 callback_data=f"pb:b:{b['id']}:{x['id']}")] for x in liberi]
     fondo = []
     if scelti:                                         # al quinto si passa da soli all'anteprima

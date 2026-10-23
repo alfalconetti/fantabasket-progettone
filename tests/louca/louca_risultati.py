@@ -408,7 +408,26 @@ ok("▶ al momento vince" in tl, "pochi giocatori ancora da giocare (al massimo 
 _stati = db.q("SELECT espn_id, stato FROM nba_partite", many=True)
 db.q("UPDATE nba_partite SET stato = 'STATUS_SCHEDULED'")
 tl0 = LV.testo(LV.calcolo(S, N), t0)
-ok("▶" not in tl0 and "⏳ da giocare" in tl0, "più di 4 dei 10 ancora da giocare: nessun esito, solo chi deve giocare")
+ok("▶" not in tl0 and "devono giocare" in tl0, "più di 4 dei 10 ancora da giocare: nessun esito, solo chi deve giocare")
+import re as _re
+_m = _re.search(r"devono giocare (\d+) · devono rigiocare (\d+)", tl0)
+ok(_m and int(_m.group(1)) + int(_m.group(2)) >= 1 and "⏳ da giocare" not in tl0,
+   f"live, per squadra e per esteso: devono giocare, devono rigiocare (Luca, 23/10) {_m and _m.group(0)}")
+_cc = LV.calcolo(S, N); _rr = _cc["risultati"][0]
+_dg, _dr, _ballo = LV.ancora_in_ballo(_cc, _rr["sc"]["titolari"])
+ok(_dr > 0 or _ballo == 0, f"finora: solo i punti di chi deve rigiocare ({_dg}, {_dr}, {_ballo})")
+_vp = LV.db.partite_nba
+from datetime import date as _d
+LV.db.partite_nba = lambda dal, al: [
+    {"casa": "AAA", "trasferta": "BBB", "stato": "STATUS_FINAL", "data_et": _d(2026, 11, 10)},
+    {"casa": "AAA", "trasferta": "CCC", "stato": "STATUS_SCHEDULED", "data_et": _d(2026, 11, 11)},
+    {"casa": "DDD", "trasferta": "EEE", "stato": "STATUS_SCHEDULED", "data_et": _d(2026, 11, 11)}]
+_cf = {"giornata": {"dal": _d(2026, 11, 10), "al": _d(2026, 11, 11)},
+       "punti": {"x": {"squadra": "AAA"}, "y": {"squadra": "AAA"}, "z": {"squadra": "DDD"}, "w": {"squadra": "BBB"}},
+       "dettaglio": {"notti": {"x": {_d(2026, 11, 10): 30.5}, "y": {_d(2026, 11, 10): 30.0}, "w": {_d(2026, 11, 10): 12.0}}, "medie": {}}}
+ok(LV.ancora_in_ballo(_cf, [{"atleta": a} for a in "xyzw"]) == (1, 2, 60.5),
+   "2 devono rigiocare (finora 30,5 + 30), 1 deve giocare, chi ha finito non conta")
+LV.db.partite_nba = _vp
 for _x in _stati:
     db.q("UPDATE nba_partite SET stato = %s WHERE espn_id = %s", (_x["stato"], _x["espn_id"]))
 db.q("UPDATE nba_partite SET stato = 'STATUS_FINAL' WHERE espn_id = 'g5'")
@@ -474,6 +493,45 @@ ok(PL.cosa_fare(stp, inizio_p + timedelta(minutes=5)) is None and PL.cosa_fare(s
 ok(not PL.finita(stp, datetime(2026, 10, 15, 10, 6, tzinfo=ROMA)) and PL.finita(stp, datetime(2026, 10, 15, 10, 20, tzinfo=ROMA)),
    "prova del live: finisce dopo le 10:05 dell'ultimo giorno")
 db.q("TRUNCATE ipa_quintetto")
+
+# ── convalida (Luca, 23/10): risultati definitivi sul canale, il live si cancella e non si aggiorna più ──
+class BotC(BotL):
+    async def delete_message(s, chat_id, message_id): s.mandati.append({"cancellato": message_id, "chat_id": chat_id})
+BC = BotC()
+LV._salva(S, N, chat_id=-1, message_id=555, chiuso=None, definitivo_id=None)
+es = asyncio.run(LV.pubblica_definitivo(BC, S, N, "Admin"))
+dfn = [x for x in BC.mandati if x.get("chat_id") == -1 and "risultati definitivi" in x.get("text", "")]
+ok(len(dfn) == 1 and "Giornata 7 · risultati definitivi" in dfn[0]["text"] and "Convalidati da Admin" in dfn[0]["text"]
+   and {"cancellato": 555, "chat_id": -1} in BC.mandati and "live cancellato" in es, "convalida: risultati definitivi sul canale e live cancellato " + es)
+ok(LV.stato(S, N)["chiuso"] is not None and LV.stato(S, N)["definitivo_id"] == dfn[0]["id"], "il live risulta chiuso, col messaggio definitivo")
+BC.mandati.clear()
+asyncio.run(LV.tick(BC, ora=t0 + timedelta(minutes=20), scarica_fn=finta))
+ok(not BC.mandati, "live chiuso: il job non lo ripubblica né lo aggiorna")
+asyncio.run(LV.pubblica_definitivo(BC, S, N, "Admin"))
+ok([x for x in BC.mandati if x.get("modifica") and x.get("id") == dfn[0]["id"]] and not any("cancellato" in x for x in BC.mandati),
+   "nuova convalida (dopo un ricalcolo): si modifica lo stesso messaggio definitivo")
+ok(not any("cambia un risultato" in x.get("text", "") for x in BC.mandati), "stessi esiti: niente messaggio in più")
+_r1 = db.q("SELECT casa, vince FROM lega_risultati WHERE stagione = %s AND giornata = %s AND convalidato IS NOT NULL LIMIT 1", (S, N), one=True)
+db.q("UPDATE lega_risultati SET vince = %s WHERE stagione = %s AND giornata = %s AND casa = %s",
+     ("trasferta" if _r1["vince"] == "casa" else "casa", S, N, _r1["casa"]))
+BC.mandati.clear()
+_es = asyncio.run(LV.pubblica_definitivo(BC, S, N, "Admin"))
+_avv = [x for x in BC.mandati if "cambia un risultato" in x.get("text", "")]
+ok(len(_avv) == 1 and "Ora vince" in _avv[0]["text"] and _avv[0].get("reply_to_message_id") == dfn[0]["id"]
+   and any(x.get("modifica") and "Aggiornati dopo il ricontrollo" in x["text"] for x in BC.mandati),
+   "cambia chi vince: messaggio definitivo modificato e un avviso in più, in risposta " + _es)
+db.q("UPDATE lega_risultati SET vince = %s WHERE stagione = %s AND giornata = %s AND casa = %s", (_r1["vince"], S, N, _r1["casa"]))
+
+# ── /notte (Luca, 21/10) ──
+import notte as NT
+from datetime import date as _date
+ok(NT.notte_di_default(datetime(2026, 11, 11, 10, 0, tzinfo=ROMA)) == _date(2026, 11, 10)
+   and NT.notte_di_default(datetime(2026, 11, 11, 20, 0, tzinfo=ROMA)) == _date(2026, 11, 11),
+   "notte di default: la mattina quella appena passata, la sera quella di stasera")
+_tn = NT.testo_notte(S, config.squadra("team01"), DAL)
+ok("notte del 10/11" in _tn and "giornata 7" in _tn and "<b>Quintetto</b>" in _tn and "Titolari stanotte" in _tn
+   and ("vs " in _tn or "@ " in _tn),
+   "/notte: quintetto e panchina della squadra in quella notte\n" + _tn)
 
 # ── /player ──
 import player as PLY

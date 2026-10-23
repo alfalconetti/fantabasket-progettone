@@ -178,7 +178,11 @@ async def cmd_dev_prova_live(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await msg.reply_text("🧪 Prova del live fermata.")
         return
     try:
-        giorni = sorted({datetime.strptime(x, "%d/%m/%Y").date() for x in context.args}) or [nba.oggi_et()]
+        from shared.date_comandi import leggi_data
+        lette = [leggi_data(x) for x in context.args]
+        if not all(lette):
+            raise ValueError("data")
+        giorni = sorted(set(lette)) or [nba.oggi_et()]
         assert giorni[-1] - giorni[0] <= timedelta(days=4)
     except Exception:
         await msg.reply_text("Uso: /dev_prova_live [GG/MM/AAAA …] (giorni NBA, al massimo 5; senza date: oggi) · /dev_prova_live stop")

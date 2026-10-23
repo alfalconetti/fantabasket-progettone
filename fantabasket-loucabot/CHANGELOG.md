@@ -181,3 +181,17 @@ Il calcolo dei fantapunti.
 ## v36 (2026-10-20)
 
 - Messaggio live: una riga vuota tra una partita e l'altra (Luca, 20/10)
+
+## v37 (2026-10-23)
+
+- **Dopo la convalida** (Luca, 23/10): sul canale principale il messaggio dei risultati definitivi (a una nuova convalida, dopo un ricalcolo, si modifica lo stesso) e il messaggio live si cancella; il live di quella giornata non si aggiorna più (`lega_live.chiuso`, `definitivo_id`)
+- **Live, chi manca**: al posto di «⏳ da giocare 5–5», sotto ogni partita una riga per squadra «devono giocare N · devono rigiocare N (in ballo X)»: titolari che non hanno ancora una partita finita, titolari che ne hanno finita una e ne hanno un'altra, e le loro medie fantapunti per le partite che restano (`live.ancora_in_ballo`)
+- `/risultati` come `/giornata`; una riga vuota tra una partita e l'altra in `/giornata` e nel report del calcolo al gruppo admin
+- **Foglio di calcolo leggibile col tema scuro**: tutte le celle con lo sfondo bianco esplicito (prima le celle «normali» erano senza sfondo e nell'app col tema scuro diventavano scure, col testo blu e nero illeggibile)
+- Orari dei job (calcolo, sync NBA, controllo dei tabellini, fine del live) da `orari` in settings.json
+
+## v38 (2026-10-23)
+
+- Live: «devono rigiocare N (finora X)», i punti già fatti da chi deve rigiocare al posto delle medie; date dei comandi dev da `shared/date_comandi`
+- **`/notte [SQUADRA o GM] [DATA]`** (Luca, 21/10): gli schierati di una squadra (la propria di default) in una notte NBA (di default quella in corso o appena passata): partita, orario, fantapunti, in campo, DNP, infortuni; la formazione congelata della giornata, o il quintetto di adesso se non è ancora iniziata (`notte.py`)
+- **Nuova convalida dopo un ricalcolo** (Luca, 23/10): si modifica il messaggio dei definitivi sul canale («aggiornati dopo il ricontrollo»); un messaggio in più, in risposta, solo se cambia chi vince una partita (`lega_live.esiti`)

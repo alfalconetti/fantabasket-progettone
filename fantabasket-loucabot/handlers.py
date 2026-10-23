@@ -193,7 +193,9 @@ def riga_partita(s: str, n: int, p: dict) -> str:
 async def _mostra_giornata(update, g):
     s = config.stagione()
     righe = [_riga_giornata(g), ""]
-    for p in db.partite_giornata(s, g["numero"]):
+    for i, p in enumerate(db.partite_giornata(s, g["numero"])):
+        if i:
+            righe.append("")                      # una riga vuota tra una partita e l'altra (Luca, 23/10)
         righe.append(riga_partita(s, g["numero"], p))
     stato = _stato_calcolo(s, g["numero"])
     if stato and stato != "convalidata":
@@ -456,6 +458,11 @@ async def cmd_job_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                               parse_mode="HTML")
 
 
+async def _cmd_notte(update, context):
+    import notte
+    await notte.cmd_notte(update, context)
+
+
 def get_handlers() -> list:
     import handlers_calcolo
     return handlers_calcolo.get_handlers() + [
@@ -468,7 +475,8 @@ def get_handlers() -> list:
         CommandHandler("job_status", cmd_job_status),
         CommandHandler("calendario", cmd_calendario),
         CommandHandler("calendario_full", cmd_calendario_full),
-        CommandHandler("giornata", cmd_giornata),
+        CommandHandler(["giornata", "risultati"], cmd_giornata),
+        CommandHandler("notte", _cmd_notte),
         CommandHandler("importa_calendario", cmd_importa_calendario),
         MessageHandler(filters.Document.ALL & filters.CaptionRegex(r"^/importa_calendario"), cmd_importa_calendario),
         CommandHandler("calendario_check", cmd_calendario_check),

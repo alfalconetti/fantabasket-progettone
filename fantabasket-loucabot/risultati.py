@@ -185,7 +185,9 @@ def testo(c: dict, versione: int = 1) -> str:
     g = c["giornata"]
     righe = [f"📊 <b>Giornata {g['numero']} calcolata</b>" + (f" (ricalcolo {versione - 1})" if versione > 1 else "")
              + f" · notti {g['dal']:%d/%m}–{g['al']:%d/%m}", ""]
-    for r in c["risultati"]:
+    for i, r in enumerate(c["risultati"]):
+        if i:
+            righe.append("")                       # una riga vuota tra una partita e l'altra (Luca, 23/10)
         casa, tr = config.nome(r["casa"]), config.nome(r["trasferta"])
         v = casa if r["vince"] == "casa" else tr
         riga = f"{e(casa)} <b>{_n(r['punti_casa'])}</b> – <b>{_n(r['punti_trasferta'])}</b> {e(tr)}"
@@ -208,6 +210,9 @@ def testo(c: dict, versione: int = 1) -> str:
 
 BLU, NERO, VERDE = "#0000ff", "#000000", "#008000"
 SF_TESTA, SF_PART, SF_PANCA, SF_FADD, SF_TOT, SF_PARAM = "#1f3864", "#d9e1f2", "#f2f2f2", "#fce4d6", "#e2efda", "#fff2cc"
+# Sfondo esplicito anche per le celle «normali» (Luca, 23/10): senza, col tema scuro di Google Fogli
+# (app) le celle vuote diventano scure e il testo blu e nero non si legge. Bianco = uguale nei due temi.
+SF_BIANCO = "#ffffff"
 
 
 def _col(i: int) -> str:
@@ -240,7 +245,7 @@ def griglia(c: dict) -> dict:
                                       ORD=iORD).items()}
     righe, sf, tx, pe, fo = [], [], [], [], []
 
-    def nuova(valori=None, sfondo="", colore=NERO, peso="normal", formato=""):
+    def nuova(valori=None, sfondo=SF_BIANCO, colore=NERO, peso="normal", formato=""):
         v = list(valori or []) + [""] * (W - len(valori or []))
         righe.append(v[:W])
         sf.append([sfondo] * W)
@@ -308,7 +313,7 @@ def griglia(c: dict) -> dict:
                          [det["medie"].get(a, 0.0) if a else 0.0, "sì" if a_media else "no"] + stati + \
                          ["sì" if indisp else "no", punteggio, come,
                           "sì" if a in in_campo and a and not doppio else "no", ordine.get(a, "") if a else "", nota.strip()]
-                fondo = SF_FADD if (a and a in (esce, entra)) else (SF_PANCA if x["posto"].startswith("P") else "")
+                fondo = SF_FADD if (a and a in (esce, entra)) else (SF_PANCA if x["posto"].startswith("P") else SF_BIANCO)
                 nuova(valori, sfondo=fondo, colore=BLU)
                 for i in (iPUN, iCOME):
                     tx[-1][i] = NERO

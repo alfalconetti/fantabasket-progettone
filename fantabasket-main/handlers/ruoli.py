@@ -606,14 +606,14 @@ async def cmd_deadline_ruoli(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
     if not context.args:
         await update.effective_message.reply_text(
-            f"Deadline attuale: {_deadline_str()}\nUso: /deadline_ruoli AAAA-MM-GG [HH:MM] (default 23:59)")
+            f"Deadline attuale: {_deadline_str()}\nUso: /deadline_ruoli GG/MM/AAAA [HH:MM] (default 23:59; "
+            f"la data anche GG/MM/AA o AAAA-MM-GG)")
         return
-    try:
-        giorno = date.fromisoformat(context.args[0])
-        ora = context.args[1] if len(context.args) > 1 else "23:59"
-        d = datetime.fromisoformat(f"{giorno.isoformat()}T{ora}")
-    except ValueError:
-        await update.effective_message.reply_text("❌ Formato non valido. Es: /deadline_ruoli 2026-10-20 23:59")
+    from shared.date_comandi import leggi_data_ora
+    from datetime import time as _t
+    d = leggi_data_ora(" ".join(context.args[:2]), _t(23, 59))
+    if not d:
+        await update.effective_message.reply_text("❌ Formato non valido. Es: /deadline_ruoli 20/10/2026 23:59")
         return
     path = os.environ.get("GLOBALS_PATH", "/config/globals.json")
     g = json.load(open(path))
