@@ -13,6 +13,7 @@ roster e infortunati di ESPN già nel database (niente richieste a ESPN).
 - Ultime 5 partite.
 Con più giocatori dallo stesso nome, bottoni (callback pl:<id>).
 """
+from datetime import datetime
 import html
 
 from telegram import InlineKeyboardButton as B, InlineKeyboardMarkup as K, Update
@@ -23,6 +24,10 @@ import config
 import db
 from numeri import ottavi, testo as tp
 
+ANNO_BOT = "2026"            # prima stagione del bot
+NOTA_FIRMA_FINO_AL = 2028    # fino a quando /player spiega l'anno di firma dei contratti di prima del bot
+NOTA_FIRMA = ("Il bot è nato nel 2026: i contratti firmati prima risultano firmati nel 2026-27, "
+              "anche se la firma vera è di una stagione precedente.")
 TIPI = (2, 5)          # regular season e play-in, come la media della stagione
 
 
@@ -117,6 +122,10 @@ def scheda(gid: int) -> str:
         if c.get("importo_dpe") is not None:
             contratto += f" · 🏥 DPE quest'anno (pesa {c['importo_dpe']}M)"
         righe.append(f"📝 Contratto: {e(contratto)}")
+        # il bot è nato nel 2026: i contratti firmati prima risultano firmati nel 2026-27 (Luca, 23/10;
+        # la nota serve finché ci sono in giro contratti di prima, cioè fino al 2028)
+        if c["tipo"] != "10day" and str(c["stagione_firma"]) == ANNO_BOT and datetime.now().year <= NOTA_FIRMA_FINO_AL:
+            righe.append(f"<i>{NOTA_FIRMA}</i>")
     else:
         diritti = _q1("""SELECT team_id, scadenza_diritti FROM rookie WHERE giocatore_id = %s AND NOT firmato
                          AND NOT diritti_scaduti ORDER BY id DESC LIMIT 1""", (gid,))

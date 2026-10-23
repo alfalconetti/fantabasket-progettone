@@ -233,3 +233,7 @@ Il calcolo dei fantapunti.
 ## v45 (2026-10-23)
 
 - **Foglio di controllo provvisorio** (`formazioni_foglio.job_parziale`, alle `orari.foglio_parziale`, 10:00): nelle giornate chiuse e non ancora calcolate, dopo almeno una notte, il tab «Calcolo GN» col calcolo fino alla notte appena finita (lo stesso del live: chi deve ancora giocare conta 0, la FADD a giornata finita), formule comprese, titolo PROVVISORIO su sfondo arancio chiaro. Prima scarica partite e tabellini delle notti passate. Il job delle formazioni, se un admin corregge dopo la prima notte, riscrive col calcolo provvisorio invece che con le sole formazioni
+
+## v46 (2026-10-23)
+
+- `/player`: sotto un contratto firmato nella prima stagione del bot (2026-27) la nota in corsivo che i contratti firmati prima risultano firmati quell'anno (`NOTA_FIRMA`, fino al 2028: `NOTA_FIRMA_FINO_AL`)

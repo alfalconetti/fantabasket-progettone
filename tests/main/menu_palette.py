@@ -87,6 +87,35 @@ ok(q.ret == MT.INSERISCI_VALORE and "myt:home" in cb(q.testi[-1][1]["reply_marku
 m = comando(MT.ricevi_valore, ud=ud, testo="Alfa Nuova")
 ok(tm.get_team_by_id("team01")["nome"] == "Alfa Nuova", "/my_team: nome cambiato sulla squadra di chi scrive")
 tm.set_campo_team("team01", "nome", "Alfa")
+# /edit_team (admin, v6.4.6): nomi di qualsiasi squadra, da comando o dal pannello admin
+from handlers import admin_panel as AP
+ok("myt:lista" in cb(AP._kb_admin_home()), "pannello admin: ✏️ Nomi squadre e GM")
+_adm = int(json.load(open(P))["admin_ids"][0])
+m = comando(MT.cmd_edit_team, uid=GM if GM != _adm else 999)
+ok("Solo per gli admin" in m.risposte[-1][0] or GM == _adm, "/edit_team: un GM non admin no")
+m = comando(MT.cmd_edit_team, uid=_adm)
+ok(m.risposte and "myt:t:team02" in cb(m.risposte[-1][1]["reply_markup"]), "/edit_team senza squadra: l'elenco delle squadre")
+ud = {}
+q = premi(MT.cb_admin, "myt:lista", uid=_adm, ud=ud)
+ok(q.testi and "myt:t:team02" in cb(q.testi[-1][1]["reply_markup"]), "pannello admin → elenco delle squadre")
+q = premi(MT.cb_admin, "myt:t:team02", uid=_adm, ud=ud)
+ok(ud.get("mt_team") == "team02" and "Beta" in q.testi[-1][0] and "admin" in q.testi[-1][0], "scelta la squadra: il pannello di Beta, da admin")
+premi(MT.cb_scegli_campo, "myt:gm_nome", uid=_adm, ud=ud)
+m = comando(MT.ricevi_valore, uid=_adm, ud=ud, testo="Mario Nuovo")
+ok(tm.get_team_by_id("team02")["gm_nome"] == "Mario Nuovo", "admin: nome GM di un'altra squadra cambiato")
+m = comando(MT.cmd_edit_team, uid=_adm, args=["beta"], ud=ud)
+premi(MT.cb_scegli_campo, "myt:nome", uid=_adm, ud=ud)
+comando(MT.ricevi_valore, uid=_adm, ud=ud, testo="Beta Due")
+ok(tm.get_team_by_id("team02")["nome"] == "Beta Due" and tm.get_team_by_id("team01")["nome"] == "Alfa",
+   "/edit_team beta: nome della squadra cambiato, la squadra dell'admin non si tocca")
+ok(db._qval("SELECT COUNT(*) FROM registro_azioni WHERE veste = 'admin' AND oggetto IN ('nome', 'gm_nome')") >= 2,
+   "nel registro con veste admin")
+q = premi(MT.cb_admin, "myt:t:team02", uid=GM if GM != _adm else 999, ud={})
+ok("Solo per gli admin" in str(q.risposte) or GM == _adm, "un GM non può aprire il pannello di un'altra squadra")
+ud["mt_team"] = "team02"
+comando(MT.cmd_my_team, uid=GM, ud=ud)
+ok("mt_team" not in ud, "/my_team dopo /edit_team torna alla propria squadra")
+tm.set_campo_team("team02", "nome", "Beta"); tm.set_campo_team("team02", "gm_nome", "GB")
 
 # ── /palette ──
 from handlers import palette as PA, roster as RO

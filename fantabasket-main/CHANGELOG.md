@@ -1537,3 +1537,9 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.4.5 (2026-10-23)
 
 - loucabot v45: **foglio di controllo aggiornato a metà giornata** (Luca, 23/10): alle 10 (`orari.foglio_parziale`) dei giorni in mezzo il tab «Calcolo GN» si riscrive col calcolo fino alla notte appena finita, con le formule e PROVVISORIO nel titolo; dopo la prima notte anche le correzioni degli admin lo riscrivono col calcolo. L'ultimo giorno resta il calcolo delle 7:45
+
+## v6.4.6 (2026-10-23)
+
+- **Nomi di squadre e GM da admin** (Luca, 23/10): `/edit_team [SQUADRA]` o «✏️ Nomi squadre e GM» nel pannello admin aprono il pannello di `/my_team` per qualsiasi squadra (nome squadra, nome GM); registro e canale log con veste admin. Vale subito in tutti i bot (rileggono `teams.json` a ogni uso: la guida admin diceva «dal riavvio»). Prova in `menu_palette`
+- loucabot v46: `/player` con una nota in corsivo sotto il contratto firmato nel 2026-27: il bot è nato nel 2026, quindi i contratti firmati prima risultano firmati quell'anno (fino al 2028)
+- Roadmap (MIGRATION): riassegnare una franchigia a un GM nuovo dal bot

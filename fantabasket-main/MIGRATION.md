@@ -1,6 +1,6 @@
 # Messaggio di migrazione — Fantabasket Progettone
 
-**Stato: v6.4.5 · bot aste v71 · loucabot v45 · IPanchinari v31** (23/10/2026)
+**Stato: v6.4.6 · bot aste v71 · loucabot v46 · IPanchinari v31** (23/10/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 
@@ -231,6 +231,7 @@ PostgreSQL 16 locale, database `fbt` (utente `fb`), configurazione finta in `tes
 - Draft, con la lottery dallo script di Henry (`Lottery.py` del suo repo), e **rinnovi normali** (x1 ed ex rookie x0: max 2, +¼ e +½ per eccesso, minimo da `tabella_minimo_contratto`, x2/x3): entro giugno 2027.
 - ~~10-day contract~~ **fatto nella v5.2.0** (`handlers/dieci_giorni.py`). Deciso con Luca il 13/10: il GM chiede e l'admin approva (nel messaggio le regole), l'admin può firmarlo direttamente per qualsiasi squadra; solo in `regular-season-fa`, quelli già firmati finiscono anche dopo; decade all'ufficialità (convalida) dell'ultima giornata in cui era in squadra (Luca, 14/10); su IPanchinari e nel calcolo come gli altri; nel foglio Roster e su Typst con un colore suo. Scelte mie, approvate da Luca il 14/10: durante il 10-day il giocatore non è un free agent (niente aste su di lui) e non si firma con un'asta aperta; non si taglia, non si scambia, niente DPE (un admin lo può chiudere prima dal pannello); non conta per i minimi dei ruoli; nel roster Typst il 10-day e le DPE che liberano lo slot stanno sotto le 15 righe, dopo una riga più spessa; nel foglio Roster il 10-day va sotto le DIS.
 - Rookie: `rookie.team_id` dei firmati non segue le trade, `rookie.pick_numero` senza legame con le pick (proposta `rookie.pick_id`), campo mai usato `rookie.scadenza_diritti` (`contratti.scadenza_10day` e il tipo `10day` li usa il 10-day dalla v5.2.0). Da sistemare insieme al draft.
+- **Riassegnare una franchigia a un GM nuovo dal bot** (Luca, 23/10: se un GM lascia): oggi si fa a mano in `teams.json` (`gm_ids`, `gm_nome`). Da fare: comando admin che cambia GM (id Telegram e nome) di una squadra, con conferma, registro e canale log; avviso al GM nuovo con la guida; controllo che il vecchio non abbia più accesso (bozze di trade, aste aperte, offerte, voti) e che il nuovo non sia già GM di un'altra squadra.
 - Votazione GM delle trade da provare dall'inizio alla fine; guest mode in attesa del supporto di python-telegram-bot.
 - Luca aggiorna il testo del regolamento (luxury, Stepien, RFA in trade, floor: testi in `docs/regolamento_e_codice.md`).
 - Una stagione intera di prova.

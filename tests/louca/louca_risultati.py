@@ -610,7 +610,8 @@ sc = PLY.scheda(gid1)
 ok("🏆 Fantabasket: <b>Alfa</b>" in sc and "12M × 3 anni rimasti" in sc and "📋 Posizioni eleggibili" in sc and "🎽 Ruolo" in sc,
    "/player: posizioni eleggibili, squadra, ruolo e stato del contratto\n" + sc)
 db.q("UPDATE contratti SET stagione_firma = %s WHERE giocatore_id = %s", (str(int(S) - 3), gid1))
-ok("contratto finito (x0)" in PLY.scheda(gid1), "/player: contratto x0 e RFA")
+ok((PLY.NOTA_FIRMA in sc) == (str(S) == PLY.ANNO_BOT), "/player: firmato nella prima stagione del bot → nota in corsivo sull'anno di firma")
+ok(PLY.NOTA_FIRMA not in PLY.scheda(gid1) and "contratto finito (x0)" in PLY.scheda(gid1), "/player: contratto x0 e RFA (firmato prima: niente nota)")
 db.q("DELETE FROM contratti WHERE giocatore_id = %s", (gid1,))
 ok("svincolato</b> (free agent)" in PLY.scheda(gid1), "/player: svincolato")
 # ── foto ESPN (Luca, 23/10): di notte una alla volta, poi /player con la foto ──

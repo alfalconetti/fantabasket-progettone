@@ -76,7 +76,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `date_comandi` | main | `shared/date_comandi`: tutti i formati di data, date impossibili, data e ora, date di nascita a 2 cifre |
 | `firma_per_conto` | aste + PG | `/firma_per_conto`: elenco, solo admin, stessi bottoni del GM, annuncio sul canale, GM avvisati, registro «per conto» |
 | `registro_azioni` | main | registro delle azioni: una riga per azione (chi, veste, cosa, squadre, prima → dopo), admin e dev anche sul canale log, `/registro` (admin tutto, GM la sua squadra), il registro non fa mai fallire un'azione |
-| `menu_palette` | main | menu a bottoni sempre con ← o ✖️ Chiudi, `/palette` (colori veri, automatico, anteprime, testo leggibile), `/my_team`, `/team_diff` nei gruppi, DPE su un 1x1 normale |
+| `menu_palette` | main | menu a bottoni sempre con ← o ✖️ Chiudi, `/palette` (colori veri, automatico, anteprime, testo leggibile), `/my_team`, `/team_diff` nei gruppi, DPE su un 1x1 normale ; `/edit_team` e «✏️ Nomi squadre e GM» (solo admin, nome squadra e GM di un'altra squadra, registro) |
 | `admin_poteri` | main | dal menu normale un admin che è anche GM ha le regole dei GM; i poteri da admin solo dal pannello e dai comandi admin |
 | `regole_config` | main | i numeri del regolamento in settings.json (`shared/regole.py`) si leggono davvero, senza riavvio; default se mancano; fantamedia bref coi pesi |
 | `impostazioni` | main | `/settings`: argomenti coi bottoni, anteprima e conferma, canali; ogni chiave del file e di `regole.DEFAULT` ha una voce |

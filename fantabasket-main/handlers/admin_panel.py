@@ -58,6 +58,7 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
         ("🔒 RFA squadre",      "sga:scegli:rfa", fase in FASI_ADMIN_RINNOVI),
         ("⚠️ Penalità",         "pen:adm",     True),
         ("📊 Situazione cap",   "adm:cap",     True),
+        ("✏️ Nomi squadre e GM", "myt:lista",  True),
         ("⚙️ Impostazioni",     "set:home",    True),
         ("🩺 Controllo dati",   "rdati:md",    True),
         ("📜 Registro",         "reg:7",       True),
