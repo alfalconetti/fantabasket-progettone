@@ -100,3 +100,14 @@ pg.q("UPDATE bref_stats SET team = 'NYK' WHERE nome_bref = 'Moussa Cisse'")
 righe, _ = U.righe_lista_fa()
 et = [b.text for r_ in U._lista_fa_keyboard(righe, set(), 0).inline_keyboard for b in r_ if b.text.startswith("Moussa")]
 ok(et == ["Moussa Cisse — FP: 18.0 · 1/2 G"], f"nome di bref cambiato tra un anno e l'altro: i dati di quest'anno, senza l'anno vecchio {et}")
+
+# asta aperta per un giocatore senza posizioni eleggibili: avviso al gruppo admin (Luca, 24/10)
+_av = []
+class _B:
+    async def send_message(self, chat_id, text, **k): _av.append((chat_id, text))
+_ctx = types.SimpleNamespace(bot=_B())
+_adm = json.load(open(os.environ["GLOBALS_PATH"])).get("admin_group_id")
+asyncio.run(O._avvisa_senza_posizioni(_ctx, "Due Fermo", {"nome": "Alfa"}, 5))
+asyncio.run(O._avvisa_senza_posizioni(_ctx, "Uno Giocato", {"nome": "Alfa"}, 5))
+ok(len(_av) == 1 and _av[0][0] == _adm and "Due Fermo" in _av[0][1] and "non ha posizioni eleggibili" in _av[0][1]
+   and "/set_posizioni_eleggibili" in _av[0][1], f"asta per chi non ha posizioni: avviso al gruppo admin (chi le ha: niente) {_av}")

@@ -65,6 +65,44 @@ ok(md.startswith(f"# Controllo dei dati — stagione {S}") and "## Riepilogo" in
 ok("Senza Espn" in sez("Senza id ESPN (i loro punti non contano)") and "Alfa0" not in sez("Senza id ESPN (i loro punti non contano)"),
    "senza id ESPN")
 ok("Senza Pos" in sez("Senza posizioni eleggibili"), "senza posizioni eleggibili")
+# report automatico delle posizioni mancanti (Luca, 24/10): al gruppo admin solo se l'elenco cambia
+import asyncio as _aio, types as _ty
+from handlers import posizioni as PO
+_mand = []
+class _Bot:
+    async def send_message(self, chat_id, text, **k): _mand.append((chat_id, text))
+_ctx = _ty.SimpleNamespace(bot=_Bot())
+db._q("DROP TABLE IF EXISTS report_posizioni_inviato")
+_lun = __import__("datetime").datetime.now(__import__("utils").ROME).weekday() == 0
+# free agent senza posizioni: uno che gioca quest'anno, uno solo l'anno scorso, uno ritirato (tre anni fa)
+_st = str(int(S) + 1)
+for _n, _sta in (("Fa Gioca", _st), ("Fa AnnoScorso", str(int(S))), ("Fa Ritirato", str(int(S) - 2))):
+    db._q("INSERT INTO giocatori (nome_bref, nome_common, nome_norm) VALUES (%s, %s, %s)", (_n, _n, _n.lower()))
+    db._q("INSERT INTO bref_stats (stagione, nome_bref, pts) VALUES (%s, %s, 10)", (_sta, _n))
+_aio.run(PO.job_report_posizioni(_ctx))
+ok(len(_mand) == 1 and _mand[0][0] == 900 and "Senza Pos" in _mand[0][1] and "/set_posizioni_eleggibili" in _mand[0][1]
+   and "Sotto contratto" in _mand[0][1] and "Free agent della lista FA" in _mand[0][1] and "Fa Gioca" in _mand[0][1]
+   and "Fa Ritirato" not in _mand[0][1] and _mand[0][1].index("Senza Pos") < _mand[0][1].index("Fa Gioca"),
+   "report posizioni mancanti: in privato al dev (non al gruppo admin), prima i firmati poi i free agent della lista FA (non i ritirati), e come sistemarli")
+from shared import lista_fa as _LF
+_vero_sv = _LF.stagioni_valide
+_LF.stagioni_valide = lambda q, s_: (_st, str(int(_st) - 1))
+_m1 = {r["nome_common"] for r in PO.mancanti()}
+_LF.stagioni_valide = lambda q, s_: (_st,)
+_m2 = {r["nome_common"] for r in PO.mancanti()}
+_LF.stagioni_valide = _vero_sv
+ok("Fa AnnoScorso" in _m1 and "Fa AnnoScorso" not in _m2 and "Fa Gioca" in _m2 and "Fa Ritirato" not in _m1,
+   "gli stessi free agent della lista FA: l'anno scorso solo prima dello switch, i ritirati mai")
+_aio.run(PO.job_report_posizioni(_ctx))
+ok(len(_mand) == (2 if _lun else 1), "elenco uguale il giorno dopo: niente (il lunedì sì)")
+_gid = db._qval("SELECT id FROM giocatori WHERE nome_common = 'Senza Pos'")
+db._q("INSERT INTO posizioni_eleggibili (giocatore_id, posizioni, fonte) VALUES (%s, 'PG', 'prova')", (_gid,))
+_n = len(_mand)
+_aio.run(PO.job_report_posizioni(_ctx))
+ok(len(_mand) == _n + 1 and "Senza Pos" not in _mand[-1][1], "elenco cambiato (posizioni aggiunte): il report riparte")
+db._q("DELETE FROM posizioni_eleggibili WHERE giocatore_id = %s AND fonte = 'prova'", (_gid,))
+db._q("DELETE FROM bref_stats WHERE nome_bref IN ('Fa Gioca', 'Fa AnnoScorso', 'Fa Ritirato')")
+db._q("DELETE FROM giocatori WHERE nome_common IN ('Fa Gioca', 'Fa AnnoScorso', 'Fa Ritirato')")
 ok("Senza Ruolo" in sez("Senza ruolo (in stagione)") and "Dieci" not in sez("Senza ruolo (in stagione)"), "senza ruolo in stagione (il 10-day no)")
 ok("| Fuori Ruolo | C | PG |" in sez("Ruolo non più tra le eleggibili"), "ruolo non più tra le eleggibili")
 c = sez("Contratti da guardare")

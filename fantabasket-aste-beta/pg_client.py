@@ -571,7 +571,7 @@ def get_bref_fantamedie_bulk(nomi: list[str]) -> dict[str, tuple[float | None, s
 # "passa d'anno": /lista_fa non mostra più i dati della stagione prima, quindi chi non ha ancora
 # giocato quest'anno sparisce dalla lista, e chi apre un'asta per lui vede un avviso. Prima dello
 # switch ognuno mostra i dati più recenti che ha (quest'anno se ha giocato, se no l'anno prima).
-QUOTA_GIOCATO = 0.7
+from shared.lista_fa import QUOTA_GIOCATO  # noqa: E402  (70% dei firmati: regola in shared/lista_fa.py)
 
 
 def stagione_bref_corrente() -> str:
@@ -592,11 +592,6 @@ def stato_stagione(nomi: list[str]) -> dict:
     conn = _conn()
     try:
         with conn.cursor() as cur:
-            cur.execute("""SELECT COUNT(DISTINCT g.id),
-                                  COUNT(DISTINCT g.id) FILTER (WHERE EXISTS (
-                                      SELECT 1 FROM bref_stats b WHERE lower(b.nome_bref) = lower(g.nome_bref) AND b.stagione = %s))
-                           FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id WHERE c.attivo""", (st,))
-            firmati, hanno_giocato = cur.fetchone()
             ultima = {}
             if nomi:
                 # i nomi della lista FA sono quelli comuni: si passa dall'anagrafica al nome di bref
@@ -611,8 +606,11 @@ def stato_stagione(nomi: list[str]) -> dict:
             agg = cur.fetchone()[0]
     finally:
         _putconn(conn)
-    quota = hanno_giocato / firmati if firmati else 0.0
-    attivo = bool(firmati) and quota >= QUOTA_GIOCATO
+    # la regola è una sola, condivisa col bot principale (shared/lista_fa.py)
+    from shared import lista_fa
+    import utils
+    quota, firmati = lista_fa.quota_firmati(q, utils.load_globals().get("stagione_corrente", "2026"))
+    attivo = bool(firmati) and quota >= lista_fa.QUOTA_GIOCATO
     prima = str(int(st) - 1)
     giocato = {n for n, u in ultima.items() if u == st}
     mostrabili = giocato if attivo else {n for n, u in ultima.items() if u in (st, prima)}

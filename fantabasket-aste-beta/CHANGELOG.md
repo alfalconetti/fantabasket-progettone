@@ -685,3 +685,8 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 - `/lista_fa`: fantamedia, partite, squadra e stagione **dalla stessa riga** di Basketball-Reference, la più recente (`pg_client.dati_fa`). Prima la fantamedia veniva da una ricerca diversa e, per chi su bref ha cambiato grafia del nome tra un anno e l'altro (es. «Cissé» → «Cisse»), usciva quella dell'anno prima, «(2025)», anche dopo lo switch (Luca, 24/10)
 - «FM» diventa **«FP»**, come negli altri bot
 
+
+## v77 (2026-10-24)
+
+- **Asta aperta per un giocatore senza posizioni eleggibili**: subito un messaggio al gruppo admin col comando già scritto (`/set_posizioni_eleggibili Nome PG,SG`) da usare nel bot principale prima che l'asta finisca (Luca, 24/10)
+- Lo switch della lista FA (70% dei firmati) si calcola in `shared/lista_fa.py`, lo stesso usato dal report posizioni del bot principale

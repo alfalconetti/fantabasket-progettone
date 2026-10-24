@@ -20,6 +20,7 @@ L'import salva su giocatori anche yahoo_id e nome_yahoo.
 Tutto in un'unica transazione.
 """
 import csv
+import html
 import io
 import logging
 import re
@@ -33,6 +34,7 @@ from telegram.ext import (
 
 import database as db
 import settings
+import teams as tm
 from settings import solo_privato
 from utils import normalizza
 
@@ -419,10 +421,98 @@ async def cmd_data_erminio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"{giorno.strftime('%d/%m/%Y')}. La finestra Erminio di 14 giorni parte da questa data.")
 
 
+# ── posizioni eleggibili mancanti: report automatico e /posizioni_mancanti (Luca, 24/10) ──────────
+# Di tutti quelli che possono finire in una squadra: sotto contratto, e i free agent della lista FA del bot
+# aste (stessa regola, shared/lista_fa.py: chi ha giocato quest'anno, e l'anno prima finché non c'è lo
+# switch). Ogni mattina (orari.report_posizioni, 9:15) in privato al dev, solo se l'elenco è cambiato
+# dall'ultimo mandato; il lunedì anche se è uguale, finché manca qualcuno. Elenco lungo → file (manda_lungo).
+# L'ultimo elenco mandato sta in report_posizioni_inviato (impronta degli id).
+
+def _c_e(tabella: str) -> bool:
+    return bool(db._qval("SELECT to_regclass(%s) IS NOT NULL", (tabella,)))
+
+
+def mancanti() -> list[dict]:
+    """[{id, nome_common, team_id (None = free agent), squadra_nba}] senza posizioni eleggibili: prima i
+    giocatori sotto contratto (per squadra), poi i free agent della lista FA (per nome)."""
+    from shared import lista_fa
+    if not _c_e("bref_stats"):
+        stagioni = ()
+    else:
+        stagioni = lista_fa.stagioni_valide(db._q, settings.stagione_corrente())
+    nba = "(SELECT a.squadra FROM nba_atleti a WHERE a.atleta = g.espn_id)" if _c_e("nba_atleti") else "NULL::text"
+    bref = ("EXISTS (SELECT 1 FROM bref_stats b WHERE lower(b.nome_bref) = lower(g.nome_bref) AND b.stagione = ANY(%s))"
+            if stagioni else "FALSE")
+    righe = db._q(f"""SELECT g.id, g.nome_common, c.team_id, {nba} AS squadra_nba, ({bref}) AS gioca_bref
+                      FROM giocatori g
+                      LEFT JOIN contratti c ON c.giocatore_id = g.id AND c.attivo
+                      LEFT JOIN posizioni_attuali p ON p.giocatore_id = g.id
+                      WHERE COALESCE(TRIM(p.posizioni), '') = ''""", (list(stagioni),) if stagioni else (), many=True) or []
+    out = [r for r in righe if r["team_id"] or r["gioca_bref"]]
+    out.sort(key=lambda r: (r["team_id"] is None, r["team_id"] or "", r["nome_common"]))
+    return out
+
+
+def testo_mancanti(righe: list[dict]) -> str:
+    if not righe:
+        return "✅ Tutti i giocatori sotto contratto e i free agent della lista FA hanno le posizioni eleggibili."
+    nome = lambda t: (tm.get_team_by_id(t) or {}).get("nome", t)
+    firmati = [r for r in righe if r["team_id"]]
+    fa = [r for r in righe if not r["team_id"]]
+    out = [f"📋 <b>Posizioni eleggibili mancanti</b> ({len(righe)})"]
+    if firmati:
+        out += ["", f"<b>Sotto contratto</b> ({len(firmati)})"]
+        out += [f"• {html.escape(nome(r['team_id']))}: {html.escape(r['nome_common'])}" for r in firmati]
+    if fa:
+        out += ["", f"<b>Free agent della lista FA</b> ({len(fa)})"]
+        out += [f"• {html.escape(r['nome_common'])}" + (f" ({html.escape(r['squadra_nba'])})" if r.get("squadra_nba") else "")
+                for r in fa]
+    out += ["", "<i>Senza posizioni un giocatore non ha ruoli possibili (dichiarazione, cambi, minimi). Si aggiungono con "
+                "/set_posizioni_eleggibili NOME PG,SG oppure /import_posizioni_eleggibili (CSV di Yahoo).</i>"]
+    return "\n".join(out)
+
+
+def _impronta(righe: list[dict]) -> str:
+    import hashlib
+    return hashlib.sha1(",".join(str(r["id"]) for r in sorted(righe, key=lambda r: r["id"])).encode()).hexdigest()
+
+
+async def job_report_posizioni(context: ContextTypes.DEFAULT_TYPE):
+    """Ogni mattina: in privato al dev (Luca, 24/10) se l'elenco è cambiato; il lunedì anche se è uguale (finché manca qualcuno)."""
+    from datetime import datetime
+    from utils import ROME
+    try:
+        db._q("""CREATE TABLE IF NOT EXISTS report_posizioni_inviato (
+                   id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1), impronta TEXT NOT NULL, quando TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
+        righe = mancanti()
+        imp = _impronta(righe)
+        prima = (db._q("SELECT impronta FROM report_posizioni_inviato WHERE id = 1", one=True) or {}).get("impronta")
+        lunedi = datetime.now(ROME).weekday() == 0
+        if (imp == prima and not (lunedi and righe)) or (not righe and prima is None):
+            return
+        dev = settings.dev_id()           # solo in privato al dev, non al gruppo admin (Luca, 24/10)
+        if dev:
+            from shared.messaggi import manda_lungo
+            await manda_lungo(context.bot, dev, testo_mancanti(righe), "posizioni-mancanti")
+        db._q("""INSERT INTO report_posizioni_inviato (id, impronta) VALUES (1, %s)
+                 ON CONFLICT (id) DO UPDATE SET impronta = EXCLUDED.impronta, quando = NOW()""", (imp,))
+    except Exception as e:
+        logger.warning("Report posizioni mancanti: %s", e)
+
+
+async def cmd_posizioni_mancanti(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ Solo per gli admin.")
+        return
+    from shared.messaggi import manda_lungo
+    await manda_lungo(context.bot, update.effective_chat.id, testo_mancanti(mancanti()), "posizioni-mancanti")
+
+
 def get_handlers() -> list:
     return [
         CommandHandler("data_erminio", cmd_data_erminio),
         CommandHandler("set_posizioni_eleggibili", cmd_set_posizioni),
+        CommandHandler("posizioni_mancanti", cmd_posizioni_mancanti),
         CallbackQueryHandler(cb_set_posizioni, pattern=r"^spe:(no|\d+:[A-Z,]+)$"),
         ConversationHandler(
         entry_points=[CommandHandler("import_posizioni_eleggibili", cmd_import_posizioni)],

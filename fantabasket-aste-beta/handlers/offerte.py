@@ -870,7 +870,28 @@ async def apri_asta_fa(context, team: dict, giocatore: str, importo: int,
     )
     db.set_canale_msg_id(asta_id, msg.message_id)
     logger.info("Nuova FA: asta_id=%d giocatore=%s team=%s importo=%d", asta_id, giocatore, team["id"], importo)
+    await _avvisa_senza_posizioni(context, giocatore, team, importo)
     return asta_id, None
+
+
+async def _avvisa_senza_posizioni(context, giocatore: str, team: dict, importo: int) -> None:
+    """Asta aperta per un giocatore senza posizioni eleggibili: avviso al gruppo admin, che le aggiunga
+    prima che l'asta finisca (senza, dopo la firma non ha ruoli possibili; Luca, 24/10)."""
+    import html as _h
+    import pg_client
+    try:
+        if not pg_client.pg_disponibile() or pg_client.posizioni_fa([giocatore]).get(giocatore.lower()):
+            return
+        gruppo = utils.get_admin_group_id()
+        if not gruppo:
+            return
+        await context.bot.send_message(
+            chat_id=gruppo, parse_mode="HTML",
+            text=(f"📋 Aperta un'asta FA per <b>{_h.escape(giocatore)}</b> ({_h.escape(team['nome'])}, {importo}M), "
+                  f"ma <b>non ha posizioni eleggibili</b>: aggiungile prima che l'asta finisca, se no dopo la firma non ha "
+                  f"ruoli possibili.\nNel bot principale: /set_posizioni_eleggibili {_h.escape(giocatore)} PG,SG"))
+    except Exception as err:
+        logger.warning("Avviso posizioni mancanti per %s: %s", giocatore, err)
 
 
 # ── handler registrations ─────────────────────────────────────────────────────

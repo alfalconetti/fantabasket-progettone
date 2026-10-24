@@ -88,6 +88,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("report_dati",         "Controllo dei dati: cosa può rompere calcolo e controlli (.md)"),
         BotCommand("import_posizioni_eleggibili", "Importa posizioni eleggibili Yahoo (CSV)"),
         BotCommand("set_posizioni_eleggibili",    "Correggi posizioni di un giocatore [nome] [PG,SG]"),
+        BotCommand("posizioni_mancanti",          "Giocatori sotto contratto senza posizioni eleggibili"),
         BotCommand("deadline_ruoli",              "Deadline dichiarazione ruoli [AAAA-MM-GG] [HH:MM]"),
         BotCommand("trade_deadline",              "Trade deadline della stagione [AAAA-MM-GG]"),
         BotCommand("data_erminio",                "Data aggiunta posizione su Yahoo [nome] [AAAA-MM-GG]"),

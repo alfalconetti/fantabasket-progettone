@@ -173,6 +173,7 @@ Le spalmature dalla stagione corrente in poi smettono di pesare su chiunque l'av
 
 - **`/import_posizioni_eleggibili`** carica il CSV `yahoo_id;nome;team;posizioni` preso da Yahoo. Ti mostra un'anteprima (abbinati, posizioni cambiate, nomi ambigui, giocatori sotto contratto senza posizioni) e salva solo quando confermi.
 - **`/set_posizioni_eleggibili Jokic C,PF`** corregge un singolo giocatore.
+- **Posizioni mancanti:** ogni mattina alle 9:15 (`orari.report_posizioni`) il bot scrive in privato al dev (non al gruppo admin) l'elenco dei giocatori senza posizioni eleggibili, prima quelli sotto contratto e poi i free agent della lista FA del bot aste (gli stessi: con partite quest'anno o l'anno scorso, e dopo lo switch, quando il 70% dei firmati ha giocato, solo quest'anno); se è lungo arriva come file. Lo manda **solo se è cambiato** dall'ultima volta (una firma nuova, un import che le sistema); il lunedì lo ripete finché manca qualcuno. Quando vuoi: **`/posizioni_mancanti`**. Senza posizioni un giocatore non ha ruoli possibili. Se un GM apre un'asta FA per uno senza posizioni, il bot aste lo segnala subito al gruppo admin col comando già scritto.
 - **`/data_erminio Jokic 03/11/2026`** dice al bot quando Yahoo ha aggiunto l'ultima posizione. La finestra Erminio di 14 giorni parte da lì; senza, parte dalla data dell'import.
 
 ### Dichiarazione di inizio stagione

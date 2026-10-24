@@ -12,7 +12,7 @@ fantabasket-progettone/
 ├── config/             globals.json, teams.json, settings.json, divisions.json, loghi/ …  (NON in git)
 ├── secrets/            token, password, URL dei fogli, *.env                            (NON in git)
 │   └── cifrati/        secrets.tar.gpg per il backup (scripts/cifra_secrets.sh)
-├── shared/              in comune ai bot: ruoli_core.py (ruoli), cap.py (cap e slot), squadre.py (ricerca squadra), messaggi.py (report lunghi), dev_comune.py (/dev_log, /dev_pg, /reboot ed error handler di loucabot e IPanchinari)
+├── shared/              in comune ai bot: ruoli_core.py (ruoli), cap.py (cap e slot), squadre.py (ricerca squadra), lista_fa.py (stagioni della lista FA e switch al 70% dei firmati, per aste e report posizioni), messaggi.py (report lunghi), dev_comune.py (/dev_log, /dev_pg, /reboot ed error handler di loucabot e IPanchinari)
 ├── fantabasket-main/      ← questo bot
 ├── fantabasket-aste-beta/ bot aste
 ├── fantabasket-loucabot/  loucabot: calendario e calcolo dei fantapunti, README e docs/ suoi
@@ -367,7 +367,7 @@ ORDER BY t.timestamp, t.id;
 | `ruoli_rs.py` | dichiarazioni post-trade/firma in RS; per le trade un messaggio unico sul canale (`testo_trade`, `aggiorna_messaggio_trade`) aggiornato a ogni dichiarazione, assegnazione ed estrazione |
 | `cambi_ruolo.py` | `/cambio_ruolo`: ordinario, Erminio, Saedro, forzato, Extra DPE |
 | `dieci_giorni.py` | `/firma_10day` (GM, richiesta), `/firma_10day_admin`, approvazione, pannello, scadenza |
-| `posizioni.py` | import e correzione delle posizioni eleggibili, `/data_erminio` |
+| `posizioni.py` | import e correzione delle posizioni eleggibili, `/data_erminio`; `/posizioni_mancanti` e `job_report_posizioni` (`mancanti`: sotto contratto e free agent con righe di `bref_stats` nelle stagioni di `shared/lista_fa.stagioni_valide`, le stesse di `/lista_fa` (quest'anno e l'anno prima, dopo lo switch al 70% dei firmati solo quest'anno); ogni mattina in privato al dev (`dev_id`) con `manda_lungo` se l'elenco cambia, impronta in `report_posizioni_inviato`; il lunedì comunque) |
 | `roster.py` | `/roster`, `/assets` (Typst) |
 | `team_diff.py` | `/team_diff` |
 | `palette.py`, `myteam.py` | colori e dati squadra (colori effettivi e testo leggibile: `roster.colori_effettivi`, `roster.input_colori`) |

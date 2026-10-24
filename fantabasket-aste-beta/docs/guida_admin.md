@@ -47,6 +47,8 @@ Anche la **penalità** sul cap si imposta dal bot principale: `/set_cap_penalizz
 
 Valgono gli stessi controlli del GM: mercato aperto, cap e slot della squadra, giocatore non già all'asta, regola dei 30 giorni e minimo Cam Thomas. Se il nome è ambiguo il bot ti propone i comandi già scritti coi nomi giusti, da ricopiare.
 
+**Asta per un giocatore senza posizioni eleggibili** (v77). Quando si apre un'asta FA (dal GM o da admin) per qualcuno che non ha posizioni eleggibili, il bot scrive subito al gruppo admin: aggiungile nel bot principale (comando set_posizioni_eleggibili, es. `Nome PG,SG`) prima che l'asta finisca, se no dopo la firma non ha ruoli possibili.
+
 L'asta compare sul canale con la scritta "aperta da admin per conto di", e i GM della squadra vengono avvisati e la seguono.
 
 **Fare un'offerta.** Per esempio 7 di team07 sull'asta 42:

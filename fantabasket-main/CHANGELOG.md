@@ -1604,3 +1604,16 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - Bot aste v76: in `/lista_fa` fantamedia e partite sempre dalla stessa riga di Basketball-Reference (niente più «(2025)» per chi ha già giocato quest'anno); «FM» diventa «FP» (Luca, 24/10)
 
+## v6.6.4 (2026-10-24)
+
+- **Report automatico delle posizioni eleggibili mancanti** (Luca, 24/10): ogni mattina alle 9:15 (`orari.report_posizioni`) al gruppo admin l'elenco dei giocatori senza posizioni, prima i firmati e poi i free agent che giocano in NBA (in un roster NBA oggi o con partite quest'anno o l'anno scorso; Luca, 24/10: «di tutti, non solo dei firmati»), come file se è lungo, solo se è cambiato dall'ultima volta (il lunedì comunque, finché manca qualcuno); `/posizioni_mancanti` (admin) quando si vuole. Prova in `report_dati`
+
+
+## v6.6.5 (2026-10-24)
+
+- Report delle posizioni mancanti: i free agent sono **gli stessi della lista FA** (Luca, 24/10: «anno scorso no, appunto gli stessi di lista FA»): quest'anno e l'anno prima, dopo lo switch (70% dei firmati che ha giocato) solo quest'anno; non conta più l'essere in un roster NBA. Il calcolo dello switch è ora in `shared/lista_fa.py`, lo stesso per bot aste e bot principale
+- Bot aste v77: asta FA aperta per un giocatore senza posizioni eleggibili → messaggio al gruppo admin col comando per aggiungerle
+
+## v6.6.6 (2026-10-24)
+
+- Il report automatico delle 9:15 arriva **solo in privato al dev**, non più al gruppo admin (Luca, 24/10); `/posizioni_mancanti` resta per tutti gli admin

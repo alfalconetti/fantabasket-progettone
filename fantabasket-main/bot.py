@@ -434,6 +434,9 @@ def main():
     # Date di nascita mancanti: report al dev il lunedì alle 9:30
     from handlers.nascite import job_report_nascite
     app.job_queue.run_daily(job_report_nascite, time=_ora("report_nascite"), days=(1,))  # PTB: 0 = domenica, 1 = lunedì
+    # Posizioni eleggibili mancanti dei giocatori sotto contratto: ogni mattina, solo se l'elenco cambia (lunedì comunque)
+    from handlers.posizioni import job_report_posizioni
+    app.job_queue.run_daily(job_report_posizioni, time=_ora("report_posizioni"))
     # Spalmature di free agent (possibili ritirati): il 1° di ogni mese alle 9:45 al gruppo admin
     from handlers.spalmature import job_report_spalmature
     app.job_queue.run_monthly(job_report_spalmature, when=_ora("report_spalmature"), day=1)

@@ -206,6 +206,7 @@ ORARI = {
     "report_ruoli": "17:00",
     "report_nascite": "09:30",          # il lunedì
     "report_spalmature": "09:45",       # il 1° del mese
+    "report_posizioni": "09:15",        # posizioni eleggibili mancanti, al gruppo admin se cambiano (il lunedì comunque)
     "coerenza": "01:00",
     "backup_settimanale": "00:30",      # il sabato
     # loucabot
