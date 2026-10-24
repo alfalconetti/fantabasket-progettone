@@ -1591,3 +1591,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - Bot aste v73: `/lista_fa` sempre al massimo con i dati dell'anno prima (dopo lo switch solo quelli di quest'anno); `/nuova_fa` per chiunque, con l'avviso dell'ultima stagione giocata in NBA (Luca, 24/10)
 - `/carriera`: la foto nel tondo con le stesse proporzioni di `/partita` (meno ingrandita, un filo più in alto)
 
+## v6.6.1 (2026-10-24)
+
+- Bot aste v74: in `/lista_fa` le partite giocate su quelle della squadra NBA, es. «3/4 G» (Luca, 24/10)
+

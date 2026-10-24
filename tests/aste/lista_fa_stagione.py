@@ -65,3 +65,21 @@ class M:
 asyncio.run(U.cmd_lista_fa(types.SimpleNamespace(effective_message=M(), effective_user=types.SimpleNamespace(id=101)),
                            types.SimpleNamespace(bot=types.SimpleNamespace(username="bot"), args=[])))
 ok(out and "Non ci sono 3 free agent" in out[-1] and "in questa stagione" in out[-1] and "/nuova_fa" in out[-1], "/lista_fa: dice quanti ne nasconde e come aprire l'asta lo stesso")
+# partite giocate su quelle della squadra NBA (Luca, 24/10): «1/2 G»; l'anno prima su 82
+import importlib.util
+_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_sp = importlib.util.spec_from_file_location("louca_db", os.path.join(_root, "fantabasket-loucabot", "db.py"))
+_ldb = importlib.util.module_from_spec(_sp); _sp.loader.exec_module(_ldb); _ldb.init_db()
+pg.q("TRUNCATE nba_partite CASCADE")
+from datetime import date as _d, datetime as _dt, timezone as _tz
+for i, (casa, tr, stato) in enumerate([("NYK", "BOS", "STATUS_FINAL"), ("MIA", "NYK", "STATUS_FINAL"), ("NYK", "PHI", "STATUS_SCHEDULED")]):
+    _ldb.salva_partite_nba([{"espn_id": f"pf{i}", "stagione": "2026", "tipo": 2, "data_et": _d(2026, 10, 21 + i), "casa": casa, "trasferta": tr,
+                             "inizio": _dt(2026, 10, 21 + i, 23, 0, tzinfo=_tz.utc), "stato": stato}])
+pg.q("UPDATE bref_stats SET team = 'NYK' WHERE nome_bref = 'Uno Giocato'")
+pg.q("UPDATE bref_stats SET team = 'DEN' WHERE nome_bref = 'Nikola Jokić'")
+righe, _ = U.righe_lista_fa()
+p_ = {r["nome"]: r.get("partite") for r in righe}
+kb = U._lista_fa_keyboard(righe, set(), 0)
+etichette = [b.text for r_ in kb.inline_keyboard for b in r_]
+ok(p_.get("Uno Giocato") == "1/2" and p_.get("Nikola Jokic") == "1" and any("Uno Giocato" in t and "1/2 G" in t for t in etichette),
+   f"partite giocate su quelle finite della sua squadra (NYK: 2 finite, la terza no; DEN senza partite: solo le sue) {p_} {etichette}")

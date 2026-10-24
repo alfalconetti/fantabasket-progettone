@@ -672,3 +672,7 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 - `/lista_fa` mostra **sempre al massimo i dati dell'anno prima** (Luca, 24/10): chi non gioca in NBA da più di una stagione (ritirati, all'estero) o non ci ha mai giocato non compare mai; dopo lo switch (70% dei firmati) solo la stagione in corso. In cima quanti free agent non compaiono
 - `/nuova_fa` apre l'asta per chiunque: per chi la lista non mostra, l'avviso sotto «Quanto offri?» dice **da quando non gioca in NBA** («non gioca in NBA dal 2024-25»), o che non ci ha mai giocato, con la data dei dati di Basketball-Reference
 
+## v74 (2026-10-24)
+
+- `/lista_fa`: accanto alla fantamedia le **partite giocate su quelle della sua squadra NBA** nella stessa stagione, es. «FM: 23.4 · 3/4 G» (Luca, 24/10): partite e squadra dall'ultima riga di Basketball-Reference, partite finite della squadra da loucabot (`nba_partite`); per la stagione prima su 82
+

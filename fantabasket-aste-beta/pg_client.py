@@ -619,6 +619,48 @@ def stato_stagione(nomi: list[str]) -> dict:
     return {"attivo": attivo, "giocato": giocato, "ultima": ultima, "mostrabili": mostrabili, "quota": quota, "aggiornato": agg}
 
 
+# sigle di Basketball-Reference → quelle di ESPN usate da loucabot in nba_partite
+SIGLE_BREF_ESPN = {"BRK": "BKN", "PHO": "PHX", "CHO": "CHA", "NOH": "NOP"}
+
+
+def partite_fa(nomi: list[str]) -> dict:
+    """{nome in minuscolo: (partite giocate, squadra NBA, stagione bref)} dall'ultima riga di bref di ognuno
+    (dal nome comune al nome di bref passando dall'anagrafica, come stato_stagione)."""
+    if not nomi or not pg_disponibile():
+        return {}
+    conn = _conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT DISTINCT ON (x.nome) x.nome, b.g, b.team, b.stagione FROM (
+                               SELECT lower(g.nome_common) AS nome, g.nome_bref FROM giocatori g WHERE lower(g.nome_common) = ANY(%s)
+                               UNION SELECT lower(n), n FROM unnest(%s::text[]) n) x
+                           JOIN bref_stats b ON lower(b.nome_bref) = lower(x.nome_bref)
+                           ORDER BY x.nome, b.timestamp DESC""", ([n.lower() for n in nomi], list(nomi)))
+            return {r[0]: (r[1], r[2], r[3]) for r in cur.fetchall()}
+    finally:
+        _putconn(conn)
+
+
+def partite_squadre(stagione_bref: str) -> dict:
+    """{squadra NBA (sigla ESPN): partite di regular season finite} nella stagione (da nba_partite di
+    loucabot; la stagione di bref «2027» è per noi la 2026). {} se la tabella non c'è."""
+    if not pg_disponibile():
+        return {}
+    conn = _conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT to_regclass('nba_partite')")
+            if not cur.fetchone()[0]:
+                return {}
+            cur.execute("""SELECT sq, COUNT(*) FROM (
+                               SELECT casa AS sq FROM nba_partite WHERE stagione = %s AND tipo = 2 AND stato = 'STATUS_FINAL'
+                               UNION ALL SELECT trasferta FROM nba_partite WHERE stagione = %s AND tipo = 2 AND stato = 'STATUS_FINAL') x
+                           GROUP BY sq""", (str(int(stagione_bref) - 1),) * 2)
+            return {r[0]: r[1] for r in cur.fetchall()}
+    finally:
+        _putconn(conn)
+
+
 def avviso_non_ha_giocato(nome: str) -> str:
     """La riga di avviso sotto «Quanto offri?» per un giocatore che la /lista_fa non mostrerebbe
     (Luca, 24/10: con /nuova_fa l'asta si apre per chiunque, ma si dice da quando non gioca in NBA),

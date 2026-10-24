@@ -258,7 +258,9 @@ def _lista_fa_keyboard(rows: list[dict], aste_aperte_giocatori: set, page: int, 
             fm = f" — FM: {fm_val}{anno_nota}"
         else:
             fm = ""
-        label = f"{pallino}{r['nome']}{fm}"
+        # partite giocate su quelle della sua squadra NBA nella stessa stagione (Luca, 24/10)
+        gp = f" · {r['partite']} G" if r.get("partite") else ""
+        label = f"{pallino}{r['nome']}{fm}{gp}"
         if bot_username:
             # deep link: normalizza diacritici, spazi→_, punti→--, strip apostrofi (Telegram start: solo A-Za-z0-9_-)
             nome_enc = utils.normalizza(r["nome"]).replace(" ", "_").replace(".", "--").replace("'", "")
@@ -302,6 +304,20 @@ def righe_lista_fa() -> tuple[list[dict], int]:
                 r["stagione_bref"] = str(int(stagione_bref) - 1) if stagione_bref and stagione_bref != anno_bref_corrente else None
             else:
                 r["stagione_bref"] = None
+        # partite: «3/4» = 3 giocate su 4 della sua squadra NBA (la squadra della sua ultima riga di bref); per
+        # la stagione prima, sulle partite di quella stagione (82 se loucabot non le ha)
+        pf = pg_client.partite_fa(nomi)
+        squadre = {}
+        for r in rows:
+            x = pf.get(r["nome"].lower())
+            if not x or x[0] is None:
+                continue
+            g_, team, stag = x
+            if stag not in squadre:
+                squadre[stag] = pg_client.partite_squadre(stag)
+            sq = pg_client.SIGLE_BREF_ESPN.get((team or "").upper(), (team or "").upper())
+            tot = squadre[stag].get(sq) or (82 if stag != anno_bref_corrente else None)
+            r["partite"] = f"{g_}/{tot}" if tot else f"{g_}"
         # al massimo i dati dell'anno prima; dopo lo switch solo la stagione in corso (pg_client.stato_stagione)
         st = pg_client.stato_stagione(nomi)
         prima = len(rows)
