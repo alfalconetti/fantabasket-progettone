@@ -28,7 +28,7 @@ Il bot fa sempre questi conti prima di accettare un'offerta. Se non hai cap o sl
 
 Due modi:
 
-**Dalla lista.** `/lista_fa` mostra i free agent. Tocchi un nome e il bot ti chiede quanto offri. Il pallino 🟡 vuol dire che per quel giocatore c'è già un'asta aperta.
+**Dalla lista.** `/lista_fa` mostra i free agent. Tocchi un nome e il bot ti chiede quanto offri. Il pallino 🟡 vuol dire che per quel giocatore c'è già un'asta aperta. Nella lista ci sono solo i free agent che hanno giocato in NBA quest'anno o l'anno prima, con la fantamedia più recente (quella dell'anno prima ha l'anno tra parentesi). Quando almeno il 70% dei giocatori firmati nella lega ha giocato nella stagione in corso, la lista passa d'anno: restano solo quelli che hanno giocato quest'anno. In cima c'è scritto quanti free agent non compaiono. Per chiunque, anche chi non è nella lista, l'asta si apre con `/nuova_fa NOME`: sotto «Quanto offri?» trovi l'avviso con l'ultima stagione in cui ha giocato in NBA (o che non ci ha mai giocato) e la data dei dati di Basketball-Reference.
 
 **Scrivendo il nome.** `/nuova_fa Jalen Williams`. Basta anche il cognome, e qualche errore di battitura viene perdonato (`/nuova_fa Currry` trova Curry). Se ci sono omonimi il bot ti fa scegliere.
 

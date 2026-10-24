@@ -114,16 +114,18 @@
       let sep = if i == 5 { (table.cell(colspan: 5 + nn, fill: lilla, inset: (x: 5pt, y: 3pt))[#text(7pt, weight: "bold", fill: viola_scuro, tracking: 0.5pt)[PANCHINA]],) } else { () }
       let nome = if r.tag == "esce" { text(fill: grigio)[#strike[#r.nome]] } else if r.titolare or r.tag == "entra" { text(weight: "bold")[#r.nome] } else { [#r.nome] }
       let nome = if r.at("ruolo", default: "") != "" { [#nome #text(8pt, fill: grigio)[(#r.ruolo)]] } else { nome }
-      // headshot ESPN tondo accanto al nome (Luca, 23/10): la foto è un mezzo busto largo (520×380),
-      // la si ingrandisce e si tiene la parte alta, dove c'è la faccia; senza foto le iniziali
+      // headshot ESPN tondo accanto al nome (Luca, 23/10): la foto è un mezzo busto largo (520×380).
+      // 24/10: meno ingrandita (si vede tutta la testa) e alzata di un filo; senza foto le iniziali
       let testa = if r.at("foto", default: "") != "" {
         box(width: 20pt, height: 20pt, radius: 50%, clip: true, fill: lilla, stroke: 0.6pt + bordo,
-          place(top + left, dx: -10.5pt, image(r.foto, height: 30pt, width: 41pt)))
+          place(top + left, dx: -6.4pt, dy: -1pt, image(r.foto, height: 24pt, width: 32.8pt)))
       } else {
         box(width: 20pt, height: 20pt, radius: 50%, fill: lilla, stroke: 0.6pt + bordo,
           align(center + horizon, text(7pt, weight: "bold", fill: viola)[#r.nome.split(" ").filter(p => p != "").map(p => p.slice(0, 1)).slice(0, calc.min(2, r.nome.split(" ").filter(p => p != "").len())).join()]))
       }
-      let nome = box(baseline: 30%, testa) + h(6pt) + nome
+      // tondo e nome in una griglia centrata in verticale: con la foto e con le iniziali il nome sta alla
+      // stessa altezza (prima, col box spostato sulla linea del testo, con le iniziali saliva)
+      let nome = grid(columns: (auto, 1fr), column-gutter: 6pt, align: (center + horizon, left + horizon), testa, nome)
       sep + (
         text(8pt, fill: grigio, weight: "bold")[#r.posto], nome, text(8pt, fill: grigio)[#r.nba], text(8.5pt, fill: grigio)[#r.media],
         ..r.celle.map(cella), conta(r),

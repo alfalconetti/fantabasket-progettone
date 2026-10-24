@@ -563,6 +563,88 @@ def get_bref_fantamedie_bulk(nomi: list[str]) -> dict[str, tuple[float | None, s
         _putconn(conn)
 
 
+# ── switch alla stagione in corso (Luca, 24/10) ────────────────────────────────
+# /lista_fa mostra al massimo i dati dell'anno prima: chi non gioca in NBA da più di una stagione
+# (ritirati, all'estero) non c'è mai. Quando almeno il 70% dei giocatori FIRMATI nella lega (contratti attivi: un numero stabile, a
+# differenza dei free agent con uno storico, che crescono ogni anno) ha già giocato nella stagione in
+# corso (righe di bref_stats della stagione, che si aggiungono solo quando un giocatore gioca), si
+# "passa d'anno": /lista_fa non mostra più i dati della stagione prima, quindi chi non ha ancora
+# giocato quest'anno sparisce dalla lista, e chi apre un'asta per lui vede un avviso. Prima dello
+# switch ognuno mostra i dati più recenti che ha (quest'anno se ha giocato, se no l'anno prima).
+QUOTA_GIOCATO = 0.7
+
+
+def stagione_bref_corrente() -> str:
+    """La stagione di bref_stats della nostra stagione corrente ("2026" → "2027", cioè 2026-27)."""
+    import utils
+    return str(int(utils.load_globals().get("stagione_corrente", "2026")) + 1)
+
+
+def stato_stagione(nomi: list[str]) -> dict:
+    """{attivo (switch fatto), quota (firmati che hanno giocato / firmati), ultima ({nome in minuscolo:
+    ultima stagione bref in cui ha giocato}, dei `nomi`), giocato (chi ha una riga della stagione in
+    corso), mostrabili (chi la lista mostra: stagione in corso, o anche l'anno prima finché non c'è lo
+    switch), aggiornato (ultima riga bref della stagione)}."""
+    vuoto = {"attivo": False, "giocato": set(), "ultima": {}, "mostrabili": set(), "quota": 0.0, "aggiornato": None}
+    if not pg_disponibile():
+        return vuoto
+    st = stagione_bref_corrente()
+    conn = _conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT COUNT(DISTINCT g.id),
+                                  COUNT(DISTINCT g.id) FILTER (WHERE EXISTS (
+                                      SELECT 1 FROM bref_stats b WHERE lower(b.nome_bref) = lower(g.nome_bref) AND b.stagione = %s))
+                           FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id WHERE c.attivo""", (st,))
+            firmati, hanno_giocato = cur.fetchone()
+            ultima = {}
+            if nomi:
+                # i nomi della lista FA sono quelli comuni: si passa dall'anagrafica al nome di bref
+                # (accenti e suffissi scritti diversamente: «Jokic» / «Jokić»); se non c'è, il nome così com'è
+                cur.execute("""SELECT x.nome, MAX(b.stagione) FROM (
+                                   SELECT lower(g.nome_common) AS nome, g.nome_bref FROM giocatori g WHERE lower(g.nome_common) = ANY(%s)
+                                   UNION SELECT lower(n), n FROM unnest(%s::text[]) n) x
+                               JOIN bref_stats b ON lower(b.nome_bref) = lower(x.nome_bref)
+                               GROUP BY 1""", ([n.lower() for n in nomi], list(nomi)))
+                ultima = {r[0]: r[1] for r in cur.fetchall()}
+            cur.execute("SELECT MAX(timestamp) FROM bref_stats WHERE stagione = %s", (st,))
+            agg = cur.fetchone()[0]
+    finally:
+        _putconn(conn)
+    quota = hanno_giocato / firmati if firmati else 0.0
+    attivo = bool(firmati) and quota >= QUOTA_GIOCATO
+    prima = str(int(st) - 1)
+    giocato = {n for n, u in ultima.items() if u == st}
+    mostrabili = giocato if attivo else {n for n, u in ultima.items() if u in (st, prima)}
+    return {"attivo": attivo, "giocato": giocato, "ultima": ultima, "mostrabili": mostrabili, "quota": quota, "aggiornato": agg}
+
+
+def avviso_non_ha_giocato(nome: str) -> str:
+    """La riga di avviso sotto «Quanto offri?» per un giocatore che la /lista_fa non mostrerebbe
+    (Luca, 24/10: con /nuova_fa l'asta si apre per chiunque, ma si dice da quando non gioca in NBA),
+    "" per gli altri."""
+    try:
+        st = stato_stagione([nome])
+    except Exception:
+        return ""
+    n = nome.lower()
+    if n in st["mostrabili"]:
+        return ""
+    u = st["ultima"].get(n)
+    try:
+        from zoneinfo import ZoneInfo
+        quando = st["aggiornato"].astimezone(ZoneInfo("Europe/Rome")).strftime("%d/%m") if st["aggiornato"] else None
+    except Exception:
+        quando = None
+    dati = f"; dati di Basketball-Reference aggiornati al {quando}" if quando else ""
+    if not u:
+        return ("\n\n⚠️ <b>Stai aprendo un'asta per un giocatore che non risulta aver mai giocato in NBA</b> "
+                f"(nessuna stagione su Basketball-Reference{dati}).")
+    y = int(u) - 1                       # stagione di bref «2026» = 2025-26
+    return (f"\n\n⚠️ <b>Stai aprendo un'asta per un giocatore che non gioca in NBA dal {y}-{str(y + 1)[-2:]}</b> "
+            f"(ultima stagione giocata{dati}).")
+
+
 # ── cap/slot anticipato ───────────────────────────────────────────────────────
 
 def get_cap_anticipato(team_id: str) -> int:

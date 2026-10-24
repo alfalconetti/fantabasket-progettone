@@ -28,7 +28,8 @@
 #block(width: 100%, fill: gradient.linear(viola_scuro, viola, angle: 0deg), inset: (x: 12pt, y: 12pt))[
   #grid(columns: (auto, 1fr), column-gutter: 10pt, align: horizon,
     box(width: 56pt, height: 56pt, radius: 50%, clip: true, fill: lilla, stroke: 2pt + white.transparentize(40%),
-      if d.foto != "" { place(top + left, dx: -10.5pt, image(d.foto, height: 84pt, width: 77pt)) }
+      // stesse proporzioni di /partita (Luca, 24/10): foto alta 1,2 volte il tondo (520×380), centrata, un filo più su
+      if d.foto != "" { place(top + left, dx: -17.9pt, dy: -2.8pt, image(d.foto, height: 67.2pt, width: 91.8pt)) }
       else { align(center + horizon, text(19pt, weight: "bold", fill: viola_scuro)[#d.iniziali]) }),
     stack(spacing: 4pt,
       text(15pt, weight: "bold", fill: white)[#d.nome],

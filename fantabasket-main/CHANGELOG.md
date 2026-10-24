@@ -1566,3 +1566,28 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - **Foglio Roster coi nomi di Basketball-Reference** (Luca, 23/10): righe dei giocatori, DIS., 10-DAY, tagli e rookie scale col nome di bref, quello delle righe di BrefRaw a cui si agganciano le formule del foglio (prima il nome dei bot: con accenti e suffissi scritti diversamente, es. «Jokić», «Jr.», le formule non trovavano niente); chi non ha il nome bref resta col nome dei bot (`gas_client.nomi_foglio`). Nel controllo dei dati (`/report_dati`) l'elenco, come informazione, di chi ha i due nomi diversi. Prove in `sync_fogli` e `report_dati`
 - Commento del job bref allineato all'orario delle 12
 
+## v6.5.5 (2026-10-23)
+
+- loucabot v48: `/player` con la **scadenza giusta dei diritti** di una 2nd non firmata: 10 giorni prima della trade deadline della stagione dopo quella del draft (la data, se la deadline è fissata; se no la regola), come il bot principale. Prima leggeva una vecchia colonna della tabella dei rookie (es. «scadono il 20/06/2027», sbagliato; Luca, 23/10). Prova in `louca_risultati`
+
+## v6.5.6 (2026-10-24)
+
+- loucabot v49: in `/partita` le foto dei giocatori meno ingrandite (si vede tutta la testa) e alzate di un filo; tondo e nome allineati allo stesso modo con la foto e con le iniziali (prima, con le iniziali, il nome stava più in alto; Luca, 24/10)
+
+## v6.5.7 (2026-10-24)
+
+- loucabot v50: sull'avviso del controllo delle 10 il bottone **🔄 Ricalcola sparisce** quando lo si preme e sotto resta «Ricalcolo avviato da … alle …» (Luca, 24/10: restava lì appeso); nell'avviso «1 tabellino» al singolare e i fantapunti con la virgola (16,00 → 18,00 invece di 16.0 → 18.0). Prova in `louca_risultati`
+
+## v6.5.8 (2026-10-24)
+
+- Bot aste v72: `/lista_fa` passa d'anno quando almeno il 70% dei giocatori firmati ha giocato nella stagione in corso: da lì la stagione prima non si mostra più e chi non ha ancora giocato quest'anno sparisce (prima, ognuno coi dati più recenti); per gli altri l'asta si apre lo stesso con un avviso sotto l'importo, con la data dei dati di Basketball-Reference (Luca, 24/10). Prova `lista_fa_stagione`
+
+## v6.5.9 (2026-10-24)
+
+- La regola della 6.5.8 corretta (Luca, 24/10: contare sui free agent con uno storico non regge negli anni): lo switch di `/lista_fa` alla stagione in corso si basa sui **giocatori firmati** (70%), prima dello switch nessuno è nascosto e ognuno ha i dati più recenti
+
+## v6.6.0 (2026-10-24)
+
+- Bot aste v73: `/lista_fa` sempre al massimo con i dati dell'anno prima (dopo lo switch solo quelli di quest'anno); `/nuova_fa` per chiunque, con l'avviso dell'ultima stagione giocata in NBA (Luca, 24/10)
+- `/carriera`: la foto nel tondo con le stesse proporzioni di `/partita` (meno ingrandita, un filo più in alto)
+

@@ -300,9 +300,24 @@ BOT.mandati.clear()
 asyncio.run(HR.job_controllo(types.SimpleNamespace(bot=BOT)))
 HR.nba.scarica_tabellini = _vero
 avv = [x for x in BOT.mandati if x.get("chat_id") == -2]
-ok(len(avv) == 1 and "Prova 12" not in avv[0]["text"] and "r12: 21.0 → 25.0" in avv[0]["text"] and "già convalidata" in avv[0]["text"]
+ok(len(avv) == 1 and "Prova 12" not in avv[0]["text"] and "r12: 21,00 → 25,00" in avv[0]["text"] and "già convalidata" in avv[0]["text"]
+   and "1 tabellino di" in avv[0]["text"]
    and [b.callback_data for r in avv[0]["reply_markup"].inline_keyboard for b in r] == [f"rc:re:{N}"],
    f"controllo delle 10: tabellino cambiato di uno schierato → avviso col bottone Ricalcola {avv[0]['text'] if avv else ''}")
+# premuto 🔄 Ricalcola sull'avviso: il bottone sparisce e resta scritto chi l'ha avviato (Luca, 24/10)
+_modifiche = []
+class QC(Q):
+    def __init__(s, data):
+        super().__init__(data); s.message = types.SimpleNamespace(chat_id=-2, message_id=777, text_html="🔎 avviso")
+    async def edit_message_text(s, t, **k): _modifiche.append((t, k))
+async def _no_avvia(context, coro): coro.close()
+_avvia_vero = HR._avvia; HR._avvia = _no_avvia
+_qc = QC(f"rc:re:{N}")
+asyncio.run(HR.cb_risultati(types.SimpleNamespace(callback_query=_qc, effective_user=types.SimpleNamespace(id=900, full_name="Admin")),
+                            types.SimpleNamespace(bot=BOT, application=None)))
+HR._avvia = _avvia_vero
+ok(_modifiche and _modifiche[-1][1].get("reply_markup") is None and "Ricalcolo avviato da Admin" in _modifiche[-1][0]
+   and _modifiche[-1][0].startswith("🔎 avviso"), "🔄 Ricalcola premuto sull'avviso: il bottone sparisce, sotto chi l'ha avviato")
 
 # ── /dev_prova_calcolo: la prova prima che si giochi (quintetti di adesso, panchine mandate, notti NBA indicate) ──
 db.q("DELETE FROM ipa_quintetto")
@@ -614,6 +629,15 @@ ok((PLY.NOTA_FIRMA in sc) == (str(S) == PLY.ANNO_BOT), "/player: firmato nella p
 ok(PLY.NOTA_FIRMA not in PLY.scheda(gid1) and "contratto finito (x0)" in PLY.scheda(gid1), "/player: contratto x0 e RFA (firmato prima: niente nota)")
 db.q("DELETE FROM contratti WHERE giocatore_id = %s", (gid1,))
 ok("svincolato</b> (free agent)" in PLY.scheda(gid1), "/player: svincolato")
+# diritti di una 2nd non firmata: la scadenza dalla regola (10 giorni prima della deadline della stagione dopo il draft)
+_Sx = int(S)
+ok(PLY.scadenza_diritti({"round": 2, "anno_draft": str(_Sx)}, S) == f"scadono 10 giorni prima della trade deadline del {_Sx + 1}-{str(_Sx + 2)[-2:]}"
+   and PLY.scadenza_diritti({"round": 1, "anno_draft": str(_Sx)}, S) == "",
+   "/player: diritti del draft di quest'anno, scadono nella stagione dopo; le prime scelte niente scadenza")
+_G = json.load(open(os.environ["GLOBALS_PATH"])); _dl = _G.get("trade_deadline"); _G["trade_deadline"] = f"{_Sx + 1}-02-05"; json.dump(_G, open(os.environ["GLOBALS_PATH"], "w"))
+ok(PLY.scadenza_diritti({"round": 2, "anno_draft": str(_Sx - 1)}, S) == f"scadono il 26/01/{_Sx + 1}, 10 giorni prima della trade deadline",
+   "/player: diritti al secondo anno, con la deadline fissata: la data (deadline − 10 giorni)")
+_G.pop("trade_deadline") if _dl is None else _G.update(trade_deadline=_dl); json.dump(_G, open(os.environ["GLOBALS_PATH"], "w"))
 # ── foto ESPN (Luca, 23/10): di notte una alla volta, poi /player con la foto ──
 import foto as FO, tempfile, os
 FO.CARTELLA = tempfile.mkdtemp(); FO.INDICE = os.path.join(FO.CARTELLA, "indice.json")

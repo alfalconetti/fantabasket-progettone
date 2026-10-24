@@ -144,9 +144,10 @@ async def job_controllo(context: ContextTypes.DEFAULT_TYPE):
         righe = []
         for (pid, a), (prima, dopo) in sorted(contano.items(), key=lambda x: (x[1][1] or x[1][0])[2]):
             nome = (dopo or prima)[2]
-            righe.append(f"• {e(nome)}: {prima[0] if prima else '—'} → {dopo[0] if dopo else '—'} fantapunti"
+            righe.append(f"• {e(nome)}: {testo_punti(prima[0]) if prima else '—'} → {testo_punti(dopo[0]) if dopo else '—'} fantapunti"
                          + (f" (minuti {prima[1]} → {dopo[1]})" if prima and dopo and prima[1] != dopo[1] else ""))
-        testo = (f"🔎 <b>Controllo delle 10, giornata {n}</b>: ESPN ha cambiato {len(contano)} tabellini di giocatori schierati"
+        testo = (f"🔎 <b>Controllo delle 10, giornata {n}</b>: ESPN ha cambiato {len(contano)} "
+                 f"{'tabellino' if len(contano) == 1 else 'tabellini'} di giocatori schierati"
                  + (" (giornata già convalidata)" if lc["stato"] == "convalidata" else "") + ":\n" + "\n".join(righe)
                  + "\n\nI tabellini nel database sono già aggiornati: ricalcola per aggiornare risultati e foglio.")
         if config.gruppo_admin():
@@ -248,6 +249,15 @@ async def cb_risultati(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if azione == "re":
         await q.answer("Ricalcolo in corso…")
+        # dal messaggio del controllo delle 10 (non dalla proposta, che il ricalcolo segna già come superata):
+        # il bottone sparisce e sotto resta chi l'ha avviato (Luca, 24/10: restava lì appeso)
+        if not lc or lc.get("messaggio") != q.message.message_id:
+            ora = datetime.now(timezone.utc).astimezone(__import__("zoneinfo").ZoneInfo("Europe/Rome"))
+            try:
+                await q.edit_message_text(q.message.text_html + f"\n\n🔄 <i>Ricalcolo avviato da {e(_chi_nome(update))} alle {ora:%H:%M}</i>",
+                                          parse_mode="HTML", reply_markup=None)
+            except Exception as err:
+                logger.info("Bottone Ricalcola: %s", err)
 
         async def rispondi(t):
             await context.bot.send_message(chat_id=q.message.chat_id, text=t)

@@ -278,41 +278,56 @@ def _lista_fa_keyboard(rows: list[dict], aste_aperte_giocatori: set, page: int, 
     return InlineKeyboardMarkup(righe_kb)
 
 
-async def cmd_lista_fa(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def righe_lista_fa() -> tuple[list[dict], int]:
+    """(free agent da mostrare, ordinati per fantamedia; quanti nascosti). Ognuno coi dati più recenti
+    che ha; dopo lo switch alla stagione in corso (almeno il 70% dei firmati ha giocato:
+    pg_client.stato_stagione) la stagione prima non si mostra più e chi non ha ancora giocato
+    quest'anno non c'è (Luca, 24/10): l'asta per lui si apre lo stesso con /nuova_fa, con un avviso."""
     rows = [r for r in utils.get_fa_rows() if r["firmato"] == "0"]
-    if not rows:
-        await update.effective_message.reply_text("Nessun giocatore FA disponibile.")
-        return
-
-    # Arricchisci con fantamedia da bref_stats
-    if pg_client.pg_disponibile():
+    nascosti = 0
+    if pg_client.pg_disponibile() and rows:
         nomi = [r["nome"] for r in rows]
         bref_map = pg_client.get_bref_fantamedie_bulk(nomi)
         stagione_corrente = utils.load_globals().get("stagione_corrente", "2026")
         anno_bref_corrente = str(int(stagione_corrente) + 1)
         for r in rows:
+            # fantamedia: per nome, se no quella che la lista FA ha già preso dall'anagrafica (nome di bref)
             fm_data = bref_map.get(r["nome"].lower())
+            if not (fm_data and fm_data[0] is not None) and r.get("fantamedia") is not None:
+                fm_data = (r["fantamedia"], r.get("stagione_bref"))
             if fm_data and fm_data[0] is not None:
                 fm, stagione_bref = fm_data
                 r["fantamedia"] = round(fm, 1)
                 # stagione_bref es. "2026" = NBA 2025-26 = nostro "2025"
-                if stagione_bref != anno_bref_corrente:
-                    r["stagione_bref"] = str(int(stagione_bref) - 1)
-                else:
-                    r["stagione_bref"] = None
+                r["stagione_bref"] = str(int(stagione_bref) - 1) if stagione_bref and stagione_bref != anno_bref_corrente else None
             else:
                 r["stagione_bref"] = None
-
-    # Ordina per fantamedia DESC (None in fondo)
+        # al massimo i dati dell'anno prima; dopo lo switch solo la stagione in corso (pg_client.stato_stagione)
+        st = pg_client.stato_stagione(nomi)
+        prima = len(rows)
+        rows = [r for r in rows if r["nome"].lower() in st["mostrabili"]]
+        nascosti = prima - len(rows)
     rows.sort(key=lambda r: r.get("fantamedia") or -1, reverse=True)
+    return rows, nascosti
+
+
+async def cmd_lista_fa(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    rows, nascosti = righe_lista_fa()
+    if not rows:
+        await update.effective_message.reply_text("Nessun giocatore FA disponibile.")
+        return
 
     aste_aperte_giocatori = {a["giocatore"] for a in db.get_aste_aperte()}
     aste_aperte_giocatori |= {a["giocatore"] for a in db.get_aste_chiuse()}
 
     bot_username = context.bot.username
     kb = _lista_fa_keyboard(rows, aste_aperte_giocatori, 0, bot_username)
+    attivo = pg_client.stato_stagione([])["attivo"] if nascosti else False
+    nota = (f"\n<i>Non ci sono {nascosti} free agent che non hanno giocato in NBA "
+            + ("in questa stagione" if attivo else "né quest'anno né l'anno scorso")
+            + ": l'asta per loro si apre lo stesso con /nuova_fa NOME.</i>" if nascosti else "")
     await update.effective_message.reply_text(
-        "🟢 <b>Giocatori FA disponibili</b>\n🟡 = asta in corso\nClicca per aprire subito l'asta:",
+        "🟢 <b>Giocatori FA disponibili</b>\n🟡 = asta in corso\nClicca per aprire subito l'asta:" + nota,
         parse_mode="HTML",
         reply_markup=kb,
     )
@@ -322,25 +337,7 @@ async def lista_fa_page_callback(update: Update, context: ContextTypes.DEFAULT_T
     query = update.callback_query
     await query.answer()
     page = int(query.data.split(":")[1])
-    rows = [r for r in utils.get_fa_rows() if r["firmato"] == "0"]
-    if pg_client.pg_disponibile():
-        nomi = [r["nome"] for r in rows]
-        bref_map = pg_client.get_bref_fantamedie_bulk(nomi)
-        stagione_corrente = utils.load_globals().get("stagione_corrente", "2026")
-        anno_bref_corrente = str(int(stagione_corrente) + 1)
-        for r in rows:
-            fm_data = bref_map.get(r["nome"].lower())
-            if fm_data and fm_data[0] is not None:
-                fm, stagione_bref = fm_data
-                r["fantamedia"] = round(fm, 1)
-                # stagione_bref es. "2026" = NBA 2025-26 = nostro "2025"
-                if stagione_bref != anno_bref_corrente:
-                    r["stagione_bref"] = str(int(stagione_bref) - 1)
-                else:
-                    r["stagione_bref"] = None
-            else:
-                r["stagione_bref"] = None
-    rows.sort(key=lambda r: r.get("fantamedia") or -1, reverse=True)
+    rows, _ = righe_lista_fa()
     aste_aperte_giocatori = {a["giocatore"] for a in db.get_aste_aperte()}
     aste_aperte_giocatori |= {a["giocatore"] for a in db.get_aste_chiuse()}
     bot_username = context.bot.username

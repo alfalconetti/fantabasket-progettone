@@ -24,6 +24,31 @@ import config
 import db
 from numeri import ottavi, testo as tp
 
+def scadenza_diritti(r: dict, stagione: str) -> str:
+    """Quando scadono i diritti di una 2nd non firmata (regolamento, come il bot principale:
+    database.info_scadenza_diritti): 10 giorni prima della trade deadline della stagione dopo
+    quella del draft. Con la deadline in globals (`trade_deadline`) la data, se no la regola
+    (Luca, 23/10: prima si leggeva rookie.scadenza_diritti, un campo vecchio e sbagliato).
+    "" per le prime scelte (i diritti non scadono così)."""
+    from datetime import date, timedelta
+    try:
+        if int(r.get("round") or 0) != 2 or not r.get("anno_draft"):
+            return ""
+        anno_scade = int(r["anno_draft"]) + 1                 # la stagione in cui scadono (2026 → 2027-28)
+    except (TypeError, ValueError):
+        return ""
+    stag = lambda y: f"{y}-{str(y + 1)[-2:]}"
+    dl = config.globali().get("trade_deadline")
+    if dl and int(stagione) == anno_scade:
+        try:
+            return f"scadono il {date.fromisoformat(dl) - timedelta(days=10):%d/%m/%Y}, 10 giorni prima della trade deadline"
+        except ValueError:
+            pass
+    if int(stagione) > anno_scade:
+        return "scaduti: li chiude un admin"
+    return f"scadono 10 giorni prima della trade deadline del {stag(anno_scade)}"
+
+
 ANNO_BOT = "2026"            # prima stagione del bot
 NOTA_FIRMA_FINO_AL = 2028    # fino a quando /player spiega l'anno di firma dei contratti di prima del bot
 NOTA_FIRMA = ("Il bot è nato nel 2026: i contratti firmati prima risultano firmati nel 2026-27, "
@@ -127,11 +152,12 @@ def scheda(gid: int) -> str:
         if c["tipo"] != "10day" and str(c["stagione_firma"]) == ANNO_BOT and datetime.now().year <= NOTA_FIRMA_FINO_AL:
             righe.append(f"<i>{NOTA_FIRMA}</i>")
     else:
-        diritti = _q1("""SELECT team_id, scadenza_diritti FROM rookie WHERE giocatore_id = %s AND NOT firmato
+        diritti = _q1("""SELECT team_id, round, anno_draft FROM rookie WHERE giocatore_id = %s AND NOT firmato
                          AND NOT diritti_scaduti ORDER BY id DESC LIMIT 1""", (gid,))
         if diritti:
+            scad = scadenza_diritti(diritti, s)
             righe.append(f"🏆 Fantabasket: <b>svincolato</b>, diritti rookie di <b>{e(config.nome(diritti['team_id']))}</b>"
-                         + (f" (scadono il {diritti['scadenza_diritti']:%d/%m/%Y})" if diritti.get("scadenza_diritti") else ""))
+                         + (f" ({scad})" if scad else ""))
         else:
             righe.append("🏆 Fantabasket: <b>svincolato</b> (free agent)")
 

@@ -67,6 +67,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `apri_asta_admin` | aste (isolato) | `/apri_asta`: nome esatto/omonimi/fuzzy, cap, squadra, importo, mercato chiuso |
 | `apertura_gm` | aste (isolato) | apertura del GM passata dalla funzione comune |
 | `cap_asta_chiusa` | aste (isolato) | un'asta chiusa e non firmata impegna ancora cap e slot |
+| `lista_fa_stagione` | aste | `/lista_fa`: mai chi non gioca da più di una stagione; prima dello switch quest'anno e l'anno prima coi dati più recenti (con l'anno); switch al 70% dei firmati che hanno giocato, poi solo chi ha giocato quest'anno (nomi collegati a bref dall'anagrafica); avviso sotto l'importo con l'ultima stagione giocata (o mai) e la data dei dati |
 | `team_ricerca` | aste (isolato) | `/team` trova la squadra come `/roster` (id, nome, GM, inizio, una parola sola del nome della squadra o del GM, errore di battitura; ambigua → nessuna), senza argomento la propria |
 | `regolamento_numeri_aste` | aste (isolato) | i numeri del regolamento nel bot aste: durata dell'asta, tempi di firma e pareggio, anni minimi, soglie del pareggio RFA |
 | `rfa_proprietario` | aste (isolato) | il proprietario non offre sul proprio RFA neanche con `/offerta` |

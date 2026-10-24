@@ -17,6 +17,7 @@ import database as db
 import teams as tm
 import utils
 import settings
+import pg_client
 from handlers.helpers import aggiorna_canale, notifica_watchers, teams_map, log_warn
 
 logger = logging.getLogger(__name__)
@@ -279,7 +280,8 @@ async def nuova_fa(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await msg.reply_text(
             f"🏀 Nuova asta FA per <b>{nome_esatto}</b>.\n\n"
             f"{_cap_info_lines(team, cap)}\n\n"
-            f"Quanto offri? (minimo {settings.rilancio_minimo()}M)\n"
+            f"Quanto offri? (minimo {settings.rilancio_minimo()}M)"
+            f"{pg_client.avviso_non_ha_giocato(context.user_data['nuova_fa_giocatore'])}\n"
             f"<i>Per annullare: /annulla</i>",
             parse_mode="HTML",
         )
@@ -352,7 +354,8 @@ async def nuova_fa_omonimo_callback(update: Update, context: ContextTypes.DEFAUL
         return ConversationHandler.END
     context.user_data["nuova_fa_giocatore"] = nome
     await query.edit_message_text(
-        f"🏀 Nuova asta FA per <b>{nome}</b>.\n\nQuanto offri? (minimo {settings.rilancio_minimo()}M)\n"
+        f"🏀 Nuova asta FA per <b>{nome}</b>.\n\nQuanto offri? (minimo {settings.rilancio_minimo()}M)"
+        f"{pg_client.avviso_non_ha_giocato(nome)}\n"
         f"<i>Per annullare: /annulla</i>",
         parse_mode="HTML",
     )
@@ -406,7 +409,8 @@ async def nuova_fa_conferma_callback(update: Update, context: ContextTypes.DEFAU
 
     context.user_data["nuova_fa_giocatore"] = suggerimento
     await query.edit_message_text(
-        f"🏀 Nuova asta FA per <b>{suggerimento}</b>.\n\nQuanto offri? (minimo {settings.rilancio_minimo()}M)\n"
+        f"🏀 Nuova asta FA per <b>{suggerimento}</b>.\n\nQuanto offri? (minimo {settings.rilancio_minimo()}M)"
+        f"{pg_client.avviso_non_ha_giocato(suggerimento)}\n"
         f"<i>Per annullare: /annulla</i>",
         parse_mode="HTML",
     )
@@ -592,7 +596,8 @@ async def start_deep_link(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await update.effective_message.reply_text(
             f"🏀 Nuova asta FA per <b>{nome_esatto}</b>.\n\n"
             f"{_cap_info_lines(team, cap)}\n\n"
-            f"Quanto offri? (minimo {settings.rilancio_minimo()}M)\n"
+            f"Quanto offri? (minimo {settings.rilancio_minimo()}M)"
+            f"{pg_client.avviso_non_ha_giocato(context.user_data['nuova_fa_giocatore'])}\n"
             f"<i>Per annullare: /annulla</i>",
             parse_mode="HTML",
         )

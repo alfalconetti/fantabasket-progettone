@@ -662,3 +662,13 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 ## v71 (2026-10-23)
 
 - `/sposta_asta`: la data in tutti i formati di `shared/date_comandi` (GG/MM/AA HH:MM, GG/MM/AAAA HH:MM, AAAA-MM-GGTHH:MM)
+
+## v72 (2026-10-24)
+
+- **`/lista_fa` senza chi non ha giocato** (Luca, 24/10): fino a quando almeno il 70% dei giocatori **firmati** nella lega non ha giocato nella stagione in corso, ognuno coi dati più recenti (quest'anno o l'anno prima, con l'anno); poi si passa d'anno: la stagione prima non si mostra più e chi non ha ancora giocato quest'anno sparisce (la lista dice quanti). L'asta per gli altri si apre lo stesso con `/nuova_fa`: sotto «Quanto offri?» l'avviso «Stai aprendo un'asta per un giocatore che non ha giocato nella stagione in corso (dati di Basketball-Reference aggiornati al …)». I nomi della lista si collegano a quelli di bref passando dall'anagrafica (prima un «Jokic» non trovava «Jokić»). Prova `lista_fa_stagione`
+
+## v73 (2026-10-24)
+
+- `/lista_fa` mostra **sempre al massimo i dati dell'anno prima** (Luca, 24/10): chi non gioca in NBA da più di una stagione (ritirati, all'estero) o non ci ha mai giocato non compare mai; dopo lo switch (70% dei firmati) solo la stagione in corso. In cima quanti free agent non compaiono
+- `/nuova_fa` apre l'asta per chiunque: per chi la lista non mostra, l'avviso sotto «Quanto offri?» dice **da quando non gioca in NBA** («non gioca in NBA dal 2024-25»), o che non ci ha mai giocato, con la data dei dati di Basketball-Reference
+

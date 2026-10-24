@@ -241,3 +241,16 @@ Il calcolo dei fantapunti.
 ## v47 (2026-10-23)
 
 - **Cambi di squadra NBA salvati** (`nba_movimenti`, per `/carriera` del bot principale): `db.salva_atleti` confronta i roster ESPN delle 8:30 con quelli del giorno prima e segna ogni cambio col giorno (da una squadra all'altra, di nuovo in un roster, fuori da tutti i roster)
+
+## v48 (2026-10-23)
+
+- `/player`: scadenza dei diritti rookie di una 2nd dalla regola (`player.scadenza_diritti`: 10 giorni prima della trade deadline della stagione dopo il draft, `trade_deadline` in globals), non più da `rookie.scadenza_diritti`
+
+## v49 (2026-10-24)
+
+- `/partita`: foto nel tondo meno ingrandita e un filo più in alto (altezza 24pt invece di 30); tondo e nome in una griglia centrata in verticale, uguale con la foto e con le iniziali
+
+## v50 (2026-10-24)
+
+- Controllo delle 10: premuto 🔄 Ricalcola sull'avviso, il bottone si toglie e il messaggio dice chi ha avviato il ricalcolo e quando (la proposta del calcolo no: quella la segna già superata il ricalcolo); «1 tabellino» e fantapunti formattati come altrove
+
