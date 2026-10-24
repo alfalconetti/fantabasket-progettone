@@ -669,6 +669,24 @@ ok(_inviate and _inviate[0][0] == "foto" and (_inviate[0][1] or (len(_inviate) >
    "/player con la foto (didascalia, o foto e testo sotto se lungo)")
 ok(asyncio.run(FO.job_foto(types.SimpleNamespace())) is None, "job delle foto: fuori dalla notte americana non fa niente (o una sola foto)")
 db.q("DELETE FROM contratti WHERE giocatore_id = %s", (gid1,))
+# 7:45: prima del calcolo riscarica TUTTI i tabellini della giornata, anche quelli presi nella notte (Luca, 24/10)
+import handlers_calcolo as _HC3
+_ord, _logs = [], []
+async def _sinc(*a, **k): _ord.append("sincronizza")
+async def _agg(*a, **k): _ord.append("mancanti")
+async def _risc(g): _ord.append("riscarica"); return {("p", "a"): ((10.0, 30, "X"), (12.0, 30, "X"))}
+async def _es(bot, s_, n_, *a, **k): _ord.append("calcolo")
+async def _lg(bot, t): _logs.append(t)
+import handlers as _HH
+_salva = (HR.nba.sincronizza, _HC3.aggiorna_tabellini, HR._riscarica, HR.pronta, HR.esegui, HR.db.giornate, HR.nba.oggi_et, _HH.log)
+HR.nba.sincronizza, _HC3.aggiorna_tabellini, HR._riscarica, HR.esegui, _HH.log = _sinc, _agg, _risc, _es, _lg
+HR.pronta = lambda s_, g: None
+HR.db.giornate = lambda s_: [{"numero": 99, "dal": date(2030, 1, 1), "al": date(2030, 1, 2), "stagione": s_}]
+HR.nba.oggi_et = lambda: date(2030, 1, 3)
+asyncio.run(HR.job_calcolo(types.SimpleNamespace(bot=BOT)))
+(HR.nba.sincronizza, _HC3.aggiorna_tabellini, HR._riscarica, HR.pronta, HR.esegui, HR.db.giornate, HR.nba.oggi_et, _HH.log) = _salva
+ok(_ord == ["sincronizza", "mancanti", "riscarica", "calcolo"] and any("1 righe di tabellino corrette" in t for t in _logs),
+   f"calcolo delle 7:45: riscarica tutti i tabellini della giornata prima di calcolare, e dice se ESPN ne ha corretti {_ord}")
 # pulizia
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (list(gid.values()),))
 db.q("TRUNCATE nba_tabellini, nba_infortuni, lega_giornate, lega_partite, nba_partite, lega_risultati, lega_calcoli, lega_live")

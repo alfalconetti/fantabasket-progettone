@@ -1617,3 +1617,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.6.6 (2026-10-24)
 
 - Il report automatico delle 9:15 arriva **solo in privato al dev**, non più al gruppo admin (Luca, 24/10); `/posizioni_mancanti` resta per tutti gli admin
+
+## v6.6.7 (2026-10-24)
+
+- Loucabot v51: il calcolo delle 7:45 riscarica tutti i tabellini della giornata prima di calcolare (Luca, 24/10)

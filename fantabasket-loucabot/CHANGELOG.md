@@ -254,3 +254,7 @@ Il calcolo dei fantapunti.
 
 - Controllo delle 10: premuto 🔄 Ricalcola sull'avviso, il bottone si toglie e il messaggio dice chi ha avviato il ricalcolo e quando (la proposta del calcolo no: quella la segna già superata il ricalcolo); «1 tabellino» e fantapunti formattati come altrove
 
+
+## v51 (2026-10-24)
+
+- **Calcolo delle 7:45**: prima di calcolare riscarica tutti i tabellini della giornata, anche quelli già presi dal live nella notte, come fanno già `/ricalcola` e il controllo delle 10. Una correzione di ESPN arrivata tra la fine della notte e le 7:45 entra subito nella proposta; se ce ne sono, una riga nel canale log (Luca, 24/10)

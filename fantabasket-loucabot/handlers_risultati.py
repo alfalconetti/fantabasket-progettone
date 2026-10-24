@@ -95,7 +95,7 @@ async def esegui(bot, stagione: str, n: int, chi: str = "job delle 7:45", user=N
 
 
 async def job_calcolo(context: ContextTypes.DEFAULT_TYPE):
-    """7:45: le giornate finite da calcolare."""
+    """7:45: le giornate finite da calcolare, coi tabellini tutti riscaricati (come /ricalcola e il controllo delle 10)."""
     from handlers import log
     import handlers_calcolo as hc
     s = config.stagione()
@@ -106,6 +106,11 @@ async def job_calcolo(context: ContextTypes.DEFAULT_TYPE):
         try:
             await nba.sincronizza(_giorni(g))
             await hc.aggiorna_tabellini()
+            # riscarica anche i tabellini già presi nella notte: correzioni di ESPN dopo il live (Luca, 24/10)
+            cambi = await _riscarica(g)
+            if cambi:
+                await log(context.bot, f"🔁 Giornata {g['numero']}, 7:45: {len(cambi)} righe di tabellino corrette da ESPN "
+                                       f"dopo la notte, il calcolo usa quelle nuove")
             motivo = pronta(s, g)
             if motivo:
                 await log(context.bot, f"⏳ Giornata {g['numero']} non calcolata alle 7:45: {e(motivo)}. "
