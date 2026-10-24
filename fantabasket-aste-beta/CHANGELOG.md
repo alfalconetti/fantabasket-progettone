@@ -676,3 +676,12 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 
 - `/lista_fa`: accanto alla fantamedia le **partite giocate su quelle della sua squadra NBA** nella stessa stagione, es. «FM: 23.4 · 3/4 G» (Luca, 24/10): partite e squadra dall'ultima riga di Basketball-Reference, partite finite della squadra da loucabot (`nba_partite`); per la stagione prima su 82
 
+## v75 (2026-10-24)
+
+- `/lista_fa`: le **posizioni eleggibili** accanto al nome, es. «Jalen Esempio (SG/SF) — FM: 23.4 · 3/4 G» (Luca, 24/10)
+
+## v76 (2026-10-24)
+
+- `/lista_fa`: fantamedia, partite, squadra e stagione **dalla stessa riga** di Basketball-Reference, la più recente (`pg_client.dati_fa`). Prima la fantamedia veniva da una ricerca diversa e, per chi su bref ha cambiato grafia del nome tra un anno e l'altro (es. «Cissé» → «Cisse»), usciva quella dell'anno prima, «(2025)», anche dopo lo switch (Luca, 24/10)
+- «FM» diventa **«FP»**, come negli altri bot
+

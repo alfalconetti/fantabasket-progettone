@@ -1595,3 +1595,12 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - Bot aste v74: in `/lista_fa` le partite giocate su quelle della squadra NBA, es. «3/4 G» (Luca, 24/10)
 
+## v6.6.2 (2026-10-24)
+
+- Bot aste v75: in `/lista_fa` le posizioni eleggibili accanto al nome (Luca, 24/10)
+- To-do: fonte dati di riserva gratuita (NBA.com, injury report ufficiale, Basketball-Reference) con quelle a pagamento come opzione C
+
+## v6.6.3 (2026-10-24)
+
+- Bot aste v76: in `/lista_fa` fantamedia e partite sempre dalla stessa riga di Basketball-Reference (niente più «(2025)» per chi ha già giocato quest'anno); «FM» diventa «FP» (Luca, 24/10)
+

@@ -623,20 +623,52 @@ def stato_stagione(nomi: list[str]) -> dict:
 SIGLE_BREF_ESPN = {"BRK": "BKN", "PHO": "PHX", "CHO": "CHA", "NOH": "NOP"}
 
 
-def partite_fa(nomi: list[str]) -> dict:
-    """{nome in minuscolo: (partite giocate, squadra NBA, stagione bref)} dall'ultima riga di bref di ognuno
-    (dal nome comune al nome di bref passando dall'anagrafica, come stato_stagione)."""
+def dati_fa(nomi: list[str]) -> dict:
+    """{nome in minuscolo: (partite giocate, squadra NBA, stagione bref, fantamedia)} dall'ultima riga di bref
+    di ognuno, presa passando dall'anagrafica al nome di bref (e anche col nome così com'è): partite,
+    squadra e fantamedia vengono sempre dalla stessa riga (Luca, 24/10: prima la fantamedia da una ricerca
+    diversa poteva essere dell'anno prima, «FM 12.8 (2025)» per chi aveva già giocato)."""
     if not nomi or not pg_disponibile():
         return {}
     conn = _conn()
     try:
         with conn.cursor() as cur:
-            cur.execute("""SELECT DISTINCT ON (x.nome) x.nome, b.g, b.team, b.stagione FROM (
+            cur.execute("""SELECT DISTINCT ON (x.nome) x.nome, b.g, b.team, b.stagione, b.fantamedia FROM (
                                SELECT lower(g.nome_common) AS nome, g.nome_bref FROM giocatori g WHERE lower(g.nome_common) = ANY(%s)
                                UNION SELECT lower(n), n FROM unnest(%s::text[]) n) x
                            JOIN bref_stats b ON lower(b.nome_bref) = lower(x.nome_bref)
-                           ORDER BY x.nome, b.timestamp DESC""", ([n.lower() for n in nomi], list(nomi)))
-            return {r[0]: (r[1], r[2], r[3]) for r in cur.fetchall()}
+                           ORDER BY x.nome, b.stagione DESC, b.timestamp DESC""", ([n.lower() for n in nomi], list(nomi)))
+            return {r[0]: (r[1], r[2], r[3], float(r[4]) if r[4] is not None else None) for r in cur.fetchall()}
+    finally:
+        _putconn(conn)
+
+
+def partite_fa(nomi: list[str]) -> dict:
+    """{nome in minuscolo: (partite, squadra, stagione bref)}: come dati_fa senza la fantamedia."""
+    return {k: v[:3] for k, v in dati_fa(nomi).items()}
+
+
+def posizioni_fa(nomi: list[str]) -> dict:
+    """{nome comune in minuscolo: "PG/SG"} posizioni eleggibili (vista posizioni_attuali del bot principale),
+    nell'ordine PG SG SF PF C; {} se la vista non c'è."""
+    if not nomi or not pg_disponibile():
+        return {}
+    conn = _conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT to_regclass('posizioni_attuali')")
+            if not cur.fetchone()[0]:
+                return {}
+            cur.execute("""SELECT lower(g.nome_common), p.posizioni FROM giocatori g
+                           JOIN posizioni_attuali p ON p.giocatore_id = g.id WHERE lower(g.nome_common) = ANY(%s)""",
+                        ([n.lower() for n in nomi],))
+            ordine = ("PG", "SG", "SF", "PF", "C")
+            out = {}
+            for nome, pos in cur.fetchall():
+                ps = {x.strip().upper() for x in (pos or "").split(",") if x.strip()}
+                if ps:
+                    out[nome] = "/".join(r for r in ordine if r in ps)
+            return out
     finally:
         _putconn(conn)
 

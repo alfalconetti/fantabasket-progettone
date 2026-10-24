@@ -255,12 +255,13 @@ def _lista_fa_keyboard(rows: list[dict], aste_aperte_giocatori: set, page: int, 
         stagione_bref = r.get("stagione_bref")
         if fm_val:
             anno_nota = f" ({stagione_bref})" if stagione_bref else ""
-            fm = f" — FM: {fm_val}{anno_nota}"
+            fm = f" — FP: {fm_val}{anno_nota}"          # FP come negli altri bot (Luca, 24/10)
         else:
             fm = ""
         # partite giocate su quelle della sua squadra NBA nella stessa stagione (Luca, 24/10)
         gp = f" · {r['partite']} G" if r.get("partite") else ""
-        label = f"{pallino}{r['nome']}{fm}{gp}"
+        pos = f" ({r['posizioni']})" if r.get("posizioni") else ""          # posizioni eleggibili (Luca, 24/10)
+        label = f"{pallino}{r['nome']}{pos}{fm}{gp}"
         if bot_username:
             # deep link: normalizza diacritici, spazi→_, punti→--, strip apostrofi (Telegram start: solo A-Za-z0-9_-)
             nome_enc = utils.normalizza(r["nome"]).replace(" ", "_").replace(".", "--").replace("'", "")
@@ -289,35 +290,30 @@ def righe_lista_fa() -> tuple[list[dict], int]:
     nascosti = 0
     if pg_client.pg_disponibile() and rows:
         nomi = [r["nome"] for r in rows]
-        bref_map = pg_client.get_bref_fantamedie_bulk(nomi)
         stagione_corrente = utils.load_globals().get("stagione_corrente", "2026")
         anno_bref_corrente = str(int(stagione_corrente) + 1)
-        for r in rows:
-            # fantamedia: per nome, se no quella che la lista FA ha già preso dall'anagrafica (nome di bref)
-            fm_data = bref_map.get(r["nome"].lower())
-            if not (fm_data and fm_data[0] is not None) and r.get("fantamedia") is not None:
-                fm_data = (r["fantamedia"], r.get("stagione_bref"))
-            if fm_data and fm_data[0] is not None:
-                fm, stagione_bref = fm_data
-                r["fantamedia"] = round(fm, 1)
-                # stagione_bref es. "2026" = NBA 2025-26 = nostro "2025"
-                r["stagione_bref"] = str(int(stagione_bref) - 1) if stagione_bref and stagione_bref != anno_bref_corrente else None
-            else:
-                r["stagione_bref"] = None
-        # partite: «3/4» = 3 giocate su 4 della sua squadra NBA (la squadra della sua ultima riga di bref); per
-        # la stagione prima, sulle partite di quella stagione (82 se loucabot non le ha)
-        pf = pg_client.partite_fa(nomi)
+        pos_fa = pg_client.posizioni_fa(nomi)
+        # una sola riga di bref per giocatore (la più recente): fantamedia, partite, squadra e stagione insieme
+        # (Luca, 24/10); «3/4» = 3 giocate su 4 della sua squadra NBA, per la stagione prima su 82
+        dati = pg_client.dati_fa(nomi)
         squadre = {}
         for r in rows:
-            x = pf.get(r["nome"].lower())
-            if not x or x[0] is None:
+            r["posizioni"] = pos_fa.get(r["nome"].lower(), "")
+            r["fantamedia"], r["stagione_bref"], r["partite"] = None, None, ""
+            x = dati.get(r["nome"].lower())
+            if not x:
                 continue
-            g_, team, stag = x
-            if stag not in squadre:
-                squadre[stag] = pg_client.partite_squadre(stag)
-            sq = pg_client.SIGLE_BREF_ESPN.get((team or "").upper(), (team or "").upper())
-            tot = squadre[stag].get(sq) or (82 if stag != anno_bref_corrente else None)
-            r["partite"] = f"{g_}/{tot}" if tot else f"{g_}"
+            g_, team, stag, fm = x
+            if fm is not None:
+                r["fantamedia"] = round(fm, 1)
+            # stagione_bref es. "2026" = NBA 2025-26 = nostro "2025"
+            r["stagione_bref"] = str(int(stag) - 1) if stag and stag != anno_bref_corrente else None
+            if g_ is not None:
+                if stag not in squadre:
+                    squadre[stag] = pg_client.partite_squadre(stag)
+                sq = pg_client.SIGLE_BREF_ESPN.get((team or "").upper(), (team or "").upper())
+                tot = squadre[stag].get(sq) or (82 if stag != anno_bref_corrente else None)
+                r["partite"] = f"{g_}/{tot}" if tot else f"{g_}"
         # al massimo i dati dell'anno prima; dopo lo switch solo la stagione in corso (pg_client.stato_stagione)
         st = pg_client.stato_stagione(nomi)
         prima = len(rows)

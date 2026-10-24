@@ -83,3 +83,20 @@ kb = U._lista_fa_keyboard(righe, set(), 0)
 etichette = [b.text for r_ in kb.inline_keyboard for b in r_]
 ok(p_.get("Uno Giocato") == "1/2" and p_.get("Nikola Jokic") == "1" and any("Uno Giocato" in t and "1/2 G" in t for t in etichette),
    f"partite giocate su quelle finite della sua squadra (NYK: 2 finite, la terza no; DEN senza partite: solo le sue) {p_} {etichette}")
+# posizioni eleggibili accanto al nome (Luca, 24/10)
+_gid = pg.q("SELECT id FROM giocatori WHERE nome_common = 'Uno Giocato'", one=True)["id"]
+pg.q("INSERT INTO posizioni_eleggibili (giocatore_id, posizioni, fonte) VALUES (%s, 'SF,SG', 'prova')", (_gid,))
+righe, _ = U.righe_lista_fa()
+etichette = [b.text for r_ in U._lista_fa_keyboard(righe, set(), 0).inline_keyboard for b in r_]
+ok(any(t.startswith("Uno Giocato (SG/SF) — FP") for t in etichette) and any(t.startswith("Nikola Jokic — FP") for t in etichette),
+   f"posizioni eleggibili accanto al nome, in ordine PG SG SF PF C (senza posizioni niente parentesi) {etichette}")
+
+# come Moussa Cisse (Luca, 24/10): in anagrafica il nome di bref vecchio («Cissé», solo l'anno prima), quest'anno su
+# bref senza accento: fantamedia, partite e stagione dalla stessa riga, quella di quest'anno, senza «(2025)»
+gioc("Moussa Cisse", "Moussa Cissé")
+riga("Moussa Cissé", "2026", fm=12, ts="2026-04-10 12:00+02")
+riga("Moussa Cisse", "2027", fm=18)
+pg.q("UPDATE bref_stats SET team = 'NYK' WHERE nome_bref = 'Moussa Cisse'")
+righe, _ = U.righe_lista_fa()
+et = [b.text for r_ in U._lista_fa_keyboard(righe, set(), 0).inline_keyboard for b in r_ if b.text.startswith("Moussa")]
+ok(et == ["Moussa Cisse — FP: 18.0 · 1/2 G"], f"nome di bref cambiato tra un anno e l'altro: i dati di quest'anno, senza l'anno vecchio {et}")
