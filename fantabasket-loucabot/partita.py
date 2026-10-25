@@ -52,21 +52,9 @@ def _stato_calcolo(s: str, n: int) -> str | None:
 # ── quale giornata, quali squadre ─────────────────────────────────────────────
 
 def giornata_di_default(s: str, ora: datetime | None = None) -> dict | None:
-    """La giornata in corso, la stessa fino alla convalida; dopo la convalida la successiva, ma solo
-    dalle 16 (orari.partita_nuova) del suo primo giorno: fino ad allora quella appena finita."""
-    from zoneinfo import ZoneInfo
-    from shared import regole
-    ora = ora or datetime.now(timezone.utc)
-    gg = db.giornate(s)
-    convalidate = {r["giornata"] for r in db.q("SELECT giornata FROM lega_calcoli WHERE stagione = %s AND stato = 'convalidata'",
-                                                (s,), many=True) or []}
-    i = next((k for k, g in enumerate(gg) if g["numero"] not in convalidate), None)
-    if i is None:
-        return gg[-1] if gg else None
-    da = datetime.combine(gg[i]["dal"], regole.orario("partita_nuova"), tzinfo=ZoneInfo("Europe/Rome"))
-    if i > 0 and ora < da:
-        return gg[i - 1]
-    return gg[i]
+    """La giornata da mostrare senza numero: in calendario.da_mostrare (v52, la stessa per /giornata e /risultati)."""
+    import calendario
+    return calendario.da_mostrare(s, ora)
 
 
 def sfide(s: str, a: str, b: str | None = None) -> list[dict]:

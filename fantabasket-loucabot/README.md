@@ -125,7 +125,7 @@ riscarica i tabellini: se ESPN ne ha corretto uno di un giocatore schierato, avv
 |---|---|---|
 | `/calendario [N] [SQUADRA]` | tutti | la giornata tua o di una squadra (avversario, casa o trasferta, scadenza, squadre che prendono la media) e le prossime |
 | `/calendario_full [SQUADRA]` | tutti | tutto il calendario di una squadra, coi risultati delle giornate convalidate |
-| `/giornata [N]` (o `/risultati`) | tutti | le partite di una giornata, coi risultati convalidati |
+| `/giornata [N]` (o `/risultati`) | tutti | le partite di una giornata, coi risultati convalidati (senza numero: la giornata finita resta fino alle 16 del primo giorno della nuova) |
 | `/partita [SQUADRA] [GN]` · `/partita SQUADRA - SQUADRA` | tutti | una sfida come immagine: tabellone, quintetti e panchine notte per notte, quello che conta, FADD, medie, supplementari |
 | `/notte [SQUADRA] [DATA]` | tutti | gli schierati di una squadra in una notte NBA: partite, orari, fantapunti, infortuni |
 | `/classifica` · `/classifica_conference` · `/classifica_full` | tutti | classifica (immagine) · divisa per conference · con tutte le statistiche (file) |
@@ -140,6 +140,7 @@ riscarica i tabellini: se ESPN ne ha corretto uno di un giocatore schierato, avv
 | `/calendario_foglio` | admin | ricarica il foglio Calendario (A:E: calendario, squadre a media, punteggi) |
 | `/ricalcola N` | admin | riscarica i tabellini, ricalcola la giornata e la ripropone da convalidare |
 | `/live` | admin | aggiorna subito i punteggi live sul canale principale (o l'anteprima) |
+| `/live_results [N]` | tutti | il live della giornata in testo, completo (sul canale c'è l'immagine) |
 | `/fantapunti [N]` | admin | fantapunti della giornata dei giocatori a roster, per squadra |
 | `/set_valid_status GIOCATORE N` | admin | lo status che vale per il calcolo della giornata, scelto tra quelli degli snapshot |
 | `/tabellini` | admin | scarica i tabellini delle partite finite che mancano e fa uno snapshot degli infortunati |

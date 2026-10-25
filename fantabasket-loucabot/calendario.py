@@ -16,7 +16,7 @@ partite nella giornata prendono la media (giornate 2 e 3 del 2026-27: OKC e NOP)
 import csv
 import io
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 import config
 import db
@@ -166,6 +166,24 @@ def corrente(stagione: str | None = None, oggi: date | None = None) -> dict | No
     """La giornata in corso o la prossima (giorni NBA)."""
     oggi = oggi or datetime.now(nba.ET).date()
     return next((g for g in db.giornate(stagione or config.stagione()) if g["al"] >= oggi), None)
+
+
+def da_mostrare(s: str, ora: datetime | None = None) -> dict | None:
+    """La giornata senza numero di /partita, /giornata e /risultati (Luca, 25/10): quella in corso, la
+    stessa fino alla convalida; dopo la convalida la successiva, ma solo dalle 16 (orari.partita_nuova) del suo primo giorno: fino ad allora quella appena finita."""
+    from zoneinfo import ZoneInfo
+    from shared import regole
+    ora = ora or datetime.now(timezone.utc)
+    gg = db.giornate(s)
+    convalidate = {r["giornata"] for r in db.q("SELECT giornata FROM lega_calcoli WHERE stagione = %s AND stato = 'convalidata'",
+                                                (s,), many=True) or []}
+    i = next((k for k, g in enumerate(gg) if g["numero"] not in convalidate), None)
+    if i is None:
+        return gg[-1] if gg else None
+    da = datetime.combine(gg[i]["dal"], regole.orario("partita_nuova"), tzinfo=ZoneInfo("Europe/Rome"))
+    if i > 0 and ora < da:
+        return gg[i - 1]
+    return gg[i]
 
 
 def ora(t) -> str:

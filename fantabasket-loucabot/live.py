@@ -298,6 +298,9 @@ def testo(c: dict, ora: datetime, prova: bool = False) -> str:
         stato_g = []
         if lc or lt:
             stato_g.append(f"🏀 in campo {lc}–{lt}")
+        mc, mt = a_media(c, r["sc"]["titolari"]), a_media(c, r["st"]["titolari"])
+        if mc or mt:                               # chi prende la media (Luca, 23/10)
+            stato_g.append(f"📉 prendono media {mc}–{mt}")
         # «⏳ da giocare» per squadra, per esteso, nelle righe sotto (Luca, 23/10)
         vuoti = [n for n, sq in ((casa, r["sc"]), (tr, r["st"])) if not any(x.get("atleta") for x in sq["titolari"])]
         if vuoti:                                  # senza giocatori non c'è niente da stimare
@@ -321,6 +324,108 @@ def testo(c: dict, ora: datetime, prova: bool = False) -> str:
     return "\n".join(righe)
 
 
+def a_media(c: dict, giocatori: list[dict]) -> int:
+    """Quanti dei titolari indicati prendono la media (la loro squadra NBA non gioca nella giornata)."""
+    return sum(1 for x in giocatori if x.get("atleta") and (c["punti"].get(x["atleta"]) or {}).get("come") == "media")
+
+
+def stato_titolari(c: dict, giocatori: list[dict], partite: list[dict]) -> dict:
+    """Per il tabellone: in campo adesso, da giocare (nessuna partita finita), da rigiocare (una finita e
+    un'altra ancora) coi punti già fatti, a media; finito = nessuno ha più partite."""
+    det = c.get("dettaglio") or {}
+    notti_fp = det.get("notti") or {}
+    campo = giocare = rigiocare = media = 0
+    finora = 0.0
+    for x in giocatori:
+        a = x.get("atleta")
+        p = (c["punti"].get(a) or {}) if a else {}
+        if p.get("come") == "media":
+            media += 1
+            continue
+        sq = p.get("squadra")
+        if not a or not sq:
+            continue
+        sue = [q for q in partite if sq in (q["casa"], q["trasferta"])]
+        if any(q["stato"] not in FINITE and q["stato"] not in NON_INIZIATE for q in sue):
+            campo += 1
+            continue
+        if not any(q["stato"] not in FINITE for q in sue):
+            continue
+        finite = {q["data_et"] for q in sue if q["stato"] in FINITE}
+        fatte = [float(fp or 0) for dd, fp in (notti_fp.get(a) or {}).items() if dd in finite]
+        if fatte:
+            rigiocare += 1
+            finora += sum(fatte)
+        else:
+            giocare += 1
+    return {"campo": campo, "giocare": giocare, "rigiocare": rigiocare, "media": media, "finora": tp(round(finora, 2)),
+            "finito": campo + giocare + rigiocare == 0}
+
+
+TEMPLATE = __import__("os").path.join(__import__("os").path.dirname(__import__("os").path.abspath(__file__)), "live.typ")
+
+
+def _squadra_img(t: str) -> dict:
+    import re
+    from partita import _logo
+    nome = config.nome(t)
+    col = (config.squadra(t) or {}).get("colore_header") or ""
+    return {"nome": nome, "iniziale": (nome[:1] or "?").upper(), "logo": _logo(t),
+            "colore": col if re.fullmatch(r"#[0-9A-Fa-f]{6}", col) else "#5F01D1"}
+
+
+def dati_immagine(c: dict, ora: datetime) -> dict:
+    """Il JSON per live.typ: una scheda per partita (Luca, 23/10)."""
+    g = c["giornata"]
+    partite = db.partite_nba(g["dal"], g["al"])
+    iniziate = [dd for dd, inizio, _f in notti(g) if inizio <= ora]
+    out = []
+    for k, r in enumerate(c["risultati"], 1):
+        casa, tr = config.nome(r["casa"]), config.nome(r["trasferta"])
+        lc, pc = _da_giocare(c, r["sc"]["titolari"])
+        lt, pt = _da_giocare(c, r["st"]["titolari"])
+        vuoti = [n for n, sq in ((casa, r["sc"]), (tr, r["st"])) if not any(x.get("atleta") for x in sq["titolari"])]
+        avanti, nota = "", ""
+        if vuoti:
+            nota = "QUINTETTO VUOTO: " + ", ".join(vuoti).upper()
+        elif lc + lt + pc + pt > MAX_DA_GIOCARE:
+            nota = f"HANNO GIOCATO IN MENO DI {10 - MAX_DA_GIOCARE}"
+        else:
+            avanti = r["vince"]
+            if r["supplementari"] and not r["sc"]["panchina"] and not r["st"]["panchina"]:
+                nota = "PARI · SENZA PANCHINE NIENTE SUPPL."
+            elif r["supplementari"]:
+                nota = f"SI VA AI SUPPL. · {tp(r['esito']['casa'])} – {tp(r['esito']['trasferta'])}"
+        lati = []
+        for t, sq, punti in ((r["casa"], r["sc"], r["punti_casa"]), (r["trasferta"], r["st"], r["punti_trasferta"])):
+            lati.append({**_squadra_img(t), **stato_titolari(c, sq["titolari"], partite), "punti": tp(punti)})
+        out.append({"k": k, "casa": lati[0], "tras": lati[1], "avanti": avanti, "nota": nota})
+    return {"n": g["numero"], "date": f"{g['dal']:%d/%m} – {g['al']:%d/%m}",
+            "notte": f"del {max(iniziate):%d/%m}" if iniziate else "",
+            "ora": f"{ora.astimezone(ROMA):%H:%M}", "partite": out, "soglia": 10 - MAX_DA_GIOCARE,
+            "bonus": f"{c['bonus']:g}"}
+
+
+_AVVISO_FONT = {"fatto": False}
+
+
+def font_emoji() -> bool:
+    """C'è il font delle emoji a colori (fonts-noto-color-emoji nel Dockerfile)? Senza, nel tabellone quadratini."""
+    import glob
+    return bool(glob.glob("/usr/share/fonts/**/NotoColorEmoji*.ttf", recursive=True))
+
+
+def immagine(d: dict) -> bytes:
+    import json
+    import typst
+    return typst.compile(TEMPLATE, root="/", format="png", ppi=170, sys_inputs={"dati": json.dumps(d, ensure_ascii=False)})
+
+
+def didascalia(c: dict, ora: datetime) -> str:
+    return (f"🔴 <b>Giornata {c['giornata']['numero']} · live</b> · aggiornato alle {ora.astimezone(ROMA):%H:%M}\n"
+            f"<i>Provvisori, li convalida un admin. Il testo completo: /live_results nel bot</i>")
+
+
 # ── pubblicazione ──────────────────────────────────────────────────────────────
 
 async def aggiorna(bot, g: dict, d: date | None, ora: datetime, controllo: bool = False, scarica_fn=None) -> str:
@@ -338,16 +443,33 @@ async def aggiorna(bot, g: dict, d: date | None, ora: datetime, controllo: bool 
         if riga:
             from handlers import log
             await log(bot, riga)
-    t = testo(c, ora)
+    # sul canale un'immagine (live.typ) che si sostituisce a ogni aggiornamento (Luca, 23/10); il testo con /live_results
+    import asyncio
+    png = await asyncio.to_thread(immagine, dati_immagine(c, ora))
+    if not _AVVISO_FONT["fatto"] and not font_emoji():      # una volta per avvio: il deploy non ha installato il font
+        _AVVISO_FONT["fatto"] = True
+        from handlers import log
+        await log(bot, "⚠️ Live: manca il font delle emoji (fonts-noto-color-emoji), nel tabellone escono quadratini. "
+                       "Ricostruire loucabot: docker compose up --build -d --force-recreate loucabot")
+    cap = didascalia(c, ora)
     st = stato(s, n)
-    if st and st.get("message_id"):
+    nuovo = not (st and st.get("message_id"))
+    if not nuovo:
+        from telegram import InputMediaPhoto
         try:
-            await bot.edit_message_text(chat_id=st["chat_id"], message_id=st["message_id"], text=t, parse_mode="HTML")
+            await bot.edit_message_media(chat_id=st["chat_id"], message_id=st["message_id"],
+                                         media=InputMediaPhoto(png, caption=cap, parse_mode="HTML"))
         except Exception as err:
             if "not modified" not in str(err).lower():
-                raise
-    else:
-        m = await bot.send_message(chat_id=canale, text=t, parse_mode="HTML")
+                # il messaggio di prima era di testo (live di prima della v53) o non c'è più: se ne manda uno nuovo
+                logger.info("Live G%s: foto non sostituita (%s), ne mando una nuova", n, err)
+                try:
+                    await bot.delete_message(chat_id=st["chat_id"], message_id=st["message_id"])
+                except Exception:
+                    pass
+                nuovo = True
+    if nuovo:
+        m = await bot.send_photo(chat_id=canale, photo=png, caption=cap, parse_mode="HTML")
         _salva(s, n, chat_id=canale, message_id=m.message_id)
     _salva(s, n, aggiornato=ora, prossimo=None)
     return " · ".join(f"{config.nome(r['casa'])} {tp(r['punti_casa'])}–{tp(r['punti_trasferta'])} {config.nome(r['trasferta'])}"
@@ -465,3 +587,54 @@ async def job_live(context):
         await tick(context.bot)
     except Exception as err:
         logger.exception("job_live: %s", err)
+
+
+# ── /live_results ──────────────────────────────────────────────────────────────
+
+def _pezzi(t: str, limite: int = LIMITE) -> list[str]:
+    """Il testo in più messaggi, tagliando tra una partita e l'altra (riga vuota)."""
+    out, cur = [], ""
+    for blocco in t.split("\n\n"):
+        if cur and len(cur) + 2 + len(blocco) > limite:
+            out.append(cur)
+            cur = blocco
+        else:
+            cur = f"{cur}\n\n{blocco}" if cur else blocco
+    if cur:
+        out.append(cur)
+    return [x[:4096] for x in out]
+
+
+def giornata_live(s: str, n: int | None = None) -> dict | None:
+    """La giornata del live: quella chiesta, o quella col live aperto più recente, o la giornata in corso."""
+    if n:
+        return db.giornata(s, n)
+    r = db.q("SELECT giornata FROM lega_live WHERE stagione = %s AND message_id IS NOT NULL AND chiuso IS NULL "
+             "ORDER BY giornata DESC LIMIT 1", (s,), one=True)
+    if r:
+        return db.giornata(s, r["giornata"])
+    import calendario
+    return calendario.da_mostrare(s)
+
+
+async def cmd_live_results(update, context):
+    """/live_results [N]: il testo completo del live (anche lungo, in più messaggi), dai tabellini già scaricati."""
+    import asyncio
+    msg = update.effective_message
+    s = config.stagione()
+    n = next((int(x.lstrip("Gg")) for x in (context.args or []) if x.lstrip("Gg").isdigit()), None)
+    g = giornata_live(s, n)
+    if not g:
+        await msg.reply_text("Nessuna giornata da mostrare." if not n else f"La giornata {n} non c'è.")
+        return
+    st = stato(s, g["numero"]) or {}
+    if st.get("chiuso"):
+        await msg.reply_text(f"La giornata {g['numero']} è già convalidata: i risultati definitivi con /giornata {g['numero']}.")
+        return
+    if g["dal"] > datetime.now(nba.ET).date() and not st.get("message_id"):
+        await msg.reply_text(f"La giornata {g['numero']} non è ancora iniziata.")
+        return
+    c = await asyncio.to_thread(calcolo, s, g["numero"])
+    ora = st.get("aggiornato") or datetime.now(timezone.utc)
+    for pezzo in _pezzi(testo(c, ora)):
+        await msg.reply_text(pezzo, parse_mode="HTML")

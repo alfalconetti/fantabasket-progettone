@@ -206,7 +206,8 @@ async def _mostra_giornata(update, g):
 async def cmd_giornata(update: Update, context: ContextTypes.DEFAULT_TYPE):
     s = config.stagione()
     n = _numero(context.args)
-    g = db.giornata(s, n) if n else cal.corrente(s)
+    # senza numero come /partita: dopo la convalida resta quella appena finita fino alle 16 del primo giorno della nuova
+    g = db.giornata(s, n) if n else cal.da_mostrare(s)
     if not g:
         await update.effective_message.reply_text("Nessuna giornata da mostrare.")
         return
@@ -463,6 +464,11 @@ async def _cmd_notte(update, context):
     await notte.cmd_notte(update, context)
 
 
+async def _cmd_live_results(update, context):
+    import live
+    await live.cmd_live_results(update, context)
+
+
 def get_handlers() -> list:
     import handlers_calcolo
     return handlers_calcolo.get_handlers() + [
@@ -476,6 +482,7 @@ def get_handlers() -> list:
         CommandHandler("calendario", cmd_calendario),
         CommandHandler("calendario_full", cmd_calendario_full),
         CommandHandler(["giornata", "risultati"], cmd_giornata),
+        CommandHandler("live_results", _cmd_live_results),
         CommandHandler("notte", _cmd_notte),
         CommandHandler("importa_calendario", cmd_importa_calendario),
         MessageHandler(filters.Document.ALL & filters.CaptionRegex(r"^/importa_calendario"), cmd_importa_calendario),

@@ -391,6 +391,10 @@ ok(LV.cosa_fare(g7, t0 + timedelta(minutes=30), {**st_, "prossimo": t0 + timedel
 class BotL(Bot):
     async def edit_message_text(s, chat_id, message_id, text, **k):
         s.mandati.append({"chat_id": chat_id, "id": message_id, "text": text, "modifica": True})
+    async def send_photo(s, chat_id, photo, caption=None, **k):
+        s.n += 1; s.mandati.append({"chat_id": chat_id, "foto": photo, "text": caption or "", "id": s.n}); return types.SimpleNamespace(message_id=s.n)
+    async def edit_message_media(s, chat_id, message_id, media, **k):
+        s.mandati.append({"chat_id": chat_id, "id": message_id, "text": media.caption, "modifica": True, "foto": media.media})
 BL = BotL()
 scaricate = []
 async def finta(g, d, controllo=False):
@@ -400,15 +404,27 @@ fatti = asyncio.run(LV.tick(BL, ora=t0 + timedelta(seconds=30), scarica_fn=finta
 pub = [x for x in BL.mandati if x.get("chat_id") == -1]
 c_ora = LV.calcolo(S, N)
 r0 = c_ora["risultati"][0]
-ok(len(pub) == 1 and "punteggi live" in pub[0]["text"] and "provvisori" in pub[0]["text"] and "convalida un admin" in pub[0]["text"]
-   and "Ultimo aggiornamento: 11/11 alle 00:00" in pub[0]["text"]
-   and f"{LV.tp(r0['punti_casa'])} – {LV.tp(r0['punti_trasferta'])}" in pub[0]["text"] and scaricate == [(DAL, False)],
-   "tipoff: messaggio sul canale principale col calcolo, provvisorio, ora dell'aggiornamento")
+_tx = LV.testo(c_ora, t0 + timedelta(seconds=30))
+ok(len(pub) == 1 and pub[0]["foto"][:8] == b"\x89PNG\r\n\x1a\n" and f"Giornata {N} · live" in pub[0]["text"]
+   and "aggiornato alle 00:00" in pub[0]["text"] and "/live_results" in pub[0]["text"] and scaricate == [(DAL, False)],
+   "tipoff: sul canale principale l'immagine del tabellone (Typst), didascalia con l'ora e /live_results")
+ok("punteggi live" in _tx and "provvisori" in _tx and "convalida un admin" in _tx and "Ultimo aggiornamento: 11/11 alle 00:00" in _tx
+   and f"{LV.tp(r0['punti_casa'])} – {LV.tp(r0['punti_trasferta'])}" in _tx, "il testo del live (per /live_results): calcolo, provvisorio, ora")
 asyncio.run(LV.tick(BL, ora=t0 + timedelta(minutes=4), scarica_fn=finta))
 ok(len([x for x in BL.mandati if x.get("chat_id") == -1]) == 1 and len(scaricate) == 1, "4 minuti dopo: niente")
 asyncio.run(LV.tick(BL, ora=t0 + timedelta(minutes=11), scarica_fn=finta))
 mod = [x for x in BL.mandati if x.get("modifica")]
-ok(len(mod) == 1 and mod[0]["id"] == pub[0]["id"] and len(scaricate) == 2, "10 minuti dopo: si modifica lo stesso messaggio")
+ok(len(mod) == 1 and mod[0]["id"] == pub[0]["id"] and len(scaricate) == 2 and mod[0]["foto"],
+   "10 minuti dopo: si sostituisce la foto dello stesso messaggio")
+# un live di prima (messaggio di testo): la foto non si può mettere al suo posto → cancellato e foto nuova
+class BotT(BotL):
+    async def edit_message_media(s, **k): raise RuntimeError("Bad Request: there is no media in the message to edit")
+    async def delete_message(s, chat_id, message_id): s.mandati.append({"cancellato": message_id})
+BT = BotT()
+asyncio.run(LV.aggiorna(BT, {**LV.db.giornata(S, N), "stagione": S}, None, t0 + timedelta(minutes=15)))
+ok({"cancellato": pub[0]["id"]} in BT.mandati and any(x.get("foto") and x.get("chat_id") == -1 for x in BT.mandati)
+   and LV.stato(S, N)["message_id"] == BT.n, "live di testo di prima: cancellato e sostituito da una foto nuova")
+LV._salva(S, N, aggiornato=t0 + timedelta(minutes=11))      # come se non fosse successo: i giri dopo restano quelli
 async def rotta(g, d, controllo=False):
     raise RuntimeError("429 Too Many Requests")
 BL.mandati.clear()
@@ -445,6 +461,10 @@ _stati = db.q("SELECT espn_id, stato FROM nba_partite", many=True)
 db.q("UPDATE nba_partite SET stato = 'STATUS_SCHEDULED'")
 tl0 = LV.testo(LV.calcolo(S, N), t0)
 ok("▶" not in tl0 and "devono giocare" in tl0, "più di 4 dei 10 ancora da giocare: nessun esito, solo chi deve giocare")
+_di0 = LV.dati_immagine(LV.calcolo(S, N), t0)
+ok(all(p["avanti"] == "" for p in _di0["partite"]) and any(p["nota"] == "HANNO GIOCATO IN MENO DI 6" for p in _di0["partite"])
+   and all(p["casa"]["giocare"] + p["casa"]["media"] + p["tras"]["giocare"] + p["tras"]["media"] >= 1 for p in _di0["partite"]
+           if p["nota"].startswith("HANNO")), "tabellone: nessuno avanti e «HANNO GIOCATO IN MENO DI 6» finché mancano più di 4 su 10")
 import re as _re
 _m = _re.search(r"devono giocare (\d+) · devono rigiocare (\d+)", tl0)
 ok(_m and int(_m.group(1)) + int(_m.group(2)) >= 1 and "⏳ da giocare" not in tl0,
@@ -470,6 +490,24 @@ db.q("UPDATE nba_partite SET stato = 'STATUS_FINAL' WHERE espn_id = 'g5'")
 tl = LV.testo(LV.calcolo(S, N), t0)
 ok("▶ al momento vince Beta ai supplementari (1): " in tl and "▶ al momento vince Gamma" in tl,
    "tutti hanno finito: l'esito, supplementari compresi")
+_cf2 = LV.calcolo(S, N); _di = LV.dati_immagine(_cf2, t0)
+_pb = next(p for p in _di["partite"] if "SUPPL." in p["nota"])
+_png = LV.immagine(_di)
+ok(_pb["avanti"] in ("casa", "trasferta") and any(p["avanti"] for p in _di["partite"]) and _png[:8] == b"\x89PNG\r\n\x1a\n"
+   and _di["soglia"] == 6 and _di["notte"] == f"del {DAL:%d/%m}", f"tabellone a partite finite: chi è avanti, supplementari ({_pb['nota']}), immagine")
+_nm = sum(LV.a_media(_cf2, r[k]["titolari"]) for r in _cf2["risultati"] for k in ("sc", "st"))
+ok(sum(p[x]["media"] for p in _di["partite"] for x in ("casa", "tras")) == _nm
+   and ((_nm == 0) or "📉 prendono media" in LV.testo(_cf2, t0)), f"chi prende la media: nel tabellone e nel testo ({_nm})")
+# /live_results: il testo completo, anche in più messaggi
+_rl = []
+class _MsgL:
+    async def reply_text(self, t, **k): _rl.append(t)
+asyncio.run(LV.cmd_live_results(types.SimpleNamespace(effective_message=_MsgL()), types.SimpleNamespace(args=[str(N)])))
+ok(_rl and "punteggi live" in _rl[0] and all(len(x) <= 4096 for x in _rl), "/live_results N: il testo completo del live")
+_dock = open(os.path.join(os.path.dirname(LV.TEMPLATE), "Dockerfile")).read()
+ok("fonts-noto-color-emoji" in _dock and '"Noto Color Emoji"' in open(LV.TEMPLATE).read() and LV.font_emoji(),
+   "emoji del tabellone: il font nel Dockerfile di loucabot e nel template (e c'è qui, dove girano le prove)")
+ok(LV._pezzi("a" * 3000 + "\n\n" + "b" * 3000) == ["a" * 3000, "b" * 3000], "/live_results lungo: più messaggi, tagliati tra una partita e l'altra")
 av = LV.avvisi_brevi(LV.calcolo(S, N))
 ok(any(x.startswith("• Delta: ") and "manca SF" in x and "senza panchina" in x for x in av), f"anteprima: avvisi brevi per squadra {av}")
 class BotD(BotL):
@@ -609,6 +647,18 @@ ok(PA.giornata_di_default(S, datetime(2026, 10, 23, 15, 59, tzinfo=ROMA))["numer
    "G1 convalidata: la G2 solo dalle 16 del suo primo giorno, prima ancora la G1")
 PA.db.q = lambda sql, params=None, **k: [] if "stato = 'convalidata'" in sql else _vq(sql, params, **k)
 ok(PA.giornata_di_default(S, datetime(2026, 10, 24, 12, 0, tzinfo=ROMA))["numero"] == 1, "G1 non ancora convalidata: resta la G1")
+# /giornata e /risultati senza numero: la stessa giornata di /partita (Luca, 25/10)
+import calendario as _CAL, handlers as _HG
+_vista = []
+class _MsgG:
+    async def reply_text(self, t, **k): _vista.append(t)
+_vero_dm = _CAL.da_mostrare
+_CAL.da_mostrare = lambda s_, ora=None: db.giornate(s_)[0]
+asyncio.run(_HG.cmd_giornata(types.SimpleNamespace(effective_message=_MsgG(), effective_user=types.SimpleNamespace(id=900)),
+                             types.SimpleNamespace(args=[], bot=None)))
+_CAL.da_mostrare = _vero_dm
+ok(_vista and f"iornata {db.giornate(S)[0]['numero']}" in _vista[0] and PA.giornata_di_default(S) == _CAL.da_mostrare(S),
+   "/giornata e /risultati senza numero: stessa regola di /partita (la finita resta fino alle 16 del primo giorno della nuova)")
 PA.db.giornate, PA.db.q = _vg, _vq
 ok(PA.sfide(S, _r7["casa"], _r7["trasferta"]) and all(x["giornata"] for x in PA.sfide(S, _r7["casa"])), "sfide tra due squadre")
 

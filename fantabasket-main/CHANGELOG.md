@@ -1621,3 +1621,12 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.6.7 (2026-10-24)
 
 - Loucabot v51: il calcolo delle 7:45 riscarica tutti i tabellini della giornata prima di calcolare (Luca, 24/10)
+
+## v6.6.8 (2026-10-25)
+
+- Loucabot v52: `/giornata` e `/risultati` senza numero mostrano la giornata appena finita fino alle 16 del primo giorno della nuova, come `/partita` (Luca, 25/10)
+- MIGRATION: guest mode (già provata: risponde solo con foto già su Telegram) e aggiornamenti di python-telegram-bot per le funzioni nuove (rich messages) tra le cose da fare
+
+## v6.7.0 (2026-10-25)
+
+- Loucabot v53: **live come immagine** sul canale (tabellone Typst) e `/live_results` col testo completo (Luca, 25/10: per la giornata 3)

@@ -258,3 +258,14 @@ Il calcolo dei fantapunti.
 ## v51 (2026-10-24)
 
 - **Calcolo delle 7:45**: prima di calcolare riscarica tutti i tabellini della giornata, anche quelli già presi dal live nella notte, come fanno già `/ricalcola` e il controllo delle 10. Una correzione di ESPN arrivata tra la fine della notte e le 7:45 entra subito nella proposta; se ce ne sono, una riga nel canale log (Luca, 24/10)
+
+## v52 (2026-10-25)
+
+- `/giornata` e `/risultati` senza numero seguono la regola di `/partita` (Luca, 25/10): la giornata finita resta fino alla convalida e poi fino alle 16 (`orari.partita_nuova`) del primo giorno della successiva, così la mattina si vedono i risultati appena convalidati invece delle partite della giornata nuova. La regola è in un posto solo (`calendario.da_mostrare`). `/calendario` resta com'era (la tua giornata in corso o la prossima)
+
+## v53 (2026-10-25)
+
+- **Live come immagine** (Luca, 23/10, mockup approvato; per la giornata 3): sul canale principale il tabellone Typst (`live.typ`) al posto del messaggio di testo, una scheda per partita in due colonne con loghi e punteggi, grassetto a chi è avanti, etichette con emoji e numero di titolari (🏀 in campo · ⏳ devono giocare · 🔁 devono rigiocare coi punti già fatti · ✅ finito · 📉 prendono media), «HANNO GIOCATO IN MENO DI 6» quando l'esito non si dà, «SI VA AI SUPPL.» coi punti dei supplementari, **legenda evidente** in fondo, sempre al plurale (Luca, 25/10). La foto si sostituisce ogni 10 minuti nello stesso messaggio (didascalia con giornata e ora); un live di testo di prima si cancella e lo rimpiazza una foto nuova
+- Emoji dal font **Noto Color Emoji**, ora installato nel container (`fonts-noto-color-emoji` nel Dockerfile): se manca, una riga nel canale log
+- **`/live_results [N]`**: il testo completo del live, anche in più messaggi; ora nel testo anche «📉 prendono media N–M»
+- Anteprima agli admin, `/dev_prova_live` e proposta delle 7:45 restano in testo
