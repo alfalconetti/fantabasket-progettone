@@ -568,6 +568,8 @@ def testo_quintetti(n: int | None = None) -> str:
             gid = q.get(ruolo)
             nome = e(nomi.get(gid, "?")) if gid else "—"
             pezzi.append(f"{ruolo} {nome}" + (" ⚠️" if gid and gid not in rosa else ""))
+        if len(righe) > 2:
+            righe.append("")                     # una riga vuota tra una squadra e l'altra (Luca, 26/10)
         righe.append(f"<b>{e(t['nome'])}</b>: " + " · ".join(pezzi))
     righe += ["", "⚠️ non più in squadra · — ruolo vuoto"]
     return "\n".join(righe)

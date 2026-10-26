@@ -41,7 +41,7 @@
         if s.giocare > 0 { pill("⏳ " + str(s.giocare), grigio); h(2pt) }
         if s.rigiocare > 0 { pill("🔁 " + str(s.rigiocare) + " · " + s.finora, viola); h(2pt) }
       }
-      if s.media > 0 { pill("📉 " + str(s.media), blu) }
+      if s.media > 0 { pill("📈 " + str(s.media), blu) }
     }),
   text(14pt, weight: if avanti { "bold" } else { "regular" }, fill: if avanti { viola_scuro } else { grigio })[#s.punti])
 
@@ -71,7 +71,7 @@
     voce(pill("⏳ 2", grigio), [devono giocare]),
     voce(pill("🔁 1 · 30,50", viola), [devono rigiocare, coi punti già fatti]),
     voce(pill("✅ finito", verde), [hanno finito tutti]),
-    voce(pill("📉 1", blu), [prendono media: la loro squadra NBA non gioca]),
+    voce(pill("📈 1", blu), [prendono media: la loro squadra NBA non gioca]),
     voce(text(11pt, weight: "bold", fill: viola_scuro)[123,45], [in grassetto chi è avanti adesso]))
   #v(6pt)
   #text(7.5pt, fill: grigio)[*HANNO GIOCATO IN MENO DI #d.soglia*: ancora nessuno avanti, troppi titolari devono giocare · *SI VA AI SUPPL.*: pari, col punteggio dei supplementari #linebreak()

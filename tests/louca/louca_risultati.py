@@ -424,6 +424,30 @@ BT = BotT()
 asyncio.run(LV.aggiorna(BT, {**LV.db.giornata(S, N), "stagione": S}, None, t0 + timedelta(minutes=15)))
 ok({"cancellato": pub[0]["id"]} in BT.mandati and any(x.get("foto") and x.get("chat_id") == -1 for x in BT.mandati)
    and LV.stato(S, N)["message_id"] == BT.n, "live di testo di prima: cancellato e sostituito da una foto nuova")
+# timeout di Telegram sulla sostituzione: niente cancellazione, niente foto nuova, giro saltato (Luca, 26/10)
+from telegram.error import TimedOut as _TO
+class BotTO(BotL):
+    async def edit_message_media(s, **k): raise _TO()
+    async def delete_message(s, chat_id, message_id): s.mandati.append({"cancellato": message_id})
+BTO = BotTO()
+_id_prima = LV.stato(S, N)["message_id"]
+try:
+    asyncio.run(LV.aggiorna(BTO, {**LV.db.giornata(S, N), "stagione": S}, None, t0 + timedelta(minutes=16)))
+    _errore = False
+except _TO:
+    _errore = True
+ok(_errore and not any("cancellato" in x for x in BTO.mandati) and not any(x.get("foto") for x in BTO.mandati)
+   and LV.stato(S, N)["message_id"] == _id_prima, "timeout di Telegram: il live NON si cancella e non se ne manda un altro, si salta il giro")
+class BotAltro(BotL):
+    async def edit_message_media(s, **k): raise RuntimeError("Forbidden: bot is not a member of the channel chat")
+    async def delete_message(s, chat_id, message_id): s.mandati.append({"cancellato": message_id})
+BA_ = BotAltro()
+try:
+    asyncio.run(LV.aggiorna(BA_, {**LV.db.giornata(S, N), "stagione": S}, None, t0 + timedelta(minutes=16)))
+    _errore = False
+except RuntimeError:
+    _errore = True
+ok(_errore and not BA_.mandati, "altri errori di Telegram: niente cancellazione né messaggi nuovi, si salta il giro")
 LV._salva(S, N, aggiornato=t0 + timedelta(minutes=11))      # come se non fosse successo: i giri dopo restano quelli
 async def rotta(g, d, controllo=False):
     raise RuntimeError("429 Too Many Requests")
@@ -497,7 +521,7 @@ ok(_pb["avanti"] in ("casa", "trasferta") and any(p["avanti"] for p in _di["part
    and _di["soglia"] == 6 and _di["notte"] == f"del {DAL:%d/%m}", f"tabellone a partite finite: chi è avanti, supplementari ({_pb['nota']}), immagine")
 _nm = sum(LV.a_media(_cf2, r[k]["titolari"]) for r in _cf2["risultati"] for k in ("sc", "st"))
 ok(sum(p[x]["media"] for p in _di["partite"] for x in ("casa", "tras")) == _nm
-   and ((_nm == 0) or "📉 prendono media" in LV.testo(_cf2, t0)), f"chi prende la media: nel tabellone e nel testo ({_nm})")
+   and ((_nm == 0) or "📈 prendono media" in LV.testo(_cf2, t0)), f"chi prende la media: nel tabellone e nel testo ({_nm})")
 # /live_results: il testo completo, anche in più messaggi
 _rl = []
 class _MsgL:
@@ -581,6 +605,8 @@ ok(LV.stato(S, N)["chiuso"] is not None and LV.stato(S, N)["definitivo_id"] == d
 BC.mandati.clear()
 asyncio.run(LV.tick(BC, ora=t0 + timedelta(minutes=20), scarica_fn=finta))
 ok(not BC.mandati, "live chiuso: il job non lo ripubblica né lo aggiorna")
+ok(N not in [g["numero"] for g in LV.giornate_attive(S, t0 + timedelta(minutes=20))],
+   "giornata convalidata: fuori dalle giornate attive, quindi anche /live non la ripubblica (Luca, 26/10)")
 asyncio.run(LV.pubblica_definitivo(BC, S, N, "Admin"))
 ok([x for x in BC.mandati if x.get("modifica") and x.get("id") == dfn[0]["id"]] and not any("cancellato" in x for x in BC.mandati),
    "nuova convalida (dopo un ricalcolo): si modifica lo stesso messaggio definitivo")
@@ -668,6 +694,42 @@ gid1 = next(v for k, v in gid.items() if db.q("SELECT espn_id FROM giocatori WHE
 sc = PLY.scheda(gid1)
 ok("🇺🇸 NBA:" in sc and "🏆 Fantabasket: <b>" in sc and "media <b>" in sc and "Ultime partite" in sc and "fantapunti" in sc,
    "/player: NBA, fantabasket, media e ultime partite\n" + sc)
+# data di nascita ed età; partite saltate di fila in una riga sola (Luca, 25/10)
+from datetime import date as _dd
+ok(PLY.eta(_dd(2004, 1, 4), _dd(2026, 1, 3)) == 21 and PLY.eta(_dd(2004, 1, 4), _dd(2026, 1, 4)) == 22, "/player: età giusta il giorno prima e il giorno del compleanno")
+db.q("UPDATE giocatori SET data_nascita = '2004-01-04' WHERE id = %s", (gid1,))
+ok("🎂 04/01/2004 (" in PLY.scheda(gid1), "/player: data di nascita con l'età")
+db.q("UPDATE giocatori SET data_nascita = NULL WHERE id = %s", (gid1,))
+_P = lambda i, d: {"espn_id": f"x{i}", "data_et": d, "casa": "NYK", "trasferta": "BOS", "squadra": "NYK"}
+_parts = [_P(i, _dd(2026, 11, i)) for i in range(1, 15)]
+_tb = [{"partita": "x1", "data_et": _dd(2026, 11, 1), "squadra": "NYK", "casa": "NYK", "trasferta": "BOS", "minuti": 30, "pts": 20,
+        "oreb": 1, "dreb": 4, "ast": 3, "fp": 30.5, "giocato": True},
+       {"partita": "x12", "data_et": _dd(2026, 11, 12), "squadra": "NYK", "casa": "NYK", "trasferta": "BOS", "minuti": 0, "pts": 0,
+        "oreb": 0, "dreb": 0, "ast": 0, "fp": 0, "giocato": False},
+       {"partita": "x14", "data_et": _dd(2026, 11, 14), "squadra": "NYK", "casa": "NYK", "trasferta": "BOS", "minuti": 25, "pts": 10,
+        "oreb": 0, "dreb": 3, "ast": 2, "fp": 18.0, "giocato": True}]
+_ul = PLY.ultime(_tb, _parts)
+ok(any("dal 02/11 al 11/11: <i>10 partite saltate</i>" in x for x in _ul) and any("13/11 vs BOS: <i>saltata</i>" in x for x in _ul)
+   and any("12/11" in x and "non è entrato" in x for x in _ul) and len(_ul) == 5,
+   f"/player: 10 saltate di fila in una riga, una sola «saltata», «non è entrato» a parte {_ul}")
+ok(PLY.testo_su(_parts) == " su 14 della squadra"
+   and PLY.testo_su([{**x, "arrivato": _dd(2026, 11, 1)} for x in _parts]) == " su 14 da quando è a NYK (dal 01/11)"
+   and PLY.testo_su(_parts[:3] + [{**x, "squadra": "BOS"} for x in _parts[3:5]]) == " su 5 (NYK poi BOS)",
+   "/player: partite giocate su quelle della squadra, da quando è arrivato, o con lo scambio")
+# media della stagione prima, da Basketball-Reference (Luca, 26/10): bref numera col secondo anno
+_nb = db.q("SELECT nome_common FROM giocatori WHERE id = %s", (gid1,), one=True)["nome_common"]
+_tabb = db.q("SELECT to_regclass('bref_stats') AS t", one=True)["t"]
+if _tabb:
+    db.q("""INSERT INTO bref_stats (timestamp, stagione, nome_bref, g, pts, fga, fgm, ftm, fta, fg3m, orb, drb, ast, stl, blk, tov)
+            VALUES (NOW(), %s, %s, 70, 20, 15, 7, 4, 5, 2, 1, 5, 4, 1, 1, 2)""", (str(int(S)), _nb))
+    db.q("""INSERT INTO bref_stats (timestamp, stagione, nome_bref, g, pts, fga, fgm, ftm, fta, fg3m, orb, drb, ast, stl, blk, tov)
+            VALUES (NOW(), %s, %s, 10, 40, 15, 7, 4, 5, 2, 1, 5, 4, 1, 1, 2)""", (str(int(S) + 1), _nb))
+    _ap = PLY.anno_prima(gid1, S)
+    ok(_ap and f"Stagione {int(S) - 1}-{str(S)[-2:]}" in _ap and "in 70 partite" in _ap and _ap in PLY.scheda(gid1),
+       f"/player: media della stagione prima (la riga di bref di quella stagione, non di quella in corso) {_ap}")
+    db.q("DELETE FROM bref_stats WHERE nome_bref = %s", (_nb,))
+else:
+    ok(PLY.anno_prima(gid1, S) is None, "/player: senza bref_stats niente media della stagione prima (e niente errori)")
 ok(PLY.cerca("prova 1") and PLY.cerca("prova 1")[0]["id"] == gid1, "/player: ricerca per nome")
 db.q("INSERT INTO contratti (giocatore_id, team_id, importo, anni_originali, stagione_firma, tipo) VALUES (%s, 'team01', 12, 3, %s, 'normale')",
      (gid1, S))

@@ -54,7 +54,7 @@ def _riga_giornata(g: dict) -> str:
         righe.append(f"⏰ Formazione e panchina entro <b>{cal.ora(g['prima_partita'])}</b> (prima partita NBA)")
     media = g["media"] if g.get("media") is not None else g.get("media_file")
     if media:
-        righe.append(f"📉 Prendono la media (senza partite NBA): <b>{', '.join(media)}</b>")
+        righe.append(f"📈 Prendono la media (senza partite NBA): <b>{', '.join(media)}</b>")
     return "\n".join(righe)
 
 

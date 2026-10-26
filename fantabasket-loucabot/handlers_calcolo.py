@@ -219,7 +219,7 @@ def testo_fantapunti(stagione: str, g: dict) -> str:
     p = calcolo.punteggio_giocatori(stagione, g, [x["atleta"] for x in roster if x["atleta"]])
     righe = [f"📊 <b>Fantapunti giornata {g['numero']}</b> · {g['dal']:%d/%m} – {g['al']:%d/%m}",
              "<i>Tutti i giocatori a roster (il calcolo coi quintetti e le panchine di IPanchinari è da fare).</i>"]
-    simbolo = {"partite": "", "media": "📉 ", "zero": ""}
+    simbolo = {"partite": "", "media": "📈 ", "zero": ""}
     for team in config.squadre():
         suoi = [x for x in roster if x["team_id"] == team["id"]]
         if not suoi:

@@ -105,10 +105,15 @@ def cosa_fare(g: dict, ora: datetime, st: dict | None) -> tuple[str | None, date
 
 
 def giornate_attive(s: str, ora: datetime) -> list[dict]:
-    """Giornate iniziate e non finite da più di un giorno (dove può servire un aggiornamento)."""
+    """Giornate iniziate e non finite da più di un giorno (dove può servire un aggiornamento), non
+    convalidate: una giornata convalidata ha il messaggio dei definitivi e il live non c'è più (v54: /live
+    ripubblicava il live della giornata appena convalidata)."""
     oggi = ora.astimezone(ZoneInfo("America/New_York")).date()
+    chiuse = {r["giornata"] for r in db.q("SELECT giornata FROM lega_live WHERE stagione = %s AND chiuso IS NOT NULL",
+                                          (s,), many=True) or []}
     return [g for g in db.giornate(s)
-            if g.get("prima_partita") and g["prima_partita"] <= ora and g["al"] >= oggi - timedelta(days=2)]
+            if g.get("prima_partita") and g["prima_partita"] <= ora and g["al"] >= oggi - timedelta(days=2)
+            and g["numero"] not in chiuse]
 
 
 # ── dati ───────────────────────────────────────────────────────────────────────
@@ -300,7 +305,7 @@ def testo(c: dict, ora: datetime, prova: bool = False) -> str:
             stato_g.append(f"🏀 in campo {lc}–{lt}")
         mc, mt = a_media(c, r["sc"]["titolari"]), a_media(c, r["st"]["titolari"])
         if mc or mt:                               # chi prende la media (Luca, 23/10)
-            stato_g.append(f"📉 prendono media {mc}–{mt}")
+            stato_g.append(f"📈 prendono media {mc}–{mt}")
         # «⏳ da giocare» per squadra, per esteso, nelle righe sotto (Luca, 23/10)
         vuoti = [n for n, sq in ((casa, r["sc"]), (tr, r["st"])) if not any(x.get("atleta") for x in sq["titolari"])]
         if vuoti:                                  # senza giocatori non c'è niente da stimare
@@ -421,6 +426,18 @@ def immagine(d: dict) -> bytes:
     return typst.compile(TEMPLATE, root="/", format="png", ppi=170, sys_inputs={"dati": json.dumps(d, ensure_ascii=False)})
 
 
+# tempi larghi per mandare la foto (circa mezzo MB): coi default di python-telegram-bot, a volte, timeout
+TEMPI = {"read_timeout": 60, "write_timeout": 60, "connect_timeout": 30}
+# errori di Telegram per cui la foto non si può mettere al posto del messaggio di prima: solo allora se ne fa uno nuovo
+DA_RIFARE = ("there is no media", "message to edit not found", "message can't be edited", "message_id_invalid",
+             "wrong type of the web page content")
+
+
+def _messaggio_da_rifare(err) -> bool:
+    t = str(err).lower()
+    return "not modified" not in t and any(x in t for x in DA_RIFARE)
+
+
 def didascalia(c: dict, ora: datetime) -> str:
     return (f"🔴 <b>Giornata {c['giornata']['numero']} · live</b> · aggiornato alle {ora.astimezone(ROMA):%H:%M}\n"
             f"<i>Provvisori, li convalida un admin. Il testo completo: /live_results nel bot</i>")
@@ -456,20 +473,34 @@ async def aggiorna(bot, g: dict, d: date | None, ora: datetime, controllo: bool 
     nuovo = not (st and st.get("message_id"))
     if not nuovo:
         from telegram import InputMediaPhoto
+        from telegram.error import NetworkError, TimedOut
         try:
             await bot.edit_message_media(chat_id=st["chat_id"], message_id=st["message_id"],
-                                         media=InputMediaPhoto(png, caption=cap, parse_mode="HTML"))
+                                         media=InputMediaPhoto(png, caption=cap, parse_mode="HTML"), **TEMPI)
+        except (TimedOut, NetworkError) as err:
+            if "not modified" in str(err).lower():
+                pass
+            elif isinstance(err, TimedOut) or not _messaggio_da_rifare(err):
+                # rete lenta o Telegram che non risponde: la foto può essere stata sostituita lo stesso, quindi
+                # il messaggio NON si cancella; si salta il giro (v54: col timeout delle 2:15 del 26/10 cancellava
+                # il live e ne mandava uno nuovo, rimasto orfano perché anche l'invio era andato in timeout)
+                raise
+            else:
+                nuovo = True
         except Exception as err:
             if "not modified" not in str(err).lower():
-                # il messaggio di prima era di testo (live di prima della v53) o non c'è più: se ne manda uno nuovo
-                logger.info("Live G%s: foto non sostituita (%s), ne mando una nuova", n, err)
-                try:
-                    await bot.delete_message(chat_id=st["chat_id"], message_id=st["message_id"])
-                except Exception:
-                    pass
+                if not _messaggio_da_rifare(err):
+                    raise
                 nuovo = True
+        if nuovo:
+            # il messaggio di prima era di testo (live di prima della v53) o non c'è più: se ne manda uno nuovo
+            logger.info("Live G%s: foto non sostituibile, ne mando una nuova", n)
+            try:
+                await bot.delete_message(chat_id=st["chat_id"], message_id=st["message_id"])
+            except Exception:
+                pass
     if nuovo:
-        m = await bot.send_photo(chat_id=canale, photo=png, caption=cap, parse_mode="HTML")
+        m = await bot.send_photo(chat_id=canale, photo=png, caption=cap, parse_mode="HTML", **TEMPI)
         _salva(s, n, chat_id=canale, message_id=m.message_id)
     _salva(s, n, aggiornato=ora, prossimo=None)
     return " · ".join(f"{config.nome(r['casa'])} {tp(r['punti_casa'])}–{tp(r['punti_trasferta'])} {config.nome(r['trasferta'])}"

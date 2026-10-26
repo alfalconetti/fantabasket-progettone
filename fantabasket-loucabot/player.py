@@ -85,12 +85,132 @@ def _media(x: float) -> str:
     return f"{x:.1f}".replace(".", ",")
 
 
+def eta(nato, oggi=None) -> int:
+    from zoneinfo import ZoneInfo
+    oggi = oggi or datetime.now(ZoneInfo("Europe/Rome")).date()
+    return oggi.year - nato.year - ((oggi.month, oggi.day) < (nato.month, nato.day))
+
+
+def partite_squadra(tab: list[dict], sq_ora: str | None, stagione: str, atleta: str | None = None) -> list[dict]:
+    """Le partite finite delle sue squadre NBA nella stagione, mentre era in quella squadra: la prima
+    dall'inizio della stagione, le altre dal giorno dopo l'ultima partita con la squadra prima, e mai prima
+    dell'arrivo visto nei roster ESPN (nba_movimenti: firmato a stagione in corso); quella di adesso fino a
+    oggi. [{espn_id, data_et, casa, trasferta, squadra}] in ordine."""
+    tratti = []                                  # [(squadra, prima data, ultima data)] in ordine
+    for r in tab:
+        if tratti and tratti[-1][0] == r["squadra"]:
+            tratti[-1][2] = r["data_et"]
+        else:
+            tratti.append([r["squadra"], r["data_et"], r["data_et"]])
+    if sq_ora and (not tratti or tratti[-1][0] != sq_ora):
+        tratti.append([sq_ora, None, None])
+    if not tratti:
+        return []
+    arrivi = {}
+    if atleta:
+        for m in db.q("SELECT giorno, a FROM nba_movimenti WHERE atleta = %s AND a IS NOT NULL ORDER BY giorno",
+                      (atleta,), many=True) or []:
+            arrivi.setdefault(m["a"], []).append(m["giorno"])
+    out = []
+    for i, (sq, da, al) in enumerate(tratti):
+        dal = None if i == 0 else tratti[i - 1][2]
+        arrivo = [d for d in arrivi.get(sq, []) if da is None or d <= da]
+        arrivato = arrivo[-1] if arrivo else None
+        if arrivo:                               # entrato nel roster quel giorno: le partite da lì (comprese)
+            from datetime import timedelta
+            prima = arrivo[-1] - timedelta(days=1)
+            dal = max(dal, prima) if dal else prima
+        ultimo = i == len(tratti) - 1 and sq == sq_ora
+        righe = db.q("""SELECT espn_id, data_et, casa, trasferta FROM nba_partite
+                        WHERE stagione = %s AND tipo = ANY(%s) AND stato = 'STATUS_FINAL' AND %s IN (casa, trasferta)
+                          AND (%s::date IS NULL OR data_et > %s) AND (%s::date IS NULL OR data_et <= %s)
+                        ORDER BY inizio""",
+                     (stagione, list(TIPI), sq, dal, dal, None if ultimo else al, None if ultimo else al), many=True) or []
+        out += [{**x, "squadra": sq, "arrivato": arrivato} for x in righe]
+    return out
+
+
+def testo_su(partite: list[dict]) -> str:
+    """« su 8 della squadra» · « su 8 da quando è a NYK (dal 12/12)» · « su 15 (BOS poi NYK)» (Luca, 26/10)."""
+    if not partite:
+        return ""
+    squadre = []
+    for p in partite:
+        if not squadre or squadre[-1] != p["squadra"]:
+            squadre.append(p["squadra"])
+    if len(squadre) > 1:
+        return f" su {len(partite)} ({' poi '.join(e(x) for x in squadre)})"
+    if partite[0].get("arrivato"):
+        return f" su {len(partite)} da quando è a {e(squadre[0])} (dal {partite[0]['arrivato']:%d/%m})"
+    return f" su {len(partite)} della squadra"
+
+
+def ultime(tab: list[dict], partite: list[dict], quante: int = 5) -> list[str]:
+    """Le ultime partite: giocate, «non è entrato», e quelle saltate (assente dal tabellino), di fila in una
+    riga sola (Luca, 25/10). Una serie di saltate conta come una voce."""
+    sue = {r["partita"]: r for r in tab}
+    voci = []                                    # in ordine: ("r", riga) o ("s", [partite saltate di fila])
+    viste = set()
+    for p in partite:
+        viste.add(p["espn_id"])
+        if p["espn_id"] in sue:
+            voci.append(("r", sue[p["espn_id"]]))
+        elif voci and voci[-1][0] == "s":
+            voci[-1][1].append(p)
+        else:
+            voci.append(("s", [p]))
+    for r in tab:                                # tabellini fuori dalle partite trovate (es. play-in): restano
+        if r["partita"] not in viste:
+            voci.append(("r", r))
+    voci.sort(key=lambda v: (v[1]["data_et"] if v[0] == "r" else v[1][0]["data_et"]))
+    out = []
+    for tipo, x in voci[-quante:]:
+        if tipo == "s":
+            if len(x) == 1:
+                p = x[0]
+                dove, avv = ("vs", p["trasferta"]) if p["squadra"] == p["casa"] else ("@", p["casa"])
+                out.append(f"• {p['data_et']:%d/%m} {dove} {e(avv)}: <i>saltata</i>")
+            else:
+                out.append(f"• dal {x[0]['data_et']:%d/%m} al {x[-1]['data_et']:%d/%m}: <i>{len(x)} partite saltate</i>")
+            continue
+        r = x
+        avv = r["trasferta"] if r["squadra"] == r["casa"] else r["casa"]
+        dove = "vs" if r["squadra"] == r["casa"] else "@"
+        if not calcolo.conta(r):
+            out.append(f"• {r['data_et']:%d/%m} {dove} {e(avv)}: non è entrato")
+            continue
+        out.append(f"• {r['data_et']:%d/%m} {dove} {e(avv)}: {r['minuti']}′ · {r['pts']} pt · {r['oreb'] + r['dreb']} rb · "
+                   f"{r['ast']} as → <b>{tp(float(r['fp']))}</b>")
+    return out
+
+
+def anno_prima(gid: int, stagione: str) -> str | None:
+    """La media della stagione prima da Basketball-Reference (Luca, 26/10): l'ultima riga di bref di
+    quella stagione (bref numera col secondo anno: la stagione 2026-27 della lega è la 2027, quella prima
+    la 2026), dal nome di bref dell'anagrafica (o dal nome comune). Fantamedia coi pesi della lega."""
+    try:
+        r = db.q("""SELECT b.g, b.fantamedia FROM giocatori g
+                    JOIN bref_stats b ON lower(b.nome_bref) IN (lower(g.nome_bref), lower(g.nome_common))
+                    WHERE g.id = %s AND b.stagione = %s AND b.fantamedia IS NOT NULL
+                    ORDER BY b.timestamp DESC LIMIT 1""", (gid, str(int(stagione))), one=True)
+    except Exception:                            # tabelle del bot principale che mancano (prove, database vuoto)
+        return None
+    if not r:
+        return None
+    a = int(stagione)
+    return (f"🗓️ Stagione {a - 1}-{str(a)[-2:]}: media <b>{tp(ottavi(float(r['fantamedia'])))}</b> fantapunti"
+            + (f" in {r['g']} partite" if r.get("g") else "") + " <i>(Basketball-Reference)</i>")
+
+
 def scheda(gid: int) -> str:
     s = config.stagione()
-    g = db.q("SELECT id, nome_common, espn_id FROM giocatori WHERE id = %s", (gid,), one=True)
+    g = db.q("SELECT id, nome_common, espn_id, data_nascita FROM giocatori WHERE id = %s", (gid,), one=True)
     if not g:
         return "Giocatore non trovato."
-    righe = [f"🏀 <b>{e(g['nome_common'])}</b>", ""]
+    righe = [f"🏀 <b>{e(g['nome_common'])}</b>"]
+    if g.get("data_nascita"):                    # data di nascita ed età (Luca, 25/10)
+        righe.append(f"🎂 {g['data_nascita']:%d/%m/%Y} ({eta(g['data_nascita'])} anni)")
+    righe.append("")
     a = g["espn_id"]
 
     # ── NBA ──
@@ -169,30 +289,31 @@ def scheda(gid: int) -> str:
                   WHERE t.atleta = %s AND p.stagione = %s AND p.tipo = ANY(%s) ORDER BY p.inizio""",
                (a, s, list(TIPI)), many=True) or []
     contano = [r for r in tab if calcolo.conta(r)]
+    partite = partite_squadra(tab, db.squadre_roster([a]).get(a), s, a)
+    su = testo_su(partite)
     righe.append("")
+    prima = anno_prima(gid, s)
     if not contano:
-        righe.append(f"📊 Stagione {e(s)}: nessuna partita giocata" + (f" ({len(tab)} a referto senza entrare)" if tab else ""))
+        righe.append(f"📊 Stagione {e(s)}: nessuna partita giocata{su}" + (f" ({len(tab)} a referto senza entrare)" if tab else ""))
+        if prima:
+            righe.append(prima)
+        if partite:
+            righe += ["", "<b>Ultime partite</b>"] + ultime(tab, partite)
         return "\n".join(righe)
     n = len(contano)
     tot = {k: sum(int(r[k]) for r in contano) for k in ("minuti", "pts", "oreb", "dreb", "ast", "stl", "blk", "tov",
                                                        "fgm", "fga", "tpm", "tpa", "ftm", "fta")}
     media_fp = ottavi(sum(float(r["fp"]) for r in contano) / n)
-    righe += [f"📊 <b>Stagione {e(s)}</b>: {n} partite · media <b>{tp(media_fp)}</b> fantapunti",
+    righe += [f"📊 <b>Stagione {e(s)}</b>: {n} partite{su} · media <b>{tp(media_fp)}</b> fantapunti",
               f"{_media(tot['minuti'] / n)} min · {_media(tot['pts'] / n)} punti · {_media((tot['oreb'] + tot['dreb']) / n)} rimbalzi "
               f"· {_media(tot['ast'] / n)} assist · {_media(tot['stl'] / n)} recuperi · {_media(tot['blk'] / n)} stoppate "
               f"· {_media(tot['tov'] / n)} perse",
               f"Tiro {_pct(tot['fgm'], tot['fga'])} · da tre {_pct(tot['tpm'], tot['tpa'])} · liberi {_pct(tot['ftm'], tot['fta'])}"]
+    if prima:
+        righe.append(prima)
 
     # ── ultime 5 ──
-    righe += ["", "<b>Ultime partite</b>"]
-    for r in tab[-5:]:
-        avv = r["trasferta"] if r["squadra"] == r["casa"] else r["casa"]
-        dove = "vs" if r["squadra"] == r["casa"] else "@"
-        if not calcolo.conta(r):
-            righe.append(f"• {r['data_et']:%d/%m} {dove} {e(avv)}: non è entrato")
-            continue
-        righe.append(f"• {r['data_et']:%d/%m} {dove} {e(avv)}: {r['minuti']}′ · {r['pts']} pt · {r['oreb'] + r['dreb']} rb · "
-                     f"{r['ast']} as → <b>{tp(float(r['fp']))}</b>")
+    righe += ["", "<b>Ultime partite</b>"] + ultime(tab, partite)
     return "\n".join(righe)
 
 

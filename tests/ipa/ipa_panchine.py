@@ -368,6 +368,8 @@ tq = Q.testo_quintetti()
 ok("<b>Alfa</b>: PG Ja Morant · SG Devin Booker · SF Mikal Bridges · PF Grant Williams · C Mark Williams" in tq
    and "<b>Beta</b>: PG — · SG —" in tq, f"/quintetti: una riga per squadra coi nomi interi\n{tq[:300]}")
 ok("<b>Alfa</b>: PG Jalen Brunson" in Q.testo_quintetti(1), "/quintetti 1: la formazione congelata della giornata 1")
+_tq = Q.testo_quintetti()
+ok("\n\n<b>Beta</b>:" in _tq or "\n\n<b>" in _tq.split("</b>: ", 1)[1], "/quintetti: una riga vuota tra una squadra e l'altra")
 m = Msg("/quintetti 2"); CTX.args = ["2"]; asyncio.run(Q.cmd_quintetti(upd(900, m), CTX)); CTX.args = []
 ok("non è ancora chiusa" in m.risposte[-1][0], "/quintetti N di una giornata non chiusa: rifiutato")
 m = Msg("/quintetti"); asyncio.run(Q.cmd_quintetti(upd(101, m), CTX))

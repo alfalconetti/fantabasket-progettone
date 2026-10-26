@@ -269,3 +269,11 @@ Il calcolo dei fantapunti.
 - Emoji dal font **Noto Color Emoji**, ora installato nel container (`fonts-noto-color-emoji` nel Dockerfile): se manca, una riga nel canale log
 - **`/live_results [N]`**: il testo completo del live, anche in più messaggi; ora nel testo anche «📉 prendono media N–M»
 - Anteprima agli admin, `/dev_prova_live` e proposta delle 7:45 restano in testo
+
+## v54 (2026-10-26)
+
+- **`/live` ripubblicava anche la giornata appena convalidata** (Luca, 26/10: aggiornata la G2, già convalidata, insieme alla G3 in corso). Le giornate col live chiuso dalla convalida ora restano fuori da `live.giornate_attive`, che usano sia `/live` sia il job. Prova in `louca_risultati`
+- **`/player`** (Luca, 25/10): data di nascita con l'età; partite **saltate** nelle ultime partite (la squadra NBA ha giocato e lui non era nel tabellino), quelle di fila in una riga sola («dal 02/11 al 11/11: 10 partite saltate»), «non è entrato» resta a parte; nella stagione «N partite su M della squadra», «su M da quando è a NYK (dal 12/12)» per chi è arrivato a stagione in corso, «su M (BOS poi NYK)» per chi è stato scambiato. Per chi cambia squadra o firma a stagione in corso contano solo le partite da quando c'era (tabellini e movimenti dei roster ESPN)
+- Chi prende la media: 📈 al posto di 📉, nel tabellone, nella legenda e nei testi (Luca, 26/10)
+- `/player`: la **media della stagione prima** da Basketball-Reference, con le partite giocate (Luca, 26/10)
+- **Live, timeout di Telegram** (Luca, 26/10, notte della G3): alle 2:15 la sostituzione della foto è andata in timeout e il bot ha cancellato il live e ne ha mandato uno nuovo, andato anch'esso in timeout (pubblicato ma senza saperne l'id: rimasto orfano); alle 2:35 un terzo. Ora un messaggio nuovo si fa solo se Telegram dice che quello di prima non si può modificare (testo di prima della v53, cancellato); con timeout o altri errori il messaggio resta e si salta il giro. Tempi più larghi per mandare la foto (60 s)

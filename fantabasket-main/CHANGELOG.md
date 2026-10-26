@@ -1630,3 +1630,11 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.7.0 (2026-10-25)
 
 - Loucabot v53: **live come immagine** sul canale (tabellone Typst) e `/live_results` col testo completo (Luca, 25/10: per la giornata 3)
+
+## v6.7.1 (2026-10-26)
+
+- Loucabot v54: `/live` non ripubblica più una giornata già convalidata (Luca, 26/10)
+- Loucabot v54: `/player` con data di nascita e partite saltate (di fila in una riga sola) (Luca, 25/10)
+- IPanchinari v32: `/quintetti` con una riga vuota tra le squadre; 📈 per chi prende la media, anche nel live (Luca, 26/10)
+- Loucabot v54: `/player` con la media della stagione prima (Basketball-Reference) (Luca, 26/10)
+- Loucabot v54: il live non si cancella più per un timeout di Telegram (Luca, 26/10)

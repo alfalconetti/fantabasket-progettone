@@ -129,7 +129,7 @@ riscarica i tabellini: se ESPN ne ha corretto uno di un giocatore schierato, avv
 | `/partita [SQUADRA] [GN]` · `/partita SQUADRA - SQUADRA` | tutti | una sfida come immagine: tabellone, quintetti e panchine notte per notte, quello che conta, FADD, medie, supplementari |
 | `/notte [SQUADRA] [DATA]` | tutti | gli schierati di una squadra in una notte NBA: partite, orari, fantapunti, infortuni |
 | `/classifica` · `/classifica_conference` · `/classifica_full` | tutti | classifica (immagine) · divisa per conference · con tutte le statistiche (file) |
-| `/player NOME` | tutti | squadra NBA, posizioni eleggibili, squadra del fantabasket con ruolo e stato del contratto, media dei fantapunti e statistiche della stagione, ultime 5 partite |
+| `/player NOME` | tutti | squadra NBA, posizioni eleggibili, squadra del fantabasket con ruolo e stato del contratto, data di nascita, media dei fantapunti e statistiche della stagione (e media di quella prima) (partite su quelle della squadra), ultime 5 partite con le saltate di fila in una riga |
 | `/start` | tutti | i comandi in breve |
 | `/guida` | tutti | la guida GM (file) |
 | `/guida_admin` | admin | la guida admin (file) |

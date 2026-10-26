@@ -150,3 +150,7 @@ Primo rilascio: panchine e quintetti.
 - **Avvisi dell'injury report** (Luca, 23/10; `infortuni.py`): quando ESPN cambia lo stato di un giocatore della squadra (anche uscito dalla lista = di nuovo disponibile) il bot lo scrive in privato ai GM, col dettaglio e il ruolo se è nel quintetto; tutti i giocatori della rosa, a qualsiasi ora. Nessun cambio si perde se loucabot prende più snapshot tra un giro e l'altro; uno snapshot incompleto (meno della metà dei giocatori) non manda avvisi
 - **`/toggle_injures`**: spegne e riaccende gli avvisi, ricordato sotto ogni avviso
 - Ricerca delle squadre per una parola sola (`/soprannomi`, `/quintetto_admin`, `/panchina_admin`…)
+
+## v32 (2026-10-26)
+
+- `/quintetti`: una riga vuota tra una squadra e l'altra; chi prende la media con 📈 (Luca, 26/10)
