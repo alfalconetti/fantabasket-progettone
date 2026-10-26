@@ -528,7 +528,8 @@ def testo_definitivo(s: str, g: dict, chi: str, quando: datetime, aggiornato: bo
     return "\n".join(righe)
 
 
-async def pubblica_definitivo(bot, s: str, n: int, chi: str, quando: datetime | None = None) -> str:
+async def pubblica_definitivo(bot, s: str, n: int, chi: str, quando: datetime | None = None,
+                              prima: dict | None = None) -> str:
     """Alla convalida: messaggio dei risultati definitivi sul canale principale (a una nuova convalida
     si modifica lo stesso) e il messaggio live cancellato; da lì il live non si aggiorna più.
     Restituisce una riga di esito."""
@@ -543,6 +544,8 @@ async def pubblica_definitivo(bot, s: str, n: int, chi: str, quando: datetime | 
     if isinstance(vecchi, str):
         import json
         vecchi = json.loads(vecchi)
+    if not vecchi and prima:                             # convalida di prima senza esiti salvati: quelli letti prima della convalida
+        vecchi = prima
     if canale and g:
         t = testo_definitivo(s, g, chi, quando, aggiornato=bool(st.get("definitivo_id")))
         fatto = False

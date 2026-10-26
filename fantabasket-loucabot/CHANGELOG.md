@@ -277,3 +277,7 @@ Il calcolo dei fantapunti.
 - Chi prende la media: 📈 al posto di 📉, nel tabellone, nella legenda e nei testi (Luca, 26/10)
 - `/player`: la **media della stagione prima** da Basketball-Reference, con le partite giocate (Luca, 26/10)
 - **Live, timeout di Telegram** (Luca, 26/10, notte della G3): alle 2:15 la sostituzione della foto è andata in timeout e il bot ha cancellato il live e ne ha mandato uno nuovo, andato anch'esso in timeout (pubblicato ma senza saperne l'id: rimasto orfano); alle 2:35 un terzo. Ora un messaggio nuovo si fa solo se Telegram dice che quello di prima non si può modificare (testo di prima della v53, cancellato); con timeout o altri errori il messaggio resta e si salta il giro. Tempi più larghi per mandare la foto (60 s)
+
+## v55 (2026-10-26)
+
+- **Ricalcolo di una giornata già convalidata: si vede cosa cambia** (Luca, 26/10: un ricalcolo aveva cambiato una partita ai supplementari e nessun messaggio l'aveva detto). La proposta nuova ha in fondo «🔁 Rispetto ai risultati convalidati cambiano N partite» con punti, supplementari e ⚠️ vincitore di prima e di adesso, oppure «✅ Stessi risultati della convalida»; lo stesso nel messaggio di conferma della convalida. L'avviso sul canale quando cambia chi vince ora funziona anche per le giornate convalidate prima che il bot salvasse gli esiti

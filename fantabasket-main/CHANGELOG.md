@@ -1638,3 +1638,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - IPanchinari v32: `/quintetti` con una riga vuota tra le squadre; 📈 per chi prende la media, anche nel live (Luca, 26/10)
 - Loucabot v54: `/player` con la media della stagione prima (Basketball-Reference) (Luca, 26/10)
 - Loucabot v54: il live non si cancella più per un timeout di Telegram (Luca, 26/10)
+
+## v6.7.2 (2026-10-26)
+
+- Loucabot v55: ricalcolando una giornata già convalidata, la proposta e la conferma dicono cosa cambia rispetto ai risultati convalidati (Luca, 26/10)

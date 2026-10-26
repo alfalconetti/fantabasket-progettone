@@ -179,6 +179,51 @@ def _n(x) -> str:
     return _testo(x)
 
 
+def differenze(stagione: str, n: int, ris: list[dict]) -> list[str] | None:
+    """Rispetto ai risultati già convalidati della giornata (Luca, 26/10: un ricalcolo aveva cambiato una
+    partita ai supplementari e nessuno l'aveva detto): una riga per ogni partita con punti, supplementari o
+    vincitore diversi. None se la giornata non era convalidata (niente da confrontare)."""
+    import html
+    vecchi = {r["casa"]: r for r in (db.q("SELECT * FROM lega_risultati WHERE stagione = %s AND giornata = %s "
+                                          "AND convalidato IS NOT NULL", (stagione, n), many=True) or [])}
+    if not vecchi:
+        return None
+    def diversi(a, b) -> bool:                   # in lega_risultati 2 decimali, nel calcolo gli ottavi (96,625 → 96,63)
+        a, b = list(a), list(b)
+        if any(x is None for x in a + b):
+            return a != b
+        return any(abs(float(x) - float(y)) > 0.01 for x, y in zip(a, b))
+    out = []
+    for r in ris:
+        v = vecchi.get(r["casa"])
+        casa, tr = html.escape(config.nome(r["casa"])), html.escape(config.nome(r["trasferta"]))
+        if not v:
+            out.append(f"• {casa} – {tr}: partita nuova, non c'era nella convalida")
+            continue
+        pezzi = []
+        if diversi((v["punti_casa"], v["punti_trasferta"]), (r["punti_casa"], r["punti_trasferta"])):
+            pezzi.append(f"punti {_n(v['punti_casa'])}–{_n(v['punti_trasferta'])} → <b>{_n(r['punti_casa'])}–{_n(r['punti_trasferta'])}</b>")
+        if diversi((v["supp_casa"], v["supp_trasferta"]), (r.get("supp_casa"), r.get("supp_trasferta"))):
+            prima = f"{_n(v['supp_casa'])}–{_n(v['supp_trasferta'])}" if v["supp_casa"] is not None else "nessuno"
+            dopo = f"{_n(r['supp_casa'])}–{_n(r['supp_trasferta'])}" if r.get("supp_casa") is not None else "nessuno"
+            pezzi.append(f"supplementari {prima} → <b>{dopo}</b>")
+        if v["vince"] != r["vince"]:
+            chi = lambda x: casa if x == "casa" else tr
+            pezzi.append(f"⚠️ <b>vince {chi(r['vince'])}</b> (prima {chi(v['vince'])})")
+        if pezzi:
+            out.append(f"• {casa} – {tr}: " + " · ".join(pezzi))
+    return out
+
+
+def testo_differenze(diff: list[str] | None) -> str:
+    if diff is None:
+        return ""
+    if not diff:
+        return "\n\n✅ <b>Stessi risultati della convalida</b>: nessuna partita cambia."
+    return (f"\n\n🔁 <b>Rispetto ai risultati convalidati cambiano {len(diff)} "
+            f"{'partita' if len(diff) == 1 else 'partite'}</b>:\n" + "\n".join(diff))
+
+
 def testo(c: dict, versione: int = 1) -> str:
     import html
     e = html.escape

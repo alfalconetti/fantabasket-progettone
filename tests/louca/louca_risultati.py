@@ -287,6 +287,18 @@ premi(900, f"rc:ok:{N}:2")
 ok(db.q("SELECT COUNT(*) AS n FROM lega_risultati WHERE stagione = %s AND giornata = %s AND convalidato IS NOT NULL", (S, N), one=True)["n"] == 2
    and any("convalidata da Admin" in x.get("text", "") for x in BOT.mandati), "convalida: risultati salvati, conferma nel gruppo")
 ok("non è più valida" in premi(900, f"rc:ok:{N}:2").risposte[-1], "una seconda convalida dello stesso bottone non fa niente")
+# ricalcolo di una giornata convalidata: cosa cambia rispetto ai risultati convalidati (Luca, 26/10)
+_lc = db.q("SELECT risultati FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (S, N), one=True)["risultati"]
+_ris = _lc if isinstance(_lc, list) else json.loads(_lc)
+ok(R.differenze(S, N, _ris) == [] and "Stessi risultati della convalida" in R.testo_differenze(R.differenze(S, N, _ris)),
+   "ricalcolo uguale alla convalida: «stessi risultati»")
+_mod = [dict(x) for x in _ris]
+_mod[0]["supp_casa"], _mod[0]["supp_trasferta"] = 12.5, 14.0
+_mod[0]["vince"] = "trasferta" if _mod[0]["vince"] == "casa" else "casa"
+_d = R.differenze(S, N, _mod)
+ok(len(_d) == 1 and "supplementari" in _d[0] and "⚠️ <b>vince" in _d[0] and "cambiano 1 partita" in R.testo_differenze(_d),
+   f"ricalcolo diverso: la partita cambiata, coi supplementari e il vincitore nuovo {_d}")
+ok(R.differenze(S, 999, _ris) is None and R.testo_differenze(None) == "", "giornata mai convalidata: niente confronto")
 _reg = db.q("SELECT veste, azione, chi_id, dopo FROM registro_azioni WHERE bot = 'louca' ORDER BY id", many=True)
 ok([(r["veste"], r["azione"]) for r in _reg] == [("sistema", "giornata calcolata"), ("sistema", "giornata ricalcolata"),
                                                   ("admin", "giornata convalidata")] and _reg[-1]["chi_id"] == 900,

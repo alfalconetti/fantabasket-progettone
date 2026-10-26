@@ -1,6 +1,6 @@
 # Messaggio di migrazione — Fantabasket Progettone
 
-**Stato: v6.7.1 · bot aste v77 · loucabot v54 · IPanchinari v32** (25/10/2026)
+**Stato: v6.7.2 · bot aste v77 · loucabot v55 · IPanchinari v32** (25/10/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 

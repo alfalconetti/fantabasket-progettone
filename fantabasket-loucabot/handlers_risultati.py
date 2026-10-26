@@ -71,7 +71,8 @@ async def esegui(bot, stagione: str, n: int, chi: str = "job delle 7:45", user=N
     vecchio = db.q("SELECT messaggio FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (stagione, n), one=True)
     versione = R.salva_calcolo(c)
     foglio = await R.scrivi_foglio(c)
-    testo = R.testo(c, versione) + f"\n\n<i>{e(foglio)}</i>"
+    # giornata già convalidata (ricalcolo): cosa cambia rispetto ai risultati convalidati (Luca, 26/10)
+    testo = R.testo(c, versione) + R.testo_differenze(R.differenze(stagione, n, c["risultati"])) + f"\n\n<i>{e(foglio)}</i>"
     gruppo = config.gruppo_admin()
     if gruppo:
         if vecchio and vecchio["messaggio"]:
@@ -229,6 +230,14 @@ async def cb_risultati(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not lc or lc["versione"] != int(parti[3]) or lc["stato"] != "da_convalidare":
             await q.answer("Questa proposta non è più valida (ricalcolata o già convalidata).", show_alert=True)
             return
+        _rp = lc["risultati"] if isinstance(lc["risultati"], list) else __import__("json").loads(lc["risultati"])
+        diff = R.differenze(s, n, _rp)                  # prima di sovrascrivere i risultati convalidati
+        live_esiti_prima = None
+        try:
+            import live as _lv
+            live_esiti_prima = _lv._esiti(s, n) or None    # chi vinceva nella convalida di prima, per l'avviso sul canale
+        except Exception:
+            pass
         R.convalida(s, n, update.effective_user.id)
         from registro import segna_sync
         segna_sync(update.effective_user, "admin", "giornata convalidata", oggetto=f"giornata {n}",
@@ -238,7 +247,7 @@ async def cb_risultati(update: Update, context: ContextTypes.DEFAULT_TYPE):
         esito = await foglio.aggiorna(s)
         try:                                             # canale: risultati definitivi, via il live (Luca, 23/10)
             import live
-            esito += "; " + await live.pubblica_definitivo(context.bot, s, n, _chi_nome(update))
+            esito += "; " + await live.pubblica_definitivo(context.bot, s, n, _chi_nome(update), prima=live_esiti_prima)
         except Exception as err:
             logger.warning("Risultati definitivi sul canale G%s: %s", n, err)
             esito += f"; ⚠️ risultati definitivi non pubblicati sul canale ({str(err)[:120]})"
@@ -246,7 +255,8 @@ async def cb_risultati(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             await q.edit_message_reply_markup(reply_markup=None)
             await context.bot.send_message(chat_id=q.message.chat_id, reply_to_message_id=q.message.message_id,
-                                           text=f"✅ Giornata {n} convalidata da {_chi(update)} alle {ora:%H:%M}: risultati salvati, {e(esito)}.",
+                                           text=f"✅ Giornata {n} convalidata da {_chi(update)} alle {ora:%H:%M}: risultati salvati, {e(esito)}."
+                                                + R.testo_differenze(diff),
                                            parse_mode="HTML")
         except Exception as err:
             logger.info("Messaggio di convalida: %s", err)
