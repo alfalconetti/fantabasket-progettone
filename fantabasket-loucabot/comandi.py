@@ -33,7 +33,11 @@ def liste_comandi() -> dict:
     admin = gm + [
         BotCommand("fantapunti",         "Fantapunti della giornata, giocatori a roster [N]"),
         BotCommand("set_valid_status",   "Status di un giocatore per il calcolo: GIOCATORE N"),
-        BotCommand("ricalcola",          "Riscarica i tabellini e ricalcola la giornata N"),
+        BotCommand("ricalcola",          "Ricalcola la giornata N (riscarica i tabellini se non è congelata)"),
+        BotCommand("congelamento",       "Quali giornate si ricontrollano e quali sono congelate"),
+        BotCommand("congela",            "Congela la giornata N: niente più riscarichi da ESPN"),
+        BotCommand("scongela",           "Riapre i tabellini della giornata N"),
+        BotCommand("correggi_tabellino", "Corregge i fantapunti: GIOCATORE GN VALORE [GG/MM]"),
         BotCommand("live",               "Aggiorna subito i punteggi live sul canale"),
         BotCommand("calendario_check",   "Scadenze e squadre a media, confronto col calendario"),
         BotCommand("importa_calendario", "Importa il CSV del calendario (didascalia del file)"),

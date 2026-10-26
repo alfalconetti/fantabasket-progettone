@@ -1642,3 +1642,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.7.2 (2026-10-26)
 
 - Loucabot v55: ricalcolando una giornata già convalidata, la proposta e la conferma dicono cosa cambia rispetto ai risultati convalidati (Luca, 26/10)
+
+## v6.7.3 (2026-10-26)
+
+- Loucabot v56: congelamento delle giornate (si ricontrollano le ultime 3 finite, regola votata dai GM), `/congela`, `/scongela`, `/congelamento`, `/correggi_tabellino` (Luca, 26/10)

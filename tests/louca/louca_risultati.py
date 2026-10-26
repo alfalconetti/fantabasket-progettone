@@ -303,6 +303,9 @@ _reg = db.q("SELECT veste, azione, chi_id, dopo FROM registro_azioni WHERE bot =
 ok([(r["veste"], r["azione"]) for r in _reg] == [("sistema", "giornata calcolata"), ("sistema", "giornata ricalcolata"),
                                                   ("admin", "giornata convalidata")] and _reg[-1]["chi_id"] == 900,
    f"registro: calcolo e ricalcolo del job (sistema), convalida dell'admin {[(r['veste'], r['azione']) for r in _reg]}")
+# il controllo delle 10 riguarda solo le giornate aperte (v56): «oggi» è il giorno dopo la fine della giornata N
+import congelamento as CG
+CG.oggi_et = lambda: db.giornata(S, N)["al"] + timedelta(days=1)
 # controllo delle 10: ESPN corregge il tabellino di un giocatore schierato (r12) e di uno no (r40)
 async def finto_scarica(ids, **k):
     db.q("UPDATE nba_tabellini SET fp = 25 WHERE atleta = 'r12' AND partita = 'g1'")
@@ -811,6 +814,75 @@ asyncio.run(HR.job_calcolo(types.SimpleNamespace(bot=BOT)))
 (HR.nba.sincronizza, _HC3.aggiorna_tabellini, HR._riscarica, HR.pronta, HR.esegui, HR.db.giornate, HR.nba.oggi_et, _HH.log) = _salva
 ok(_ord == ["sincronizza", "mancanti", "riscarica", "calcolo"] and any("1 righe di tabellino corrette" in t for t in _logs),
    f"calcolo delle 7:45: riscarica tutti i tabellini della giornata prima di calcolare, e dice se ESPN ne ha corretti {_ord}")
+# ── congelamento (v56, regola votata il 26/10): si ricontrollano le ultime 3 giornate finite ──
+from datetime import date as _dg
+_GG = [{"numero": i, "dal": _dg(2026, 10, 20) + timedelta(days=3 * (i - 1)), "al": _dg(2026, 10, 21) + timedelta(days=3 * (i - 1))}
+       for i in range(1, 7)]
+_vgg = CG.db.giornate
+CG.db.giornate = lambda s_: _GG
+db.q("DELETE FROM lega_congelamento")
+_st = CG.stati(S, oggi=_GG[3]["dal"])              # la 4 in corso
+ok([_st[i]["stato"] for i in range(1, 7)] == ["aperta", "aperta", "aperta", "in corso", "da giocare", "da giocare"],
+   "4 in corso: si ricontrollano la 1, la 2 e la 3")
+_st = CG.stati(S, oggi=_GG[3]["al"] + timedelta(days=1))   # la 4 finita, non ancora la 5
+ok([_st[i]["stato"] for i in range(1, 5)] == ["congelata", "aperta", "aperta", "aperta"],
+   "finita la 4 (anche senza convalida): la 1 congelata, si ricontrollano 2, 3 e 4")
+CG.oggi_et = lambda: _GG[3]["al"] + timedelta(days=1)
+class _MsgC:
+    def __init__(s): s.t = []
+    async def reply_text(s, t, **k): s.t.append(t)
+class _BotC:
+    def __init__(s): s.m = []
+    async def send_message(s, chat_id, text, **k): s.m.append((chat_id, text))
+def _cmd(f, args, uid=900):
+    m, b = _MsgC(), _BotC()
+    asyncio.run(f(types.SimpleNamespace(effective_message=m, effective_user=types.SimpleNamespace(id=uid, full_name="Admin")),
+                  types.SimpleNamespace(args=args, bot=b)))
+    return m.t, b.m
+_t, _m = _cmd(CG.cmd_congela, ["3"])
+ok(CG.congelata(S, 3) and CG.stati(S)[3]["a_mano"] and any(c == -1 and "Giornata 3 congelata" in x for c, x in _m)
+   and any(c == -3 for c, x in _m), "/congela 3: congelata a mano, sul canale principale e sul canale log")
+_t, _m = _cmd(CG.cmd_scongela, ["G1"])
+ok(not CG.congelata(S, 1) and CG.da_ricontrollare(S) == [1, 2, 4] and any("Giornata 1 scongelata" in x for c, x in _m if c == -1),
+   "/scongela G1: la vecchia si riapre, la 3 resta congelata a mano")
+ok(_cmd(CG.cmd_congela, ["5"])[0][0].startswith("La giornata 5 non è ancora finita") and _cmd(CG.cmd_congela, ["3"], uid=101)[0] == ["⛔ Solo admin."],
+   "/congela: solo giornate finite, solo admin")
+_tc = CG.testo_congelamento(S)
+ok("🔄 G1" in _tc and "(a mano)" in _tc and "🧊 G3" in _tc and "⏳ G5" in _tc and "G6" not in _tc, "/congelamento: lo stato di tutte (delle future solo la prossima)")
+_reg = [r["azione"] for r in db.q("SELECT azione FROM registro_azioni WHERE bot = 'louca' ORDER BY id", many=True)]
+ok("giornata congelata" in _reg and "giornata scongelata" in _reg, "congela e scongela nel registro")
+CG.db.giornate = _vgg
+db.q("DELETE FROM lega_congelamento")
+# /correggi_tabellino: i fantapunti di una partita, senza riscaricare; registro, canale log, canale principale
+ok(CG.leggi_correzione(["Norman", "Powell", "G1", "16"]) == ("Norman Powell", 1, 16.0, None)
+   and CG.leggi_correzione(["Powell", "1", "16,5", "24/10"]) == ("Powell", 1, 16.5, (24, 10)) and CG.leggi_correzione(["Powell", "16"]) is None,
+   "/correggi_tabellino: lettura di nome, giornata, valore e data")
+CG.oggi_et = lambda: db.giornata(S, N)["al"] + timedelta(days=1)
+_fp_prima = db.q("SELECT partita, atleta, fp FROM nba_tabellini", many=True)
+_nome12 = db.q("SELECT nome_common FROM giocatori WHERE espn_id = 'r1'", one=True)["nome_common"]
+_d12 = db.q("""SELECT p.data_et FROM nba_tabellini t JOIN nba_partite p ON p.espn_id = t.partita
+               WHERE t.atleta = 'r1' ORDER BY p.inizio LIMIT 1""", one=True)["data_et"]
+_t, _m = _cmd(CG.cmd_correggi, _nome12.split() + [f"G{N}", "33"])
+ok(_m == [] and "aggiungi la data" in _t[0],
+   "/correggi_tabellino: più partite nella giornata → chiede la data, coi comandi già scritti")
+_t, _m = _cmd(CG.cmd_correggi, _nome12.split() + [f"G{N}", "33", f"{_d12:%d/%m}"])
+ok(float(db.q("""SELECT t.fp FROM nba_tabellini t JOIN nba_partite p ON p.espn_id = t.partita
+                 WHERE t.atleta = 'r1' AND p.data_et = %s""", (_d12,), one=True)["fp"]) == 33.0
+   and any(c == -1 and "Correzione G" in x and "→ <b>33,00</b>" in x for c, x in _m) and any(c == -3 for c, x in _m)
+   and "/ricalcola" in _t[0] and "/congela" in _t[0],
+   f"/correggi_tabellino: corretto, sul canale principale e sul log; giornata aperta: avviso che ESPN può rimetterlo {_t}")
+for _x in _fp_prima:
+    db.q("UPDATE nba_tabellini SET fp = %s WHERE partita = %s AND atleta = %s", (_x["fp"], _x["partita"], _x["atleta"]))
+# controllo delle 10: una giornata congelata non si riscarica
+db.q("INSERT INTO lega_congelamento (stagione, giornata, congelata) VALUES (%s, %s, TRUE)", (S, N))
+_scar = []
+async def _fs(ids, **k):
+    _scar.append(ids); return {"partite": 0, "giocatori": 0, "errori": []}
+_vs = HR.nba.scarica_tabellini; HR.nba.scarica_tabellini = _fs
+asyncio.run(HR.job_controllo(types.SimpleNamespace(bot=BOT)))
+HR.nba.scarica_tabellini = _vs
+ok(not _scar, "controllo delle 10: la giornata congelata non si riscarica")
+db.q("DELETE FROM lega_congelamento")
 # pulizia
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (list(gid.values()),))
 db.q("TRUNCATE nba_tabellini, nba_infortuni, lega_giornate, lega_partite, nba_partite, lega_risultati, lega_calcoli, lega_live")

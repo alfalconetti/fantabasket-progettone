@@ -52,11 +52,15 @@ Se a quell'ora la giornata non si può ancora calcolare (una partita non finita,
 - panchina della giornata: `/panchina_admin SQUADRA GN` (IPanchinari);
 - fantapunti sbagliati (ESPN corregge un tabellino): il ricalcolo li riscarica.
 
-Poi **🔄 Ricalcola** (o `/ricalcola N`): il bot riscarica i tabellini della giornata, ricalcola, riscrive il tab e manda una proposta nuova; quella vecchia perde i bottoni.
+Poi **🔄 Ricalcola** (o `/ricalcola N`): il bot riscarica i tabellini della giornata (se non è congelata), ricalcola, riscrive il tab e manda una proposta nuova; quella vecchia perde i bottoni.
 
 **✅ Convalida**: solo allora i risultati si salvano e il foglio **Calendario** si aggiorna (punti col bonus casa nella riga della partita, i soli punti dei supplementari nella riga sotto). Sul canale principale esce il messaggio dei **risultati definitivi** e quello live si cancella (da lì il live di quella giornata non si aggiorna più). Se dopo un ricalcolo (per esempio dopo il controllo delle 10) convalidi di nuovo, si **modifica** lo stesso messaggio dei definitivi; un messaggio in più, in risposta, solo se cambia chi vince una partita. Il bottone di una proposta superata non convalida niente.
 
 **Alle 10:00** il bot riscarica i tabellini delle giornate calcolate da poco o ancora da convalidare: se ESPN ne ha corretto qualcuno di un giocatore schierato, avvisa il gruppo admin con le differenze e il bottone 🔄 Ricalcola. Vale anche per una giornata già convalidata: si ricalcola e si riconvalida.
+
+**Congelamento delle giornate** (v56, regola votata dai GM il 26/10). In regular season il controllo delle 10 ricontrolla solo le **ultime 3 giornate finite**, convalidate o no: con la 4 in corso la 1, la 2 e la 3; finita la 4, la 2, la 3 e la 4. Le più vecchie sono **congelate**: i tabellini non si riscaricano più, e `/ricalcola` di una congelata ricalcola coi tabellini che ha. A mano: **`/congela N`** (una delle ultime 3 non si ricontrolla più) e **`/scongela N`** (una vecchia torna a ricontrollarsi); la scelta a mano vale più della regola. **`/congelamento`** mostra lo stato di tutte. Ai playoff (quando ci saranno) niente ricontrolli: i punteggi si congelano quando inizia la giornata dopo, e dalla generazione del tabellone si fermano anche quelli della regular season.
+
+**Correggere un punteggio**: **`/correggi_tabellino GIOCATORE GN VALORE`** (con la data `GG/MM` in fondo se in quella giornata ha giocato più partite: se manca, il bot propone i comandi già scritti) cambia i fantapunti di quella partita senza riscaricare; poi `/ricalcola N` e la convalida. Su una giornata aperta il bot avvisa che un ricontrollo può rimettere il valore di ESPN (`/congela N` per tenerlo). `/congela`, `/scongela` e ogni correzione vanno nel registro, nel canale log e **sul canale principale**.
 
 **Dopo la convalida**, se scopri un errore: correggi e `/ricalcola N`; alla nuova convalida il Calendario si riscrive.
 
@@ -126,7 +130,9 @@ Il bot scarica da ESPN le foto dei giocatori a roster **piano piano, solo di not
 | `/espn_giocatori` | roster NBA da ESPN e abbinamento automatico |
 | `/espn_mancanti` | giocatori a roster senza id ESPN |
 | `/espn_abbina ID_GIOCATORE ID_ESPN` | abbinamento a mano |
-| `/ricalcola N` | riscarica i tabellini della giornata N, ricalcola, riscrive il tab «Calcolo GN» e ripropone la convalida |
+| `/ricalcola N` | riscarica i tabellini della giornata N (se non è congelata), ricalcola, riscrive il tab «Calcolo GN» e ripropone la convalida |
+| `/congelamento` · `/congela N` · `/scongela N` | stato delle giornate (ricontrollate o congelate), e cambiarlo a mano |
+| `/correggi_tabellino GIOCATORE GN VALORE [GG/MM]` | corregge i fantapunti di una partita, senza riscaricare (poi `/ricalcola N`) |
 | `/live` | aggiorna subito il messaggio live della giornata in corso (o l'anteprima, se non è iniziata); mai una giornata già convalidata |
 | `/fantapunti [N]` | fantapunti della giornata, per squadra |
 | `/set_valid_status GIOCATORE N` | lo status di un giocatore che vale per il calcolo della giornata N, scelto tra quelli degli snapshot |

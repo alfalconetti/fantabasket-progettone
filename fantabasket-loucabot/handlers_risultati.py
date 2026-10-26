@@ -124,11 +124,14 @@ async def job_calcolo(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def job_controllo(context: ContextTypes.DEFAULT_TYPE):
-    """10:00: ESPN ha corretto qualche tabellino delle giornate calcolate da poco o da convalidare?"""
+    """10:00: ESPN ha corretto qualche tabellino delle giornate aperte? (v56, regola votata il 26/10: le ultime
+    3 giornate finite, o scongelate a mano; le congelate mai più: congelamento.py)"""
     from handlers import log
+    import congelamento
     s = config.stagione()
-    calc = db.q("""SELECT giornata, stato FROM lega_calcoli WHERE stagione = %s
-                   AND (stato = 'da_convalidare' OR calcolato > NOW() - INTERVAL '2 days')""", (s,), many=True) or []
+    aperte = congelamento.da_ricontrollare(s)
+    calc = db.q("SELECT giornata, stato FROM lega_calcoli WHERE stagione = %s AND giornata = ANY(%s) ORDER BY giornata",
+                (s, aperte), many=True) or []
     for lc in calc:
         n = lc["giornata"]
         g = db.giornata(s, n)
@@ -172,13 +175,17 @@ async def _ricalcola(bot, s: str, n: int, chi: str, rispondi, user=None):
         await nba.sincronizza(_giorni(g))
         import handlers_calcolo as hc
         await hc.aggiorna_tabellini()
-        await _riscarica(g)
+        import congelamento
+        fermo = congelamento.congelata(s, n)
+        if not fermo:                                   # congelata: coi tabellini che ha (v56)
+            await _riscarica(g)
         motivo = pronta(s, g)
         if motivo:
             await rispondi(f"❌ Giornata {n} non ancora calcolabile: {motivo}.")
             return
         esito = await esegui(bot, s, n, chi, user=user)
-        await rispondi(f"✅ Giornata {n} ricalcolata: proposta nuova nel gruppo admin ({esito}).")
+        await rispondi(f"✅ Giornata {n} ricalcolata: proposta nuova nel gruppo admin ({esito})."
+                       + (" Giornata congelata: coi tabellini che c'erano, niente riscaricato da ESPN." if fermo else ""))
     except Exception as err:
         logger.exception("Ricalcolo %s", n)
         await rispondi(f"⚠️ Ricalcolo della giornata {n} fallito: {err}")

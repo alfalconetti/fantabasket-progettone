@@ -281,3 +281,10 @@ Il calcolo dei fantapunti.
 ## v55 (2026-10-26)
 
 - **Ricalcolo di una giornata già convalidata: si vede cosa cambia** (Luca, 26/10: un ricalcolo aveva cambiato una partita ai supplementari e nessun messaggio l'aveva detto). La proposta nuova ha in fondo «🔁 Rispetto ai risultati convalidati cambiano N partite» con punti, supplementari e ⚠️ vincitore di prima e di adesso, oppure «✅ Stessi risultati della convalida»; lo stesso nel messaggio di conferma della convalida. L'avviso sul canale quando cambia chi vince ora funziona anche per le giornate convalidate prima che il bot salvasse gli esiti
+
+## v56 (2026-10-26)
+
+- **Congelamento delle giornate** (regola votata dai GM il 26/10, proposta di Luca): il controllo delle 10 ricontrolla solo le **ultime 3 giornate finite** (con la 4 in corso la 1, la 2 e la 3; finita la 4, la 2, la 3 e la 4), convalidate o no; le più vecchie sono congelate e `/ricalcola` non le riscarica (ricalcola coi tabellini che hanno). Prima: le giornate da convalidare o calcolate negli ultimi 2 giorni, e ogni ricalcolo rimetteva la giornata nel controllo. Le correzioni fatte finora restano
+- **`/congela N`**, **`/scongela N`** (la scelta a mano vale più della regola) e **`/congelamento`** (lo stato di tutte), admin
+- **`/correggi_tabellino GIOCATORE GN VALORE [GG/MM]`** (admin): i fantapunti di una partita senza riscaricare; con più partite nella giornata chiede la data coi comandi già scritti; poi `/ricalcola N` e la convalida
+- `/congela`, `/scongela` e le correzioni nel registro, nel canale log e sul canale principale
