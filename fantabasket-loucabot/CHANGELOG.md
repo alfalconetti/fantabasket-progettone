@@ -288,3 +288,7 @@ Il calcolo dei fantapunti.
 - **`/congela N`**, **`/scongela N`** (la scelta a mano vale più della regola) e **`/congelamento`** (lo stato di tutte), admin
 - **`/correggi_tabellino GIOCATORE GN VALORE [GG/MM]`** (admin): i fantapunti di una partita senza riscaricare; con più partite nella giornata chiede la data coi comandi già scritti; poi `/ricalcola N` e la convalida
 - `/congela`, `/scongela` e le correzioni nel registro, nel canale log e sul canale principale
+
+## v57 (2026-10-27)
+
+- **Live più robusto con ESPN** (Luca, notte del 27/10: il live si fermava senza dire niente). ESPN ogni tanto risponde vuoto («Expecting value»): ora ogni richiesta si riprova fino a 3 volte (`nba._json`). Se il tabellone della notte non arriva lo stesso, giro saltato e nuovo tentativo dopo **10 minuti** (era 20), con una riga sul canale log **a ogni giro saltato** (prima una all'ora: i salti dopo il primo non si vedevano). Se manca il tabellino di una sola partita il tabellone si aggiorna con le altre e quella si riprova al giro dopo

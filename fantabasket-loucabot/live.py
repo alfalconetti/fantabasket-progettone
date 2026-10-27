@@ -37,7 +37,7 @@ from shared import regole as _rg       # orari in settings.json («orari»), let
 FINE_NOTTE = _rg.orario("fine_live_notte")      # fine degli aggiornamenti della notte (mattino dopo, Roma)
 # 5 minuti dopo il controllo dei tabellini (handlers_risultati.job_controllo)
 ORA_CONTROLLO = (datetime.combine(date(2000, 1, 1), _rg.orario("controllo_tabellini")) + timedelta(minutes=5)).time()
-DOPO_ERRORE = timedelta(minutes=20)
+DOPO_ERRORE = timedelta(minutes=10)      # v57: era 20
 FINITE = ("STATUS_FINAL", "STATUS_POSTPONED", "STATUS_CANCELED")
 NON_INIZIATE = ("STATUS_SCHEDULED", "STATUS_POSTPONED", "STATUS_CANCELED")
 
@@ -137,13 +137,12 @@ async def scarica(g: dict, d: date, controllo: bool = False) -> dict:
         errori += (await nba.scarica_tabellini(in_corso, finale=False))["errori"]
     if finite:
         errori += (await nba.scarica_tabellini(finite))["errori"]
-    if errori:
-        raise RuntimeError("; ".join(errori))
+    # v57: una partita che non risponde non blocca il giro (le altre si aggiornano, quella al giro dopo)
     cambi = {}
     if controllo:
         dopo = _righe(finite)
         cambi = {k: (prima.get(k), dopo.get(k)) for k in set(prima) | set(dopo) if prima.get(k) != dopo.get(k)}
-    return {"in_corso": len(in_corso), "finite": len(finite), "cambi": cambi}
+    return {"in_corso": len(in_corso), "finite": len(finite), "cambi": cambi, "errori": errori}
 
 
 def _righe(partite: list[str]) -> dict:
@@ -454,6 +453,10 @@ async def aggiorna(bot, g: dict, d: date | None, ora: datetime, controllo: bool 
     esito_scarico = None
     if d is not None:
         esito_scarico = await (scarica_fn or scarica)(g, d, controllo)
+    if esito_scarico and esito_scarico.get("errori"):
+        from handlers import log
+        await log(bot, f"⚠️ Live G{n}: {len(esito_scarico['errori'])} tabellini non scaricati da ESPN "
+                       f"({e('; '.join(esito_scarico['errori']))[:200]}): aggiornato con le altre partite, quelle al giro dopo")
     c = calcolo(s, n)
     if controllo and esito_scarico and esito_scarico.get("cambi"):
         riga = testo_cambi(n, d, esito_scarico["cambi"], c)
@@ -608,11 +611,10 @@ async def tick(bot, ora: datetime | None = None, scarica_fn=None) -> list[str]:
                                                               "aggiornamento delle 10 dopo il controllo dei tabellini"))
         except Exception as err:
             logger.warning("Live G%s: %s", g["numero"], err)
-            _salva(s, g["numero"], prossimo=ora + DOPO_ERRORE)
-            if not st or not st.get("errore_log") or ora - st["errore_log"] >= timedelta(hours=1):
-                _salva(s, g["numero"], errore_log=ora)
-                await log(bot, f"⚠️ Live G{g['numero']}: aggiornamento saltato ({e(str(err))[:200]}), "
-                               f"riprovo fra {int(DOPO_ERRORE.total_seconds() // 60)} minuti")
+            _salva(s, g["numero"], prossimo=ora + DOPO_ERRORE, errore_log=ora)
+            # v57: a ogni giro saltato (prima una riga all'ora: i salti dopo la prima non si vedevano)
+            await log(bot, f"⚠️ Live G{g['numero']}: aggiornamento saltato ({e(str(err))[:200]}), "
+                           f"riprovo fra {int(DOPO_ERRORE.total_seconds() // 60)} minuti")
     return fatti
 
 

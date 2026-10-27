@@ -1646,3 +1646,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.7.3 (2026-10-26)
 
 - Loucabot v56: congelamento delle giornate (si ricontrollano le ultime 3 finite, regola votata dai GM), `/congela`, `/scongela`, `/congelamento`, `/correggi_tabellino` (Luca, 26/10)
+
+## v6.7.4 (2026-10-27)
+
+- Loucabot v57: live più robusto quando ESPN risponde vuoto (tentativi, 10 minuti, avviso a ogni giro saltato, una partita non blocca le altre) (Luca, 27/10)

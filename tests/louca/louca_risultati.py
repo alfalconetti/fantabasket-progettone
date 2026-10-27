@@ -469,10 +469,47 @@ async def rotta(g, d, controllo=False):
 BL.mandati.clear()
 asyncio.run(LV.tick(BL, ora=t0 + timedelta(minutes=22), scarica_fn=rotta))
 stl = LV.stato(S, N)
-ok(stl["prossimo"] == t0 + timedelta(minutes=42) and any("aggiornamento saltato" in x["text"] for x in BL.mandati if x["chat_id"] == -3)
-   and not any(x.get("modifica") for x in BL.mandati), "ESPN in errore: giro saltato, si riprova fra 20 minuti, una riga sul log")
-asyncio.run(LV.tick(BL, ora=t0 + timedelta(minutes=32), scarica_fn=finta))
-ok(len(scaricate) == 2, "prima dei 20 minuti non riprova")
+ok(stl["prossimo"] == t0 + timedelta(minutes=32) and any("aggiornamento saltato" in x["text"] for x in BL.mandati if x["chat_id"] == -3)
+   and not any(x.get("modifica") for x in BL.mandati), "ESPN in errore: giro saltato, si riprova fra 10 minuti, una riga sul log")
+asyncio.run(LV.tick(BL, ora=t0 + timedelta(minutes=30), scarica_fn=finta))
+ok(len(scaricate) == 2, "prima dei 10 minuti non riprova")
+BL.mandati.clear()
+asyncio.run(LV.tick(BL, ora=t0 + timedelta(minutes=33), scarica_fn=rotta))
+ok(any("aggiornamento saltato" in x["text"] for x in BL.mandati if x["chat_id"] == -3),
+   "secondo giro saltato di fila: la riga sul log c'è di nuovo (v57: prima una all'ora, i salti dopo non si vedevano)")
+db.q("UPDATE lega_live SET prossimo = NULL WHERE stagione = %s AND giornata = %s", (S, N))
+# una partita che non risponde non blocca il giro: tabellone aggiornato, riga sul log
+async def una_rotta(g, d, controllo=False):
+    return {"errori": ["401909871: Expecting value: line 1 column 1 (char 0)"]}
+BL.mandati.clear()
+_agg = asyncio.run(LV.aggiorna(BL, {**LV.db.giornata(S, N), "stagione": S}, DAL, t0 + timedelta(minutes=44), scarica_fn=una_rotta))
+ok(any(x.get("modifica") or x.get("foto") for x in BL.mandati if x.get("chat_id") == -1)
+   and any("1 tabellini non scaricati" in x["text"] for x in BL.mandati if x["chat_id"] == -3),
+   "una partita senza risposta da ESPN: il tabellone si aggiorna con le altre, riga sul log")
+# ESPN che risponde vuoto: si riprova (v57)
+import nba as _NB
+class _R:
+    def __init__(s, ok_): s.ok_ = ok_; s.status_code = 200
+    def raise_for_status(s): pass
+    def json(s):
+        if not s.ok_: raise ValueError("Expecting value: line 1 column 1 (char 0)")
+        return {"ok": 1}
+class _Cl:
+    def __init__(s, seq): s.seq = list(seq); s.n = 0
+    async def get(s, url, params=None):
+        s.n += 1; return _R(s.seq.pop(0))
+_vsl = _NB.asyncio.sleep
+async def _nosleep(x): pass
+_NB.asyncio.sleep = _nosleep
+_c1 = _Cl([False, True])
+_ok1 = asyncio.run(_NB._json(_c1, "u")) == {"ok": 1} and _c1.n == 2
+_c2 = _Cl([False, False, False])
+try:
+    asyncio.run(_NB._json(_c2, "u")); _ok2 = False
+except ValueError:
+    _ok2 = _c2.n == 3
+_NB.asyncio.sleep = _vsl
+ok(_ok1 and _ok2, "ESPN risponde vuoto: riprova fino a 3 volte, poi l'errore")
 asyncio.run(LV.tick(BL, ora=datetime(2026, 11, 11, 10, 6, tzinfo=ROMA), scarica_fn=finta))
 ok(scaricate[-1] == (DAL, True), "alle 10:05 riscarica i tabellini della notte")
 async def con_cambi(g, d, controllo=False):

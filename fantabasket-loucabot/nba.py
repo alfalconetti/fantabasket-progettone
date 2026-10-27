@@ -8,6 +8,8 @@ Le date di ESPN sono in UTC; il "giorno" di una partita è quello della costa es
 calendari NBA e nel nostro.
 """
 import asyncio
+
+import httpx                      # arriva con python-telegram-bot
 import logging
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -77,10 +79,23 @@ def giorni_stagione(dati: dict) -> list[date]:
     return sorted(set(giorni))
 
 
+async def _json(client, url: str, params: dict | None = None, tentativi: int = 3) -> dict:
+    """GET e JSON, riprovando un paio di volte (v57, Luca 27/10: di notte ESPN a volte risponde vuoto,
+    «Expecting value», e il live saltava 20 minuti per una risposta storta)."""
+    for i in range(tentativi):
+        try:
+            r = await client.get(url, params=params)
+            r.raise_for_status()
+            return r.json()
+        except (ValueError, httpx.TransportError, httpx.HTTPStatusError) as err:
+            rotta = isinstance(err, httpx.HTTPStatusError) and err.response.status_code < 500 and err.response.status_code != 429
+            if rotta or i == tentativi - 1:      # 404 e simili non cambiano riprovando
+                raise
+            await asyncio.sleep(2 * (i + 1))
+
+
 async def scarica_giorno(client, giorno: date) -> dict:
-    r = await client.get(URL, params={"dates": giorno.strftime("%Y%m%d"), "limit": "100"})
-    r.raise_for_status()
-    return r.json()
+    return await _json(client, URL, {"dates": giorno.strftime("%Y%m%d"), "limit": "100"})
 
 
 async def sincronizza(giorni: list[date] | None = None, scarica=None, pausa: float = 0.3) -> dict:
@@ -126,9 +141,7 @@ def _client():
 
 
 async def _get(client, url: str, params: dict | None = None) -> dict:
-    r = await client.get(url, params=params)
-    r.raise_for_status()
-    return r.json()
+    return await _json(client, url, params)
 
 
 def _coppia(v: str) -> tuple[int, int]:
