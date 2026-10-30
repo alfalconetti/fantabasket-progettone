@@ -15,6 +15,7 @@ db.init_db(); ipadb.init_db()
 db.q("TRUNCATE nba_tabellini, nba_infortuni, nba_atleti, lega_giornate, lega_partite, nba_partite, lega_risultati, "
      "lega_calcoli, lega_calcoli_storico, lega_status_validi")
 db.q("TRUNCATE ipa_formazioni, ipa_panchine, ipa_stato_giornata")
+import congelamento as _CGm; _CGm.migra(); db.q("TRUNCATE lega_controlli_notte")
 S = config.stagione()
 N = 7
 DAL, AL = date(2026, 11, 10), date(2026, 11, 12)
@@ -396,7 +397,7 @@ BOT.mandati.clear()
 if [p for p in db.partite_nba(_d2, _d2) if p["stato"] == "STATUS_FINAL"]:
     asyncio.run(HR.controllo_notte(BOT, _d2))
     # (Luca, 30/10) agli admin col dettaglio e coi bottoni ✅ aggiorna come Yahoo / ❌ lascia com'è; niente salvato finché non si preme
-    _info = [x for x in BOT.mandati if x.get("chat_id") == -2 and "già congelata" in x.get("text", "")]
+    _info = [x for x in BOT.mandati if x.get("chat_id") == -2 and "Niente è stato salvato" in x.get("text", "")]
     _cbi = [b.callback_data for r in _info[0]["reply_markup"].inline_keyboard for b in r] if _info else []
     ok(_info and "r12" in _info[0]["text"] and "punti" in _info[0]["text"] and "Niente è stato salvato" in _info[0]["text"]
        and [x.split(":")[1] for x in _cbi] == ["ag", "la"]
@@ -421,13 +422,19 @@ if [p for p in db.partite_nba(_d2, _d2) if p["stato"] == "STATUS_FINAL"]:
     # ❌ lascia com'è: niente cambia
     BOT.mandati.clear()
     asyncio.run(HR.controllo_notte(BOT, _d2))
-    _cbi = [b.callback_data for x in BOT.mandati if x.get("chat_id") == -2 and "già congelata" in x.get("text", "")
+    _cbi = [b.callback_data for x in BOT.mandati if x.get("chat_id") == -2 and "Niente è stato salvato" in x.get("text", "")
             for r in x["reply_markup"].inline_keyboard for b in r]
     _ql = QY(_cbi[1])
     asyncio.run(HR.cb_controllo(types.SimpleNamespace(callback_query=_ql, effective_user=types.SimpleNamespace(id=900, full_name="Admin")),
                                 types.SimpleNamespace(bot=BOT, application=None)))
     ok(float(db.q("SELECT fp FROM nba_tabellini WHERE atleta = 'r12' AND partita = 'g1'", one=True)["fp"]) == float(_r12["fp"])
        and "Lasciata com'era" in _ql.testo and _ql.k.get("reply_markup") is None, "❌ lascia com'è: niente cambia, niente bottoni")
+    # la sera dopo ESPN la dà ancora uguale a prima: non si ripete agli admin, solo una riga sul log
+    BOT.mandati.clear()
+    asyncio.run(HR.controllo_notte(BOT, _d2))
+    ok(not any(x.get("chat_id") == -2 and "Niente è stato salvato" in x.get("text", "") for x in BOT.mandati)
+       and any(x.get("chat_id") == -3 and "come già segnalato" in x.get("text", "") for x in BOT.mandati),
+       "stessa differenza già lasciata com'era: la sera dopo non si ripete agli admin")
 else:
     ok(False, "manca una partita finita nella seconda notte della giornata di prova")
 HR.nba.scarica_tabellini = _vero

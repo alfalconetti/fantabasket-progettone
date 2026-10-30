@@ -1695,3 +1695,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.9.3 (2026-10-30)
 
 - Loucabot v66: al controllo delle 20 le notti precedenti della stessa giornata (già congelate), se ESPN le dà diverse, arrivano agli admin coi bottoni ✅ aggiorna come Yahoo / ❌ lascia com'è (Luca, 30/10)
+
+## v6.9.4 (2026-10-30)
+
+- Loucabot v66 (rivista): la stessa differenza di una notte precedente già segnalata agli admin non si ripete ogni sera; se ESPN la cambia ancora, la segnalazione vecchia è superata. Guida admin: cosa succede a una notte scongelata a mano

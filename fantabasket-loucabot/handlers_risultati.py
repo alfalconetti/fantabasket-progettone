@@ -23,6 +23,8 @@ import config
 import db
 import nba
 import risultati as R
+from zoneinfo import ZoneInfo as _ZI
+ROMA = _ZI("Europe/Rome")
 
 logger = logging.getLogger(__name__)
 e = html.escape
@@ -196,20 +198,31 @@ async def controllo_notte(bot, d, chi: str = "controllo delle 20", user=None) ->
             salvati = {k: v for k, v in CG.righe(list((r2.get("letti") or {}).keys())).items()}
             diff = {k: v for k, v in CG.cambi(salvati, letti).items() if k[1] in sch}
             if not diff:
-                await log(bot, f"ℹ️ Notte del {d2:%d/%m}{gn} (congelata): ESPN la dà uguale")
+                await log(bot, f"ℹ️ Notte del {d2:%d/%m}{gn}: ESPN la dà uguale")
                 continue
             # agli admin coi bottoni (Luca, 30/10): se su Yahoo è già così si aggiorna, se no resta com'era
             CG.migra()
+            dopo2 = {f"{k[0]}|{k[1]}": v for k, v in zip(diff, _json_righe([x[1] for x in diff.values()]))}
+            # la stessa differenza già mandata (in attesa o lasciata com'era): non si ripete ogni sera
+            gia = [r for r in (db.q("SELECT id, stato, dopo, quando FROM lega_controlli_notte WHERE data_et = %s "
+                                    "AND stato IN ('da applicare', 'lasciato')", (d2,), many=True) or [])
+                   if (r["dopo"] if isinstance(r["dopo"], dict) else json.loads(r["dopo"])) == json.loads(json.dumps(dopo2))]
+            if gia:
+                await log(bot, f"ℹ️ Notte del {d2:%d/%m}{gn}: ESPN la dà ancora diversa per {len(diff)} schierati, come già "
+                               f"segnalato il {gia[0]['quando'].astimezone(ROMA):%d/%m} ({'in attesa' if gia[0]['stato'] == 'da applicare' else 'lasciata com era'})")
+                continue
+            # una segnalazione ancora in attesa ma con valori diversi da quelli di oggi: superata da questa
+            db.q("UPDATE lega_controlli_notte SET stato = 'superato' WHERE data_et = %s AND stato = 'da applicare'", (d2,))
             cid2 = db.q("""INSERT INTO lega_controlli_notte (data_et, giornata, prima, dopo, chi, stato) VALUES (%s, %s, %s, %s, %s, 'da applicare')
                            RETURNING id""",
                         (d2, g["numero"], json.dumps({f"{k[0]}|{k[1]}": v for k, v in zip(diff, _json_righe([x[0] for x in diff.values()]))}),
                          json.dumps({f"{k[0]}|{k[1]}": v for k, v in zip(diff, _json_righe([x[1] for x in diff.values()]))}), chi),
                         one=True)["id"]
-            t2 = (f"ℹ️ <b>Notte del {d2:%d/%m}{gn}, già congelata</b>: ESPN oggi la dà diversa per {len(diff)} "
+            t2 = (f"ℹ️ <b>Notte del {d2:%d/%m}{gn}, {'già congelata' if CG.notte_congelata(d2, s) else 'non ancora congelata'}</b>: ESPN oggi la dà diversa per {len(diff)} "
                   f"{'schierato' if len(diff) == 1 else 'schierati'}. <b>Niente è stato salvato.</b> Guardate su Yahoo:\n"
                   + "\n".join(CG.riga_cambio(a, b) for a, b in sorted(diff.values(), key=lambda x: (x[1] or x[0])["nome"]))
                   + "\n\n✅ se su Yahoo è già così, salva i valori nuovi; ❌ lascia quelli di adesso.")
-            await log(bot, f"ℹ️ Notte del {d2:%d/%m}{gn} (congelata): ESPN oggi la darebbe diversa per {len(diff)} schierati, "
+            await log(bot, f"ℹ️ Notte del {d2:%d/%m}{gn}: ESPN oggi la darebbe diversa per {len(diff)} schierati, "
                            f"agli admin da verificare su Yahoo")
             if config.gruppo_admin():
                 m2 = await bot.send_message(chat_id=config.gruppo_admin(), text=t2, parse_mode="HTML",
@@ -305,7 +318,8 @@ async def cb_controllo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _, azione, cid = q.data.split(":")
     c = db.q("SELECT * FROM lega_controlli_notte WHERE id = %s", (int(cid),), one=True)
     if not c or c["stato"] != ("da applicare" if azione in ("ag", "la") else "da verificare"):
-        await q.answer("Già deciso.", show_alert=True)
+        await q.answer("Già deciso." if not c or c["stato"] != "superato" else "Superata da una segnalazione più recente.",
+                       show_alert=True)
         return
     ora = datetime.now(timezone.utc).astimezone(__import__("zoneinfo").ZoneInfo("Europe/Rome"))
     prima = c["prima"] if isinstance(c["prima"], dict) else json.loads(c["prima"])
