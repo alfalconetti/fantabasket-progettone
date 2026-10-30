@@ -338,6 +338,19 @@ _qy2 = QY(_cid.replace(":no:", ":ok:"))
 asyncio.run(HR.cb_controllo(types.SimpleNamespace(callback_query=_qy2, effective_user=types.SimpleNamespace(id=900, full_name="Admin")),
                             types.SimpleNamespace(bot=BOT, application=None)))
 ok(_qy2.risposte == ["Già deciso."], "una volta deciso, l'altro bottone non fa niente")
+# primo controllo delle 11:05 a giornata convalidata (live chiuso): log col dettaglio e admin con Ricalcola (v60)
+async def finto3(ids, **k):
+    db.q("UPDATE nba_tabellini SET fp = fp + 1, stl = stl + 1 WHERE atleta = 'r12' AND partita = 'g1'")
+    return {"partite": len(ids), "giocatori": 0, "errori": [], "letti": {}}
+HR.nba.scarica_tabellini = finto3
+BOT.mandati.clear()
+_ep = asyncio.run(HR.primo_controllo(BOT, _d1))
+HR.nba.scarica_tabellini = _vero
+_adm = [x for x in BOT.mandati if x.get("chat_id") == -2]
+ok(_ep == "1 cambi" and any("Primo controllo (11:05)" in x.get("text", "") and "recuperi" in x.get("text", "") for x in BOT.mandati if x.get("chat_id") == -3)
+   and _adm and [b.callback_data for r in _adm[0]["reply_markup"].inline_keyboard for b in r] == [f"rc:re:{N}"],
+   f"primo controllo delle 11:05 a giornata calcolata: dettaglio sul log e agli admin con Ricalcola {_adm[0]['text'] if _adm else ''}")
+db.q("UPDATE nba_tabellini SET fp = fp - 1, stl = stl - 1 WHERE atleta = 'r12' AND partita = 'g1'")
 # le altre notti della giornata: solo informazione sul log, niente salvato (Luca, 30/10)
 _d2 = _d1 + timedelta(days=1)
 _r12 = dict(db.q("SELECT * FROM nba_tabellini WHERE atleta = 'r12' AND partita = 'g1'", one=True))
@@ -446,9 +459,9 @@ st_ = {"message_id": 5, "aggiornato": t0}
 ok(LV.cosa_fare(g7, t0 + timedelta(minutes=5), st_) == (None, None) and LV.cosa_fare(g7, t0 + timedelta(minutes=10), st_) == ("live", DAL),
    "poi ogni 10 minuti")
 ok(LV.cosa_fare(g7, datetime(2026, 11, 11, 9, 0, tzinfo=ROMA), {**st_, "aggiornato": datetime(2026, 11, 11, 7, 55, tzinfo=ROMA)}) == (None, None),
-   "dalle 8 alle 10 niente")
-ok(LV.cosa_fare(g7, datetime(2026, 11, 11, 10, 6, tzinfo=ROMA), {**st_, "aggiornato": datetime(2026, 11, 11, 7, 55, tzinfo=ROMA)})
-   == ("controllo", DAL), "alle 10:05 un aggiornamento (dopo il controllo dei tabellini)")
+   "dalle 8 alle 11 niente")
+ok(LV.cosa_fare(g7, datetime(2026, 11, 11, 11, 6, tzinfo=ROMA), {**st_, "aggiornato": datetime(2026, 11, 11, 7, 55, tzinfo=ROMA)})
+   == ("controllo", DAL), "alle 11:05 il primo controllo della notte")
 ok(LV.cosa_fare(g7, t0 + timedelta(minutes=30), {**st_, "prossimo": t0 + timedelta(minutes=40)}) == (None, None), "dopo un errore si aspetta")
 
 class BotL(Bot):
@@ -558,18 +571,18 @@ except ValueError:
     _ok2 = _c2.n == 3
 _NB.asyncio.sleep = _vsl
 ok(_ok1 and _ok2, "ESPN risponde vuoto: riprova fino a 3 volte, poi l'errore")
-asyncio.run(LV.tick(BL, ora=datetime(2026, 11, 11, 10, 6, tzinfo=ROMA), scarica_fn=finta))
-ok(scaricate[-1] == (DAL, True), "alle 10:05 riscarica i tabellini della notte")
+asyncio.run(LV.tick(BL, ora=datetime(2026, 11, 11, 11, 6, tzinfo=ROMA), scarica_fn=finta))
+ok(scaricate[-1] == (DAL, True), "alle 11:05 riscarica i tabellini della notte")
 _rg = lambda nome, fp, mi, ast: {"nome": nome, "fp": fp, "minuti": mi, "ast": ast}
 async def con_cambi(g, d, controllo=False):
     return {"cambi": {("g1", "r1"): (_rg("Prova 1", 30.0, 30, 2), _rg("Prova 1", 32.5, 31, 3)),
                       ("g1", "r99"): (_rg("Nessuno", 5.0, 10, 0), _rg("Nessuno", 6.0, 10, 0))}}
 db.q("UPDATE lega_live SET aggiornato = %s WHERE stagione = %s AND giornata = %s", (datetime(2026, 11, 12, 7, 55, tzinfo=ROMA), S, N))
 BL.mandati.clear()
-asyncio.run(LV.tick(BL, ora=datetime(2026, 11, 12, 10, 6, tzinfo=ROMA), scarica_fn=con_cambi))
-righe_log = [x["text"] for x in BL.mandati if x.get("chat_id") == -3 and "controllo delle 10:05" in x.get("text", "")]
+asyncio.run(LV.tick(BL, ora=datetime(2026, 11, 12, 11, 6, tzinfo=ROMA), scarica_fn=con_cambi))
+righe_log = [x["text"] for x in BL.mandati if x.get("chat_id") == -3 and "primo controllo (11:05)" in x.get("text", "")]
 ok(len(righe_log) == 1 and "Prova 1: 30,00 → <b>32,50</b> (minuti 30 → 31, assist 2 → 3)" in righe_log[0] and "Nessuno" not in righe_log[0]
-   and "notte del 11/11" in righe_log[0], "10:05: tabellini cambiati di giocatori schierati sul canale log (gli altri no)")
+   and "notte del 11/11" in righe_log[0], "11:05: tabellini cambiati di giocatori schierati sul canale log (gli altri no)")
 # tabellino parziale: la partita resta senza tabellino (il definitivo si riscarica a partita finita)
 db.salva_tabellino("g5", [{"partita": "g5", "atleta": "r1", "nome": "r1", "squadra": "NYK", "titolare": True, "giocato": True,
                            "minuti": 10, "pts": 0, "fgm": 0, "fga": 0, "tpm": 0, "tpa": 0, "ftm": 0, "fta": 0, "oreb": 0,
@@ -689,9 +702,9 @@ ok(len(BP.mandati) == 1 and BP.mandati[0]["chat_id"] == 900 and "preseason, solo
    "prova del live: messaggio solo al dev, con le partite in corso " + txt[:300])
 ok(conta() == prima_db and (db.partite_nba, db.tabellini_atleti) == orig, "prova del live: niente scritto nel database, funzioni rimesse a posto")
 ok(PL.cosa_fare(stp, inizio_p + timedelta(minutes=5)) is None and PL.cosa_fare(stp, inizio_p + timedelta(minutes=13)) == "live"
-   and PL.cosa_fare(stp, datetime(2026, 10, 15, 10, 6, tzinfo=ROMA)) == "controllo", "prova del live: stessi orari del live")
-ok(not PL.finita(stp, datetime(2026, 10, 15, 10, 6, tzinfo=ROMA)) and PL.finita(stp, datetime(2026, 10, 15, 10, 20, tzinfo=ROMA)),
-   "prova del live: finisce dopo le 10:05 dell'ultimo giorno")
+   and PL.cosa_fare(stp, datetime(2026, 10, 15, 11, 6, tzinfo=ROMA)) == "controllo", "prova del live: stessi orari del live")
+ok(not PL.finita(stp, datetime(2026, 10, 15, 11, 6, tzinfo=ROMA)) and PL.finita(stp, datetime(2026, 10, 15, 11, 20, tzinfo=ROMA)),
+   "prova del live: finisce dopo le 11:05 dell'ultimo giorno")
 db.q("TRUNCATE ipa_quintetto")
 
 # ── convalida (Luca, 23/10): risultati definitivi sul canale, il live si cancella e non si aggiorna più ──

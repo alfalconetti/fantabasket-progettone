@@ -303,3 +303,7 @@ Il calcolo dei fantapunti.
 ## v59 (2026-10-30)
 
 - **Bottoni a risposta unica** (Luca, 30/10): premuto 🔄 Ricalcola anche sulla proposta i bottoni spariscono subito, con sotto chi l'ha avviato (prima restavano lì finché non arrivava la proposta nuova, e si poteva premere due volte); se il ricalcolo non riesce il messaggio dice di usare `/ricalcola N`. Nel controllo finale delle 20 ✅/❌ spariscono alla prima scelta e resta solo Ricalcola, che a sua volta sparisce quando lo premi
+
+## v60 (2026-10-30)
+
+- **Primo controllo dell'ultima notte alle 11:05**, anche a giornata già convalidata (Luca, 30/10: col live chiuso alla convalida il controllo del mattino saltava). Col live aperto lo fa il live (aggiorna anche il tabellone); col live chiuso un minuto dopo `job_primo_controllo`: cambi degli schierati col dettaglio delle statistiche sul canale log e, a giornata calcolata, al gruppo admin con 🔄 Ricalcola. Era alle 10:05 (`orari.primo_controllo`, prima `controllo_tabellini` + 5 minuti). Il controllo finale resta alle 20

@@ -1658,3 +1658,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.7.6 (2026-10-30)
 
 - Loucabot v59: bottoni a risposta unica nel gruppo admin, anche Ricalcola sulla proposta (Luca, 30/10)
+
+## v6.7.7 (2026-10-30)
+
+- Loucabot v60: primo controllo dell'ultima notte alle 11:05, anche a giornata convalidata (Luca, 30/10)

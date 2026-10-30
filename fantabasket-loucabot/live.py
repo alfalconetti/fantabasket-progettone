@@ -6,7 +6,7 @@ supplementari) sui tabellini live di ESPN. Sotto: risultati provvisori, da valut
 da un admin, e l'ora dell'ultimo aggiornamento.
 
 Quando: per ogni notte della giornata dalla prima partita della notte alle 8:00 (Roma) del mattino
-dopo, ogni 10 minuti; poi un aggiornamento alle 10:05, dopo il controllo dei tabellini delle 10
+dopo, ogni 10 minuti; poi alle 11:05 (orari.primo_controllo) il primo controllo della notte, che la riscarica
 (ESPN a volte riassegna le statistiche). Il job gira ogni minuto e decide lui (così il messaggio
 esce al tipoff, non fino a 10 minuti dopo).
 
@@ -36,7 +36,7 @@ OGNI = timedelta(minutes=10)
 from shared import regole as _rg       # orari in settings.json («orari»), letti all'avvio
 FINE_NOTTE = _rg.orario("fine_live_notte")      # fine degli aggiornamenti della notte (mattino dopo, Roma)
 # 5 minuti dopo il controllo dei tabellini (handlers_risultati.job_controllo)
-ORA_CONTROLLO = (datetime.combine(date(2000, 1, 1), _rg.orario("controllo_tabellini")) + timedelta(minutes=5)).time()
+ORA_CONTROLLO = _rg.orario("primo_controllo")     # 11:05: primo controllo della notte (v60; era 10:05)
 DOPO_ERRORE = timedelta(minutes=10)      # v57: era 20
 FINITE = ("STATUS_FINAL", "STATUS_POSTPONED", "STATUS_CANCELED")
 NON_INIZIATE = ("STATUS_SCHEDULED", "STATUS_POSTPONED", "STATUS_CANCELED")
@@ -128,7 +128,7 @@ async def scarica(g: dict, d: date, controllo: bool = False) -> dict:
     partite = [p for p in db.partite_nba(d, d) if p["espn_id"] in {x["espn_id"] for x in db.partite_nba(g["dal"], g["al"])}]
     in_corso = [p["espn_id"] for p in partite if p["stato"] not in FINITE and p["stato"] not in NON_INIZIATE]
     finite = [p["espn_id"] for p in partite if p["stato"] == "STATUS_FINAL" and (controllo or not p.get("tabellino"))]
-    # v58: alle 10:05 la notte si riscarica sempre (primo controllo), anche a giornata calcolata
+    # primo controllo (11:05): la notte si riscarica sempre, anche a giornata calcolata
     errori = []
     import congelamento as CG
     prima = CG.righe(finite) if controllo else {}
@@ -159,7 +159,8 @@ def testo_cambi(n: int, d: date, cambi: dict, c: dict) -> str | None:
     if not contano:
         return None
     righe = [CG.riga_cambio(a, b) for a, b in sorted(contano.values(), key=lambda x: (x[1] or x[0])["nome"])]
-    return (f"🔎 Live G{n}, controllo delle 10:05 sulla notte del {d:%d/%m}: ESPN ha cambiato {len(contano)} "
+    from shared import regole as _r
+    return (f"🔎 Live G{n}, primo controllo ({_r.orario('primo_controllo'):%H:%M}) sulla notte del {d:%d/%m}: ESPN ha cambiato {len(contano)} "
             f"{'tabellino' if len(contano) == 1 else 'tabellini'} di giocatori schierati (il messaggio live è già aggiornato):\n"
             + "\n".join(righe))
 

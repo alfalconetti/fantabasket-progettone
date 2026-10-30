@@ -1,7 +1,7 @@
 """
 Prova del live sulle partite di preseason (deciso con Luca il 14/10): `/dev_prova_live` fa girare
 il live vero (stesso calcolo, stesso messaggio, ogni 10 minuti dalla prima partita alle 8 del
-mattino dopo, poi alle 10:05) su una giornata finta fatta delle notti indicate, con gli
+mattino dopo, poi alle 11:05) su una giornata finta fatta delle notti indicate, con gli
 accoppiamenti della prossima giornata e i quintetti e le panchine di adesso.
 
 Isolata da tutto il resto:

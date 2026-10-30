@@ -205,6 +205,60 @@ def _calcolata(s: str, n: int) -> bool:
     return bool(db.q("SELECT 1 AS x FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (s, n), one=True))
 
 
+async def primo_controllo(bot, d) -> str:
+    """Primo controllo della notte d alle 11:05 quando il live non c'è più (giornata convalidata): riscarica, cambi
+    degli schierati col dettaglio sul log e, se la giornata è calcolata, al gruppo admin con Ricalcola (v60, Luca
+    30/10: «avevamo detto di tenerlo»). Col live ancora aperto lo fa il live stesso (live.cosa_fare → «controllo»)."""
+    from handlers import log
+    import congelamento as CG
+    s = config.stagione()
+    g = CG.giornata_di(s, d)
+    ids = [p["espn_id"] for p in db.partite_nba(d, d) if p["stato"] == "STATUS_FINAL"]
+    if not g or not ids:
+        return "niente da controllare"
+    prima = CG.righe(ids)
+    await nba.scarica_tabellini(ids)
+    cambi = CG.cambi(prima, CG.righe(ids))
+    sch = CG.schierati(s, g["numero"])
+    contano = {k: v for k, v in cambi.items() if k[1] in sch}
+    from shared import regole as _r
+    titolo = f"🔎 Primo controllo ({_r.orario('primo_controllo'):%H:%M}), notte del {d:%d/%m} (G{g['numero']})"
+    if not contano:
+        await log(bot, f"{titolo}: nessun tabellino cambiato tra gli schierati" + (f" ({len(cambi)} cambi di altri)" if cambi else ""))
+        return "nessun cambio"
+    righe = "\n".join(CG.riga_cambio(a, b) for a, b in sorted(contano.values(), key=lambda x: (x[1] or x[0])["nome"]))
+    await log(bot, f"{titolo}: ESPN ha cambiato {len(contano)} tabellini di giocatori schierati:\n{righe}")
+    if _calcolata(s, g["numero"]) and config.gruppo_admin():
+        await bot.send_message(chat_id=config.gruppo_admin(), parse_mode="HTML",
+                               text=f"<b>{titolo}</b>: ESPN ha cambiato {len(contano)} "
+                                    f"{'tabellino' if len(contano) == 1 else 'tabellini'} di giocatori schierati:\n{righe}\n\n"
+                                    f"I valori nuovi sono già nel database: ricalcola per aggiornare risultati e foglio. "
+                                    f"Il controllo finale (con la verifica su Yahoo) è alle {_r.orario('controllo_notte'):%H:%M}.",
+                               reply_markup=K([[B("🔄 Ricalcola", callback_data=f"rc:re:{g['numero']}")]]))
+    return f"{len(contano)} cambi"
+
+
+async def job_primo_controllo(context: ContextTypes.DEFAULT_TYPE):
+    """11:06: il primo controllo dell'ultima notte per le giornate senza live aperto (il live lo fa alle 11:05)."""
+    from handlers import log
+    from zoneinfo import ZoneInfo
+    import congelamento as CG
+    import live
+    d = datetime.now(ZoneInfo("Europe/Rome")).date() - timedelta(days=1)
+    s = config.stagione()
+    g = CG.giornata_di(s, d)
+    if not g:
+        return
+    st = live.stato(s, g["numero"]) or {}
+    if st.get("message_id") and not st.get("chiuso"):
+        return                                          # live aperto: ci ha pensato lui alle 11:05
+    try:
+        await primo_controllo(context.bot, d)
+    except Exception as err:
+        logger.exception("Primo controllo %s", d)
+        await log(context.bot, f"⚠️ Primo controllo della notte del {d:%d/%m} non riuscito ({e(str(err))[:200]})")
+
+
 async def job_controllo_finale(context: ContextTypes.DEFAULT_TYPE):
     """20:00 (orari.controllo_notte): controllo finale della notte appena passata, poi è congelata (v58)."""
     from handlers import log

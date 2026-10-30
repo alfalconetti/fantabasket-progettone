@@ -111,13 +111,20 @@ Alla **scadenza**, quando IPanchinari congela la giornata, il tab «Calcolo GN»
 schierati (quintetti e panchine, senza punteggi), aggiornati entro 5 minuti se un admin li corregge.
 Nei giorni in mezzo, alle **10**, il tab si riscrive col calcolo fino alla notte appena finita
 (PROVVISORIO nel titolo).
-Alle **7:45** del giorno dopo l'ultima notte il bot calcola la giornata coi tabellini definitivi (riscaricati tutti in quel momento), dai
+Alle **7:45** del giorno dopo l'ultima notte il bot calcola la giornata coi tabellini definitivi (l'ultima notte riscaricata in quel momento, le altre già congelate), dai
 quintetti congelati e dalle panchine di IPanchinari; scrive il tab «Calcolo GN» del foglio di
 controllo (una riga per giocatore, formule che rifanno i conti del bot) e manda la proposta al
 gruppo admin con ✅ Convalida / 🔄 Ricalcola. Le correzioni si fanno dal bot
 (`/set_valid_status`, `/quintetto_admin SQUADRA GN`, `/panchina_admin SQUADRA GN`), poi Ricalcola.
-Alla convalida i risultati vanno in `lega_risultati` e sul foglio Calendario. Alle **10:00** il bot
-riscarica i tabellini: se ESPN ne ha corretto uno di un giocatore schierato, avvisa gli admin.
+Alla convalida i risultati vanno in `lega_risultati` e sul foglio Calendario.
+
+**Controlli dei tabellini** (come Yahoo: ogni notte vale fino alle 20 del giorno dopo):
+- **11:05** primo controllo dell'ultima notte, anche a giornata convalidata: la riscarica, i cambi degli
+  schierati (col dettaglio delle statistiche) sul canale log e, se la giornata è calcolata, al gruppo admin
+  con 🔄 Ricalcola;
+- **20:00** controllo finale: la riscarica un'ultima volta, gli admin verificano su Yahoo
+  (✅ uguale · ❌ non corrisponde: tornano i valori di prima), poi la notte è **congelata** e non
+  si riscarica più; le notti prima della stessa giornata solo lette e confrontate, sul log.
 
 ## Comandi
 
