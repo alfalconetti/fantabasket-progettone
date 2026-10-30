@@ -292,3 +292,14 @@ Il calcolo dei fantapunti.
 ## v57 (2026-10-27)
 
 - **Live più robusto con ESPN** (Luca, notte del 27/10: il live si fermava senza dire niente). ESPN ogni tanto risponde vuoto («Expecting value»): ora ogni richiesta si riprova fino a 3 volte (`nba._json`). Se il tabellone della notte non arriva lo stesso, giro saltato e nuovo tentativo dopo **10 minuti** (era 20), con una riga sul canale log **a ogni giro saltato** (prima una all'ora: i salti dopo il primo non si vedevano). Se manca il tabellino di una sola partita il tabellone si aggiorna con le altre e quella si riprova al giro dopo
+
+## v58 (2026-10-30)
+
+- **Controllo finale delle 20 e congelamento per notte** (Luca, 30/10: come Yahoo, per coerenza; sostituisce la regola delle ultime 3 giornate della v56). Ogni notte NBA si ricontrolla solo fino alle **20 del giorno dopo** (`orari.controllo_notte`): alle 10:05 il live la riscarica (primo controllo), alle 20 il controllo finale la riscarica un'ultima volta e chiede agli admin di **verificare su Yahoo** i cambi degli schierati (**✅ Uguale su Yahoo** · **❌ Non corrisponde**: tornano i valori di prima · 🔄 Ricalcola), poi la notte è **congelata** (niente più riscarichi, nemmeno alle 7:45 o con `/ricalcola`; il filtro è in `nba.scarica_tabellini`). Alle 20, solo per informazione e senza salvare niente, le notti prima della stessa giornata sul canale log. Tolto il controllo delle 10 sulle giornate
+- **Dettaglio delle statistiche** in ogni cambio di punteggio segnalato (controllo finale, 10:05, 7:45): es. «16,00 → 18,00 (rimbalzi difensivi 4 → 5, assist 3 → 4)» (Luca, 30/10)
+- Nuovi comandi admin: `/congela_notte GG/MM`, `/scongela_notte GG/MM`, `/congelamento_notti`, `/controllo_notte GG/MM` (rifà il controllo finale). `/congela N` e `/scongela N` valgono per tutte le notti della giornata
+- Alle 10:05, se la giornata è già calcolata e la notte ha cambi di schierati, avviso anche al gruppo admin col bottone Ricalcola (prima la riga solo sul log)
+
+## v59 (2026-10-30)
+
+- **Bottoni a risposta unica** (Luca, 30/10): premuto 🔄 Ricalcola anche sulla proposta i bottoni spariscono subito, con sotto chi l'ha avviato (prima restavano lì finché non arrivava la proposta nuova, e si poteva premere due volte); se il ricalcolo non riesce il messaggio dice di usare `/ricalcola N`. Nel controllo finale delle 20 ✅/❌ spariscono alla prima scelta e resta solo Ricalcola, che a sua volta sparisce quando lo premi

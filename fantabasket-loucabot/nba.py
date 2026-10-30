@@ -187,11 +187,20 @@ def leggi_tabellino(dati: dict, partita: str) -> list[dict]:
     return out
 
 
-async def scarica_tabellini(partite: list[str], scarica=None, pausa: float = 1.0, finale: bool = True) -> dict:
+async def scarica_tabellini(partite: list[str], scarica=None, pausa: float = 1.0, finale: bool = True,
+                            forza: bool = False, salva: bool = True) -> dict:
     """Scarica e salva i tabellini delle partite indicate (id ESPN). `scarica(id)` si può sostituire
     nelle prove. Una partita va scaricata una volta sola: chi chiama passa solo quelle finite e
-    senza tabellino (db.partite_senza_tabellino)."""
+    senza tabellino (db.partite_senza_tabellino).
+    v58: le partite di una notte congelata che hanno già il tabellino non si riscaricano (salvo `forza`:
+    il controllo finale delle 20); con `salva=False` si leggono e basta (in "letti": {partita: righe})."""
     import db
+    congelate = set()
+    if not forza:
+        import congelamento
+        congelate = congelamento.da_tenere(partite)
+        partite = [p for p in partite if p not in congelate]
+    letti = {}
     client = None
     if scarica is None:
         client = _client()
@@ -205,9 +214,12 @@ async def scarica_tabellini(partite: list[str], scarica=None, pausa: float = 1.0
                 tab = leggi_tabellino(await scarica(pid), pid)
                 if not tab:
                     raise ValueError("tabellino vuoto")
-                db.salva_tabellino(pid, tab, finale=finale)
-                salvate += 1
-                righe += len(tab)
+                if not salva:
+                    letti[pid] = tab
+                else:
+                    db.salva_tabellino(pid, tab, finale=finale)
+                    salvate += 1
+                    righe += len(tab)
             except Exception as e:
                 errori.append(f"{pid}: {e}")
                 logger.warning("Tabellino %s: %s", pid, e)
@@ -216,7 +228,7 @@ async def scarica_tabellini(partite: list[str], scarica=None, pausa: float = 1.0
     finally:
         if client:
             await client.aclose()
-    return {"partite": salvate, "giocatori": righe, "errori": errori}
+    return {"partite": salvate, "giocatori": righe, "errori": errori, "congelate": len(congelate), "letti": letti}
 
 
 # ── infortunati ────────────────────────────────────────────────────────────────

@@ -128,11 +128,10 @@ async def scarica(g: dict, d: date, controllo: bool = False) -> dict:
     partite = [p for p in db.partite_nba(d, d) if p["espn_id"] in {x["espn_id"] for x in db.partite_nba(g["dal"], g["al"])}]
     in_corso = [p["espn_id"] for p in partite if p["stato"] not in FINITE and p["stato"] not in NON_INIZIATE]
     finite = [p["espn_id"] for p in partite if p["stato"] == "STATUS_FINAL" and (controllo or not p.get("tabellino"))]
-    if controllo and db.q("SELECT 1 AS x FROM lega_calcoli WHERE stagione = %s AND giornata = %s",
-                          (g["stagione"], g["numero"]), one=True):
-        finite = [p for p in finite if p not in {x["espn_id"] for x in partite if x.get("tabellino")}]
+    # v58: alle 10:05 la notte si riscarica sempre (primo controllo), anche a giornata calcolata
     errori = []
-    prima = _righe(finite) if controllo else {}
+    import congelamento as CG
+    prima = CG.righe(finite) if controllo else {}
     if in_corso:
         errori += (await nba.scarica_tabellini(in_corso, finale=False))["errori"]
     if finite:
@@ -140,8 +139,7 @@ async def scarica(g: dict, d: date, controllo: bool = False) -> dict:
     # v57: una partita che non risponde non blocca il giro (le altre si aggiornano, quella al giro dopo)
     cambi = {}
     if controllo:
-        dopo = _righe(finite)
-        cambi = {k: (prima.get(k), dopo.get(k)) for k in set(prima) | set(dopo) if prima.get(k) != dopo.get(k)}
+        cambi = CG.cambi(prima, CG.righe(finite))
     return {"in_corso": len(in_corso), "finite": len(finite), "cambi": cambi, "errori": errori}
 
 
@@ -154,17 +152,16 @@ def _righe(partite: list[str]) -> dict:
 
 
 def testo_cambi(n: int, d: date, cambi: dict, c: dict) -> str | None:
-    """La riga per il canale log: tabellini di giocatori schierati cambiati da ESPN dopo la notte."""
+    """Tabellini di giocatori schierati cambiati da ESPN dopo la notte, col dettaglio delle statistiche (v58)."""
+    import congelamento as CG
     schierati = {x["atleta"] for sq in c["squadre"].values() for x in sq["quintetto"] + sq["panchina"] if x.get("atleta")}
     contano = {k: v for k, v in cambi.items() if k[1] in schierati}
     if not contano:
         return None
-    righe = []
-    for (_, a), (pr, do) in sorted(contano.items(), key=lambda x: (x[1][1] or x[1][0])[2]):
-        righe.append(f"• {e((do or pr)[2])}: {tp(pr[0]) if pr else '—'} → {tp(do[0]) if do else '—'} fantapunti"
-                     + (f" (minuti {pr[1]} → {do[1]})" if pr and do and pr[1] != do[1] else ""))
-    return (f"🔎 Live G{n}, controllo delle 10:05 sulla notte del {d:%d/%m}: ESPN ha cambiato {len(contano)} tabellini "
-            f"di giocatori schierati (il messaggio live è già aggiornato):\n" + "\n".join(righe))
+    righe = [CG.riga_cambio(a, b) for a, b in sorted(contano.values(), key=lambda x: (x[1] or x[0])["nome"])]
+    return (f"🔎 Live G{n}, controllo delle 10:05 sulla notte del {d:%d/%m}: ESPN ha cambiato {len(contano)} "
+            f"{'tabellino' if len(contano) == 1 else 'tabellini'} di giocatori schierati (il messaggio live è già aggiornato):\n"
+            + "\n".join(righe))
 
 
 def calcolo(s: str, n: int) -> dict:
@@ -463,6 +460,13 @@ async def aggiorna(bot, g: dict, d: date | None, ora: datetime, controllo: bool 
         if riga:
             from handlers import log
             await log(bot, riga)
+            # giornata già calcolata (la notte era l'ultima): anche agli admin, col bottone Ricalcola (v58)
+            if db.q("SELECT 1 AS x FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (s, n), one=True) and config.gruppo_admin():
+                from telegram import InlineKeyboardButton as _B, InlineKeyboardMarkup as _K
+                await bot.send_message(chat_id=config.gruppo_admin(), text=riga.replace("🔎 Live", "🔎 <b>Live") .replace(":\n", "</b>:\n", 1)
+                                       + "\n\nGiornata già calcolata: ricalcola per aggiornare risultati e foglio. "
+                                         "Il controllo finale è alle 20.", parse_mode="HTML",
+                                       reply_markup=_K([[_B("🔄 Ricalcola", callback_data=f"rc:re:{n}")]]))
     # sul canale un'immagine (live.typ) che si sostituisce a ogni aggiornamento (Luca, 23/10); il testo con /live_results
     import asyncio
     png = await asyncio.to_thread(immagine, dati_immagine(c, ora))

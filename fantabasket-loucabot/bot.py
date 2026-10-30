@@ -73,7 +73,8 @@ def main():
     app.add_error_handler(dev_comune.error_handler("loucabot", config.canale_log, config.dev_id))
     app.job_queue.run_daily(job_sync, time=regole.orario("sync_nba").replace(tzinfo=ROME))        # partite, tabellini, infortunati
     app.job_queue.run_daily(handlers_risultati.job_calcolo, time=regole.orario("calcolo").replace(tzinfo=ROME))     # calcolo definitivo
-    app.job_queue.run_daily(handlers_risultati.job_controllo, time=regole.orario("controllo_tabellini").replace(tzinfo=ROME))   # tabellini corretti da ESPN?
+    # v58: niente più controllo delle 10 sulle giornate; alle 20 il controllo finale della notte prima (poi congelata)
+    app.job_queue.run_daily(handlers_risultati.job_controllo_finale, time=regole.orario("controllo_notte").replace(tzinfo=ROME))
     app.job_queue.run_daily(formazioni_foglio.job_parziale, time=regole.orario("foglio_parziale").replace(tzinfo=ROME))   # foglio provvisorio a metà giornata
     # snapshot degli infortunati ogni 4 ore (anche di notte) e 30 minuti prima della prima partita
     # del giorno: per il calcolo conta quello subito prima delle partite, il più recente è lo

@@ -1650,3 +1650,11 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.7.4 (2026-10-27)
 
 - Loucabot v57: live più robusto quando ESPN risponde vuoto (tentativi, 10 minuti, avviso a ogni giro saltato, una partita non blocca le altre) (Luca, 27/10)
+
+## v6.7.5 (2026-10-30)
+
+- Loucabot v58: controllo finale delle 20 con verifica su Yahoo (✅/❌), congelamento notte per notte, dettaglio delle statistiche nei cambi, `/congela_notte`, `/scongela_notte`, `/congelamento_notti`, `/controllo_notte` (Luca, 30/10)
+
+## v6.7.6 (2026-10-30)
+
+- Loucabot v59: bottoni a risposta unica nel gruppo admin, anche Ricalcola sulla proposta (Luca, 30/10)

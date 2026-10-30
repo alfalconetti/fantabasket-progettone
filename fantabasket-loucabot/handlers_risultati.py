@@ -52,16 +52,15 @@ def pronta(stagione: str, g: dict) -> str | None:
 
 
 async def _riscarica(g: dict) -> dict:
-    """Riscarica i tabellini di tutte le partite finite della giornata. {(partita, atleta): (prima, dopo)} dei cambi."""
+    """Riscarica i tabellini delle partite finite della giornata, tranne le notti congelate (v58: in pratica
+    l'ultima notte, fino alle 20 del giorno dopo). {(partita, atleta): (riga prima, riga dopo)} dei cambi."""
+    import congelamento as CG
     ids = [p["espn_id"] for p in db.partite_nba(g["dal"], g["al"]) if p["stato"] == "STATUS_FINAL"]
     if not ids:
         return {}
-    prima = {(r["partita"], r["atleta"]): (float(r["fp"]), r["minuti"], r["nome"])
-             for r in db.q("SELECT partita, atleta, fp, minuti, nome FROM nba_tabellini WHERE partita = ANY(%s)", (ids,), many=True) or []}
+    prima = CG.righe(ids)
     await nba.scarica_tabellini(ids)
-    dopo = {(r["partita"], r["atleta"]): (float(r["fp"]), r["minuti"], r["nome"])
-            for r in db.q("SELECT partita, atleta, fp, minuti, nome FROM nba_tabellini WHERE partita = ANY(%s)", (ids,), many=True) or []}
-    return {k: (prima.get(k), dopo.get(k)) for k in set(prima) | set(dopo) if prima.get(k) != dopo.get(k)}
+    return CG.cambi(prima, CG.righe(ids))
 
 
 async def esegui(bot, stagione: str, n: int, chi: str = "job delle 7:45", user=None) -> str:
@@ -96,7 +95,7 @@ async def esegui(bot, stagione: str, n: int, chi: str = "job delle 7:45", user=N
 
 
 async def job_calcolo(context: ContextTypes.DEFAULT_TYPE):
-    """7:45: le giornate finite da calcolare, coi tabellini tutti riscaricati (come /ricalcola e il controllo delle 10)."""
+    """7:45: le giornate finite da calcolare, coi tabellini dell'ultima notte riscaricati (le altre sono congelate)."""
     from handlers import log
     import handlers_calcolo as hc
     s = config.stagione()
@@ -107,11 +106,17 @@ async def job_calcolo(context: ContextTypes.DEFAULT_TYPE):
         try:
             await nba.sincronizza(_giorni(g))
             await hc.aggiorna_tabellini()
-            # riscarica anche i tabellini già presi nella notte: correzioni di ESPN dopo il live (Luca, 24/10)
+            # riscarica i tabellini già presi nella notte (correzioni di ESPN dopo il live, Luca 24/10); le notti
+            # congelate restano come sono (v58: in pratica solo l'ultima notte)
             cambi = await _riscarica(g)
             if cambi:
+                import congelamento as CG
+                sch = CG.schierati(s, g["numero"])
+                contano = {k: v for k, v in cambi.items() if k[1] in sch}
                 await log(context.bot, f"🔁 Giornata {g['numero']}, 7:45: {len(cambi)} righe di tabellino corrette da ESPN "
-                                       f"dopo la notte, il calcolo usa quelle nuove")
+                                       f"dopo la notte, il calcolo usa quelle nuove"
+                                       + (":\n" + "\n".join(CG.riga_cambio(a, b) for a, b in contano.values()) if contano else
+                                          " (nessuna di giocatori schierati)"))
             motivo = pronta(s, g)
             if motivo:
                 await log(context.bot, f"⏳ Giornata {g['numero']} non calcolata alle 7:45: {e(motivo)}. "
@@ -123,46 +128,161 @@ async def job_calcolo(context: ContextTypes.DEFAULT_TYPE):
             await log(context.bot, f"⚠️ Calcolo della giornata {g['numero']} fallito: {e(repr(err))[:300]}")
 
 
-async def job_controllo(context: ContextTypes.DEFAULT_TYPE):
-    """10:00: ESPN ha corretto qualche tabellino delle giornate aperte? (v56, regola votata il 26/10: le ultime
-    3 giornate finite, o scongelate a mano; le congelate mai più: congelamento.py)"""
+def _json_righe(d: dict) -> list:
+    from db import _COLONNE_TAB
+    return [{k: (float(v[k]) if k == "fp" else v[k]) for k in _COLONNE_TAB} if v else None for v in d]
+
+
+async def controllo_notte(bot, d, chi: str = "controllo delle 20", user=None) -> str:
+    """Controllo finale della notte d (v58, Luca 30/10, come Yahoo): riscarica i tabellini (anche se la notte è
+    già congelata: è l'ultimo controllo), e se ESPN ha cambiato giocatori schierati chiede agli admin di verificare
+    su Yahoo (✅ uguale · ❌ non corrisponde: tornano i valori di prima). Poi, solo per informazione e senza salvare
+    niente, le altre notti della stessa giornata, sul canale log. Restituisce l'esito in breve."""
     from handlers import log
-    import congelamento
+    import json
+    import congelamento as CG
     s = config.stagione()
-    aperte = congelamento.da_ricontrollare(s)
-    calc = db.q("SELECT giornata, stato FROM lega_calcoli WHERE stagione = %s AND giornata = ANY(%s) ORDER BY giornata",
-                (s, aperte), many=True) or []
-    for lc in calc:
-        n = lc["giornata"]
-        g = db.giornata(s, n)
-        try:
-            cambi = await _riscarica(g)
-        except Exception as err:
-            await log(context.bot, f"⚠️ Controllo delle 10, giornata {n}: {e(repr(err))[:200]}")
-            continue
-        schierati = set()
-        for sq in R.schieramenti(s, n).values():
-            ids = [x for x in sq["quintetto"].values() if x] + [r.get("giocatore_id") for r in (sq["panchina"] or [])]
-            schierati |= {r["espn_id"] for r in db.q("SELECT espn_id FROM giocatori WHERE id = ANY(%s) AND espn_id IS NOT NULL",
-                                                       (ids,), many=True) or []}
-        contano = {k: v for k, v in cambi.items() if k[1] in schierati}
-        if not contano:
-            await log(context.bot, f"🔎 Controllo delle 10, giornata {n}: nessun tabellino cambiato"
-                                   + (f" tra i giocatori schierati ({len(cambi)} cambi di altri)" if cambi else ""))
-            continue
-        righe = []
-        for (pid, a), (prima, dopo) in sorted(contano.items(), key=lambda x: (x[1][1] or x[1][0])[2]):
-            nome = (dopo or prima)[2]
-            righe.append(f"• {e(nome)}: {testo_punti(prima[0]) if prima else '—'} → {testo_punti(dopo[0]) if dopo else '—'} fantapunti"
-                         + (f" (minuti {prima[1]} → {dopo[1]})" if prima and dopo and prima[1] != dopo[1] else ""))
-        testo = (f"🔎 <b>Controllo delle 10, giornata {n}</b>: ESPN ha cambiato {len(contano)} "
-                 f"{'tabellino' if len(contano) == 1 else 'tabellini'} di giocatori schierati"
-                 + (" (giornata già convalidata)" if lc["stato"] == "convalidata" else "") + ":\n" + "\n".join(righe)
-                 + "\n\nI tabellini nel database sono già aggiornati: ricalcola per aggiornare risultati e foglio.")
+    g = CG.giornata_di(s, d)
+    ids = [p["espn_id"] for p in db.partite_nba(d, d) if p["stato"] == "STATUS_FINAL"]
+    if not ids:
+        await log(bot, f"🔎 Controllo finale della notte del {d:%d/%m}: nessuna partita finita")
+        return "nessuna partita"
+    prima = CG.righe(ids)
+    r = await nba.scarica_tabellini(ids, forza=True)
+    cambi = CG.cambi(prima, CG.righe(ids))
+    sch = CG.schierati(s, g["numero"]) if g else set()
+    contano = {k: v for k, v in cambi.items() if k[1] in sch}
+    errori = r.get("errori") or []
+    nota_err = (f"\n⚠️ {len(errori)} partite non scaricate ({e('; '.join(errori))[:150]}): /controllo_notte {d:%d/%m} per riprovare"
+                if errori else "")
+    gn = f" (G{g['numero']})" if g else ""
+    if contano:
+        CG.migra()
+        cid = db.q("""INSERT INTO lega_controlli_notte (data_et, giornata, prima, dopo, chi) VALUES (%s, %s, %s, %s, %s) RETURNING id""",
+                   (d, g["numero"] if g else None, json.dumps({f"{k[0]}|{k[1]}": v for k, v in zip(contano, _json_righe([x[0] for x in contano.values()]))}),
+                    json.dumps({f"{k[0]}|{k[1]}": v for k, v in zip(contano, _json_righe([x[1] for x in contano.values()]))}), chi),
+                   one=True)["id"]
+        testo = (f"🔎 <b>Controllo finale, notte del {d:%d/%m}</b>{gn}: ESPN ha cambiato {len(contano)} "
+                 f"{'tabellino' if len(contano) == 1 else 'tabellini'} di giocatori schierati. "
+                 f"<b>Verificate che su Yahoo sia uguale:</b>\n"
+                 + "\n".join(CG.riga_cambio(a, b) for a, b in sorted(contano.values(), key=lambda x: (x[1] or x[0])["nome"]))
+                 + "\n\nI valori nuovi sono già nel database. Se su Yahoo non corrispondono, ❌ rimette quelli di prima."
+                 + (" Poi 🔄 Ricalcola per aggiornare risultati e foglio." if g and _calcolata(s, g["numero"]) else "") + nota_err)
+        tasti = [[B("✅ Uguale su Yahoo", callback_data=f"cn:ok:{cid}"), B("❌ Non corrisponde", callback_data=f"cn:no:{cid}")]]
+        if g and _calcolata(s, g["numero"]):
+            tasti.append([B("🔄 Ricalcola", callback_data=f"rc:re:{g['numero']}")])
         if config.gruppo_admin():
-            await context.bot.send_message(chat_id=config.gruppo_admin(), text=testo, parse_mode="HTML",
-                                           reply_markup=K([[B("🔄 Ricalcola", callback_data=f"rc:re:{n}")]]))
-        await log(context.bot, f"🔎 Controllo delle 10, giornata {n}: {len(contano)} tabellini cambiati, avviso agli admin")
+            m = await bot.send_message(chat_id=config.gruppo_admin(), text=testo, parse_mode="HTML", reply_markup=K(tasti))
+            db.q("UPDATE lega_controlli_notte SET messaggio = %s WHERE id = %s", (m.message_id, cid))
+        await log(bot, f"🔎 Controllo finale, notte del {d:%d/%m}{gn}: {len(contano)} tabellini cambiati tra gli schierati, "
+                       f"agli admin da verificare su Yahoo")
+        esito = f"{len(contano)} cambi agli admin"
+    else:
+        await log(bot, f"🔎 Controllo finale, notte del {d:%d/%m}{gn}: nessun tabellino cambiato tra gli schierati"
+                       + (f" ({len(cambi)} cambi di altri)" if cambi else "") + "; notte congelata" + nota_err)
+        esito = "nessun cambio"
+    # le altre notti della giornata: solo informazione personale, sul log, SENZA salvare (Luca, 30/10)
+    if g:
+        for d2 in [x for x in CG.notti(g) if x < d]:
+            ids2 = [p["espn_id"] for p in db.partite_nba(d2, d2) if p["stato"] == "STATUS_FINAL"]
+            if not ids2:
+                continue
+            try:
+                r2 = await nba.scarica_tabellini(ids2, forza=True, salva=False)
+            except Exception as err:
+                await log(bot, f"ℹ️ Notte del {d2:%d/%m} (solo informazione): non letta ({e(str(err))[:120]})")
+                continue
+            letti = {(pid, x["atleta"]): x for pid, tab in (r2.get("letti") or {}).items() for x in tab}
+            salvati = {k: v for k, v in CG.righe(list((r2.get("letti") or {}).keys())).items()}
+            diff = {k: v for k, v in CG.cambi(salvati, letti).items() if k[1] in sch}
+            await log(bot, f"ℹ️ <b>Solo informazione, niente salvato</b>: notte del {d2:%d/%m}{gn} (congelata), "
+                           + (f"ESPN oggi la darebbe diversa per {len(diff)} schierati:\n"
+                              + "\n".join(CG.riga_cambio(a, b) for a, b in diff.values()) if diff else "ESPN la dà uguale"))
+    return esito
+
+
+def _calcolata(s: str, n: int) -> bool:
+    return bool(db.q("SELECT 1 AS x FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (s, n), one=True))
+
+
+async def job_controllo_finale(context: ContextTypes.DEFAULT_TYPE):
+    """20:00 (orari.controllo_notte): controllo finale della notte appena passata, poi è congelata (v58)."""
+    from handlers import log
+    from zoneinfo import ZoneInfo
+    d = datetime.now(ZoneInfo("Europe/Rome")).date() - timedelta(days=1)
+    try:
+        await controllo_notte(context.bot, d)
+    except Exception as err:
+        logger.exception("Controllo finale %s", d)
+        await log(context.bot, f"⚠️ Controllo finale della notte del {d:%d/%m} non riuscito ({e(str(err))[:200]}): "
+                               f"/controllo_notte {d:%d/%m} per rifarlo")
+
+
+async def cb_controllo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """cn:ok:<id> (uguale su Yahoo) · cn:no:<id> (non corrisponde: tornano i valori di prima)."""
+    from handlers import _chi, log
+    import json
+    import congelamento as CG
+    from db import _COLONNE_TAB
+    q = update.callback_query
+    if not config.is_admin(update.effective_user.id):
+        await q.answer("Solo admin.", show_alert=True)
+        return
+    _, azione, cid = q.data.split(":")
+    c = db.q("SELECT * FROM lega_controlli_notte WHERE id = %s", (int(cid),), one=True)
+    if not c or c["stato"] != "da verificare":
+        await q.answer("Già deciso.", show_alert=True)
+        return
+    ora = datetime.now(timezone.utc).astimezone(__import__("zoneinfo").ZoneInfo("Europe/Rome"))
+    prima = c["prima"] if isinstance(c["prima"], dict) else json.loads(c["prima"])
+    from registro import segna_sync
+    if azione == "ok":
+        db.q("UPDATE lega_controlli_notte SET stato = 'uguale' WHERE id = %s", (c["id"],))
+        segna_sync(update.effective_user, "admin", "controllo notte: uguale su Yahoo", oggetto=f"notte del {c['data_et']:%d/%m}",
+                   dopo=f"{len(prima)} tabellini come ESPN")
+        nota = f"\n\n✅ <i>Verificato uguale su Yahoo da {e(_chi_nome(update))} alle {ora:%H:%M}</i>"
+    else:
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                for chiave, riga in prima.items():
+                    pid, atleta = chiave.split("|", 1)
+                    cur.execute("DELETE FROM nba_tabellini WHERE partita = %s AND atleta = %s", (pid, atleta))
+                    if riga:
+                        cur.execute(f"INSERT INTO nba_tabellini ({', '.join(_COLONNE_TAB)}) VALUES "
+                                    f"({', '.join('%(' + k + ')s' for k in _COLONNE_TAB)})", riga)
+        db.q("UPDATE lega_controlli_notte SET stato = 'tenuti_prima' WHERE id = %s", (c["id"],))
+        segna_sync(update.effective_user, "admin", "controllo notte: non corrisponde a Yahoo", oggetto=f"notte del {c['data_et']:%d/%m}",
+                   dopo=f"tornati i valori di prima per {len(prima)} tabellini")
+        await log(context.bot, f"❌ Notte del {c['data_et']:%d/%m}: su Yahoo i cambi di ESPN non corrispondono, "
+                               f"{_chi(update)} ha rimesso i valori di prima ({len(prima)} tabellini)")
+        nota = (f"\n\n❌ <i>Non corrisponde a Yahoo: rimessi i valori di prima da {e(_chi_nome(update))} alle {ora:%H:%M}</i>"
+                + (f"\n<i>Ricalcola per aggiornare risultati e foglio.</i>" if c["giornata"] and _calcolata(config.stagione(), c["giornata"]) else ""))
+    await q.answer("Fatto")
+    tasti = None
+    if c["giornata"] and _calcolata(config.stagione(), c["giornata"]):
+        tasti = K([[B("🔄 Ricalcola", callback_data=f"rc:re:{c['giornata']}")]])
+    try:
+        await q.edit_message_text(q.message.text_html + nota, parse_mode="HTML", reply_markup=tasti)
+    except Exception as err:
+        logger.info("Controllo notte, messaggio: %s", err)
+
+
+async def cmd_controllo_notte(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/controllo_notte GG/MM (admin): rifà il controllo finale di una notte (riscarica anche se congelata)."""
+    import congelamento as CG
+    msg = update.effective_message
+    if not config.is_admin(update.effective_user.id):
+        await msg.reply_text("⛔ Solo admin.")
+        return
+    d = CG.leggi_data((context.args or [""])[0])
+    if not d or d >= CG.oggi_et():
+        await msg.reply_text("Uso: /controllo_notte GG/MM (una notte NBA già finita, es. /controllo_notte 29/10)")
+        return
+    await msg.reply_text(f"⏳ Controllo della notte del {d:%d/%m}…")
+    from registro import segna_sync
+    segna_sync(update.effective_user, "admin", "controllo notte rifatto", oggetto=f"notte del {d:%d/%m}")
+    esito = await controllo_notte(context.bot, d, chi=f"/controllo_notte di {_chi_nome(update)}", user=update.effective_user)
+    await msg.reply_text(f"✅ Notte del {d:%d/%m}: {esito}.")
 
 
 async def _ricalcola(bot, s: str, n: int, chi: str, rispondi, user=None):
@@ -177,18 +297,17 @@ async def _ricalcola(bot, s: str, n: int, chi: str, rispondi, user=None):
         await hc.aggiorna_tabellini()
         import congelamento
         fermo = congelamento.congelata(s, n)
-        if not fermo:                                   # congelata: coi tabellini che ha (v56)
-            await _riscarica(g)
+        await _riscarica(g)                             # le notti congelate restano come sono (v58)
         motivo = pronta(s, g)
         if motivo:
-            await rispondi(f"❌ Giornata {n} non ancora calcolabile: {motivo}.")
+            await rispondi(f"❌ Giornata {n} non ancora calcolabile: {motivo}. Quando è pronta: /ricalcola {n}")
             return
         esito = await esegui(bot, s, n, chi, user=user)
         await rispondi(f"✅ Giornata {n} ricalcolata: proposta nuova nel gruppo admin ({esito})."
                        + (" Giornata congelata: coi tabellini che c'erano, niente riscaricato da ESPN." if fermo else ""))
     except Exception as err:
         logger.exception("Ricalcolo %s", n)
-        await rispondi(f"⚠️ Ricalcolo della giornata {n} fallito: {err}")
+        await rispondi(f"⚠️ Ricalcolo della giornata {n} fallito: {err}. Riprova con /ricalcola {n}")
 
 
 async def cmd_ricalcola(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -271,15 +390,14 @@ async def cb_risultati(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if azione == "re":
         await q.answer("Ricalcolo in corso…")
-        # dal messaggio del controllo delle 10 (non dalla proposta, che il ricalcolo segna già come superata):
-        # il bottone sparisce e sotto resta chi l'ha avviato (Luca, 24/10: restava lì appeso)
-        if not lc or lc.get("messaggio") != q.message.message_id:
-            ora = datetime.now(timezone.utc).astimezone(__import__("zoneinfo").ZoneInfo("Europe/Rome"))
-            try:
-                await q.edit_message_text(q.message.text_html + f"\n\n🔄 <i>Ricalcolo avviato da {e(_chi_nome(update))} alle {ora:%H:%M}</i>",
-                                          parse_mode="HTML", reply_markup=None)
-            except Exception as err:
-                logger.info("Bottone Ricalcola: %s", err)
+        # bottoni a risposta unica (Luca, 24 e 30/10): premuto Ricalcola, su qualsiasi messaggio (proposta compresa)
+        # i bottoni spariscono subito e sotto resta chi l'ha avviato; la proposta nuova arriva a ricalcolo finito
+        ora = datetime.now(timezone.utc).astimezone(__import__("zoneinfo").ZoneInfo("Europe/Rome"))
+        try:
+            await q.edit_message_text(q.message.text_html + f"\n\n🔄 <i>Ricalcolo avviato da {e(_chi_nome(update))} alle {ora:%H:%M}</i>",
+                                      parse_mode="HTML", reply_markup=None)
+        except Exception as err:
+            logger.info("Bottone Ricalcola: %s", err)
 
         async def rispondi(t):
             await context.bot.send_message(chat_id=q.message.chat_id, text=t)
@@ -367,5 +485,6 @@ async def cmd_live(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def get_handlers() -> list:
     return [CommandHandler("ricalcola", cmd_ricalcola), CommandHandler("dev_prova_calcolo", cmd_dev_prova_calcolo),
-            CommandHandler("live", cmd_live),
+            CommandHandler("live", cmd_live), CommandHandler("controllo_notte", cmd_controllo_notte),
+            CallbackQueryHandler(cb_controllo, pattern=r"^cn:(ok|no):\d+$"),
             CallbackQueryHandler(cb_risultati, pattern=r"^rc:")]
