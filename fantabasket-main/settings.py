@@ -146,8 +146,22 @@ def solo_privato(func):
     @functools.wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         if update.effective_chat and update.effective_chat.type != "private":
+            # nel gruppo admin una riga che rimanda al privato (Luca, 30/10: prima silenzio, sembrava rotto);
+            # negli altri gruppi resta il silenzio, per non fare rumore davanti ai GM
+            if update.effective_chat.id == admin_group_id() and update.effective_message:
+                try:
+                    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+                    cmd = ((update.effective_message.text or "").split() or ["/"])[0].split("@")[0]
+                    nome = context.bot.username
+                    await update.effective_message.reply_text(
+                        f"↪️ {cmd} funziona solo in privato: scrivimelo lì.",
+                        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Apri la chat", url=f"https://t.me/{nome}")]])
+                        if nome else None)
+                except Exception:
+                    pass
             return
         return await func(update, context, *args, **kwargs)
+    wrapper._solo_privato = True
     return wrapper
 
 

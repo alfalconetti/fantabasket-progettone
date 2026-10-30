@@ -309,7 +309,7 @@ Visibilità:
 | `teams.py` | teams.json (lettura), `check_slot_virtuale`, `libera_cap`/`scala_cap_slot` (no-op su JSON con PostgreSQL attivo) |
 | `settings.py` | settings e regole di cap (`cap_limite`, `penalita_cap`, `offerta_massima`) |
 | `utils.py` | globals, ricerca giocatori, formattazione, messaggio del canale (`build_canale_message`), `cap_slot_display`, `cap_impegnato_display` |
-| `comandi.py` | menu "/" |
+| `comandi.py` | menu "/": privato, admin e dev in privato, gruppi e amministratori dei gruppi (stesso menu), gruppo admin col menu admin (v78) |
 | `scheduler.py` | `check_scadenze`, `check_cap_stagionale`, healthcheck |
 | `handlers/offerte.py` | apertura, offerta, deep link, `/offri` |
 | `handlers/firma.py` | scelta degli anni del vincitore (e del ruolo in regular season), firma automatica allo scadere, registrazione dei bottoni di tutta la firma; in testa il flusso e l'indice dei moduli `firma_*` |

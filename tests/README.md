@@ -77,7 +77,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `date_comandi` | main | `shared/date_comandi`: tutti i formati di data, date impossibili, data e ora, date di nascita a 2 cifre |
 | `firma_per_conto` | aste + PG | `/firma_per_conto`: elenco, solo admin, stessi bottoni del GM, annuncio sul canale, GM avvisati, registro «per conto» |
 | `registro_azioni` | main | registro delle azioni: una riga per azione (chi, veste, cosa, squadre, prima → dopo), admin e dev anche sul canale log, `/registro` (admin tutto, GM la sua squadra), il registro non fa mai fallire un'azione |
-| `menu_palette` | main | menu a bottoni sempre con ← o ✖️ Chiudi, `/palette` (colori veri, automatico, anteprime, testo leggibile), `/my_team`, `/team_diff` nei gruppi, DPE su un 1x1 normale ; `/edit_team` e «✏️ Nomi squadre e GM» (solo admin, nome squadra e GM di un'altra squadra, registro) |
+| `menu_palette` | main | menu a bottoni sempre con ← o ✖️ Chiudi, `/palette` (colori veri, automatico, anteprime, testo leggibile), `/my_team`, `/team_diff` nei gruppi, DPE su un 1x1 normale ; `/edit_team` e «✏️ Nomi squadre e GM» (solo admin, nome squadra e GM di un'altra squadra, registro); menu dei comandi per gli admin dei gruppi, gruppo admin senza i comandi solo privati (che lì rispondono) |
 | `admin_poteri` | main | dal menu normale un admin che è anche GM ha le regole dei GM; i poteri da admin solo dal pannello e dai comandi admin |
 | `regole_config` | main | i numeri del regolamento in settings.json (`shared/regole.py`) si leggono davvero, senza riavvio; default se mancano; fantamedia bref coi pesi |
 | `impostazioni` | main | `/settings`: argomenti coi bottoni, anteprima e conferma, canali; ogni chiave del file e di `regole.DEFAULT` ha una voce |
@@ -98,7 +98,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `router_health` | router | le richieste a /health dei router non finiscono nei log |
 | `gas_node` | GAS | gli script `gas/*.gs` provati con node e finti oggetti di Google (senza node si saltano) |
 | `backup_foto` | main | il backup contiene tutta config/ tranne le foto dei giocatori (config/foto) |
-| `louca_calendario` | loucabot | CSV del calendario, import, partite NBA da ESPN (risposta vera ridotta), TBD, squadre a media e scadenze, cambi, `/calendario`, canale log |
+| `louca_calendario` | loucabot | CSV del calendario, import, partite NBA da ESPN (risposta vera ridotta), TBD, squadre a media e scadenze, cambi, `/calendario`, canale log; menu anche per gli amministratori dei gruppi |
 | `louca_calcolo` | loucabot | tabellino ESPN vero ridotto (NYK-SAS 1/3/2026) e formula dei fantapunti, infortunati, punteggio nella giornata (partite, media, zero, rinviate), FADD, supplementari e bonus casa, abbinamento ESPN |
 | `giocatore_id` | aste + PG | l'asta ricorda l'id del giocatore: la firma non crea doppioni se il nome cambia |
 | `rfa_dichiarati` | aste + PG | x0 fuori da cap e slot, RFA dichiarato sul cap; aste RFA aperte da sole nella fase RFA, una volta sola; proprietario allineato dopo una trade; il contratto nuovo di chi vince non cambia il proprietario; DPE prima e dopo la deadline |

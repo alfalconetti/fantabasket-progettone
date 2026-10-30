@@ -170,3 +170,38 @@ ok(not err and db.get_contratto_attivo(uno) and d and d["importo_dpe"] == 0
    "DPE su un 1x1: DPE normale (0M, contratto ancora attivo), niente decadimento")
 ok(not hasattr(db, "_migra_dpe_1x1") and not hasattr(DP, "dpe_come_decadimento"), "niente conversione DPE 1x1 → decadimento")
 _ = settings
+
+# menu dei comandi (Luca, 30/10): admin dei gruppi Telegram come gli altri; gruppo admin senza i comandi solo privati
+import comandi as CM
+from telegram.ext import CommandHandler as _CH, ConversationHandler as _CV
+@settings.solo_privato
+async def _solo(u, c): pass
+async def _ovunque(u, c): pass
+_app = types.SimpleNamespace(handlers={0: [_CH("registro", _solo), _CV(entry_points=[_CH("edit_team", _solo)], states={}, fallbacks=[]),
+                                            _CH("roster", _ovunque)]})
+ok(CM.trova_solo_privato(_app) == {"registro", "edit_team"}, "comandi solo privati trovati dagli handler (anche nelle conversazioni)")
+CM.SOLO_PRIVATO = {"registro", "edit_team"}
+class _BotM:
+    def __init__(s): s.v = []
+    async def set_my_commands(s, cmds, scope=None): s.v.append((type(scope).__name__, getattr(scope, "chat_id", None), [c.command for c in cmds]))
+_bm = _BotM()
+asyncio.run(CM.registra_comandi(_bm))
+_gl = json.load(open(os.environ["GLOBALS_PATH"]))
+_adm = [v for t, ch, v in _bm.v if t == "BotCommandScopeChat" and ch == _gl.get("admin_group_id")]
+_grp = [v for t, ch, v in _bm.v if t == "BotCommandScopeAllGroupChats"]
+_amm = [v for t, ch, v in _bm.v if t == "BotCommandScopeAllChatAdministrators"]
+ok(_amm and _grp and _amm[0] == _grp[0], "admin di un gruppo Telegram: stesso menu dei gruppi (prima non vedevano niente)")
+ok(_adm and "registro" not in _adm[0] and "edit_team" not in _adm[0] and len(_adm[0]) > 5,
+   "gruppo admin: fuori dal menu i comandi che lì non funzionano")
+CM.SOLO_PRIVATO = set()
+# comando solo privato scritto nel gruppo admin: una riga che rimanda al privato; negli altri gruppi silenzio
+_rip = []
+class _MsgS:
+    text = "/registro@bot"
+    async def reply_text(s, t, **k): _rip.append(t)
+def _upd(chat_id):
+    return types.SimpleNamespace(effective_chat=types.SimpleNamespace(type="supergroup", id=chat_id), effective_message=_MsgS())
+_ctx = types.SimpleNamespace(bot=types.SimpleNamespace(username="provabot"))
+asyncio.run(_solo(_upd(_gl.get("admin_group_id")), _ctx))
+asyncio.run(_solo(_upd(-12345), _ctx))
+ok(len(_rip) == 1 and "/registro funziona solo in privato" in _rip[0], "solo privato nel gruppo admin: lo dice; negli altri gruppi silenzio")

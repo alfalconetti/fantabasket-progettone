@@ -1662,3 +1662,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.7.7 (2026-10-30)
 
 - Loucabot v60: primo controllo dell'ultima notte alle 11:05, anche a giornata convalidata (Luca, 30/10)
+
+## v6.7.8 (2026-10-30)
+
+- **Menu dei comandi per gli amministratori dei gruppi Telegram**, in tutti e quattro i bot: stesso menu dei gruppi (Luca, 30/10: da admin del gruppo della lega non vedeva più /partita, /classifica e gli altri)
+- **Gruppo admin**: nel menu solo i comandi che lì funzionano (22 del bot principale funzionano solo in privato: prima venivano suggeriti e poi ignorati in silenzio); scritti lo stesso nel gruppo admin, il bot risponde che vanno usati in privato, col bottone per aprire la chat. Bot aste v78 col menu admin nel gruppo admin, IPanchinari v33, loucabot v61

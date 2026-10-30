@@ -307,3 +307,7 @@ Il calcolo dei fantapunti.
 ## v60 (2026-10-30)
 
 - **Primo controllo dell'ultima notte alle 11:05**, anche a giornata già convalidata (Luca, 30/10: col live chiuso alla convalida il controllo del mattino saltava). Col live aperto lo fa il live (aggiorna anche il tabellone); col live chiuso un minuto dopo `job_primo_controllo`: cambi degli schierati col dettaglio delle statistiche sul canale log e, a giornata calcolata, al gruppo admin con 🔄 Ricalcola. Era alle 10:05 (`orari.primo_controllo`, prima `controllo_tabellini` + 5 minuti). Il controllo finale resta alle 20
+
+## v61 (2026-10-30)
+
+- Menu dei comandi anche per gli **amministratori dei gruppi Telegram** (stesso menu dei gruppi): diventato admin del gruppo della lega Luca non vedeva più /partita e /classifica (Luca, 30/10)

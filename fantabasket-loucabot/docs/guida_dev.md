@@ -154,3 +154,5 @@ Solo per `dev_id`, nel menu `/` del dev.
 ## 7. Rilascio
 
 Come gli altri bot: zip cumulativo con `deploy.sh`; `rilascio-X.json` con `"loucabot"` in `riavvia`. Un secret nuovo nel compose va creato prima del deploy (`deploy.sh` controlla e si ferma).
+
+**Menu dei comandi** (`comandi.py`): privato (GM), admin e dev in privato, gruppo admin (menu admin), tutti i gruppi e anche gli **amministratori dei gruppi** (`BotCommandScopeAllChatAdministrators`, stesso menu dei gruppi; v61, Luca 30/10: diventato admin del gruppo della lega non vedeva più /partita e /classifica).

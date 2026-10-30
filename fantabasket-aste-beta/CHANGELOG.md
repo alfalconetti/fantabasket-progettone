@@ -690,3 +690,8 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 
 - **Asta aperta per un giocatore senza posizioni eleggibili**: subito un messaggio al gruppo admin col comando già scritto (`/set_posizioni_eleggibili Nome PG,SG`) da usare nel bot principale prima che l'asta finisca (Luca, 24/10)
 - Lo switch della lista FA (70% dei firmati) si calcola in `shared/lista_fa.py`, lo stesso usato dal report posizioni del bot principale
+
+## v78 (2026-10-30)
+
+- **Menu admin nel gruppo admin** (prima lì si vedeva quello dei GM) e menu dei gruppi anche per gli amministratori dei gruppi Telegram (Luca, 30/10)
+- Asta aperta per un giocatore senza posizioni: l'avviso dice di scrivere `/set_posizioni_eleggibili` **in privato** al bot principale (nel gruppo non funziona)

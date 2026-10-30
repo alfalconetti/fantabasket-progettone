@@ -8,7 +8,7 @@ ogni cambio di fase (admin_panel._esegui_cambio_fase).
 """
 import logging
 
-from telegram import (BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats,
+from telegram import (BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats, BotCommandScopeAllChatAdministrators,
                       BotCommandScopeChat, BotCommandScopeDefault)
 
 import settings
@@ -122,6 +122,27 @@ def liste_comandi(fase: str) -> dict:
             "admin": _filtra(cmd_admin), "dev": _filtra(cmd_dev)}
 
 
+# comandi che funzionano solo in privato (@solo_privato): fuori dal menu del gruppo admin (Luca, 30/10).
+# Li trova bot.post_init dagli handler registrati (trova_solo_privato), così non vanno fuori sincrono.
+SOLO_PRIVATO: set[str] = set()
+
+
+def trova_solo_privato(app) -> set[str]:
+    from telegram.ext import CommandHandler, ConversationHandler
+    out = set()
+
+    def guarda(h):
+        if isinstance(h, ConversationHandler):
+            for x in list(h.entry_points) + [y for v in h.states.values() for y in v] + list(h.fallbacks):
+                guarda(x)
+        elif isinstance(h, CommandHandler) and getattr(h.callback, "_solo_privato", False):
+            out.update(h.commands)
+    for lista in app.handlers.values():
+        for h in lista:
+            guarda(h)
+    return out
+
+
 async def registra_comandi(bot) -> None:
     g              = settings.load_globals()
     admin_ids      = g.get("admin_ids", [])
@@ -130,10 +151,14 @@ async def registra_comandi(bot) -> None:
     c = liste_comandi(settings.fase())
     try:
         await bot.set_my_commands(c["group"], scope=BotCommandScopeAllGroupChats())
+        # anche per chi è amministratore di un gruppo Telegram: stessi comandi degli altri (Luca, 30/10: diventato
+        # admin del gruppo della lega non vedeva più /roster e gli altri); il gruppo admin ha il suo menu qui sotto
+        await bot.set_my_commands(c["group"], scope=BotCommandScopeAllChatAdministrators())
         await bot.set_my_commands(c["base"],  scope=BotCommandScopeDefault())
         await bot.set_my_commands(c["gm"],    scope=BotCommandScopeAllPrivateChats())
         if admin_group_id:
-            await bot.set_my_commands(c["admin"], scope=BotCommandScopeChat(chat_id=admin_group_id))
+            await bot.set_my_commands([x for x in c["admin"] if x.command not in SOLO_PRIVATO],
+                                      scope=BotCommandScopeChat(chat_id=admin_group_id))
         for aid in admin_ids:
             if dev_id and int(aid) == int(dev_id):
                 continue

@@ -119,8 +119,9 @@ async def post_stop(application):
 
 async def post_init(application):
     """Registra i comandi (filtrati per fase) con scope appropriato all'avvio."""
-    from comandi import registra_comandi
-    await registra_comandi(application.bot)
+    import comandi
+    comandi.SOLO_PRIVATO = comandi.trova_solo_privato(application)
+    await comandi.registra_comandi(application.bot)
 
     # Notifica avvio sul canale log
     g = settings.load_globals()

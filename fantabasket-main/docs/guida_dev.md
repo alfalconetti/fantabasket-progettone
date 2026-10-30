@@ -329,7 +329,7 @@ ORDER BY t.timestamp, t.id;
 | `settings.py` | lettura config, costanti di fase, `is_admin`, decoratori `@solo_privato` e `@richiede_fase` |
 | `database.py` | tutte le query (`_q(sql, params, one=, many=)`), `migrate_db()`, transazioni atomiche (trade, tagli, decadimenti) |
 | `teams.py` | `get_team_by_id`, `get_team_by_gm`, `get_team_by_query` (fuzzy: id → nome esatto → prefisso → difflib 0.6, in `shared/squadre.py`, la stessa di `/team` nel bot aste), `set_campo_team` |
-| `comandi.py` | menu "/" di Telegram per scope e fase (`_fasi_comando`) |
+| `comandi.py` | menu "/" di Telegram per scope e fase (`_fasi_comando`). Scope: privato (GM), ogni admin e il dev in privato, tutti i gruppi **e gli amministratori dei gruppi** (`BotCommandScopeAllChatAdministrators`, stesso menu dei gruppi: senza, chi diventa admin del gruppo della lega non vedeva più i comandi; v6.7.8), il gruppo admin col menu admin **meno i comandi solo privati** (`SOLO_PRIVATO`, trovati da `bot.post_init` con `trova_solo_privato` dagli handler col decoratore `settings.solo_privato`). `solo_privato` nel gruppo admin risponde «↪️ (il comando) funziona solo in privato» col bottone per aprire la chat; negli altri gruppi silenzio |
 | `scheduler.py` | backup, sync fogli, coda GAS, scadenza diritti |
 | `gas_client.py` | payload dei fogli Roster e Scelte, `sync_after_*`, `sync_bref_raw`; sul Roster i nomi di Basketball-Reference (`nomi_foglio`, v6.5.4: le formule si agganciano a BrefRaw per nome) |
 | `bref_scraper.py` | scraping per_game di Basketball-Reference (anche standalone con `--migrate`) |

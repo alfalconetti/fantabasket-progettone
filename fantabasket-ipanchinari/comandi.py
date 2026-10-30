@@ -5,7 +5,8 @@ admin; dev → in più quelli dev. Nei gruppi il bot non ha comandi. Si registra
 """
 import logging
 
-from telegram import BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeChat, BotCommandScopeDefault
+from telegram import (BotCommand, BotCommandScopeAllChatAdministrators, BotCommandScopeAllGroupChats, BotCommandScopeAllPrivateChats,
+                      BotCommandScopeChat, BotCommandScopeDefault)
 
 import config
 
@@ -47,14 +48,23 @@ def liste_comandi() -> dict:
     return {"gm": gm, "admin": admin, "dev": dev}
 
 
+# solo in chat privata (filters.ChatType.PRIVATE o controllo nel comando): fuori dai menu dei gruppi (Luca, 30/10)
+SOLO_PRIVATO = {"panchina", "build_panchina", "edit", "toggle_injures"}
+
+
 async def registra_comandi(bot) -> None:
     c = liste_comandi()
+    gruppi = [x for x in c["gm"] if x.command not in SOLO_PRIVATO]
     try:
         await bot.set_my_commands(c["gm"], scope=BotCommandScopeDefault())
         await bot.set_my_commands(c["gm"], scope=BotCommandScopeAllPrivateChats())
+        # gruppi, anche per chi ne è amministratore (Luca, 30/10)
+        await bot.set_my_commands(gruppi, scope=BotCommandScopeAllGroupChats())
+        await bot.set_my_commands(gruppi, scope=BotCommandScopeAllChatAdministrators())
         if config.gruppo_admin():
             try:
-                await bot.set_my_commands(c["admin"], scope=BotCommandScopeChat(chat_id=config.gruppo_admin()))
+                await bot.set_my_commands([x for x in c["admin"] if x.command not in SOLO_PRIVATO],
+                                          scope=BotCommandScopeChat(chat_id=config.gruppo_admin()))
             except Exception as e:
                 logger.warning("Comandi nel gruppo admin: %s", e)
         dev = config.dev_id()

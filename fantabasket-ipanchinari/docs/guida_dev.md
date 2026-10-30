@@ -91,3 +91,5 @@ Solo per `dev_id`, nel menu `/` del dev.
 ## 6. Da fare
 
 Script da console per i quintetti Yahoo (serve una pagina di esempio); calcolo dei risultati in loucabot da `ipa_formazioni` e `ipa_panchine`.
+
+**Menu dei comandi** (`comandi.py`, v33): privato (GM), admin e dev in privato, gruppi e amministratori dei gruppi senza i comandi solo privati (`SOLO_PRIVATO`: /panchina, /build_panchina, /edit, /toggle_injures), gruppo admin col menu admin senza quelli.

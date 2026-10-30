@@ -152,3 +152,5 @@ asyncio.run(comandi.registra_comandi(_bc))
 _gl = _json.load(open(config.GLOBALS_PATH))
 ok(("BotCommandScopeChat", _gl["admin_group_id"], len(L["admin"])) in _bc.v and ("BotCommandScopeChat", _gl["dev_id"], len(L["dev"])) in _bc.v
    and ("BotCommandScopeAllGroupChats", None, len(L["gruppi"])) in _bc.v, f"registrazione per scope {_bc.v}")
+ok(("BotCommandScopeAllChatAdministrators", None, len(L["gruppi"])) in _bc.v,
+   "anche gli amministratori dei gruppi Telegram vedono /partita, /classifica e gli altri (Luca, 30/10)")

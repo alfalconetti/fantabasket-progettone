@@ -889,7 +889,7 @@ async def _avvisa_senza_posizioni(context, giocatore: str, team: dict, importo: 
             chat_id=gruppo, parse_mode="HTML",
             text=(f"📋 Aperta un'asta FA per <b>{_h.escape(giocatore)}</b> ({_h.escape(team['nome'])}, {importo}M), "
                   f"ma <b>non ha posizioni eleggibili</b>: aggiungile prima che l'asta finisca, se no dopo la firma non ha "
-                  f"ruoli possibili.\nNel bot principale: /set_posizioni_eleggibili {_h.escape(giocatore)} PG,SG"))
+                  f"ruoli possibili.\nScrivi in <b>privato al bot principale</b>: <code>/set_posizioni_eleggibili {_h.escape(giocatore)} PG,SG</code>"))
     except Exception as err:
         logger.warning("Avviso posizioni mancanti per %s: %s", giocatore, err)
 

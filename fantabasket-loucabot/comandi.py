@@ -5,7 +5,7 @@ gruppi → calendario e giornata; privato → in più la guida; admin (in privat
 """
 import logging
 
-from telegram import (BotCommand, BotCommandScopeAllGroupChats, BotCommandScopeAllPrivateChats,
+from telegram import (BotCommand, BotCommandScopeAllGroupChats, BotCommandScopeAllChatAdministrators, BotCommandScopeAllPrivateChats,
                       BotCommandScopeChat, BotCommandScopeDefault)
 
 import config
@@ -73,6 +73,9 @@ async def registra_comandi(bot) -> None:
     c = liste_comandi()
     try:
         await bot.set_my_commands(c["gruppi"], scope=BotCommandScopeAllGroupChats())
+        # anche per gli amministratori di un gruppo (Luca, 30/10: diventato admin del gruppo della lega non vedeva più
+        # /partita e /classifica); il gruppo admin ha il suo menu qui sotto
+        await bot.set_my_commands(c["gruppi"], scope=BotCommandScopeAllChatAdministrators())
         await bot.set_my_commands(c["gm"], scope=BotCommandScopeDefault())
         await bot.set_my_commands(c["gm"], scope=BotCommandScopeAllPrivateChats())
         if config.gruppo_admin():

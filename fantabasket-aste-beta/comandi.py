@@ -8,7 +8,7 @@ qualcosa tra fase, mercato FA aperto e presenza di aste aperte.
 """
 import logging
 
-from telegram import BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats, BotCommandScopeChat
+from telegram import BotCommand, BotCommandScopeAllChatAdministrators, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats, BotCommandScopeChat
 
 import database as db
 import utils
@@ -100,6 +100,14 @@ async def registra_comandi(bot, forza: bool = False) -> None:
     try:
         await bot.set_my_commands(liste["gm"], scope=BotCommandScopeAllPrivateChats())
         await bot.set_my_commands(liste["gruppi"], scope=BotCommandScopeAllGroupChats())
+        # anche per gli amministratori di un gruppo, e il menu admin nel gruppo admin (Luca, 30/10: lì si vedeva
+        # quello dei GM)
+        await bot.set_my_commands(liste["gruppi"], scope=BotCommandScopeAllChatAdministrators())
+        if utils.get_admin_group_id():
+            try:
+                await bot.set_my_commands(liste["admin"], scope=BotCommandScopeChat(chat_id=int(utils.get_admin_group_id())))
+            except Exception as e:
+                logger.warning("Comandi nel gruppo admin: %s", e)
         dev_id = g.get("dev_id")
         for aid in g.get("admin_ids", []):
             if dev_id and int(aid) == int(dev_id):

@@ -154,3 +154,7 @@ Primo rilascio: panchine e quintetti.
 ## v32 (2026-10-26)
 
 - `/quintetti`: una riga vuota tra una squadra e l'altra; chi prende la media con 📈 (Luca, 26/10)
+
+## v33 (2026-10-30)
+
+- Menu dei comandi per i gruppi e per gli amministratori dei gruppi (prima i gruppi prendevano quello di default, coi comandi che funzionano solo in privato); nel gruppo admin il menu admin senza i comandi solo privati (Luca, 30/10)

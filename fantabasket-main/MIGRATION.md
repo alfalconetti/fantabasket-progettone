@@ -1,6 +1,6 @@
 # Messaggio di migrazione — Fantabasket Progettone
 
-**Stato: v6.7.7 · bot aste v77 · loucabot v60 · IPanchinari v32** (25/10/2026)
+**Stato: v6.7.8 · bot aste v78 · loucabot v61 · IPanchinari v33** (25/10/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 
@@ -176,6 +176,7 @@ README e guide in `fantabasket-ipanchinari/`. Scrive solo `ipa_*`; legge roster 
 
 ## 9b. Dettagli tecnici e lezioni imparate
 
+- **Menu dei comandi** (v6.7.8): ogni bot registra anche `BotCommandScopeAllChatAdministrators` (stesso menu dei gruppi), se no chi è amministratore di un gruppo può non vedere i comandi; nel gruppo admin solo comandi che lì funzionano (quelli solo privati fuori, e se li scrivi il bot lo dice). Per ogni comando nuovo: in quali menu va, e se funziona nei gruppi.
 - **Bottoni a risposta unica** (Luca, 30/10): un bottone che chiede una sola risposta (convalida, ricalcola, ✅/❌ Yahoo, approva/rifiuta) sparisce appena premuto e il messaggio dice l'esito e chi; resta solo il passo dopo, se c'è (es. Ricalcola), che a sua volta sparisce. Vale per ogni bottone nuovo.
 
 Cose che non stanno nelle guide e che servono quando qualcosa va storto.
