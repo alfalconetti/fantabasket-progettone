@@ -272,6 +272,17 @@ ok(len(prop) == 1 and "Giornata 7 calcolata" in prop[0]["text"] and "non configu
    and [b.callback_data for r in prop[0]["reply_markup"].inline_keyboard for b in r] == [f"rc:ok:{N}:1", f"rc:re:{N}"],
    "alle 7:45: proposta al gruppo admin con Convalida e Ricalcola (foglio non configurato: lo dice)")
 asyncio.run(HR.esegui(BOT, S, N, "prova"))
+# /giornata e /risultati di una giornata calcolata e non convalidata: i risultati calcolati, in attesa della convalida
+import handlers as _HGx, nba as _NBx
+_vo = _NBx.oggi_et; _NBx.oggi_et = lambda: db.giornata(S, N)["al"] + timedelta(days=1)
+_vg2 = []
+class _MsgG2:
+    async def reply_text(self, t, **k): _vg2.append(t)
+asyncio.run(_HGx.cmd_giornata(types.SimpleNamespace(effective_message=_MsgG2(), effective_user=types.SimpleNamespace(id=900)),
+                              types.SimpleNamespace(args=[str(N)], bot=None)))
+_NBx.oggi_et = _vo
+ok(_vg2 and "risultati calcolati, in attesa della convalida di un admin" in _vg2[0] and "ufficiali quando un admin li convalida" in _vg2[-1],
+   "/giornata di una giornata calcolata e non convalidata: i risultati calcolati, detto chiaramente")
 ok({"tolti_bottoni": prop[0]["id"]} in BOT.mandati and any("Superata dal ricalcolo" in x.get("text", "") for x in BOT.mandati),
    "ricalcolo: la proposta vecchia perde i bottoni e rimanda alla nuova")
 class Q:
@@ -716,6 +727,8 @@ es = asyncio.run(LV.pubblica_definitivo(BC, S, N, "Admin"))
 dfn = [x for x in BC.mandati if x.get("chat_id") == -1 and "risultati definitivi" in x.get("text", "")]
 ok(len(dfn) == 1 and "Giornata 7 · risultati definitivi" in dfn[0]["text"] and "Convalidati da Admin" in dfn[0]["text"]
    and {"cancellato": 555, "chat_id": -1} in BC.mandati and "live cancellato" in es, "convalida: risultati definitivi sul canale e live cancellato " + es)
+ok("📊 <b>In questa giornata</b>" in dfn[0]["text"] and "🔝 Miglior punteggio" in dfn[0]["text"] and "⭐" in dfn[0]["text"],
+   "risultati definitivi: in fondo miglior e peggior punteggio e la prestazione migliore " + dfn[0]["text"][-400:])
 ok(LV.stato(S, N)["chiuso"] is not None and LV.stato(S, N)["definitivo_id"] == dfn[0]["id"], "il live risulta chiuso, col messaggio definitivo")
 BC.mandati.clear()
 asyncio.run(LV.tick(BC, ora=t0 + timedelta(minutes=20), scarica_fn=finta))
@@ -795,9 +808,12 @@ class _MsgG:
     async def reply_text(self, t, **k): _vista.append(t)
 _vero_dm = _CAL.da_mostrare
 _CAL.da_mostrare = lambda s_, ora=None: db.giornate(s_)[0]
+import nba as _NBg
+_vog = _NBg.oggi_et; _NBg.oggi_et = lambda: _dd(2026, 10, 1)   # giornata non ancora iniziata: l'elenco delle partite
 asyncio.run(_HG.cmd_giornata(types.SimpleNamespace(effective_message=_MsgG(), effective_user=types.SimpleNamespace(id=900)),
                              types.SimpleNamespace(args=[], bot=None)))
 _CAL.da_mostrare = _vero_dm
+_NBg.oggi_et = _vog
 ok(_vista and f"iornata {db.giornate(S)[0]['numero']}" in _vista[0] and PA.giornata_di_default(S) == _CAL.da_mostrare(S),
    "/giornata e /risultati senza numero: stessa regola di /partita (la finita resta fino alle 16 del primo giorno della nuova)")
 PA.db.giornate, PA.db.q = _vg, _vq

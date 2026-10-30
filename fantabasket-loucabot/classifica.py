@@ -254,12 +254,40 @@ def _logo(team_id: str) -> str:
     return ""
 
 
+# migliore (verde) e peggiore (rosso) di ogni colonna, tranne V/S, striscia e posizione (Luca, 28/10):
+# chiave nel JSON → (chiave del valore, 1 se più alto è meglio, −1 se più basso è meglio). Supplementari esclusi
+# (giocarne tanti non è né bene né male). Età: più giovane è meglio.
+DIREZIONI = {"pf": ("pf", 1), "ps": ("ps", -1), "diff": ("diff", 1), "media": ("media", 1)}
+DIREZIONI_FULL = {"media_ult": ("media_ult", 1), "migliore": ("migliore", 1), "max": ("max", 1), "min": ("min", 1),
+                  "eta": ("eta", -1), "rec_pos": ("rec_pos_subiti", -1), "rec_neg": ("rec_neg_subiti", 1), "cv": ("cv", -1),
+                  "fp_roster": ("fp_roster", 1), "fp_q": ("fp_q", 1), "gioc_roster": ("gioc_roster", 1), "gioc_q": ("gioc_q", 1),
+                  "eta_q": ("eta_q", -1), "vantaggio": ("vantaggio", 1), "svantaggio": ("svantaggio", -1)}
+
+
+def colori(righe: list[dict], full: bool) -> dict[str, dict[str, str]]:
+    """{team: {colonna: "best" | "worst"}}: a pari valore colorate tutte; niente se la colonna è tutta uguale."""
+    out = {r["team"]: {} for r in righe}
+    for k, (campo, verso) in {**DIREZIONI, **(DIREZIONI_FULL if full else {})}.items():
+        val = {r["team"]: float(r[campo]) for r in righe if r.get(campo) is not None}
+        if len(set(val.values())) < 2:
+            continue
+        hi, lo = max(val.values()), min(val.values())
+        best, worst = (hi, lo) if verso > 0 else (lo, hi)
+        for t, v in val.items():
+            if abs(v - best) < 1e-9:
+                out[t][k] = "best"
+            elif abs(v - worst) < 1e-9:
+                out[t][k] = "worst"
+    return out
+
+
 def dati_typst(righe: list[dict], giornate: int, full: bool) -> dict:
     out = []
+    col = colori(righe, full)
     for r in righe:
         x = {"pos": r["pos"], "nome": config.nome(r["team"]), "logo": _logo(r["team"]), "w": r["w"], "l": r["l"],
              "pf": _n(r["pf"]), "ps": _n(r["ps"]), "media": _n(r["media"]), "striscia": r["striscia"],
-             "diff": ("+" if r["diff"] > 0 else "") + _n(r["diff"])}
+             "diff": ("+" if r["diff"] > 0 else "") + _n(r["diff"]), "col": col.get(r["team"], {})}
         if full:
             x.update({"media_ult": _n(r["media_ult"]), "migliore": r["migliore"], "max": _n(r["max"]), "min": _n(r["min"]),
                       "eta": _n(r["eta"], 1), "rec_pos": r["rec_pos_subiti"], "rec_neg": r["rec_neg_subiti"],

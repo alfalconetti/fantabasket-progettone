@@ -100,7 +100,7 @@ fantabasket-progettone/
 
 **Date nei comandi** (v6.2.1): `shared/date_comandi.leggi_data` (GG/MM/AAAA, GG/MM/AA, AAAA-MM-GG, con - / .), `leggi_ora`, `leggi_data_ora` (data e ora con uno spazio o una T). Ogni comando nuovo con una data usa questi.
 
-**teams.json:** per squadra `id` (`teamXX`), `nome`, `gm_nome`, `gm_ids` (anche più di uno), `colore`/`colore2` (vecchi, non li legge nessuno), i colori della palette (`colore_header`, `colore_riga1`, …) e `cap_penalizzato`.
+**teams.json:** per squadra `id` (`teamXX`), `nome`, `gm_nome`, `gm_ids` (anche più di uno), `colore`/`colore2` (vecchi, non li legge nessuno), i colori della palette (`colore_header`, `colore_riga1`, …) `cap_penalizzato` e `alias` (lista; v6.8.0: con nome e `gm_nome` sono i campi della ricerca, `shared/squadre.campi_ricerca`; conflitti con `alias_in_conflitto`; li scrive «🏷️ Alias» di `/edit_team`).
 
 **secrets/:**
 

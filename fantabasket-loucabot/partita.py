@@ -90,10 +90,10 @@ def leggi_argomenti(args: list[str], squadre: list[dict]) -> tuple[list[dict], i
     intera = cerca_squadra(testo, squadre)
     parole = testo.split()
     # due nomi attaccati («Alfa Beta»): una divisione in cui entrambe le metà sono squadre (nome esatto o inizio)
-    from shared.squadre import normalizza, per_parole
+    from shared.squadre import campi_ricerca, normalizza, per_parole
     def esatta(q):
         qn = normalizza(q)
-        return next((t for t in squadre if t["id"] == q or any(normalizza(c).startswith(qn) for c in (t.get("nome", ""), t.get("gm_nome", "")) if c)),
+        return next((t for t in squadre if t["id"] == q or any(normalizza(c).startswith(qn) for c in campi_ricerca(t))),
                     None) or per_parole(q, squadre)
     for i in range(1, len(parole)):
         x, y = esatta(" ".join(parole[:i])), esatta(" ".join(parole[i:]))

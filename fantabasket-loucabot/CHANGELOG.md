@@ -311,3 +311,10 @@ Il calcolo dei fantapunti.
 ## v61 (2026-10-30)
 
 - Menu dei comandi anche per gli **amministratori dei gruppi Telegram** (stesso menu dei gruppi): diventato admin del gruppo della lega Luca non vedeva più /partita e /classifica (Luca, 30/10)
+
+## v62 (2026-10-30)
+
+- **`/giornata` e `/risultati` di una giornata iniziata e non convalidata** (Luca, 25/10): non più solo l'elenco delle partite ma il testo dei punteggi come `/live_results`, con scritto in testa cosa sono: «🔴 punteggi live (provvisori)» durante la giornata, «⏳ risultati calcolati, in attesa della convalida di un admin» dopo il calcolo delle 7:45. Convalidata resta coi risultati definitivi; non ancora iniziata, l'elenco delle partite. Se il calcolo non riesce, l'elenco come prima
+- **In fondo ai risultati definitivi, «📊 In questa giornata»** (Luca, 25/10): 🔝 miglior e 🔻 peggior punteggio di squadra; ⭐ il giocatore coi punti che hanno contato più alti (con più partite conta la media: quel valore); 💥 la miglior singola partita, se è di un altro e la media con l'altra partita l'ha annacquata; 👀 il migliore tra tutti i giocatori a roster, anche non schierati (stessa regola), se è un altro. Chi prende la media non conta; sempre con la squadra accanto (`live.statistiche_giornata`)
+- **Classifica a colori** (Luca, 28/10): in `/classifica`, `/classifica_conference` e `/classifica_full` il migliore di ogni colonna in verde e il peggiore in rosso, tranne vittorie e sconfitte (punti subiti, età, record positivi subiti, coefficiente di variazione, scarto nelle sconfitte: il più basso è il migliore). A pari merito tutti colorati; una colonna tutta uguale resta senza colori. Nota in fondo all'immagine
+- Gli alias delle squadre (v6.8.0 del bot principale) valgono anche in `/partita`

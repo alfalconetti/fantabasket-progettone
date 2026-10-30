@@ -287,9 +287,11 @@ def esito_live(r: dict, casa: str, tr: str) -> str:
     return f"al momento vince {chi}"
 
 
-def testo(c: dict, ora: datetime, prova: bool = False) -> str:
+def testo(c: dict, ora: datetime, prova: bool = False, quale: str = "live") -> str:
+    """quale: "live" (in corso) o "calcolata" (dopo il calcolo delle 7:45, in attesa della convalida)."""
     g = c["giornata"]
-    righe = [f"🔴 <b>Giornata {g['numero']} · punteggi live</b>", ""]
+    righe = [f"🔴 <b>Giornata {g['numero']} · punteggi live</b> (provvisori)" if quale == "live" else
+             f"⏳ <b>Giornata {g['numero']} · risultati calcolati, in attesa della convalida di un admin</b>", ""]
     for i, r in enumerate(c["risultati"]):
         if i:
             righe.append("")                       # una riga vuota tra una partita e l'altra (Luca, 20/10)
@@ -318,9 +320,13 @@ def testo(c: dict, ora: datetime, prova: bool = False) -> str:
             if dg or dr:
                 righe.append(f"   {e(nome)}: devono giocare {dg} · devono rigiocare {dr}"
                              + (f" (finora {tp(finora)})" if dr else ""))
-    righe += ["", f"<i>Risultati provvisori, stimati sui tabellini live di ESPN con le regole del calcolo (bonus casa "
-                  f"+{c['bonus']:g}, FADD, supplementari): li valuta e convalida un admin.\n"
-                  f"Ultimo aggiornamento: {ora.astimezone(ROMA):%d/%m alle %H:%M}</i>"]
+    if quale == "calcolata":
+        righe += ["", f"<i>Calcolati coi tabellini di ESPN e le regole del calcolo (bonus casa +{c['bonus']:g}, FADD, "
+                      f"supplementari): diventano ufficiali quando un admin li convalida.</i>"]
+    else:
+        righe += ["", f"<i>Risultati provvisori, stimati sui tabellini live di ESPN con le regole del calcolo (bonus casa "
+                      f"+{c['bonus']:g}, FADD, supplementari): li valuta e convalida un admin.\n"
+                      f"Ultimo aggiornamento: {ora.astimezone(ROMA):%d/%m alle %H:%M}</i>"]
     if prova:
         righe.insert(0, "🧪 <b>PROVA</b> (non pubblicato sul canale)\n")
     return "\n".join(righe)
@@ -523,6 +529,62 @@ def _esiti(s: str, n: int) -> dict[str, dict]:
                         "punti": [float(r["punti_casa"] or 0), float(r["punti_trasferta"] or 0)]} for r in righe}
 
 
+def statistiche_giornata(s: str, g: dict, c: dict | None = None) -> list[str]:
+    """In fondo ai risultati definitivi (Luca, 25/10): miglior e peggior punteggio; ⭐ i punti che hanno contato
+    più alti (chi gioca più partite conta per la media: quel valore); 💥 la miglior singola partita tra chi ha
+    contato, se è un altro (l'exploit annacquato dalla media); 👀 il migliore tra tutti quelli a roster (stessa
+    regola), se non è ⭐. Chi prende la media non conta; sempre con la squadra del fanta."""
+    import calcolo as CA
+    n = g["numero"]
+    ris = db.q("""SELECT casa, trasferta, punti_casa, punti_trasferta FROM lega_risultati
+                  WHERE stagione = %s AND giornata = %s AND convalidato IS NOT NULL""", (s, n), many=True) or []
+    if not ris:
+        return []
+    punti = [(r["casa"], float(r["punti_casa"] or 0)) for r in ris] + [(r["trasferta"], float(r["punti_trasferta"] or 0)) for r in ris]
+    alto, basso = max(punti, key=lambda x: x[1]), min(punti, key=lambda x: x[1])
+    out = ["", "📊 <b>In questa giornata</b>",
+           f"🔝 Miglior punteggio: <b>{e(config.nome(alto[0]))}</b> {tp(alto[1])} · 🔻 peggiore: {e(config.nome(basso[0]))} {tp(basso[1])}"]
+    c = c or R.calcola(s, n)
+    notti = (c.get("dettaglio") or {}).get("notti") or {}
+    contati = {}                                  # atleta → (valore contato, squadra, nome)
+    for r in c["risultati"]:
+        for t, sq in ((r["casa"], r["sc"]), (r["trasferta"], r["st"])):
+            usati = list(sq["titolari"]) + (list(sq["panchina"][:r["supplementari"]]) if r["supplementari"] else [])
+            for x in usati:
+                a = x.get("atleta")
+                if a and x.get("come") != "media" and x.get("fp") is not None:
+                    if a not in contati or float(x["fp"]) > contati[a][0]:
+                        contati[a] = (float(x["fp"]), t, x.get("nome") or a)
+    if contati:
+        a1, (v1, t1, n1) = max(contati.items(), key=lambda kv: kv[1][0])
+        out.append(f"⭐ {e(n1)} ({e(config.nome(t1))}) <b>{tp(v1)}</b>")
+        singole = [(float(fp), a, d) for a in contati for d, fp in (notti.get(a) or {}).items() if fp is not None]
+        if singole:
+            fp2, a2, d2 = max(singole)
+            if a2 != a1 and fp2 > contati[a2][0] + 0.001:
+                altre = [tp(float(v)) for d, v in sorted((notti.get(a2) or {}).items()) if d != d2]
+                out.append(f"💥 {e(contati[a2][2])} ({e(config.nome(contati[a2][1]))}) <b>{tp(fp2)}</b> in una partita"
+                           + (f", poi {', '.join(altre)}" if altre else "") + f": contati {tp(contati[a2][0])}")
+        # il migliore tra tutti quelli a roster, con la stessa regola (media delle sue partite nella giornata)
+        righe = db.q("""SELECT t.atleta, t.nome, t.fp, t.minuti, t.giocato, c.team_id FROM nba_tabellini t
+                        JOIN nba_partite p ON p.espn_id = t.partita
+                        JOIN giocatori gi ON gi.espn_id = t.atleta
+                        JOIN contratti c ON c.giocatore_id = gi.id AND c.attivo
+                        WHERE p.data_et BETWEEN %s AND %s AND p.tipo = ANY(%s)""",
+                     (g["dal"], g["al"], [2, 3, 5]), many=True) or []
+        per = {}
+        for r in righe:
+            if CA.conta(r):
+                per.setdefault(r["atleta"], [r["nome"], r["team_id"], []])[2].append(float(r["fp"]))
+        if per:
+            a3, (n3, t3, fps) = max(per.items(), key=lambda kv: sum(kv[1][2]) / len(kv[1][2]))
+            m3 = sum(fps) / len(fps)
+            if a3 != a1 and m3 > v1 + 0.001:
+                out.append(f"👀 {e(n3)} ({e(config.nome(t3))}) <b>{tp(CA.ottavi(m3))}</b>"
+                           + (f" ({len(fps)} partite)" if len(fps) > 1 else "") + (", non ha contato" if a3 not in contati else ""))
+    return out
+
+
 def testo_definitivo(s: str, g: dict, chi: str, quando: datetime, aggiornato: bool = False) -> str:
     """Il messaggio sul canale principale coi risultati convalidati (Luca, 23/10)."""
     from handlers import riga_partita
@@ -531,6 +593,10 @@ def testo_definitivo(s: str, g: dict, chi: str, quando: datetime, aggiornato: bo
         if i:
             righe.append("")
         righe.append(riga_partita(s, g["numero"], p))
+    try:
+        righe += statistiche_giornata(s, g)
+    except Exception as err:                      # le statistiche non devono mai fermare i risultati
+        logger.warning("Statistiche della giornata %s: %s", g["numero"], err)
     righe += ["", f"<i>{'🔄 Aggiornati dopo il ricontrollo dei tabellini' if aggiornato else 'Convalidati'} da {e(chi)} "
                   f"il {quando.astimezone(ROMA):%d/%m alle %H:%M}. Dettagli: /giornata {g['numero']}</i>"]
     return "\n".join(righe)

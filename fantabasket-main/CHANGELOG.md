@@ -1667,3 +1667,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **Menu dei comandi per gli amministratori dei gruppi Telegram**, in tutti e quattro i bot: stesso menu dei gruppi (Luca, 30/10: da admin del gruppo della lega non vedeva più /partita, /classifica e gli altri)
 - **Gruppo admin**: nel menu solo i comandi che lì funzionano (22 del bot principale funzionano solo in privato: prima venivano suggeriti e poi ignorati in silenzio); scritti lo stesso nel gruppo admin, il bot risponde che vanno usati in privato, col bottone per aprire la chat. Bot aste v78 col menu admin nel gruppo admin, IPanchinari v33, loucabot v61
+
+## v6.8.0 (2026-10-30)
+
+- **Alias delle squadre e dei GM** (Luca, 26/10): soprannomi del GM, abbreviazioni, vecchi nomi della squadra, in `teams.json` (`"alias": [...]`). Valgono in tutti i bot ovunque si scrive una squadra (`/roster`, `/partita`, `/calendario`, `/apri_asta`, `/edit_team`…: `shared/squadre.campi_ricerca`). Li gestisce un admin da `/edit_team` (o «✏️ Nomi squadre e GM») col bottone «🏷️ Alias»: separati da virgola, «-» li toglie, massimo 8 da 2–30 caratteri; un alias uguale al nome, al GM o all'alias di un'altra squadra viene rifiutato. Nel registro e sul canale log
+- Loucabot v62: `/giornata` e `/risultati` di una giornata in corso coi punteggi (live o calcolati in attesa della convalida), in fondo ai risultati definitivi le statistiche della giornata, classifica col migliore in verde e il peggiore in rosso per colonna

@@ -76,5 +76,19 @@ try:
     ok(png[:8] == b"\x89PNG\r\n\x1a\n" and png2[:8] == b"\x89PNG\r\n\x1a\n", "immagini di /classifica e /classifica_full")
 except ImportError:
     print("(typst non installato: immagini non provate)")
+# migliore in verde e peggiore in rosso per colonna, tranne V/S (Luca, 28/10)
+_rr = [{"team": "a", "pf": 100, "ps": 90, "diff": 10, "media": 100}, {"team": "b", "pf": 80, "ps": 70, "diff": 10, "media": 80},
+       {"team": "c", "pf": 100, "ps": 95, "diff": 5, "media": 90}]
+_col = C.colori(_rr, False)
+ok(_col["a"]["pf"] == "best" and _col["c"]["pf"] == "best" and _col["b"]["pf"] == "worst"
+   and _col["b"]["ps"] == "best" and _col["c"]["ps"] == "worst" and _col["c"]["diff"] == "worst" and "diff" in _col["a"]
+   and all("w" not in x and "l" not in x for x in _col.values()),
+   "classifica: migliore e peggiore di ogni colonna (punti subiti: il più basso è il migliore; a pari merito tutti)")
+_rr2 = [dict(r, pf=50) for r in _rr]
+ok(all("pf" not in x for x in C.colori(_rr2, False).values()), "colonna tutta uguale: niente colori")
+_righe, _g = C.calcola(S, True)
+if _g:
+    _d = C.dati_typst(_righe, _g, True)
+    ok(all("col" in x for x in _d["righe"]) and any(x["col"] for x in _d["righe"]), "nei dati dell'immagine i colori per riga")
 db.q("TRUNCATE lega_risultati")
 ok(C.immagine(False, S) == (None, 0), "nessuna giornata convalidata: niente immagine")

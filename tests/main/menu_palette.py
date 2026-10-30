@@ -116,6 +116,23 @@ ud["mt_team"] = "team02"
 comando(MT.cmd_my_team, uid=GM, ud=ud)
 ok("mt_team" not in ud, "/my_team dopo /edit_team torna alla propria squadra")
 tm.set_campo_team("team02", "nome", "Beta"); tm.set_campo_team("team02", "gm_nome", "GB")
+# alias per la ricerca (Luca, 26/10): solo da admin, cercati da tutti i bot; uno già di un'altra squadra no
+from shared.squadre import cerca_squadra
+ud = {}
+premi(MT.cb_admin, "myt:t:team02", uid=_adm, ud=ud)
+q = premi(MT.cb_scegli_campo, "myt:alias", uid=_adm, ud=ud)
+ok(q.ret == MT.INSERISCI_VALORE and "alias" in q.testi[-1][0], "🏷️ Alias: chiede gli alias")
+comando(MT.ricevi_valore, uid=_adm, ud=ud, testo="Brownie, BB")
+ok(tm.get_team_by_id("team02").get("alias") == ["Brownie", "BB"] and cerca_squadra("brownie", tm.get_all_teams())["id"] == "team02"
+   and cerca_squadra("bb", tm.get_all_teams())["id"] == "team02", "alias salvati e trovati dalla ricerca")
+premi(MT.cb_admin, "myt:t:team01", uid=_adm, ud=ud)
+premi(MT.cb_scegli_campo, "myt:alias", uid=_adm, ud=ud)
+m = comando(MT.ricevi_valore, uid=_adm, ud=ud, testo="bb")
+ok(not tm.get_team_by_id("team01").get("alias") and "già di" in m.risposte[-1][0], "alias già usato da un'altra squadra: rifiutato")
+q = premi(MT.cb_scegli_campo, "myt:alias", uid=GM if GM != _adm else 999, ud={})
+ok(not tm.get_team_by_id("team01").get("alias"), "un GM non può cambiare gli alias")
+tm.set_campo_team("team02", "alias", "")
+ok(cerca_squadra("brownie", tm.get_all_teams()) is None or cerca_squadra("brownie", tm.get_all_teams())["id"] != "team02", "alias tolti")
 
 # ── /palette ──
 from handlers import palette as PA, roster as RO

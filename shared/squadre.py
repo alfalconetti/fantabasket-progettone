@@ -7,6 +7,10 @@ Ordine: id esatto (team07) → nome squadra o nome del GM esatti (senza maiuscol
 GM Cristian Paris, "redskins" → Montecelio Redskins, "redsk" → inizio di una parola, "redskin" → una
 parola quasi uguale; deve essere una squadra sola, se ce ne sono più d'una nessuna) → somiglianza
 del nome intero (difflib, soglia 0,6).
+
+Alias (v6.8.0, Luca 26/10): soprannomi del GM, abbreviazioni e vecchi nomi della squadra in teams.json
+("alias": [...]), cercati come il nome e il nome del GM. Si gestiscono dal bot principale (/edit_team,
+pannello admin); un alias non può essere il nome o l'alias di un'altra squadra (`alias_in_conflitto`).
 """
 import difflib
 import unicodedata
@@ -22,6 +26,17 @@ def _parole(s: str) -> list[str]:
     return [p for p in "".join(c if c.isalnum() else " " for c in normalizza(s)).split() if p]
 
 
+def campi_ricerca(t: dict) -> list[str]:
+    """Nome della squadra, nome del GM e alias."""
+    return [c for c in [t.get("nome", ""), t.get("gm_nome", "")] + list(t.get("alias") or []) if c]
+
+
+def alias_in_conflitto(alias: str, team_id: str, squadre: list[dict]) -> dict | None:
+    """L'altra squadra che ha già quel nome, nome del GM o alias (normalizzati), o None."""
+    a = normalizza(alias)
+    return next((t for t in squadre if t["id"] != team_id and any(normalizza(c) == a for c in campi_ricerca(t))), None)
+
+
 def per_parole(query: str, squadre: list[dict]) -> dict | None:
     """La sola squadra in cui ogni parola di `query` è una parola del nome della squadra o del GM
     (anche mescolate: "paris redskins"); se nessuna, la sola in cui ogni parola è l'inizio di una
@@ -30,7 +45,7 @@ def per_parole(query: str, squadre: list[dict]) -> dict | None:
     qp = _parole(query)
     if not qp:
         return None
-    parole = lambda t: _parole(t.get("nome", "")) + _parole(t.get("gm_nome", ""))
+    parole = lambda t: [w for c in campi_ricerca(t) for w in _parole(c)]
     for prova in (lambda q, w: q == w,
                   lambda q, w: w.startswith(q),
                   lambda q, w: len(q) >= 4 and difflib.SequenceMatcher(None, q, w).ratio() >= 0.8):
@@ -51,7 +66,7 @@ def cerca_squadra(query: str, squadre: list[dict]) -> dict | None:
     for t in squadre:
         if t["id"] == query.strip():
             return t
-    campi = lambda t: [c for c in (t.get("nome", ""), t.get("gm_nome", "")) if c]
+    campi = campi_ricerca
     # 2. nome squadra o GM esatti, normalizzati
     for t in squadre:
         if any(normalizza(c) == q for c in campi(t)):

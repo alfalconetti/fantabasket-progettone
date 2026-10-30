@@ -12,6 +12,10 @@ Callback myt:<campo> (prima mt:, lo stesso prefisso di /my_trades: un bottone de
 con /my_team aperto finiva qui), myt:home, myt:x. Per il GM la squadra è sempre la sua.
 I dati vengono salvati in teams.json.
 
+Alias (v6.8.0, Luca 26/10): solo da admin, «🏷️ Alias» (soprannomi del GM, abbreviazioni, vecchi nomi: la ricerca
+delle squadre di tutti i bot li usa, shared/squadre); separati da virgola, «-» per toglierli; un alias già usato
+da un'altra squadra (nome, GM o alias) non si accetta.
+
 Admin (v6.4.6, Luca 23/10): `/edit_team [SQUADRA]` o ✏️ Nomi squadre nel pannello admin (myt:lista →
 myt:t:<team_id>) aprono lo stesso pannello per qualsiasi squadra; la squadra scelta resta in
 user_data["mt_team"] (solo per chi è admin), registro e canale log con veste admin.
@@ -55,8 +59,10 @@ def _kb_lista() -> InlineKeyboardMarkup:
 
 def _testo_myteam(team: dict, admin: bool = False) -> str:
     if admin:
+        al = ", ".join(team.get("alias") or []) or "—"
         return (f"🛠 <b>{html.escape(team['nome'])}</b> <i>(modifica da admin)</i>\n"
                 f"👤 GM: <b>{html.escape(team.get('gm_nome', '—'))}</b>\n"
+                f"🏷️ Alias per la ricerca: {html.escape(al)}\n"
                 f"<code>ID: {team['id']}</code>")
     return (
         f"🏀 <b>{html.escape(team['nome'])}</b>\n"
@@ -66,12 +72,13 @@ def _testo_myteam(team: dict, admin: bool = False) -> str:
     )
 
 
-def _kb_myteam() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✏️ Nome squadra", callback_data="myt:nome"),
-         InlineKeyboardButton("✏️ Nome GM",      callback_data="myt:gm_nome")],
-        [InlineKeyboardButton("✖️ Chiudi",        callback_data="myt:x")],
-    ])
+def _kb_myteam(admin: bool = False) -> InlineKeyboardMarkup:
+    righe = [[InlineKeyboardButton("✏️ Nome squadra", callback_data="myt:nome"),
+              InlineKeyboardButton("✏️ Nome GM",      callback_data="myt:gm_nome")]]
+    if admin:
+        righe.append([InlineKeyboardButton("🏷️ Alias", callback_data="myt:alias")])
+    righe.append([InlineKeyboardButton("✖️ Chiudi", callback_data="myt:x")])
+    return InlineKeyboardMarkup(righe)
 
 
 @solo_privato
@@ -98,7 +105,7 @@ async def cmd_edit_team(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             await update.effective_message.reply_text("❌ Squadra non trovata. Scegli:", reply_markup=_kb_lista())
             return SCEGLI_CAMPO
         context.user_data["mt_team"] = team["id"]
-        await update.effective_message.reply_text(_testo_myteam(team, True), parse_mode="HTML", reply_markup=_kb_myteam())
+        await update.effective_message.reply_text(_testo_myteam(team, True), parse_mode="HTML", reply_markup=_kb_myteam(True))
         return SCEGLI_CAMPO
     await update.effective_message.reply_text("🛠 <b>Nomi di squadre e GM</b>: scegli la squadra", parse_mode="HTML",
                                               reply_markup=_kb_lista())
@@ -123,7 +130,7 @@ async def cb_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await query.edit_message_text("❌ Squadra non trovata.", reply_markup=_kb_lista())
         return SCEGLI_CAMPO
     context.user_data["mt_team"] = team["id"]
-    await query.edit_message_text(_testo_myteam(team, True), parse_mode="HTML", reply_markup=_kb_myteam())
+    await query.edit_message_text(_testo_myteam(team, True), parse_mode="HTML", reply_markup=_kb_myteam(True))
     return SCEGLI_CAMPO
 
 
@@ -140,10 +147,17 @@ async def cb_scegli_campo(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         context.user_data.pop("mt_team", None)
         await query.edit_message_text(_testo_myteam(team, admin), parse_mode="HTML")
         return ConversationHandler.END
-    if campo == "home" or campo not in CAMPI:
+    if campo == "home" or (campo not in CAMPI and not (campo == "alias" and admin)):
         context.user_data.pop("mt_campo", None)
-        await query.edit_message_text(_testo_myteam(team, admin), parse_mode="HTML", reply_markup=_kb_myteam())
+        await query.edit_message_text(_testo_myteam(team, admin), parse_mode="HTML", reply_markup=_kb_myteam(admin))
         return SCEGLI_CAMPO
+    if campo == "alias" and admin:
+        context.user_data["mt_campo"] = campo
+        await query.edit_message_text(
+            f"Scrivi gli <b>alias</b> di {html.escape(team['nome'])} separati da virgola (soprannomi del GM, abbreviazioni, "
+            f"vecchi nomi), es. <code>Brownie, BB</code>. Sostituiscono quelli di adesso; «-» li toglie tutti.",
+            parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("← Indietro", callback_data="myt:home")]]))
+        return INSERISCI_VALORE
     context.user_data["mt_campo"] = campo
     cosa = CAMPI[campo] if not admin else ("nome della squadra" if campo == "nome" else "nome del GM")
     await query.edit_message_text(
@@ -156,9 +170,36 @@ async def ricevi_valore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     valore = (update.effective_message.text or "").strip()
     campo = context.user_data.pop("mt_campo", None)
     team, admin = _squadra(update.effective_user.id, context)
-    if campo not in CAMPI or not team:
+    if (campo not in CAMPI and campo != "alias") or not team:
         await update.effective_message.reply_text("❌ Sessione scaduta. Riprova con /my_team.")
         return ConversationHandler.END
+    if campo == "alias":
+        if not admin:
+            return ConversationHandler.END
+        from shared.squadre import alias_in_conflitto
+        nuovi = [] if valore.strip() in ("-", "—") else [x.strip() for x in valore.split(",") if x.strip()]
+        errore = ("❌ Al massimo 8 alias." if len(nuovi) > 8 else
+                  "❌ Ogni alias tra 2 e 30 caratteri." if any(not 2 <= len(x) <= 30 for x in nuovi) else None)
+        if not errore:
+            for x in nuovi:
+                altra = alias_in_conflitto(x, team["id"], tm.get_all_teams())
+                if altra:
+                    errore = f"❌ «{html.escape(x)}» è già di {html.escape(altra['nome'])} (nome, GM o alias). Scegline un altro."
+                    break
+        if errore:
+            context.user_data["mt_campo"] = campo
+            await update.effective_message.reply_text(errore, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("← Indietro", callback_data="myt:home")]]))
+            return INSERISCI_VALORE
+        prima = ", ".join(team.get("alias") or []) or "—"
+        tm.set_campo_team(team["id"], "alias", nuovi if nuovi else "")
+        from handlers.registro import segna
+        await segna(context.bot, update.effective_user, "admin", "dati della squadra", squadre=team["id"],
+                    oggetto="alias", prima=prima, dopo=", ".join(nuovi) or "—")
+        team = tm.get_team_by_id(team["id"])
+        await update.effective_message.reply_text(f"✅ Aggiornato.\n\n{_testo_myteam(team, True)}", parse_mode="HTML",
+                                                  reply_markup=_kb_myteam(True))
+        return SCEGLI_CAMPO
     if not valore or len(valore) > 40:
         context.user_data["mt_campo"] = campo
         await update.effective_message.reply_text(
@@ -173,7 +214,7 @@ async def ricevi_valore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
                 oggetto=campo, prima=prima or "—", dopo=valore)
     team = tm.get_team_by_id(team["id"])
     await update.effective_message.reply_text(f"✅ Aggiornato.\n\n{_testo_myteam(team, admin)}", parse_mode="HTML",
-                                              reply_markup=_kb_myteam())
+                                              reply_markup=_kb_myteam(admin))
     return SCEGLI_CAMPO
 
 

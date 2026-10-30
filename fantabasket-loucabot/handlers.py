@@ -192,6 +192,24 @@ def riga_partita(s: str, n: int, p: dict) -> str:
 
 async def _mostra_giornata(update, g):
     s = config.stagione()
+    stato = _stato_calcolo(s, g["numero"])
+    # iniziata e non convalidata (Luca, 25/10): i risultati in testo, dicendo cosa sono, live o calcolati
+    if stato != "convalidata" and g["dal"] <= __import__("nba").oggi_et():
+        import asyncio
+        import live
+        try:
+            c = await asyncio.to_thread(live.calcolo, s, g["numero"])
+            st = live.stato(s, g["numero"]) or {}
+            from datetime import datetime, timezone
+            ora = st.get("aggiornato") or datetime.now(timezone.utc)
+            t = live.testo(c, ora, quale="calcolata" if stato else "live")
+        except Exception:
+            # se il calcolo non riesce, l'elenco delle partite come prima
+            logging.getLogger(__name__).exception("/giornata %s: calcolo non riuscito", g["numero"])
+        else:
+            for pezzo in live._pezzi(t):
+                await update.effective_message.reply_text(pezzo, parse_mode="HTML")
+            return
     righe = [_riga_giornata(g), ""]
     for i, p in enumerate(db.partite_giornata(s, g["numero"])):
         if i:
