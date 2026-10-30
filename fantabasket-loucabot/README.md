@@ -124,7 +124,8 @@ Alla convalida i risultati vanno in `lega_risultati` e sul foglio Calendario.
   con 🔄 Ricalcola;
 - **20:00** controllo finale: la riscarica un'ultima volta, gli admin verificano su Yahoo
   (✅ uguale · ❌ non corrisponde: tornano i valori di prima), poi la notte è **congelata** e non
-  si riscarica più; le notti prima della stessa giornata solo lette e confrontate, sul log.
+  si riscarica più; le notti prima della stessa giornata solo lette e confrontate: se ESPN le
+  dà diverse, agli admin coi bottoni ✅ aggiorna come Yahoo · ❌ lascia com'è.
 
 ## Comandi
 

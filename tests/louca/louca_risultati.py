@@ -395,10 +395,39 @@ HR.nba.scarica_tabellini = finto2
 BOT.mandati.clear()
 if [p for p in db.partite_nba(_d2, _d2) if p["stato"] == "STATUS_FINAL"]:
     asyncio.run(HR.controllo_notte(BOT, _d2))
-    _info = [x["text"] for x in BOT.mandati if x.get("chat_id") == -3 and "Solo informazione" in x.get("text", "")]
-    ok(_info and "r12" in _info[0] and "punti" in _info[0]
+    # (Luca, 30/10) agli admin col dettaglio e coi bottoni ✅ aggiorna come Yahoo / ❌ lascia com'è; niente salvato finché non si preme
+    _info = [x for x in BOT.mandati if x.get("chat_id") == -2 and "già congelata" in x.get("text", "")]
+    _cbi = [b.callback_data for r in _info[0]["reply_markup"].inline_keyboard for b in r] if _info else []
+    ok(_info and "r12" in _info[0]["text"] and "punti" in _info[0]["text"] and "Niente è stato salvato" in _info[0]["text"]
+       and [x.split(":")[1] for x in _cbi] == ["ag", "la"]
+       and any(x.get("chat_id") == -3 and "da verificare su Yahoo" in x.get("text", "") for x in BOT.mandati)
        and float(db.q("SELECT fp FROM nba_tabellini WHERE atleta = 'r12' AND partita = 'g1'", one=True)["fp"]) == float(_r12["fp"]),
-       f"le notti prima della stessa giornata: differenze solo sul log, col dettaglio, niente salvato {_info}")
+       f"le notti prima della stessa giornata: agli admin col dettaglio e i bottoni Yahoo, niente salvato {_info[0]['text'] if _info else ''}")
+    _tutte_g1 = [dict(x) for x in db.q("SELECT * FROM nba_tabellini WHERE partita = 'g1'", many=True)]
+    _qa = QY(_cbi[0])
+    asyncio.run(HR.cb_controllo(types.SimpleNamespace(callback_query=_qa, effective_user=types.SimpleNamespace(id=900, full_name="Admin")),
+                                types.SimpleNamespace(bot=BOT, application=None)))
+    ok(float(db.q("SELECT fp FROM nba_tabellini WHERE atleta = 'r12' AND partita = 'g1'", one=True)["fp"]) == 99
+       and "valori nuovi salvati" in _qa.testo and [b.callback_data for r in _qa.k["reply_markup"].inline_keyboard for b in r] == [f"rc:re:{N}"],
+       "✅ su Yahoo è così: salvati i valori di ESPN della notte congelata, resta Ricalcola")
+    _ql = QY(_cbi[1])
+    asyncio.run(HR.cb_controllo(types.SimpleNamespace(callback_query=_ql, effective_user=types.SimpleNamespace(id=900, full_name="Admin")),
+                                types.SimpleNamespace(bot=BOT, application=None)))
+    ok(_ql.risposte == ["Già deciso."], "notte congelata: deciso una volta, l'altro bottone non fa niente")
+    db.q("DELETE FROM nba_tabellini WHERE partita = 'g1'")
+    from db import _COLONNE_TAB as _CT
+    for _x in _tutte_g1:
+        db.q(f"INSERT INTO nba_tabellini ({', '.join(_CT)}) VALUES ({', '.join('%(' + k + ')s' for k in _CT)})", {k: _x[k] for k in _CT})
+    # ❌ lascia com'è: niente cambia
+    BOT.mandati.clear()
+    asyncio.run(HR.controllo_notte(BOT, _d2))
+    _cbi = [b.callback_data for x in BOT.mandati if x.get("chat_id") == -2 and "già congelata" in x.get("text", "")
+            for r in x["reply_markup"].inline_keyboard for b in r]
+    _ql = QY(_cbi[1])
+    asyncio.run(HR.cb_controllo(types.SimpleNamespace(callback_query=_ql, effective_user=types.SimpleNamespace(id=900, full_name="Admin")),
+                                types.SimpleNamespace(bot=BOT, application=None)))
+    ok(float(db.q("SELECT fp FROM nba_tabellini WHERE atleta = 'r12' AND partita = 'g1'", one=True)["fp"]) == float(_r12["fp"])
+       and "Lasciata com'era" in _ql.testo and _ql.k.get("reply_markup") is None, "❌ lascia com'è: niente cambia, niente bottoni")
 else:
     ok(False, "manca una partita finita nella seconda notte della giornata di prova")
 HR.nba.scarica_tabellini = _vero
@@ -1078,6 +1107,24 @@ FT._salva_indice({"r1": {"preso": datetime.now(timezone.utc).isoformat(), "squad
 _sf = FT.stato_foto()
 ok(_sf["roster"] >= len(gid) and _sf["con_foto"] == 1 and [x["espn_id"] for x in _sf["espn_non_ha"]] == ["r2"]
    and len(_sf["da_prendere"]) + len(_sf["senza_espn"]) == _sf["roster"] - 2 and _sf["in_cartella"] == 1, f"/dev_foto: presenti, ESPN non ce l'ha, da prendere {_sf['roster']}")
+# tutti i giocatori attivi in NBA (Luca, 30/10), dopo quelli a roster
+db.q("INSERT INTO nba_atleti (atleta, nome, squadra) VALUES ('zz9', 'Attivo Non Firmato', 'NYK'), ('zz8', 'Fuori Roster', NULL) ON CONFLICT DO NOTHING")
+_coda = FT.da_scaricare()
+_rost = [a for a in _coda if a.startswith("r")]
+ok("zz9" in _coda and "zz8" in _coda and "r1" not in _coda and _coda.index("zz9") > max(_coda.index(a) for a in _rost)
+   and _coda.index("zz8") > _coda.index("zz9") and FT.stato_foto()["attivi"] >= 1 and FT.stato_foto()["tutti"] >= len(gid) + 2,
+   "foto: dopo quelli a roster tutti gli attivi in NBA, poi tutti gli altri del database")
+# chi non gioca: foto rinnovata dopo 90 giorni (non 14), mancante riprovata dopo 30 (non 3)
+_vi = FT._indice()
+_vi["zz8"] = {"preso": (datetime.now(timezone.utc) - timedelta(days=20)).isoformat(), "squadra": None}
+_vi["zz9"] = {"preso": (datetime.now(timezone.utc) - timedelta(days=20)).isoformat(), "squadra": "NYK"}
+FT._salva_indice(_vi)
+open(os.path.join(_cart, "zz8.png"), "wb").write(b"x"); open(os.path.join(_cart, "zz9.png"), "wb").write(b"x")
+_coda = FT.da_scaricare()
+ok("zz9" in _coda and "zz8" not in _coda, "foto vecchia di 20 giorni: si rinnova per chi gioca, non per chi è fuori dalla NBA")
+for _x in ("zz8", "zz9"):
+    os.remove(os.path.join(_cart, f"{_x}.png"))
+db.q("DELETE FROM nba_atleti WHERE atleta IN ('zz9', 'zz8')")
 _rf = []
 class _MsgF:
     async def reply_text(self, t, **k): _rf.append(t)

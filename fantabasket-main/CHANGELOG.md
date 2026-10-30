@@ -1683,3 +1683,15 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - Emoji a colori anche nelle immagini di `/partita`, della classifica e di `/player` (loucabot), come nel live: un'emoji nel nome di una squadra o di un GM non diventa un quadratino
 - **Fonti dei dati** nelle guide dei GM di tutti i bot («Da dove vengono i dati»: ESPN, Basketball-Reference, Yahoo), nei README e in fondo a `/player`
 - Documentazione: sezioni «Da fare» dei README di loucabot e IPanchinari aggiornate (elencavano cose fatte da tempo), guida admin di loucabot senza il controllo delle 10 (tolto nella v60) e con la regola dei playoff decisa oggi
+
+## v6.9.1 (2026-10-30)
+
+- Loucabot v64: foto ESPN di tutti i giocatori attivi in NBA, non solo di quelli a roster (Luca, 30/10), sempre piano piano di notte, prima quelli a roster
+
+## v6.9.2 (2026-10-30)
+
+- Loucabot v65: foto ESPN di tutti i giocatori del database (dopo quelli a roster e gli attivi in NBA), sempre di notte; chi non gioca si rinnova più di rado (Luca, 30/10)
+
+## v6.9.3 (2026-10-30)
+
+- Loucabot v66: al controllo delle 20 le notti precedenti della stessa giornata (già congelate), se ESPN le dà diverse, arrivano agli admin coi bottoni ✅ aggiorna come Yahoo / ❌ lascia com'è (Luca, 30/10)

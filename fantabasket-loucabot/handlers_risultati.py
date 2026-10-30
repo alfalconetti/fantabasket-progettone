@@ -195,9 +195,27 @@ async def controllo_notte(bot, d, chi: str = "controllo delle 20", user=None) ->
             letti = {(pid, x["atleta"]): x for pid, tab in (r2.get("letti") or {}).items() for x in tab}
             salvati = {k: v for k, v in CG.righe(list((r2.get("letti") or {}).keys())).items()}
             diff = {k: v for k, v in CG.cambi(salvati, letti).items() if k[1] in sch}
-            await log(bot, f"ℹ️ <b>Solo informazione, niente salvato</b>: notte del {d2:%d/%m}{gn} (congelata), "
-                           + (f"ESPN oggi la darebbe diversa per {len(diff)} schierati:\n"
-                              + "\n".join(CG.riga_cambio(a, b) for a, b in diff.values()) if diff else "ESPN la dà uguale"))
+            if not diff:
+                await log(bot, f"ℹ️ Notte del {d2:%d/%m}{gn} (congelata): ESPN la dà uguale")
+                continue
+            # agli admin coi bottoni (Luca, 30/10): se su Yahoo è già così si aggiorna, se no resta com'era
+            CG.migra()
+            cid2 = db.q("""INSERT INTO lega_controlli_notte (data_et, giornata, prima, dopo, chi, stato) VALUES (%s, %s, %s, %s, %s, 'da applicare')
+                           RETURNING id""",
+                        (d2, g["numero"], json.dumps({f"{k[0]}|{k[1]}": v for k, v in zip(diff, _json_righe([x[0] for x in diff.values()]))}),
+                         json.dumps({f"{k[0]}|{k[1]}": v for k, v in zip(diff, _json_righe([x[1] for x in diff.values()]))}), chi),
+                        one=True)["id"]
+            t2 = (f"ℹ️ <b>Notte del {d2:%d/%m}{gn}, già congelata</b>: ESPN oggi la dà diversa per {len(diff)} "
+                  f"{'schierato' if len(diff) == 1 else 'schierati'}. <b>Niente è stato salvato.</b> Guardate su Yahoo:\n"
+                  + "\n".join(CG.riga_cambio(a, b) for a, b in sorted(diff.values(), key=lambda x: (x[1] or x[0])["nome"]))
+                  + "\n\n✅ se su Yahoo è già così, salva i valori nuovi; ❌ lascia quelli di adesso.")
+            await log(bot, f"ℹ️ Notte del {d2:%d/%m}{gn} (congelata): ESPN oggi la darebbe diversa per {len(diff)} schierati, "
+                           f"agli admin da verificare su Yahoo")
+            if config.gruppo_admin():
+                m2 = await bot.send_message(chat_id=config.gruppo_admin(), text=t2, parse_mode="HTML",
+                                            reply_markup=K([[B("✅ Su Yahoo è così: aggiorna", callback_data=f"cn:ag:{cid2}"),
+                                                             B("❌ Lascia com'è", callback_data=f"cn:la:{cid2}")]]))
+                db.q("UPDATE lega_controlli_notte SET messaggio = %s WHERE id = %s", (m2.message_id, cid2))
     return esito
 
 
@@ -273,7 +291,9 @@ async def job_controllo_finale(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cb_controllo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """cn:ok:<id> (uguale su Yahoo) · cn:no:<id> (non corrisponde: tornano i valori di prima)."""
+    """cn:ok:<id> (uguale su Yahoo) · cn:no:<id> (non corrisponde: tornano i valori di prima).
+    Notti prima della stessa giornata, già congelate (niente salvato): cn:ag:<id> (su Yahoo è così: si salvano i valori
+    di ESPN) · cn:la:<id> (si lascia com'è)."""
     from handlers import _chi, log
     import json
     import congelamento as CG
@@ -284,26 +304,43 @@ async def cb_controllo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     _, azione, cid = q.data.split(":")
     c = db.q("SELECT * FROM lega_controlli_notte WHERE id = %s", (int(cid),), one=True)
-    if not c or c["stato"] != "da verificare":
+    if not c or c["stato"] != ("da applicare" if azione in ("ag", "la") else "da verificare"):
         await q.answer("Già deciso.", show_alert=True)
         return
     ora = datetime.now(timezone.utc).astimezone(__import__("zoneinfo").ZoneInfo("Europe/Rome"))
     prima = c["prima"] if isinstance(c["prima"], dict) else json.loads(c["prima"])
+    dopo = c["dopo"] if isinstance(c["dopo"], dict) else json.loads(c["dopo"])
     from registro import segna_sync
-    if azione == "ok":
-        db.q("UPDATE lega_controlli_notte SET stato = 'uguale' WHERE id = %s", (c["id"],))
-        segna_sync(update.effective_user, "admin", "controllo notte: uguale su Yahoo", oggetto=f"notte del {c['data_et']:%d/%m}",
-                   dopo=f"{len(prima)} tabellini come ESPN")
-        nota = f"\n\n✅ <i>Verificato uguale su Yahoo da {e(_chi_nome(update))} alle {ora:%H:%M}</i>"
-    else:
+
+    def scrivi(righe: dict):
         with db.get_conn() as conn:
             with conn.cursor() as cur:
-                for chiave, riga in prima.items():
+                for chiave, riga in righe.items():
                     pid, atleta = chiave.split("|", 1)
                     cur.execute("DELETE FROM nba_tabellini WHERE partita = %s AND atleta = %s", (pid, atleta))
                     if riga:
                         cur.execute(f"INSERT INTO nba_tabellini ({', '.join(_COLONNE_TAB)}) VALUES "
                                     f"({', '.join('%(' + k + ')s' for k in _COLONNE_TAB)})", riga)
+    if azione == "ag":
+        scrivi(dopo)
+        db.q("UPDATE lega_controlli_notte SET stato = 'aggiornato' WHERE id = %s", (c["id"],))
+        segna_sync(update.effective_user, "admin", "notte congelata aggiornata come Yahoo", oggetto=f"notte del {c['data_et']:%d/%m}",
+                   dopo=f"{len(dopo)} tabellini come ESPN")
+        await log(context.bot, f"✅ Notte del {c['data_et']:%d/%m} (congelata): su Yahoo è come ESPN, {_chi(update)} ha salvato "
+                               f"i valori nuovi ({len(dopo)} tabellini)")
+        nota = (f"\n\n✅ <i>Su Yahoo è così: valori nuovi salvati da {e(_chi_nome(update))} alle {ora:%H:%M}</i>"
+                + (f"\n<i>Ricalcola per aggiornare risultati e foglio.</i>" if c["giornata"] and _calcolata(config.stagione(), c["giornata"]) else ""))
+    elif azione == "la":
+        db.q("UPDATE lega_controlli_notte SET stato = 'lasciato' WHERE id = %s", (c["id"],))
+        segna_sync(update.effective_user, "admin", "notte congelata lasciata com'era", oggetto=f"notte del {c['data_et']:%d/%m}")
+        nota = f"\n\n❌ <i>Lasciata com'era da {e(_chi_nome(update))} alle {ora:%H:%M}</i>"
+    elif azione == "ok":
+        db.q("UPDATE lega_controlli_notte SET stato = 'uguale' WHERE id = %s", (c["id"],))
+        segna_sync(update.effective_user, "admin", "controllo notte: uguale su Yahoo", oggetto=f"notte del {c['data_et']:%d/%m}",
+                   dopo=f"{len(prima)} tabellini come ESPN")
+        nota = f"\n\n✅ <i>Verificato uguale su Yahoo da {e(_chi_nome(update))} alle {ora:%H:%M}</i>"
+    else:
+        scrivi(prima)
         db.q("UPDATE lega_controlli_notte SET stato = 'tenuti_prima' WHERE id = %s", (c["id"],))
         segna_sync(update.effective_user, "admin", "controllo notte: non corrisponde a Yahoo", oggetto=f"notte del {c['data_et']:%d/%m}",
                    dopo=f"tornati i valori di prima per {len(prima)} tabellini")
@@ -313,7 +350,7 @@ async def cb_controllo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 + (f"\n<i>Ricalcola per aggiornare risultati e foglio.</i>" if c["giornata"] and _calcolata(config.stagione(), c["giornata"]) else ""))
     await q.answer("Fatto")
     tasti = None
-    if c["giornata"] and _calcolata(config.stagione(), c["giornata"]):
+    if azione != "la" and c["giornata"] and _calcolata(config.stagione(), c["giornata"]):
         tasti = K([[B("🔄 Ricalcola", callback_data=f"rc:re:{c['giornata']}")]])
     try:
         await q.edit_message_text(q.message.text_html + nota, parse_mode="HTML", reply_markup=tasti)
@@ -554,5 +591,5 @@ async def cmd_storico_calcolo(update: Update, context: ContextTypes.DEFAULT_TYPE
 def get_handlers() -> list:
     return [CommandHandler("ricalcola", cmd_ricalcola), CommandHandler("storico_calcolo", cmd_storico_calcolo), CommandHandler("dev_prova_calcolo", cmd_dev_prova_calcolo),
             CommandHandler("live", cmd_live), CommandHandler("controllo_notte", cmd_controllo_notte),
-            CallbackQueryHandler(cb_controllo, pattern=r"^cn:(ok|no):\d+$"),
+            CallbackQueryHandler(cb_controllo, pattern=r"^cn:(ok|no|ag|la):\d+$"),
             CallbackQueryHandler(cb_risultati, pattern=r"^rc:")]

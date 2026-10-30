@@ -326,3 +326,15 @@ Il calcolo dei fantapunti.
 - **`/dev_foto`** (dev): foto ESPN dei giocatori a roster, quante in cartella e in coda per il job notturno, chi manca (da prendere, ESPN non ce l'ha, senza id ESPN)
 - Emoji a colori (Noto Color Emoji) anche in `/partita`, classifica e foto di `/player`
 - `/player`: in fondo la fonte dei dati NBA (ESPN). Guida dei GM con le fonti; guida admin senza il controllo delle 10 (non c'è più dalla v60), con `gruppo_lega_id` e la regola dei playoff
+
+## v64 (2026-10-30)
+
+- **Foto di tutti i giocatori attivi in NBA** (Luca, 30/10), non solo di quelli a roster: sempre una alla volta nella notte americana, prima quelle che mancano ai giocatori a roster, poi gli altri che sono in un roster ESPN (circa 530 in tutto: 2-3 notti la prima volta, poi solo i rinnovi ogni 14 giorni e i cambi di squadra). `/dev_foto` conta anche gli attivi
+
+## v65 (2026-10-30)
+
+- **Foto di tutti i giocatori del database** con un id ESPN (Luca, 30/10), dopo quelli a roster e gli attivi in NBA: sempre una alla volta nella notte americana. Chi non gioca (né a roster né in un roster NBA) si rinnova ogni 90 giorni invece che 14, e una foto che ESPN non ha si riprova dopo 30 giorni invece che 3. `/dev_foto` conta anche tutti quelli del database
+
+## v66 (2026-10-30)
+
+- **Notti prima della giornata, già congelate, coi bottoni Yahoo** (Luca, 30/10: ESPN aveva corretto 7 schierati della notte del 28/10 e su Yahoo erano già aggiornati). Al controllo delle 20, se ESPN dà diversa una notte precedente della stessa giornata, il messaggio va al gruppo admin (non più solo sul canale log) col dettaglio e due bottoni: **✅ Su Yahoo è così: aggiorna** salva i valori nuovi (poi Ricalcola), **❌ Lascia com'è** non cambia niente. Prima di premere non si salva niente; registro e canale log

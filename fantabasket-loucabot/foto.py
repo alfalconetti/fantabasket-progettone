@@ -7,9 +7,13 @@ Foto dei giocatori da ESPN (Luca, 23/10), per /player (e in futuro altre immagin
   config/foto/indice.json con quando è stata presa e la squadra NBA di allora.
 - Piano, per non farsi limitare: un job ogni minuto che, **solo nella notte americana** (2:00–6:00
   a New York), scarica al massimo UNA foto per giro: prima quelle che mancano ai giocatori a roster,
-  poi chi ha cambiato squadra NBA, poi quelle più vecchie di 14 giorni. Circa 240 a notte: la prima
-  volta i giocatori a roster si riempiono in un paio di notti, poi bastano pochi minuti.
-- Una foto che ESPN non ha (rookie, two-way) si segna «mancante» e si riprova dopo 3 giorni.
+  poi a tutti gli altri attivi in NBA (in un roster ESPN), poi a tutti gli altri giocatori del database
+  con un id ESPN (Luca, 30/10); poi chi ha cambiato squadra NBA, poi quelle più vecchie di 14 giorni
+  (90 per chi non gioca). Circa 240 a notte: la prima
+  volta i giocatori a roster si riempiono nella prima notte, tutti gli attivi (circa 530) in 2-3 notti,
+  il resto del database qualche notte dopo,
+  poi bastano pochi minuti (rinnovo ogni 14 giorni).
+- Una foto che ESPN non ha (rookie, two-way) si segna «mancante» e si riprova dopo 3 giorni (30 per chi non gioca).
 - /player non scarica niente: se la foto non c'è ancora manda solo il testo.
 """
 import json
@@ -28,6 +32,8 @@ ET = ZoneInfo("America/New_York")
 NOTTE = (time(2, 0), time(6, 0))          # notte americana: poco traffico su ESPN
 VECCHIA = timedelta(days=14)
 RIPROVA_MANCANTE = timedelta(days=3)
+VECCHIA_ALTRI = timedelta(days=90)           # chi non è a roster né in un roster NBA: la foto non cambia
+RIPROVA_MANCANTE_ALTRI = timedelta(days=30)
 URL_PICCOLA = "https://a.espncdn.com/combiner/i?img=/i/headshots/nba/players/full/{a}.png&w=520&h=380"
 URL_INTERA = "https://a.espncdn.com/i/headshots/nba/players/full/{a}.png"
 
@@ -55,29 +61,42 @@ def _salva_indice(ind: dict) -> None:
 
 
 def da_scaricare(ora: datetime | None = None) -> list[str]:
-    """Gli atleti a roster (con id ESPN) la cui foto va presa, in ordine di urgenza."""
+    """Gli atleti la cui foto va presa, in ordine di urgenza (tre livelli: 1 a roster, 2 attivi in NBA cioè in un
+    roster ESPN adesso, 3 tutti gli altri del database con un id ESPN; Luca, 30/10):
+    mancanti dei livelli 1, 2, 3; poi chi ha cambiato squadra; poi le vecchie (livelli 1-2 dopo 14 giorni, il
+    livello 3 dopo 90: chi non gioca non cambia foto); poi le «mancanti» da riprovare (dopo 3 giorni, 30 per il 3)."""
     ora = ora or datetime.now(timezone.utc)
     ind = _indice()
-    righe = db.q("""SELECT DISTINCT g.espn_id AS atleta, a.squadra FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
-                    LEFT JOIN nba_atleti a ON a.atleta = g.espn_id WHERE c.attivo AND g.espn_id IS NOT NULL""", many=True) or []
-    mancano, cambiate, vecchie, da_riprovare = [], [], [], []
-    for r in righe:
-        a, x = r["atleta"], ind.get(r["atleta"])
-        if not x:
-            mancano.append(a)
+    righe = db.q("""SELECT g.espn_id AS atleta, a.squadra, 1 AS livello FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
+                    LEFT JOIN nba_atleti a ON a.atleta = g.espn_id WHERE c.attivo AND g.espn_id IS NOT NULL
+                    UNION
+                    SELECT a.atleta, a.squadra, 2 FROM nba_atleti a WHERE a.squadra IS NOT NULL
+                    UNION
+                    SELECT a.atleta, a.squadra, 3 FROM nba_atleti a WHERE a.squadra IS NULL
+                    UNION
+                    SELECT g.espn_id, NULL, 3 FROM giocatori g WHERE g.espn_id IS NOT NULL AND g.espn_id <> ''""", many=True) or []
+    livello = {}
+    for r in righe:                                   # un atleta una volta sola, al livello più urgente
+        a = r["atleta"]
+        if a and (a not in livello or r["livello"] < livello[a][0]):
+            livello[a] = (r["livello"], r["squadra"])
+    mancano = {1: [], 2: [], 3: []}
+    cambiate, vecchie, da_riprovare = [], [], []
+    for a, (lv, squadra) in sorted(livello.items(), key=lambda kv: (kv[1][0], kv[0])):
+        x = ind.get(a)
+        if not x or (not x.get("mancante") and not percorso(a)):
+            mancano[lv].append(a)
             continue
         quando = datetime.fromisoformat(x["preso"])
         if x.get("mancante"):
-            if ora - quando >= RIPROVA_MANCANTE:
+            if ora - quando >= (RIPROVA_MANCANTE if lv < 3 else RIPROVA_MANCANTE_ALTRI):
                 da_riprovare.append(a)
-        elif not percorso(a):
-            mancano.append(a)
-        elif r["squadra"] and x.get("squadra") and r["squadra"] != x["squadra"]:
+        elif squadra and x.get("squadra") and squadra != x["squadra"]:
             cambiate.append(a)
-        elif ora - quando >= VECCHIA:
+        elif ora - quando >= (VECCHIA if lv < 3 else VECCHIA_ALTRI):
             vecchie.append((quando, a))
     vecchie = [a for _, a in sorted(vecchie)]
-    return mancano + cambiate + vecchie + da_riprovare
+    return mancano[1] + mancano[2] + mancano[3] + cambiate + vecchie + da_riprovare
 
 
 async def scarica(atleta: str, client=None) -> bool:
@@ -136,7 +155,11 @@ def stato_foto(ora: datetime | None = None) -> dict:
     ind = _indice()
     righe = db.q("""SELECT DISTINCT g.id, g.nome_common, g.espn_id, c.team_id FROM contratti c
                     JOIN giocatori g ON g.id = c.giocatore_id WHERE c.attivo ORDER BY g.nome_common""", many=True) or []
-    out = {"roster": len(righe), "con_foto": 0, "senza_espn": [], "espn_non_ha": [], "da_prendere": [],
+    attivi = [r["atleta"] for r in (db.q("SELECT atleta FROM nba_atleti WHERE squadra IS NOT NULL", many=True) or [])]
+    tutti = {r["atleta"] for r in (db.q("""SELECT atleta FROM nba_atleti UNION SELECT espn_id FROM giocatori
+                                           WHERE espn_id IS NOT NULL AND espn_id <> ''""", many=True) or []) if r["atleta"]}
+    out = {"roster": len(righe), "con_foto": 0, "attivi": len(attivi), "attivi_con_foto": sum(1 for a in attivi if percorso(a)),
+           "tutti": len(tutti), "tutti_con_foto": sum(1 for a in tutti if percorso(a)), "senza_espn": [], "espn_non_ha": [], "da_prendere": [],
            "in_cartella": sum(1 for f in (os.listdir(CARTELLA) if os.path.isdir(CARTELLA) else []) if f.endswith(".png")),
            "coda": len(da_scaricare(ora))}
     for r in righe:
@@ -162,6 +185,8 @@ async def cmd_dev_foto(update, context) -> None:
     elenco = lambda xs: ", ".join(f"{html.escape(x['nome_common'])} ({html.escape(config.nome(x['team_id']))})" for x in xs[:30]) \
         + (f" … e altri {len(xs) - 30}" if len(xs) > 30 else "")
     righe = [f"📸 <b>Foto ESPN dei giocatori a roster</b>: {st['con_foto']} su {st['roster']}",
+             f"Giocatori attivi in NBA (roster ESPN): {st['attivi_con_foto']} su {st['attivi']}",
+             f"Tutti i giocatori del database con un id ESPN: {st['tutti_con_foto']} su {st['tutti']}",
              f"In cartella {st['in_cartella']} foto · in coda per il job notturno {st['coda']} "
              f"(2:00–6:00 a New York, una al minuto)"]
     for chiave, titolo in (("da_prendere", "Da prendere (il job ci arriva)"),

@@ -65,7 +65,7 @@ def migra() -> None:
               giornata  INT,
               prima     JSONB NOT NULL,                   -- righe di tabellino di prima dei cambi (per «non corrisponde»)
               dopo      JSONB NOT NULL,
-              stato     TEXT NOT NULL DEFAULT 'da verificare',   -- da verificare / uguale / tenuti_prima
+              stato     TEXT NOT NULL DEFAULT 'da verificare',   -- da verificare / uguale / tenuti_prima; notti prima della giornata: da applicare / aggiornato / lasciato
               messaggio BIGINT,
               chi       TEXT,
               quando    TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
