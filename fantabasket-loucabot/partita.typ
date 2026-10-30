@@ -15,7 +15,7 @@
 
 #set page(width: 560pt, height: auto, margin: 0pt, fill: white)
 #set block(spacing: 0pt)
-#set text(font: "Liberation Sans", size: 9.5pt, fill: rgb("#1D1630"))
+#set text(font: ("Liberation Sans", "Noto Color Emoji"), size: 9.5pt, fill: rgb("#1D1630"))
 
 #let logo(s, d) = if s.logo != "" {
   box(clip: true, radius: 50%, width: d, height: d, image(s.logo, width: d, height: d, fit: "cover"))

@@ -9,7 +9,8 @@ Calcolo definitivo di una giornata: dai quintetti congelati e dalle panchine di 
   supplementari, vincitore), più il riquadro dei risultati in cima. Deve dare gli stessi numeri del
   bot: lo verifica tests/louca/louca_risultati.py ricalcolando il foglio con LibreOffice.
 - salva_calcolo / convalida: lega_calcoli (la proposta da convalidare) e, alla convalida,
-  lega_risultati (quello che va sul foglio Calendario).
+  lega_risultati (quello che va sul foglio Calendario). Ogni versione resta in lega_calcoli_storico
+  (v6.9.0): /storico_calcolo N (testo_storico) mostra cosa è cambiato da un ricalcolo all'altro.
 """
 import json
 import logging
@@ -188,6 +189,12 @@ def differenze(stagione: str, n: int, ris: list[dict]) -> list[str] | None:
                                           "AND convalidato IS NOT NULL", (stagione, n), many=True) or [])}
     if not vecchi:
         return None
+    return confronta(vecchi, ris)
+
+
+def confronta(vecchi: dict, ris: list[dict], nuova: str = "partita nuova, non c'era nella convalida") -> list[str]:
+    """Una riga per ogni partita di `ris` con punti, supplementari o vincitore diversi da `vecchi` ({casa: risultato})."""
+    import html
     def diversi(a, b) -> bool:                   # in lega_risultati 2 decimali, nel calcolo gli ottavi (96,625 → 96,63)
         a, b = list(a), list(b)
         if any(x is None for x in a + b):
@@ -198,7 +205,7 @@ def differenze(stagione: str, n: int, ris: list[dict]) -> list[str] | None:
         v = vecchi.get(r["casa"])
         casa, tr = html.escape(config.nome(r["casa"])), html.escape(config.nome(r["trasferta"]))
         if not v:
-            out.append(f"• {casa} – {tr}: partita nuova, non c'era nella convalida")
+            out.append(f"• {casa} – {tr}: {nuova}")
             continue
         pezzi = []
         if diversi((v["punti_casa"], v["punti_trasferta"]), (r["punti_casa"], r["punti_trasferta"])):
@@ -468,9 +475,45 @@ def salva_calcolo(c: dict) -> int:
     r = db.q("""INSERT INTO lega_calcoli (stagione, giornata, risultati, avvisi) VALUES (%s, %s, %s, %s)
                 ON CONFLICT (stagione, giornata) DO UPDATE SET risultati = EXCLUDED.risultati, avvisi = EXCLUDED.avvisi,
                   versione = lega_calcoli.versione + 1, calcolato = NOW(), stato = 'da_convalidare', messaggio = NULL
-                RETURNING versione""", (c["stagione"], g["numero"], json.dumps(risultati_json(c)), json.dumps(c["avvisi"])),
+                RETURNING versione, calcolato""", (c["stagione"], g["numero"], json.dumps(risultati_json(c)), json.dumps(c["avvisi"])),
              one=True)
+    db.q("""INSERT INTO lega_calcoli_storico (stagione, giornata, versione, calcolato, risultati, avvisi) VALUES (%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (stagione, giornata, versione) DO UPDATE SET calcolato = EXCLUDED.calcolato, risultati = EXCLUDED.risultati,
+              avvisi = EXCLUDED.avvisi, convalidato = NULL, convalidato_da = NULL""",
+         (c["stagione"], g["numero"], r["versione"], r["calcolato"], json.dumps(risultati_json(c)), json.dumps(c["avvisi"])))
     return r["versione"]
+
+
+def storico(stagione: str, n: int) -> list[dict]:
+    """Le versioni calcolate della giornata, dalla prima (v6.9.0)."""
+    righe = db.q("SELECT * FROM lega_calcoli_storico WHERE stagione = %s AND giornata = %s ORDER BY versione",
+                 (stagione, n), many=True) or []
+    for r in righe:
+        if isinstance(r["risultati"], str):
+            r["risultati"] = json.loads(r["risultati"])
+    return righe
+
+
+def testo_storico(stagione: str, n: int) -> str:
+    """/storico_calcolo N: ogni versione con quando, se è stata convalidata e cosa cambia rispetto alla precedente."""
+    from zoneinfo import ZoneInfo
+    roma = ZoneInfo("Europe/Rome")
+    vs = storico(stagione, n)
+    if not vs:
+        return f"Nessun calcolo salvato per la giornata {n}."
+    righe = [f"🗂 <b>Storico del calcolo · giornata {n}</b> ({len(vs)} {'versione' if len(vs) == 1 else 'versioni'})"]
+    prima = None
+    for v in vs:
+        righe.append("")
+        conv = (f" · ✅ convalidata il {v['convalidato'].astimezone(roma):%d/%m alle %H:%M}" if v["convalidato"] else "")
+        righe.append(f"<b>v{v['versione']}</b> · calcolata il {v['calcolato'].astimezone(roma):%d/%m alle %H:%M}{conv}")
+        if prima is None:
+            righe.append("prima versione" if v["versione"] == 1 else "la più vecchia salvata (lo storico c'è dalla v6.9.0)")
+        else:
+            diff = confronta({r["casa"]: r for r in prima}, v["risultati"], nuova="partita nuova")
+            righe += diff or ["stessi risultati della versione prima"]
+        prima = v["risultati"]
+    return "\n".join(righe)
 
 
 def convalida(stagione: str, n: int, da: int) -> list[dict]:
@@ -487,4 +530,6 @@ def convalida(stagione: str, n: int, da: int) -> list[dict]:
                              r["supp_casa"], r["supp_trasferta"], r["vince"]))
             cur.execute("UPDATE lega_calcoli SET stato = 'convalidata', convalidato = NOW(), convalidato_da = %s "
                         "WHERE stagione = %s AND giornata = %s", (da, stagione, n))
+            cur.execute("UPDATE lega_calcoli_storico SET convalidato = NOW(), convalidato_da = %s "
+                        "WHERE stagione = %s AND giornata = %s AND versione = %s", (da, stagione, n, lc["versione"]))
     return ris

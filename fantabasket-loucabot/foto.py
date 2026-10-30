@@ -128,3 +128,45 @@ async def job_foto(context) -> None:
         logger.warning("Foto ESPN: %s", err)
         if "429" in str(err):
             _stop_fino["t"] = ora + timedelta(hours=20)     # fermi fino alla notte dopo
+
+
+def stato_foto(ora: datetime | None = None) -> dict:
+    """Per /dev_foto (v6.9.0): quante foto ci sono dei giocatori a roster e quali mancano."""
+    ora = ora or datetime.now(timezone.utc)
+    ind = _indice()
+    righe = db.q("""SELECT DISTINCT g.id, g.nome_common, g.espn_id, c.team_id FROM contratti c
+                    JOIN giocatori g ON g.id = c.giocatore_id WHERE c.attivo ORDER BY g.nome_common""", many=True) or []
+    out = {"roster": len(righe), "con_foto": 0, "senza_espn": [], "espn_non_ha": [], "da_prendere": [],
+           "in_cartella": sum(1 for f in (os.listdir(CARTELLA) if os.path.isdir(CARTELLA) else []) if f.endswith(".png")),
+           "coda": len(da_scaricare(ora))}
+    for r in righe:
+        a = r["espn_id"]
+        if not a:
+            out["senza_espn"].append(r)
+        elif percorso(a):
+            out["con_foto"] += 1
+        elif (ind.get(a) or {}).get("mancante"):
+            out["espn_non_ha"].append(r)
+        else:
+            out["da_prendere"].append(r)
+    return out
+
+
+async def cmd_dev_foto(update, context) -> None:
+    """/dev_foto (solo dev): foto dei giocatori a roster, presenti e mancanti."""
+    import html
+    import config
+    if update.effective_user.id != config.dev_id():
+        return
+    st = stato_foto()
+    elenco = lambda xs: ", ".join(f"{html.escape(x['nome_common'])} ({html.escape(config.nome(x['team_id']))})" for x in xs[:30]) \
+        + (f" … e altri {len(xs) - 30}" if len(xs) > 30 else "")
+    righe = [f"📸 <b>Foto ESPN dei giocatori a roster</b>: {st['con_foto']} su {st['roster']}",
+             f"In cartella {st['in_cartella']} foto · in coda per il job notturno {st['coda']} "
+             f"(2:00–6:00 a New York, una al minuto)"]
+    for chiave, titolo in (("da_prendere", "Da prendere (il job ci arriva)"),
+                           ("espn_non_ha", "ESPN non ce l'ha (si riprova ogni 3 giorni)"),
+                           ("senza_espn", "Senza id ESPN (/espn_mancanti)")):
+        if st[chiave]:
+            righe += ["", f"<b>{titolo}</b>: {len(st[chiave])}", elenco(st[chiave])]
+    await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")

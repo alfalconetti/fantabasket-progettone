@@ -12,7 +12,7 @@
 
 #set page(width: if full { 1120pt } else { 420pt }, height: auto, margin: 0pt, fill: white)
 #set block(spacing: 0pt)
-#set text(font: "Liberation Sans", size: if full { 10pt } else { 10pt })
+#set text(font: ("Liberation Sans", "Noto Color Emoji"), size: if full { 10pt } else { 10pt })
 
 #block(width: 100%, fill: c_head)[
   #pad(x: 12pt, y: 9pt)[

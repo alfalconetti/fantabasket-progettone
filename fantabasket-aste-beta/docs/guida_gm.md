@@ -174,3 +174,10 @@ Se il bot sembra bloccato ad aspettare una tua risposta: **`/annulla`**.
 | rilanciare | `/offri` oppure `/offerta asta 42 15` |
 | seguire o smettere di seguire | `/watch`, `/watched`, `/silenzia 42` |
 | ricevere questa guida | `/guida` |
+
+## Da dove vengono i dati
+
+- **ESPN** (le pagine pubbliche delle partite NBA): calendario e risultati NBA, i **tabellini** da cui il bot calcola i fantapunti (anche quelli live), la lista degli **infortunati**, la squadra NBA di ogni giocatore e le foto. I tabellini si ricontrollano alle 11:05 e alle 20 del giorno dopo: fino ad allora possono cambiare.
+- **Basketball-Reference**: le statistiche della stagione di ogni giocatore (medie a partita), aggiornate ogni giorno alle 12. Da lì la **fantamedia** del roster, della lista dei free agent e del foglio Roster.
+- **Yahoo**: la lega dove si schierano i quintetti (per il regolamento fa fede Yahoo) e le **posizioni eleggibili** dei giocatori, che decidono i ruoli.
+- Tutto il resto (contratti, trade, aste, panchine, risultati, classifica) è della lega e sta nel database dei bot.

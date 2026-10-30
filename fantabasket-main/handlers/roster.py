@@ -421,10 +421,19 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
     result = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True)
     if result.returncode != 0:
         logger.error("Typst error: %s", result.stderr)
+        _togli(tmp.name)                 # niente PNG vuoti lasciati in /tmp
         raise RuntimeError(f"Errore Typst: {result.stderr[:300]}")
 
     return tmp.name
 
+
+
+def _togli(path: str) -> None:
+    """Cancella il PNG temporaneo (vuoto) di una compilazione Typst non riuscita."""
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
 
 # ── handler ───────────────────────────────────────────────────────────────────
 
@@ -622,6 +631,7 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
     result = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True)
     if result.returncode != 0:
         logger.error("Typst assets error: %s", result.stderr)
+        _togli(tmp.name)                 # niente PNG vuoti lasciati in /tmp
         raise RuntimeError(f"Errore Typst: {result.stderr[:300]}")
 
     return tmp.name

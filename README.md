@@ -102,6 +102,9 @@ fantasy averages our rules need are computed from Basketball-Reference (see belo
 
 ## Other data sources
 
+- **ESPN** (public NBA game pages): NBA schedule, scores and box scores, from which the
+  bots compute fantasy points (live during the games and final after them), the injury
+  list, players' NBA teams and headshots.
 - **Basketball-Reference**: daily season averages, used to compute each player's
   fantasy average with our league's scoring formula (minimum salaries, renewals,
   free agent lists).

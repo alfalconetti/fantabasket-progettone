@@ -3,7 +3,7 @@ Quintetti: uno per squadra, un giocatore per ruolo (PG, SG, SF, PF, C), nel suo 
 Non si reinseriscono ogni giornata: restano quelli che sono finché qualcuno li cambia.
 
 - Gli admin li caricano: /quintetto_admin SQUADRA con 5 righe, oppure /quintetti_import con tutte
-  le squadre (blocchi "Squadra" + 5 righe, il formato dello script da console su Yahoo).
+  le squadre (blocchi "Squadra" + 5 righe).
 - I GM li cambiano con /quintetto (bottoni) e confermano dal promemoria.
 - Promemoria alle 8:00 (Roma) dell'ultimo giorno prima della prima partita della giornata: a ogni
   GM il quintetto, le partite di ogni giocatore nella giornata e i bottoni Confermo / Modifico,

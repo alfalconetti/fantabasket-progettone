@@ -328,6 +328,14 @@ def dati(gid: int, ora: datetime | None = None) -> dict:
     }
 
 
+
+def _togli(path: str) -> None:
+    """Cancella il PNG temporaneo (vuoto) di una compilazione Typst non riuscita."""
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
+
 async def genera_png(gid: int) -> str:
     d = dati(gid)
     tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
@@ -337,6 +345,7 @@ async def genera_png(gid: int) -> str:
     r = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True)
     if r.returncode != 0:
         logger.error("Typst carriera: %s", r.stderr)
+        _togli(tmp.name)                 # niente PNG vuoti lasciati in /tmp
         raise RuntimeError(f"Errore Typst: {r.stderr[:300]}")
     return tmp.name
 

@@ -13,7 +13,7 @@ spec = importlib.util.spec_from_file_location("ipadb", os.path.join(ROOT, "fanta
 ipadb = importlib.util.module_from_spec(spec); spec.loader.exec_module(ipadb)
 db.init_db(); ipadb.init_db()
 db.q("TRUNCATE nba_tabellini, nba_infortuni, nba_atleti, lega_giornate, lega_partite, nba_partite, lega_risultati, "
-     "lega_calcoli, lega_status_validi")
+     "lega_calcoli, lega_calcoli_storico, lega_status_validi")
 db.q("TRUNCATE ipa_formazioni, ipa_panchine, ipa_stato_giornata")
 S = config.stagione()
 N = 7
@@ -231,6 +231,28 @@ R.convalida(S, N, 900)
 lr = db.q("SELECT * FROM lega_risultati WHERE stagione = %s AND giornata = %s ORDER BY casa", (S, N), many=True)
 ok(len(lr) == 2 and all(x["convalidato"] for x in lr) and float(lr[0]["punti_casa"]) == r1["punti_casa"],
    "convalida: risultati in lega_risultati (quelli che vanno sul Calendario)")
+# storico del calcolo (v6.9.0): ogni versione resta, con la convalida e cosa cambia tra una e l'altra
+_st = R.storico(S, N)
+ok([x["versione"] for x in _st] == [1, 2] and _st[1]["convalidato"] and not _st[0]["convalidato"],
+   "storico del calcolo: tutte le versioni, segnata quella convalidata")
+import copy as _cp
+_c99 = _cp.deepcopy(c); _c99["giornata"] = dict(c["giornata"], numero=99)
+R.salva_calcolo(_c99)
+R.salva_calcolo(_c99)
+_c99["risultati"][0]["punti_casa"] = float(_c99["risultati"][0]["punti_casa"]) + 10
+R.salva_calcolo(_c99)
+_ts = R.testo_storico(S, 99)
+ok("<b>v1</b>" in _ts and "prima versione" in _ts and "stessi risultati della versione prima" in _ts
+   and "<b>v3</b>" in _ts and _ts.count("punti ") == 1 and "→ <b>" in _ts,
+   "/storico_calcolo: per ogni versione cosa cambia rispetto alla precedente\n" + _ts)
+_rs = []
+class _MsgS:
+    async def reply_text(self, t, **k): _rs.append(t)
+import handlers_risultati as HR
+asyncio.run(HR.cmd_storico_calcolo(types.SimpleNamespace(effective_message=_MsgS(), effective_user=types.SimpleNamespace(id=config.admin_ids()[0])),
+                                   types.SimpleNamespace(args=["G99"])))
+ok(_rs and "Storico del calcolo · giornata 99" in _rs[0], "/storico_calcolo G99 (admin)")
+db.q("DELETE FROM lega_calcoli WHERE giornata = 99"); db.q("DELETE FROM lega_calcoli_storico WHERE giornata = 99")
 import handlers as _H
 _risp = []
 class _Msg:
@@ -258,7 +280,7 @@ ok("Giornata 7 calcolata</b> (ricalcolo 1)" in t and "FADD: esce Prova 10, entra
 import json as _json, handlers_risultati as HR
 G = _json.load(open(config.GLOBALS_PATH)); G["admin_group_id"] = -2; G["log_channel_id_louca"] = -3
 _json.dump(G, open(config.GLOBALS_PATH, "w"))
-db.q("DELETE FROM lega_calcoli"); db.q("DELETE FROM lega_risultati")
+db.q("DELETE FROM lega_calcoli"); db.q("DELETE FROM lega_calcoli_storico"); db.q("DELETE FROM lega_risultati")
 from shared import azioni as _A; _A.migra(db.q); db.q("DELETE FROM registro_azioni WHERE bot = 'louca'")
 class Bot:
     def __init__(s): s.mandati, s.n = [], 100
@@ -1015,8 +1037,55 @@ ok(not _scar and _rr["congelate"] == 1, "giornata congelata: i tabellini già pr
 _rr = asyncio.run(HR.nba.scarica_tabellini(["g1"], scarica=_fs, pausa=0, forza=True))
 ok(_scar == ["g1"], "il controllo finale (forza) riscarica anche a notte congelata")
 db.q("DELETE FROM lega_congelamento")
+# Top 20 della notte (Luca, 30/10): schierati in classifica, sotto i firmati non schierati che sarebbero entrati
+import top as TOP
+for _g in gid.values():
+    db.q("INSERT INTO contratti (giocatore_id, team_id, importo, anni_originali, stagione_firma, tipo) VALUES (%s, 'team01', 5, 2, %s, 'normale')", (_g, S))
+_tt = TOP.testo(S, _d1)
+_sch = TOP.schierati(S, db.giornata(S, N))
+_tutte = TOP.righe_notte(_d1)
+ok(_tt and f"Top 20 della notte</b> · {_d1:%d/%m} (G{N})" in _tt and "1. <b>" in _tt and "non ancora ricontrollati" in _tt
+   and "Prestazioni notevoli" not in _tt and _sch and all(r["giocatore_id"] in _sch for r in _tutte),
+   "top 20 della notte: schierati, coi fantapunti; tutti schierati → niente prestazioni notevoli\n" + (_tt or ""))
+_primo = _tutte[0]
+_vs = TOP.schierati
+TOP.schierati = lambda s_, g_: {k: v for k, v in _vs(s_, g_).items() if k != _primo["giocatore_id"]}
+_tt2 = TOP.testo(S, _d1)
+TOP.schierati = _vs
+ok("👀 <b>Prestazioni notevoli di giocatori firmati non schierati</b>" in _tt2
+   and _tt2.index(_primo["nome"]) > _tt2.index("Prestazioni notevoli"),
+   "top 20: un firmato non schierato da top 20 va sotto, nelle prestazioni notevoli")
+ok(TOP.testo(S, _d1 - timedelta(days=400)) is None, "top 20: notte fuori dalle giornate, niente messaggio")
+_inv = []
+class _BotT:
+    async def send_message(self, chat, t, **k): _inv.append((chat, t))
+_vg = config.globali
+config.globali = lambda: dict(_vg(), gruppo_lega_id=-100777)
+_vieri = TOP.ieri
+TOP.ieri = lambda: _d1
+asyncio.run(TOP.job_top_notte(types.SimpleNamespace(bot=_BotT())))
+config.globali = _vg
+asyncio.run(TOP.job_top_notte(types.SimpleNamespace(bot=_BotT())))
+TOP.ieri = _vieri
+ok(len(_inv) == 1 and _inv[0][0] == -100777 and "Top 20" in _inv[0][1], "top 20: alle 9 nel gruppo della lega; senza gruppo_lega_id non pubblica")
+# /dev_foto (v6.9.0): quante foto dei giocatori a roster, quali mancano
+import foto as FT, tempfile as _tf
+_cart = _tf.mkdtemp()
+FT.CARTELLA, FT.INDICE = _cart, os.path.join(_cart, "indice.json")
+open(os.path.join(_cart, "r1.png"), "wb").write(b"\x89PNG\r\n\x1a\n" + b"0" * 2000)
+FT._salva_indice({"r1": {"preso": datetime.now(timezone.utc).isoformat(), "squadra": "NYK"},
+                  "r2": {"preso": datetime.now(timezone.utc).isoformat(), "squadra": "NYK", "mancante": True}})
+_sf = FT.stato_foto()
+ok(_sf["roster"] >= len(gid) and _sf["con_foto"] == 1 and [x["espn_id"] for x in _sf["espn_non_ha"]] == ["r2"]
+   and len(_sf["da_prendere"]) + len(_sf["senza_espn"]) == _sf["roster"] - 2 and _sf["in_cartella"] == 1, f"/dev_foto: presenti, ESPN non ce l'ha, da prendere {_sf['roster']}")
+_rf = []
+class _MsgF:
+    async def reply_text(self, t, **k): _rf.append(t)
+asyncio.run(FT.cmd_dev_foto(types.SimpleNamespace(effective_user=types.SimpleNamespace(id=config.dev_id()), effective_message=_MsgF()), None))
+ok(_rf and "1 su " in _rf[0] and "ESPN non ce l'ha" in _rf[0], "/dev_foto: il messaggio al dev")
+db.q("DELETE FROM contratti WHERE giocatore_id = ANY(%s)", (list(gid.values()),))
 # pulizia
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (list(gid.values()),))
-db.q("TRUNCATE nba_tabellini, nba_infortuni, lega_giornate, lega_partite, nba_partite, lega_risultati, lega_calcoli, lega_live")
+db.q("TRUNCATE nba_tabellini, nba_infortuni, lega_giornate, lega_partite, nba_partite, lega_risultati, lega_calcoli, lega_calcoli_storico, lega_live")
 db.q("TRUNCATE ipa_formazioni, ipa_panchine, ipa_stato_giornata")
 _ = (asyncio, json, types)

@@ -213,6 +213,7 @@ ORARI = {
     "calcolo": "07:45",                 # calcolo definitivo, il mattino dopo l'ultima notte
     "fine_live_notte": "08:00",         # ultimo aggiornamento del live della notte
     "sync_nba": "08:30",                # partite, tabellini, infortunati
+    "top_notte": "09:00",               # top 20 della notte nel gruppo della lega (Luca, 30/10)
     "controllo_tabellini": "10:00",     # non più usato dalla v60 (era il controllo delle 10)
     "primo_controllo": "11:05",         # primo controllo dell'ultima notte, anche a giornata convalidata (Luca, 30/10)
     "controllo_notte": "20:00",         # controllo finale della notte prima, poi congelata (come Yahoo; Luca, 30/10)

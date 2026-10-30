@@ -146,6 +146,7 @@ Alla convalida i risultati vanno in `lega_risultati` e sul foglio Calendario.
 | `/nba_sync` | admin | riscarica tutte le partite NBA della stagione |
 | `/calendario_foglio` | admin | ricarica il foglio Calendario (A:E: calendario, squadre a media, punteggi) |
 | `/ricalcola N` | admin | riscarica i tabellini, ricalcola la giornata e la ripropone da convalidare |
+| `/storico_calcolo N` | admin | le versioni calcolate della giornata e cosa cambia tra una e l'altra |
 | `/live` | admin | aggiorna subito i punteggi live sul canale principale (o l'anteprima) |
 | `/live_results [N]` | tutti | il live della giornata in testo, completo (sul canale c'è l'immagine) |
 | `/fantapunti [N]` | admin | fantapunti della giornata dei giocatori a roster, per squadra |
@@ -174,11 +175,12 @@ Alla convalida i risultati vanno in `lega_risultati` e sul foglio Calendario.
 Prove: `tests/run.sh louca_calendario louca_calcolo louca_foglio` (calendario; tabellino vero ridotto di
 NYK-SAS del 1/3/2026, formula, infortunati, partite/media/zero, FADD, supplementari, abbinamento).
 
+## Fonti dei dati
+
+- **ESPN** (`site.api.espn.com`, pubblico): calendario e risultati NBA, tabellini (live e finali) da cui si calcolano i fantapunti, infortunati, roster delle 30 squadre, foto dei giocatori.
+- **Basketball-Reference**: le statistiche della stagione le legge il bot principale (fantamedie); qui è la riserva per i tabellini.
+- **IPanchinari** (stesso database): quintetti e panchine di ogni giornata.
+
 ## Da fare
 
-- risultati delle partite con `calcolo.esito`, dai quintetti e dalle panchine di IPanchinari (`ipa_formazioni`, `ipa_panchine`), convalida della giornata e foglio Calendario;
-- punteggio live durante le partite (ESPN aggiorna tabellini e scoreboard in diretta), dopo i risultati ufficiali;
-- classifica e risultati, con i criteri di parità del regolamento (scontri diretti, media punti,
-  differenza punti: da decidere se col bonus casa);
-- calendario dei playoff generato dalla classifica;
-- lottery (c'è già il codice di un admin da portare qui).
+Nella roadmap di `fantabasket-main/MIGRATION.md`: tabellone e calendario dei playoff (con il congelamento della regular season e i controlli per notte), lottery (c'è già il codice di un admin da portare qui), controllo del tanking.

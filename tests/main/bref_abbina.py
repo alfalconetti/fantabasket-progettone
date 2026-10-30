@@ -23,6 +23,17 @@ ok(fatti == [("Nikola Topic", "Nikola Topić")]
 ok(db._qval("SELECT nome_bref FROM giocatori WHERE id = %s", (gid["Gioc Bref Visto"],)) == "Gioc Bref Visto",
    "chi su bref c'è già non si tocca (sarebbe un omonimo)")
 ok(db._qval("SELECT stato FROM bref_nuovi WHERE nome_bref = 'Nikola Topić'") == "abbinato", "segnato in bref_nuovi come abbinato")
+# v6.9.0: dopo un abbinamento il foglio Roster si risincronizza (usa il nome bref), solo se è sotto contratto
+import gas_client as _GC
+_sinc = []
+_vs = _GC.sync_teams
+_GC.sync_teams = lambda *a, **k: _sinc.append(1) or True
+ok(BR.aggiorna_foglio([gid["Gioc Doppio"]]) is False and not _sinc, "abbinato un giocatore senza contratto: il foglio Roster non si tocca")
+db._q("INSERT INTO contratti (giocatore_id, team_id, importo, anni_originali, stagione_firma, tipo) VALUES (%s, 'team01', 5, 2, '2026', 'normale')",
+      (gid["Gioc Doppio"],))
+ok(BR.aggiorna_foglio([gid["Gioc Doppio"]]) is True and _sinc == [1], "abbinato un giocatore sotto contratto: foglio Roster risincronizzato")
+db._q("DELETE FROM contratti WHERE giocatore_id = %s", (gid["Gioc Doppio"],))
+_GC.sync_teams = _vs
 
 # 2. proposta: «Zaccharie Risacher Prov» ha un simile → bottoni 🔗/🆕; «Gioc Nuovo Davvero» no → solo ✅
 for n in ("Zaccharie Risacher Prov", "Gioc Nuovo Davvero"):

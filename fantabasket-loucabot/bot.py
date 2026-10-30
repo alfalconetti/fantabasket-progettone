@@ -74,6 +74,8 @@ def main():
     app.job_queue.run_daily(job_sync, time=regole.orario("sync_nba").replace(tzinfo=ROME))        # partite, tabellini, infortunati
     app.job_queue.run_daily(handlers_risultati.job_calcolo, time=regole.orario("calcolo").replace(tzinfo=ROME))     # calcolo definitivo
     # v58: niente più controllo delle 10 sulle giornate; alle 20 il controllo finale della notte prima (poi congelata)
+    import top
+    app.job_queue.run_daily(top.job_top_notte, time=regole.orario("top_notte").replace(tzinfo=ROME))        # top 20 della notte
     app.job_queue.run_daily(handlers_risultati.job_controllo_finale, time=regole.orario("controllo_notte").replace(tzinfo=ROME))
     # v60: primo controllo dell'ultima notte alle 11:05; un minuto dopo per le giornate senza live (convalidate)
     _pc = (datetime.combine(date(2000, 1, 1), regole.orario("primo_controllo")) + timedelta(minutes=1)).time()

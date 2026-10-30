@@ -74,6 +74,7 @@ fantabasket-progettone/
 | `log_channel_id_main` | log del bot e backup |
 | `log_channel_id` | log del bot aste |
 | `log_channel_id_louca` | log di loucabot (senza: usa `log_channel_id_main`) |
+| `gruppo_lega_id` | gruppo della lega (GM): la top 20 della notte di loucabot alle 9 (senza: non la pubblica) |
 | `log_channel_id_ipa` | log di IPanchinari (senza: usa `log_channel_id_main`) |
 | `canale_panchinari_id` | canale Panchinari: ci pubblica IPanchinari |
 | `channel_id` | canale aste (usato dal bot aste) |
@@ -373,7 +374,7 @@ ORDER BY t.timestamp, t.id;
 | `palette.py`, `myteam.py` | colori e dati squadra (colori effettivi e testo leggibile: `roster.colori_effettivi`, `roster.input_colori`) |
 | `nav.py` | navigazione dei menu: ✖️ Chiudi (`nav:x`), 🏠 Menu, ←, `mostra()` (da un bottone modifica il messaggio invece di mandarne uno nuovo) |
 | `admin_panel.py` | `/admin_menu`, fasi, DPE e tagli admin, `/registra_firma`, `/list`, `/set_cap_penalizzato`, situazione cap |
-| `bref.py` | job Basketball-Reference e conferma dei giocatori nuovi |
+| `bref.py` | job Basketball-Reference e conferma dei giocatori nuovi; dopo ogni abbinamento (`abbina_auto`, bottone 🔗) `aggiorna_foglio` risincronizza il foglio Roster se il giocatore è sotto contratto (v6.9.0) |
 | `nascite.py` | `/set_nascita`, `/nascite_mancanti` |
 | `dev.py`, `dev_player.py` | comandi dev |
 | `helpers.py` | `log_job_error`, `log_warn` |

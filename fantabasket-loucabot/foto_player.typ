@@ -3,7 +3,7 @@
 #let d = json(bytes(sys.inputs.at("dati")))
 #set page(width: 640pt, height: 420pt, margin: 0pt,
   fill: gradient.linear(rgb("#39007D"), rgb("#5F01D1"), rgb("#7B3FE4"), angle: 30deg))
-#set text(font: "Liberation Sans", fill: white)
+#set text(font: ("Liberation Sans", "Noto Color Emoji"), fill: white)
 #place(bottom + center, image(d.foto, height: 400pt, fit: "contain"))
 #place(top + left, dx: 18pt, dy: 16pt)[
   #text(26pt, weight: "bold")[#d.nome]

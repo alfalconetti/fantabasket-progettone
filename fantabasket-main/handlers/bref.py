@@ -57,7 +57,7 @@ def abbina_auto(nuovi: list[str]) -> list[tuple[str, str]]:
     per_chiave: dict[str, int] = {}
     for n in nuovi:
         per_chiave[nomi.chiave(n)] = per_chiave.get(nomi.chiave(n), 0) + 1
-    fatti = []
+    fatti, ids = [], []
     for n in nuovi:
         k = nomi.chiave(n)
         cand = {g["id"]: g for g in indice.get(k, [])}
@@ -66,6 +66,8 @@ def abbina_auto(nuovi: list[str]) -> list[tuple[str, str]]:
         g = next(iter(cand.values()))
         _collega(g["id"], n, "auto")
         fatti.append((g["nome_common"], n))
+        ids.append(g["id"])
+    aggiorna_foglio(ids)
     return fatti
 
 
@@ -74,6 +76,20 @@ def _collega(gid: int, nome_bref: str, chi: str) -> None:
     db._q("""INSERT INTO bref_nuovi (nome_bref, stato, deciso, da) VALUES (%s, 'abbinato', NOW(), %s)
              ON CONFLICT (nome_bref) DO UPDATE SET stato = 'abbinato', deciso = NOW(), da = EXCLUDED.da""", (nome_bref, chi))
     logger.info("bref: %s collegato al giocatore %s (%s)", nome_bref, gid, chi)
+
+
+def aggiorna_foglio(gids: list[int]) -> bool:
+    """Dopo un abbinamento a bref: se uno dei giocatori è sotto contratto, risincronizza il foglio Roster, che usa
+    il nome di bref per agganciare le statistiche di BrefRaw (gas_client.nomi_foglio; v6.9.0, prima restava il
+    nome vecchio fino alla sincronizzazione successiva). Fire and forget."""
+    if not gids or not db._qval("SELECT 1 FROM contratti WHERE attivo AND giocatore_id = ANY(%s) LIMIT 1", (list(gids),)):
+        return False
+    try:
+        import gas_client
+        return bool(gas_client.sync_teams())
+    except Exception as e:
+        logger.warning("Foglio Roster dopo l'abbinamento bref: %s", e)
+        return False
 
 
 def senza_bref() -> list[dict]:
@@ -224,6 +240,7 @@ async def cb_nuovi(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif parti[1] == "l":
             prima = db._qval("SELECT nome_bref FROM giocatori WHERE id = %s", (int(parti[3]),))
             _collega(int(parti[3]), p["nome_bref"], chi)
+            aggiorna_foglio([int(parti[3])])
             await segna(context.bot, query.from_user, veste, "bref: giocatore collegato", giocatore_id=int(parti[3]),
                         oggetto=(db.get_giocatore(int(parti[3])) or {}).get("nome_common"), prima=prima or "—",
                         dopo=p["nome_bref"])

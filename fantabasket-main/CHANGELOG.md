@@ -1672,3 +1672,14 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **Alias delle squadre e dei GM** (Luca, 26/10): soprannomi del GM, abbreviazioni, vecchi nomi della squadra, in `teams.json` (`"alias": [...]`). Valgono in tutti i bot ovunque si scrive una squadra (`/roster`, `/partita`, `/calendario`, `/apri_asta`, `/edit_team`…: `shared/squadre.campi_ricerca`). Li gestisce un admin da `/edit_team` (o «✏️ Nomi squadre e GM») col bottone «🏷️ Alias»: separati da virgola, «-» li toglie, massimo 8 da 2–30 caratteri; un alias uguale al nome, al GM o all'alias di un'altra squadra viene rifiutato. Nel registro e sul canale log
 - Loucabot v62: `/giornata` e `/risultati` di una giornata in corso coi punteggi (live o calcolati in attesa della convalida), in fondo ai risultati definitivi le statistiche della giornata, classifica col migliore in verde e il peggiore in rosso per colonna
+
+## v6.9.0 (2026-10-30)
+
+- **Top 20 della notte** (loucabot v63; Luca, 30/10): alle 9 nel gruppo della lega i 20 migliori fantapunti della notte tra gli schierati (quintetto e panchina), e sotto le prestazioni notevoli dei firmati non schierati. Va aggiunto `gruppo_lega_id` in `globals.json` (l'id del gruppo della lega, con loucabot dentro): senza, non pubblica
+- **Storico del calcolo** (loucabot): ogni versione calcolata di una giornata resta salvata; `/storico_calcolo N` (admin) mostra cosa cambia da un ricalcolo all'altro e quale è stata convalidata
+- `/dev_foto` (loucabot, dev): foto ESPN dei giocatori a roster, quante ci sono e chi manca
+- **Foglio Roster risincronizzato dopo un abbinamento a Basketball-Reference** di un giocatore sotto contratto (il foglio usa il nome di bref per le statistiche: prima restava quello vecchio fino al sync successivo)
+- `/roster`, `/assets`, `/carriera`: se Typst va in errore il PNG temporaneo (vuoto) si cancella invece di restare in /tmp
+- Emoji a colori anche nelle immagini di `/partita`, della classifica e di `/player` (loucabot), come nel live: un'emoji nel nome di una squadra o di un GM non diventa un quadratino
+- **Fonti dei dati** nelle guide dei GM di tutti i bot («Da dove vengono i dati»: ESPN, Basketball-Reference, Yahoo), nei README e in fondo a `/player`
+- Documentazione: sezioni «Da fare» dei README di loucabot e IPanchinari aggiornate (elencavano cose fatte da tempo), guida admin di loucabot senza il controllo delle 10 (tolto nella v60) e con la regola dei playoff decisa oggi

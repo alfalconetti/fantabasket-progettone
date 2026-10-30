@@ -202,6 +202,9 @@ def anno_prima(gid: int, stagione: str) -> str | None:
             + (f" in {r['g']} partite" if r.get("g") else "") + " <i>(Basketball-Reference)</i>")
 
 
+FONTE = "<i>Dati NBA: tabellini, roster e infortunati di ESPN.</i>"
+
+
 def scheda(gid: int) -> str:
     s = config.stagione()
     g = db.q("SELECT id, nome_common, espn_id, data_nascita FROM giocatori WHERE id = %s", (gid,), one=True)
@@ -299,7 +302,7 @@ def scheda(gid: int) -> str:
             righe.append(prima)
         if partite:
             righe += ["", "<b>Ultime partite</b>"] + ultime(tab, partite)
-        return "\n".join(righe)
+        return "\n".join(righe + ["", FONTE])
     n = len(contano)
     tot = {k: sum(int(r[k]) for r in contano) for k in ("minuti", "pts", "oreb", "dreb", "ast", "stl", "blk", "tov",
                                                        "fgm", "fga", "tpm", "tpa", "ftm", "fta")}
@@ -314,7 +317,7 @@ def scheda(gid: int) -> str:
 
     # ── ultime 5 ──
     righe += ["", "<b>Ultime partite</b>"] + ultime(tab, partite)
-    return "\n".join(righe)
+    return "\n".join(righe + ["", FONTE])
 
 
 async def cmd_player(update: Update, context: ContextTypes.DEFAULT_TYPE):

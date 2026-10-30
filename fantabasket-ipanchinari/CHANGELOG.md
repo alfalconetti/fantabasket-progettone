@@ -158,3 +158,7 @@ Primo rilascio: panchine e quintetti.
 ## v33 (2026-10-30)
 
 - Menu dei comandi per i gruppi e per gli amministratori dei gruppi (prima i gruppi prendevano quello di default, coi comandi che funzionano solo in privato); nel gruppo admin il menu admin senza i comandi solo privati (Luca, 30/10)
+
+## v34 (2026-10-30)
+
+- Guida dei GM: «Da dove vengono i dati» (ESPN, Basketball-Reference, Yahoo); README e guida dev con la sezione «Da fare» aggiornata

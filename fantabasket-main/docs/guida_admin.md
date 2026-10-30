@@ -225,7 +225,7 @@ Non corregge niente.
 
 Ogni giorno alle 12 (orario in `config/settings.json`, `"orari": {"bref": "12:00"}`), in regular season e playoff, il bot scarica le statistiche da Basketball-Reference, aggiorna il foglio **BrefRaw** e scrive sul canale log quanti giocatori ha aggiornato e chi ha cambiato squadra NBA.
 
-I giocatori nuovi, che non sono ancora nell'anagrafica, arrivano al dev con ✅ Crea tutti / ❌ Ignora. Accanto a ognuno ci sono i nomi simili già presenti, per evitare doppioni.
+I giocatori nuovi, che non sono ancora nell'anagrafica, arrivano al dev con ✅ Crea tutti / ❌ Ignora. Accanto a ognuno ci sono i nomi simili già presenti, per evitare doppioni. Quando un nome di bref si abbina a un giocatore sotto contratto (in automatico o col bottone 🔗), il foglio **Roster** si risincronizza subito: usa il nome di bref per agganciare le statistiche.
 
 **Date di nascita:**
 

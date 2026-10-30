@@ -34,6 +34,7 @@ def liste_comandi() -> dict:
         BotCommand("fantapunti",         "Fantapunti della giornata, giocatori a roster [N]"),
         BotCommand("set_valid_status",   "Status di un giocatore per il calcolo: GIOCATORE N"),
         BotCommand("ricalcola",          "Ricalcola la giornata N (riscarica solo le notti non congelate)"),
+        BotCommand("storico_calcolo",    "Versioni calcolate della giornata N e cosa è cambiato"),
         BotCommand("congelamento",       "Quali giornate si ricontrollano e quali sono congelate"),
         BotCommand("congelamento_notti", "Le notti: aperte (fino alle 20 del giorno dopo) o congelate"),
         BotCommand("congela",            "Congela tutte le notti della giornata N"),
@@ -64,6 +65,7 @@ def liste_comandi() -> dict:
         BotCommand("dev_ricalcola_fp",  "Fantapunti coi pesi di settings.json [STAGIONE]"),
         BotCommand("dev_log",     "Ultime righe di log [N]"),
         BotCommand("dev_pg",      "Connessione a PostgreSQL"),
+        BotCommand("dev_foto",    "Foto ESPN dei giocatori a roster"),
         BotCommand("reboot",      "Riavvia il bot"),
     ]
     return {"gruppi": gruppi, "gm": gm, "admin": admin, "dev": dev}

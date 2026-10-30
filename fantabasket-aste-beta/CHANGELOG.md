@@ -695,3 +695,7 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 
 - **Menu admin nel gruppo admin** (prima lì si vedeva quello dei GM) e menu dei gruppi anche per gli amministratori dei gruppi Telegram (Luca, 30/10)
 - Asta aperta per un giocatore senza posizioni: l'avviso dice di scrivere `/set_posizioni_eleggibili` **in privato** al bot principale (nel gruppo non funziona)
+
+## v79 (2026-10-30)
+
+- Guida dei GM: «Da dove vengono i dati» (ESPN, Basketball-Reference, Yahoo)

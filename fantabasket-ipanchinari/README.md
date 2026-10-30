@@ -115,5 +115,4 @@ Prova: `tests/run.sh ipa_panchine`.
 
 ## Da fare
 
-- script da console per scaricare i quintetti da Yahoo nel formato di `/quintetti_import`;
-- calcolo dei risultati in loucabot con `ipa_formazioni` e `ipa_panchine`.
+Import più comodo dei quintetti nel formato di `/quintetti_import`. Il calcolo dei risultati dai quintetti e dalle panchine lo fa loucabot (`ipa_formazioni`, `ipa_panchine`).

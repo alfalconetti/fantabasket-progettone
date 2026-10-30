@@ -537,8 +537,22 @@ async def cmd_live(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await _avvia(context, lavoro())
 
 
+async def cmd_storico_calcolo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/storico_calcolo N (admin, v6.9.0): ogni versione calcolata della giornata e cosa cambia tra una e l'altra."""
+    if not config.is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ Solo admin.")
+        return
+    if not context.args or not context.args[0].lstrip("Gg").isdigit():
+        await update.effective_message.reply_text("Uso: /storico_calcolo N (le versioni calcolate della giornata N)")
+        return
+    import live
+    t = R.testo_storico(config.stagione(), int(context.args[0].lstrip("Gg")))
+    for pezzo in live._pezzi(t):
+        await update.effective_message.reply_text(pezzo, parse_mode="HTML")
+
+
 def get_handlers() -> list:
-    return [CommandHandler("ricalcola", cmd_ricalcola), CommandHandler("dev_prova_calcolo", cmd_dev_prova_calcolo),
+    return [CommandHandler("ricalcola", cmd_ricalcola), CommandHandler("storico_calcolo", cmd_storico_calcolo), CommandHandler("dev_prova_calcolo", cmd_dev_prova_calcolo),
             CommandHandler("live", cmd_live), CommandHandler("controllo_notte", cmd_controllo_notte),
             CallbackQueryHandler(cb_controllo, pattern=r"^cn:(ok|no):\d+$"),
             CallbackQueryHandler(cb_risultati, pattern=r"^rc:")]

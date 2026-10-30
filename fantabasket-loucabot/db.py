@@ -129,6 +129,20 @@ def migra():
             convalidato    TIMESTAMPTZ,
             convalidato_da BIGINT,
             PRIMARY KEY (stagione, giornata))""")
+    # storico del calcolo (v6.9.0): ogni versione calcolata di una giornata, non solo l'ultima di lega_calcoli
+    q("""CREATE TABLE IF NOT EXISTS lega_calcoli_storico (
+            stagione       TEXT NOT NULL,
+            giornata       INT  NOT NULL,
+            versione       INT  NOT NULL,
+            calcolato      TIMESTAMPTZ NOT NULL,
+            risultati      JSONB NOT NULL,
+            avvisi         JSONB,
+            convalidato    TIMESTAMPTZ,                              -- se questa versione è stata convalidata
+            convalidato_da BIGINT,
+            PRIMARY KEY (stagione, giornata, versione))""")
+    q("""INSERT INTO lega_calcoli_storico (stagione, giornata, versione, calcolato, risultati, avvisi, convalidato, convalidato_da)
+         SELECT stagione, giornata, versione, calcolato, risultati, avvisi, convalidato, convalidato_da FROM lega_calcoli
+         ON CONFLICT DO NOTHING""")                     # le versioni di adesso, la prima volta
     q("""CREATE TABLE IF NOT EXISTS lega_status_validi (
             stagione   TEXT NOT NULL,
             giornata   INT  NOT NULL,
