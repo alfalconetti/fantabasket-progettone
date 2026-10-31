@@ -49,7 +49,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 
 | Prova | Bot | Cosa verifica |
 |---|---|---|
-| `trade_3_squadre` | main | builder a 3 squadre (destinatari, diritti multipli, doppio tap), editor con `?`, bottoni vecchi, voti e notifiche a tutte le squadre, ripresa come bozza, approvazione ed esecuzione, `/annulla_trade_admin`, parser testo a 3+ |
+| `trade_3_squadre` | main | builder a 3 squadre (destinatari, diritti multipli, doppio tap), editor con `?`, bottoni vecchi, voti e notifiche a tutte le squadre, ripresa come bozza, approvazione ed esecuzione, `/annulla_trade_admin`, parser testo a 3+; `/trova_trade` (per numero, per giocatore anche invertito, riceve/cede con da chi e a chi, cap prima e dopo, percorso con invio agli admin e annullamento, immagine) |
 | `revisione_regolamento` | main | tagli 1x1 (3 gratuiti, 4° con spalmatura, minimo 10 in RS), decadimento ritiro vs altro, `/ritiro_fa`, slot all'attivazione diritti, anni in `/registra_firma` |
 | `dpe_trade_tagli` | main | DPE che segue il giocatore in trade (validazione = cap reale, annullamento), taglio bloccato se scopre i ruoli in RS |
 | `report_spalmature` | main | report mensile: free agent con spalmature, ultima partita bref, Cam Thomas, esclusi i sotto contratto e le stagioni passate |

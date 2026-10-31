@@ -1,5 +1,5 @@
 import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))); import guardia  # noqa: E402,F401  — blocca le prove sul server (TRUNCATE)
-import asyncio, types, os, sys
+import asyncio, json, types, os, sys
 import database as db, settings
 db.init_db(); db.migrate_db()
 sent=[]
@@ -124,6 +124,34 @@ async def main():
     ok(any(r["azione"] == "trade annullata" and r["veste"] == "admin" and r["prima"] == ref for r in reg), "registro: trade annullata")
     rif = next((r for r in reg if r["azione"] == "voto sulla trade" and r["chi_id"] == 103), None)
     ok(rif and rif["dopo"] == "Gamma: rifiutata", "registro: il rifiuto dice chi e come")
+    # /trova_trade (Luca, 31/10): la trade ufficiale per numero o per giocatore, cap e roster di allora, percorso vero
+    import handlers.trova_trade as TT2
+    num = ref.split("-")[-1]
+    ok(TT2.per_numero(num)["id"] == nuovo and TT2.per_numero(ref)["id"] == nuovo and TT2.per_numero("999") is None,
+       f"/trova_trade: per numero ({num}, {ref}); un numero che non c'è no")
+    _nome0 = db.get_giocatore(G['team01_p0'])["nome_common"]
+    _g, _tr = TT2.per_giocatore(" ".join(reversed(_nome0.split())))
+    ok([x["id"] for x in _tr] == [nuovo], f"/trova_trade: per giocatore (anche col nome invertito) solo le trade ufficiali {[x['id'] for x in _tr]}")
+    _d = TT2.dati(nuovo)
+    _per = {s_["id"]: s_ for s_ in _d["squadre"]}
+    ok(_d["numero"] == ref and _d["stato"] == "annullata" and len(_d["squadre"]) == 3
+       and any(a_["nome"] == _nome0 for a_ in _per["team01"]["cede"]) and all(a_["altra"]["id"] == "team02" for a_ in _per["team01"]["cede"] if a_["nome"] == _nome0)
+       and any(a_["nome"] == _nome0 and a_["altra"]["id"] == "team01" for a_ in _per["team02"]["riceve"])
+       and any(a_["tipo"] == "pick" for a_ in _per["team03"]["riceve"]) and any(a_["tipo"] == "diritti" for a_ in _per["team01"]["riceve"]),
+       "/trova_trade: per ogni squadra riceve e cede, con da chi / a chi (giocatore, pick, diritti)")
+    _c1 = _per["team01"]["cap"]
+    ok(_c1["prima"] != _c1["dopo"] or _per["team02"]["cap"]["prima"] != _per["team02"]["cap"]["dopo"],
+       f"/trova_trade: cap prima e dopo la trade, al momento della trade (non quello di oggi, dopo l'annullamento) {[(k, v['cap']) for k, v in _per.items()]}")
+    _pt = [x["testo"] for x in _d["percorso"]]
+    ok(_pt[0].startswith("Proposta da") and any(x.startswith("Mandata agli admin da") and "senza le accettazioni di" in x for x in _pt)
+       and any(x.startswith("Approvata") for x in _pt) and _pt[-1].startswith("Annullata"),
+       f"/trova_trade: percorso vero (mandata agli admin senza tutte le accettazioni, approvata, annullata) {_pt}")
+    try:
+        import typst as _ty
+        _png = _ty.compile(TT2.TEMPLATE, root="/", format="png", ppi=100, sys_inputs={"dati": json.dumps(_d, ensure_ascii=False, default=str)})
+        ok(_png[:4] == b"\x89PNG", "/trova_trade: l'immagine si disegna")
+    except ImportError:
+        pass
     # scrivi_trade with '?' in old bozza
     t2=db.crea_trade_bozza("team01",3,"2026")
     for o,t in enumerate(["team01","team02","team03"],1): db.aggiungi_squadra_trade(t2,t,o)

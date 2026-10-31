@@ -1733,3 +1733,12 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.11.1 (2026-10-31)
 
 - **Nomi dei giocatori in qualsiasi ordine** in tutti i bot (Luca, 31/10: «Clowney Noah» non trovava Noah Clowney): `shared/parole_nome.py`, usato da `/player`, `/correggi_tabellino`, `/set_valid_status` (loucabot v74), dalle ricerche del bot principale (trade da testo, `/carriera`, posizioni, 10-day, registro, decadimento, pannello admin) e dal bot aste (lista FA e offerte, v80); anche le proposte per somiglianza confrontano le parole in ordine alfabetico. IPanchinari abbinava già parola per parola
+
+## v6.12.0 (2026-10-31)
+
+- **`/trova_trade NUMERO` o GIOCATORE** (Luca, 23/10; mockup approvato il 31/10): immagine di una trade ufficiale (approvata, o approvata e poi annullata), per numero (`014`, `TRADE-2026-014`) o per giocatore (anche col nome invertito; più trade → bottoni). Una colonna per squadra (4 squadre in 2×2) con riceve e cede, da chi arriva e a chi va ogni asset (giocatori con ruolo e contratto di allora, pick con anno, giro, di chi era e protezioni, diritti con giro, numero e anno del draft); **cap e roster al momento della trade**, prima e dopo; in fondo il **percorso** vero: proposta o scritta da un admin, accettazioni e rifiuti con l'ora, mandata agli admin senza aspettare tutti, approvata, annullata. Anche nei gruppi
+- Dockerfile del bot principale: font delle emoji (`fonts-noto-color-emoji`), per le icone di `/trova_trade` (il primo avvio dopo il deploy ricostruisce l'immagine)
+
+## v6.12.1 (2026-10-31)
+
+- `/trova_trade`: colori in verde invece che in blu (Luca, 31/10)
