@@ -99,6 +99,9 @@ def main():
     app.job_queue.run_repeating(live.job_live, interval=timedelta(minutes=1), first=60)
     import foto                                      # foto dei giocatori: una al minuto, solo nella notte americana
     app.job_queue.run_repeating(foto.job_foto, interval=timedelta(minutes=1), first=75)
+    # loghi delle 30 squadre NBA da ESPN (v6.13.0): all'avvio e ogni giorno, solo quelli mancanti o vecchi
+    import nba as _nba
+    app.job_queue.run_repeating(_nba.job_loghi, interval=timedelta(days=1), first=90)
     # formazioni congelate sul foglio di controllo (e le correzioni degli admin), fino al calcolo
     app.job_queue.run_repeating(formazioni_foglio.job_formazioni, interval=timedelta(minutes=5), first=90)
     logger.info("loucabot %s avviato.", BOT_VERSION)

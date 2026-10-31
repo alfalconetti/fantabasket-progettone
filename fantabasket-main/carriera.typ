@@ -12,9 +12,11 @@
 #set block(spacing: 0pt)
 #set text(font: "Liberation Sans", size: 9pt, fill: testo)
 
-// logo: segnaposto tondo col colore della squadra e la sigla (i loghi veri si caricano dopo)
+// logo: il file se c'è (NBA: quelli di ESPN, v6.13.0, un po' più piccoli dentro il tondo bianco), se no un tondo
+// col colore della squadra e la sigla
 #let logo(sq, dd) = if sq.at("logo", default: "") != "" {
-  box(width: dd, height: dd, radius: 50%, clip: true, fill: white, stroke: 1pt + rgb(sq.colore), image(sq.logo, width: dd, height: dd, fit: "contain"))
+  box(width: dd, height: dd, radius: 50%, clip: true, fill: white, stroke: 1pt + rgb(sq.colore),
+    align(center + horizon, { let k = if sq.at("nba", default: false) { 0.8 } else { 1 }; image(sq.logo, width: dd * k, height: dd * k, fit: "contain") }))
 } else {
   box(width: dd, height: dd, radius: 50%, fill: rgb(sq.colore), stroke: 1pt + white,
     align(center + horizon, text(dd * 0.34, weight: "bold", fill: white)[#sq.sigla]))

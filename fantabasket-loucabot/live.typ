@@ -1,5 +1,5 @@
 // Tabellone live della giornata (live.py → dati_immagine), sul canale al posto del messaggio di testo
-// (mockup approvato da Luca il 23/10). Emoji dal font Noto Color Emoji (fonts-noto-color-emoji nel Dockerfile, v53).
+// (mockup approvato da Luca il 23/10; banda NBA in alto dalla v6.13.0, mockup del 31/10). Emoji dal font Noto Color Emoji (fonts-noto-color-emoji nel Dockerfile, v53).
 #let d = json(bytes(sys.inputs.at("dati")))
 #let viola = rgb("#5F01D1")
 #let viola_scuro = rgb("#39007D")
@@ -29,6 +29,40 @@
      #v(3pt) #text(8.5pt, fill: white.transparentize(25%))[#d.date#if d.notte != "" [ · notte #d.notte]]],
     align(right)[#text(7pt, fill: white.transparentize(30%), tracking: 0.5pt)[AGGIORNATO] \ #text(13pt, weight: "bold", fill: white)[#d.ora]])
 ]
+
+
+// ── banda NBA (v6.13.0, Luca 31/10): le partite vere della notte, tutte; in corso col bordo rosso ──
+#let lnba(t, dd) = if t.logo != "" {
+  box(width: dd, height: dd, radius: 50%, fill: white, align(center + horizon, image(t.logo, width: dd * 0.82, height: dd * 0.82, fit: "contain")))
+} else {
+  box(width: dd, height: dd, radius: 50%, fill: rgb(t.colore), align(center + horizon, text(dd * 0.32, weight: "bold", fill: white)[#t.sigla]))
+}
+#let mini(p) = {
+  let live = p.stato == "live"
+  let fin = p.stato == "finale"
+  let ci = p.pt != "" and p.pc != ""
+  let vt = ci and int(p.pt) > int(p.pc)
+  let vc = ci and int(p.pc) > int(p.pt)
+  let riga(t, pts, v) = grid(columns: (auto, 1fr, auto), column-gutter: 4pt, align: horizon,
+    lnba(t, 13pt), text(7.5pt, weight: if v { "bold" } else { "regular" }, fill: white)[#t.sigla],
+    text(8.5pt, weight: if v { "bold" } else { "regular" }, fill: if fin and not v { white.transparentize(40%) } else { white })[#pts])
+  box(width: 100%, fill: white.transparentize(if live { 82% } else { 90% }), radius: 5pt, inset: (x: 5pt, y: 4pt),
+    stroke: if live { 0.8pt + rgb("#FF6B6B") } else { none })[
+    #riga(p.tras, p.pt, vt)
+    #v(2.5pt)
+    #riga(p.casa, p.pc, vc)
+    #v(3pt)
+    #align(center, text(6.3pt, weight: "bold", tracking: 0.3pt,
+      fill: if live { rgb("#FFB3B3") } else { white.transparentize(35%) })[#if live [● ]#p.testo])
+  ]
+}
+#if d.at("nba", default: ()).len() > 0 {
+  block(width: 100%, fill: viola_scuro, inset: (x: 10pt, top: 7pt, bottom: 9pt))[
+    #text(6.5pt, weight: "bold", fill: white.transparentize(30%), tracking: 0.6pt)[NBA STANOTTE]
+    #v(5pt)
+    #grid(columns: (1fr,) * d.nba_colonne, column-gutter: 5pt, row-gutter: 5pt, ..d.nba.map(mini))
+  ]
+}
 
 // ── una squadra nella scheda ──
 #let riga(s, avanti) = grid(columns: (auto, 1fr, auto), column-gutter: 6pt, align: horizon,

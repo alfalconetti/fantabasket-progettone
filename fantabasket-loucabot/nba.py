@@ -55,7 +55,12 @@ def leggi_giorno(dati: dict) -> list[dict]:
         if "home" not in squadre or "away" not in squadre:
             continue
         inizio = datetime.fromisoformat(e["date"].replace("Z", "+00:00"))
-        stato = ((comp.get("status") or e.get("status") or {}).get("type") or {}).get("name", "STATUS_SCHEDULED")
+        st = comp.get("status") or e.get("status") or {}
+        stato = (st.get("type") or {}).get("name", "STATUS_SCHEDULED")
+        # punteggio, quarto e cronometro per la banda NBA del live (v6.13.0); prima dell'inizio niente punti
+        punti = {c.get("homeAway"): _intero(c.get("score")) for c in comp.get("competitors", [])}
+        if stato in ("STATUS_SCHEDULED",) + tuple(NON_GIOCATE):
+            punti = {}
         out.append({
             "espn_id": str(e["id"]),
             "stagione": stagione_lega(e["season"]["year"]),
@@ -65,8 +70,19 @@ def leggi_giorno(dati: dict) -> list[dict]:
             "casa": squadre["home"],
             "trasferta": squadre["away"],
             "stato": stato,
+            "punti_casa": punti.get("home"),
+            "punti_trasferta": punti.get("away"),
+            "periodo": _intero(st.get("period")),
+            "orologio": st.get("displayClock") or None,
         })
     return out
+
+
+def _intero(x) -> int | None:
+    try:
+        return int(x)
+    except (TypeError, ValueError):
+        return None
 
 
 def giorni_stagione(dati: dict) -> list[date]:
@@ -330,3 +346,70 @@ async def scarica_giocatori(scarica=None, pausa: float = 1.0) -> list[dict]:
         if client:
             await client.aclose()
     return out
+
+
+# ── loghi delle squadre (v6.13.0, Luca 31/10: banda NBA del live, /carriera, /roster) ──
+
+LOGHI_VECCHI = timedelta(days=90)          # i loghi cambiano di rado: si riscaricano ogni tre mesi
+
+
+def leggi_loghi(dati: dict) -> dict[str, str]:
+    """sigla → indirizzo del logo, dalla risposta di ESPN teams."""
+    out = {}
+    for sp in dati.get("sports", []):
+        for lega in sp.get("leagues", []):
+            for t in lega.get("teams", []):
+                t = t.get("team") or t
+                sg = sigla(t.get("abbreviation") or "")
+                href = next((x.get("href") for x in t.get("logos") or [] if x.get("href")), None)
+                if sg in NBA and href:
+                    out[sg] = href
+    return out
+
+
+async def scarica_loghi(forza: bool = False, client=None) -> dict:
+    """I loghi delle 30 squadre in config/foto/nba/<SIGLA>.png (shared/squadre_nba.cartella_espn()): solo quelli
+    che mancano o più vecchi di LOGHI_VECCHI. All'avvio e una volta al giorno: di solito non scarica niente."""
+    import time
+    from shared import squadre_nba as SN
+    cartella = SN.cartella_espn()
+    os.makedirs(cartella, exist_ok=True)
+    da_fare = [sg for sg in sorted(NBA) if forza or not os.path.exists(os.path.join(cartella, f"{sg}.png"))
+               or time.time() - os.path.getmtime(os.path.join(cartella, f"{sg}.png")) > LOGHI_VECCHI.total_seconds()]
+    if not da_fare:
+        return {"scaricati": 0, "errori": []}
+    mio = client is None
+    client = client or _client()
+    scaricati, errori = 0, []
+    try:
+        loghi = leggi_loghi(await _get(client, BASE + "teams"))
+        for sg in da_fare:
+            if sg not in loghi:
+                errori.append(f"{sg}: nessun logo nella risposta")
+                continue
+            try:
+                r = await client.get(loghi[sg])
+                r.raise_for_status()
+                if not r.content.startswith(b"\x89PNG"):
+                    raise ValueError("non è un PNG")
+                tmp = os.path.join(cartella, f"{sg}.png.tmp")
+                with open(tmp, "wb") as f:
+                    f.write(r.content)
+                os.replace(tmp, os.path.join(cartella, f"{sg}.png"))
+                scaricati += 1
+            except Exception as err:
+                errori.append(f"{sg}: {err}")
+            await asyncio.sleep(0.3)
+    finally:
+        if mio:
+            await client.aclose()
+    return {"scaricati": scaricati, "errori": errori}
+
+
+async def job_loghi(context) -> None:
+    try:
+        r = await scarica_loghi()
+        if r["scaricati"] or r["errori"]:
+            logger.info("Loghi NBA: %s scaricati, errori: %s", r["scaricati"], r["errori"][:5])
+    except Exception as err:
+        logger.warning("Loghi NBA non scaricati: %s", err)

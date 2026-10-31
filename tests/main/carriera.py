@@ -117,6 +117,42 @@ try:
 except ImportError:
     pass
 
+# v6.13.0: /roster con squadra NBA, età e foto (Luca, 31/10), alla data del roster come la carriera
+ok(C.squadra_nba_al("e1", "Gio Prova", datetime(2026, 12, 1, tzinfo=timezone.utc)) == "CHA"
+   and C.squadra_nba_al("e1", "Gio Prova", datetime(2027, 3, 1, tzinfo=timezone.utc)) == "SAC"
+   and C.squadra_nba_al("e1", "Gio Prova", datetime(2026, 5, 1, tzinfo=timezone.utc)) == "CHA"
+   and C.squadra_nba_al(None, None, datetime(2027, 3, 1, tzinfo=timezone.utc)) is None,
+   "squadra NBA a una data: prima e dopo la trade, prima del bot quella del 25/07, sconosciuta → niente")
+import handlers.roster as RO
+db._q("UPDATE giocatori SET data_nascita = '2000-12-15' WHERE id = %s", (p,))
+_r = [{"giocatore_id": p, "nome_common": "Gio Prova", "importo": 15, "importo_originale": 20, "ha_dpe": True,
+       "anni_originali": 2, "stagione_firma": "2026", "tipo_contratto": "normale", "occupa_slot": True},
+      {"giocatore_id": r, "nome_common": "Rook Prova", "importo": 3, "anni_originali": 2, "stagione_firma": "2026",
+       "tipo_contratto": "normale", "occupa_slot": True}]
+_x = RO._nba_ed_eta(_r, datetime(2027, 3, 1, tzinfo=timezone.utc))
+ok(_x[p]["sigla"] == "SAC" and _x[p]["colore"] and _x[p]["eta"] == 26 and _x[r]["sigla"] == "" and _x[r]["eta"] == "",
+   f"roster a una data: squadra NBA e età a quel giorno, niente per chi non si conosce ({_x[p]})")
+ok(RO._eta(date(2000, 12, 15), date(2026, 12, 14)) == 25 and RO._eta(date(2000, 12, 15), date(2026, 12, 15)) == 26,
+   "età a una data: compiuti il giorno del compleanno")
+_gs = RO._build_giocatori_str(_r, [], nba=_x)
+_campi = _gs.split(";")[0].split("|")
+ok(len(_campi) == 15 and _campi[10] == "SAC" and _campi[13] == "26" and "|" not in RO._build_giocatori_str(_r, []).split(";")[0].split("|", 10)[-1],
+   "stringa del roster: 5 campi in più solo con le squadre NBA (assets resta com'è)")
+try:
+    import typst
+    _lungo = [{**_r[1], "giocatore_id": 999, "nome_common": "Christian Koloko-Tshiebwe Jr. Antetokounmpo Secondo"}]
+    _ins = {"team_nome": "Alfa", "team_gm": "GM", "colore_header": "#F58426", "colore_riga1": "", "colore_riga2": "",
+            "colore_sezione": "", "text_on_riga1": "#1a1a1a", "text_on_riga2": "#1a1a1a", "text_on_sezione": "#1a1a1a",
+            "text_on_sezione_muted": "#555555", "text_on_footer": "#1a1a1a", "text_on_footer_muted": "#444444",
+            "salary_cap": "18", "salary_detail": "18", "eta_media": "26.0", "tagli_usati": "0/3", "cambi_usati": "0/2",
+            "logo_path": "", "giocatori": RO._build_giocatori_str(_r + _lungo, [], ruoli={p: "PG", r: "C", 999: "SF"},
+                                                                  posizioni={999: "SG,SF,PF"}, nba={**_x, 999: {"sigla": "NYK", "colore": "#006BB6", "eta": 22}})}
+    _png = typst.compile(os.path.join(ROOT, "fantabasket-main", "roster.typ"), root="/", format="png", ppi=72, sys_inputs=_ins,
+                         font_paths=["/usr/share/fonts/truetype/liberation"], ignore_system_fonts=True)
+    ok(_png[:4] == b"\x89PNG", "roster.typ compila con faccia, logo NBA, età e contratto in una bolla; nome lunghissimo compreso")
+except ImportError:
+    pass
+
 # comando
 out = []
 class M:

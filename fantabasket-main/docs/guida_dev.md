@@ -12,7 +12,7 @@ fantabasket-progettone/
 ├── config/             globals.json, teams.json, settings.json, divisions.json, loghi/ …  (NON in git)
 ├── secrets/            token, password, URL dei fogli, *.env                            (NON in git)
 │   └── cifrati/        secrets.tar.gpg per il backup (scripts/cifra_secrets.sh)
-├── shared/              in comune ai bot: ruoli_core.py (ruoli), cap.py (cap e slot), squadre.py (ricerca squadra), lista_fa.py (stagioni della lista FA e switch al 70% dei firmati, per aste e report posizioni), messaggi.py (report lunghi), dev_comune.py (/dev_log, /dev_pg, /reboot ed error handler di loucabot e IPanchinari), parole_nome.py (nomi in qualsiasi ordine), solo_gruppo_admin.py (comandi admin e dev solo in privato e nel gruppo admin, in tutti e quattro i bot: negli altri gruppi passano solo quelli di `comandi.comandi_pubblici()`)
+├── shared/              in comune ai bot: ruoli_core.py (ruoli), cap.py (cap e slot), squadre.py (ricerca squadra), lista_fa.py (stagioni della lista FA e switch al 70% dei firmati, per aste e report posizioni), messaggi.py (report lunghi), dev_comune.py (/dev_log, /dev_pg, /reboot ed error handler di loucabot e IPanchinari), parole_nome.py (nomi in qualsiasi ordine), squadre_nba.py (nomi, colori, sigle e loghi delle 30 squadre NBA), solo_gruppo_admin.py (comandi admin e dev solo in privato e nel gruppo admin, in tutti e quattro i bot: negli altri gruppi passano solo quelli di `comandi.comandi_pubblici()`)
 ├── fantabasket-main/      ← questo bot
 ├── fantabasket-aste-beta/ bot aste
 ├── fantabasket-loucabot/  loucabot: calendario e calcolo dei fantapunti, README e docs/ suoi
@@ -345,7 +345,7 @@ ORDER BY t.timestamp, t.id;
 
 | File | Cosa contiene |
 |---|---|
-| `carriera.py` | `/carriera` (v6.5.0): `eventi_fanta` (`database.movimenti_carriera` dal 25/07/2026, più `dpe`; trade annullate tolte con l'annullamento, stesso `trade_id`), `eventi_nba` (squadra al 25/07, `nba_movimenti` di loucabot, cambi nelle righe di `bref_stats`; un cambio di bref già visto da ESPN nei 30 giorni prima non si ripete), `righe_timeline`, `dati`, `genera_png` (Typst a 220 dpi); `NBA` = nomi e colori delle 30 squadre; loghi NBA da `config/loghi/nba/<SIGLA>.png`; callback `car:<id>` |
+| `carriera.py` | `/carriera` (v6.5.0): `eventi_fanta` (`database.movimenti_carriera` dal 25/07/2026, più `dpe`; trade annullate tolte con l'annullamento, stesso `trade_id`), `eventi_nba` (squadra al 25/07, `nba_movimenti` di loucabot, cambi nelle righe di `bref_stats`; un cambio di bref già visto da ESPN nei 30 giorni prima non si ripete), `righe_timeline`, `dati`, `genera_png` (Typst a 220 dpi); nomi, colori e loghi delle 30 squadre da `shared/squadre_nba.py` (loghi scaricati da loucabot da ESPN in `config/foto/nba/`, uno a mano in `config/loghi/nba/` vale prima, v6.13.0); `squadra_nba_al(espn, nome_bref, istante)` per `/roster` a una data; callback `car:<id>` |
 | `menu.py` | `/menu` per fase (`AZIONI_FASE`, `AZIONI_SEMPRE`), `/guida`, `/guida_admin` |
 | `trade.py` | registrazione di comandi, bottoni e conversazioni delle trade (`get_handlers`), `/annulla_trade`; in testa l'indice dei moduli `trade_*` |
 | `trade_comune.py` | stati delle conversazioni, `_STATI`, testo del riepilogo, tastiere, chi può toccare una bozza, annuncio sul canale, notifiche alle squadre |
@@ -369,7 +369,7 @@ ORDER BY t.timestamp, t.id;
 | `cambi_ruolo.py` | `/cambio_ruolo`: ordinario, Erminio, Saedro, forzato, Extra DPE |
 | `dieci_giorni.py` | `/firma_10day` (GM, richiesta), `/firma_10day_admin`, approvazione, pannello, scadenza |
 | `posizioni.py` | import e correzione delle posizioni eleggibili, `/data_erminio`; `/posizioni_mancanti` e `job_report_posizioni` (`mancanti`: sotto contratto e free agent con righe di `bref_stats` nelle stagioni di `shared/lista_fa.stagioni_valide`, le stesse di `/lista_fa` (quest'anno e l'anno prima, dopo lo switch al 70% dei firmati solo quest'anno); ogni mattina in privato al dev (`dev_id`) con `manda_lungo` se l'elenco cambia, impronta in `report_posizioni_inviato`; il lunedì comunque) |
-| `roster.py` | `/roster`, `/assets` (Typst) |
+| `roster.py` | `/roster`, `/assets` (Typst). `/roster` dalla v6.13.0 (Luca, 31/10): `_nba_ed_eta` (squadra NBA con `carriera.squadra_nba_al`, età con `_eta(nascita, al)` e foto ESPN di loucabot, alla data del roster) → 5 campi in più nella stringa dei giocatori; `roster.typ` largo 330pt: faccia, nome che si stringe fino a 6,5pt (poi senza eleggibili), logo NBA, ETÀ, importo e anni in una bolla a cavallo delle due colonne. `/assets` resta com'è |
 | `team_diff.py` | `/team_diff` |
 | `palette.py`, `myteam.py` | colori e dati squadra (colori effettivi e testo leggibile: `roster.colori_effettivi`, `roster.input_colori`) |
 | `nav.py` | navigazione dei menu: ✖️ Chiudi (`nav:x`), 🏠 Menu, ←, `mostra()` (da un bottone modifica il messaggio invece di mandarne uno nuovo) |

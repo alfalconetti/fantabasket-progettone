@@ -28,9 +28,13 @@ Due cose da sapere:
 **`/roster`** ti manda un'immagine del tuo roster. In alto il logo, il salary cap (con contratti e impatto dei tagli) e quanti posti sono occupati su 15. Per ogni giocatore vedi:
 
 - il ruolo a sinistra, in un'etichetta;
-- le posizioni eleggibili accanto al nome;
-- la fantamedia;
-- il contratto: i rookie hanno il colore del loro anno di scala (dal I al IV), RFA, DPE e 10-day il loro colore, con una barretta colorata davanti al nome. Se il colore non si leggerebbe sullo sfondo della riga, il nome ha un riquadro chiaro dietro.
+- la faccia del giocatore prima del nome (le iniziali se ESPN non ha la foto);
+- dopo il nome il logo della sua squadra NBA, poi le posizioni eleggibili (un nome lunghissimo si rimpicciolisce per starci in una riga);
+- l'età e la fantamedia;
+- importo e anni rimasti in una bolla del colore della squadra (per la DPE l'importo di prima barrato sopra quello ridotto);
+- il tipo di contratto: i rookie hanno il colore del loro anno di scala (dal I al IV), RFA, DPE e 10-day il loro colore, con una barretta colorata davanti al nome. Se il colore non si leggerebbe sullo sfondo della riga, il nome ha un riquadro chiaro dietro.
+
+Con una data (`/roster Alfa 01-12-26`) squadra NBA ed età sono quelle di quel giorno.
 
 I posti liberi sono righe basse con scritto «posto libero». Chi sta fuori dai 15 (il 10-day, la DPE che libera lo slot) è in fondo, sotto una riga più spessa e l'etichetta «FUORI DAI 15». In fondo, tre riquadri: età media, tagli senza impatto usati e cambi ruolo usati.
 

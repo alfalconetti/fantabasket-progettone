@@ -15,8 +15,9 @@ giornaliere di Basketball-Reference (`bref_stats`: la data è quella in cui bref
 dopo la prima partita con la squadra nuova). Un cambio di bref già visto da ESPN nei 30 giorni
 prima non si ripete.
 
-Loghi: quelli delle squadre del fantabasket (config/loghi); NBA da config/loghi/nba/<SIGLA>.png se
-ci sono, se no un tondo col colore della squadra e la sigla. Foto: quelle di loucabot
+Loghi: quelli delle squadre del fantabasket (config/loghi); NBA da shared/squadre_nba (scaricati da
+loucabot da ESPN in config/foto/nba, v6.13.0; uno a mano in config/loghi/nba vale prima), se no un tondo
+col colore della squadra e la sigla. Foto: quelle di loucabot
 (config/foto/<id ESPN>.png). Callback car:<giocatore_id> per scegliere tra più giocatori.
 """
 import asyncio
@@ -46,21 +47,9 @@ LOGHI_DIR = os.environ.get("LOGHI_DIR", "/config/loghi")
 FOTO_DIR = os.environ.get("FOTO_DIR") or os.path.join(os.environ.get("CONFIG_DIR", "/config"), "foto")
 GRIGIO_FA = "#9AA3B5"
 
-# squadre NBA: nome e colore principale (per la barra e il segnaposto del logo)
-NBA = {
-    "ATL": ("Atlanta Hawks", "#C8102E"), "BOS": ("Boston Celtics", "#007A33"), "BKN": ("Brooklyn Nets", "#000000"),
-    "CHA": ("Charlotte Hornets", "#1D1160"), "CHI": ("Chicago Bulls", "#CE1141"), "CLE": ("Cleveland Cavaliers", "#860038"),
-    "DAL": ("Dallas Mavericks", "#00538C"), "DEN": ("Denver Nuggets", "#0E2240"), "DET": ("Detroit Pistons", "#C8102E"),
-    "GSW": ("Golden State Warriors", "#1D428A"), "HOU": ("Houston Rockets", "#CE1141"), "IND": ("Indiana Pacers", "#002D62"),
-    "LAC": ("LA Clippers", "#C8102E"), "LAL": ("Los Angeles Lakers", "#552583"), "MEM": ("Memphis Grizzlies", "#5D76A9"),
-    "MIA": ("Miami Heat", "#98002E"), "MIL": ("Milwaukee Bucks", "#00471B"), "MIN": ("Minnesota Timberwolves", "#0C2340"),
-    "NOP": ("New Orleans Pelicans", "#0C2340"), "NYK": ("New York Knicks", "#006BB6"), "OKC": ("Oklahoma City Thunder", "#007AC1"),
-    "ORL": ("Orlando Magic", "#0077C0"), "PHI": ("Philadelphia 76ers", "#006BB6"), "PHX": ("Phoenix Suns", "#1D1160"),
-    "POR": ("Portland Trail Blazers", "#E03A3E"), "SAC": ("Sacramento Kings", "#5A2D81"), "SAS": ("San Antonio Spurs", "#8A8D8F"),
-    "TOR": ("Toronto Raptors", "#CE1141"), "UTA": ("Utah Jazz", "#002B5C"), "WAS": ("Washington Wizards", "#002B5C"),
-}
-SIGLE_BREF = {"BRK": "BKN", "PHO": "PHX", "CHO": "CHA", "NOH": "NOP", "GS": "GSW", "NY": "NYK", "SA": "SAS", "NO": "NOP",
-              "UTAH": "UTA", "WSH": "WAS"}
+# squadre NBA: nome, colore e logo in shared/squadre_nba.py (v6.13.0: in comune con /roster e col live di loucabot)
+from shared import squadre_nba as SN
+NBA, SIGLE_BREF = SN.NBA, SN.SIGLE
 
 
 def e(x) -> str:
@@ -91,19 +80,21 @@ def sq_fanta(team_id: str | None) -> dict | None:
 
 
 def sigla_nba(s: str | None) -> str | None:
-    if not s:
-        return None
-    s = str(s).strip().upper()
-    return SIGLE_BREF.get(s, s)
+    return SN.sigla(s)
 
 
 def sq_nba(sigla: str | None) -> dict | None:
-    sigla = sigla_nba(sigla)
-    if not sigla:
+    return SN.squadra(sigla)
+
+
+def squadra_nba_al(espn: str | None, nome_bref: str | None, quando: datetime) -> str | None:
+    """La sigla della squadra NBA a un istante (None: senza squadra o non nota), dalla stessa storia della carriera:
+    l'ultimo evento NBA fino a quell'istante; prima del 25/07 la squadra di allora (v6.13.0, per /roster)."""
+    ev = eventi_nba(espn, nome_bref)
+    if not ev:
         return None
-    nome, colore = NBA.get(sigla, (sigla, "#4B5563"))
-    logo = next((p for p in (os.path.join(LOGHI_DIR, "nba", f"{sigla}.{x}") for x in ("png", "jpg", "webp")) if os.path.exists(p)), "")
-    return {"nome": nome, "sigla": sigla, "colore": colore, "logo": logo}
+    fatti = [x for x in ev if x["quando"] <= quando]
+    return (fatti[-1] if fatti else ev[0])["a"]
 
 
 FA = {"nome": "Free agent", "sigla": "FA", "colore": GRIGIO_FA, "logo": ""}

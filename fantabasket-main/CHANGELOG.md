@@ -1755,3 +1755,9 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - Comandi admin e dev **solo in privato e nel gruppo admin** (Luca, 31/10): prima un admin che scriveva un comando admin nel gruppo della lega o in un altro gruppo lo vedeva eseguito lì, davanti a tutti. Ora negli altri gruppi e nei canali passano solo i comandi pubblici (menu dei gruppi e dei GM, più /start, /help, /annulla); gli altri si ignorano in silenzio, con una riga nel log (`shared/solo_gruppo_admin.py`, prova `tests/docs/solo_gruppo_admin.py`)
 - Yahoo: la MIGRATION e la guida dev dicono che la richiesta di accesso alla Fantasy API è stata respinta; «Togliere `yahoo-router`» tra le cose da fare (non urgente)
+
+## v6.13.0 (2026-10-31)
+
+- `/roster` (Luca, 31/10, mockup approvato): faccia del giocatore prima del nome (foto ESPN di loucabot, le iniziali se manca), logo della squadra NBA dopo il nome e prima delle eleggibili, colonna **ETÀ**, importo e anni in una bolla del colore della squadra a cavallo delle due colonne. Con una data, squadra NBA ed età (anche l'età media) a quel giorno, con la stessa storia di `/carriera`. Pagina un po' più larga; un nome che non ci sta si rimpicciolisce (e, se non basta, toglie le eleggibili), mai a capo. `/assets` resta com'è
+- `/carriera`: i loghi veri delle squadre NBA al posto dei tondi con la sigla
+- `shared/squadre_nba.py`: nomi, colori, sigle e loghi delle 30 squadre NBA, in comune tra bot principale e loucabot

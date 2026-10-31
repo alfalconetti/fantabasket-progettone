@@ -165,13 +165,13 @@ def _flag(r: dict) -> str:
     return "N"
 
 
-def _eta(data_nascita) -> int | None:
-    """Età al giorno corrente in anni compiuti."""
+def _eta(data_nascita, al=None) -> int | None:
+    """Età in anni compiuti, oggi o al giorno `al` (date o datetime: /roster a una data, v6.13.0)."""
     if not data_nascita:
         return None
     try:
-        from datetime import date
-        oggi = date.today()
+        from datetime import date, datetime as _dt
+        oggi = al.date() if isinstance(al, _dt) else (al or date.today())
         dn   = data_nascita if isinstance(data_nascita, date) else date.fromisoformat(str(data_nascita))
         return oggi.year - dn.year - ((oggi.month, oggi.day) < (dn.month, dn.day))
     except Exception:
@@ -249,7 +249,7 @@ def _cambi_usati(team_id: str, stagione: str) -> str:
 
 def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None,
                          ruoli: dict = None, posizioni: dict = None, fm: dict = None,
-                         fm_altra: set = None) -> str:
+                         fm_altra: set = None, nba: dict = None) -> str:
     """
     Costruisce la stringa giocatori per Typst:
     "Nome|importo|anni_res|flag|importo_orig|badge|ruolo|eleggibili;..."
@@ -259,6 +259,8 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
     - 9° campo fantamedia ("23.4", "—" se manca)
     - 10° campo "x" per chi sta fuori dai 15 (DPE che libera lo slot, 10-day): in fondo, dopo le
       15 righe e una riga più spessa
+    - con `nba` (giocatore_id → dict, solo /roster, v6.13.0): 11°-15° sigla e colore della squadra NBA,
+      logo, età, foto (vuoti se non ci sono)
     Ordinamento: importo_originale DESC, cognome ASC; quando TUTTI i giocatori
     hanno un ruolo ufficiale: ruolo (PG, SG, SF, PF, C), poi importo, poi cognome.
     Flag: N=normale, A=RFA, R0-R3=rookie anno I-IV scale
@@ -312,8 +314,46 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
             fm_txt += "*"                     # dell'altra stagione (rookie a inizio stagione)
         if flag == "D":
             importo, anni_res = "10d", "–"
-        righe.append(f"{nome}|{importo}|{anni_res}|{flag}|{dpe}|{badge}|{ruolo}|{eleg}|{fm_txt}|{fuori_15}")
+        riga = f"{nome}|{importo}|{anni_res}|{flag}|{dpe}|{badge}|{ruolo}|{eleg}|{fm_txt}|{fuori_15}"
+        if nba is not None:
+            x = nba.get(r["giocatore_id"]) or {}
+            riga += "|" + "|".join(str(x.get(k) or "").replace("|", " ").replace(";", " ")
+                                   for k in ("sigla", "colore", "logo", "eta", "foto"))
+        righe.append(riga)
     return ";".join(righe)
+
+
+def _nba_ed_eta(roster: list, as_of=None) -> dict:
+    """Per /roster (v6.13.0, Luca 31/10): squadra NBA (sigla, colore, logo), età e foto di ogni giocatore, oggi o
+    alla data di /roster: la squadra NBA a quell'istante con la stessa storia di /carriera (roster ESPN e
+    Basketball-Reference), l'età a quel giorno, la foto ESPN di loucabot (config/foto/<id ESPN>.png)."""
+    from datetime import datetime as _dt, timezone as _tz
+    from handlers import carriera as CAR
+    from shared import squadre_nba as SN
+    quando = as_of or _dt.now(_tz.utc)
+    ids = [r["giocatore_id"] for r in roster]
+    if not ids:
+        return {}
+    try:
+        info = {x["id"]: x for x in db._q("SELECT id, espn_id, nome_bref, data_nascita FROM giocatori WHERE id = ANY(%s)",
+                                         (ids,), many=True) or []}
+    except Exception as e:
+        logger.warning("Squadre NBA per il roster: %s", e)
+        return {}
+    out = {}
+    for gid in ids:
+        x = info.get(gid) or {}
+        sigla = None
+        try:
+            sigla = CAR.squadra_nba_al(x.get("espn_id"), x.get("nome_bref"), quando)
+        except Exception as e:
+            logger.warning("Squadra NBA di %s: %s", gid, e)
+        sq = SN.squadra(sigla) or {}
+        foto = os.path.join(CAR.FOTO_DIR, f"{x['espn_id']}.png") if x.get("espn_id") else ""
+        eta = _eta(x.get("data_nascita"), as_of)
+        out[gid] = {"sigla": sq.get("sigla", ""), "colore": sq.get("colore", ""), "logo": sq.get("logo", ""),
+                    "eta": "" if eta is None else eta, "foto": foto if foto and os.path.exists(foto) else ""}
+    return out
 
 
 def _fine_10day(team_id: str) -> str:
@@ -365,8 +405,9 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
     except Exception as e:
         logger.warning("Fantapunti per il roster: %s", e)
         fm, fm_label = {}, "FP"
+    nba = _nba_ed_eta(roster, as_of)
     giocatori_str = _build_giocatori_str(roster, contratti, team_colori=team,
-                                         ruoli=ruoli, posizioni=posizioni, fm=fm, fm_altra=fm_altra)
+                                         ruoli=ruoli, posizioni=posizioni, fm=fm, fm_altra=fm_altra, nba=nba)
 
     # Salary cap
     cap_contratti = db.cap_roster(roster)          # x0 esclusi, RFA dichiarati inclusi (v3.11)
@@ -376,8 +417,8 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
     salary        = str(cap_totale)
     salary_detail = f"{cap_contratti}+{cap_impatto}" if cap_impatto > 0 else str(cap_contratti)
 
-    # Età media al giorno corrente
-    eta_list = [_eta(r.get("data_nascita")) for r in roster]
+    # Età media: oggi, o a quella data (v6.13.0)
+    eta_list = [_eta(r.get("data_nascita"), as_of) for r in roster]
     eta_list = [e for e in eta_list if e is not None]
     eta_str  = f"{sum(eta_list)/len(eta_list):.1f}" if eta_list else "—"
 

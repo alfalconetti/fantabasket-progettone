@@ -86,6 +86,9 @@ def migra():
             aggiornato  TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
     q("CREATE INDEX IF NOT EXISTS idx_nba_partite_data ON nba_partite (data_et)")
     q("ALTER TABLE nba_partite ADD COLUMN IF NOT EXISTS tabellino TIMESTAMPTZ")   # quando è stato scaricato
+    # v6.13.0: punteggio, quarto e cronometro, per la banda NBA del live
+    for col, tipo in (("punti_casa", "INT"), ("punti_trasferta", "INT"), ("periodo", "INT"), ("orologio", "TEXT")):
+        q(f"ALTER TABLE nba_partite ADD COLUMN IF NOT EXISTS {col} {tipo}")
     q("""CREATE TABLE IF NOT EXISTS nba_tabellini (
             partita   TEXT NOT NULL REFERENCES nba_partite(espn_id),
             atleta    TEXT NOT NULL,                            -- id ESPN del giocatore
@@ -245,12 +248,16 @@ def salva_partite_nba(partite: list[dict]) -> int:
     with get_conn() as conn:
         with conn.cursor() as cur:
             for p in partite:
-                cur.execute("""INSERT INTO nba_partite (espn_id, stagione, tipo, data_et, inizio, casa, trasferta, stato)
+                p = {"punti_casa": None, "punti_trasferta": None, "periodo": None, "orologio": None, **p}
+                cur.execute("""INSERT INTO nba_partite (espn_id, stagione, tipo, data_et, inizio, casa, trasferta, stato,
+                                                        punti_casa, punti_trasferta, periodo, orologio)
                                VALUES (%(espn_id)s, %(stagione)s, %(tipo)s, %(data_et)s, %(inizio)s, %(casa)s,
-                                       %(trasferta)s, %(stato)s)
+                                       %(trasferta)s, %(stato)s, %(punti_casa)s, %(punti_trasferta)s, %(periodo)s, %(orologio)s)
                                ON CONFLICT (espn_id) DO UPDATE SET tipo = EXCLUDED.tipo, data_et = EXCLUDED.data_et,
                                  inizio = EXCLUDED.inizio, casa = EXCLUDED.casa, trasferta = EXCLUDED.trasferta,
-                                 stato = EXCLUDED.stato, aggiornato = NOW()""", p)
+                                 stato = EXCLUDED.stato, punti_casa = EXCLUDED.punti_casa,
+                                 punti_trasferta = EXCLUDED.punti_trasferta, periodo = EXCLUDED.periodo,
+                                 orologio = EXCLUDED.orologio, aggiornato = NOW()""", p)
     return len(partite)
 
 

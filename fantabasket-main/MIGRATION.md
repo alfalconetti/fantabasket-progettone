@@ -1,6 +1,6 @@
 # Messaggio di migrazione — Fantabasket Progettone
 
-**Stato: v6.12.5 · bot aste v81 · loucabot v75 · IPanchinari v35** (31/10/2026)
+**Stato: v6.13.0 · bot aste v81 · loucabot v76 · IPanchinari v35** (31/10/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 
@@ -72,6 +72,7 @@ fantabasket-progettone/
 - Un tipo nuovo di `transazioni` o `cambi_ruolo` va in `_allinea_check` (`migrate_db`) e in `schema.sql`.
 - Schema SQLite del bot aste solo additivo (deve restare leggibile dal v48).
 - Una modifica a `shared/` richiede il riavvio di tutti i bot che la usano. `deploy.sh` riavvia sempre i servizi in `riavvia` (`--force-recreate`, dalla v5.12.2): metterci tutti quelli che usano il file di `shared/` cambiato.
+- **Squadre NBA** (v6.13.0): nomi, colori, sigle (ESPN e Basketball-Reference → le nostre) e loghi in `shared/squadre_nba.py`, per tutti i template. I loghi li scarica loucabot da ESPN in `config/foto/nba/` (fuori da git, si riscaricano da soli); uno messo a mano in `config/loghi/nba/` vale prima.
 - **Comandi admin e dev solo in privato e nel gruppo admin** (v6.12.5, Luca 31/10: «è gravissimo altrimenti»): `shared/solo_gruppo_admin.py`, installato in ogni `bot.py` prima di tutti gli handler (gruppo -100). Negli altri gruppi e nei canali passano solo i comandi di `comandi.comandi_pubblici()` (menu dei gruppi e dei GM, in tutte le fasi) più /start, /help, /annulla; il resto si ignora in silenzio con una riga nel log. È una lista di permessi: un comando admin nuovo è già protetto; un comando **per i GM** nuovo che deve funzionare nei gruppi va nel menu (o in `comandi_pubblici`). Prova `tests/docs/solo_gruppo_admin.py`.
 - Log: in ogni bot `httpx` e `httpcore` a WARNING, così le chiamate all'API di Telegram (col token nell'URL) non finiscono nei log. Un bot nuovo fa lo stesso.
 - Immagini Typst: nei container ci sono solo Liberation Sans e Noto Color Emoji (`fonts-noto-color-emoji` nei Dockerfile di loucabot e del bot principale). Le prove disegnano i template con `ignore_system_fonts` e solo quei font, così un carattere che nel container non c'è si vede prima del rilascio. Dopo un rilascio che cambia un Dockerfile, il deploy ricostruisce l'immagine; per controllare quali font vede Typst: `docker compose exec bot-main typst fonts` (devono esserci Liberation Sans e Noto Color Emoji). Il Typst del bot principale è il binario statico, che i font di sistema li cerca tramite fontconfig (`/etc/fonts`), assente nell'immagine slim: per questo il Dockerfile imposta `TYPST_FONT_PATHS=/usr/share/fonts` (v6.12.4; prima i template del bot principale uscivano col font di riserva di Typst, in serif, e le emoji a quadratini).

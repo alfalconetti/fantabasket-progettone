@@ -382,6 +382,58 @@ def _squadra_img(t: str) -> dict:
             "colore": col if re.fullmatch(r"#[0-9A-Fa-f]{6}", col) else "#5F01D1"}
 
 
+def _quarto(periodo: int | None) -> str:
+    p = int(periodo or 0)
+    if p <= 4:
+        return f"{max(p, 1)}° Q"
+    return "OT" if p == 5 else f"{p - 4}° OT"
+
+
+def stato_nba(p: dict) -> tuple[str, str]:
+    """(stato, testo) di una partita NBA per la banda: stato «live», «finale» o «dopo» (non iniziata, rinviata)."""
+    st, per = p.get("stato") or "", p.get("periodo")
+    if st == "STATUS_FINAL":
+        extra = "" if int(per or 4) <= 4 else (" · OT" if int(per) == 5 else f" · {int(per) - 4}OT")
+        return "finale", "FINALE" + extra
+    if st == "STATUS_POSTPONED":
+        return "dopo", "RINVIATA"
+    if st in ("STATUS_CANCELED", "STATUS_SUSPENDED"):
+        return "dopo", "ANNULLATA" if st == "STATUS_CANCELED" else "SOSPESA"
+    if st == "STATUS_SCHEDULED":
+        return "dopo", f"{p['inizio'].astimezone(ROMA):%H:%M}"
+    if st == "STATUS_HALFTIME":
+        return "live", "INTERVALLO"
+    if st == "STATUS_END_PERIOD":
+        return "live", f"FINE {_quarto(per)}"
+    orologio = p.get("orologio") or ""
+    return "live", _quarto(per) + (f" · {orologio}" if orologio else "")
+
+
+def banda_nba(d: date | None) -> list[dict]:
+    """Le partite NBA vere della notte d per la banda in alto nel live (v6.13.0, Luca 31/10): tutte, anche quelle
+    senza giocatori schierati, con punteggio, quarto e cronometro di ESPN; quelle in corso evidenziate."""
+    if d is None:
+        return []
+    from shared import squadre_nba as SN
+    out = []
+    for p in db.partite_nba(d, d):
+        stato, t = stato_nba(p)
+        lati = {}
+        for k in ("casa", "trasferta"):
+            sq = SN.squadra(p[k]) or {"sigla": p[k], "colore": SN.GRIGIO, "logo": ""}
+            lati[k] = {"sigla": sq["sigla"], "colore": sq["colore"], "logo": sq["logo"]}
+        pc, pt = p.get("punti_casa"), p.get("punti_trasferta")
+        out.append({"casa": lati["casa"], "tras": lati["trasferta"], "stato": stato, "testo": t,
+                    "pc": "" if pc is None or stato == "dopo" else str(pc),
+                    "pt": "" if pt is None or stato == "dopo" else str(pt)})
+    return out
+
+
+def colonne_banda(n: int) -> int:
+    """Al massimo due righe da 8: 15 partite → 8 colonne, 10 → 5; mai meno di 5 (schede troppo larghe)."""
+    return max(5, min(8, -(-n // 2) if n > 8 else n))
+
+
 def dati_immagine(c: dict, ora: datetime) -> dict:
     """Il JSON per live.typ: una scheda per partita (Luca, 23/10)."""
     g = c["giornata"]
@@ -408,7 +460,9 @@ def dati_immagine(c: dict, ora: datetime) -> dict:
         for t, sq, punti in ((r["casa"], r["sc"], r["punti_casa"]), (r["trasferta"], r["st"], r["punti_trasferta"])):
             lati.append({**_squadra_img(t), **stato_titolari(c, sq["titolari"], partite), "punti": tp(punti)})
         out.append({"k": k, "casa": lati[0], "tras": lati[1], "avanti": avanti, "nota": nota})
+    banda = banda_nba(max(iniziate) if iniziate else None)
     return {"n": g["numero"], "date": f"{g['dal']:%d/%m} – {g['al']:%d/%m}",
+            "nba": banda, "nba_colonne": colonne_banda(len(banda)),
             "notte": f"del {max(iniziate):%d/%m}" if iniziate else "",
             "ora": f"{ora.astimezone(ROMA):%H:%M}", "partite": out, "soglia": 10 - MAX_DA_GIOCARE,
             "bonus": f"{c['bonus']:g}"}

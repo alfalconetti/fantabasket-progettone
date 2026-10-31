@@ -34,7 +34,7 @@
     (nome: p.at(0, default: ""), importo: p.at(1, default: "0"),
      anni: p.at(2, default: "1"), flag: p.at(3, default: "N"),
      importo_orig: p.at(4, default: ""), badge: p.at(5, default: ""),
-     ruolo: p.at(6, default: ""), eleg: p.at(7, default: ""), fm: p.at(8, default: ""), extra: p.at(9, default: ""))
+     ruolo: p.at(6, default: ""), eleg: p.at(7, default: ""), fm: p.at(8, default: ""), extra: p.at(9, default: ""), nba: p.at(10, default: ""), nba_col: p.at(11, default: ""), nba_logo: p.at(12, default: ""), eta: p.at(13, default: ""), foto: p.at(14, default: ""))
   })
 }
 
@@ -44,7 +44,7 @@
 #let base_g    = giocatori.filter(g => g.extra == "")
 #let base_g    = if base_g.len() >= roster_max { base_g } else {
   base_g + range(roster_max - base_g.len()).map(_ =>
-    (nome: "", importo: "", anni: "", flag: "VUOTO", importo_orig: "", badge: "", ruolo: "", eleg: "", fm: "", extra: "")
+    (nome: "", importo: "", anni: "", flag: "VUOTO", importo_orig: "", badge: "", ruolo: "", eleg: "", fm: "", extra: "", nba: "", nba_col: "", nba_logo: "", eta: "", foto: "")
   )
 }
 // fuori dai 15 (DPE che libera lo slot, 10-day): sotto, dopo una riga più spessa
@@ -67,7 +67,7 @@
 #let c_10d = color.rgb("#00838F") // 10-day  — verde petrolio
 #let c_dpe = color.rgb("#C62828") // DPE     — rosso scuro
 
-#set page(width: 300pt, height: auto, margin: 0pt, fill: white)
+#set page(width: 330pt, height: auto, margin: 0pt, fill: white)
 #set text(font: "Liberation Sans", size: 9pt)
 #set block(spacing: 0pt)                 // niente strisce bianche tra un blocco e l'altro
 
@@ -99,7 +99,7 @@
 // ── tabella ───────────────────────────────────────────────────────────────────
 #let titolo(t, al: center) = align(al, text(6.5pt, weight: "bold", fill: _ton_dark, tracking: 0.5pt)[#t])
 #table(
-  columns:  (30pt, 1fr, 30pt, 30pt, 26pt),
+  columns:  (30pt, 1fr, 22pt, 42pt, 30pt, 26pt),
   rows:     (16pt,) + base_g.map(g => if g.flag == "VUOTO" { 13pt } else { 20pt })
             + if extra_g.len() > 0 { (13pt,) + extra_g.map(_ => 20pt) } else { () },
   inset:    (x: 5pt, y: 0pt),
@@ -114,13 +114,13 @@
     if calc.odd(i) { c_row_odd } else { c_row_even }
   },
   // intestazione
-  titolo[RUOLO], titolo(al: left)[GIOCATORI · #pieni/#roster_max], titolo[#fm_label], titolo[\$], titolo[ANNI],
+  titolo[RUOLO], titolo(al: left)[GIOCATORI · #pieni/#roster_max], titolo[ETÀ], titolo[#fm_label], titolo[\$], titolo[ANNI],
   // giocatori
   ..if extra_g.len() > 0 { (table.hline(y: n_base + 1, stroke: 1.5pt + c_dark),) } else { () },
   ..giocatori.enumerate().map(((i, g)) => {
     // fuori dai 15 (DPE che libera lo slot, 10-day): sotto la riga spessa, con un'etichetta
     let etichetta = if extra_g.len() > 0 and i == n_base {
-      (table.cell(colspan: 5, inset: (x: 6pt, y: 0pt))[#text(6pt, weight: "bold", fill: _ton_sez, tracking: 0.6pt)[FUORI DAI 15]],)
+      (table.cell(colspan: 6, inset: (x: 6pt, y: 0pt))[#text(6pt, weight: "bold", fill: _ton_sez, tracking: 0.6pt)[FUORI DAI 15]],)
     } else { () }
     let is_vuoto = g.flag == "VUOTO"
     let (fc, bold) = if g.flag == "R0"     { (c_r0,  true) }
@@ -133,29 +133,46 @@
     let ha_dpe = g.importo_orig != ""
     let tc = if calc.odd(i) { _ton_r1 } else { _ton_r2 }
     let fc_nome = if ha_dpe { c_dpe } else if fc == none { tc } else { fc }   // nomi normali: testo leggibile sulla riga
-    let cella_importo = if is_vuoto { [] } else if ha_dpe {
-      align(center, stack(spacing: 1.5pt,
-        text(6pt, fill: c_dpe.transparentize(30%))[#strike[#g.importo_orig]],
-        text(8.5pt, fill: c_dpe, weight: "bold")[#g.importo]))
-    } else {
-      align(center, text(9pt, fill: tc, weight: "bold")[#g.importo])
+    // importo e anni in una bolla sola a cavallo delle due colonne, del colore del ruolo ma più chiaro (Luca, 31/10);
+    // DPE: l'importo di prima barrato sopra quello ridotto in rosso; 10-day: «10d» e «–»
+    let scuro = rgb("#1a1a1a")
+    let importo = if ha_dpe {
+      stack(spacing: 1.5pt, text(6pt, fill: c_dpe.transparentize(25%))[#strike[#g.importo_orig]],
+                            text(8.5pt, fill: c_dpe, weight: "bold")[#g.importo])
+    } else { text(9pt, fill: scuro, weight: "bold")[#g.importo] }
+    let cella_importo = if is_vuoto { [] } else {
+      table.cell(colspan: 2, inset: (left: 3pt, right: 6pt, y: 0pt), box(width: 100%, fill: c_dark.lighten(60%).saturate(25%), radius: 4pt, inset: (y: 2.5pt),
+        grid(columns: (30fr, 26fr), align: center + horizon, importo, text(8.5pt, fill: scuro)[#g.anni])))
     }
     etichetta + if is_vuoto {
-      ([], text(6.5pt, fill: tc.transparentize(65%), style: "italic")[posto libero], [], [], [])
+      ([], text(6.5pt, fill: tc.transparentize(65%), style: "italic")[posto libero], [], [], [], [])
     } else {
       (
         align(center, box(fill: c_dark, radius: 3pt, inset: (x: 3pt, y: 2pt), width: 21pt,
           align(center, text(7pt, fill: _ton_dark, weight: "bold")[#if g.ruolo != "" [#g.ruolo] else [–]]))),
-        {
-          // colore del tipo di contratto: una barretta davanti al nome (oltre al colore del nome)
-          if fc != none or ha_dpe { box(width: 2.5pt, height: 11pt, radius: 1pt, fill: if ha_dpe { c_dpe } else { fc }, baseline: 25%); h(4pt) }
-          let t = text(9pt, fill: fc_nome, weight: if bold or ha_dpe {"bold"} else {"regular"})[#g.nome]
-          if g.badge == "badge" { box(fill: white.transparentize(25%), radius: 2pt, inset: (x: 2pt, y: 1pt), t) } else { t }
-          if g.eleg != "" { h(4pt); text(6.5pt, fill: tc.transparentize(30%))[#g.eleg] }
-        },
+        layout(spazio => {
+          // faccia a sinistra, poi barretta del contratto, nome, logo NBA ed eleggibili; il nome si stringe se non ci sta
+          let faccia = box(baseline: 30%, width: 15pt, height: 15pt, radius: 50%, clip: true, fill: tc.transparentize(85%),
+            if g.foto != "" { image(g.foto, width: 15pt, height: 15pt, fit: "cover") } else {
+              align(center + horizon, text(5.5pt, weight: "bold", fill: tc.transparentize(40%))[#{ let p = g.nome.split(" ").filter(x => x != "").map(x => x.first()); p.slice(0, calc.min(2, p.len())).join() }]) })
+          let barra = if fc != none or ha_dpe { box(width: 2.5pt, height: 11pt, radius: 1pt, fill: if ha_dpe { c_dpe } else { fc }, baseline: 25%) }
+          let logo_nba = if g.nba != "" {
+            if g.nba_logo != "" { box(baseline: 25%, width: 11pt, height: 11pt, image(g.nba_logo, width: 11pt, height: 11pt, fit: "contain")) }
+            else { box(baseline: 25%, width: 11pt, height: 11pt, radius: 50%, fill: rgb(g.nba_col), align(center + horizon, text(3.8pt, weight: "bold", fill: white)[#g.nba])) }
+          }
+          let resto(eleg) = { if logo_nba != none { h(4pt); logo_nba }; if eleg and g.eleg != "" { h(3pt); text(6.5pt, fill: tc.transparentize(30%))[#g.eleg] } }
+          let nome(sz) = { let t = text(sz, fill: fc_nome, weight: if bold or ha_dpe {"bold"} else {"regular"})[#g.nome]
+            if g.badge == "badge" { box(fill: white.transparentize(25%), radius: 2pt, inset: (x: 2pt, y: 1pt), t) } else { t } }
+          let riga(sz, eleg) = { faccia; h(4pt); if barra != none { barra; h(3pt) }; nome(sz); resto(eleg) }
+          // il nome si stringe fino a 6,5pt; se non basta, via le posizioni eleggibili (nomi lunghissimi, rari)
+          let adatta(eleg) = { let w = measure(riga(9pt, eleg)).width; let wn = measure(nome(9pt)).width
+            if w <= spazio.width { 9pt } else { 9pt * ((spazio.width - (w - wn)) / wn) } }
+          let (sz, eleg) = if adatta(true) >= 6.5pt { (adatta(true), true) } else { (calc.max(6pt, adatta(false)), false) }
+          box(height: 20pt, align(horizon, riga(sz, eleg)))
+        }),
+        align(center, text(8pt, fill: tc)[#g.eta]),
         align(center, text(8pt, fill: tc)[#g.fm]),
         cella_importo,
-        align(center, text(8.5pt, fill: tc)[#g.anni]),
       )
     }
   }).flatten(),

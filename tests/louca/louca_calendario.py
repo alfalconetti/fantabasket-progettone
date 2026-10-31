@@ -52,6 +52,48 @@ ok([(x["trasferta"], x["casa"], x["data_et"], x["tipo"], x["stagione"], x["stato
    [("CLE", "PHI", date(2026, 10, 22), 2, "2026", "STATUS_SCHEDULED"),
     ("DEN", "OKC", date(2026, 10, 22), 2, "2026", "STATUS_SCHEDULED")],
    "ESPN: partite, giorno della costa est (DEN-OKC alle 01:30 UTC è ancora il 22), stagione 2026")
+# v6.13.0: punteggio, quarto e cronometro per la banda NBA del live
+_ev = {"events": [{"id": "77", "date": "2026-11-03T00:30Z", "season": {"year": 2027, "type": 2},
+                   "competitions": [{"competitors": [{"homeAway": "home", "team": {"abbreviation": "GS"}, "score": "90"},
+                                                     {"homeAway": "away", "team": {"abbreviation": "LAL"}, "score": "87"}],
+                                     "status": {"period": 3, "displayClock": "4:12", "type": {"name": "STATUS_IN_PROGRESS"}}}]},
+                  {"id": "78", "date": "2026-11-03T02:00Z", "season": {"year": 2027, "type": 2},
+                   "competitions": [{"competitors": [{"homeAway": "home", "team": {"abbreviation": "SA"}, "score": "0"},
+                                                     {"homeAway": "away", "team": {"abbreviation": "NY"}, "score": "0"}],
+                                     "status": {"period": 0, "displayClock": "0:00", "type": {"name": "STATUS_SCHEDULED"}}}]}]}
+_pp = nba.leggi_giorno(_ev)
+ok((_pp[0]["casa"], _pp[0]["punti_casa"], _pp[0]["punti_trasferta"], _pp[0]["periodo"], _pp[0]["orologio"]) == ("GSW", 90, 87, 3, "4:12")
+   and _pp[1]["punti_casa"] is None and _pp[1]["punti_trasferta"] is None, "ESPN: punteggio, quarto e cronometro; non iniziata senza punti")
+_lg = nba.leggi_loghi({"sports": [{"leagues": [{"teams": [{"team": {"abbreviation": "GS", "logos": [{"href": "https://x/gs.png"}]}},
+                                                          {"team": {"abbreviation": "W12", "logos": [{"href": "https://x/w.png"}]}}]}]}]})
+ok(_lg == {"GSW": "https://x/gs.png"}, "loghi: sigle come le nostre, niente segnaposto")
+import tempfile as _tf
+from shared import squadre_nba as _SN
+_dir = _tf.mkdtemp()
+os.environ["FOTO_DIR"] = _dir
+os.environ["LOGHI_DIR"] = os.path.join(_dir, "manuali")
+class _R:
+    def __init__(self, c, j=None): self.content, self._j = c, j
+    def raise_for_status(self): pass
+    def json(self): return self._j
+class _C:
+    def __init__(self): self.chiamate = 0
+    async def get(self, url, params=None):
+        self.chiamate += 1
+        if url.endswith("teams"):
+            return _R(b"", {"sports": [{"leagues": [{"teams": [{"team": {"abbreviation": s, "logos": [{"href": f"https://x/{s}.png"}]}}
+                                                                for s in nba.NBA]}]}]})
+        return _R(b"\x89PNG finto")
+_c = _C()
+_r = asyncio.run(nba.scarica_loghi(client=_c))
+ok(_r["scaricati"] == 30 and not _r["errori"] and _SN.logo("GS").endswith("nba/GSW.png"), "loghi: i 30 di ESPN in config/foto/nba")
+_c2 = _C()
+ok(asyncio.run(nba.scarica_loghi(client=_c2))["scaricati"] == 0 and _c2.chiamate == 0, "loghi: già scaricati, non si richiedono")
+os.makedirs(os.path.join(_dir, "manuali", "nba"))
+open(os.path.join(_dir, "manuali", "nba", "GSW.png"), "wb").write(b"x")
+ok("manuali" in _SN.logo("GSW") and _SN.squadra("PHO")["sigla"] == "PHX" and _SN.squadra("PHX")["nome"] == "Phoenix Suns",
+   "loghi: uno messo a mano in config/loghi/nba vale prima di quello di ESPN")
+del os.environ["FOTO_DIR"], os.environ["LOGHI_DIR"]
 ok(nba.giorni_stagione(vero)[0] == date(2026, 10, 3) and nba.sigla("GS") == "GSW" and nba.sigla("UTAH") == "UTA",
    "ESPN: elenco dei giorni della stagione, sigle come le nostre")
 
