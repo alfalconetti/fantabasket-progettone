@@ -132,12 +132,37 @@ _r = [{"giocatore_id": p, "nome_common": "Gio Prova", "importo": 15, "importo_or
 _x = RO._nba_ed_eta(_r, datetime(2027, 3, 1, tzinfo=timezone.utc))
 ok(_x[p]["sigla"] == "SAC" and _x[p]["colore"] and _x[p]["eta"] == 26 and _x[r]["sigla"] == "" and _x[r]["eta"] == "",
    f"roster a una data: squadra NBA e età a quel giorno, niente per chi non si conosce ({_x[p]})")
+# % G (Luca, 01/11): partite giocate da quando è nella squadra di adesso
+db._q("DELETE FROM nba_tabellini WHERE partita LIKE 'pg%%'"); db._q("DELETE FROM nba_partite WHERE espn_id LIKE 'pg%%'")
+def _pt(i, giorno, casa, tr, gioca, stato="STATUS_FINAL"):
+    db._q("""INSERT INTO nba_partite (espn_id, stagione, tipo, data_et, inizio, casa, trasferta, stato)
+             VALUES (%s, '2026', 2, %s, %s, %s, %s, %s)""", (f"pg{i}", giorno, f"{giorno} 19:00-05", casa, tr, stato))
+    if gioca is not None:
+        db._q("INSERT INTO nba_tabellini (partita, atleta, nome, squadra, giocato, minuti) VALUES (%s, 'e1', 'Gio Prova', %s, %s, %s)",
+              (f"pg{i}", "CHA" if "CHA" in (casa, tr) else "SAC", gioca, 30 if gioca else 0))
+for i, (gg, gioca) in enumerate([("2026-11-01", True), ("2026-11-03", True), ("2026-11-05", False), ("2026-11-07", True), ("2026-11-09", True)]):
+    _pt(i, gg, "CHA", "BOS", gioca)
+_pt(9, "2026-11-11", "CHA", "BOS", None, "STATUS_SCHEDULED")
+_pt(10, "2027-02-01", "SAC", "LAL", None)
+_pt(11, "2027-02-06", "SAC", "LAL", True)
+_pt(12, "2027-02-08", "DEN", "SAC", False)
+_d1 = datetime(2026, 12, 1, tzinfo=timezone.utc)
+ok(RO.percentuale_giocate("e1", "CHA", C.squadra_nba_dal("e1", "Gio Prova", _d1)[1], _d1) == 80,
+   "% G: 4 partite su 5 finite della sua squadra (quella non ancora giocata non conta)")
+_d2 = datetime(2027, 3, 1, tzinfo=timezone.utc)
+_s2, _dal2 = C.squadra_nba_dal("e1", "Gio Prova", _d2)
+ok(_s2 == "SAC" and RO.percentuale_giocate("e1", "SAC", _dal2, _d2) == 50,
+   "% G dopo la trade: solo le partite della squadra nuova da quando c'è (1 su 2, non quella di prima che arrivasse)")
+ok(RO.percentuale_giocate(None, "SAC", _dal2, _d2) is None and RO.percentuale_giocate("e1", None, None, _d2) is None
+   and RO.percentuale_giocate("e1", "UTA", None, _d2) is None, "% G: senza id ESPN, senza squadra o senza partite → —")
+ok(RO._nba_ed_eta(_r, _d2)[p]["pg"] == 50, "% G nella riga del roster")
+db._q("DELETE FROM nba_tabellini WHERE partita LIKE 'pg%%'"); db._q("DELETE FROM nba_partite WHERE espn_id LIKE 'pg%%'")
 ok(RO._eta(date(2000, 12, 15), date(2026, 12, 14)) == 25 and RO._eta(date(2000, 12, 15), date(2026, 12, 15)) == 26,
    "età a una data: compiuti il giorno del compleanno")
 _gs = RO._build_giocatori_str(_r, [], nba=_x)
 _campi = _gs.split(";")[0].split("|")
-ok(len(_campi) == 15 and _campi[10] == "SAC" and _campi[13] == "26" and "|" not in RO._build_giocatori_str(_r, []).split(";")[0].split("|", 10)[-1],
-   "stringa del roster: 5 campi in più solo con le squadre NBA (assets resta com'è)")
+ok(len(_campi) == 16 and _campi[10] == "SAC" and _campi[13] == "26" and "|" not in RO._build_giocatori_str(_r, []).split(";")[0].split("|", 10)[-1],
+   "stringa del roster: 6 campi in più solo con le squadre NBA (assets resta com'è)")
 try:
     import typst
     _lungo = [{**_r[1], "giocatore_id": 999, "nome_common": "Christian Koloko-Tshiebwe Jr. Antetokounmpo Secondo"}]

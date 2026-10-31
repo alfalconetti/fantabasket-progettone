@@ -558,6 +558,15 @@ class _MsgFr:
 _upd = lambda uid: types.SimpleNamespace(effective_user=types.SimpleNamespace(id=uid, full_name="Dev"), effective_message=_MsgFr())
 asyncio.run(LV.cmd_dev_live_frequenza(_upd(config.dev_id()), types.SimpleNamespace(args=[], bot=Bot())))
 ok(_rf and "5 minuti" in _rf[-1] and "02:00" in _rf[-1], "/dev_live_frequenza: la frequenza di adesso")
+db.q("TRUNCATE lega_live")
+ok(LV.righe_stato_live(t0) == ["Nessun live aperto."], "stato del live: nessuno aperto")
+db.q("INSERT INTO lega_live (stagione, giornata, chat_id, message_id, aggiornato) VALUES (%s, %s, -1, 5, %s)", (S, N, t0))
+_rs = LV.righe_stato_live(t0 + timedelta(minutes=3), LV.FREQUENZA)
+ok(len(_rs) == 1 and "3 min fa" in _rs[0] and f"{(t0 + timedelta(minutes=5)).astimezone(ROMA):%H:%M}" in _rs[0],
+   f"stato del live: ultimo aggiornamento, minuti passati, prossimo giro ({_rs[0]})")
+db.q("UPDATE lega_live SET prossimo = %s", (t0 + timedelta(minutes=10),))
+ok("errore di ESPN" in LV.righe_stato_live(t0 + timedelta(minutes=3), LV.FREQUENZA)[0], "stato del live: dopo un errore, quando riprova")
+db.q("TRUNCATE lega_live")
 asyncio.run(LV.cmd_dev_live_frequenza(_upd(config.dev_id()), types.SimpleNamespace(args=["1", "10", "02:00"], bot=Bot())))
 ok("Uso" in _rf[-1] and LV.frequenza() == LV.FREQUENZA, "/dev_live_frequenza: sotto i 2 minuti rifiutato")
 asyncio.run(LV.cmd_dev_live_frequenza(_upd(config.dev_id()), types.SimpleNamespace(args=["4", "8", "1:30"], bot=Bot())))
@@ -897,6 +906,21 @@ ok(_k <= {"fp", "dnp", "prossima", "live", "rinviata", "vuota"} and "fp" in _k, 
 _png = PA.immagine(_d7)
 if _os_pa := __import__("os").environ.get("PARTITA_PNG"): open(_os_pa, "wb").write(_png)
 ok(_png[:8] == b"\x89PNG\r\n\x1a\n" and len(_png) > 20000, "/partita: immagine Typst")
+# «dati aggiornati alle…» (Luca, 01/11): l'ultimo giro del live o l'ultimo tabellino definitivo della giornata
+_g7 = db.giornata(S, N)
+db.q("UPDATE nba_partite SET tabellino = %s WHERE data_et BETWEEN %s AND %s",
+     (datetime(2026, 11, 12, 7, 30, tzinfo=timezone.utc), _g7["dal"], _g7["al"]))
+db.q("DELETE FROM lega_live WHERE stagione = %s AND giornata = %s", (S, N))
+ok(PA.dati_alle(S, N, _g7, datetime(2026, 11, 12, 10, 0, tzinfo=timezone.utc)) == "dati aggiornati alle 08:30"
+   and PA.dati_alle(S, N, _g7, datetime(2026, 11, 13, 10, 0, tzinfo=timezone.utc)) == "dati aggiornati il 12/11 alle 08:30",
+   "/partita: dati aggiornati alle… (oggi solo l'ora, un altro giorno anche la data)")
+db.q("INSERT INTO lega_live (stagione, giornata, aggiornato) VALUES (%s, %s, %s)", (S, N, datetime(2026, 11, 12, 8, 5, tzinfo=timezone.utc)))
+ok(PA.dati_alle(S, N, _g7, datetime(2026, 11, 12, 10, 0, tzinfo=timezone.utc)) == "dati aggiornati alle 09:05",
+   "/partita: il giro del live più recente del tabellino vale lui")
+db.q("DELETE FROM lega_live WHERE stagione = %s AND giornata = %s", (S, N))
+_pd = PA.immagine({**_d7, "dati_alle": "dati aggiornati alle 08:30"})
+if _os_pa: open(_os_pa, "wb").write(_pd)
+ok(_pd[:4] == b"\x89PNG", "/partita: immagine con l'ora dei dati")
 _sl = db.q("SELECT * FROM lega_risultati WHERE stagione = %s AND giornata = %s AND casa = %s", (S, N, _r7["casa"]), one=True)
 if _sl and _sl.get("convalidato"):
     db.q("UPDATE lega_risultati SET punti_casa = punti_casa + 1 WHERE stagione = %s AND giornata = %s AND casa = %s", (S, N, _r7["casa"]))

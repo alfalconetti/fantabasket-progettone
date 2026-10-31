@@ -59,6 +59,8 @@
     else if dati.stato == "calcolata" { etichetta("CALCOLATA · DA CONVALIDARE", arancio) }
     else if dati.stato == "in corso" { etichetta("IN CORSO · PROVVISORIO", rosso) }
     else { etichetta("DA GIOCARE", viola_medio) }
+    // quando sono stati scaricati gli ultimi tabellini della giornata (Luca, 01/11)
+    if dati.at("dati_alle", default: "") != "" { block(above: 4pt, text(7.5pt, fill: white.transparentize(30%))[#dati.dati_alle]) }
   })
 ]
 
@@ -160,5 +162,5 @@
     #text(fill: viola, weight: "bold")[S1…] supplementari · #text(fill: arancio, weight: "bold")[MEDIA] prende la media ·
     #text(fill: viola_medio)[vs / \@] deve giocare · DNP non è entrato ·
     Media = media fantapunti della stagione all'inizio della giornata (la prende se la sua squadra NBA non gioca) ·
-    Punti effettivi = quelli che contano: la media delle sue partite nella giornata · bonus casa +#dati.bonus #h(1fr) #dati.aggiornato]
+    Punti effettivi = quelli che contano: la media delle sue partite nella giornata · bonus casa +#dati.bonus #h(1fr) immagine del #dati.aggiornato]
 ]

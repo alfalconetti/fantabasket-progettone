@@ -87,14 +87,20 @@ def sq_nba(sigla: str | None) -> dict | None:
     return SN.squadra(sigla)
 
 
-def squadra_nba_al(espn: str | None, nome_bref: str | None, quando: datetime) -> str | None:
-    """La sigla della squadra NBA a un istante (None: senza squadra o non nota), dalla stessa storia della carriera:
-    l'ultimo evento NBA fino a quell'istante; prima del 25/07 la squadra di allora (v6.13.0, per /roster)."""
+def squadra_nba_dal(espn: str | None, nome_bref: str | None, quando: datetime) -> tuple[str | None, datetime | None]:
+    """(sigla della squadra NBA a un istante, da quando è lì), dalla stessa storia della carriera: l'ultimo evento NBA
+    fino a quell'istante; prima del 25/07 la squadra di allora. (None, None) se senza squadra o non nota. Per /roster:
+    squadra e % di partite giocate da quando è nella squadra (v6.13.0, v6.16.0)."""
     ev = eventi_nba(espn, nome_bref)
     if not ev:
-        return None
+        return None, None
     fatti = [x for x in ev if x["quando"] <= quando]
-    return (fatti[-1] if fatti else ev[0])["a"]
+    x = fatti[-1] if fatti else ev[0]
+    return x["a"], x["quando"]
+
+
+def squadra_nba_al(espn: str | None, nome_bref: str | None, quando: datetime) -> str | None:
+    return squadra_nba_dal(espn, nome_bref, quando)[0]
 
 
 FA = {"nome": "Free agent", "sigla": "FA", "colore": GRIGIO_FA, "logo": ""}

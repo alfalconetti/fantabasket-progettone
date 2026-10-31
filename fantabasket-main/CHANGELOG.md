@@ -1769,3 +1769,9 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.15.0 (2026-10-31)
 
 - loucabot v78: Live (Luca, 31/10): si aggiorna **ogni 5 minuti fino alle 2** (ora italiana), poi ogni 10 fino al mattino, per non stressare ESPN quando non c'è nessuno sveglio. Il dev la cambia dal bot con **`/dev_live_frequenza MINUTI MINUTI_TARDI HH:MM`** (senza argomenti la mostra; da 2 a 30 minuti), senza riavvio, con una riga sul canale log (tabella `louca_impostazioni`)
+
+## v6.16.0 (2026-11-01)
+
+- `/roster` (Luca, 01/11, mockup approvato): colonna **% G**, le partite giocate da quando il giocatore è nella sua squadra NBA su quelle finite della squadra (ambra sotto l'80%, rosso sotto il 50%; con una data, a quella data); pagina un filo più larga, così i nomi lunghi restano a grandezza piena
+- loucabot v79: «dati aggiornati alle…» in `/partita`; stato dei live aperti in `/dev_live_frequenza`
+- MIGRATION: «Togliere `yahoo-router`» tra le cose da fare dopo, non più tra le idee lontane

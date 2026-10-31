@@ -227,7 +227,28 @@ def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None)
         "media_nba": ", ".join(media_nba) if media_nba else "",
         "note": list(dict.fromkeys(note)),
         "aggiornato": f"{ora.astimezone(__import__('zoneinfo').ZoneInfo('Europe/Rome')):%d/%m alle %H:%M}",
+        "dati_alle": dati_alle(s, n, g, ora) if stato != "da giocare" else "",
     }
+
+
+def ultimo_aggiornamento(s: str, n: int, g: dict) -> datetime | None:
+    """Quando sono stati scaricati gli ultimi tabellini della giornata: l'ultimo giro del live (lega_live.aggiornato)
+    o l'ultimo tabellino definitivo delle sue partite NBA (nba_partite.tabellino), il più recente (Luca, 01/11)."""
+    live = db.q("SELECT aggiornato FROM lega_live WHERE stagione = %s AND giornata = %s", (s, n), one=True) or {}
+    tab = db.q("SELECT MAX(tabellino) AS t FROM nba_partite WHERE data_et BETWEEN %s AND %s", (g["dal"], g["al"]), one=True) or {}
+    tempi = [x for x in (live.get("aggiornato"), tab.get("t")) if x]
+    return max(tempi) if tempi else None
+
+
+def dati_alle(s: str, n: int, g: dict, ora: datetime) -> str:
+    """«dati aggiornati alle 01:35» (oggi) o «… il 31/10 alle 08:30»; vuoto se non c'è ancora niente."""
+    from zoneinfo import ZoneInfo
+    t = ultimo_aggiornamento(s, n, g)
+    if not t:
+        return ""
+    roma = ZoneInfo("Europe/Rome")
+    t, oggi = t.astimezone(roma), ora.astimezone(roma).date()
+    return f"dati aggiornati alle {t:%H:%M}" if t.date() == oggi else f"dati aggiornati il {t:%d/%m} alle {t:%H:%M}"
 
 
 def immagine(d: dict) -> bytes:

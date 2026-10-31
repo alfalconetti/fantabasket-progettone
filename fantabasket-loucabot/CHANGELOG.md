@@ -391,3 +391,8 @@ Il calcolo dei fantapunti.
 ## v78 (2026-10-31)
 
 - Live (Luca, 31/10): si aggiorna **ogni 5 minuti fino alle 2** (ora italiana), poi ogni 10 fino al mattino, per non stressare ESPN quando non c'è nessuno sveglio. Il dev la cambia dal bot con **`/dev_live_frequenza MINUTI MINUTI_TARDI HH:MM`** (senza argomenti la mostra; da 2 a 30 minuti), senza riavvio, con una riga sul canale log (tabella `louca_impostazioni`)
+
+## v79 (2026-11-01)
+
+- `/partita` (Luca, 01/11): sotto lo stato della partita «dati aggiornati alle HH:MM», cioè quando sono stati scaricati gli ultimi tabellini della giornata (ultimo giro del live o ultimo tabellino definitivo); in fondo resta l'ora dell'immagine
+- `/dev_live_frequenza` senza argomenti mostra anche, per ogni live aperto, l'ultimo aggiornamento, quanti minuti sono passati e il prossimo giro (o quando riprova dopo un errore di ESPN)

@@ -34,7 +34,7 @@
     (nome: p.at(0, default: ""), importo: p.at(1, default: "0"),
      anni: p.at(2, default: "1"), flag: p.at(3, default: "N"),
      importo_orig: p.at(4, default: ""), badge: p.at(5, default: ""),
-     ruolo: p.at(6, default: ""), eleg: p.at(7, default: ""), fm: p.at(8, default: ""), extra: p.at(9, default: ""), nba: p.at(10, default: ""), nba_col: p.at(11, default: ""), nba_logo: p.at(12, default: ""), eta: p.at(13, default: ""), foto: p.at(14, default: ""))
+     ruolo: p.at(6, default: ""), eleg: p.at(7, default: ""), fm: p.at(8, default: ""), extra: p.at(9, default: ""), nba: p.at(10, default: ""), nba_col: p.at(11, default: ""), nba_logo: p.at(12, default: ""), eta: p.at(13, default: ""), foto: p.at(14, default: ""), pg: p.at(15, default: ""))
   })
 }
 
@@ -44,7 +44,7 @@
 #let base_g    = giocatori.filter(g => g.extra == "")
 #let base_g    = if base_g.len() >= roster_max { base_g } else {
   base_g + range(roster_max - base_g.len()).map(_ =>
-    (nome: "", importo: "", anni: "", flag: "VUOTO", importo_orig: "", badge: "", ruolo: "", eleg: "", fm: "", extra: "", nba: "", nba_col: "", nba_logo: "", eta: "", foto: "")
+    (nome: "", importo: "", anni: "", flag: "VUOTO", importo_orig: "", badge: "", ruolo: "", eleg: "", fm: "", extra: "", nba: "", nba_col: "", nba_logo: "", eta: "", foto: "", pg: "")
   )
 }
 // fuori dai 15 (DPE che libera lo slot, 10-day): sotto, dopo una riga più spessa
@@ -67,7 +67,7 @@
 #let c_10d = color.rgb("#00838F") // 10-day  — verde petrolio
 #let c_dpe = color.rgb("#C62828") // DPE     — rosso scuro
 
-#set page(width: 330pt, height: auto, margin: 0pt, fill: white)
+#set page(width: 350pt, height: auto, margin: 0pt, fill: white)
 #set text(font: "Liberation Sans", size: 9pt)
 #set block(spacing: 0pt)                 // niente strisce bianche tra un blocco e l'altro
 
@@ -99,7 +99,7 @@
 // ── tabella ───────────────────────────────────────────────────────────────────
 #let titolo(t, al: center) = align(al, text(6.5pt, weight: "bold", fill: _ton_dark, tracking: 0.5pt)[#t])
 #table(
-  columns:  (30pt, 1fr, 22pt, 42pt, 30pt, 26pt),
+  columns:  (30pt, 1fr, 22pt, 42pt, 26pt, 30pt, 26pt),
   rows:     (16pt,) + base_g.map(g => if g.flag == "VUOTO" { 13pt } else { 20pt })
             + if extra_g.len() > 0 { (13pt,) + extra_g.map(_ => 20pt) } else { () },
   inset:    (x: 5pt, y: 0pt),
@@ -114,13 +114,13 @@
     if calc.odd(i) { c_row_odd } else { c_row_even }
   },
   // intestazione
-  titolo[RUOLO], titolo(al: left)[GIOCATORI · #pieni/#roster_max], titolo[ETÀ], titolo[#fm_label], titolo[\$], titolo[ANNI],
+  titolo[RUOLO], titolo(al: left)[GIOCATORI · #pieni/#roster_max], titolo[ETÀ], titolo[#fm_label], titolo[% G], titolo[\$], titolo[ANNI],
   // giocatori
   ..if extra_g.len() > 0 { (table.hline(y: n_base + 1, stroke: 1.5pt + c_dark),) } else { () },
   ..giocatori.enumerate().map(((i, g)) => {
     // fuori dai 15 (DPE che libera lo slot, 10-day): sotto la riga spessa, con un'etichetta
     let etichetta = if extra_g.len() > 0 and i == n_base {
-      (table.cell(colspan: 6, inset: (x: 6pt, y: 0pt))[#text(6pt, weight: "bold", fill: _ton_sez, tracking: 0.6pt)[FUORI DAI 15]],)
+      (table.cell(colspan: 7, inset: (x: 6pt, y: 0pt))[#text(6pt, weight: "bold", fill: _ton_sez, tracking: 0.6pt)[FUORI DAI 15]],)
     } else { () }
     let is_vuoto = g.flag == "VUOTO"
     let (fc, bold) = if g.flag == "R0"     { (c_r0,  true) }
@@ -145,7 +145,7 @@
         grid(columns: (30fr, 26fr), align: center + horizon, importo, text(8.5pt, fill: scuro)[#g.anni])))
     }
     etichetta + if is_vuoto {
-      ([], text(6.5pt, fill: tc.transparentize(65%), style: "italic")[posto libero], [], [], [], [])
+      ([], text(6.5pt, fill: tc.transparentize(65%), style: "italic")[posto libero], [], [], [], [], [])
     } else {
       (
         align(center, box(fill: c_dark, radius: 3pt, inset: (x: 3pt, y: 2pt), width: 21pt,
@@ -172,6 +172,10 @@
         }),
         align(center, text(8pt, fill: tc)[#g.eta]),
         align(center, text(8pt, fill: tc)[#g.fm]),
+        align(center, if g.pg == "" { text(8pt, fill: tc)[—] } else {
+          let v = int(g.pg)
+          // % G (Luca, 01/11): partite giocate da quando è nella squadra NBA; ambra sotto l'80%, rosso sotto il 50%
+          text(7.5pt, fill: if v < 50 { rgb("#C62828") } else if v < 80 { rgb("#B26A00") } else { tc })[#g.pg%] }),
         cella_importo,
       )
     }

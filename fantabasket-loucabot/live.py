@@ -119,6 +119,31 @@ def imposta_frequenza(minuti: int, minuti_tardi: int, tardi_dalle: str, chi: str
 MINUTI_MIN, MINUTI_MAX = 2, 30
 
 
+def righe_stato_live(ora: datetime, f: dict | None = None) -> list[str]:
+    """Per /dev_live_frequenza: per ogni live aperto l'ultimo aggiornamento, quanto è passato e il prossimo giro."""
+    righe = db.q("SELECT giornata, aggiornato, prossimo FROM lega_live WHERE chiuso IS NULL ORDER BY giornata",
+                 many=True) or []
+    if not righe:
+        return ["Nessun live aperto."]
+    out = []
+    for r in righe:
+        if not r["aggiornato"]:
+            out.append(f"G{r['giornata']}: mai aggiornato")
+            continue
+        passati = int((ora - r["aggiornato"]).total_seconds() // 60)
+        prossimo = r["aggiornato"] + intervallo(ora, f)
+        if r["prossimo"] and r["prossimo"] > prossimo:
+            prossimo = r["prossimo"]                # dopo un errore di ESPN si aspetta di più
+        riga = (f"G{r['giornata']}: ultimo aggiornamento alle {r['aggiornato'].astimezone(ROMA):%H:%M} del "
+                f"{r['aggiornato'].astimezone(ROMA):%d/%m} ({passati} min fa)")
+        if r["prossimo"] and r["prossimo"] > ora:
+            riga += f", dopo un errore di ESPN riprova alle {r['prossimo'].astimezone(ROMA):%H:%M}"
+        elif prossimo > ora:
+            riga += f", prossimo giro verso le {prossimo.astimezone(ROMA):%H:%M} (se c'è una notte in corso)"
+        out.append(riga)
+    return out
+
+
 async def cmd_dev_live_frequenza(update, context):
     """/dev_live_frequenza [MINUTI MINUTI_TARDI HH:MM] (dev): senza argomenti la frequenza di adesso; con tre
     argomenti la cambia (es. /dev_live_frequenza 5 10 02:00). Vale dal giro dopo, senza riavvio."""
@@ -131,7 +156,8 @@ async def cmd_dev_live_frequenza(update, context):
               f"ogni <b>{f['minuti_tardi']} minuti</b>")
     args = context.args or []
     if not args:
-        await msg.reply_text(f"🔴 Live: {adesso}.\n\nPer cambiarla: /dev_live_frequenza MINUTI MINUTI_TARDI HH:MM "
+        await msg.reply_text(f"🔴 Live: {adesso}.\n" + "\n".join(righe_stato_live(datetime.now(timezone.utc), f))
+                             + "\n\nPer cambiarla: /dev_live_frequenza MINUTI MINUTI_TARDI HH:MM "
                              f"(es. /dev_live_frequenza 5 10 02:00; minuti da {MINUTI_MIN} a {MINUTI_MAX})", parse_mode="HTML")
         return
     try:

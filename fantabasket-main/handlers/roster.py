@@ -260,7 +260,7 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
     - 10° campo "x" per chi sta fuori dai 15 (DPE che libera lo slot, 10-day): in fondo, dopo le
       15 righe e una riga più spessa
     - con `nba` (giocatore_id → dict, solo /roster, v6.13.0): 11°-15° sigla e colore della squadra NBA,
-      logo, età, foto (vuoti se non ci sono)
+      logo, età, foto; 16° % di partite giocate da quando è nella squadra (v6.16.0) (vuoti se non ci sono)
     Ordinamento: importo_originale DESC, cognome ASC; quando TUTTI i giocatori
     hanno un ruolo ufficiale: ruolo (PG, SG, SF, PF, C), poi importo, poi cognome.
     Flag: N=normale, A=RFA, R0-R3=rookie anno I-IV scale
@@ -318,7 +318,7 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
         if nba is not None:
             x = nba.get(r["giocatore_id"]) or {}
             riga += "|" + "|".join(str(x.get(k) or "").replace("|", " ").replace(";", " ")
-                                   for k in ("sigla", "colore", "logo", "eta", "foto"))
+                                   for k in ("sigla", "colore", "logo", "eta", "foto", "pg"))
         righe.append(riga)
     return ";".join(righe)
 
@@ -343,17 +343,48 @@ def _nba_ed_eta(roster: list, as_of=None) -> dict:
     out = {}
     for gid in ids:
         x = info.get(gid) or {}
-        sigla = None
+        sigla, dal = None, None
         try:
-            sigla = CAR.squadra_nba_al(x.get("espn_id"), x.get("nome_bref"), quando)
+            sigla, dal = CAR.squadra_nba_dal(x.get("espn_id"), x.get("nome_bref"), quando)
         except Exception as e:
             logger.warning("Squadra NBA di %s: %s", gid, e)
+        pg = ""
+        try:
+            pg = percentuale_giocate(x.get("espn_id"), SN.sigla(sigla), dal, quando)
+        except Exception as e:
+            logger.warning("%% di partite giocate di %s: %s", gid, e)
         sq = SN.squadra(sigla) or {}
         foto = os.path.join(CAR.FOTO_DIR, f"{x['espn_id']}.png") if x.get("espn_id") else ""
         eta = _eta(x.get("data_nascita"), as_of)
         out[gid] = {"sigla": sq.get("sigla", ""), "colore": sq.get("colore", ""), "logo": sq.get("logo", ""),
-                    "eta": "" if eta is None else eta, "foto": foto if foto and os.path.exists(foto) else ""}
+                    "eta": "" if eta is None else eta, "foto": foto if foto and os.path.exists(foto) else "",
+                    "pg": "" if pg is None else pg}
     return out
+
+
+def percentuale_giocate(espn: str | None, sigla: str | None, dal, al) -> int | None:
+    """% G di /roster (Luca, 01/11): partite in cui è entrato in campo, su quelle finite della sua squadra NBA di
+    adesso (o di quella data) **da quando è in quella squadra**, nella stagione NBA in corso. None se non si può dire
+    (senza squadra, senza id ESPN, squadra senza partite finite)."""
+    if not espn or not sigla:
+        return None
+    from datetime import datetime as _dt, timedelta as _td
+    from zoneinfo import ZoneInfo
+    et = ZoneInfo("America/New_York")
+    fine = (al.astimezone(et) if isinstance(al, _dt) else al)
+    fine = fine.date() if isinstance(fine, _dt) else fine
+    inizio = dal.astimezone(et).date() if isinstance(dal, _dt) else (dal or fine - _td(days=400))
+    stagione = str(fine.year if fine.month >= 7 else fine.year - 1)     # stagione della lega (2026 = 2026-27)
+    r = db._q("""SELECT COUNT(*) AS partite,
+                        COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM nba_tabellini t WHERE t.partita = p.espn_id
+                                                       AND t.atleta = %s AND t.giocato)) AS giocate
+                 FROM nba_partite p
+                 WHERE p.stagione = %s AND p.tipo IN (2, 3, 5) AND p.stato = 'STATUS_FINAL'
+                   AND (p.casa = %s OR p.trasferta = %s) AND p.data_et >= %s AND p.data_et <= %s""",
+              (espn, stagione, sigla, sigla, inizio, fine), one=True) or {}
+    if not r.get("partite"):
+        return None
+    return round(100 * int(r["giocate"]) / int(r["partite"]))
 
 
 def _fine_10day(team_id: str) -> str:
