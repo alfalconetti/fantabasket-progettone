@@ -125,6 +125,8 @@ async def job_calcolo(context: ContextTypes.DEFAULT_TYPE):
                                        f"Quando è pronta: /ricalcola {g['numero']}")
                 continue
             await esegui(context.bot, s, g["numero"])
+            import tanking                              # secondo giro del tanking: i titolari Out alle 21 rimasti fuori
+            await tanking.manda_fine(context.bot, s, g)
         except Exception as err:
             logger.exception("Calcolo giornata %s", g["numero"])
             await log(context.bot, f"⚠️ Calcolo della giornata {g['numero']} fallito: {e(repr(err))[:300]}")

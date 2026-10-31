@@ -1711,3 +1711,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.10.2 (2026-10-31)
 
 - Loucabot v69: il controllo del tanking guarda l'injury report alla scadenza, senza gli status decisi dagli admin (un Out dell'ultimo minuto non è un indizio), e segnala quando l'escluso ha un altro ruolo (servirebbe un cambio ruolo)
+
+## v6.10.3 (2026-10-31)
+
+- Loucabot v70: controllo del tanking con l'injury report delle 21 italiane (tradizione della lega), solo titolari Out che poi non hanno giocato, e un secondo giro a fine giornata per chi giocava dopo la prima notte (Luca, 31/10)

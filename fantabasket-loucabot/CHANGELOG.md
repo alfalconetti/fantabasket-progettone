@@ -352,3 +352,7 @@ Il calcolo dei fantapunti.
 
 - Controllo del tanking: se l'escluso adesso ha un altro ruolo lo dice («ora è PG: servirebbe un cambio ruolo»), perché non si vuole costringere a un cambio ruolo subito (Luca, 31/10)
 - Controllo del tanking: lo stato degli infortuni è quello **alla scadenza** (quello che il GM sapeva quando ha schierato), senza gli status decisi dagli admin per la FADD: un Out dell'ultimo minuto, poi messo Out a mano, risultava «titolare indisponibile» come indizio (Luca, 31/10)
+
+## v70 (2026-10-31)
+
+- **Controllo del tanking ripensato** (Luca, 31/10). Lo stato degli infortuni è quello che il GM poteva sapere: l'ultimo injury report **prima delle 21 italiane** del primo giorno (tradizione della lega; `orari.tanking_injury`), o prima della scadenza se la prima partita è prima. Il titolare indisponibile è un indizio solo se è **Out** (Questionable, Doubtful, Day-To-Day sono scommesse legittime) **e non ha giocato** nessuna partita della giornata: alle 11 dopo la prima notte solo se la sua squadra ha già finito; gli altri nel **secondo giro a fine giornata**, dopo il calcolo delle 7:45, solo se ce ne sono (se no una riga sul log)

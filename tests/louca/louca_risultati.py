@@ -1109,8 +1109,9 @@ import tanking as TK
 ok(TK.nettamente_meglio(20, 12) and TK.nettamente_meglio(13.5, 10) and not TK.nettamente_meglio(12, 10)
    and not TK.nettamente_meglio(5, 0) and TK.nettamente_meglio(8, 0), "tanking: soglia +8 di media oppure +30%")
 _G = lambda gid_, nome, media, partite, stato=None, pos=("SF",): {"gid": gid_, "nome": nome, "media": media, "partite": partite,
+                                                               "restano": 0, "giocate": 0, "ultima": date(2026, 11, 10),
                                                                "stato": stato, "posizioni": set(pos)}
-_sq = {"quintetto": {"PG": 1, "SG": 2, "SF": 3, "PF": 4, "C": None},
+_sq = {"dal": date(2026, 11, 10), "quintetto": {"PG": 1, "SG": 2, "SF": 3, "PF": 4, "C": None},
        "panchina": None,
        "giocatori": {1: _G(1, "Titolare Out", 25, 2, "Out", ("PG",)), 2: _G(2, "Titolare Senza Partite", 10, 0, None, ("SG",)),
                      3: _G(3, "Titolare Scarso", 10, 2), 4: _G(4, "Titolare Ok", 30, 2, None, ("PF",)),
@@ -1118,12 +1119,30 @@ _sq = {"quintetto": {"PG": 1, "SG": 2, "SF": 3, "PF": 4, "C": None},
                      7: _G(7, "Escluso Senza Partite", 60, 0, None, ("SG", "SF"))}}
 _ind = TK.indizi(_sq)
 _j = "\n".join(_ind)
-ok(any(x.startswith("• PG: titolare <b>indisponibile</b> Titolare Out") and "Escluso Forte" in x for x in _ind)
+ok(any(x.startswith("• PG: titolare <b>Out alle 21</b> e non ha giocato Titolare Out") and "Escluso Forte" in x for x in _ind)
    and any(x.startswith("• SF: Titolare Scarso") and "fuori Escluso Forte" in x and "+14,00" in x for x in _ind)
    and "C: <b>posto vuoto</b>" in _j and "panchina non mandata" in _j
    and "SG:" not in _j and "PF:" not in _j and "Escluso Out" not in _j and "Escluso Senza Partite" not in _j,
    "tanking: titolare indisponibile con un sano in rosa, escluso nettamente migliore, posto vuoto, panchina; "
    "niente per chi non ha partite (prende la media) né per gli esclusi infortunati o senza partite\n" + _j)
+# «dato Out e che non rigioca» (Luca, 31/10): Out che poi ha giocato, o che gioca ancora, alle 11 no; a fine giornata sì
+_tit = lambda **k: {**_sq, "giocatori": {**_sq["giocatori"], 1: {**_sq["giocatori"][1], **k}}}
+ok(not any("PG:" in x for x in TK.indizi(_tit(giocate=1))), "tanking: titolare Out alle 21 che poi ha giocato: niente")
+ok(not any("PG:" in x for x in TK.indizi(_tit(restano=1, ultima=date(2026, 11, 12)))),
+   "tanking: titolare Out la cui squadra gioca ancora: alle 11 niente (può rientrare)")
+ok(any("PG: titolare <b>Out alle 21</b>" in x for x in TK.indizi(_tit(ultima=date(2026, 11, 12)), fine=True))
+   and TK.indizi(_tit(ultima=date(2026, 11, 12)), fine=True) == [x for x in TK.indizi(_tit(ultima=date(2026, 11, 12)), fine=True) if "Out alle 21" in x]
+   and not TK.indizi(_sq, fine=True),
+   "tanking a fine giornata: solo i titolari Out alle 21 rimasti fuori, giocando dopo la prima notte (gli altri erano già alle 11)")
+ok(not any("PG:" in x for x in TK.indizi(_tit(stato="Questionable"))) and not any("PG:" in x for x in TK.indizi(_tit(stato="Day-To-Day"))),
+   "tanking: Questionable e Day-To-Day sono scommesse legittime, non indizi")
+# l'injury report che conta: le 21 italiane del primo giorno, o la scadenza se è prima
+_gr = dict(db.giornata(S, N))
+ok(TK.riferimento({**_gr, "prima_partita": datetime(2026, 11, 11, 0, 30, tzinfo=timezone.utc)}) == datetime(2026, 11, 10, 21, 0, tzinfo=TK.ROMA)
+   and TK.riferimento({**_gr, "prima_partita": datetime(2026, 11, 10, 17, 0, tzinfo=timezone.utc)}) == datetime(2026, 11, 10, 17, 0, tzinfo=timezone.utc),
+   "tanking: conta l'injury report delle 21, o della scadenza se la prima partita è prima")
+_s21, _t21 = TK.stati_al(["r10", "r5", "r1"], datetime(2026, 11, 10, 21, 0, tzinfo=TK.ROMA))
+ok(_s21.get("r10") == "Out" and "r1" not in _s21 and _t21 is not None, f"tanking: stati dall'ultimo snapshot prima delle 21 {_s21}")
 # escluso che adesso ha un altro ruolo: si segnala che servirebbe un cambio ruolo (Luca, 31/10)
 _sqr = {**_sq, "giocatori": {**_sq["giocatori"], 5: {**_sq["giocatori"][5], "ruolo": "PG"}}}
 _indr = TK.indizi(_sqr)

@@ -140,19 +140,21 @@ Restano agli admin le 72 ore di attesa per le partite rinviate e le penalità.
 
 ## Controllo del tanking
 
-**Il mattino dopo la prima notte** di ogni giornata, alle 11 (`orari.controllo_tanking`), arriva **solo al gruppo admin** un report con gli **indizi** di formazioni che sembrano fatte per perdere. Sono indizi, non verdetti: minutaggi, rientri e riposi sono scelte legittime, decidete voi. Per ogni squadra, dalla formazione congelata e dalla panchina:
+Report **solo al gruppo admin** con gli **indizi** di formazioni che sembrano fatte per perdere. Sono indizi, non verdetti: minutaggi, rientri e riposi sono scelte legittime, decidete voi.
 
-- **titolare scarso**: in rosa c'è un escluso che può giocare quel posto (posizioni eleggibili di Yahoo), è sano, ha partite nella giornata e ha una media **almeno +8 o +30%** più alta del titolare;
-- **titolare indisponibile** mentre in rosa c'è un sano che può giocare quel posto e ha partite.
+**Che cosa il GM poteva sapere.** Per tradizione della lega conta l'injury report **fino alle 21 italiane** del primo giorno della giornata (`orari.tanking_injury`), o fino alla scadenza se la prima partita è prima delle 21. Quello che cambia dopo non è colpa del GM. È diverso apposta dalla FADD, che guarda l'ultimo report prima della partita del giocatore; per lo stesso motivo gli status decisi con `/set_valid_status` qui non contano.
 
-Se l'escluso adesso ha un altro ruolo, il report lo dice («ora è PG: servirebbe un cambio ruolo»): può giocare quel posto per le posizioni eleggibili, ma non si vuole costringere un GM a un cambio ruolo subito, quindi l'indizio pesa meno.
+| Quando | Cosa segnala |
+|---|---|
+| **alle 11 del mattino dopo la prima notte** (`orari.controllo_tanking`) | **titolare scarso**: in rosa c'è un escluso sano alle 21, con partite nella giornata, che può giocare quel posto (posizioni eleggibili di Yahoo) e ha una media **almeno +8 o +30%** più alta; **titolare Out alle 21 che non ha giocato**, se la sua squadra ha già finito le partite della giornata e in rosa c'era un sano che poteva giocare quel posto; **posto vuoto**; **panchina non mandata** |
+| **a fine giornata**, dopo il calcolo delle 7:45 | solo i **titolari Out alle 21 che non hanno giocato nessuna partita**, la cui squadra giocava dopo la prima notte (alle 11 potevano ancora rientrare). Se non ce ne sono, solo una riga sul canale log |
 
-Lo stato è quello dell'injury report **alla scadenza** (l'ultimo prima della prima partita della giornata), cioè quello che il GM sapeva quando ha schierato. È diverso apposta dalla FADD, che guarda l'ultimo report prima della partita del giocatore: un Out dell'ultimo minuto non è un indizio di tanking. Per lo stesso motivo gli status decisi con `/set_valid_status` qui non contano.
-- **posto del quintetto vuoto** e **panchina non mandata**.
+- Conta solo **Out**: Questionable, Doubtful e Day-To-Day sono scommesse legittime. Un titolare Out che poi gioca non è un indizio.
+- Un titolare la cui squadra non gioca nella giornata prende la sua media: non è un indizio.
+- Se l'escluso adesso ha un altro ruolo, il report lo dice («ora è PG: servirebbe un cambio ruolo»): non si vuole costringere un GM a un cambio ruolo subito, quindi l'indizio pesa meno.
+- Le medie sono quelle della stagione prima della giornata. Le squadre sono in ordine dal fondo della classifica; quelle nell'ultimo terzo hanno ⬇️, perché lì il tanking conviene. Se non c'è niente, «nessun indizio».
 
-Un titolare la cui squadra NBA non gioca nella giornata prende la sua media: non è un indizio (salvo se indisponibile). Le medie sono quelle della stagione prima della giornata. Le squadre sono in ordine dal fondo della classifica; quelle nell'ultimo terzo hanno ⬇️, perché lì il tanking conviene. Se non c'è niente, una riga «nessun indizio».
-
-**`/tanking [N]`** ti manda lo stesso report quando vuoi (senza N, l'ultima giornata iniziata).
+**`/tanking [N]`** ti manda il report quando vuoi (senza N, l'ultima giornata iniziata): a giornata finita contiene tutto, titolari Out compresi.
 
 La seconda parte (dopo la convalida, quanti punti avrebbe fatto la formazione migliore e lo storico per squadra) è da fare.
 
