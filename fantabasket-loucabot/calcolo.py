@@ -143,7 +143,9 @@ def _fadd_possibile(a: str, p: dict, g: dict) -> tuple[bool, str]:
         if max(set(giorni) - con_snap) >= oggi_et():
             return False, ""    # giornata non ancora finita (live): gli snapshot di oggi e dei prossimi giorni arriveranno
         return False, "manca lo snapshot degli infortunati di qualche giorno: decide un admin"
-    stati = db.infortuni([a], giorni)
+    # lo snapshot che conta è l'ultimo prima della SUA partita (Luca, 31/10: Kawhi Out alle 23:24, dopo la prima
+    # partita della notte ma prima di quella dei Clippers); nei giorni senza la sua partita quello del giorno
+    stati = db.infortuni_alla_partita({a: p["squadra"]}, giorni)
     if all(indisponibile(stati.get((a, d))) for d in giorni):
         return True, "/".join(sorted({stati[(a, d)] for d in giorni}))
     return False, ""

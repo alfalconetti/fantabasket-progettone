@@ -75,6 +75,8 @@ def main():
     app.job_queue.run_daily(handlers_risultati.job_calcolo, time=regole.orario("calcolo").replace(tzinfo=ROME))     # calcolo definitivo
     # v58: niente più controllo delle 10 sulle giornate; alle 20 il controllo finale della notte prima (poi congelata)
     import top
+    import tanking
+    app.job_queue.run_daily(tanking.job_tanking, time=regole.orario("controllo_tanking").replace(tzinfo=ROME))  # controllo tanking
     app.job_queue.run_daily(top.job_top_notte, time=regole.orario("top_notte").replace(tzinfo=ROME))        # top 20 della notte
     app.job_queue.run_daily(handlers_risultati.job_controllo_finale, time=regole.orario("controllo_notte").replace(tzinfo=ROME))
     # v60: primo controllo dell'ultima notte alle 11:05; un minuto dopo per le giornate senza live (convalidate)

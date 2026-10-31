@@ -41,9 +41,9 @@ Gli admin sono quelli di `admin_ids` in `globals.json`, gli stessi degli altri b
 
 **Alle 7:45** del giorno dopo l'ultima notte della giornata il bot calcola da solo, coi tabellini definitivi: riscarica le partite e i tabellini **dell'ultima notte** (le notti prima sono già congelate, vedi sotto), anche quelli già presi nel live (così entra subito una correzione di ESPN arrivata dopo il live; se ce n'è qualcuna lo scrive nel canale log), prende i quintetti congelati alla scadenza e le panchine da IPanchinari e applica le regole qui sotto. Poi:
 - scrive il tab **«Calcolo GN»** del foglio di controllo del calcolo: una riga per giocatore coi fantapunti di ogni notte, la media della stagione, lo status di ogni notte, il punteggio, chi è in campo (FADD), l'ordine dei supplementari, e in cima il riquadro dei risultati. Punteggi, totali, supplementari e vincitore sono **formule** che rifanno i conti del bot: se tutto quadra sul foglio, quadra anche nel bot. I dati scritti dal bot sono in blu, le formule in nero, le righe della FADD in arancione;
-- manda al gruppo admin la proposta: risultati, FADD, avvisi (panchina mancante → senza supplementari, quintetto incompleto, giocatori senza id ESPN, panchinari ceduti prima della scadenza → tolti dalla panchina e gli altri scalano, titolari non più in squadra alla scadenza → da correggere da Yahoo), con **Ricalcolo di una giornata già convalidata** (v55): la proposta nuova dice in fondo cosa cambia rispetto ai risultati convalidati, partita per partita (punti, supplementari, ⚠️ vincitore), oppure «stessi risultati»; lo ripete il messaggio di conferma quando la convalidi. Sul canale, se cambia chi vince, esce anche un avviso.
+- manda al gruppo admin la proposta: risultati, FADD, avvisi (panchina mancante → senza supplementari, quintetto incompleto, giocatori senza id ESPN, panchinari ceduti prima della scadenza → tolti dalla panchina e gli altri scalano, titolari non più in squadra alla scadenza → da correggere da Yahoo), con **✅ Convalida** e **🔄 Ricalcola**.
 
-**✅ Convalida** e **🔄 Ricalcola**.
+**Ricalcolo di una giornata già convalidata**: la proposta nuova dice in fondo cosa cambia rispetto ai risultati convalidati, partita per partita (punti, supplementari, ⚠️ vincitore), oppure «stessi risultati»; lo ripete il messaggio di conferma quando la convalidi. Sul canale, se cambia chi vince, esce anche un avviso.
 
 Se a quell'ora la giornata non si può ancora calcolare (una partita non finita, un tabellino che manca, quintetti non congelati) lo dice sul canale log: quando è pronta, `/ricalcola N`.
 
@@ -59,7 +59,30 @@ Poi **🔄 Ricalcola** (o `/ricalcola N`): il bot riscarica i tabellini delle no
 
 **Storico del calcolo**: **`/storico_calcolo N`** mostra tutte le versioni calcolate della giornata (la prima, ogni ricalcolo), quando, quale è stata convalidata e, per ognuna, cosa cambia rispetto alla precedente (punti, supplementari, vincitore). Lo storico c'è dalla v6.9.0: delle giornate di prima resta solo l'ultima versione.
 
-**Controllo finale delle 20 e congelamento** (v58, Luca 30/10: come Yahoo, per coerenza). Ogni **notte** NBA si ricontrolla solo fino alle **20 del giorno dopo** (`orari.controllo_notte`): alle **11:05** il primo controllo la riscarica (`orari.primo_controllo`; lo fa anche a giornata già convalidata: cambi degli schierati col dettaglio sul canale log e, se la giornata è calcolata, al gruppo admin con 🔄 Ricalcola), alle 20 il **controllo finale** la riscarica un'ultima volta e, se ESPN ha cambiato giocatori schierati, scrive al gruppo admin i cambi col dettaglio delle statistiche (es. «Norman Powell: 16,00 → 18,00 (rimbalzi difensivi 4 → 5)») chiedendo di **verificare che su Yahoo sia uguale**: **✅ Uguale su Yahoo** tiene i valori nuovi, **❌ Non corrisponde** rimette quelli di prima; c'è anche 🔄 Ricalcola se la giornata è già calcolata. Poi la notte è **congelata**: niente più riscarichi, nemmeno alle 7:45 o con `/ricalcola`. Una giornata è congelata quando lo sono tutte le sue notti. Alle 20 il bot rilegge anche le notti prima della stessa giornata, **senza salvare niente**: se ESPN adesso le dà diverse per qualche schierato, manda al gruppo admin i cambi col dettaglio e due bottoni. **✅ Su Yahoo è così: aggiorna** salva i valori nuovi di ESPN (poi 🔄 Ricalcola, se la giornata è già calcolata); **❌ Lascia com'è** non cambia niente. Se ESPN le dà uguali, solo una riga sul canale log; la stessa differenza già segnalata non si ripete le sere dopo (se ESPN cambia ancora, arriva una segnalazione nuova e i bottoni della vecchia non valgono più). Una notte scongelata a mano con `/scongela_notte` resta aperta (si riscarica alle 7:45 e con `/ricalcola`) finché non la ricongeli con `/congela_notte`. A mano (vale più della regola): **`/congela_notte GG/MM`**, **`/scongela_notte GG/MM`**, per tutte le notti di una giornata **`/congela N`** e **`/scongela N`**; lo stato con **`/congelamento`** (giornate) e **`/congelamento_notti`** (notti); **`/controllo_notte GG/MM`** rifà il controllo finale di una notte (se alle 20 ESPN non rispondeva). Ai playoff (quando ci saranno) stessa regola, notte per notte, ma il controllo finale è alle 20 oppure un'ora prima della prima partita della giornata successiva, se viene prima; dalla generazione del tabellone si congelano tutte le giornate di regular season.
+### I controlli dei tabellini, notte per notte
+
+ESPN a volte corregge un tabellino ore dopo la partita. La regola (Luca, 30/10, come Yahoo): **ogni notte NBA si ricontrolla fino alle 20 del giorno dopo, poi è congelata** e non si riscarica più da sola.
+
+| Quando (Roma) | Cosa fa il bot | Cosa arriva |
+|---|---|---|
+| durante la notte, fino alle 8 | live: riscarica ogni 10 minuti | il tabellone sul canale principale |
+| 7:45, dopo l'ultima notte della giornata | riscarica l'ultima notte e calcola | la proposta al gruppo admin (✅ Convalida, 🔄 Ricalcola) |
+| 11:05 | **primo controllo** della notte appena finita, anche a giornata già convalidata | cambi degli schierati col dettaglio sul canale log; se la giornata è calcolata, anche al gruppo admin con 🔄 Ricalcola |
+| 20:00 del giorno dopo | **controllo finale** della notte: riscarica un'ultima volta, poi la notte è **congelata** | se ESPN ha cambiato degli schierati, al gruppo admin col dettaglio delle statistiche (es. «Norman Powell: 16,00 → 18,00 (rimbalzi difensivi 4 → 5)»): **✅ Uguale su Yahoo** tiene i valori nuovi, **❌ Non corrisponde** rimette quelli di prima; più 🔄 Ricalcola se la giornata è calcolata |
+| 20:00, stesso giro | rilegge le **notti prima della stessa giornata**, già congelate, **senza salvare niente** | se ESPN ora le dà diverse per qualche schierato, al gruppo admin: **✅ Su Yahoo è così: aggiorna** salva i valori nuovi (poi 🔄 Ricalcola), **❌ Lascia com'è** non cambia niente. La stessa differenza non si ripete le sere dopo; se ESPN la cambia ancora arriva un avviso nuovo e i bottoni del vecchio non valgono più. Se le dà uguali, una riga sul log |
+
+Dopo ogni ✅ o ❌ che cambia dei valori: 🔄 **Ricalcola** e poi **✅ Convalida** (se era già convalidata, la proposta dice cosa cambia). Un bottone premuto sparisce e il messaggio dice chi l'ha premuto.
+
+**A mano** (vale più della regola):
+
+| Comando | Cosa fa |
+|---|---|
+| `/controllo_notte GG/MM` | rifà il controllo finale di una notte, **anche se è congelata**: riscarica, salva e chiede ✅/❌ come alle 20. Per i casi eccezionali (ESPN non rispondeva alle 20, una correzione arrivata dopo) |
+| `/congela_notte GG/MM` · `/scongela_notte GG/MM` | chiude o riapre una notte. Una notte riaperta si riscarica alle 7:45 e con `/ricalcola`, ma non ha un nuovo controllo delle 20: resta aperta finché non la richiudi |
+| `/congela N` · `/scongela N` | lo stesso per tutte le notti della giornata N |
+| `/congelamento` · `/congelamento_notti` | lo stato delle giornate e delle notti |
+
+**Ai playoff** (quando ci saranno) stessa regola notte per notte, ma il controllo finale è alle 20 oppure un'ora prima della prima partita della giornata successiva, se viene prima; dalla generazione del tabellone si congelano tutte le giornate di regular season.
 
 **Correggere un punteggio**: **`/correggi_tabellino GIOCATORE GN VALORE`** (con la data `GG/MM` in fondo se in quella giornata ha giocato più partite: se manca, il bot propone i comandi già scritti) cambia i fantapunti di quella partita senza riscaricare; poi `/ricalcola N` e la convalida. Su una giornata aperta il bot avvisa che un ricontrollo può rimettere il valore di ESPN (`/congela N` per tenerlo). `/congela`, `/scongela` e ogni correzione vanno nel registro, nel canale log e **sul canale principale**.
 
@@ -92,8 +115,8 @@ Alla palla a due della prima partita della giornata il bot pubblica sul canale p
 
 **Tabellini.** A partita finita il bot scarica da ESPN il tabellino e salva statistiche e fantapunti di ogni giocatore NBA. Lo fa alle 8:30; `/tabellini` lo fa subito, per le partite finite che ancora non ce l'hanno.
 
-**Infortunati.** ESPN dà solo lo stato di adesso, quindi il bot ne salva uno snapshot (dai ruoli dell'offseason fino ai playoff; nelle altre fasi no) ogni 4 ore, anche di notte (0:30, 4:30, 8:30, 12:30, 16:30, 20:30), più uno 30 minuti prima della prima partita NBA del giorno (il report subito prima delle partite) e, la prima sera di ogni giornata, uno ogni mezz'ora dalle 19 alla prima partita (`orari.injury_fitti`): IPanchinari avvisa i GM di ogni cambio di stato dei loro giocatori. Per il calcolo, di ogni giorno conta lo snapshot subito prima della prima partita; il più recente è lo stato che IPanchinari mostra accanto ai giocatori. Si tengono tutti gli snapshot dell'ultima settimana; per i giorni più vecchi resta solo quello che conta. Anche `/tabellini` ne salva uno. Servono per due regole:
-- chi è in una squadra a media prende 0 invece della media se nello snapshot che conta di ogni giorno della giornata risulta indisponibile (stato diverso da Probable);
+**Infortunati.** ESPN dà solo lo stato di adesso, quindi il bot ne salva uno snapshot (dai ruoli dell'offseason fino ai playoff; nelle altre fasi no) ogni 4 ore, anche di notte (0:30, 4:30, 8:30, 12:30, 16:30, 20:30), più uno 30-40 minuti prima di ogni partita NBA (il report subito prima delle partite) e, la prima sera di ogni giornata, uno ogni mezz'ora dalle 19 alla prima partita (`orari.injury_fitti`): IPanchinari avvisa i GM di ogni cambio di stato dei loro giocatori. Per il calcolo conta, di ogni giorno, **l'ultimo snapshot prima della partita della squadra del giocatore** (v68, Luca 31/10: così un Out dell'ultimo minuto, arrivato dopo la prima partita della notte, conta per la FADD); nei giorni in cui la sua squadra non gioca, quello subito prima della prima partita NBA. Il più recente è lo stato che IPanchinari mostra accanto ai giocatori. Si tengono tutti gli snapshot dell'ultima settimana; per i giorni più vecchi restano quelli che contano (quello del giorno e l'ultimo prima di ogni partita). Anche `/tabellini` ne salva uno. Servono per due regole:
+- chi è in una squadra a media prende 0 invece della media se nello snapshot del giorno di ogni giorno della giornata risulta indisponibile (stato diverso da Probable);
 - la FADD (il panchinaro che entra al posto del titolare che non ha giocato): il titolare deve avere il tag in tutti i giorni in cui la sua squadra ha giocato, o in tutta la giornata se la sua squadra non ha giocato. La panchina scala e resta di 4: al quinto supplementare quella squadra aggiunge 0. Se manca lo snapshot di uno di quei giorni il bot non sostituisce e lo segnala: decide un admin.
 
 **Giocatori e id ESPN.** Il calcolo collega i giocatori dell'anagrafica a ESPN con l'id ESPN, non col nome. L'abbinamento è automatico quando il nome è uguale (senza accenti, punteggiatura, Jr./III) e corrisponde a un solo giocatore.
@@ -115,9 +138,23 @@ Restano agli admin le 72 ore di attesa per le partite rinviate e le penalità.
 
 ---
 
+## Controllo del tanking
+
+**Il mattino dopo la prima notte** di ogni giornata, alle 11 (`orari.controllo_tanking`), arriva **solo al gruppo admin** un report con gli **indizi** di formazioni che sembrano fatte per perdere. Sono indizi, non verdetti: minutaggi, rientri e riposi sono scelte legittime, decidete voi. Per ogni squadra, dalla formazione congelata e dalla panchina:
+
+- **titolare scarso**: in rosa c'è un escluso che può giocare quel posto (posizioni eleggibili di Yahoo), è sano, ha partite nella giornata e ha una media **almeno +8 o +30%** più alta del titolare;
+- **titolare indisponibile** (injury report della prima notte, o lo status che avete deciso con `/set_valid_status`) mentre in rosa c'è un sano che può giocare quel posto e ha partite;
+- **posto del quintetto vuoto** e **panchina non mandata**.
+
+Un titolare la cui squadra NBA non gioca nella giornata prende la sua media: non è un indizio (salvo se indisponibile). Le medie sono quelle della stagione prima della giornata. Le squadre sono in ordine dal fondo della classifica; quelle nell'ultimo terzo hanno ⬇️, perché lì il tanking conviene. Se non c'è niente, una riga «nessun indizio».
+
+**`/tanking [N]`** ti manda lo stesso report quando vuoi (senza N, l'ultima giornata iniziata).
+
+La seconda parte (dopo la convalida, quanti punti avrebbe fatto la formazione migliore e lo storico per squadra) è da fare.
+
 ## Foto dei giocatori
 
-Il bot scarica da ESPN le foto dei giocatori a roster **piano piano, solo di notte negli Stati Uniti** (dalle 8 alle 12 italiane circa), una al minuto, per non farsi limitare: la prima volta servono un paio di notti, poi aggiorna solo chi cambia squadra e, ogni 14 giorni, le altre. Stanno in `config/foto` sul server (non in git e **non nel backup**: se si perdono, il bot le riscarica da solo). `/player` mostra la foto quando c'è.
+Il bot scarica da ESPN le foto **piano piano, solo di notte negli Stati Uniti** (dalle 8 alle 12 italiane circa), una al minuto, per non farsi limitare: prima i giocatori a roster, poi tutti gli attivi in NBA, poi tutti gli altri del database con un id ESPN. La prima volta servono alcune notti; poi aggiorna chi cambia squadra e le foto più vecchie di 14 giorni (90 per chi non gioca). `/dev_foto` (dev) dice a che punto è. Stanno in `config/foto` sul server (non in git e **non nel backup**: se si perdono, il bot le riscarica da solo). `/player` mostra la foto quando c'è.
 
 ## Comandi
 
@@ -132,6 +169,7 @@ Il bot scarica da ESPN le foto dei giocatori a roster **piano piano, solo di not
 | `/espn_mancanti` | giocatori a roster senza id ESPN |
 | `/espn_abbina ID_GIOCATORE ID_ESPN` | abbinamento a mano |
 | `/ricalcola N` | riscarica i tabellini della giornata N (se non è congelata), ricalcola, riscrive il tab «Calcolo GN» e ripropone la convalida |
+| `/tanking [N]` | controllo del tanking della giornata: indizi nelle formazioni (solo a te) |
 | `/storico_calcolo N` | tutte le versioni calcolate della giornata N, quale è convalidata e cosa cambia da una all'altra |
 | `/congelamento` · `/congela N` · `/scongela N` | stato delle giornate (ricontrollate o congelate), e cambiarlo a mano |
 | `/congelamento_notti` · `/congela_notte GG/MM` · `/scongela_notte GG/MM` | lo stesso, notte per notte |

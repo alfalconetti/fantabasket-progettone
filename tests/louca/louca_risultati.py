@@ -1104,6 +1104,41 @@ config.globali = _vg
 asyncio.run(TOP.job_top_notte(types.SimpleNamespace(bot=_BotT())))
 TOP.ieri = _vieri
 ok(len(_inv) == 1 and _inv[0][0] == -100777 and "Top 20" in _inv[0][1], "top 20: alle 9 nel gruppo della lega; senza gruppo_lega_id non pubblica")
+# controllo del tanking, parte 1 (Luca, 25/10 e 30/10): indizi al gruppo admin il mattino dopo la prima notte
+import tanking as TK
+ok(TK.nettamente_meglio(20, 12) and TK.nettamente_meglio(13.5, 10) and not TK.nettamente_meglio(12, 10)
+   and not TK.nettamente_meglio(5, 0) and TK.nettamente_meglio(8, 0), "tanking: soglia +8 di media oppure +30%")
+_G = lambda gid_, nome, media, partite, stato=None, pos=("SF",): {"gid": gid_, "nome": nome, "media": media, "partite": partite,
+                                                               "stato": stato, "posizioni": set(pos)}
+_sq = {"quintetto": {"PG": 1, "SG": 2, "SF": 3, "PF": 4, "C": None},
+       "panchina": None,
+       "giocatori": {1: _G(1, "Titolare Out", 25, 2, "Out", ("PG",)), 2: _G(2, "Titolare Senza Partite", 10, 0, None, ("SG",)),
+                     3: _G(3, "Titolare Scarso", 10, 2), 4: _G(4, "Titolare Ok", 30, 2, None, ("PF",)),
+                     5: _G(5, "Escluso Forte", 24, 2, None, ("SF", "PG")), 6: _G(6, "Escluso Out", 50, 2, "Out", ("SF", "PF")),
+                     7: _G(7, "Escluso Senza Partite", 60, 0, None, ("SG", "SF"))}}
+_ind = TK.indizi(_sq)
+_j = "\n".join(_ind)
+ok(any(x.startswith("• PG: titolare <b>indisponibile</b> Titolare Out") and "Escluso Forte" in x for x in _ind)
+   and any(x.startswith("• SF: Titolare Scarso") and "fuori Escluso Forte" in x and "+14,00" in x for x in _ind)
+   and "C: <b>posto vuoto</b>" in _j and "panchina non mandata" in _j
+   and "SG:" not in _j and "PF:" not in _j and "Escluso Out" not in _j and "Escluso Senza Partite" not in _j,
+   "tanking: titolare indisponibile con un sano in rosa, escluso nettamente migliore, posto vuoto, panchina; "
+   "niente per chi non ha partite (prende la media) né per gli esclusi infortunati o senza partite\n" + _j)
+_ok2 = TK.indizi({"quintetto": {"PG": 5, "SG": 2, "SF": 3, "PF": 4, "C": 8}, "panchina": [{"giocatore_id": 7}],
+                  "giocatori": {5: _G(5, "A", 24, 2, None, ("PG",)), 2: _G(2, "B", 10, 0, None, ("SG",)), 3: _G(3, "C", 21, 2),
+                                4: _G(4, "D", 30, 2, None, ("PF",)), 8: _G(8, "E", 15, 2, None, ("C",)), 7: _G(7, "F", 60, 0, None, ("C",))}})
+ok(_ok2 == [], f"tanking: formazione plausibile, nessun indizio {_ok2}")
+_tk = TK.testo(S, db.giornata(S, N))
+ok(f"Controllo tanking · giornata {N}" in _tk and "Delta" in _tk and "posto vuoto" in _tk and "panchina non mandata" in _tk
+   and "Solo per gli admin" in _tk, "tanking: il report della giornata (Delta senza panchina e con un posto vuoto)\n" + _tk[:600])
+_vgo = TK.giornata_di_oggi
+TK.giornata_di_oggi = lambda s_: db.giornata(S, N)
+_mt = []
+class _BotK:
+    async def send_message(self, chat_id, text, **k): _mt.append((chat_id, text))
+asyncio.run(TK.job_tanking(types.SimpleNamespace(bot=_BotK())))
+TK.giornata_di_oggi = _vgo
+ok(_mt and _mt[0][0] == config.gruppo_admin() and "Controllo tanking" in _mt[0][1], "tanking: il mattino dopo la prima notte, solo al gruppo admin")
 # /dev_foto (v6.9.0): quante foto dei giocatori a roster, quali mancano
 import foto as FT, tempfile as _tf
 _cart = _tf.mkdtemp()

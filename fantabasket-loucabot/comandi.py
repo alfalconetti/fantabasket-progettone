@@ -35,6 +35,7 @@ def liste_comandi() -> dict:
         BotCommand("set_valid_status",   "Status di un giocatore per il calcolo: GIOCATORE N"),
         BotCommand("ricalcola",          "Ricalcola la giornata N (riscarica solo le notti non congelate)"),
         BotCommand("storico_calcolo",    "Versioni calcolate della giornata N e cosa è cambiato"),
+        BotCommand("tanking",            "Controllo tanking della giornata [N]: indizi nelle formazioni"),
         BotCommand("congelamento",       "Quali giornate si ricontrollano e quali sono congelate"),
         BotCommand("congelamento_notti", "Le notti: aperte (fino alle 20 del giorno dopo) o congelate"),
         BotCommand("congela",            "Congela tutte le notti della giornata N"),

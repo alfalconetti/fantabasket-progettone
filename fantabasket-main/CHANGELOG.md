@@ -1699,3 +1699,11 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.9.4 (2026-10-30)
 
 - Loucabot v66 (rivista): la stessa differenza di una notte precedente già segnalata agli admin non si ripete ogni sera; se ESPN la cambia ancora, la segnalazione vecchia è superata. Guida admin: cosa succede a una notte scongelata a mano
+
+## v6.10.0 (2026-10-30)
+
+- **Controllo del tanking, parte 1** (loucabot v67): alle 11 del mattino dopo la prima notte di ogni giornata, solo al gruppo admin, gli indizi di formazioni fatte per perdere (escluso nettamente migliore: +8 di media o +30%, con le posizioni eleggibili di Yahoo; titolare indisponibile con un sano in rosa; posto vuoto; panchina non mandata). `/tanking [N]` a richiesta (Luca, 30/10)
+
+## v6.10.1 (2026-10-31)
+
+- Loucabot v68: per la FADD conta l'injury report prima della partita della squadra del titolare, non prima della prima partita della notte (Luca, 31/10: casi Kawhi Leonard e VJ Edgecombe)

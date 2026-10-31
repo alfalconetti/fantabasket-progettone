@@ -75,8 +75,9 @@ async def snapshot_infortuni() -> str:
 
 
 async def job_prepartita(context: ContextTypes.DEFAULT_TYPE):
-    """Ogni 10 minuti: uno snapshot degli infortunati 30-40 minuti prima della prima partita NBA
-    del giorno (il report subito prima delle partite), una volta sola."""
+    """Ogni 10 minuti: uno snapshot degli infortunati 30-40 minuti prima di ogni partita NBA (o gruppo di partite
+    che iniziano insieme), se non ce n'è già uno: serve alla FADD, che guarda l'ultimo prima della partita della
+    squadra del giocatore (db.snapshot_alla_partita, v68)."""
     from datetime import datetime, timedelta, timezone
     ora_ = datetime.now(timezone.utc)
     r = db.q("SELECT MIN(inizio) AS t FROM nba_partite WHERE inizio > %s AND inizio <= %s",
@@ -312,7 +313,9 @@ def schermata_status(gid: int, n: int) -> tuple[str, K | None]:
     if not g or not gi or not gi["espn_id"]:
         return "Giornata o giocatore non trovati.", None
     snap = db.snapshot_giocatore(gi["espn_id"], g["dal"], g["al"])
-    contano = db.snapshot_del_giorno(sorted({x["giorno"] for x in snap}))
+    giorni_snap = sorted({x["giorno"] for x in snap})
+    sq = db.squadre_della_giornata([gi["espn_id"]], g["dal"], g["al"])
+    contano = {d: t for (a, d), t in db.snapshot_alla_partita(sq, giorni_snap).items()}
     deciso = db.status_validi(s, n, [gi["espn_id"]])
     t = [f"🩺 <b>{e(gi['nome_common'])}</b> · giornata {n} ({g['dal']:%d/%m}–{g['al']:%d/%m})", ""]
     if not snap:
@@ -324,7 +327,8 @@ def schermata_status(gid: int, n: int) -> tuple[str, K | None]:
         per_giorno.setdefault(x["giorno"], []).append(f"{_ora(x['preso'])}{segno} {e(x['stato'] or 'sano')}")
     for d, lista in per_giorno.items():
         t.append(f"<b>{d:%d/%m}</b>: " + " · ".join(lista))
-    t += ["", "★ = lo snapshot che conta per il calcolo in quel giorno (l'ultimo prima della prima partita)."]
+    t += ["", "★ = lo snapshot che conta per il calcolo in quel giorno: l'ultimo prima della partita della sua squadra "
+              "(senza partita quel giorno, l'ultimo prima della prima partita NBA)."]
     if gi["espn_id"] in deciso:
         t.append(f"✅ <b>Deciso da un admin: {e(deciso[gi['espn_id']] or 'sano')}</b> (vale per tutta la giornata)")
     else:

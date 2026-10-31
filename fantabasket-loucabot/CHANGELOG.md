@@ -338,3 +338,12 @@ Il calcolo dei fantapunti.
 ## v66 (2026-10-30)
 
 - **Notti prima della giornata, già congelate, coi bottoni Yahoo** (Luca, 30/10: ESPN aveva corretto 7 schierati della notte del 28/10 e su Yahoo erano già aggiornati). Al controllo delle 20, se ESPN dà diversa una notte precedente della stessa giornata, il messaggio va al gruppo admin (non più solo sul canale log) col dettaglio e due bottoni: **✅ Su Yahoo è così: aggiorna** salva i valori nuovi (poi Ricalcola), **❌ Lascia com'è** non cambia niente. Prima di premere non si salva niente; registro e canale log. La stessa differenza già segnalata (in attesa o lasciata com'è) non si ripete le sere dopo: solo una riga sul log; se ESPN la cambia ancora, la segnalazione vecchia è superata e ne arriva una nuova
+- Guida admin: i controlli dei tabellini riscritti in una tabella (quando, cosa fa il bot, cosa arriva) e una per i comandi a mano, al posto del paragrafo cresciuto versione dopo versione; foto di tutti i giocatori
+
+## v67 (2026-10-30)
+
+- **Controllo del tanking, parte 1** (Luca, 25/10 e 30/10; `tanking.py`): alle 11 del mattino dopo la prima notte di ogni giornata (`orari.controllo_tanking`) **solo al gruppo admin** gli indizi di formazioni fatte per perdere: titolare con un escluso nettamente migliore (sano, con partite, che può giocare quel posto per le posizioni eleggibili di Yahoo, almeno +8 di media o +30%), titolare indisponibile con un sano in rosa, posto vuoto, panchina non mandata. Squadre dal fondo della classifica, ⬇️ nell'ultimo terzo; «nessun indizio» se niente. **`/tanking [N]`** (admin) lo manda quando vuoi. La parte 2 (a consuntivo dopo la convalida) è da fare
+
+## v68 (2026-10-31)
+
+- **FADD: conta l'injury report prima della partita della sua squadra** (Luca, 31/10: Kawhi Leonard e VJ Edgecombe in G3 erano Out dopo la prima partita della notte ma prima della loro, e il bot li dava sani: la FADD non scattava finché un admin non li metteva Out a mano). Per ogni giorno in cui la squadra del titolare gioca vale l'ultimo snapshot prima della sua partita (gli injury report fitti, uno prima di ogni partita, servono a questo); nei giorni senza la sua partita, quello prima della prima partita NBA come prima. Vale anche se la sua squadra gioca solo il secondo o il terzo giorno. Stessa regola per lo status nel tab «Calcolo GN» e per la ★ di `/set_valid_status`; la pulizia dei vecchi snapshot tiene anche l'ultimo prima di ogni partita

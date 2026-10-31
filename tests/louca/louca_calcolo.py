@@ -77,10 +77,20 @@ db.salva_partite_nba([{"espn_id": "s1", "stagione": "2026", "tipo": 2, "data_et"
 snap(inizio - _td(hours=8), "Questionable"); snap(inizio - _td(minutes=30), "Out"); snap(inizio + _td(hours=3), "Day-To-Day")
 ok(db.snapshot_del_giorno([G1])[G1] == inizio - _td(minutes=30) and db.infortuni(["77"], [G1]) == {("77", G1): "Out"},
    "conta lo snapshot subito prima della prima partita (quello di notte durante le partite no)")
-ok(db.pulisci_snapshot(G1 + _td(days=3)) == 0 and db.q("SELECT COUNT(*) AS n FROM nba_infortuni", one=True)["n"] == 3,
+# per la FADD conta l'ultimo snapshot prima della partita della SUA squadra (Luca, 31/10: Kawhi Out alle 23:24,
+# dopo la prima partita della notte ma prima di quella dei Clippers): '78' dei LAL, che giocano 4 ore dopo
+db.salva_partite_nba([{"espn_id": "s2", "stagione": "2026", "tipo": 2, "data_et": G1, "casa": "LAL", "trasferta": "LAC",
+                       "inizio": inizio + _td(hours=4), "stato": "STATUS_FINAL"}])
+db.q("INSERT INTO nba_infortuni (giorno, atleta, nome, stato, preso) VALUES (%s, '78', 'Gioc 78', 'Out', %s)", (G1, inizio + _td(hours=3)))
+_ap = db.infortuni_alla_partita({"77": "NYK", "78": "LAL", "79": "MIA"}, [G1])
+ok(_ap.get(("78", G1)) == "Out" and _ap.get(("77", G1)) == "Out" and ("79", G1) not in _ap
+   and db.infortuni(["78"], [G1]) == {},
+   f"Out dell'ultimo minuto: conta lo snapshot prima della partita della sua squadra (senza partita, quello del giorno) {_ap}")
+ok(db.pulisci_snapshot(G1 + _td(days=3)) == 0 and db.q("SELECT COUNT(*) AS n FROM nba_infortuni", one=True)["n"] == 4,
    "nell'ultima settimana si tengono tutti")
-ok(db.pulisci_snapshot(G1 + _td(days=8)) == 2 and db.infortuni(["77"], [G1]) == {("77", G1): "Out"},
-   "più vecchi di una settimana: resta solo quello che conta, il calcolo non cambia")
+ok(db.pulisci_snapshot(G1 + _td(days=8)) == 1 and db.infortuni(["77"], [G1]) == {("77", G1): "Out"}
+   and db.infortuni_alla_partita({"78": "LAL"}, [G1]) == {("78", G1): "Out"},
+   "più vecchi di una settimana: restano quello del giorno e l'ultimo prima di ogni partita, il calcolo non cambia")
 db.q("TRUNCATE nba_infortuni, nba_tabellini, nba_partite CASCADE")
 
 # ── punteggio del giocatore nella giornata ──

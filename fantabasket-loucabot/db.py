@@ -379,6 +379,63 @@ def infortuni(atleti: list[str], giorni: list) -> dict[tuple, str]:
     return {(r["atleta"], r["giorno"]): r["stato"] for r in righe if r["preso"] == scelti[r["giorno"]]}
 
 
+def _inizi_partite(giorni: list) -> dict[tuple, object]:
+    """{(squadra NBA, giorno): inizio della sua partita} nei giorni indicati (non rinviate)."""
+    righe = q("""SELECT data_et, casa, trasferta, inizio FROM nba_partite WHERE data_et = ANY(%s) AND tipo = ANY(%s)
+                 AND stato NOT IN ('STATUS_POSTPONED', 'STATUS_CANCELED')""", (list(giorni), [2, 3, 5]), many=True) or []
+    out = {}
+    for r in righe:
+        for sq in (r["casa"], r["trasferta"]):
+            k = (sq, r["data_et"])
+            out[k] = min(out[k], r["inizio"]) if k in out else r["inizio"]
+    return out
+
+
+def snapshot_alla_partita(squadre: dict[str, str | None], giorni: list) -> dict[tuple, object]:
+    """{(atleta, giorno): preso} dello snapshot che conta per quel giocatore (Luca, 31/10: gli injury report fitti
+    servono proprio a questo): nei giorni in cui la sua squadra NBA gioca, l'ultimo preso **prima della sua
+    partita** (così un Out dell'ultimo minuto, dopo la prima partita della notte, conta); negli altri giorni, o se
+    prima della sua partita non ce n'è nessuno, quello del giorno (snapshot_del_giorno). `squadre`: {atleta: squadra}."""
+    giorni = list(giorni)
+    if not giorni:
+        return {}
+    del_giorno = snapshot_del_giorno(giorni)
+    tempi: dict = {}
+    for r in q("SELECT DISTINCT giorno, preso FROM nba_infortuni WHERE giorno = ANY(%s)", (giorni,), many=True) or []:
+        tempi.setdefault(r["giorno"], []).append(r["preso"])
+    inizi = _inizi_partite(giorni)
+    out = {}
+    for a, sq in squadre.items():
+        for d in giorni:
+            inizio = inizi.get((sq, d)) if sq else None
+            prima = [t for t in tempi.get(d, []) if inizio is not None and t < inizio]
+            scelto = max(prima) if prima else del_giorno.get(d)
+            if scelto is not None:
+                out[(a, d)] = scelto
+    return out
+
+
+def squadre_della_giornata(atleti: list[str], dal, al) -> dict[str, str | None]:
+    """La squadra NBA di ogni giocatore nella giornata: dai suoi tabellini della giornata, se no l'ultimo tabellino
+    prima della fine, se no i roster ESPN di adesso."""
+    from datetime import timedelta
+    out = {a: None for a in atleti}
+    out.update(squadre_roster(atleti))
+    out.update(ultima_squadra(atleti, al + timedelta(days=1)))
+    return out
+
+
+def infortuni_alla_partita(squadre: dict[str, str | None], giorni: list) -> dict[tuple, str]:
+    """{(atleta, giorno): stato} nello snapshot che conta per quel giocatore (snapshot_alla_partita). Chi non c'è
+    in uno snapshot scelto è sano; i giorni senza nessuno snapshot non ci sono (giorni_con_snapshot)."""
+    scelti = snapshot_alla_partita(squadre, giorni)
+    if not scelti:
+        return {}
+    righe = q("SELECT atleta, giorno, preso, stato FROM nba_infortuni WHERE atleta = ANY(%s) AND giorno = ANY(%s)",
+              (list(squadre), list({d for _, d in scelti})), many=True) or []
+    return {(r["atleta"], r["giorno"]): r["stato"] for r in righe if scelti.get((r["atleta"], r["giorno"])) == r["preso"]}
+
+
 def status_validi(stagione: str, giornata: int, atleti: list[str]) -> dict[str, str | None]:
     """{atleta: stato} deciso da un admin per la giornata (None = sano): vince sugli snapshot."""
     righe = q("SELECT atleta, stato FROM lega_status_validi WHERE stagione = %s AND giornata = %s AND atleta = ANY(%s)",
@@ -412,14 +469,23 @@ def giorni_con_snapshot(giorni: list) -> set:
 
 
 def pulisci_snapshot(oggi) -> int:
-    """Per i giorni più vecchi di GIORNI_SNAPSHOT tiene solo lo snapshot che conta. Righe cancellate."""
+    """Per i giorni più vecchi di GIORNI_SNAPSHOT tiene solo gli snapshot che contano: quello del giorno e, per ogni
+    partita, l'ultimo prima del suo inizio. Righe cancellate."""
     from datetime import timedelta
     vecchi = [r["giorno"] for r in (q("SELECT DISTINCT giorno FROM nba_infortuni WHERE giorno < %s",
                                       (oggi - timedelta(days=GIORNI_SNAPSHOT),), many=True) or [])]
     tolte = 0
+    if not vecchi:
+        return 0
+    # si tiene lo snapshot del giorno e, per ogni partita, l'ultimo prima del suo inizio (snapshot_alla_partita, v68)
+    tempi: dict = {}
+    for r in q("SELECT DISTINCT giorno, preso FROM nba_infortuni WHERE giorno = ANY(%s)", (vecchi,), many=True) or []:
+        tempi.setdefault(r["giorno"], []).append(r["preso"])
+    inizi = _inizi_partite(vecchi)
     for d, t in snapshot_del_giorno(vecchi).items():
-        r = q("WITH x AS (DELETE FROM nba_infortuni WHERE giorno = %s AND preso <> %s RETURNING 1) SELECT COUNT(*) AS n FROM x",
-              (d, t), one=True)
+        tieni = {t} | {max(p) for (sq, g), i in inizi.items() if g == d for p in [[x for x in tempi.get(d, []) if x < i]] if p}
+        r = q("WITH x AS (DELETE FROM nba_infortuni WHERE giorno = %s AND NOT (preso = ANY(%s)) RETURNING 1) SELECT COUNT(*) AS n FROM x",
+              (d, list(tieni)), one=True)
         tolte += r["n"] if r else 0
     return tolte
 

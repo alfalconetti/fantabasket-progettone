@@ -80,7 +80,7 @@ offensivo +2, difensivo +1,25, tripla +1,5, tiro dal campo tentato −0,5 e segn
 tentato −0,75 e segnato +1, recupero +2, stoppata +2, palla persa −2. Verificata il 12/10/2026
 sul vecchio foglio: tutte le 141 righe del 17/01/2026 uguali al centesimo.
 
-**Infortunati.** ESPN dà solo lo stato di adesso, quindi il bot ne salva uno snapshot (dai ruoli dell'offseason ai playoff) ogni 4 ore, anche di notte (0:30, 4:30, 8:30, 12:30, 16:30, 20:30), più uno 30 minuti prima della prima partita NBA del giorno (il report subito prima delle partite) e, la prima sera di ogni giornata, uno ogni mezz'ora dalle 19 alla prima partita (`orari.injury_fitti`): IPanchinari avvisa i GM di ogni cambio di stato dei loro giocatori. Per il calcolo, di ogni giorno conta lo snapshot subito prima della prima partita; il più recente è lo stato che IPanchinari mostra accanto ai giocatori. Si tengono tutti gli snapshot dell'ultima settimana; per i giorni più vecchi resta solo quello che conta.
+**Infortunati.** ESPN dà solo lo stato di adesso, quindi il bot ne salva uno snapshot (dai ruoli dell'offseason ai playoff) ogni 4 ore, anche di notte (0:30, 4:30, 8:30, 12:30, 16:30, 20:30), più uno 30 minuti prima della prima partita NBA del giorno (il report subito prima delle partite) e, la prima sera di ogni giornata, uno ogni mezz'ora dalle 19 alla prima partita (`orari.injury_fitti`): IPanchinari avvisa i GM di ogni cambio di stato dei loro giocatori. Per il calcolo conta, di ogni giorno, **l'ultimo snapshot prima della partita della squadra del giocatore** (v68, Luca 31/10: così un Out dell'ultimo minuto, arrivato dopo la prima partita della notte, conta per la FADD); nei giorni in cui la sua squadra non gioca, quello subito prima della prima partita NBA. Il più recente è lo stato che IPanchinari mostra accanto ai giocatori. Si tengono tutti gli snapshot dell'ultima settimana; per i giorni più vecchi restano quelli che contano (quello del giorno e l'ultimo prima di ogni partita).
 
 **Giocatore nella giornata** (`calcolo.punteggio_giocatori`):
 - ha giocato → media matematica delle partite giocate nella giornata (uno 0 con 0 minuti non
@@ -147,6 +147,7 @@ Alla convalida i risultati vanno in `lega_risultati` e sul foglio Calendario.
 | `/nba_sync` | admin | riscarica tutte le partite NBA della stagione |
 | `/calendario_foglio` | admin | ricarica il foglio Calendario (A:E: calendario, squadre a media, punteggi) |
 | `/ricalcola N` | admin | riscarica i tabellini, ricalcola la giornata e la ripropone da convalidare |
+| `/tanking [N]` | admin | controllo del tanking: indizi nelle formazioni della giornata (in automatico al gruppo admin alle 11 dopo la prima notte) |
 | `/storico_calcolo N` | admin | le versioni calcolate della giornata e cosa cambia tra una e l'altra |
 | `/live` | admin | aggiorna subito i punteggi live sul canale principale (o l'anteprima) |
 | `/live_results [N]` | tutti | il live della giornata in testo, completo (sul canale c'è l'immagine) |

@@ -478,6 +478,11 @@ async def cmd_job_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                               parse_mode="HTML")
 
 
+async def _cmd_tanking(update, context):
+    import tanking
+    await tanking.cmd_tanking(update, context)
+
+
 async def _cmd_dev_foto(update, context):
     import foto
     await foto.cmd_dev_foto(update, context)
@@ -504,6 +509,7 @@ def get_handlers() -> list:
         CommandHandler("dev_version", cmd_dev_version),
         CommandHandler("job_status", cmd_job_status),
         CommandHandler("dev_foto", _cmd_dev_foto),
+        CommandHandler("tanking", _cmd_tanking),
         CommandHandler("calendario", cmd_calendario),
         CommandHandler("calendario_full", cmd_calendario_full),
         CommandHandler(["giornata", "risultati"], cmd_giornata),
