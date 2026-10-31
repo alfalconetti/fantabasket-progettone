@@ -23,6 +23,12 @@ ok(fatti == [("Nikola Topic", "Nikola Topić")]
 ok(db._qval("SELECT nome_bref FROM giocatori WHERE id = %s", (gid["Gioc Bref Visto"],)) == "Gioc Bref Visto",
    "chi su bref c'è già non si tocca (sarebbe un omonimo)")
 ok(db._qval("SELECT stato FROM bref_nuovi WHERE nome_bref = 'Nikola Topić'") == "abbinato", "segnato in bref_nuovi come abbinato")
+# cognome e nome invertiti (Luca, 31/10)
+import nomi as _NM
+_tutti = db._q("SELECT id, nome_common, nome_bref, nome_yahoo FROM giocatori", many=True)
+ok([g["id"] for g in _NM.esatti("Topic Nikola", _tutti)] == [gid["Nikola Topic"]]
+   and [r["id"] for r in db.cerca_giocatori("topic nikola")] == [gid["Nikola Topic"]],
+   "bot principale: cognome e nome invertiti trovano il giocatore (nomi.esatti, cerca_giocatori)")
 # v6.9.0: dopo un abbinamento il foglio Roster si risincronizza (usa il nome bref), solo se è sotto contratto
 import gas_client as _GC
 _sinc = []

@@ -62,7 +62,7 @@
 
 #let larghezze = colonne.enumerate().map(((i, c)) => if i == 2 { 1fr } else if i == 1 { 22pt } else { auto })
 
-#let tabella(righe) = table(
+#let tabella(righe, media: none) = table(
   columns: larghezze,
   stroke: (x, y) => (bottom: 0.5pt + c_line),
   inset: (x: 5pt, y: 4.5pt),
@@ -70,12 +70,17 @@
   fill: (x, y) => if y == 0 { c_head } else if calc.odd(y) { c_r1 } else { c_r2 },
   table.header(..colonne.map(c => intest(c.at(0)))),
   ..righe.map(r => colonne.map(c => (c.at(1))(r))).flatten(),
+  // in fondo alla colonna Media, la media della conference
+  ..if media != none { colonne.enumerate().map(((i, c)) =>
+      if c.at(0) == "Media" { table.cell(fill: c_sub.lighten(70%))[#text(weight: "bold")[#media]] }
+      else if i == 2 { table.cell(fill: c_sub.lighten(70%))[#text(style: "italic")[Media della conference]] }
+      else { table.cell(fill: c_sub.lighten(70%))[] }) } else { () },
 )
 
 #if "sezioni" in dati {
   for sez in dati.sezioni {
     block(width: 100%, fill: c_sub)[#pad(x: 12pt, y: 5pt)[#text(11pt, weight: "bold", fill: c_head)[#sez.nome]]]
-    tabella(sez.righe)
+    tabella(sez.righe, media: sez.media)
   }
 } else {
   tabella(dati.righe)

@@ -293,11 +293,12 @@ def _cerca_giocatori(testo: str) -> list[dict]:
         return []
     tutti = db.q("""SELECT g.id, g.nome_common, g.espn_id, EXISTS (SELECT 1 FROM contratti c WHERE c.giocatore_id = g.id AND c.attivo) AS a_roster
                     FROM giocatori g WHERE g.espn_id IS NOT NULL""", many=True) or []
-    esatti = [g for g in tutti if calcolo.norm(g["nome_common"]) == n]
-    trovati = esatti or [g for g in tutti if n in calcolo.norm(g["nome_common"])]
+    from shared import parole_nome as PN               # anche con le parole in un altro ordine (Luca, 31/10)
+    esatti = [g for g in tutti if calcolo.norm(g["nome_common"]) == n or PN.stesse_parole(testo, g["nome_common"])]
+    trovati = esatti or [g for g in tutti if n in calcolo.norm(g["nome_common"]) or PN.contiene_parole(testo, g["nome_common"])]
     if not trovati:
-        nomi = {calcolo.norm(g["nome_common"]): g for g in tutti}
-        trovati = [nomi[x] for x in difflib.get_close_matches(n, list(nomi), n=5, cutoff=0.75)]
+        nomi = {PN.ordinata(g["nome_common"]): g for g in tutti}
+        trovati = [nomi[x] for x in difflib.get_close_matches(PN.ordinata(testo), list(nomi), n=5, cutoff=0.75)]
     return sorted(trovati, key=lambda g: (not g["a_roster"], g["nome_common"]))[:8]
 
 

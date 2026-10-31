@@ -276,6 +276,19 @@ ok(f"G{N} ·" in tf and _tp(mio) in tf and ("✅ V" in tf or "❌ S" in tf) and 
 t = R.testo(c, 2)
 ok("Giornata 7 calcolata</b> (ricalcolo 1)" in t and "FADD: esce Prova 10, entra Prova 6" in t and "Delta: panchina non mandata" in t,
    "messaggio per il gruppo admin: risultati, FADD, avvisi")
+# in fondo alla proposta i titolari rimasti a 0 senza FADD, da controllare a mano (Luca, 31/10: caso Kawhi)
+import copy as _cpz
+_cz = _cpz.deepcopy(c)
+_tz = _cz["risultati"][0]["sc"]["titolari"]
+_tz[1] = {**_tz[1], "fp": 0.0, "come": "zero", "nota": "non ha giocato", "nome": "Kawhi Prova", "fadd": False}
+_tzt = R.testo(_cz, 1)
+ok("Titolari a 0 senza FADD</b> (1): da controllare se hanno diritto alla FADD" in _tzt and "• Kawhi Prova (" in _tzt
+   and f"/set_valid_status GIOCATORE {N}" in _tzt and "Prova 10" not in _tzt.split("Titolari a 0")[1],
+   "proposta: in fondo i titolari a 0 senza FADD (non chi è uscito con la FADD), con il comando per correggerli\n" + _tzt[-400:])
+ok(not R.titolari_a_zero({"risultati": [{**r, "sc": {**r["sc"], "titolari": [x for x in r["sc"]["titolari"] if x.get("come") != "zero"]},
+                                         "st": {**r["st"], "titolari": [x for x in r["st"]["titolari"] if x.get("come") != "zero"]}}
+                                        for r in c["risultati"]]}),
+   "proposta: nessun titolare a 0, nessuna sezione")
 
 # ── proposta al gruppo admin, convalida coi bottoni, controllo delle 10 ──
 import json as _json, handlers_risultati as HR
@@ -880,6 +893,10 @@ ok(PA.sfide(S, _r7["casa"], _r7["trasferta"]) and all(x["giornata"] for x in PA.
 # ── /player ──
 import player as PLY
 gid1 = next(v for k, v in gid.items() if db.q("SELECT espn_id FROM giocatori WHERE id = %s", (v,), one=True)["espn_id"] == "r1")
+_nc = db.q("INSERT INTO giocatori (nome_bref, nome_common, nome_norm) VALUES ('Noah Clowney', 'Noah Clowney', 'noah clowney') RETURNING id", one=True)["id"]
+ok([g["id"] for g in PLY.cerca("Clowney Noah")] == [_nc] and [g["id"] for g in PLY.cerca("clowny noah")] == [_nc],
+   "/player: cognome e nome invertiti, anche con un errore (Luca, 31/10)")
+db.q("DELETE FROM giocatori WHERE id = %s", (_nc,))
 sc = PLY.scheda(gid1)
 ok("🇺🇸 NBA:" in sc and "🏆 Fantabasket: <b>" in sc and "media <b>" in sc and "Ultime partite" in sc and "fantapunti" in sc,
    "/player: NBA, fantabasket, media e ultime partite\n" + sc)
@@ -1043,6 +1060,36 @@ db.q("INSERT INTO lega_notti_congelate (data_et, congelata) VALUES (%s, TRUE)", 
 ok(CG.da_tenere(["g1"]) == {"g1"}, "notte congelata: la partita col tabellino non si riscarica")
 db.q("DELETE FROM lega_notti_congelate")
 ok(CG.da_tenere(["g1"]) == set(), "notte aperta: si riscarica")
+# /ricontrolla [GG/MM] (Luca, 31/10): ricontrollo a mano di una notte aperta, come quello delle 11:05
+_vsc = HR.nba.scarica_tabellini
+async def _fr(ids, **k):
+    db.q("UPDATE nba_tabellini SET fp = fp + 1, stl = stl + 1 WHERE atleta = 'r12' AND partita = 'g1'")
+    return {"partite": len(ids), "giocatori": 0, "errori": [], "letti": {}}
+HR.nba.scarica_tabellini = _fr
+_t, _m = _cmd(HR.cmd_ricontrolla, [f"{_d1:%d/%m}"])
+HR.nba.scarica_tabellini = _vsc
+db.q("UPDATE nba_tabellini SET fp = fp - 1, stl = stl - 1 WHERE atleta = 'r12' AND partita = 'g1'")
+ok(_t and f"Notte del {_d1:%d/%m}: 1 cambi" in _t[-1] and any("Ricontrollo a mano di Admin" in x and "recuperi" in x for c, x in _m),
+   f"/ricontrolla: la notte aperta si riscarica, i cambi degli schierati col dettaglio {_t}")
+db.q("INSERT INTO lega_notti_congelate (data_et, congelata) VALUES (%s, TRUE)", (_d1,))
+_t, _m = _cmd(HR.cmd_ricontrolla, [f"{_d1:%d/%m}"])
+db.q("DELETE FROM lega_notti_congelate")
+ok("già chiusa" in _t[0] and "/controllo_notte" in _t[0] and not _m, "/ricontrolla su una notte chiusa: rimanda a /controllo_notte")
+ok(_cmd(HR.cmd_ricontrolla, [], uid=101)[0] == ["⛔ Solo admin."], "/ricontrolla: solo admin")
+# /calcola [N]: come /ricalcola, che calcola solo se le partite sono tutte finite (pronta)
+_rc = []
+_vrc = HR._ricalcola
+async def _frc(bot, s_, n, chi, rispondi, user=None): _rc.append((n, chi))
+HR._ricalcola = _frc
+_vav = HR._avvia
+async def _sub(context, coro): await coro
+HR._avvia = _sub
+_t, _m = _cmd(HR.cmd_calcola, ["G7"])
+HR._ricalcola, HR._avvia = _vrc, _vav
+ok(_rc == [(7, "/calcola di Admin")] and "controllo che le partite NBA siano tutte finite" in _t[0], f"/calcola G7 {_rc}")
+db.q("UPDATE nba_partite SET stato = 'STATUS_IN_PROGRESS' WHERE espn_id = 'g3'")
+ok(HR.pronta(S, db.giornata(S, N)) == "1 partite NBA non ancora finite", "calcolo prima delle 7:45: solo a partite tutte finite")
+db.q("UPDATE nba_partite SET stato = 'STATUS_FINAL' WHERE espn_id = 'g3'")
 # /correggi_tabellino: i fantapunti di una partita, senza riscaricare; registro, canale log, canale principale
 ok(CG.leggi_correzione(["Norman", "Powell", "G1", "16"]) == ("Norman Powell", 1, 16.0, None)
    and CG.leggi_correzione(["Powell", "1", "16,5", "24/10"]) == ("Powell", 1, 16.5, (24, 10)) and CG.leggi_correzione(["Powell", "16"]) is None,

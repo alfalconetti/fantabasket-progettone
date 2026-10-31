@@ -41,7 +41,7 @@ Gli admin sono quelli di `admin_ids` in `globals.json`, gli stessi degli altri b
 
 **Alle 7:45** del giorno dopo l'ultima notte della giornata il bot calcola da solo, coi tabellini definitivi: riscarica le partite e i tabellini **dell'ultima notte** (le notti prima sono già congelate, vedi sotto), anche quelli già presi nel live (così entra subito una correzione di ESPN arrivata dopo il live; se ce n'è qualcuna lo scrive nel canale log), prende i quintetti congelati alla scadenza e le panchine da IPanchinari e applica le regole qui sotto. Poi:
 - scrive il tab **«Calcolo GN»** del foglio di controllo del calcolo: una riga per giocatore coi fantapunti di ogni notte, la media della stagione, lo status di ogni notte, il punteggio, chi è in campo (FADD), l'ordine dei supplementari, e in cima il riquadro dei risultati. Punteggi, totali, supplementari e vincitore sono **formule** che rifanno i conti del bot: se tutto quadra sul foglio, quadra anche nel bot. I dati scritti dal bot sono in blu, le formule in nero, le righe della FADD in arancione;
-- manda al gruppo admin la proposta: risultati, FADD, avvisi (panchina mancante → senza supplementari, quintetto incompleto, giocatori senza id ESPN, panchinari ceduti prima della scadenza → tolti dalla panchina e gli altri scalano, titolari non più in squadra alla scadenza → da correggere da Yahoo), con **✅ Convalida** e **🔄 Ricalcola**.
+- manda al gruppo admin la proposta: risultati, FADD, avvisi (panchina mancante → senza supplementari, quintetto incompleto, giocatori senza id ESPN, panchinari ceduti prima della scadenza → tolti dalla panchina e gli altri scalano, titolari non più in squadra alla scadenza → da correggere da Yahoo), con **✅ Convalida** e **🔄 Ricalcola**. In fondo, **🩺 Titolari a 0 senza FADD**: i titolari che non hanno giocato e per cui la FADD non è scattata, da controllare a mano (per esempio un Out arrivato all'ultimo minuto); se avevano diritto si correggono con `/set_valid_status GIOCATORE N` e poi 🔄 Ricalcola. Solo nella proposta al gruppo admin, non nel live.
 
 **Ricalcolo di una giornata già convalidata**: la proposta nuova dice in fondo cosa cambia rispetto ai risultati convalidati, partita per partita (punti, supplementari, ⚠️ vincitore), oppure «stessi risultati»; lo ripete il messaggio di conferma quando la convalidi. Sul canale, se cambia chi vince, esce anche un avviso.
 
@@ -77,6 +77,8 @@ Dopo ogni ✅ o ❌ che cambia dei valori: 🔄 **Ricalcola** e poi **✅ Conval
 
 | Comando | Cosa fa |
 |---|---|
+| `/calcola [N]` | calcola subito la giornata, senza aspettare le 7:45, **solo se tutte le sue partite NBA sono finite** (altrimenti dice quante mancano). Senza N l'ultima giornata iniziata e non ancora calcolata. Riscarica le notti aperte e manda la proposta come alle 7:45, col secondo giro del tanking |
+| `/ricontrolla [GG/MM]` | ricontrolla subito una notte **ancora aperta** (fino al controllo finale delle 20), come il primo controllo delle 11:05: cambi degli schierati col dettaglio sul log e, a giornata calcolata, al gruppo admin con 🔄 Ricalcola. Senza data la notte appena passata; su una notte già chiusa rimanda a `/controllo_notte` |
 | `/controllo_notte GG/MM` | rifà il controllo finale di una notte, **anche se è congelata**: riscarica, salva e chiede ✅/❌ come alle 20. Per i casi eccezionali (ESPN non rispondeva alle 20, una correzione arrivata dopo) |
 | `/congela_notte GG/MM` · `/scongela_notte GG/MM` | chiude o riapre una notte. Una notte riaperta si riscarica alle 7:45 e con `/ricalcola`, ma non ha un nuovo controllo delle 20: resta aperta finché non la richiudi |
 | `/congela N` · `/scongela N` | lo stesso per tutte le notti della giornata N |
@@ -174,6 +176,8 @@ Il bot scarica da ESPN le foto **piano piano, solo di notte negli Stati Uniti** 
 | `/espn_giocatori` | roster NBA da ESPN e abbinamento automatico |
 | `/espn_mancanti` | giocatori a roster senza id ESPN |
 | `/espn_abbina ID_GIOCATORE ID_ESPN` | abbinamento a mano |
+| `/calcola [N]` | calcola subito una giornata finita (tutte le partite NBA finite), senza aspettare le 7:45 |
+| `/ricontrolla [GG/MM]` | ricontrolla una notte ancora aperta, come il primo controllo delle 11:05 |
 | `/ricalcola N` | riscarica i tabellini della giornata N (se non è congelata), ricalcola, riscrive il tab «Calcolo GN» e ripropone la convalida |
 | `/tanking [N]` | controllo del tanking della giornata: indizi nelle formazioni (solo a te) |
 | `/storico_calcolo N` | tutte le versioni calcolate della giornata N, quale è convalidata e cosa cambia da una all'altra |

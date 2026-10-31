@@ -1715,3 +1715,21 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.10.3 (2026-10-31)
 
 - Loucabot v70: controllo del tanking con l'injury report delle 21 italiane (tradizione della lega), solo titolari Out che poi non hanno giocato, e un secondo giro a fine giornata per chi giocava dopo la prima notte (Luca, 31/10)
+
+## v6.10.4 (2026-10-31)
+
+- Loucabot v71: nella proposta del calcolo agli admin, in fondo, i titolari rimasti a 0 senza FADD da controllare a mano (Luca, 31/10)
+- README: schema dell'architettura rifatto (quattro bot, fonti esterne, Telegram, database e ponti verso i fogli e Yahoo)
+
+## v6.10.5 (2026-10-31)
+
+- Loucabot v72: nella classifica per conference la media punti di ogni conference in fondo alla colonna Media (Luca, 31/10)
+- Roadmap: storico delle stagioni passate per statistiche di sempre (Luca, 31/10)
+
+## v6.11.0 (2026-10-31)
+
+- Loucabot v73: `/calcola [N]` per calcolare una giornata prima delle 7:45 (solo a partite NBA tutte finite) e `/ricontrolla [GG/MM]` per ricontrollare a mano una notte ancora aperta, fino alle 20 (Luca, 31/10)
+
+## v6.11.1 (2026-10-31)
+
+- **Nomi dei giocatori in qualsiasi ordine** in tutti i bot (Luca, 31/10: «Clowney Noah» non trovava Noah Clowney): `shared/parole_nome.py`, usato da `/player`, `/correggi_tabellino`, `/set_valid_status` (loucabot v74), dalle ricerche del bot principale (trade da testo, `/carriera`, posizioni, 10-day, registro, decadimento, pannello admin) e dal bot aste (lista FA e offerte, v80); anche le proposte per somiglianza confrontano le parole in ordine alfabetico. IPanchinari abbinava già parola per parola

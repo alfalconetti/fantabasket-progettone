@@ -736,10 +736,14 @@ def movimenti_carriera(gid: int, dal) -> list:
                  ORDER BY t.timestamp, t.id""", (gid, dal), many=True) or []
 
 def cerca_giocatori(nome_norm: str) -> list:
-    return _q(
-        "SELECT * FROM giocatori WHERE nome_norm ILIKE %s ORDER BY nome_common",
-        (f"%{nome_norm}%",), many=True
-    )
+    """Il pezzo di nome dentro nome_norm; se non c'è e le parole sono più d'una, ognuna in qualsiasi ordine
+    («clowney noah» trova Noah Clowney; Luca, 31/10)."""
+    righe = _q("SELECT * FROM giocatori WHERE nome_norm ILIKE %s ORDER BY nome_common", (f"%{nome_norm}%",), many=True)
+    parole = [p for p in (nome_norm or "").split() if p]
+    if righe or len(parole) < 2:
+        return righe
+    return _q("SELECT * FROM giocatori WHERE " + " AND ".join(["nome_norm ILIKE %s"] * len(parole)) + " ORDER BY nome_common",
+              tuple(f"%{p}%" for p in parole), many=True)
 
 def get_roster_team(team_id: str, senza_10day: bool = False) -> list:
     """Roster attuale con data_nascita e anni_scala per il PNG roster.

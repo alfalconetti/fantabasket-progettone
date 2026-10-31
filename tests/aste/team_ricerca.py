@@ -40,3 +40,17 @@ ok("Gamma" in team(["gam"]), "/team gam → Gamma")
 ok("Alfa" in team([]), "/team senza argomento: la propria squadra")
 ok("Uso" in team([], uid=999), "/team senza argomento e senza squadra: istruzioni")
 ok("Nessuna squadra" in team(["zzzz"]), "/team con un nome che non esiste")
+# giocatori scritti con le parole in un altro ordine (Luca, 31/10: «Clowney Noah»)
+import utils as _U
+from shared import parole_nome as PN
+ok(PN.stesse_parole("Clowney Noah", "Noah Clowney") and PN.stesse_parole("jackson jaren jr", "Jaren Jackson Jr.")
+   and PN.contiene_parole("clown noah", "Noah Clowney") and not PN.stesse_parole("Noah", "Noah Clowney"),
+   "parole del nome: stesso nome in un altro ordine, suffissi e pezzi di parola")
+ok(_U.trova_giocatore_generico("Clowney Noah", ["Noah Clowney", "Noah Penda"]) == ("Noah Clowney", None)
+   and _U.trova_giocatore_generico("Clowny Noah", ["Noah Clowney", "Noah Penda"]) == (None, "Noah Clowney"),
+   "bot aste: cognome e nome invertiti trovano il giocatore (anche con un errore, come proposta)")
+_vfa = _U.get_fa_players
+_U.get_fa_players = lambda: ["Noah Clowney", "Noah Penda", "Jalen Johnson"]
+ok(_U.trova_giocatore_fa("Clowney Noah")[0] == "Noah Clowney" and _U.trova_giocatore_fa("johnson jalen")[0] == "Jalen Johnson",
+   "bot aste: lista FA con cognome e nome invertiti")
+_U.get_fa_players = _vfa

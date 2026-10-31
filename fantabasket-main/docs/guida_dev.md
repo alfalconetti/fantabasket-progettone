@@ -374,6 +374,7 @@ ORDER BY t.timestamp, t.id;
 | `palette.py`, `myteam.py` | colori e dati squadra (colori effettivi e testo leggibile: `roster.colori_effettivi`, `roster.input_colori`) |
 | `nav.py` | navigazione dei menu: ✖️ Chiudi (`nav:x`), 🏠 Menu, ←, `mostra()` (da un bottone modifica il messaggio invece di mandarne uno nuovo) |
 | `admin_panel.py` | `/admin_menu`, fasi, DPE e tagli admin, `/registra_firma`, `/list`, `/set_cap_penalizzato`, situazione cap |
+| (shared) `parole_nome.py` | nomi dei giocatori in qualsiasi ordine (v6.11.1): `nomi.esatti`/`simili`, `db.cerca_giocatori` (ogni parola, se il pezzo intero non c'è), `posizioni._cerca_giocatori` (anche `/carriera`), `dieci_giorni.cerca` |
 | `bref.py` | job Basketball-Reference e conferma dei giocatori nuovi; dopo ogni abbinamento (`abbina_auto`, bottone 🔗) `aggiorna_foglio` risincronizza il foglio Roster se il giocatore è sotto contratto (v6.9.0) |
 | `nascite.py` | `/set_nascita`, `/nascite_mancanti` |
 | `dev.py`, `dev_player.py` | comandi dev |

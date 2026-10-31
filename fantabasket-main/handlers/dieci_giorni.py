@@ -204,7 +204,8 @@ def cerca(nome: str, max_n: int = 8) -> list[dict]:
     trovati = nomi.esatti(nome, fa)
     if not trovati:
         k = nomi.chiave(nome)
-        trovati = [g for g in fa if k and any(k in c for c in nomi._chiavi(g))]
+        from shared.parole_nome import contiene_parole
+        trovati = [g for g in fa if k and any(k in c or contiene_parole(nome, c) for c in nomi._chiavi(g))]
     if not trovati:
         trovati = [g for g, _ in nomi.simili(nome, fa, soglia=0.75, max_n=max_n)]
     return sorted(trovati, key=lambda g: g["nome_common"])[:max_n]

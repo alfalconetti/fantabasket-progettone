@@ -238,7 +238,7 @@ def _calcolata(s: str, n: int) -> bool:
     return bool(db.q("SELECT 1 AS x FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (s, n), one=True))
 
 
-async def primo_controllo(bot, d) -> str:
+async def primo_controllo(bot, d, titolo: str | None = None) -> str:
     """Primo controllo della notte d alle 11:05 quando il live non c'è più (giornata convalidata): riscarica, cambi
     degli schierati col dettaglio sul log e, se la giornata è calcolata, al gruppo admin con Ricalcola (v60, Luca
     30/10: «avevamo detto di tenerlo»). Col live ancora aperto lo fa il live stesso (live.cosa_fare → «controllo»)."""
@@ -255,7 +255,8 @@ async def primo_controllo(bot, d) -> str:
     sch = CG.schierati(s, g["numero"])
     contano = {k: v for k, v in cambi.items() if k[1] in sch}
     from shared import regole as _r
-    titolo = f"🔎 Primo controllo ({_r.orario('primo_controllo'):%H:%M}), notte del {d:%d/%m} (G{g['numero']})"
+    titolo = (f"{titolo}, notte del {d:%d/%m} (G{g['numero']})" if titolo
+              else f"🔎 Primo controllo ({_r.orario('primo_controllo'):%H:%M}), notte del {d:%d/%m} (G{g['numero']})")
     if not contano:
         await log(bot, f"{titolo}: nessun tabellino cambiato tra gli schierati" + (f" ({len(cambi)} cambi di altri)" if cambi else ""))
         return "nessun cambio"
@@ -404,12 +405,16 @@ async def _ricalcola(bot, s: str, n: int, chi: str, rispondi, user=None):
         await hc.aggiorna_tabellini()
         import congelamento
         fermo = congelamento.congelata(s, n)
+        gia_calcolata = _calcolata(s, n)
         await _riscarica(g)                             # le notti congelate restano come sono (v58)
         motivo = pronta(s, g)
         if motivo:
             await rispondi(f"❌ Giornata {n} non ancora calcolabile: {motivo}. Quando è pronta: /ricalcola {n}")
             return
         esito = await esegui(bot, s, n, chi, user=user)
+        if not gia_calcolata:                           # calcolata a mano prima delle 7:45: anche il secondo giro del tanking
+            import tanking
+            await tanking.manda_fine(bot, s, g)
         await rispondi(f"✅ Giornata {n} ricalcolata: proposta nuova nel gruppo admin ({esito})."
                        + (" Giornata congelata: coi tabellini che c'erano, niente riscaricato da ESPN." if fermo else ""))
     except Exception as err:
@@ -434,6 +439,64 @@ async def cmd_ricalcola(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text(t)
     await _avvia(context, _ricalcola(context.bot, config.stagione(), n, f"/ricalcola di {_chi(update)}", rispondi,
                                      user=update.effective_user))
+
+
+async def cmd_calcola(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/calcola [N] (admin, Luca 31/10): calcola subito, senza aspettare le 7:45, ma solo se tutte le partite NBA della
+    giornata sono finite (pronta). Senza N l'ultima giornata iniziata e non ancora calcolata."""
+    if not config.is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ Solo admin.")
+        return
+    from handlers import _chi
+    s = config.stagione()
+    arg = (context.args or [""])[0].lstrip("Gg")
+    if arg.isdigit():
+        n = int(arg)
+    else:
+        da_fare = [g for g in db.giornate(s) if g["dal"] <= nba.oggi_et() and not _calcolata(s, g["numero"])]
+        if not da_fare:
+            await update.effective_message.reply_text("Nessuna giornata iniziata da calcolare. Per rifarne una: /ricalcola N")
+            return
+        n = da_fare[-1]["numero"]
+    msg = update.effective_message
+    await msg.reply_text(f"⏳ Giornata {n}: controllo che le partite NBA siano tutte finite, riscarico i tabellini e calcolo…")
+
+    async def rispondi(t):
+        await msg.reply_text(t)
+    await _avvia(context, _ricalcola(context.bot, s, n, f"/calcola di {_chi(update)}", rispondi, user=update.effective_user))
+
+
+async def cmd_ricontrolla(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/ricontrolla [GG/MM] (admin, Luca 31/10): ricontrolla subito i tabellini di una notte ancora aperta (fino al
+    controllo finale delle 20), come il primo controllo delle 11:05. Senza data la notte appena passata."""
+    import congelamento as CG
+    import notte
+    msg = update.effective_message
+    if not config.is_admin(update.effective_user.id):
+        await msg.reply_text("⛔ Solo admin.")
+        return
+    d = CG.leggi_data(context.args[0]) if context.args else notte.notte_di_default()
+    if not d:
+        await msg.reply_text("Uso: /ricontrolla [GG/MM] (senza data la notte appena passata)")
+        return
+    if CG.notte_congelata(d):
+        await msg.reply_text(f"🧊 La notte del {d:%d/%m} è già chiusa dal controllo finale. Per ricontrollarla lo stesso, "
+                             f"con la verifica su Yahoo: /controllo_notte {d:%d/%m}")
+        return
+    partite = db.partite_nba(d, d)
+    aperte = [p for p in partite if p["stato"] not in STATI_CHIUSI]
+    if not partite:
+        await msg.reply_text(f"Nessuna partita NBA la notte del {d:%d/%m}.")
+        return
+    from handlers import _chi
+    from registro import segna_sync
+    segna_sync(update.effective_user, "admin", "notte ricontrollata a mano", oggetto=f"notte del {d:%d/%m}")
+    await msg.reply_text(f"⏳ Ricontrollo la notte del {d:%d/%m}…"
+                         + (f" ({len(aperte)} partite non ancora finite: controllo solo quelle finite)" if aperte else ""))
+    esito = await primo_controllo(context.bot, d, titolo=f"🔎 Ricontrollo a mano di {_chi_nome(update)}")
+    await msg.reply_text(f"✅ Notte del {d:%d/%m}: {esito}."
+                         + (" I cambi degli schierati sono sul canale log e, se la giornata è calcolata, nel gruppo admin "
+                            "col bottone Ricalcola." if esito.endswith("cambi") else ""))
 
 
 async def _avvia(context, coro):
@@ -605,7 +668,8 @@ async def cmd_storico_calcolo(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 def get_handlers() -> list:
-    return [CommandHandler("ricalcola", cmd_ricalcola), CommandHandler("storico_calcolo", cmd_storico_calcolo), CommandHandler("dev_prova_calcolo", cmd_dev_prova_calcolo),
+    return [CommandHandler("ricalcola", cmd_ricalcola), CommandHandler("storico_calcolo", cmd_storico_calcolo),
+            CommandHandler("calcola", cmd_calcola), CommandHandler("ricontrolla", cmd_ricontrolla), CommandHandler("dev_prova_calcolo", cmd_dev_prova_calcolo),
             CommandHandler("live", cmd_live), CommandHandler("controllo_notte", cmd_controllo_notte),
             CallbackQueryHandler(cb_controllo, pattern=r"^cn:(ok|no|ag|la):\d+$"),
             CallbackQueryHandler(cb_risultati, pattern=r"^rc:")]

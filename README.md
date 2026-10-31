@@ -34,22 +34,43 @@ bots automate the bookkeeping:
 
 ## Architecture
 
-Everything runs with Docker Compose on a small home server.
+Everything runs with Docker Compose on a small home server. The four bots never call
+each other: they share one PostgreSQL database, each writing its own tables.
 
 ```
-                ┌──────────────┐     ┌──────────────┐
- Telegram ◄────►│   bot-main   │     │bot-aste-beta │◄────► Telegram
-                └──────┬───────┘     └──────┬───────┘
-                       │                    │
-          ┌────────────┼──────────┬─────────┘
-          ▼            ▼          ▼
-   ┌────────────┐ ┌──────────┐ ┌──────────────┐
-   │ PostgreSQL │ │gas-router│ │ yahoo-router │
-   └────────────┘ └────┬─────┘ └──────┬───────┘
-                       ▼              ▼
-              Google Apps Script   Yahoo Fantasy API
-              (league sheet)       (read-only)
+ OUTSIDE                          THE FOUR BOTS                      TELEGRAM
+                               ┌────────────────────┐
+ Basketball-Reference ───────► │ bot-main           │ ──┐
+   daily season stats          │ contracts, cap,    │   │            private chats
+                               │ trades, roles      │   │            main channel
+ Yahoo Fantasy API ◄─ ─ ─ ─ ─ ─│                    │   │            league group
+   via yahoo-router (pending)  └────────────────────┘   │            admin group
+                               ┌────────────────────┐   ├──────────► auction channel
+                               │ bot-aste-beta      │ ──┤            bench channel
+                               │ FA / RFA auctions  │   │            log channels
+                               └────────────────────┘   │
+ ESPN public data ───────────► ┌────────────────────┐   │
+   NBA schedule, box scores,   │ loucabot           │ ──┤
+   injuries, rosters           │ schedule, fantasy  │   │
+                               │ points, results    │   │
+                               └────────────────────┘   │
+                               ┌────────────────────┐   │
+                               │ ipanchinari        │ ──┘
+                               │ benches, lineups   │
+                               └────────────────────┘
+                                         │ all four bots
+                                         ▼
+                ┌───────────────────────────────────────────┐   aste.db (SQLite, auctions)
+                │ PostgreSQL: one database, per-bot tables  │   config/, secrets/ (server only)
+                └───────────────────────────────────────────┘   NocoDB (read-only, home network)
+
+ Google Sheets ◄── gas-router ◄── bot-main  (rosters, picks, stats)
+ (league sheet)   (Apps Script) ◄── loucabot  (calendar, results)
 ```
+
+A typical matchday: lineups lock at the first NBA game; loucabot follows the games live
+from ESPN box scores, computes the results the morning after the last night, and an admin
+validates them before they reach the league sheet and the main channel.
 
 | Service        | Role                                                            |
 |----------------|-----------------------------------------------------------------|

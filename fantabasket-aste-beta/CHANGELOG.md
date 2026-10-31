@@ -699,3 +699,7 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 ## v79 (2026-10-30)
 
 - Guida dei GM: «Da dove vengono i dati» (ESPN, Basketball-Reference, Yahoo)
+
+## v80 (2026-10-31)
+
+- Offerte e lista FA: il nome del giocatore anche con cognome e nome invertiti («Clowney Noah»), anche nelle proposte per somiglianza (`shared/parole_nome.py`; Luca, 31/10)

@@ -34,6 +34,8 @@ def liste_comandi() -> dict:
         BotCommand("fantapunti",         "Fantapunti della giornata, giocatori a roster [N]"),
         BotCommand("set_valid_status",   "Status di un giocatore per il calcolo: GIOCATORE N"),
         BotCommand("ricalcola",          "Ricalcola la giornata N (riscarica solo le notti non congelate)"),
+        BotCommand("calcola",            "Calcola subito la giornata [N], se le partite sono finite"),
+        BotCommand("ricontrolla",        "Ricontrolla i tabellini di una notte aperta [GG/MM]"),
         BotCommand("storico_calcolo",    "Versioni calcolate della giornata N e cosa è cambiato"),
         BotCommand("tanking",            "Controllo tanking della giornata [N]: indizi nelle formazioni"),
         BotCommand("congelamento",       "Quali giornate si ricontrollano e quali sono congelate"),

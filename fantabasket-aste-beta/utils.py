@@ -116,6 +116,11 @@ def trova_giocatore_fa(input_nome: str) -> tuple[str | None, str | None, list[st
 
     if norm_input in norm_map:
         return norm_map[norm_input], None, []
+    # le stesse parole in un altro ordine («Clowney Noah»; Luca, 31/10)
+    from shared.parole_nome import stesse_parole, ordinata
+    invertiti = [p for p in players if stesse_parole(input_nome, p)]
+    if len(invertiti) == 1:
+        return invertiti[0], None, []
 
     cognome_input = _cognome(norm_input)
     per_cognome = [p for norm_p, p in norm_map.items()
@@ -139,10 +144,14 @@ def trova_giocatore_fa(input_nome: str) -> tuple[str | None, str | None, list[st
             cognome_originale = _cognome(per_cognome_fuzzy[0])
             return None, f"__cognome__{cognome_originale}", per_cognome_fuzzy
 
-    # fuzzy sul nome completo
+    # fuzzy sul nome completo, anche in un altro ordine
     matches = difflib.get_close_matches(norm_input, norm_map.keys(), n=1, cutoff=0.7)
     if matches:
         return None, norm_map[matches[0]], []
+    per_ordine = {ordinata(p): p for p in players}
+    matches = difflib.get_close_matches(ordinata(input_nome), per_ordine.keys(), n=1, cutoff=0.7)
+    if matches:
+        return None, per_ordine[matches[0]], []
 
     return None, None, []
 
@@ -152,9 +161,17 @@ def trova_giocatore_generico(input_nome: str, lista: list[str]) -> tuple[str | N
     norm_map = {normalizza(p): p for p in lista}
     if norm_input in norm_map:
         return norm_map[norm_input], None
+    from shared.parole_nome import stesse_parole, ordinata    # anche in un altro ordine (Luca, 31/10)
+    invertiti = [p for p in lista if stesse_parole(input_nome, p)]
+    if len(invertiti) == 1:
+        return invertiti[0], None
     matches = difflib.get_close_matches(norm_input, norm_map.keys(), n=1, cutoff=0.7)
     if matches:
         return None, norm_map[matches[0]]
+    per_ordine = {ordinata(p): p for p in lista}
+    matches = difflib.get_close_matches(ordinata(input_nome), per_ordine.keys(), n=1, cutoff=0.7)
+    if matches:
+        return None, per_ordine[matches[0]]
     return None, None
 
 

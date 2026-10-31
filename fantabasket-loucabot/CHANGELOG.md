@@ -356,3 +356,20 @@ Il calcolo dei fantapunti.
 ## v70 (2026-10-31)
 
 - **Controllo del tanking ripensato** (Luca, 31/10). Lo stato degli infortuni è quello che il GM poteva sapere: l'ultimo injury report **prima delle 21 italiane** del primo giorno (tradizione della lega; `orari.tanking_injury`), o prima della scadenza se la prima partita è prima. Il titolare indisponibile è un indizio solo se è **Out** (Questionable, Doubtful, Day-To-Day sono scommesse legittime) **e non ha giocato** nessuna partita della giornata: alle 11 dopo la prima notte solo se la sua squadra ha già finito; gli altri nel **secondo giro a fine giornata**, dopo il calcolo delle 7:45, solo se ce ne sono (se no una riga sul log)
+
+## v71 (2026-10-31)
+
+- **Proposta del calcolo: in fondo i titolari a 0 senza FADD** (Luca, 31/10: il caso di Kawhi Leonard). I titolari che non hanno giocato e per cui la FADD non è scattata, con squadra e motivo, «da controllare se hanno diritto alla FADD»; si correggono con `/set_valid_status GIOCATORE N` e poi Ricalcola. Solo nella proposta al gruppo admin, non nel live
+
+## v72 (2026-10-31)
+
+- `/classifica_conference`: in fondo a ogni conference, sotto la colonna Media, la **media punti della conference** (Luca, 31/10)
+
+## v73 (2026-10-31)
+
+- **`/calcola [N]`** (admin; Luca, 31/10): calcola subito una giornata senza aspettare le 7:45, **solo se tutte le sue partite NBA sono finite** (se no dice quante mancano). Senza N l'ultima giornata iniziata e non ancora calcolata. Come alle 7:45: riscarica le notti aperte, proposta al gruppo admin, secondo giro del tanking (anche con `/ricalcola` alla prima volta)
+- **`/ricontrolla [GG/MM]`** (admin; Luca, 31/10): ricontrolla subito i tabellini di una notte ancora aperta (fino al controllo finale delle 20), come il primo controllo delle 11:05; senza data la notte appena passata. Su una notte già chiusa rimanda a `/controllo_notte`. Nel registro
+
+## v74 (2026-10-31)
+
+- `/player`, `/correggi_tabellino` e `/set_valid_status`: il nome del giocatore anche con le parole in un altro ordine («Clowney Noah»), anche nelle proposte per somiglianza (`shared/parole_nome.py`; Luca, 31/10)

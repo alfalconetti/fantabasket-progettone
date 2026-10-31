@@ -355,6 +355,8 @@ Gli admin possono dare una penalità alla squadra (panchina in ritardo, formazio
 | uscire da un'operazione bloccata | `/annulla` |
 | ricevere questa guida | `/guida` |
 
+**Nomi dei giocatori.** Dove scrivi il nome di un giocatore puoi metterlo in qualsiasi ordine («Clowney Noah» o «Noah Clowney»), senza accenti e con qualche errore di battitura: il bot propone il più simile.
+
 ## Da dove vengono i dati
 
 - **ESPN** (le pagine pubbliche delle partite NBA): calendario e risultati NBA, i **tabellini** da cui il bot calcola i fantapunti (anche quelli live), la lista degli **infortunati**, la squadra NBA di ogni giocatore e le foto. I tabellini si ricontrollano alle 11:05 e alle 20 del giorno dopo: fino ad allora possono cambiare.

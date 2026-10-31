@@ -28,8 +28,10 @@ def _chiavi(g: dict) -> set[str]:
 
 
 def esatti(nome: str, giocatori: list[dict]) -> list[dict]:
-    k = chiave(nome)
-    return [g for g in giocatori if k and k in _chiavi(g)]
+    """Stessa chiave, o le stesse parole in un altro ordine («Clowney Noah»; Luca, 31/10)."""
+    from shared.parole_nome import ordinata
+    k, o = chiave(nome), ordinata(nome)
+    return [g for g in giocatori if k and (k in _chiavi(g) or o in {ordinata(c) for c in _chiavi(g)})]
 
 
 def simili(nome: str, giocatori: list[dict], soglia: float = SOGLIA, max_n: int = 5) -> list[tuple[dict, float]]:
@@ -38,7 +40,9 @@ def simili(nome: str, giocatori: list[dict], soglia: float = SOGLIA, max_n: int 
         return []
     punteggi = []
     for g in giocatori:
-        migliore = max((difflib.SequenceMatcher(None, k, c).ratio() for c in _chiavi(g)), default=0)
+        from shared.parole_nome import ordinata              # anche in un altro ordine (Luca, 31/10)
+        migliore = max((max(difflib.SequenceMatcher(None, k, c).ratio(), difflib.SequenceMatcher(None, ordinata(k), ordinata(c)).ratio())
+                        for c in _chiavi(g)), default=0)
         if migliore >= soglia:
             punteggi.append((g, migliore))
     punteggi.sort(key=lambda x: -x[1])

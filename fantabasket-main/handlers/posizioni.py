@@ -315,8 +315,10 @@ def _cerca_giocatori(nome: str) -> tuple[list, bool]:
     import difflib
     giocatori = db._q("SELECT id, nome_common, nome_bref, nome_yahoo FROM giocatori", many=True) or []
     k = _senza_suffisso(_chiave(nome))
+    from shared.parole_nome import stesse_parole
     esatti = [g for g in giocatori
-              if any(_senza_suffisso(_chiave(g[c])) == k for c in ("nome_common", "nome_bref", "nome_yahoo") if g.get(c))]
+              if any(_senza_suffisso(_chiave(g[c])) == k or stesse_parole(nome, g[c])
+                     for c in ("nome_common", "nome_bref", "nome_yahoo") if g.get(c))]
     if esatti:
         return esatti, True
     simili = sorted(giocatori, key=lambda g: -difflib.SequenceMatcher(None, k, _chiave(g["nome_common"])).ratio())

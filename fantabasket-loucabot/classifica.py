@@ -309,7 +309,10 @@ def dati_conference(righe: list[dict], giornate: int, conf: dict[str, str]) -> d
     sezioni = []
     for nome in sorted(set(conf.values()), key=lambda n: min(r["pos"] for r in righe if conf.get(r["team"]) == n)):
         rs = [r for r in righe if conf.get(r["team"]) == nome]
-        sezioni.append({"nome": nome, "righe": [{**per_nome[r["team"]], "pos": i + 1, "gen": r["pos"]} for i, r in enumerate(rs)]})
+        medie = [float(r["media"]) for r in rs if r.get("media") is not None]
+        sezioni.append({"nome": nome, "righe": [{**per_nome[r["team"]], "pos": i + 1, "gen": r["pos"]} for i, r in enumerate(rs)],
+                        # in fondo alla colonna Media, la media punti della conference (Luca, 31/10)
+                        "media": _n(sum(medie) / len(medie)) if medie else "—"})
     return {**base_, "sezioni": sezioni}
 
 

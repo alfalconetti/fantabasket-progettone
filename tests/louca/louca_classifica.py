@@ -44,6 +44,8 @@ dc = C.dati_conference(righe_g, 4, {"A": "Est", "D": "Est", "B": "Ovest", "C": "
 ok([(x["nome"], [(y["nome"], y["pos"], y["gen"]) for y in x["righe"]]) for x in dc["sezioni"]]
    == [("Ovest", [("B", 1, 1), ("C", 2, 2)]), ("Est", [("A", 1, 3), ("D", 2, 4)])],
    "per conference: stesso ordine della generale, posizione nella conference e nella generale")
+_mo = [sum(float(st2[t]["media"]) for t in ts) / 2 for ts in (("B", "C"), ("A", "D"))]
+ok([x["media"] for x in dc["sezioni"]] == [C._n(m) for m in _mo], f"per conference: la media punti della conference {[x['media'] for x in dc['sezioni']]}")
 
 # ── dal database: risultati convalidati, immagini ──
 S = config.stagione()

@@ -146,6 +146,8 @@ Alla convalida i risultati vanno in `lega_risultati` e sul foglio Calendario.
 | `/calendario_check` | admin | scadenze, squadre a media, confronto con il calendario |
 | `/nba_sync` | admin | riscarica tutte le partite NBA della stagione |
 | `/calendario_foglio` | admin | ricarica il foglio Calendario (A:E: calendario, squadre a media, punteggi) |
+| `/calcola [N]` | admin | calcola subito una giornata finita, senza aspettare le 7:45 (solo a partite NBA tutte finite) |
+| `/ricontrolla [GG/MM]` | admin | ricontrolla i tabellini di una notte ancora aperta (fino alle 20) |
 | `/ricalcola N` | admin | riscarica i tabellini, ricalcola la giornata e la ripropone da convalidare |
 | `/tanking [N]` | admin | controllo del tanking: indizi nelle formazioni della giornata (in automatico al gruppo admin alle 11 dopo la prima notte) |
 | `/storico_calcolo N` | admin | le versioni calcolate della giornata e cosa cambia tra una e l'altra |

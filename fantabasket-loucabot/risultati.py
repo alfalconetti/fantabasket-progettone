@@ -231,6 +231,19 @@ def testo_differenze(diff: list[str] | None) -> str:
             f"{'partita' if len(diff) == 1 else 'partite'}</b>:\n" + "\n".join(diff))
 
 
+def titolari_a_zero(c: dict) -> list[dict]:
+    """I titolari rimasti a 0 senza FADD (Luca, 31/10: caso Kawhi Leonard, Out dopo la prima partita della notte):
+    nella proposta agli admin, da controllare a mano. Non chi è entrato con la FADD, non chi ha giocato (anche a 0)."""
+    out = []
+    for r in c["risultati"]:
+        for team, sq in ((r["casa"], r["sc"]), (r["trasferta"], r["st"])):
+            for t in sq["titolari"]:
+                # posti vuoti e giocatori senza id ESPN sono già negli avvisi
+                if t.get("atleta") and t.get("come") == "zero" and not t.get("fadd") and float(t.get("fp") or 0) == 0:
+                    out.append({"team": team, "nome": t.get("nome") or t.get("atleta") or "—", "nota": t.get("nota") or ""})
+    return out
+
+
 def testo(c: dict, versione: int = 1) -> str:
     import html
     e = html.escape
@@ -252,6 +265,12 @@ def testo(c: dict, versione: int = 1) -> str:
         righe.append(riga)
     if c["avvisi"]:
         righe += ["", "⚠️ " + "\n⚠️ ".join(e(a) for a in c["avvisi"])]
+    zeri = titolari_a_zero(c)
+    if zeri:
+        righe += ["", f"🩺 <b>Titolari a 0 senza FADD</b> ({len(zeri)}): da controllare se hanno diritto alla FADD"]
+        righe += [f"• {e(z['nome'])} ({e(config.nome(z['team']))})" + (f": {e(z['nota'])}" if z.get("nota") else "") for z in zeri]
+        righe.append(f"<i>Si correggono con /set_valid_status GIOCATORE {g['numero']} (lo status vale per tutta la giornata), "
+                     "poi 🔄 Ricalcola.</i>")
     righe += ["", f"Controlla il tab «Calcolo G{g['numero']}» del foglio di calcolo, poi convalida. "
                   "Per correggere: /set_valid_status, /quintetto_admin SQUADRA GN, /panchina_admin SQUADRA GN "
                   "(su IPanchinari), poi 🔄 Ricalcola."]
