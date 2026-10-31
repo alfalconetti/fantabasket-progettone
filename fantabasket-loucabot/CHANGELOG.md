@@ -383,3 +383,7 @@ Il calcolo dei fantapunti.
 
 - Live (Luca, 31/10, mockup approvato): in alto la banda **NBA STANOTTE** con tutte le partite NBA vere della notte, loghi, punteggi, quarto e cronometro; quelle in corso col bordo rosso, quelle da iniziare con l'ora italiana. Punteggio, quarto e cronometro dallo scoreboard di ESPN che il live già scarica (colonne nuove in `nba_partite`)
 - Loghi delle 30 squadre NBA da ESPN in `config/foto/nba/` (`nba.scarica_loghi`, all'avvio e ogni giorno, solo quelli che mancano), usati anche da `/carriera` e `/roster` del bot principale
+
+## v77 (2026-10-31)
+
+- **Solo per la lega** (Luca, 31/10): in privato il bot risponde solo ai GM, agli admin e al dev; agli altri «🔒 Questo bot è riservato ai GM della lega. Se pensi che sia un errore, scrivi al dev.» (anche ai bottoni e, nel bot principale, al guest mode). Dai gruppi e canali che non sono in globals.json esce da solo e lo scrive al dev (`shared/solo_lega.py`, prova `tests/docs/solo_lega.py`)

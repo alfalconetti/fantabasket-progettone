@@ -166,3 +166,7 @@ Primo rilascio: panchine e quintetti.
 ## v35 (2026-10-31)
 
 - Comandi admin e dev **solo in privato e nel gruppo admin** (Luca, 31/10): prima un admin che scriveva un comando admin nel gruppo della lega o in un altro gruppo lo vedeva eseguito lì, davanti a tutti. Ora negli altri gruppi e nei canali passano solo i comandi pubblici (menu dei gruppi e dei GM, più /start, /help, /annulla); gli altri si ignorano in silenzio, con una riga nel log (`shared/solo_gruppo_admin.py`, prova `tests/docs/solo_gruppo_admin.py`)
+
+## v36 (2026-10-31)
+
+- **Solo per la lega** (Luca, 31/10): in privato il bot risponde solo ai GM, agli admin e al dev; agli altri «🔒 Questo bot è riservato ai GM della lega. Se pensi che sia un errore, scrivi al dev.» (anche ai bottoni e, nel bot principale, al guest mode). Dai gruppi e canali che non sono in globals.json esce da solo e lo scrive al dev (`shared/solo_lega.py`, prova `tests/docs/solo_lega.py`)

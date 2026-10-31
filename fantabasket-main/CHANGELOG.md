@@ -1761,3 +1761,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - `/roster` (Luca, 31/10, mockup approvato): faccia del giocatore prima del nome (foto ESPN di loucabot, le iniziali se manca), logo della squadra NBA dopo il nome e prima delle eleggibili, colonna **ETÀ**, importo e anni in una bolla del colore della squadra a cavallo delle due colonne. Con una data, squadra NBA ed età (anche l'età media) a quel giorno, con la stessa storia di `/carriera`. Pagina un po' più larga; un nome che non ci sta si rimpicciolisce (e, se non basta, toglie le eleggibili), mai a capo. `/assets` resta com'è
 - `/carriera`: i loghi veri delle squadre NBA al posto dei tondi con la sigla
 - `shared/squadre_nba.py`: nomi, colori, sigle e loghi delle 30 squadre NBA, in comune tra bot principale e loucabot
+
+## v6.14.0 (2026-10-31)
+
+- **Solo per la lega** (Luca, 31/10): in privato il bot risponde solo ai GM, agli admin e al dev; agli altri «🔒 Questo bot è riservato ai GM della lega. Se pensi che sia un errore, scrivi al dev.» (anche ai bottoni e, nel bot principale, al guest mode). Dai gruppi e canali che non sono in globals.json esce da solo e lo scrive al dev (`shared/solo_lega.py`, prova `tests/docs/solo_lega.py`)

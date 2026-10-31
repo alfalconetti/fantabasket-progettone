@@ -322,6 +322,9 @@ def main():
     app   = ApplicationBuilder().token(token).post_stop(post_stop).post_init(post_init).post_shutdown(backup_shutdown).build()
 
     # comandi admin e dev solo in privato e nel gruppo admin (Luca, 31/10): prima di tutto il resto
+    # solo per la lega (Luca, 31/10): GM, admin e dev in privato, solo i gruppi e i canali della lega
+    from shared import solo_lega
+    solo_lega.installa(app)
     from shared import solo_gruppo_admin
     import comandi
     solo_gruppo_admin.installa(app, comandi.comandi_pubblici(), lambda: settings.load_globals().get("admin_group_id"))

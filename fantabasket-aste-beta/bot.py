@@ -216,6 +216,9 @@ def main():
 
     app = ApplicationBuilder().token(TOKEN).build()
     # comandi admin e dev solo in privato e nel gruppo admin (Luca, 31/10): prima di tutto il resto
+    # solo per la lega (Luca, 31/10): GM, admin e dev in privato, solo i gruppi e i canali della lega
+    from shared import solo_lega
+    solo_lega.installa(app)
     from shared import solo_gruppo_admin
     from comandi import comandi_pubblici
     solo_gruppo_admin.installa(app, comandi_pubblici(), utils.get_admin_group_id)

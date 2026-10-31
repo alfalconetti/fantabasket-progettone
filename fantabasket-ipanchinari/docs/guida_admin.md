@@ -1,6 +1,8 @@
 # Guida admin — IPanchinari
 
-Da admin carichi i quintetti, controlli conferme e panchine prima della scadenza e puoi mettere panchina e quintetto per conto di una squadra. I comandi admin funzionano **solo in privato e nel gruppo admin**: scritti nel gruppo della lega o in un altro gruppo o canale, il bot li ignora in silenzio, anche se a scriverli è un admin (Luca, 31/10). Lì passano solo i comandi pubblici, quelli del menu `/` dei gruppi e dei GM.
+Da admin carichi i quintetti, controlli conferme e panchine prima della scadenza e puoi mettere panchina e quintetto per conto di una squadra. **I bot sono solo per la lega** (Luca, 31/10): in privato rispondono solo ai GM di teams.json, agli admin e al dev; agli altri dicono «bot riservato ai GM della lega» (se pensano sia un errore, il dev). Da un gruppo o canale che non è scritto in globals.json escono da soli appena ce li aggiungono, e lo dicono al dev: un gruppo nuovo della lega va prima messo in globals.json. Un GM nuovo è autorizzato appena è in teams.json.
+
+I comandi admin funzionano **solo in privato e nel gruppo admin**: scritti nel gruppo della lega o in un altro gruppo o canale, il bot li ignora in silenzio, anche se a scriverli è un admin (Luca, 31/10). Lì passano solo i comandi pubblici, quelli del menu `/` dei gruppi e dei GM.
 
 ---
 
