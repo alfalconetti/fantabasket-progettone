@@ -1,6 +1,6 @@
 # Messaggio di migrazione — Fantabasket Progettone
 
-**Stato: v6.12.3 · bot aste v80 · loucabot v74 · IPanchinari v34** (30/10/2026)
+**Stato: v6.12.4 · bot aste v80 · loucabot v74 · IPanchinari v34** (31/10/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 
@@ -73,7 +73,7 @@ fantabasket-progettone/
 - Schema SQLite del bot aste solo additivo (deve restare leggibile dal v48).
 - Una modifica a `shared/` richiede il riavvio di tutti i bot che la usano. `deploy.sh` riavvia sempre i servizi in `riavvia` (`--force-recreate`, dalla v5.12.2): metterci tutti quelli che usano il file di `shared/` cambiato.
 - Log: in ogni bot `httpx` e `httpcore` a WARNING, così le chiamate all'API di Telegram (col token nell'URL) non finiscono nei log. Un bot nuovo fa lo stesso.
-- Immagini Typst: nei container ci sono solo Liberation Sans e Noto Color Emoji (`fonts-noto-color-emoji` nei Dockerfile di loucabot e del bot principale). Le prove disegnano i template con `ignore_system_fonts` e solo quei font, così un carattere che nel container non c'è si vede prima del rilascio. Dopo un rilascio che cambia un Dockerfile, il deploy ricostruisce l'immagine; per controllare: `docker compose exec bot-main ls /usr/share/fonts/truetype/noto`.
+- Immagini Typst: nei container ci sono solo Liberation Sans e Noto Color Emoji (`fonts-noto-color-emoji` nei Dockerfile di loucabot e del bot principale). Le prove disegnano i template con `ignore_system_fonts` e solo quei font, così un carattere che nel container non c'è si vede prima del rilascio. Dopo un rilascio che cambia un Dockerfile, il deploy ricostruisce l'immagine; per controllare quali font vede Typst: `docker compose exec bot-main typst fonts` (devono esserci Liberation Sans e Noto Color Emoji). Il Typst del bot principale è il binario statico, che i font di sistema li cerca tramite fontconfig (`/etc/fonts`), assente nell'immagine slim: per questo il Dockerfile imposta `TYPST_FONT_PATHS=/usr/share/fonts` (v6.12.4; prima i template del bot principale uscivano col font di riserva di Typst, in serif, e le emoji a quadratini).
 - Log: in ogni bot `httpx` e `httpcore` a WARNING (niente riga per ogni chiamata a Telegram, che conterrebbe anche il token nell'URL); nei router (`gas-router`, `yahoo-router`) un filtro su `uvicorn.access` toglie le richieste a `/health` dell'healthcheck di Docker (prova `tests/docs/router_health.py`). Un bot o un router nuovo fa lo stesso.
 - Prima di ogni zip: `pyflakes` e `tests/run.sh` con "Tutte le prove passate." (comprende `nomi_importati`, che trova gli import rotti dentro le funzioni).
 - Modifiche strutturali: prova generale su una copia del DB vero (`scripts/prova_generale/`: foto di tutte le squadre prima e dopo, confronto; differenze solo volute).

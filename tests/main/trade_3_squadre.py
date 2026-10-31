@@ -157,6 +157,9 @@ async def main():
         ok(_png[:4] == b"\x89PNG" and _png2[:4] == b"\x89PNG", "/trova_trade: l'immagine si disegna coi soli font del container, a tre e a due squadre")
     except ImportError:
         pass
+    _df = open(os.path.join(os.path.dirname(os.path.abspath(TT2.TEMPLATE)), "Dockerfile")).read()
+    ok("fonts-noto-color-emoji" in _df and "TYPST_FONT_PATHS=/usr/share/fonts" in _df,
+       "Dockerfile: Typst statico senza fontconfig, i font gli vanno indicati (TYPST_FONT_PATHS)")
     # scrivi_trade with '?' in old bozza
     t2=db.crea_trade_bozza("team01",3,"2026")
     for o,t in enumerate(["team01","team02","team03"],1): db.aggiungi_squadra_trade(t2,t,o)

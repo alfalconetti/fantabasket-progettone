@@ -1746,3 +1746,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.12.3 (2026-10-31)
 
 - `/trova_trade` (Luca, 31/10): nelle **trade a due** solo «riceve» per ogni squadra, senza «cede» né «da chi». Emoji come nel live: il font Noto Color Emoji nel container del bot principale (Dockerfile, dalla v6.12.0); la prova disegna l'immagine solo coi font del container (Liberation Sans e Noto Color Emoji)
+
+## v6.12.4 (2026-10-31)
+
+- Immagini Typst del bot principale (`/trova_trade`, `/roster`, `/carriera`, `/assets`): il Typst del container non vedeva **nessun** font installato (il binario statico li cerca tramite fontconfig, che nell'immagine slim non c'è), quindi usava il suo font di riserva in serif e le emoji uscivano a quadratini anche col font presente (Luca, 31/10). Il Dockerfile ora imposta `TYPST_FONT_PATHS=/usr/share/fonts`: Liberation Sans ed emoji come in loucabot
