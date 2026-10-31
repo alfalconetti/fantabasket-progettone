@@ -1124,6 +1124,12 @@ ok(any(x.startswith("• PG: titolare <b>indisponibile</b> Titolare Out") and "E
    and "SG:" not in _j and "PF:" not in _j and "Escluso Out" not in _j and "Escluso Senza Partite" not in _j,
    "tanking: titolare indisponibile con un sano in rosa, escluso nettamente migliore, posto vuoto, panchina; "
    "niente per chi non ha partite (prende la media) né per gli esclusi infortunati o senza partite\n" + _j)
+# escluso che adesso ha un altro ruolo: si segnala che servirebbe un cambio ruolo (Luca, 31/10)
+_sqr = {**_sq, "giocatori": {**_sq["giocatori"], 5: {**_sq["giocatori"][5], "ruolo": "PG"}}}
+_indr = TK.indizi(_sqr)
+ok(any(x.startswith("• SF:") and "ora è PG: servirebbe un cambio ruolo" in x for x in _indr)
+   and not any(x.startswith("• PG:") and "cambio ruolo" in x for x in _indr),
+   "tanking: escluso di un altro ruolo → segnalato che servirebbe un cambio ruolo (nel suo ruolo no)")
 _ok2 = TK.indizi({"quintetto": {"PG": 5, "SG": 2, "SF": 3, "PF": 4, "C": 8}, "panchina": [{"giocatore_id": 7}],
                   "giocatori": {5: _G(5, "A", 24, 2, None, ("PG",)), 2: _G(2, "B", 10, 0, None, ("SG",)), 3: _G(3, "C", 21, 2),
                                 4: _G(4, "D", 30, 2, None, ("PF",)), 8: _G(8, "E", 15, 2, None, ("C",)), 7: _G(7, "F", 60, 0, None, ("C",))}})
@@ -1131,6 +1137,12 @@ ok(_ok2 == [], f"tanking: formazione plausibile, nessun indizio {_ok2}")
 _tk = TK.testo(S, db.giornata(S, N))
 ok(f"Controllo tanking · giornata {N}" in _tk and "Delta" in _tk and "posto vuoto" in _tk and "panchina non mandata" in _tk
    and "Solo per gli admin" in _tk, "tanking: il report della giornata (Delta senza panchina e con un posto vuoto)\n" + _tk[:600])
+# lo stato è quello alla scadenza: uno status deciso da un admin (per la FADD) non conta qui (Luca, 31/10)
+db.set_status_valido(S, N, "r25", "Out", 900)
+_d0 = TK.dati(S, db.giornata(S, N))
+db.togli_status_valido(S, N, "r25")
+ok(next(x for x in _d0["team01"]["giocatori"].values() if x["atleta"] == "r25")["stato"] is None,
+   "tanking: lo status deciso da un admin per la FADD non conta, vale l'injury report alla scadenza")
 _vgo = TK.giornata_di_oggi
 TK.giornata_di_oggi = lambda s_: db.giornata(S, N)
 _mt = []

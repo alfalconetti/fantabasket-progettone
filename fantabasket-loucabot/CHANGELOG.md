@@ -347,3 +347,8 @@ Il calcolo dei fantapunti.
 ## v68 (2026-10-31)
 
 - **FADD: conta l'injury report prima della partita della sua squadra** (Luca, 31/10: Kawhi Leonard e VJ Edgecombe in G3 erano Out dopo la prima partita della notte ma prima della loro, e il bot li dava sani: la FADD non scattava finché un admin non li metteva Out a mano). Per ogni giorno in cui la squadra del titolare gioca vale l'ultimo snapshot prima della sua partita (gli injury report fitti, uno prima di ogni partita, servono a questo); nei giorni senza la sua partita, quello prima della prima partita NBA come prima. Vale anche se la sua squadra gioca solo il secondo o il terzo giorno. Stessa regola per lo status nel tab «Calcolo GN» e per la ★ di `/set_valid_status`; la pulizia dei vecchi snapshot tiene anche l'ultimo prima di ogni partita
+
+## v69 (2026-10-31)
+
+- Controllo del tanking: se l'escluso adesso ha un altro ruolo lo dice («ora è PG: servirebbe un cambio ruolo»), perché non si vuole costringere a un cambio ruolo subito (Luca, 31/10)
+- Controllo del tanking: lo stato degli infortuni è quello **alla scadenza** (quello che il GM sapeva quando ha schierato), senza gli status decisi dagli admin per la FADD: un Out dell'ultimo minuto, poi messo Out a mano, risultava «titolare indisponibile» come indizio (Luca, 31/10)

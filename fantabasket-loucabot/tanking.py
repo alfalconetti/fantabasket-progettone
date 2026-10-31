@@ -10,8 +10,13 @@ Per ogni squadra, dalla formazione congelata (ipa_formazioni) e dalla panchina (
 - titolare sano ma con fantamedia nettamente più bassa di un escluso che può giocare quel posto (posizioni
   eleggibili di Yahoo), sano e con partite nella giornata: almeno SOGLIA_PUNTI (8) di media in più **oppure**
   SOGLIA_PERC (+30%). Un titolare senza partite prende la sua media (non è un indizio, salvo se indisponibile).
-- Medie: fantapunti della stagione prima della giornata (db.medie_stagione, come il calcolo). Stato: snapshot
-  dell'injury report che conta per la prima notte (db.infortuni), con le decisioni degli admin (status_validi).
+- Medie: fantapunti della stagione prima della giornata (db.medie_stagione, come il calcolo). Stato: quello che il
+  GM sapeva quando ha schierato, cioè l'injury report alla scadenza (l'ultimo prima della prima partita della
+  giornata: db.infortuni del primo giorno). Diverso apposta dalla FADD, che guarda l'ultimo prima della partita del
+  giocatore, e senza gli status decisi dagli admin (Luca, 31/10): un Out dell'ultimo minuto, dopo la scadenza, non
+  è un indizio di tanking.
+- Se l'escluso adesso ha un altro ruolo (ruolo_attuale) lo dice: per metterlo lì servirebbe un cambio ruolo, che
+  non si vuole imporre subito (Luca, 31/10).
 - Le squadre nell'ultimo terzo della classifica sono segnate ⬇️ (lì il tanking conviene).
 La parte 2 (a consuntivo dopo la convalida: efficienza rispetto alla formazione migliore, storico) è da fare.
 """
@@ -64,16 +69,23 @@ def dati(s: str, g: dict) -> dict:
         if p["stato"] not in ("STATUS_POSTPONED", "STATUS_CANCELED"):
             for sq in (p["casa"], p["trasferta"]):
                 partite[sq] = partite.get(sq, 0) + 1
-    stato = {a: st for (a, d), st in db.infortuni(atleti, [g["dal"]]).items()}
-    stato.update(db.status_validi(s, g["numero"], atleti))
+    stato = {a: st for (a, d), st in db.infortuni(atleti, [g["dal"]]).items()}   # alla scadenza (vedi sopra)
     pos = _posizioni(list(tutti))
+    ruoli = {r["giocatore_id"]: r["ruolo"] for r in (db.q("SELECT giocatore_id, ruolo FROM ruolo_attuale WHERE stagione = %s "
+                                                          "AND giocatore_id = ANY(%s)", (s, list(tutti)), many=True) or [])}
     for gid, x in tutti.items():
         a = x["atleta"]
         x.update(media=(medie.get(a) or {}).get("media"), partite=partite.get(squadra.get(a), 0) if a else 0,
-                 stato=stato.get(a), posizioni=pos.get(gid, set()))
+                 stato=stato.get(a), posizioni=pos.get(gid, set()), ruolo=ruoli.get(gid))
     return {t["id"]: {"quintetto": (sch.get(t["id"]) or {}).get("quintetto") or {},
                       "panchina": (sch.get(t["id"]) or {}).get("panchina"),
                       "giocatori": rose.get(t["id"], {})} for t in config.squadre()}
+
+
+def _cambio(x: dict, ruolo: str) -> str:
+    """Se l'escluso adesso ha un altro ruolo: per metterlo lì servirebbe un cambio ruolo, che non si vuole imporre
+    subito (Luca, 31/10). Si segnala, l'indizio pesa meno."""
+    return f" <i>(ora è {x['ruolo']}: servirebbe un cambio ruolo)</i>" if x.get("ruolo") and x["ruolo"] != ruolo else ""
 
 
 def _chi(x: dict) -> str:
@@ -101,13 +113,13 @@ def indizi(squadra: dict) -> list[str]:
                              key=lambda x: -x["media"])
         if t["stato"] not in SANI:
             if alternative:
-                out.append(f"• {ruolo}: titolare <b>indisponibile</b> {_chi(t)} · in rosa sano {_chi(alternative[0])}")
+                out.append(f"• {ruolo}: titolare <b>indisponibile</b> {_chi(t)} · in rosa sano {_chi(alternative[0])}{_cambio(alternative[0], ruolo)}")
             continue
         if t["partite"] == 0:
             continue                                   # prende la sua media: non è un indizio
         if alternative and nettamente_meglio(alternative[0]["media"], t.get("media") or 0):
             diff = alternative[0]["media"] - (t.get("media") or 0)
-            out.append(f"• {ruolo}: {_chi(t)} · fuori {_chi(alternative[0])} <b>+{tp(diff)}</b>")
+            out.append(f"• {ruolo}: {_chi(t)} · fuori {_chi(alternative[0])} <b>+{tp(diff)}</b>{_cambio(alternative[0], ruolo)}")
     if not squadra["panchina"]:
         out.append("• <b>panchina non mandata</b>")
     return out
@@ -139,7 +151,7 @@ def testo(s: str, g: dict) -> str:
     else:
         out += ["", f"<i>Soglia: un escluso sano, con partite e che può giocare quel posto (posizioni eleggibili), con "
                     f"almeno +{tp(SOGLIA_PUNTI)} di media o +{int(SOGLIA_PERC * 100)}% sul titolare. Medie della stagione "
-                    f"prima della giornata; stato dall'injury report della prima notte.</i>"]
+                    f"prima della giornata; stato dall'injury report alla scadenza, cioè quello che il GM sapeva quando ha schierato.</i>"]
     return "\n".join(out)
 
 

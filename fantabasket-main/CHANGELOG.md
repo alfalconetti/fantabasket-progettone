@@ -1707,3 +1707,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.10.1 (2026-10-31)
 
 - Loucabot v68: per la FADD conta l'injury report prima della partita della squadra del titolare, non prima della prima partita della notte (Luca, 31/10: casi Kawhi Leonard e VJ Edgecombe)
+
+## v6.10.2 (2026-10-31)
+
+- Loucabot v69: il controllo del tanking guarda l'injury report alla scadenza, senza gli status decisi dagli admin (un Out dell'ultimo minuto non è un indizio), e segnala quando l'escluso ha un altro ruolo (servirebbe un cambio ruolo)

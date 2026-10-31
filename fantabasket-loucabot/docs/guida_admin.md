@@ -143,7 +143,11 @@ Restano agli admin le 72 ore di attesa per le partite rinviate e le penalità.
 **Il mattino dopo la prima notte** di ogni giornata, alle 11 (`orari.controllo_tanking`), arriva **solo al gruppo admin** un report con gli **indizi** di formazioni che sembrano fatte per perdere. Sono indizi, non verdetti: minutaggi, rientri e riposi sono scelte legittime, decidete voi. Per ogni squadra, dalla formazione congelata e dalla panchina:
 
 - **titolare scarso**: in rosa c'è un escluso che può giocare quel posto (posizioni eleggibili di Yahoo), è sano, ha partite nella giornata e ha una media **almeno +8 o +30%** più alta del titolare;
-- **titolare indisponibile** (injury report della prima notte, o lo status che avete deciso con `/set_valid_status`) mentre in rosa c'è un sano che può giocare quel posto e ha partite;
+- **titolare indisponibile** mentre in rosa c'è un sano che può giocare quel posto e ha partite.
+
+Se l'escluso adesso ha un altro ruolo, il report lo dice («ora è PG: servirebbe un cambio ruolo»): può giocare quel posto per le posizioni eleggibili, ma non si vuole costringere un GM a un cambio ruolo subito, quindi l'indizio pesa meno.
+
+Lo stato è quello dell'injury report **alla scadenza** (l'ultimo prima della prima partita della giornata), cioè quello che il GM sapeva quando ha schierato. È diverso apposta dalla FADD, che guarda l'ultimo report prima della partita del giocatore: un Out dell'ultimo minuto non è un indizio di tanking. Per lo stesso motivo gli status decisi con `/set_valid_status` qui non contano.
 - **posto del quintetto vuoto** e **panchina non mandata**.
 
 Un titolare la cui squadra NBA non gioca nella giornata prende la sua media: non è un indizio (salvo se indisponibile). Le medie sono quelle della stagione prima della giornata. Le squadre sono in ordine dal fondo della classifica; quelle nell'ultimo terzo hanno ⬇️, perché lì il tanking conviene. Se non c'è niente, una riga «nessun indizio».
