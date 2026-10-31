@@ -98,7 +98,7 @@ def main():
     app.job_queue.run_repeating(job_prepartita, interval=timedelta(minutes=10), first=120)
     # prima sera di una giornata: injury report ogni mezz'ora dalle 19 alla prima partita (IPanchinari avvisa i GM)
     app.job_queue.run_repeating(job_injury_fitti, interval=timedelta(minutes=5), first=150)
-    # punteggi live: il job guarda ogni minuto, aggiorna ogni 10 (live.cosa_fare)
+    # punteggi live: il job guarda ogni minuto, aggiorna ogni 5 minuti, dalle 2 ogni 10 (live.cosa_fare, live.frequenza)
     app.job_queue.run_repeating(live.job_live, interval=timedelta(minutes=1), first=60)
     import foto                                      # foto dei giocatori: una al minuto, solo nella notte americana
     app.job_queue.run_repeating(foto.job_foto, interval=timedelta(minutes=1), first=75)

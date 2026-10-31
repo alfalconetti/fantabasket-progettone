@@ -69,6 +69,7 @@ def liste_comandi() -> dict:
         BotCommand("dev_log",     "Ultime righe di log [N]"),
         BotCommand("dev_pg",      "Connessione a PostgreSQL"),
         BotCommand("dev_foto",    "Foto ESPN dei giocatori a roster"),
+        BotCommand("dev_live_frequenza", "Frequenza del live [MINUTI MINUTI_TARDI HH:MM]"),
         BotCommand("reboot",      "Riavvia il bot"),
     ]
     return {"gruppi": gruppi, "gm": gm, "admin": admin, "dev": dev}

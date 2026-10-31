@@ -538,8 +538,36 @@ t0 = nn[0][1]
 ok(LV.cosa_fare(g7, t0 - timedelta(minutes=1), None) == (None, None), "prima della palla a due: niente")
 ok(LV.cosa_fare(g7, t0, None) == ("live", DAL), "alla palla a due: si pubblica")
 st_ = {"message_id": 5, "aggiornato": t0}
-ok(LV.cosa_fare(g7, t0 + timedelta(minutes=5), st_) == (None, None) and LV.cosa_fare(g7, t0 + timedelta(minutes=10), st_) == ("live", DAL),
-   "poi ogni 10 minuti")
+ok(LV.cosa_fare(g7, t0 + timedelta(minutes=4), st_) == (None, None) and LV.cosa_fare(g7, t0 + timedelta(minutes=5), st_) == ("live", DAL),
+   "poi ogni 5 minuti fino alle 2 (v6.15.0)")
+_t2 = datetime(2026, 11, 11, 2, 30, tzinfo=ROMA)
+_st2 = {"message_id": 5, "aggiornato": _t2}
+ok(LV.cosa_fare(g7, _t2 + timedelta(minutes=5), _st2) == (None, None) and LV.cosa_fare(g7, _t2 + timedelta(minutes=10), _st2) == ("live", DAL),
+   "dalle 2 ogni 10 minuti")
+_f = LV.FREQUENZA
+ok(LV.intervallo(datetime(2026, 11, 11, 1, 59, tzinfo=ROMA), _f) == timedelta(minutes=5)
+   and LV.intervallo(datetime(2026, 11, 11, 2, 0, tzinfo=ROMA), _f) == timedelta(minutes=10)
+   and LV.intervallo(datetime(2026, 11, 11, 18, 30, tzinfo=ROMA), _f) == timedelta(minutes=5)
+   and LV.intervallo(datetime(2026, 11, 11, 23, 45, tzinfo=ROMA), {**_f, "tardi_dalle": "23:30"}) == timedelta(minutes=10)
+   and LV.intervallo(datetime(2026, 11, 11, 1, 0, tzinfo=ROMA), {**_f, "tardi_dalle": "23:30"}) == timedelta(minutes=10)
+   and LV.intervallo(datetime(2026, 11, 11, 20, 0, tzinfo=ROMA), {**_f, "tardi_dalle": "23:30"}) == timedelta(minutes=5),
+   "frequenza: 5 fino all'ora del cambio, 10 dopo fino al mattino; anche con un'ora del cambio prima di mezzanotte")
+_rf = []
+class _MsgFr:
+    async def reply_text(self, t, **k): _rf.append(t)
+_upd = lambda uid: types.SimpleNamespace(effective_user=types.SimpleNamespace(id=uid, full_name="Dev"), effective_message=_MsgFr())
+asyncio.run(LV.cmd_dev_live_frequenza(_upd(config.dev_id()), types.SimpleNamespace(args=[], bot=Bot())))
+ok(_rf and "5 minuti" in _rf[-1] and "02:00" in _rf[-1], "/dev_live_frequenza: la frequenza di adesso")
+asyncio.run(LV.cmd_dev_live_frequenza(_upd(config.dev_id()), types.SimpleNamespace(args=["1", "10", "02:00"], bot=Bot())))
+ok("Uso" in _rf[-1] and LV.frequenza() == LV.FREQUENZA, "/dev_live_frequenza: sotto i 2 minuti rifiutato")
+asyncio.run(LV.cmd_dev_live_frequenza(_upd(config.dev_id()), types.SimpleNamespace(args=["4", "8", "1:30"], bot=Bot())))
+ok(LV.frequenza() == {"minuti": 4, "minuti_tardi": 8, "tardi_dalle": "01:30"} and "✅" in _rf[-1],
+   "/dev_live_frequenza 4 8 1:30: salvata, vale dal giro dopo")
+_n = len(_rf)
+asyncio.run(LV.cmd_dev_live_frequenza(_upd(123456), types.SimpleNamespace(args=["6", "12", "03:00"], bot=Bot())))
+ok(len(_rf) == _n and LV.frequenza()["minuti"] == 4, "/dev_live_frequenza: solo il dev")
+db.q("DELETE FROM louca_impostazioni WHERE chiave LIKE 'live_%%'")
+ok(LV.frequenza() == LV.FREQUENZA, "senza righe: i default (5, 10, 02:00)")
 ok(LV.cosa_fare(g7, datetime(2026, 11, 11, 9, 0, tzinfo=ROMA), {**st_, "aggiornato": datetime(2026, 11, 11, 7, 55, tzinfo=ROMA)}) == (None, None),
    "dalle 8 alle 11 niente")
 ok(LV.cosa_fare(g7, datetime(2026, 11, 11, 11, 6, tzinfo=ROMA), {**st_, "aggiornato": datetime(2026, 11, 11, 7, 55, tzinfo=ROMA)})

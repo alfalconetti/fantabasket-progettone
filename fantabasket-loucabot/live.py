@@ -1,12 +1,13 @@
 """
 Punteggi live (v18, deciso con Luca il 13-14/10): un messaggio sul canale principale per giornata,
-pubblicato alla palla a due della prima partita e modificato ogni 10 minuti, col calcolo intero
+pubblicato alla palla a due della prima partita e modificato ogni 5 minuti fino alle 2, poi ogni 10
+(v6.15.0: frequenza(), /dev_live_frequenza), col calcolo intero
 come quello definitivo (risultati.calcola: medie, media della stagione, FADD, bonus casa,
 supplementari) sui tabellini live di ESPN. Sotto: risultati provvisori, da valutare e convalidare
 da un admin, e l'ora dell'ultimo aggiornamento.
 
 Quando: per ogni notte della giornata dalla prima partita della notte alle 8:00 (Roma) del mattino
-dopo, ogni 10 minuti; poi alle 11:05 (orari.primo_controllo) il primo controllo della notte, che la riscarica
+dopo, alla frequenza di frequenza(); poi alle 11:05 (orari.primo_controllo) il primo controllo della notte, che la riscarica
 (ESPN a volte riassegna le statistiche). Il job gira ogni minuto e decide lui (così il messaggio
 esce al tipoff, non fino a 10 minuti dopo).
 
@@ -63,6 +64,91 @@ def migra() -> None:
     # esiti al momento della pubblicazione: a una nuova convalida (ricalcolo dopo il controllo delle 10)
     # si confrontano e, se cambia chi vince, esce un messaggio in più (Luca, 23/10)
     db.q("ALTER TABLE lega_live ADD COLUMN IF NOT EXISTS esiti JSONB")
+    # v6.15.0: frequenza del live, cambiata dal dev con /dev_live_frequenza (config/ è in sola lettura per loucabot)
+    db.q("""CREATE TABLE IF NOT EXISTS louca_impostazioni (
+              chiave     TEXT PRIMARY KEY,
+              valore     TEXT NOT NULL,
+              da         TEXT,
+              aggiornato TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
+
+
+# ── frequenza del live (v6.15.0, Luca 31/10) ────────────────────────────────────
+# Ogni 5 minuti finché qualcuno è sveglio, ogni 10 dalle 2 italiane al mattino (per non stressare ESPN).
+# Si cambia dal bot col comando dev /dev_live_frequenza, senza riavvio; senza righe valgono questi default.
+FREQUENZA = {"minuti": 5, "minuti_tardi": 10, "tardi_dalle": "02:00"}
+
+
+def frequenza() -> dict:
+    out = dict(FREQUENZA)
+    try:
+        for r in db.q("SELECT chiave, valore FROM louca_impostazioni WHERE chiave LIKE 'live_%%'", many=True) or []:
+            k = r["chiave"][5:]
+            if k in out:
+                out[k] = int(r["valore"]) if k.startswith("minuti") else r["valore"]
+    except Exception as err:                       # tabella non ancora creata o valore storto: i default
+        logger.warning("Frequenza del live: %s", err)
+    return out
+
+
+def _ora(hhmm: str) -> time:
+    h, m = str(hhmm).split(":")
+    return time(int(h), int(m))
+
+
+def intervallo(ora: datetime, f: dict | None = None) -> timedelta:
+    """Ogni quanto aggiornare adesso: `minuti` fino a `tardi_dalle` (ora di Roma), poi `minuti_tardi` fino a
+    mezzogiorno (il live della notte finisce al mattino)."""
+    f = f or frequenza()
+    t = ora.astimezone(ROMA).time()
+    try:
+        tardi = _ora(f["tardi_dalle"])
+    except (ValueError, KeyError):
+        tardi = _ora(FREQUENZA["tardi_dalle"])
+    mezzogiorno = time(12, 0)
+    se_tardi = (tardi <= t < mezzogiorno) if tardi < mezzogiorno else (t >= tardi or t < mezzogiorno)
+    return timedelta(minutes=int(f["minuti_tardi"] if se_tardi else f["minuti"]))
+
+
+def imposta_frequenza(minuti: int, minuti_tardi: int, tardi_dalle: str, chi: str) -> None:
+    for k, v in (("minuti", minuti), ("minuti_tardi", minuti_tardi), ("tardi_dalle", tardi_dalle)):
+        db.q("""INSERT INTO louca_impostazioni (chiave, valore, da) VALUES (%s, %s, %s)
+                ON CONFLICT (chiave) DO UPDATE SET valore = EXCLUDED.valore, da = EXCLUDED.da, aggiornato = NOW()""",
+             (f"live_{k}", str(v), chi))
+
+
+MINUTI_MIN, MINUTI_MAX = 2, 30
+
+
+async def cmd_dev_live_frequenza(update, context):
+    """/dev_live_frequenza [MINUTI MINUTI_TARDI HH:MM] (dev): senza argomenti la frequenza di adesso; con tre
+    argomenti la cambia (es. /dev_live_frequenza 5 10 02:00). Vale dal giro dopo, senza riavvio."""
+    from handlers import _is_dev, log
+    msg = update.effective_message
+    if not _is_dev(update.effective_user.id):
+        return
+    f = frequenza()
+    adesso = (f"ogni <b>{f['minuti']} minuti</b>, dalle {f['tardi_dalle']} (ora italiana) al mattino "
+              f"ogni <b>{f['minuti_tardi']} minuti</b>")
+    args = context.args or []
+    if not args:
+        await msg.reply_text(f"🔴 Live: {adesso}.\n\nPer cambiarla: /dev_live_frequenza MINUTI MINUTI_TARDI HH:MM "
+                             f"(es. /dev_live_frequenza 5 10 02:00; minuti da {MINUTI_MIN} a {MINUTI_MAX})", parse_mode="HTML")
+        return
+    try:
+        m, mt, hh = int(args[0]), int(args[1]), args[2]
+        _ora(hh)
+        if not (MINUTI_MIN <= m <= MINUTI_MAX and MINUTI_MIN <= mt <= MINUTI_MAX):
+            raise ValueError
+    except (ValueError, IndexError):
+        await msg.reply_text(f"Uso: /dev_live_frequenza MINUTI MINUTI_TARDI HH:MM (es. 5 10 02:00; minuti da {MINUTI_MIN} "
+                             f"a {MINUTI_MAX}). Senza argomenti la frequenza di adesso.")
+        return
+    hh = f"{_ora(hh):%H:%M}"
+    chi = update.effective_user.full_name or str(update.effective_user.id)
+    imposta_frequenza(m, mt, hh, chi)
+    nuova = f"ogni {m} minuti, dalle {hh} ogni {mt}"
+    await msg.reply_text(f"✅ Live: {nuova}. Vale dal prossimo giro.")
+    await log(context.bot, f"🔴 Frequenza del live cambiata da {e(chi)}: {nuova}")
 
 
 def stato(s: str, n: int) -> dict | None:
@@ -95,7 +181,7 @@ def cosa_fare(g: dict, ora: datetime, st: dict | None) -> tuple[str | None, date
     ultimo = st.get("aggiornato") if st else None
     for d, inizio, fine in notti(g):
         if inizio <= ora < fine:
-            if not st or not st.get("message_id") or not ultimo or ora - ultimo >= OGNI - timedelta(seconds=30):
+            if not st or not st.get("message_id") or not ultimo or ora - ultimo >= intervallo(ora) - timedelta(seconds=30):
                 return "live", d
             return None, None
         controllo = datetime.combine(d + timedelta(days=1), ORA_CONTROLLO, ROMA)

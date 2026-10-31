@@ -455,6 +455,7 @@ async def cmd_dev(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/dev_log [N] — ultime N righe di log in memoria (30)\n"
         "/dev_pg — connessione a PostgreSQL\n"
         "/dev_foto — foto ESPN dei giocatori a roster: quante ci sono e quali mancano\n"
+        "/dev_live_frequenza [MINUTI MINUTI_TARDI HH:MM] — ogni quanto si aggiorna il live (5 minuti, dalle 02:00 ogni 10)\n"
         "/dev_prova_calcolo DAL AL — prova del calcolo su notti NBA già giocate (tab Calcolo G0, solo a te)\n"
         "/dev_prova_live [GG/MM/AAAA …] — prova del live su notti vere (anche preseason), solo a te e niente nel database; stop per fermarla\n"
         "/dev_ricalcola_fp [STAGIONE] — fantapunti della stagione coi pesi di settings.json (dopo un cambio dei pesi)\n"
@@ -488,6 +489,11 @@ async def _cmd_dev_foto(update, context):
     await foto.cmd_dev_foto(update, context)
 
 
+async def _cmd_dev_live_frequenza(update, context):
+    import live
+    await live.cmd_dev_live_frequenza(update, context)
+
+
 async def _cmd_notte(update, context):
     import notte
     await notte.cmd_notte(update, context)
@@ -509,6 +515,7 @@ def get_handlers() -> list:
         CommandHandler("dev_version", cmd_dev_version),
         CommandHandler("job_status", cmd_job_status),
         CommandHandler("dev_foto", _cmd_dev_foto),
+        CommandHandler("dev_live_frequenza", _cmd_dev_live_frequenza),
         CommandHandler("tanking", _cmd_tanking),
         CommandHandler("calendario", cmd_calendario),
         CommandHandler("calendario_full", cmd_calendario_full),

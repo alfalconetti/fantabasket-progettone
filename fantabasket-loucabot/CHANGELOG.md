@@ -387,3 +387,7 @@ Il calcolo dei fantapunti.
 ## v77 (2026-10-31)
 
 - **Solo per la lega** (Luca, 31/10): in privato il bot risponde solo ai GM, agli admin e al dev; agli altri «🔒 Questo bot è riservato ai GM della lega. Se pensi che sia un errore, scrivi al dev.» (anche ai bottoni e, nel bot principale, al guest mode). Dai gruppi e canali che non sono in globals.json esce da solo e lo scrive al dev (`shared/solo_lega.py`, prova `tests/docs/solo_lega.py`)
+
+## v78 (2026-10-31)
+
+- Live (Luca, 31/10): si aggiorna **ogni 5 minuti fino alle 2** (ora italiana), poi ogni 10 fino al mattino, per non stressare ESPN quando non c'è nessuno sveglio. Il dev la cambia dal bot con **`/dev_live_frequenza MINUTI MINUTI_TARDI HH:MM`** (senza argomenti la mostra; da 2 a 30 minuti), senza riavvio, con una riga sul canale log (tabella `louca_impostazioni`)
