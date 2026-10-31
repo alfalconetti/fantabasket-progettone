@@ -14,6 +14,8 @@
 #set page(width: 520pt, height: auto, margin: 0pt, fill: white)
 #set block(spacing: 0pt)
 #set text(font: ("Liberation Sans", "Noto Color Emoji"), size: 8.5pt, fill: testo)
+// emoji dal font Noto Color Emoji, installato nel container come in loucabot (fonts-noto-color-emoji nel Dockerfile)
+#let due = d.squadre.len() == 2      // trade a due: basta «riceve», il resto si capisce da solo (Luca, 31/10)
 
 #let logo(sq, dd) = if sq.at("logo", default: "") != "" {
   box(width: dd, height: dd, radius: 50%, clip: true, fill: white, stroke: 1pt + rgb(sq.colore), image(sq.logo, width: dd, height: dd, fit: "contain"))
@@ -42,8 +44,8 @@
     text(9pt)[#icone.at(a.tipo, default: "•")],
     stack(spacing: 2.5pt,
       text(8.3pt, weight: "bold")[#a.nome],
-      text(6.8pt, fill: grigio)[#a.dettaglio],
-      text(6.8pt, fill: blu)[#verso #box(baseline: 25%, logo(a.altra, 10pt)) #a.altra.nome]))
+      if a.dettaglio != "" { text(6.8pt, fill: grigio)[#a.dettaglio] },
+      if not due { text(6.8pt, fill: blu)[#verso #box(baseline: 25%, logo(a.altra, 10pt)) #a.altra.nome] }))
 ]
 
 #let sezione(titolo, c, lista, verso) = stack(spacing: 4pt,
@@ -57,7 +59,7 @@
       logo(sq, 26pt),
       stack(spacing: 2pt, text(10pt, weight: "bold")[#sq.nome], if sq.gm != "" { text(7pt, fill: grigio)[GM #sq.gm] })),
     sezione("RICEVE", verde, sq.riceve, "da"),
-    sezione("CEDE", rosso, sq.cede, "a"),
+    ..if not due { (sezione("CEDE", rosso, sq.cede, "a"),) } else { () },
     line(length: 100%, stroke: 0.5pt + bordo),
     grid(columns: (1fr, auto), row-gutter: 3pt,
       text(7pt, fill: grigio)[Cap], text(7.5pt)[#sq.cap.prima → *#sq.cap.dopo* #text(fill: if sq.cap.diff.starts-with("+") { rosso } else { verde })[(#sq.cap.diff)]],
@@ -80,5 +82,5 @@
     ..d.percorso.map(p => (segno.at(p.segno, default: [•]), text(8pt)[#p.testo], text(7pt, fill: grigio)[#p.quando])).flatten())
 ]
 #block(width: 100%, fill: white, inset: (x: 12pt, y: 6pt))[
-  #text(6.5pt, fill: grigio)[🏀 giocatore (ruolo, contratto: importo × anni rimasti) · 🎟️ pick (anno, giro, di chi era, protezioni) · 📜 diritti rookie (pick e anno del draft) · Cap e roster al momento della trade, subito prima e subito dopo, spalmature comprese · /trova_trade 014, o il nome di un giocatore per le trade ufficiali che lo riguardano]
+  #text(6.5pt, fill: grigio)[🏀 giocatore (ruolo, contratto di allora: importo × anni rimasti) · 🎟️ pick (anno, giro, di chi era, protezioni) · 📜 diritti rookie (giro, numero e anno del draft) · Cap e roster al momento della trade, subito prima e subito dopo, spalmature comprese · /trova_trade 014, o il nome di un giocatore per le trade ufficiali che lo riguardano]
 ]

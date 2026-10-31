@@ -1742,3 +1742,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.12.1 (2026-10-31)
 
 - `/trova_trade`: colori in verde invece che in blu (Luca, 31/10)
+
+## v6.12.3 (2026-10-31)
+
+- `/trova_trade` (Luca, 31/10): nelle **trade a due** solo «riceve» per ogni squadra, senza «cede» né «da chi». Emoji come nel live: il font Noto Color Emoji nel container del bot principale (Dockerfile, dalla v6.12.0); la prova disegna l'immagine solo coi font del container (Liberation Sans e Noto Color Emoji)

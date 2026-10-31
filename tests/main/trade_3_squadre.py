@@ -148,8 +148,13 @@ async def main():
        f"/trova_trade: percorso vero (mandata agli admin senza tutte le accettazioni, approvata, annullata) {_pt}")
     try:
         import typst as _ty
-        _png = _ty.compile(TT2.TEMPLATE, root="/", format="png", ppi=100, sys_inputs={"dati": json.dumps(_d, ensure_ascii=False, default=str)})
-        ok(_png[:4] == b"\x89PNG", "/trova_trade: l'immagine si disegna")
+        # coi soli font del container (Liberation Sans e Noto Color Emoji), a tre e a due squadre (Luca, 31/10)
+        _png = _ty.compile(TT2.TEMPLATE, root="/", format="png", ppi=100, sys_inputs={"dati": json.dumps(_d, ensure_ascii=False, default=str)},
+                           font_paths=["/usr/share/fonts/truetype/liberation", "/usr/share/fonts/truetype/noto"], ignore_system_fonts=True)
+        _d2 = {**_d, "squadre": _d["squadre"][:2]}
+        _png2 = _ty.compile(TT2.TEMPLATE, root="/", format="png", ppi=100, sys_inputs={"dati": json.dumps(_d2, ensure_ascii=False, default=str)},
+                            font_paths=["/usr/share/fonts/truetype/liberation", "/usr/share/fonts/truetype/noto"], ignore_system_fonts=True)
+        ok(_png[:4] == b"\x89PNG" and _png2[:4] == b"\x89PNG", "/trova_trade: l'immagine si disegna coi soli font del container, a tre e a due squadre")
     except ImportError:
         pass
     # scrivi_trade with '?' in old bozza
