@@ -24,6 +24,8 @@ Servizio `loucabot` del `docker-compose.yml` del progettone, cartella `fantabask
 
 Ambiente: `GAS_ROUTER_URL` + `GAS_ROUTER_TOKEN_FILE` (secret `gas_router_token`, lo stesso del bot principale) per il foglio; `BOT_TOKEN_FILE` (`secrets/bot_token_loucabot.txt`), `DATABASE_URL` + `PG_PASSWORD_FILE`, `GLOBALS_PATH`, `TEAMS_PATH`; per le prove `ESPN_BASE` / `ESPN_URL` sostituiscono gli indirizzi di ESPN. `config/` montata in sola lettura, `shared/` in `/app/shared` (usa `shared.squadre` e `shared.messaggi.manda_lungo`).
 
+**Comandi nei gruppi** (v6.12.5): `shared/solo_gruppo_admin.py`, installato in `bot.py` prima di tutti gli handler, lascia passare negli altri gruppi e nei canali solo i comandi di `comandi.comandi_pubblici()` (più `start`, `help` e `annulla`, sempre permessi: `SEMPRE`); in privato e nel gruppo admin tutto come prima. Un comando nuovo per i GM che deve funzionare nei gruppi va nel menu dei GM.
+
 **globals.json** (lo scrive il bot principale): `stagione_corrente`, `admin_ids`, `dev_id`, `admin_group_id`, `log_channel_id_louca` (senza: `log_channel_id_main`).
 
 ---

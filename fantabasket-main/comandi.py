@@ -123,6 +123,17 @@ def liste_comandi(fase: str) -> dict:
             "admin": _filtra(cmd_admin), "dev": _filtra(cmd_dev)}
 
 
+def comandi_pubblici() -> set[str]:
+    """I comandi che passano nei gruppi diversi dal gruppo admin (shared/solo_gruppo_admin, Luca 31/10): quelli dei
+    menu dei gruppi e dei GM in qualsiasi fase, più gli alias e i passi delle conversazioni dei GM."""
+    fasi = set().union(*_fasi_comando().values()) | {""}
+    out = set()
+    for f in fasi:
+        c = liste_comandi(f)
+        out |= {x.command for k in ("group", "base", "gm") for x in c[k]}
+    return out | {"mie_trade", "salta"}
+
+
 # comandi che funzionano solo in privato (@solo_privato): fuori dal menu del gruppo admin (Luca, 30/10).
 # Li trova bot.post_init dagli handler registrati (trova_solo_privato), così non vanno fuori sincrono.
 SOLO_PRIVATO: set[str] = set()

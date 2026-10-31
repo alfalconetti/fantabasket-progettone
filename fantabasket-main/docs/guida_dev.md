@@ -12,14 +12,14 @@ fantabasket-progettone/
 ├── config/             globals.json, teams.json, settings.json, divisions.json, loghi/ …  (NON in git)
 ├── secrets/            token, password, URL dei fogli, *.env                            (NON in git)
 │   └── cifrati/        secrets.tar.gpg per il backup (scripts/cifra_secrets.sh)
-├── shared/              in comune ai bot: ruoli_core.py (ruoli), cap.py (cap e slot), squadre.py (ricerca squadra), lista_fa.py (stagioni della lista FA e switch al 70% dei firmati, per aste e report posizioni), messaggi.py (report lunghi), dev_comune.py (/dev_log, /dev_pg, /reboot ed error handler di loucabot e IPanchinari)
+├── shared/              in comune ai bot: ruoli_core.py (ruoli), cap.py (cap e slot), squadre.py (ricerca squadra), lista_fa.py (stagioni della lista FA e switch al 70% dei firmati, per aste e report posizioni), messaggi.py (report lunghi), dev_comune.py (/dev_log, /dev_pg, /reboot ed error handler di loucabot e IPanchinari), parole_nome.py (nomi in qualsiasi ordine), solo_gruppo_admin.py (comandi admin e dev solo in privato e nel gruppo admin, in tutti e quattro i bot: negli altri gruppi passano solo quelli di `comandi.comandi_pubblici()`)
 ├── fantabasket-main/      ← questo bot
 ├── fantabasket-aste-beta/ bot aste
 ├── fantabasket-loucabot/  loucabot: calendario e calcolo dei fantapunti, README e docs/ suoi
 ├── fantabasket-ipanchinari/ IPanchinari: panchine (messaggi dei GM) e quintetti, README e docs/ suoi
 ├── gas-router/            ponte verso Google Apps Script (fogli)
 ├── gas/                   codice Apps Script (clasp)
-├── yahoo-router/          OAuth Yahoo (in attesa di abilitazione)
+├── yahoo-router/          OAuth Yahoo (inutilizzato, da togliere)
 ├── scripts/               cifra_secrets.sh, setup_dashboard.sh
 ├── tests/                 prove locali (MAI sul server)
 └── docs/RECOVERY.md
@@ -35,7 +35,7 @@ fantabasket-progettone/
 | `loucabot` | calendario della lega sincronizzato con quello NBA, tabellini ESPN e fantapunti; tabelle sue `lega_*`, `nba_*`, più `giocatori.espn_id`; guida tecnica in `fantabasket-loucabot/docs/guida_dev.md` |
 | `ipanchinari` | panchine dai messaggi dei GM (soprannomi) pubblicate sul canale Panchinari, quintetti con promemoria e conferma; tabelle sue `ipa_*`; guida tecnica in `fantabasket-ipanchinari/docs/guida_dev.md` |
 | `gas-router` | riceve i dati dal bot e li gira alla web app Apps Script |
-| `yahoo-router` | OAuth e chiamate Yahoo (per ora inutilizzato) |
+| `yahoo-router` | OAuth e chiamate Yahoo (inutilizzato, accesso respinto: da togliere) |
 | `nocodb` | dashboard in LAN sulla 8090, di solito spenta |
 
 **Chi possiede cosa:**
@@ -612,7 +612,7 @@ I comandi legati a una fase sono in `_fasi_comando`.
 - scrivere sul log aggiornati e cambi squadra NBA;
 - proporre al dev i giocatori nuovi (`bref_nuovi`, bottoni `brefn:`).
 
-**Yahoo** (`yahoo-router`). Pronto ma bloccato: serve l'approvazione separata della Fantasy API, senza la quale ogni chiamata dà 403.
+**Yahoo** (`yahoo-router`). Inutilizzato: l'accesso alla Fantasy API è stato respinto (ottobre 2026), ogni chiamata dà 403. Da togliere (MIGRATION, cose da fare).
 
 - `docker compose exec -it yahoo-router python3 cli.py auth` per il primo token;
 - `cli.py teams` per verificare se l'accesso è arrivato.

@@ -215,6 +215,10 @@ def main():
     pg_client.init_pg()
 
     app = ApplicationBuilder().token(TOKEN).build()
+    # comandi admin e dev solo in privato e nel gruppo admin (Luca, 31/10): prima di tutto il resto
+    from shared import solo_gruppo_admin
+    from comandi import comandi_pubblici
+    solo_gruppo_admin.installa(app, comandi_pubblici(), utils.get_admin_group_id)
 
     for h in admin_handlers():
         app.add_handler(h)

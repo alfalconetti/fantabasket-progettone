@@ -1,6 +1,6 @@
 # Guida admin — IPanchinari
 
-Da admin carichi i quintetti, controlli conferme e panchine prima della scadenza e puoi mettere panchina e quintetto per conto di una squadra. I comandi admin funzionano in privato e nel gruppo admin.
+Da admin carichi i quintetti, controlli conferme e panchine prima della scadenza e puoi mettere panchina e quintetto per conto di una squadra. I comandi admin funzionano **solo in privato e nel gruppo admin**: scritti nel gruppo della lega o in un altro gruppo o canale, il bot li ignora in silenzio, anche se a scriverli è un admin (Luca, 31/10). Lì passano solo i comandi pubblici, quelli del menu `/` dei gruppi e dei GM.
 
 ---
 

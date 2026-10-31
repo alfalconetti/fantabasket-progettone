@@ -162,3 +162,7 @@ Primo rilascio: panchine e quintetti.
 ## v34 (2026-10-30)
 
 - Guida dei GM: «Da dove vengono i dati» (ESPN, Basketball-Reference, Yahoo); README e guida dev con la sezione «Da fare» aggiornata
+
+## v35 (2026-10-31)
+
+- Comandi admin e dev **solo in privato e nel gruppo admin** (Luca, 31/10): prima un admin che scriveva un comando admin nel gruppo della lega o in un altro gruppo lo vedeva eseguito lì, davanti a tutti. Ora negli altri gruppi e nei canali passano solo i comandi pubblici (menu dei gruppi e dei GM, più /start, /help, /annulla); gli altri si ignorano in silenzio, con una riga nel log (`shared/solo_gruppo_admin.py`, prova `tests/docs/solo_gruppo_admin.py`)

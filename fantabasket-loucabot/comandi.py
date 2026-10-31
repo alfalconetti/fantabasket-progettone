@@ -74,6 +74,12 @@ def liste_comandi() -> dict:
     return {"gruppi": gruppi, "gm": gm, "admin": admin, "dev": dev}
 
 
+def comandi_pubblici() -> set[str]:
+    """I comandi che passano nei gruppi diversi dal gruppo admin (shared/solo_gruppo_admin, Luca 31/10): quelli
+    del menu dei GM (che comprende quelli dei gruppi)."""
+    return {x.command for x in liste_comandi()["gm"]}
+
+
 async def registra_comandi(bot) -> None:
     c = liste_comandi()
     try:

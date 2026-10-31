@@ -1750,3 +1750,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.12.4 (2026-10-31)
 
 - Immagini Typst del bot principale (`/trova_trade`, `/roster`, `/carriera`, `/assets`): il Typst del container non vedeva **nessun** font installato (il binario statico li cerca tramite fontconfig, che nell'immagine slim non c'è), quindi usava il suo font di riserva in serif e le emoji uscivano a quadratini anche col font presente (Luca, 31/10). Il Dockerfile ora imposta `TYPST_FONT_PATHS=/usr/share/fonts`: Liberation Sans ed emoji come in loucabot
+
+## v6.12.5 (2026-10-31)
+
+- Comandi admin e dev **solo in privato e nel gruppo admin** (Luca, 31/10): prima un admin che scriveva un comando admin nel gruppo della lega o in un altro gruppo lo vedeva eseguito lì, davanti a tutti. Ora negli altri gruppi e nei canali passano solo i comandi pubblici (menu dei gruppi e dei GM, più /start, /help, /annulla); gli altri si ignorano in silenzio, con una riga nel log (`shared/solo_gruppo_admin.py`, prova `tests/docs/solo_gruppo_admin.py`)
+- Yahoo: la MIGRATION e la guida dev dicono che la richiesta di accesso alla Fantasy API è stata respinta; «Togliere `yahoo-router`» tra le cose da fare (non urgente)

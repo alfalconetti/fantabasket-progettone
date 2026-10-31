@@ -96,6 +96,7 @@ Ogni prova parte da una copia pulita di `tests/config/` (alcune cambiano la fase
 | `ipa_errori` | IPanchinari | error handler comune: «not modified» ignorato, errori di rete solo sul canale log, gli altri anche al dev |
 | `ipa_injury` | IPanchinari | avvisi dell'injury report: punto di partenza senza avvisi, confronto con l'ultimo visto (più snapshot nel frattempo), un messaggio per GM con prima → dopo, dettaglio e ruolo nel quintetto, uscito dalla lista = disponibile, GM che non ha avviato il bot saltato, `/toggle_injures` (spegne, riaccende, solo GM e in privato), snapshot incompleto senza avvisi; loucabot: finestra delle 19 → prima partita della prima sera |
 | `router_health` | router | le richieste a /health dei router non finiscono nei log |
+| `solo_gruppo_admin` | tutti i bot | comandi admin e dev solo in privato e nel gruppo admin: guardia in ogni `bot.py`, nessun comando admin tra i pubblici, comandi fermati negli altri gruppi e nei canali |
 | `gas_node` | GAS | gli script `gas/*.gs` provati con node e finti oggetti di Google (senza node si saltano) |
 | `backup_foto` | main | il backup contiene tutta config/ tranne le foto dei giocatori (config/foto) |
 | `louca_calendario` | loucabot | CSV del calendario, import, partite NBA da ESPN (risposta vera ridotta), TBD, squadre a media e scadenze, cambi, `/calendario`, canale log; menu anche per gli amministratori dei gruppi |

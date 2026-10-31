@@ -1,6 +1,6 @@
 # Guida admin — loucabot
 
-Da admin in loucabot gestisci il calendario della stagione e controlli i punteggi. I comandi admin funzionano in privato e nel gruppo admin, e compaiono nel menu `/` solo lì.
+Da admin in loucabot gestisci il calendario della stagione e controlli i punteggi. Compaiono nel menu `/` solo in privato e nel gruppo admin. I comandi admin funzionano **solo in privato e nel gruppo admin**: scritti nel gruppo della lega o in un altro gruppo o canale, il bot li ignora in silenzio, anche se a scriverli è un admin (Luca, 31/10). Lì passano solo i comandi pubblici, quelli del menu `/` dei gruppi e dei GM.
 
 Gli admin sono quelli di `admin_ids` in `globals.json`, gli stessi degli altri bot.
 

@@ -373,3 +373,8 @@ Il calcolo dei fantapunti.
 ## v74 (2026-10-31)
 
 - `/player`, `/correggi_tabellino` e `/set_valid_status`: il nome del giocatore anche con le parole in un altro ordine («Clowney Noah»), anche nelle proposte per somiglianza (`shared/parole_nome.py`; Luca, 31/10)
+
+## v75 (2026-10-31)
+
+- Comandi admin e dev **solo in privato e nel gruppo admin** (Luca, 31/10): prima un admin che scriveva un comando admin nel gruppo della lega o in un altro gruppo lo vedeva eseguito lì, davanti a tutti. Ora negli altri gruppi e nei canali passano solo i comandi pubblici (menu dei gruppi e dei GM, più /start, /help, /annulla); gli altri si ignorano in silenzio, con una riga nel log (`shared/solo_gruppo_admin.py`, prova `tests/docs/solo_gruppo_admin.py`)
+- Commento di `titolari_a_zero` aggiornato: è una rete di sicurezza per i casi che la FADD non copre da sola (Kawhi la prende da solo dalla v68)

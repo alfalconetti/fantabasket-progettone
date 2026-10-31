@@ -703,3 +703,7 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 ## v80 (2026-10-31)
 
 - Offerte e lista FA: il nome del giocatore anche con cognome e nome invertiti («Clowney Noah»), anche nelle proposte per somiglianza (`shared/parole_nome.py`; Luca, 31/10)
+
+## v81 (2026-10-31)
+
+- Comandi admin e dev **solo in privato e nel gruppo admin** (Luca, 31/10): prima un admin che scriveva un comando admin nel gruppo della lega o in un altro gruppo lo vedeva eseguito lì, davanti a tutti. Ora negli altri gruppi e nei canali passano solo i comandi pubblici (menu dei gruppi e dei GM, più /start, /help, /annulla); gli altri si ignorano in silenzio, con una riga nel log (`shared/solo_gruppo_admin.py`, prova `tests/docs/solo_gruppo_admin.py`)

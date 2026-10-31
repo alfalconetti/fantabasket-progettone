@@ -90,6 +90,13 @@ def liste_comandi(fase: str, mercato_fa: bool, offerte: bool) -> dict:
     return {"gm": gm, "admin": admin, "dev": dev, "gruppi": gruppi}
 
 
+def comandi_pubblici() -> set[str]:
+    """I comandi che passano nei gruppi diversi dal gruppo admin (shared/solo_gruppo_admin, Luca 31/10): quelli dei
+    GM e dei gruppi, con mercato e offerte aperti (cioè tutti), più /team_detail (per tutti)."""
+    c = liste_comandi("offseason-rfa", True, True)
+    return {x.command for k in ("gm", "gruppi") for x in c[k]} | {"team_detail"}
+
+
 async def registra_comandi(bot, forza: bool = False) -> None:
     global _ultimo_stato
     stato = _stato()

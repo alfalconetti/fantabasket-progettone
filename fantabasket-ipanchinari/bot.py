@@ -55,6 +55,10 @@ def main():
     import report
     import infortuni
     app = ApplicationBuilder().token(_token()).post_init(post_init).build()
+    # comandi admin e dev solo in privato e nel gruppo admin (Luca, 31/10): prima di tutto il resto
+    from shared import solo_gruppo_admin
+    from comandi import comandi_pubblici
+    solo_gruppo_admin.installa(app, comandi_pubblici(), config.gruppo_admin)
     from shared import dev_comune
     for h in (handlers.get_handlers() + quintetti.get_handlers() + panchine.get_handlers() + soprannomi.get_handlers() + report.get_handlers() + infortuni.get_handlers()
               + dev_comune.get_handlers(handlers._is_dev, lambda: db.q("SELECT version() AS v", one=True)["v"])):

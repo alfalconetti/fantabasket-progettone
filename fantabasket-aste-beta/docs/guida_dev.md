@@ -87,6 +87,8 @@ cap_limite − contratti (con DPE ridotta) − spalmature della stagione − pen
 
 `pg_client.get_cap_totale` è la stessa cosa senza la parte virtuale (la usa `/me`).
 
+**Comandi nei gruppi** (v6.12.5): `shared/solo_gruppo_admin.py`, installato in `bot.py` prima di tutti gli handler, lascia passare negli altri gruppi e nei canali solo i comandi di `comandi.comandi_pubblici()` (più `start`, `help` e `annulla`, sempre permessi: `SEMPRE`); in privato e nel gruppo admin tutto come prima. Un comando nuovo per i GM che deve funzionare nei gruppi va nel menu dei GM.
+
 **Cap e slot da `shared/cap.py` (v61).** `get_cap_contratti`, `get_impatto_taglio` e `get_roster_count` chiamano le stesse funzioni del bot principale, quindi i due bot fanno per forza gli stessi conti. Regole: anni residui = `anni_originali − (stagione − stagione_firma)`; un x0 non pesa né su cap né su slot, tranne l'RFA dichiarato nel bot principale (`rfa_dichiarati`), che pesa sul cap; la DPE riduce l'importo e libera lo slot solo se approvata prima della deadline. Senza `stagione` usano quella corrente.
 
 **Slot** (`pg_client.get_slot_totale` → `teams.check_slot_virtuale`):

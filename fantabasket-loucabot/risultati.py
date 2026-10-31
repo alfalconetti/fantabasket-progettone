@@ -232,8 +232,10 @@ def testo_differenze(diff: list[str] | None) -> str:
 
 
 def titolari_a_zero(c: dict) -> list[dict]:
-    """I titolari rimasti a 0 senza FADD (Luca, 31/10: caso Kawhi Leonard, Out dopo la prima partita della notte):
-    nella proposta agli admin, da controllare a mano. Non chi è entrato con la FADD, non chi ha giocato (anche a 0)."""
+    """I titolari rimasti a 0 senza FADD, nella proposta agli admin, da controllare a mano (Luca, 31/10): rete di
+    sicurezza per i casi che la FADD non copre da sola (non convocato o scelta tecnica senza status, Out arrivato
+    dopo l'ultimo snapshot prima della sua partita, snapshot mancante). Kawhi (Out dopo la prima partita della notte)
+    dalla v68 prende la FADD da solo. Non chi è entrato con la FADD, non chi ha giocato (anche a 0)."""
     out = []
     for r in c["risultati"]:
         for team, sq in ((r["casa"], r["sc"]), (r["trasferta"], r["st"])):

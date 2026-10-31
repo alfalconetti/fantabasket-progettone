@@ -82,6 +82,8 @@ Solo per `dev_id`, nel menu `/` del dev.
 
 `/dev_log`, `/dev_pg` e `/reboot` sono in `shared/dev_comune.py`, uguali in loucabot.
 
+**Comandi nei gruppi** (v6.12.5): `shared/solo_gruppo_admin.py`, installato in `bot.py` prima di tutti gli handler, lascia passare negli altri gruppi e nei canali solo i comandi di `comandi.comandi_pubblici()` (più `start`, `help` e `annulla`, sempre permessi: `SEMPRE`); in privato e nel gruppo admin tutto come prima. Un comando nuovo per i GM che deve funzionare nei gruppi va nel menu dei GM.
+
 **Errori non gestiti** (`dev_comune.error_handler`): log del container, poi canale log e dev col tipo di errore, chi e quale bottone o comando. "Message is not modified" (un bottone premuto due volte, stesso testo) non si segnala; gli errori di rete vanno solo sul canale log, per accorgersi se il bot non raggiunge Telegram.
 
 ## 5. Prove

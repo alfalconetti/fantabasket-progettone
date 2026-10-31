@@ -60,6 +60,10 @@ def main():
     import formazioni_foglio
     formazioni_foglio.migra()
     app = ApplicationBuilder().token(_token()).post_init(post_init).build()
+    # comandi admin e dev solo in privato e nel gruppo admin (Luca, 31/10): prima di tutto il resto
+    from shared import solo_gruppo_admin
+    from comandi import comandi_pubblici
+    solo_gruppo_admin.installa(app, comandi_pubblici(), config.gruppo_admin)
     from handlers import _is_dev
     from shared import dev_comune
     import handlers_risultati

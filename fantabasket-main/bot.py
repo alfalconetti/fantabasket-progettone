@@ -321,6 +321,11 @@ def main():
     token = _read_secret("BOT_TOKEN_FILE")
     app   = ApplicationBuilder().token(token).post_stop(post_stop).post_init(post_init).post_shutdown(backup_shutdown).build()
 
+    # comandi admin e dev solo in privato e nel gruppo admin (Luca, 31/10): prima di tutto il resto
+    from shared import solo_gruppo_admin
+    import comandi
+    solo_gruppo_admin.installa(app, comandi.comandi_pubblici(), lambda: settings.load_globals().get("admin_group_id"))
+
     # /annulla globale — group=-1 per intercettare prima di qualsiasi ConversationHandler
     app.add_handler(CommandHandler("annulla", cmd_annulla_globale), group=-1)
     app.add_handler(CommandHandler("sync_sheets", cmd_sync_sheets))

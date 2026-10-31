@@ -10,6 +10,8 @@ Si parte da **`/admin_menu`**, il pannello coi bottoni. Come il `/menu` dei GM m
 
 Per trovare al volo l'id di una squadra: **`/list`** (nome, id e GM di tutte).
 
+I comandi admin funzionano **solo in privato e nel gruppo admin**: scritti nel gruppo della lega o in un altro gruppo o canale, il bot li ignora in silenzio, anche se a scriverli è un admin (Luca, 31/10). Lì passano solo i comandi pubblici, quelli del menu `/` dei gruppi e dei GM.
+
 ---
 
 ## Le fasi della stagione
