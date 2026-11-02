@@ -302,6 +302,16 @@ class Bot:
         s.n += 1; s.mandati.append({"chat_id": chat_id, "text": text, "id": s.n, **k}); return types.SimpleNamespace(message_id=s.n)
     async def edit_message_reply_markup(s, **k): s.mandati.append({"tolti_bottoni": k.get("message_id")})
 BOT = Bot()
+# v6.17.0: notte senza partite niente sul log; fuori stagione i controlli della notte non girano
+_bv = Bot()
+ok(asyncio.run(HR.controllo_notte(_bv, date(2026, 7, 15))) == "nessuna partita" and not _bv.mandati,
+   "controllo finale di una notte senza partite: niente sul log")
+_fase = config.fase()
+_Gf = _json.load(open(config.GLOBALS_PATH)); _Gf["fase"] = "offseason-rinnovi"; _json.dump(_Gf, open(config.GLOBALS_PATH, "w"))
+_ctx = types.SimpleNamespace(bot=_bv)
+asyncio.run(HR.job_controllo_finale(_ctx)); asyncio.run(HR.job_primo_controllo(_ctx))
+ok(not config.snapshot_attivi() and not _bv.mandati, "fuori stagione: controllo finale e primo controllo non girano")
+_Gf["fase"] = _fase; _json.dump(_Gf, open(config.GLOBALS_PATH, "w"))
 asyncio.run(HR.esegui(BOT, S, N))
 prop = [x for x in BOT.mandati if x.get("chat_id") == -2]
 ok(len(prop) == 1 and "Giornata 7 calcolata" in prop[0]["text"] and "non configurato" in prop[0]["text"]
@@ -582,6 +592,18 @@ ok(LV.cosa_fare(g7, datetime(2026, 11, 11, 9, 0, tzinfo=ROMA), {**st_, "aggiorna
 ok(LV.cosa_fare(g7, datetime(2026, 11, 11, 11, 6, tzinfo=ROMA), {**st_, "aggiornato": datetime(2026, 11, 11, 7, 55, tzinfo=ROMA)})
    == ("controllo", DAL), "alle 11:05 il primo controllo della notte")
 ok(LV.cosa_fare(g7, t0 + timedelta(minutes=30), {**st_, "prossimo": t0 + timedelta(minutes=40)}) == (None, None), "dopo un errore si aspetta")
+# v6.17.0: banda NBA con la notte che arriva dal mezzogiorno di New York (come /notte), con un giro apposta
+_n2 = nn[1][0]
+_cb = LV.cambio_notte(_n2)
+ok(_cb == datetime(_n2.year, _n2.month, _n2.day, 18, 0, tzinfo=ROMA), f"cambio di notte: mezzogiorno a New York = 18 italiane ({_cb})")
+_stb = {"message_id": 5, "aggiornato": datetime(2026, 11, 11, 11, 5, tzinfo=ROMA)}
+ok(LV.cosa_fare(g7, _cb - timedelta(minutes=1), _stb) == (None, None) and LV.cosa_fare(g7, _cb, _stb) == ("banda", None)
+   and LV.cosa_fare(g7, _cb + timedelta(minutes=30), {**_stb, "aggiornato": _cb + timedelta(minutes=1)}) == (None, None),
+   "alle 18 un giro solo per la banda, una volta")
+ok(LV.cosa_fare(g7, _cb, {}) == (None, None), "senza messaggio del live, niente giro della banda")
+ok(LV.notte_banda(g7, _cb - timedelta(minutes=1)) == DAL and LV.notte_banda(g7, _cb) == _n2
+   and LV.notte_banda(g7, LV.cambio_notte(AL + timedelta(days=1)) + timedelta(hours=1)) == AL,
+   "banda: la notte di ieri fino alle 18, poi quella che arriva; dopo l'ultima notte della giornata restano i suoi risultati")
 
 class BotL(Bot):
     async def edit_message_text(s, chat_id, message_id, text, **k):
@@ -755,6 +777,7 @@ ok(_pb["avanti"] in ("casa", "trasferta") and any(p["avanti"] for p in _di["part
    and _di["soglia"] == 6 and _di["notte"] == f"del {DAL:%d/%m}", f"tabellone a partite finite: chi è avanti, supplementari ({_pb['nota']}), immagine")
 # v6.13.0: banda NBA in alto, con le partite vere della notte (Luca, 31/10)
 _np = db.partite_nba(DAL, DAL)
+ok(_di["nba_notte"] == f"{DAL:%d/%m}", "banda: titolo con la notte («NOTTE DEL …»)")
 ok(len(_di["nba"]) == len(_np) > 0 and all(x["stato"] in ("live", "finale", "dopo") for x in _di["nba"])
    and 5 <= _di["nba_colonne"] <= 8, f"banda NBA: tutte le partite della notte ({len(_np)})")
 _p0 = dict(_np[0])
@@ -918,6 +941,44 @@ db.q("INSERT INTO lega_live (stagione, giornata, aggiornato) VALUES (%s, %s, %s)
 ok(PA.dati_alle(S, N, _g7, datetime(2026, 11, 12, 10, 0, tzinfo=timezone.utc)) == "dati aggiornati alle 09:05",
    "/partita: il giro del live più recente del tabellino vale lui")
 db.q("DELETE FROM lega_live WHERE stagione = %s AND giornata = %s", (S, N))
+# tribuna (Luca, 02/11): a roster alla scadenza, né in quintetto né in panchina, col punteggio della giornata
+_gt = db.giornata(S, N)
+_casa = _r7["casa"]
+_np7 = db.partite_nba(_gt["dal"], _gt["al"])
+import collections as _col
+_sq1 = _col.Counter(t for p in _np7 if p["stato"] == "STATUS_FINAL" for t in (p["casa"], p["trasferta"])).most_common(1)[0][0]
+db.q("DELETE FROM transazioni WHERE note = 'prova tribuna'"); db.q("DELETE FROM nba_tabellini WHERE atleta LIKE 'trib%%'")
+db.q("DELETE FROM giocatori WHERE nome_common LIKE 'Trib %%'")
+_tg = {}
+for _nome, _espn, _sq in [("Trib Due Partite", "trib1", _sq1), ("Trib Senza Squadra", None, None), ("Trib Ceduto Dopo", "trib3", "ZZZ"),
+                          ("Trib Arrivato Dopo", "trib4", _sq1)]:
+    _tg[_nome] = db.q("INSERT INTO giocatori (nome_bref, nome_common, nome_norm, espn_id) VALUES (%s, %s, %s, %s) RETURNING id",
+                      (_nome, _nome, _nome.lower(), _espn), one=True)["id"]
+    if _espn:
+        db.q("INSERT INTO nba_atleti (atleta, nome, squadra) VALUES (%s, %s, %s) ON CONFLICT (atleta) DO UPDATE SET squadra = EXCLUDED.squadra",
+             (_espn, _nome, _sq))
+_pre, _post = _gt["prima_partita"] - timedelta(days=2), _gt["prima_partita"] + timedelta(hours=3)
+for _nome, _movs in [("Trib Due Partite", [(None, _casa, _pre)]), ("Trib Senza Squadra", [(None, _casa, _pre)]),
+                     ("Trib Ceduto Dopo", [(None, _casa, _pre), (_casa, "team99", _post)]), ("Trib Arrivato Dopo", [(None, _casa, _post)])]:
+    for _da, _a, _ts in _movs:
+        db.q("INSERT INTO transazioni (tipo, oggetto, giocatore_id, team_id_da, team_id_a, stagione, timestamp, note) "
+             "VALUES ('signed', 'giocatore', %s, %s, %s, %s, %s, 'prova tribuna')", (_tg[_nome], _da, _a, S, _ts))
+_due = [p for p in _np7 if _sq1 in (p["casa"], p["trasferta"]) and p["stato"] == "STATUS_FINAL"][:2]
+for _p, _f in zip(_due, (20.0, 30.0)):
+    db.q("INSERT INTO nba_tabellini (partita, atleta, nome, squadra, giocato, minuti, fp) VALUES (%s, 'trib1', 'Trib Due Partite', %s, TRUE, 30, %s)",
+         (_p["espn_id"], _sq1, _f))
+_d9 = PA.dati(S, N, _r7["casa"], _r7["trasferta"], ora=_gt["prima_partita"] + timedelta(days=3))
+_tr = {x["nome"]: x for x in _d9["squadre"][0]["tribuna"]}
+_attesa = "25,00 (20,00 · 30,00)" if len(_due) == 2 else ("20,00" if _due else None)
+ok("Trib Due Partite" in _tr and (_attesa is None or _tr["Trib Due Partite"]["t"] == _attesa)
+   and _tr["Trib Senza Squadra"]["t"] == "NA" and _tr["Trib Ceduto Dopo"]["t"] == "—" and "Trib Arrivato Dopo" not in _tr,
+   f"/partita, tribuna: media e partite, NA, ceduto dopo la scadenza nella squadra vecchia, arrivato dopo no ({_tr})")
+ok(list(_tr)[0] == "Trib Due Partite" and list(_tr)[-1] == "Trib Senza Squadra", "tribuna: prima i punteggi, NA in fondo")
+_sch = {x["nome"] for x in _d9["squadre"][0]["righe"]}
+ok(not (_sch & set(_tr)), "tribuna: niente schierati")
+ok(PA.immagine(_d9)[:4] == b"\x89PNG", "/partita: immagine con la tribuna")
+db.q("DELETE FROM nba_tabellini WHERE atleta = 'trib1'"); db.q("DELETE FROM transazioni WHERE note = 'prova tribuna'")
+db.q("DELETE FROM nba_atleti WHERE atleta IN ('trib1', 'trib3', 'trib4')"); db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (list(_tg.values()),))
 _pd = PA.immagine({**_d7, "dati_alle": "dati aggiornati alle 08:30"})
 if _os_pa: open(_os_pa, "wb").write(_pd)
 ok(_pd[:4] == b"\x89PNG", "/partita: immagine con l'ora dei dati")

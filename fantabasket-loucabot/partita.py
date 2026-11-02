@@ -207,6 +207,8 @@ def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None)
                      else "" if salvato else
                      tp(es["punti_supplementari"][0 if lato == "casa" else 1]) if es.get("punti_supplementari") else ""),
             "vince": (salvato["vince"] if salvato else r["vince"]) == lato, "righe": righe,
+            "tribuna": tribuna(t, g, ora, iniziata, {x.get("gid") for x in orig["quintetto"] + orig["panchina"] if x.get("gid")},
+                               giorni, partite_giorno),
             "panchina_mandata": orig["panchina"] != [] or bool(sq_calc["panchina"])})
     if salvato and (abs(float(salvato["punti_casa"] or 0) - es["regolamentari"][0]) > 0.001
                     or abs(float(salvato["punti_trasferta"] or 0) - es["regolamentari"][1]) > 0.001 or salvato["vince"] != r["vince"]):
@@ -229,6 +231,69 @@ def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None)
         "aggiornato": f"{ora.astimezone(__import__('zoneinfo').ZoneInfo('Europe/Rome')):%d/%m alle %H:%M}",
         "dati_alle": dati_alle(s, n, g, ora) if stato != "da giocare" else "",
     }
+
+
+def rosa_al(team_id: str, quando) -> list[int]:
+    """I giocatori della squadra in quel momento, dal registro dei movimenti (come shared/rosa)."""
+    righe = db.q("""SELECT DISTINCT ON (giocatore_id) giocatore_id, team_id_a FROM movimenti_giocatori
+                    WHERE timestamp <= %s AND oggetto = 'giocatore'
+                    ORDER BY giocatore_id, timestamp DESC, id DESC""", (quando,), many=True) or []
+    return [x["giocatore_id"] for x in righe if x["team_id_a"] == team_id]
+
+
+def tribuna(team_id: str, g: dict, ora: datetime, iniziata: bool, schierati: set, giorni: list, partite_giorno: dict) -> list[dict]:
+    """La tribuna di /partita (Luca, 02/11): i giocatori a roster né in quintetto né in panchina, col loro punteggio
+    della giornata. A roster alla scadenza (prima partita della giornata; prima, adesso): chi è ceduto dopo resta
+    nella tribuna della squadra vecchia fino a fine giornata, come per tutto il resto. Per ognuno `t`:
+    - la media delle partite in cui è entrato, e tra parentesi le singole se sono più d'una («25,00 (20,00 · 30,00)»);
+    - «vs XXX» / «@XXX» se non ha ancora giocato e la sua squadra deve giocare;
+    - «DNP» se la squadra ha giocato e lui no; «—» se la sua squadra NBA non gioca nella giornata;
+    - «NA» se non ha una squadra NBA (o non è abbinato a ESPN).
+    In ordine: punteggi dal più alto, poi chi deve giocare, poi DNP, «—», NA."""
+    try:
+        quando = g["prima_partita"] if iniziata and g.get("prima_partita") else ora
+        gids = [x for x in rosa_al(team_id, quando) if x not in schierati]
+    except Exception as err:                       # registro dei movimenti non leggibile: niente tribuna
+        logger.warning("Tribuna %s: %s", team_id, err)
+        return []
+    if not gids:
+        return []
+    info = {x["id"]: x for x in db.q("""SELECT g.id, g.nome_common, g.espn_id, a.squadra FROM giocatori g
+                                         LEFT JOIN nba_atleti a ON a.atleta = g.espn_id WHERE g.id = ANY(%s)""",
+                                      (gids,), many=True) or []}
+    atleti = [x["espn_id"] for x in info.values() if x.get("espn_id")]
+    tab = {}
+    for row in db.tabellini_atleti(atleti, g["dal"], g["al"]) if atleti else []:
+        tab.setdefault(row["atleta"], []).append(row)
+    out = []
+    for gid in gids:
+        x = info.get(gid) or {}
+        a = x.get("espn_id")
+        righe = tab.get(a, []) if a else []
+        sq = (righe[-1]["squadra"] if righe else None) or x.get("squadra")
+        nome = x.get("nome_common") or "—"
+        if not a or not sq:
+            out.append({"nome": nome, "t": "NA", "k": "na", "o": (4, 0)})
+            continue
+        fp = [float(rr["fp"]) for rr in righe if rr.get("giocato") and not (float(rr["fp"] or 0) == 0 and not rr.get("minuti"))]
+        sue = [partite_giorno[(sq, d)] for d in giorni if (sq, d) in partite_giorno]
+        if fp:
+            m = sum(fp) / len(fp)
+            t = tp(m) + (f" ({' · '.join(tp(v) for v in fp)})" if len(fp) > 1 else "")
+            out.append({"nome": nome, "t": t, "k": "fp", "o": (0, -m)})
+            continue
+        if not sue:
+            out.append({"nome": nome, "t": "—", "k": "vuota", "o": (3, 0)})
+            continue
+        prossime = [p for p in sue if p["stato"] not in (FINITA,) + SALTATE]
+        if prossime:
+            p = prossime[0]
+            vs = ("vs " if p["casa"] == sq else "@") + (p["trasferta"] if p["casa"] == sq else p["casa"])
+            out.append({"nome": nome, "t": vs, "k": "prossima", "o": (1, p["inizio"].timestamp() if p.get("inizio") else 0)})
+            continue
+        out.append({"nome": nome, "t": "DNP", "k": "dnp", "o": (2, 0)})
+    out.sort(key=lambda z: (z["o"], z["nome"]))
+    return [{k: v for k, v in z.items() if k != "o"} for z in out]
 
 
 def ultimo_aggiornamento(s: str, n: int, g: dict) -> datetime | None:

@@ -396,3 +396,12 @@ Il calcolo dei fantapunti.
 
 - `/partita` (Luca, 01/11): sotto lo stato della partita «dati aggiornati alle HH:MM», cioè quando sono stati scaricati gli ultimi tabellini della giornata (ultimo giro del live o ultimo tabellino definitivo); in fondo resta l'ora dell'immagine
 - `/dev_live_frequenza` senza argomenti mostra anche, per ogni live aperto, l'ultimo aggiornamento, quanti minuti sono passati e il prossimo giro (o quando riprova dopo un errore di ESPN)
+
+## v80 (2026-11-02)
+
+- Live (Luca, 02/11): a giornata in corso, dalle 18 italiane (mezzogiorno a New York, lo stesso cambio di `/notte`) la banda NBA mostra le partite della notte che arriva con i loro orari, con un aggiornamento dell'immagine apposta (senza riscaricare tabellini). Il titolo dice di quale notte si tratta: «NBA · NOTTE DEL GG/MM». Dopo l'ultima notte della giornata restano i suoi risultati
+- Controllo finale delle 20: una notte senza partite non scrive più niente sul log; fuori stagione (fasi senza snapshot) il controllo finale e il primo controllo delle 11:05 non girano (Luca, 01/11)
+
+## v81 (2026-11-02)
+
+- `/partita` (Luca, 02/11, mockup approvato): sotto la panchina di ogni squadra, tra due righe viola, la **Tribuna** con gli altri giocatori a roster e il loro punteggio della giornata: media e singole partite tra parentesi se ne ha giocate più d'una, «vs XXX» se deve ancora giocare, DNP, «—» se la sua squadra NBA non gioca, NA se non ha una squadra NBA. Rosa alla scadenza: i ceduti dopo restano nella squadra vecchia fino a fine giornata. Va a capo tra un giocatore e l'altro

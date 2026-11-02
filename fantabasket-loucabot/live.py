@@ -213,7 +213,32 @@ def cosa_fare(g: dict, ora: datetime, st: dict | None) -> tuple[str | None, date
         controllo = datetime.combine(d + timedelta(days=1), ORA_CONTROLLO, ROMA)
         if controllo <= ora < controllo + OGNI and st and st.get("message_id") and (not ultimo or ultimo < controllo):
             return "controllo", d
+    # v6.17.0 (Luca, 02/11): a giornata in corso, quando /notte passa alla notte dopo (mezzogiorno a New York) un
+    # giro solo per la banda NBA, con le partite della notte che arriva e i loro orari (niente tabellini)
+    if st and st.get("message_id"):
+        for d, inizio, _f in notti(g):
+            cambio = cambio_notte(d)
+            if cambio <= ora < inizio and (not ultimo or ultimo < cambio):
+                return "banda", None
     return None, None
+
+
+def cambio_notte(d: date) -> datetime:
+    """Da quando la notte d è «la notte» per /notte e per la banda del live: mezzogiorno del giorno d a New York
+    (notte.notte_di_default; di solito le 18 italiane)."""
+    return datetime.combine(d, time(12, 0), ZoneInfo("America/New_York"))
+
+
+def notte_banda(g: dict, ora: datetime) -> date | None:
+    """La notte da mostrare nella banda: quella di /notte (dal mezzogiorno di New York la notte che arriva), se è una
+    notte della giornata; se no l'ultima iniziata (dopo l'ultima notte restano i suoi risultati)."""
+    import notte
+    giorni = notti(g)
+    d = notte.notte_di_default(ora)
+    if d in {x[0] for x in giorni}:
+        return d
+    iniziate = [x[0] for x in giorni if x[1] <= ora]
+    return max(iniziate) if iniziate else None
 
 
 def giornate_attive(s: str, ora: datetime) -> list[dict]:
@@ -572,9 +597,10 @@ def dati_immagine(c: dict, ora: datetime) -> dict:
         for t, sq, punti in ((r["casa"], r["sc"], r["punti_casa"]), (r["trasferta"], r["st"], r["punti_trasferta"])):
             lati.append({**_squadra_img(t), **stato_titolari(c, sq["titolari"], partite), "punti": tp(punti)})
         out.append({"k": k, "casa": lati[0], "tras": lati[1], "avanti": avanti, "nota": nota})
-    banda = banda_nba(max(iniziate) if iniziate else None)
+    nb = notte_banda(g, ora)
+    banda = banda_nba(nb)
     return {"n": g["numero"], "date": f"{g['dal']:%d/%m} – {g['al']:%d/%m}",
-            "nba": banda, "nba_colonne": colonne_banda(len(banda)),
+            "nba": banda, "nba_colonne": colonne_banda(len(banda)), "nba_notte": f"{nb:%d/%m}" if nb else "",
             "notte": f"del {max(iniziate):%d/%m}" if iniziate else "",
             "ora": f"{ora.astimezone(ROMA):%H:%M}", "partite": out, "soglia": 10 - MAX_DA_GIOCARE,
             "bonus": f"{c['bonus']:g}"}
@@ -843,7 +869,7 @@ async def tick(bot, ora: datetime | None = None, scarica_fn=None) -> list[str]:
             continue
         try:
             fatti.append(await aggiorna(bot, g, d, ora, controllo=quale == "controllo", scarica_fn=scarica_fn))
-            if quale == "controllo" or not st or not st.get("message_id"):
+            if quale != "banda" and (quale == "controllo" or not st or not st.get("message_id")):
                 await log(bot, f"🔴 Live G{g['numero']}: " + ("pubblicato sul canale" if quale == "live" else
                                                               "aggiornamento delle 10 dopo il controllo dei tabellini"))
         except Exception as err:

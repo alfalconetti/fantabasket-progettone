@@ -1775,3 +1775,13 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - `/roster` (Luca, 01/11, mockup approvato): colonna **% G**, le partite giocate da quando il giocatore è nella sua squadra NBA su quelle finite della squadra (ambra sotto l'80%, rosso sotto il 50%; con una data, a quella data); pagina un filo più larga, così i nomi lunghi restano a grandezza piena
 - loucabot v79: «dati aggiornati alle…» in `/partita`; stato dei live aperti in `/dev_live_frequenza`
 - MIGRATION: «Togliere `yahoo-router`» tra le cose da fare dopo, non più tra le idee lontane
+
+## v6.17.0 (2026-11-02)
+
+- loucabot v80:
+  - Live (Luca, 02/11): a giornata in corso, dalle 18 italiane (mezzogiorno a New York, lo stesso cambio di `/notte`) la banda NBA mostra le partite della notte che arriva con i loro orari, con un aggiornamento dell'immagine apposta (senza riscaricare tabellini). Il titolo dice di quale notte si tratta: «NBA · NOTTE DEL GG/MM». Dopo l'ultima notte della giornata restano i suoi risultati
+  - Controllo finale delle 20: una notte senza partite non scrive più niente sul log; fuori stagione (fasi senza snapshot) il controllo finale e il primo controllo delle 11:05 non girano (Luca, 01/11)
+
+## v6.18.0 (2026-11-02)
+
+- loucabot v81: `/partita` (Luca, 02/11, mockup approvato): sotto la panchina di ogni squadra, tra due righe viola, la **Tribuna** con gli altri giocatori a roster e il loro punteggio della giornata: media e singole partite tra parentesi se ne ha giocate più d'una, «vs XXX» se deve ancora giocare, DNP, «—» se la sua squadra NBA non gioca, NA se non ha una squadra NBA. Rosa alla scadenza: i ceduti dopo restano nella squadra vecchia fino a fine giornata. Va a capo tra un giocatore e l'altro

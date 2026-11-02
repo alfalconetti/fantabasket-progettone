@@ -58,7 +58,7 @@
 }
 #if d.at("nba", default: ()).len() > 0 {
   block(width: 100%, fill: viola_scuro, inset: (x: 10pt, top: 7pt, bottom: 9pt))[
-    #text(6.5pt, weight: "bold", fill: white.transparentize(30%), tracking: 0.6pt)[NBA STANOTTE]
+    #text(6.5pt, weight: "bold", fill: white.transparentize(30%), tracking: 0.6pt)[NBA#if d.at("nba_notte", default: "") != "" [ · NOTTE DEL #d.nba_notte] else [ STANOTTE]]
     #v(5pt)
     #grid(columns: (1fr,) * d.nba_colonne, column-gutter: 5pt, row-gutter: 5pt, ..d.nba.map(mini))
   ]

@@ -133,6 +133,13 @@
         ..r.celle.map(cella), conta(r),
       )
     }).flatten(),
+    // tribuna (Luca, 02/11): a roster ma né in quintetto né in panchina, in una riga sola (va a capo tra un giocatore
+    // e l'altro, mai a metà), tra due righe viola, col punteggio della giornata
+    ..(if s.at("tribuna", default: ()).len() > 0 { (table.cell(colspan: 5 + nn, align: left + horizon, fill: rgb("#F4F2F8"),
+        inset: (x: 6pt, y: 5pt), stroke: (top: 1pt + viola))[
+      #text(7pt, weight: "bold", fill: grigio, tracking: 0.5pt)[TRIBUNA] #h(6pt)
+      #s.tribuna.map(x => box[#text(8pt, fill: rgb("#3A3150"))[#x.nome] #if x.k == "prossima" { text(8pt, fill: viola_medio)[#x.t] } else { text(8pt, weight: "bold", fill: if x.k == "fp" { rgb("#3A3150") } else { grigio })[#x.t] }]).join([#text(8pt, fill: bordo)[ · ] ])
+    ],) } else { () }),
     // i totali in fondo, sotto «Punti effettivi» (Luca, 23/10)
     table.cell(colspan: 4 + nn, align: right, stroke: (top: 1pt + viola))[#text(8.5pt, fill: grigio)[Titolari]],
     table.cell(stroke: (top: 1pt + viola))[#text(9pt, weight: "bold")[#s.totale]],

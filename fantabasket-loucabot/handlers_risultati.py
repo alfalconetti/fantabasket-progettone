@@ -149,8 +149,7 @@ async def controllo_notte(bot, d, chi: str = "controllo delle 20", user=None) ->
     g = CG.giornata_di(s, d)
     ids = [p["espn_id"] for p in db.partite_nba(d, d) if p["stato"] == "STATUS_FINAL"]
     if not ids:
-        await log(bot, f"🔎 Controllo finale della notte del {d:%d/%m}: nessuna partita finita")
-        return "nessuna partita"
+        return "nessuna partita"                    # notte senza partite: niente sul log (v6.17.0, Luca 01/11)
     prima = CG.righe(ids)
     r = await nba.scarica_tabellini(ids, forza=True)
     cambi = CG.cambi(prima, CG.righe(ids))
@@ -278,6 +277,8 @@ async def job_primo_controllo(context: ContextTypes.DEFAULT_TYPE):
     from zoneinfo import ZoneInfo
     import congelamento as CG
     import live
+    if not config.snapshot_attivi():                  # fuori stagione non gira (v6.17.0, Luca 01/11)
+        return
     d = datetime.now(ZoneInfo("Europe/Rome")).date() - timedelta(days=1)
     s = config.stagione()
     g = CG.giornata_di(s, d)
@@ -294,9 +295,12 @@ async def job_primo_controllo(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def job_controllo_finale(context: ContextTypes.DEFAULT_TYPE):
-    """20:00 (orari.controllo_notte): controllo finale della notte appena passata, poi è congelata (v58)."""
+    """20:00 (orari.controllo_notte): controllo finale della notte appena passata, poi è congelata (v58). Fuori
+    stagione (fase senza snapshot, config.FASI_SNAPSHOT) non gira (v6.17.0)."""
     from handlers import log
     from zoneinfo import ZoneInfo
+    if not config.snapshot_attivi():
+        return
     d = datetime.now(ZoneInfo("Europe/Rome")).date() - timedelta(days=1)
     try:
         await controllo_notte(context.bot, d)
