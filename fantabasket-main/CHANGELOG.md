@@ -1823,3 +1823,13 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.24.0 (2026-11-04)
 
 - **Typst con la libreria Python** (Luca, 01/11 e 04/11): il bot principale non lancia più il programma `typst` per ogni immagine ma usa la libreria `typst` 0.15, la stessa di loucabot (`typst_compila.py`): una versione sola per i due bot, niente processo in più, errori come eccezioni. I comandi restano costruiti come prima (`--input`, `--ppi`), quindi template e immagini non cambiano. Tolti dal Dockerfile il programma e `TYPST_FONT_PATHS`; i font sono indicati alla libreria. Nelle prove, roster, asset (PNG e PDF, oggi e a una data), carriera e `/trova_trade` si disegnano davvero con la libreria
+
+## v6.25.0 (2026-11-04)
+
+- **`/riassegna <team_id> <user_id> <nome GM>`** (admin, Luca 23/10 e 04/11): la franchigia passa a un nuovo GM quando uno lascia. Chiede conferma coi bottoni, poi cambia `gm_ids` e `gm_nome` in teams.json (roster, contratti, pick, cap e storico restano alla squadra), scrive nel registro e sul canale log, avvisa il vecchio GM e il nuovo, sincronizza il foglio. Rifiuta un user_id che è già GM di un'altra squadra. Tutti e quattro i bot rileggono teams.json: il vecchio GM perde l'accesso subito, il nuovo lo ha subito
+- **Tanking a consuntivo** (loucabot v85): vedi il suo CHANGELOG
+
+## v6.26.0 (2026-11-04)
+
+- **🙋 Richiedi accesso** (Luca, 04/11): chi non è GM e scrive al bot principale riceve «bot riservato ai GM» con un bottone per chiedere l'accesso. La richiesta arriva **al dev** in privato con nome, username e user_id, e coi bottoni **🔁 Assegna una squadra** (elenco delle squadre, poi il riepilogo da confermare come `/riassegna`, col nome Telegram come nome del GM) e **🙈 Ignora**. Una richiesta ogni 24 ore per persona; tabella nuova `richieste_accesso`. Gli altri bot rimandano al bot principale
+- **👤 Riassegna squadra nel menu admin**: le richieste di accesso in attesa degli ultimi 30 giorni, ognuna col suo bottone; per chi non ha fatto richiesta resta `/riassegna`

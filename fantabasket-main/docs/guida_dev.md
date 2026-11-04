@@ -40,7 +40,7 @@ fantabasket-progettone/
 
 - **PostgreSQL** è la fonte di verità di contratti, trade, pick, tagli, ruoli e RFA dichiarati. Ci scrivono il bot principale e il bot aste (loucabot e IPanchinari hanno tabelle loro, `lega_*`/`nba_*` e `ipa_*`); il bot aste scrive solo firme, rilasci RFA, cap/slot anticipati e coda dei fogli, e legge `rfa_dichiarati` per aprire le aste RFA.
 - **globals.json** è condiviso. Lo scrive solo questo bot (fase, stagione, mercato, deadline); il bot aste lo monta in sola lettura.
-- **teams.json** è condiviso. Lo scrive solo questo bot (`/my_team`, `/palette`, `/set_cap_penalizzato`).
+- **teams.json** è condiviso. Lo scrive solo questo bot (`/my_team`, `/palette`, `/set_cap_penalizzato`, `/riassegna`: `admin_panel.riassegna`, scrittura su file temporaneo e `os.replace`).
 - **aste.db** (SQLite) è del bot aste. Questo bot lo legge solo per il backup (`/data_aste/aste.db`, in sola lettura).
 
 ---
@@ -371,7 +371,8 @@ ORDER BY t.timestamp, t.id;
 | `team_diff.py` | `/team_diff` |
 | `palette.py`, `myteam.py` | colori e dati squadra (colori effettivi e testo leggibile: `roster.colori_effettivi`, `roster.input_colori`) |
 | `nav.py` | navigazione dei menu: ✖️ Chiudi (`nav:x`), 🏠 Menu, ←, `mostra()` (da un bottone modifica il messaggio invece di mandarne uno nuovo) |
-| `admin_panel.py` | `/admin_menu`, fasi, DPE e tagli admin, `/registra_firma`, `/list`, `/set_cap_penalizzato`, situazione cap |
+| `admin_panel.py` | `/admin_menu`, fasi, DPE e tagli admin, `/registra_firma`, `/list`, `/set_cap_penalizzato`, `/riassegna` (callback `riass:ok`/`riass:no`, `conferma_riassegna`), situazione cap |
+| `accesso.py` | richieste di accesso (v6.26.0): `richiedi` (dalla guardia di `shared/solo_lega`, tabella `richieste_accesso`, una ogni 24 ore, al dev), `riass:menu` (voce del menu admin), `riass:utente`, `riass:sq`, `riass:ignora` |
 | `trova_trade.py` | `/trova_trade` (v6.12.0): `per_numero` / `per_giocatore` (solo `stato` approvata o annullata, con `trade_ref`), `dati` (asset dal movimento della trade: contratto di allora da `transazioni.contratto_id`; `_cap_roster` a un istante: roster a una data, DPE a una data, spalmature con la transazione fino ad allora; `_percorso` da `trade`, `trade_voti` e `registro_azioni`), `trova_trade.typ` (in verde) col Typst della libreria (`typst_compila`, v6.24.0), emoji dal font Noto Color Emoji (`fonts-noto-color-emoji` nel Dockerfile, come loucabot); trade a due solo «riceve» |
 | (shared) `parole_nome.py` | nomi dei giocatori in qualsiasi ordine (v6.11.1): `nomi.esatti`/`simili`, `db.cerca_giocatori` (ogni parola, se il pezzo intero non c'è), `posizioni._cerca_giocatori` (anche `/carriera`), `dieci_giorni.cerca` |
 | `bref.py` | job Basketball-Reference e conferma dei giocatori nuovi; dopo ogni abbinamento (`abbina_auto`, bottone 🔗) `aggiorna_foglio` risincronizza il foglio Roster se il giocatore è sotto contratto (v6.9.0) |

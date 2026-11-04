@@ -343,6 +343,9 @@ ok("non è più valida" in premi(900, f"rc:ok:{N}:1").risposte[-1], "il bottone 
 premi(900, f"rc:ok:{N}:2")
 ok(db.q("SELECT COUNT(*) AS n FROM lega_risultati WHERE stagione = %s AND giornata = %s AND convalidato IS NOT NULL", (S, N), one=True)["n"] == 2
    and any("convalidata da Admin" in x.get("text", "") for x in BOT.mandati), "convalida: risultati salvati, conferma nel gruppo")
+_tk = [x.get("text", "") for x in BOT.mandati if "Tanking a consuntivo" in x.get("text", "")]
+ok(_tk and "non riuscito" not in _tk[-1] and db.q("SELECT COUNT(*) AS n FROM lega_tanking WHERE stagione = %s AND giornata = %s", (S, N), one=True)["n"] == 4,
+   "convalida: tanking a consuntivo al gruppo admin e nello storico " + (_tk[-1][:300] if _tk else ""))
 ok("non è più valida" in premi(900, f"rc:ok:{N}:2").risposte[-1], "una seconda convalida dello stesso bottone non fa niente")
 # ricalcolo di una giornata convalidata: cosa cambia rispetto ai risultati convalidati (Luca, 26/10)
 _lc = db.q("SELECT risultati FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (S, N), one=True)["risultati"]
@@ -1448,6 +1451,29 @@ class _MsgF:
 asyncio.run(FT.cmd_dev_foto(types.SimpleNamespace(effective_user=types.SimpleNamespace(id=config.dev_id()), effective_message=_MsgF()), None))
 ok(_rf and "1 su " in _rf[0] and "ESPN non ce l'ha" in _rf[0], "/dev_foto: il messaggio al dev")
 db.q("DELETE FROM contratti WHERE giocatore_id = ANY(%s)", (list(gid.values()),))
+# tanking parte 2, a consuntivo (v6.25.0): formazione migliore per posizioni eleggibili, efficienza, storico
+_gg = lambda i, pos, pt: {"gid": i, "nome": f"G{i}", "posizioni": set(pos), "punti": pt}
+_ros = [_gg(1, ["PG", "SG"], 40), _gg(2, ["PG"], 30), _gg(3, ["SG"], 10), _gg(4, ["SF", "PF"], 20), _gg(5, ["PF"], 25),
+        _gg(6, ["C"], 15), _gg(7, ["C", "PF"], 35)]
+_m, _f = TK.migliore(_ros)
+ok(_m == 30 + 40 + 20 + 25 + 35 and {r: g["gid"] for r, g in _f.items()} == {"PG": 2, "SG": 1, "SF": 4, "PF": 5, "C": 7},
+   f"tanking a consuntivo: formazione migliore, ognuno una volta e solo nei suoi ruoli ({_m})")
+_m2, _f2 = TK.migliore([_gg(1, ["PG"], 10), _gg(2, ["PG"], 8)])
+ok(_m2 == 10 and set(_f2) == {"PG"}, "tanking a consuntivo: ruolo senza nessuno che può giocarlo = posto vuoto")
+_sq = [t["id"] for t in config.squadre()]
+db.q("DROP TABLE IF EXISTS lega_tanking")
+_righe = [{"team": _sq[0], "schierati": 70.0, "migliore": 100.0, "efficienza": 0.70, "formazione": {"PG": _gg(2, ["PG"], 30)}},
+          {"team": _sq[1], "schierati": 95.0, "migliore": 100.0, "efficienza": 0.95, "formazione": {}}]
+TK.salva(S, 1, _righe)
+TK.salva(S, 2, _righe)
+_t = TK.testo_consuntivo(S, 2, _righe)
+ok(config.nome(_sq[0]) in _t and config.nome(_sq[1]) not in _t and "70%" in _t and "2ª volta" in _t and "G2" in _t,
+   "tanking a consuntivo: sotto l'80% elencata con efficienza, volte in stagione e formazione migliore; sopra no")
+TK.salva(S, 2, _righe)
+ok(db.q("SELECT COUNT(*) AS n FROM lega_tanking", one=True)["n"] == 4, "tanking a consuntivo: riconvalidare la giornata non duplica lo storico")
+ok("Tutte le squadre sopra" in TK.testo_consuntivo(S, 3, _righe[1:]), "tanking a consuntivo: nessuna sotto soglia")
+db.q("DROP TABLE lega_tanking")
+
 # pulizia
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (list(gid.values()),))
 db.q("TRUNCATE nba_tabellini, nba_infortuni, lega_giornate, lega_partite, nba_partite, lega_risultati, lega_calcoli, lega_calcoli_storico, lega_live")

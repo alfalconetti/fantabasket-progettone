@@ -84,6 +84,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("ritiro_fa",           "Free agent ritirato: toglie le spalmature dei tagli passati"),
         BotCommand("report_spalmature",   "Free agent con spalmature attive (possibili ritirati)"),
         BotCommand("set_cap_penalizzato", "Penalità cap di una squadra [team_id] [valore]"),
+        BotCommand("riassegna",           "Riassegna una squadra a un nuovo GM [team_id] [user_id] [nome]"),
         BotCommand("annulla_admin",       "Esci da operazione admin bloccata"),
         BotCommand("guida_admin",         "Guida completa per gli admin"),
         BotCommand("settings",            "Impostazioni e numeri del regolamento"),

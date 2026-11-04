@@ -551,6 +551,11 @@ async def cb_risultati(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as err:
             logger.warning("Risultati definitivi sul canale G%s: %s", n, err)
             esito += f"; ⚠️ risultati definitivi non pubblicati sul canale ({str(err)[:120]})"
+        try:                                             # tanking parte 2, a consuntivo, al gruppo admin (v6.25.0)
+            import tanking
+            await tanking.manda_consuntivo(context.bot, s, n)
+        except Exception as err:
+            logger.warning("Tanking a consuntivo G%s: %s", n, err)
         ora = datetime.now(timezone.utc).astimezone(__import__("zoneinfo").ZoneInfo("Europe/Rome"))
         try:
             await q.edit_message_reply_markup(reply_markup=None)

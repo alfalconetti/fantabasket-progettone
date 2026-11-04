@@ -419,3 +419,7 @@ Il calcolo dei fantapunti.
 ## v84 (2026-11-04)
 
 - **`/giornata` come immagine** (Luca, 04/11): il tabellone della giornata, lo stesso del live; a giornata calcolata o convalidata coi risultati (etichetta CALCOLATA o CONVALIDATA, in grassetto chi ha vinto, supplementari), senza etichette dei titolari né legenda; non ancora iniziata, le partite in testo. **`/risultati`** resta il testo (non sono più sinonimi). La prima pagina di `/pdf_giornata` è questo tabellone
+
+## v85 (2026-11-04)
+
+- **Controllo del tanking, parte 2: a consuntivo** (Luca, 25/10 e 04/11): alla convalida di una giornata, al gruppo admin, per ogni squadra i punti dei titolari schierati contro quelli della **formazione migliore possibile** con la rosa alla scadenza (un giocatore per ruolo tra le posizioni eleggibili, punti con le regole del calcolo). Sono elencate le squadre con efficienza **sotto l'80%**, con quante volte è successo nella stagione, la posizione in classifica (⬇️ nell'ultimo terzo) e la formazione migliore; se nessuna, una riga. Storico nella tabella nuova `lega_tanking` (riconvalidare non duplica)

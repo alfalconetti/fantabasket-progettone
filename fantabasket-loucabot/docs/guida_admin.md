@@ -158,6 +158,8 @@ Report **solo al gruppo admin** con gli **indizi** di formazioni che sembrano fa
 - Se l'escluso adesso ha un altro ruolo, il report lo dice («ora è PG: servirebbe un cambio ruolo»): non si vuole costringere un GM a un cambio ruolo subito, quindi l'indizio pesa meno.
 - Le medie sono quelle della stagione prima della giornata. Le squadre sono in ordine dal fondo della classifica; quelle nell'ultimo terzo hanno ⬇️, perché lì il tanking conviene. Se non c'è niente, «nessun indizio».
 
+**A consuntivo, alla convalida** (v85): ti arriva nel gruppo un secondo report. Per ogni squadra i punti dei titolari schierati contro quelli della **formazione migliore possibile** con la rosa alla scadenza: un giocatore per ruolo tra le sue posizioni eleggibili, coi punti della giornata calcolati come nel calcolo (media se la sua squadra NBA non gioca, 0 se non ha giocato). Sono elencate solo le squadre sotto l'**80%** di efficienza, con quante volte è successo nella stagione, la posizione in classifica (⬇️ nell'ultimo terzo) e la formazione migliore. Anche questo è un indizio: col senno di poi qualunque formazione perde punti.
+
 **`/tanking [N]`** ti manda il report quando vuoi (senza N, l'ultima giornata iniziata): a giornata finita contiene tutto, titolari Out compresi.
 
 La seconda parte (dopo la convalida, quanti punti avrebbe fatto la formazione migliore e lo storico per squadra) è da fare.

@@ -21,7 +21,11 @@ Per ogni squadra, dalla formazione congelata (ipa_formazioni) e dalla panchina (
 - Se l'escluso adesso ha un altro ruolo (ruolo_attuale) lo dice: per metterlo lì servirebbe un cambio ruolo, che
   non si vuole imporre subito (Luca, 31/10).
 - Le squadre nell'ultimo terzo della classifica sono segnate ⬇️ (lì il tanking conviene).
-La parte 2 (a consuntivo dopo la convalida: efficienza rispetto alla formazione migliore, storico) è da fare.
+Parte 2 (v6.25.0, Luca 25/10 e 04/11), a consuntivo **alla convalida**, sempre solo al gruppo admin: per ogni squadra i
+punti dei titolari schierati (FADD compresa, come il calcolo) contro quelli della formazione migliore possibile con la
+rosa alla scadenza (un giocatore per ruolo tra le sue posizioni eleggibili, punti della giornata con le regole del
+calcolo: media delle partite, media della stagione se la squadra NBA non gioca, 0 se non ha giocato). Efficienza in %;
+sotto SOGLIA_EFFICIENZA (80%) la squadra è elencata, con quante volte le è successo nella stagione (lega_tanking).
 """
 import html
 import logging
@@ -267,3 +271,135 @@ async def cmd_tanking(update, context):
         return
     for pezzo in live._pezzi(testo(s, g)):
         await msg.reply_text(pezzo, parse_mode="HTML")
+
+
+# ── parte 2: a consuntivo, alla convalida (v6.25.0) ─────────────────────────────
+
+SOGLIA_EFFICIENZA = 0.80
+
+
+def migra() -> None:
+    db.q("""CREATE TABLE IF NOT EXISTS lega_tanking (
+              stagione  TEXT NOT NULL,
+              giornata  INT  NOT NULL,
+              team_id   TEXT NOT NULL,
+              schierati DOUBLE PRECISION NOT NULL,
+              migliore  DOUBLE PRECISION NOT NULL,
+              efficienza DOUBLE PRECISION NOT NULL,
+              PRIMARY KEY (stagione, giornata, team_id))""")
+
+
+def migliore(giocatori: list[dict]) -> tuple[float, dict]:
+    """La formazione migliore: un giocatore per ruolo (RUOLI) tra quelli che hanno quel ruolo nelle posizioni
+    eleggibili, ognuno una volta sola, col massimo dei punti. → (punti, {ruolo: giocatore})."""
+    cand = {r: sorted([g for g in giocatori if r in g["posizioni"]], key=lambda g: -g["punti"])[:6] for r in RUOLI}
+    best = (-1.0, {})
+
+    def cerca(i, usati, tot, scelta):
+        nonlocal best
+        if i == len(RUOLI):
+            if tot > best[0]:
+                best = (tot, dict(scelta))
+            return
+        r = RUOLI[i]
+        messo = False
+        for g in cand[r]:
+            if g["gid"] not in usati:
+                messo = True
+                scelta[r] = g
+                cerca(i + 1, usati | {g["gid"]}, tot + g["punti"], scelta)
+                del scelta[r]
+        if not messo:                                   # nessuno può giocare quel ruolo: posto vuoto, 0
+            cerca(i + 1, usati, tot, scelta)
+    cerca(0, frozenset(), 0.0, {})
+    return max(best[0], 0.0), best[1]
+
+
+def consuntivo(s: str, n: int) -> list[dict]:
+    """Per ogni squadra: schierati, migliore, efficienza, la formazione migliore. Rosa alla scadenza (shared/rosa)."""
+    import calcolo as CA
+    import live
+    from shared import rosa
+    g = db.giornata(s, n)
+    c = live.calcolo(s, n)
+    scad = g.get("prima_partita")
+    tutti = {r["id"]: r for r in (db.q("SELECT id, nome_common, espn_id FROM giocatori", many=True) or [])}
+    dove = {r["giocatore_id"]: r["team_id"] for r in (db.q("SELECT giocatore_id, team_id FROM contratti WHERE attivo",
+                                                             many=True) or [])}
+    if scad:                                            # alla scadenza: il registro dei movimenti corregge i contratti di adesso
+        dove.update(rosa.squadre_al(db.q, list(tutti), scad))
+    atleti = [tutti[gid]["espn_id"] for gid, t in dove.items() if t and gid in tutti and tutti[gid]["espn_id"]]
+    punti = CA.punteggio_giocatori(s, g, atleti)
+    pos = _posizioni([gid for gid, t in dove.items() if t])
+    out = []
+    for r in c["risultati"]:
+        for team, sq in ((r["casa"], r["sc"]), (r["trasferta"], r["st"])):
+            rosa_t = [{"gid": gid, "nome": tutti[gid]["nome_common"], "posizioni": pos.get(gid, set()),
+                       "punti": float((punti.get(tutti[gid]["espn_id"]) or {}).get("fp") or 0.0)}
+                      for gid, t in dove.items() if t == team and gid in tutti]
+            meglio, form = migliore(rosa_t)
+            fatti = float(sq["totale"])
+            eff = (fatti / meglio) if meglio > 0 else 1.0
+            out.append({"team": team, "schierati": fatti, "migliore": max(meglio, fatti), "efficienza": min(eff, 1.0),
+                        "formazione": form})
+    return out
+
+
+def salva(s: str, n: int, righe: list[dict]) -> None:
+    migra()
+    for x in righe:
+        db.q("""INSERT INTO lega_tanking (stagione, giornata, team_id, schierati, migliore, efficienza) VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (stagione, giornata, team_id) DO UPDATE SET schierati = EXCLUDED.schierati,
+                  migliore = EXCLUDED.migliore, efficienza = EXCLUDED.efficienza""",
+             (s, n, x["team"], x["schierati"], x["migliore"], x["efficienza"]))
+
+
+def testo_consuntivo(s: str, n: int, righe: list[dict]) -> str:
+    sotto = sorted([x for x in righe if x["efficienza"] < SOGLIA_EFFICIENZA], key=lambda x: x["efficienza"])
+    volte = {r["team_id"]: r["n"] for r in (db.q("""SELECT team_id, COUNT(*) AS n FROM lega_tanking
+                                                  WHERE stagione = %s AND giornata <= %s AND efficienza < %s GROUP BY team_id""",
+                                               (s, n, SOGLIA_EFFICIENZA), many=True) or [])}
+    try:
+        import classifica as C
+        cl, conv = C.calcola(s)
+        posto = {r["team"]: r["pos"] for r in cl} if conv else {}
+    except Exception:
+        posto = {}
+    n_sq = len(config.squadre())
+    media = sum(x["efficienza"] for x in righe) / len(righe) if righe else 1.0
+    out = [f"🕵️ <b>Tanking a consuntivo · giornata {n}</b>",
+           f"<i>Solo per gli admin. Punti dei titolari schierati rispetto alla formazione migliore possibile con la rosa "
+           f"alla scadenza (un giocatore per ruolo tra le posizioni eleggibili, punti con le regole del calcolo). "
+           f"Indizi, non verdetti. Efficienza media della lega {media:.0%}.</i>", ""]
+    if not sotto:
+        out.append(f"✅ Tutte le squadre sopra il {SOGLIA_EFFICIENZA:.0%}.")
+    else:
+        out.append(f"⚠️ <b>Sotto il {SOGLIA_EFFICIENZA:.0%}</b>")
+        for x in sotto:
+            p = posto.get(x["team"])
+            fondo = " ⬇️" if p and p > n_sq * 2 / 3 else ""
+            v = volte.get(x["team"], 1)
+            form = ", ".join(f"{r} {e(g['nome'])} {tp(g['punti'])}" for r, g in x["formazione"].items())
+            out.append(f"• <b>{e(config.nome(x['team']))}</b>{f' ({p}ª{fondo})' if p else ''}: {tp(x['schierati'])} su "
+                       f"{tp(x['migliore'])} possibili, <b>{x['efficienza']:.0%}</b> · "
+                       f"{'prima volta' if v <= 1 else f'{v}ª volta'} in stagione"
+                       + (f"\n  <i>migliore: {form}</i>" if form else ""))
+    return "\n".join(out)
+
+
+async def manda_consuntivo(bot, s: str, n: int) -> None:
+    """Alla convalida (handlers_risultati): calcola, salva lo storico e manda il report al gruppo admin."""
+    import asyncio
+    import live
+    from handlers import log
+    try:
+        righe = await asyncio.to_thread(consuntivo, s, n)
+        salva(s, n, righe)
+        t = testo_consuntivo(s, n, righe)
+    except Exception as err:
+        logger.exception("Tanking a consuntivo G%s", n)
+        await log(bot, f"⚠️ Tanking a consuntivo della giornata {n} non riuscito ({e(str(err))[:200]})")
+        return
+    if config.gruppo_admin():
+        for pezzo in live._pezzi(t):
+            await bot.send_message(chat_id=config.gruppo_admin(), text=pezzo, parse_mode="HTML")

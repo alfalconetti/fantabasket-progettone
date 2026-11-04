@@ -10,7 +10,7 @@ Si parte da **`/admin_menu`**, il pannello coi bottoni. Come il `/menu` dei GM m
 
 Per trovare al volo l'id di una squadra: **`/list`** (nome, id e GM di tutte).
 
-**I bot sono solo per la lega** (Luca, 31/10): in privato rispondono solo ai GM di teams.json, agli admin e al dev; agli altri dicono «bot riservato ai GM della lega» (se pensano sia un errore, il dev). Da un gruppo o canale che non è scritto in globals.json escono da soli appena ce li aggiungono, e lo dicono al dev: un gruppo nuovo della lega va prima messo in globals.json. Un GM nuovo è autorizzato appena è in teams.json.
+**I bot sono solo per la lega** (Luca, 31/10): in privato rispondono solo ai GM di teams.json, agli admin e al dev; agli altri dicono «bot riservato ai GM della lega» (se pensano sia un errore, il dev). Da un gruppo o canale che non è scritto in globals.json escono da soli appena ce li aggiungono, e lo dicono al dev: un gruppo nuovo della lega va prima messo in globals.json. Un GM nuovo è autorizzato appena è in teams.json. Al bot principale lo sconosciuto trova anche il bottone **🙋 Richiedi accesso**: la richiesta arriva al dev con i bottoni per assegnargli subito una squadra (gli altri bot lo rimandano al principale).
 
 I comandi admin funzionano **solo in privato e nel gruppo admin**: scritti nel gruppo della lega o in un altro gruppo o canale, il bot li ignora in silenzio, anche se a scriverli è un admin (Luca, 31/10). Lì passano solo i comandi pubblici, quelli del menu `/` dei gruppi e dei GM.
 
@@ -42,6 +42,7 @@ Per orientarsi:
 - **Free agency:** aperta in `regular-season-fa`, `offseason-fa` e `offseason-ruoli`.
 - **Cap in offseason:** 165M per tutti.
 - **Cap in regular season:** 150M meno le eventuali penalità della squadra, con salary floor a 115M. La penalità si imposta con `/set_cap_penalizzato team07 5` (0 per toglierla); vale per tutti e due i bot.
+- **Un GM lascia:** il nuovo GM scrive /start al bot principale e preme 🙋 Richiedi accesso; al dev arriva la richiesta con **🔁 Assegna una squadra**: scegli la squadra e confermi (nome del GM preso da Telegram, si cambia da ✏️ Nomi squadre e GM). Le richieste in attesa sono anche in `/admin_menu` → 👤 Riassegna squadra. Senza richiesta: `/riassegna team07 123456789 Mario Rossi` (id della squadra da `/list`, lo user_id Telegram del nuovo GM, il suo nome). Chiede conferma; la squadra resta com'è (roster, contratti, pick, cap, storico), cambia solo chi la gestisce. Il vecchio GM perde l'accesso a tutti i bot, il nuovo lo ha subito; tutti e due ricevono un messaggio (il nuovo solo se ha già avviato il bot). Non si può dare a chi è già GM di un'altra squadra.
 
 ---
 

@@ -10,6 +10,11 @@ Ogni bot installa questa guardia prima di tutti gli handler (gruppo -101, prima 
 - nei gruppi della lega risponde a tutti quelli che ci sono (i gruppi li gestiscono gli admin).
 
 teams.json e globals.json si rileggono quando cambiano: un GM nuovo è autorizzato appena è nel file.
+
+Il bot principale installa la guardia con `richiesta=` (v6.26.0, Luca 04/11): allo sconosciuto in privato, insieme a
+«bot riservato», un bottone 🙋 Richiedi accesso (callback `accesso:chiedi`), l'unica cosa che la guardia lascia fare a
+chi non è autorizzato; la richiesta arriva al dev coi bottoni per assegnargli subito una squadra (handlers/accesso.py).
+Gli altri bot rimandano al bot principale.
 """
 import json
 import logging
@@ -23,6 +28,11 @@ logger = logging.getLogger(__name__)
 GRUPPO_GUARDIA = -101
 RISERVATO = ("🔒 Questo bot è riservato ai GM della lega.\n"
              "Se pensi che sia un errore, scrivi al dev.")
+RISERVATO_RICHIESTA = ("🔒 Questo bot è riservato ai GM della lega.\n"
+                       "Se sei un GM nuovo, chiedi l'accesso: la richiesta arriva al dev, che ti assegna la squadra.")
+RISERVATO_ALTRI = RISERVATO + "\nSe sei un GM nuovo, chiedi l'accesso dal bot principale (/start)."
+CHIEDI = "accesso:chiedi"
+_hook = {"richiesta": None}
 _cache: dict[str, tuple[float, object]] = {}
 
 
@@ -140,17 +150,32 @@ async def guardia(update: Update, context) -> None:
         raise ApplicationHandlerStop
     # privato di uno non autorizzato
     logger.info("Utente %s non autorizzato: bot riservato ai GM", user.id)
+    richiesta = _hook["richiesta"]
+    cq = update.callback_query
+    if richiesta and cq and getattr(cq, "data", None) == CHIEDI:
+        try:
+            await richiesta(update, context)
+        except Exception as err:
+            logger.warning("Richiesta di accesso di %s: %s", user.id, err)
+        raise ApplicationHandlerStop
     try:
-        if update.callback_query:
-            await update.callback_query.answer(RISERVATO, show_alert=True)
+        if cq:
+            await cq.answer(RISERVATO if richiesta else RISERVATO_ALTRI, show_alert=True)
         elif update.inline_query:
             await update.inline_query.answer([], cache_time=60)
         elif update.effective_message:
-            await update.effective_message.reply_text(RISERVATO)
+            if richiesta:
+                from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+                await update.effective_message.reply_text(RISERVATO_RICHIESTA, reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("🙋 Richiedi accesso", callback_data=CHIEDI)]]))
+            else:
+                await update.effective_message.reply_text(RISERVATO_ALTRI)
     except Exception:
         pass
     raise ApplicationHandlerStop
 
 
-def installa(app) -> None:
+def installa(app, richiesta=None) -> None:
+    """richiesta: async (update, context) per il bottone 🙋 Richiedi accesso (solo il bot principale)."""
+    _hook["richiesta"] = richiesta
     app.add_handler(TypeHandler(Update, guardia), group=GRUPPO_GUARDIA)

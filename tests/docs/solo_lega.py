@@ -11,7 +11,7 @@ from telegram.ext import ApplicationHandlerStop
 
 for bot in ("fantabasket-main", "fantabasket-aste-beta", "fantabasket-ipanchinari", "fantabasket-loucabot"):
     t = open(os.path.join(ROOT, bot, "bot.py"), encoding="utf-8").read()
-    ok("solo_lega.installa(app)" in t and t.index("solo_lega.installa") < t.index("solo_gruppo_admin.installa"),
+    ok("solo_lega.installa(app" in t and t.index("solo_lega.installa") < t.index("solo_gruppo_admin.installa"),
        f"{bot}: guardia della lega installata, prima di quella dei comandi admin")
 
 # config finta: GM 101 e 102, admin e dev 900, chat della lega -1 (canale), -2 (gruppo admin), -5 (gruppo della lega)
@@ -58,7 +58,7 @@ def gira(u, c):
         return "fermo"
 
 u, c, b = upd("private", 555, 555)
-ok(gira(u, c) == "fermo" and b.fatto == [("risposta", L.RISERVATO)] and "scrivi al dev" in L.RISERVATO,
+ok(gira(u, c) == "fermo" and b.fatto == [("risposta", L.RISERVATO_ALTRI)] and "scrivi al dev" in L.RISERVATO_ALTRI,
    "sconosciuto in privato: «bot riservato ai GM», e se è un errore il dev")
 u, c, b = upd("private", 101, 101)
 ok(gira(u, c) == "passa" and not b.fatto, "GM in privato: passa")
@@ -72,7 +72,7 @@ ok(gira(u, c) == "passa", "gruppo della lega: passa")
 fatti = []
 async def _segna(f, t): f.append(t)
 u, c, b = upd("private", 555, 555, callback_query=NS(answer=lambda t, show_alert=False: _segna(fatti, t)))
-ok(gira(u, c) == "fermo" and fatti == [L.RISERVATO], "bottone premuto da uno sconosciuto: l'avviso")
+ok(gira(u, c) == "fermo" and fatti == [L.RISERVATO_ALTRI], "bottone premuto da uno sconosciuto: l'avviso")
 u, c, b = upd("private", 555, 555, guest_message=NS(from_user=NS(id=555), guest_query_id="q1"))
 ok(gira(u, c) == "fermo" and b.fatto == [("guest", "Bot riservato ai GM della lega")], "guest mode da uno sconosciuto: riservato")
 u, c, b = upd("private", 101, 101, guest_message=NS(from_user=NS(id=101), guest_query_id="q2"))
@@ -83,3 +83,30 @@ ok(L.esito("private", 555, 555) == "ok", "GM nuovo in teams.json: autorizzato se
 json.dump({}, open(os.path.join(d, "g.json"), "w"))
 os.utime(os.path.join(d, "g.json"), (1e9 + 7, 1e9 + 7))
 ok(L.esito("supergroup", -999, 1) == "ok", "globals.json senza chat: non esce da niente (meglio che uscire dal gruppo admin)")
+
+# bot principale (v6.26.0): bottone 🙋 Richiedi accesso, l'unica cosa che passa per uno sconosciuto
+t = open(os.path.join(ROOT, "fantabasket-main", "bot.py"), encoding="utf-8").read()
+ok("richiesta=accesso.richiedi" in t, "bot principale: guardia con la richiesta di accesso")
+json.dump({"teams": [{"id": "team01", "gm_ids": [101]}]}, open(os.path.join(d, "t.json"), "w"))
+os.utime(os.path.join(d, "t.json"), (1e9 + 9, 1e9 + 9))
+json.dump({"admin_ids": [900], "dev_id": 900, "admin_group_id": "-2"}, open(os.path.join(d, "g.json"), "w"))
+os.utime(os.path.join(d, "g.json"), (1e9 + 11, 1e9 + 11))
+chiamate = []
+async def _rich(u, c): chiamate.append(u.effective_user.id)
+L._hook["richiesta"] = _rich
+mk = []
+class Msg2(Msg):
+    async def reply_text(self, t, **k): self.f.append(("risposta", t)); mk.append(k.get("reply_markup"))
+u, c, b = upd("private", 555, 555)
+u.effective_message = Msg2(b.fatto)
+ok(gira(u, c) == "fermo" and b.fatto[0][1] == L.RISERVATO_RICHIESTA and mk[0].inline_keyboard[0][0].callback_data == L.CHIEDI,
+   "sconosciuto: «riservato» col bottone 🙋 Richiedi accesso")
+u, c, b = upd("private", 555, 555, callback_query=NS(data=L.CHIEDI))
+ok(gira(u, c) == "fermo" and chiamate == [555], "il bottone di richiesta passa alla funzione del bot")
+fatti2 = []
+u, c, b = upd("private", 555, 555, callback_query=NS(data="menu:x", answer=lambda t, show_alert=False: _segna(fatti2, t)))
+ok(gira(u, c) == "fermo" and chiamate == [555] and fatti2, "altri bottoni: no")
+L._hook["richiesta"] = None
+u, c, b = upd("private", 555, 555)
+ok(gira(u, c) == "fermo" and b.fatto == [("risposta", L.RISERVATO_ALTRI)] and "bot principale" in L.RISERVATO_ALTRI,
+   "gli altri bot: rimandano al bot principale")

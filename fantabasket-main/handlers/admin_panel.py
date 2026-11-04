@@ -59,6 +59,7 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
         ("⚠️ Penalità",         "pen:adm",     True),
         ("📊 Situazione cap",   "adm:cap",     True),
         ("✏️ Nomi squadre e GM", "myt:lista",  True),
+        ("👤 Riassegna squadra", "riass:menu", True),
         ("⚙️ Impostazioni",     "set:home",    True),
         ("🩺 Controllo dati",   "rdati:md",    True),
         ("📜 Registro",         "reg:7",       True),
@@ -948,6 +949,116 @@ async def cmd_set_cap_penalizzato(update: Update, context: ContextTypes.DEFAULT_
         logger.warning("sync dopo set_cap_penalizzato: %s", e)
 
 
+# ── riassegnare una franchigia (v6.25.0) ─────────────────────────────────────────
+
+def riassegna(team_id: str, gm_id: int, gm_nome: str) -> dict:
+    """La squadra passa al nuovo GM: gm_ids = [gm_id], gm_nome. Roster, contratti, pick e storico restano della
+    squadra. → la squadra com'era prima."""
+    import copy, json
+    with open(tm.TEAMS_PATH, encoding="utf-8") as f:
+        data = json.load(f)
+    t = next((x for x in data["teams"] if x["id"] == team_id), None)
+    if t is None:
+        raise ValueError(f"squadra {team_id} non trovata")
+    prima = copy.deepcopy(t)
+    t["gm_ids"], t["gm_nome"] = [int(gm_id)], gm_nome
+    tmp = tm.TEAMS_PATH + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    import os
+    os.replace(tmp, tm.TEAMS_PATH)
+    return prima
+
+
+async def cmd_riassegna(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/riassegna <team_id> <user_id> <nome GM> (admin): la franchigia passa a un nuovo GM, con conferma."""
+    msg = update.effective_message
+    if not is_admin(update.effective_user.id):
+        await msg.reply_text("⛔ Solo admin.")
+        return
+    a = context.args or []
+    if len(a) < 3 or not a[1].lstrip("-").isdigit():
+        await msg.reply_text("Uso: /riassegna <team_id> <user_id Telegram> <nome GM>\n"
+                             "Es: /riassegna team07 123456789 Mario Rossi\n"
+                             "Gli id delle squadre sono in /list; lo user_id lo vede il nuovo GM con @userinfobot.")
+        return
+    team = tm.get_team_by_id(a[0])
+    if not team:
+        await msg.reply_text(f"❌ Squadra '{html.escape(a[0])}' non trovata. Gli id sono in /list.")
+        return
+    uid, nome = int(a[1]), " ".join(a[2:]).strip()
+    altra = tm.get_team_by_gm(uid)
+    if altra and altra["id"] != team["id"]:
+        await msg.reply_text(f"❌ {uid} è già GM di <b>{html.escape(altra['nome'])}</b>: un GM, una squadra.", parse_mode="HTML")
+        return
+    t, kb = conferma_riassegna(context, team, uid, nome)
+    await msg.reply_text(t, parse_mode="HTML", reply_markup=kb)
+
+
+def conferma_riassegna(context, team: dict, uid: int, nome: str, nota: str = "") -> tuple[str, InlineKeyboardMarkup]:
+    """Il riepilogo coi bottoni ✅ Riassegna / ❌ Annulla (da /riassegna e dal menu, handlers/accesso)."""
+    context.user_data["riassegna"] = {"team": team["id"], "uid": uid, "nome": nome}
+    kb = InlineKeyboardMarkup([[InlineKeyboardButton("✅ Riassegna", callback_data=f"riass:ok:{team['id']}:{uid}"),
+                                InlineKeyboardButton("❌ Annulla", callback_data="riass:no")]])
+    return (f"🔁 <b>Riassegnare {html.escape(team['nome'])}?</b>\n"
+            f"GM attuale: {html.escape(team.get('gm_nome') or '—')} ({', '.join(str(x) for x in team.get('gm_ids', [])) or '—'})\n"
+            f"Nuovo GM: <b>{html.escape(nome)}</b> ({uid})\n\n"
+            f"Roster, contratti, pick, cap e storico restano alla squadra. Il vecchio GM perde l'accesso ai bot "
+            f"(se non è anche admin), il nuovo lo ha subito: tutti e quattro i bot rileggono teams.json." + nota), kb
+
+
+async def cb_riassegna(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    if not is_admin(q.from_user.id):
+        await q.answer("Solo admin.", show_alert=True)
+        return
+    await q.answer()
+    p = context.user_data.pop("riassegna", None)
+    parti = q.data.split(":")
+    if parti[1] == "no":
+        await q.edit_message_text("Riassegnazione annullata.")
+        return
+    if not p or p["team"] != parti[2] or str(p["uid"]) != parti[3]:
+        await q.edit_message_text("⚠️ Richiesta scaduta: rilancia /riassegna.")
+        return
+    try:
+        prima = riassegna(p["team"], p["uid"], p["nome"])
+    except Exception as err:
+        logger.exception("riassegna")
+        await q.edit_message_text(f"❌ Riassegnazione non riuscita: {html.escape(str(err))[:200]}")
+        return
+    nome_sq = prima.get("nome", p["team"])
+    try:
+        from handlers import accesso
+        accesso.segna_stato(p["uid"], "assegnata")
+    except Exception as e:
+        logger.warning("richiesta di accesso assegnata: %s", e)
+    await q.edit_message_text(f"✅ <b>{html.escape(nome_sq)}</b> riassegnata a <b>{html.escape(p['nome'])}</b> ({p['uid']}).\n"
+                              f"Prima: {html.escape(prima.get('gm_nome') or '—')}.", parse_mode="HTML")
+    logger.info("riassegna: %s %s → %s da %d", p["team"], prima.get("gm_ids"), p["uid"], q.from_user.id)
+    from handlers.registro import segna
+    await segna(context.bot, q.from_user, "admin", "riassegnazione franchigia", squadre=p["team"],
+                oggetto="GM della squadra", prima=f"{prima.get('gm_nome') or '—'} ({', '.join(str(x) for x in prima.get('gm_ids', []))})",
+                dopo=f"{p['nome']} ({p['uid']})")
+    for uid in prima.get("gm_ids", []):
+        if int(uid) == p["uid"]:
+            continue
+        try:
+            await context.bot.send_message(int(uid), f"ℹ️ La squadra {nome_sq} è stata riassegnata a un nuovo GM. Grazie di aver giocato!")
+        except Exception:
+            pass
+    try:
+        await context.bot.send_message(p["uid"], f"🏀 Benvenuto! Da ora sei il GM di <b>{html.escape(nome_sq)}</b>. "
+                                                 f"Scrivi /start per cominciare.", parse_mode="HTML")
+    except Exception:
+        pass                                             # non ha ancora avviato il bot: lo vedrà con /start
+    try:
+        from gas_client import sync_teams
+        sync_teams([p["team"]])
+    except Exception as e:
+        logger.warning("sync dopo riassegna: %s", e)
+
+
 async def cmd_registra_firma(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /registra_firma <team_id> <importo> <anni> <nome giocatore>
@@ -1200,6 +1311,9 @@ def get_handlers() -> list:
         conv,
         CommandHandler("list",               cmd_list),
         CommandHandler("set_cap_penalizzato", cmd_set_cap_penalizzato),
+        CommandHandler("riassegna",          cmd_riassegna),
+        CallbackQueryHandler(cb_riassegna,   pattern=r"^riass:(ok:[^:]+:-?\d+|no)$"),
+        *__import__("handlers.accesso", fromlist=["handlers"]).handlers(),
         CommandHandler("registra_firma",     cmd_registra_firma),
         CallbackQueryHandler(cb_registra_firma_sel, pattern=r"^rfirma:\d+:.+:\d+:\d+$"),
         CommandHandler("admin_menu", cmd_admin_menu),
