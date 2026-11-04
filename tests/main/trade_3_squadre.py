@@ -158,8 +158,26 @@ async def main():
     except ImportError:
         pass
     _df = open(os.path.join(os.path.dirname(os.path.abspath(TT2.TEMPLATE)), "Dockerfile")).read()
-    ok("fonts-noto-color-emoji" in _df and "TYPST_FONT_PATHS=/usr/share/fonts" in _df,
-       "Dockerfile: Typst statico senza fontconfig, i font gli vanno indicati (TYPST_FONT_PATHS)")
+    _req = open(os.path.join(os.path.dirname(os.path.abspath(TT2.TEMPLATE)), "requirements.txt")).read()
+    import typst_compila as _TC
+    ok("fonts-noto-color-emoji" in _df and "typst==" in _req and "typst-x86_64" not in _df and _TC.FONT == ["/usr/share/fonts"],
+       "Typst con la libreria (v6.24.0): nelle dipendenze, niente programma nel Dockerfile, font indicati esplicitamente")
+    # il comando costruito come per il programma, eseguito con la libreria: PNG e PDF veri
+    import tempfile as _tf2
+    for _est in ("png", "pdf"):
+        _o = _tf2.NamedTemporaryFile(suffix=f".{_est}", delete=False); _o.close()
+        _TC.esegui(["typst", "compile", "--root", "/", "--ppi", "72", "--input", "dati=" + json.dumps(_d, ensure_ascii=False, default=str),
+                    os.path.abspath(TT2.TEMPLATE), _o.name])
+        _b = open(_o.name, "rb").read()
+        ok(_b[:4] == (b"\x89PNG" if _est == "png" else b"%PDF"), f"typst_compila: /trova_trade in {_est.upper()} con la libreria")
+        os.unlink(_o.name)
+    ok(_TC.leggi(["typst", "compile", "--input", "a=b=c", "--ppi", "200", "t.typ", "o.png"]) == ("t.typ", "o.png", {"a": "b=c"}, 200.0, "/"),
+       "typst_compila: lettura del comando (un = dentro il valore resta)")
+    try:
+        _TC.esegui(["typst", "compile", "/nonesiste.typ", "/tmp/x.png"])
+        ok(False, "typst_compila: errore → RuntimeError")
+    except RuntimeError as _err:
+        ok(str(_err).startswith("Errore Typst"), "typst_compila: errore → RuntimeError «Errore Typst: …»")
     # scrivi_trade with '?' in old bozza
     t2=db.crea_trade_bozza("team01",3,"2026")
     for o,t in enumerate(["team01","team02","team03"],1): db.aggiungi_squadra_trade(t2,t,o)

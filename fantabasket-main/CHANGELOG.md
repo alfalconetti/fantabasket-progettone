@@ -1819,3 +1819,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.23.0 (2026-11-04)
 
 - loucabot v84: **`/giornata` come immagine** (Luca, 04/11): il tabellone della giornata, lo stesso del live; a giornata calcolata o convalidata coi risultati (etichetta CALCOLATA o CONVALIDATA, in grassetto chi ha vinto, supplementari), senza etichette dei titolari né legenda; non ancora iniziata, le partite in testo. **`/risultati`** resta il testo (non sono più sinonimi). La prima pagina di `/pdf_giornata` è questo tabellone
+
+## v6.24.0 (2026-11-04)
+
+- **Typst con la libreria Python** (Luca, 01/11 e 04/11): il bot principale non lancia più il programma `typst` per ogni immagine ma usa la libreria `typst` 0.15, la stessa di loucabot (`typst_compila.py`): una versione sola per i due bot, niente processo in più, errori come eccezioni. I comandi restano costruiti come prima (`--input`, `--ppi`), quindi template e immagini non cambiano. Tolti dal Dockerfile il programma e `TYPST_FONT_PATHS`; i font sono indicati alla libreria. Nelle prove, roster, asset (PNG e PDF, oggi e a una data), carriera e `/trova_trade` si disegnano davvero con la libreria

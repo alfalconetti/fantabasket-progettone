@@ -178,6 +178,19 @@ try:
 except ImportError:
     pass
 
+# v6.24.0: roster, asset e carriera veri, col Typst della libreria (PNG e PDF), a oggi e a una data
+import teams as _tm
+_tq = _tm.get_team_by_id("team04")
+for _gen, _nome in ((RO._genera_roster_png, "roster"), (RO._genera_assets_png, "asset")):
+    for _fmt in ("png", "pdf"):
+        for _q in (None, datetime(2026, 12, 1, 23, 59, tzinfo=timezone.utc)):
+            _p = asyncio.run(_gen(_tq, "2026", as_of=_q, formato=_fmt))
+            _b = open(_p, "rb").read()
+            if _fmt == "png" and _q is None and _nome == "roster" and os.environ.get("ROSTER_PNG"): open(os.environ["ROSTER_PNG"], "wb").write(_b)
+            os.unlink(_p)
+            ok(_b[:4] == (b"\x89PNG" if _fmt == "png" else b"%PDF"), f"{_nome} {_fmt.upper()} {'a una data' if _q else 'di oggi'} col Typst della libreria")
+_pc = asyncio.run(C.genera_png(p))
+ok(open(_pc, "rb").read()[:4] == b"\x89PNG", "carriera col Typst della libreria"); os.unlink(_pc)
 # /assets a una data (v6.21.0): diritti col nome, niente STEPIEN nel passato
 ok(RO._diritti_con_nome([{"giocatore_id": r, "pick_numero": 4, "anno_draft": "2026"}])[0]["nome_common"] == "Rook Prova",
    "/assets a una data: i diritti di get_diritti_at col nome")

@@ -10,7 +10,7 @@ Template: roster.typ nella root del bot
 import asyncio
 import logging
 import os
-import subprocess
+import typst_compila
 import math as _math
 
 
@@ -503,12 +503,13 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None, formato: str
         tmp.name,
     ]
 
-    # Typst in un thread: mentre compila il bot continua a rispondere (prima lo bloccava)
-    result = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        logger.error("Typst error: %s", result.stderr)
+    # Typst in un thread: mentre compila il bot continua a rispondere (prima lo bloccava); libreria dalla v6.24.0
+    try:
+        await asyncio.to_thread(typst_compila.esegui, cmd)
+    except Exception as err:
+        logger.error("Typst roster: %s", err)
         _togli(tmp.name)                 # niente PNG vuoti lasciati in /tmp
-        raise RuntimeError(f"Errore Typst: {result.stderr[:300]}")
+        raise
 
     return tmp.name
 
@@ -736,12 +737,13 @@ async def _genera_assets_png(team: dict, stagione: str, as_of=None, formato: str
         tmp.name,
     ]
 
-    # Typst in un thread: mentre compila il bot continua a rispondere (prima lo bloccava)
-    result = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        logger.error("Typst assets error: %s", result.stderr)
+    # Typst in un thread: mentre compila il bot continua a rispondere (prima lo bloccava); libreria dalla v6.24.0
+    try:
+        await asyncio.to_thread(typst_compila.esegui, cmd)
+    except Exception as err:
+        logger.error("Typst assets: %s", err)
         _togli(tmp.name)                 # niente PNG vuoti lasciati in /tmp
-        raise RuntimeError(f"Errore Typst: {result.stderr[:300]}")
+        raise
 
     return tmp.name
 

@@ -6,3 +6,4 @@ lxml
 html5lib
 pypdf==5.9.0
 pillow==12.3.0
+typst==0.15.0

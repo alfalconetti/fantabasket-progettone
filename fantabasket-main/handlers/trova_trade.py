@@ -20,7 +20,7 @@ import json
 import logging
 import os
 import re
-import subprocess
+import typst_compila
 import tempfile
 from datetime import timedelta
 
@@ -231,14 +231,15 @@ async def immagine(trade_id: int) -> str:
     tmp.close()
     cmd = ["typst", "compile", "--root", "/", "--ppi", str(PPI), "--input", "dati=" + json.dumps(d, ensure_ascii=False, default=str),
            os.path.abspath(TEMPLATE), tmp.name]
-    r = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True)
-    if r.returncode != 0:
+    try:                                              # libreria Typst dalla v6.24.0
+        await asyncio.to_thread(typst_compila.esegui, cmd)
+    except Exception as err:
         try:
             os.unlink(tmp.name)                       # niente PNG vuoti lasciati in /tmp
         except OSError:
             pass
-        logger.error("Typst trova_trade: %s", r.stderr)
-        raise RuntimeError(f"Errore Typst: {r.stderr[:300]}")
+        logger.error("Typst trova_trade: %s", err)
+        raise
     return tmp.name
 
 
