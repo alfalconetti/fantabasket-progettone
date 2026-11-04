@@ -916,6 +916,30 @@ def giornata_live(s: str, n: int | None = None) -> dict | None:
     return calendario.da_mostrare(s)
 
 
+async def cmd_live_img(update, context):
+    """/live [N] (per tutti, v6.20.0, Luca 04/11): l'immagine del live a chi la chiede, coi dati già scaricati (non
+    riscarica niente); la giornata con le stesse regole di /live_results."""
+    import asyncio
+    msg = update.effective_message
+    s = config.stagione()
+    n = next((int(x.lstrip("Gg")) for x in (context.args or []) if x.lstrip("Gg").isdigit()), None)
+    g = giornata_live(s, n)
+    if not g:
+        await msg.reply_text("Nessuna giornata da mostrare." if not n else f"La giornata {n} non c'è.")
+        return
+    st = stato(s, g["numero"]) or {}
+    if st.get("chiuso"):
+        await msg.reply_text(f"La giornata {g['numero']} è già convalidata: i risultati definitivi con /giornata {g['numero']}.")
+        return
+    if g["dal"] > datetime.now(nba.ET).date() and not st.get("message_id"):
+        await msg.reply_text(f"La giornata {g['numero']} non è ancora iniziata.")
+        return
+    ora = st.get("aggiornato") or datetime.now(timezone.utc)
+    c = await asyncio.to_thread(calcolo, s, g["numero"])
+    png = await asyncio.to_thread(immagine, dati_immagine(c, ora))
+    await msg.reply_photo(png, caption=didascalia(c, ora), parse_mode="HTML", **TEMPI)
+
+
 async def cmd_live_results(update, context):
     """/live_results [N]: il testo completo del live (anche lungo, in più messaggi), dai tabellini già scaricati."""
     import asyncio

@@ -323,7 +323,61 @@ def _build_giocatori_str(roster: list, contratti: list, team_colori: dict = None
     return ";".join(righe)
 
 
-def _nba_ed_eta(roster: list, as_of=None) -> dict:
+_MINI_DIR = os.path.join(tempfile.gettempdir(), "fb_miniature")
+
+
+def miniatura(path: str, lato: int, jpeg: bool = False) -> str:
+    """Una copia piccola dell'immagine (lato lungo `lato` pixel), per il PDF dei roster (v6.20.0, Luca 04/11: in vettoriale
+    con le foto intere passava i 50 MB di Telegram). In cache in /tmp, rifatta se l'originale cambia. JPEG su bianco per
+    le foto (molto più leggero), PNG per i loghi (la trasparenza serve). Se qualcosa va storto, l'originale."""
+    if not path or not os.path.exists(path):
+        return path
+    try:
+        from PIL import Image
+        os.makedirs(_MINI_DIR, exist_ok=True)
+        st = os.stat(path)
+        dest = os.path.join(_MINI_DIR, f"{abs(hash((path, st.st_mtime, lato)))}.{'jpg' if jpeg else 'png'}")
+        if not os.path.exists(dest):
+            im = Image.open(path)
+            im.thumbnail((lato, lato))
+            if jpeg:
+                fondo = Image.new("RGB", im.size, "white")
+                fondo.paste(im.convert("RGBA"), mask=im.convert("RGBA").split()[3])
+                fondo.save(dest, "JPEG", quality=82)
+            else:
+                im.save(dest, "PNG", optimize=True)
+        return dest
+    except Exception as e:
+        logger.warning("Miniatura di %s: %s", path, e)
+        return path
+
+
+def _fantamedie_roster(roster: list, stagione: str, as_of=None) -> tuple[dict, set, str, str]:
+    """Fantapunti (colonna FP di /roster e /assets): stessa stagione per tutta la lega (quella in corso da quando
+    almeno metà dei giocatori sotto contratto ce l'ha). Chi in quella stagione non ce l'ha (v5.4.2: i rookie a inizio
+    stagione) mostra quella dell'altra stagione con l'asterisco; "—" chi non ce l'ha in nessuna. Roster a una data:
+    tutto a quella data. → (fm, fm_altra, fm_label, fm_nota)."""
+    fm_altra, fm_nota = set(), ""
+    try:
+        stagione_fm = db.stagione_fantamedia(as_of)
+        ids = [r["giocatore_id"] for r in roster]
+        fm = db.fantamedie(ids, stagione_fm, as_of)
+        # solo a inizio stagione (si mostra ancora la stagione prima): chi non ce l'ha prende quella in corso
+        corrente = str(int(stagione) + 1) if as_of is None else str(as_of.year + 1 if as_of.month >= 7 else as_of.year)
+        altra = str(int(stagione_fm) + 1)
+        extra = db.fantamedie([i for i in ids if i not in fm], altra, as_of) if altra == corrente else {}
+        if extra:
+            fm.update(extra)
+            fm_altra = set(extra)
+            fm_nota = f"* = FP {int(altra) - 1 - 2000:02d}-{int(altra) - 2000:02d}"
+        fm_label = f"FP {int(stagione_fm) - 1 - 2000:02d}-{int(stagione_fm) - 2000:02d}"
+    except Exception as e:
+        logger.warning("Fantapunti per il roster: %s", e)
+        fm, fm_label = {}, "FP"
+    return fm, fm_altra, fm_label, fm_nota
+
+
+def _nba_ed_eta(roster: list, as_of=None, mini: bool = False) -> dict:
     """Per /roster (v6.13.0, Luca 31/10): squadra NBA (sigla, colore, logo), età e foto di ogni giocatore, oggi o
     alla data di /roster: la squadra NBA a quell'istante con la stessa storia di /carriera (roster ESPN e
     Basketball-Reference), l'età a quel giorno, la foto ESPN di loucabot (config/foto/<id ESPN>.png)."""
@@ -356,8 +410,12 @@ def _nba_ed_eta(roster: list, as_of=None) -> dict:
         sq = SN.squadra(sigla) or {}
         foto = os.path.join(CAR.FOTO_DIR, f"{x['espn_id']}.png") if x.get("espn_id") else ""
         eta = _eta(x.get("data_nascita"), as_of)
-        out[gid] = {"sigla": sq.get("sigla", ""), "colore": sq.get("colore", ""), "logo": sq.get("logo", ""),
-                    "eta": "" if eta is None else eta, "foto": foto if foto and os.path.exists(foto) else "",
+        foto = foto if foto and os.path.exists(foto) else ""
+        logo = sq.get("logo", "")
+        if mini:                                   # PDF dei roster: foto e loghi piccoli
+            foto, logo = (miniatura(foto, 120, jpeg=True) if foto else ""), (miniatura(logo, 64) if logo else "")
+        out[gid] = {"sigla": sq.get("sigla", ""), "colore": sq.get("colore", ""), "logo": logo,
+                    "eta": "" if eta is None else eta, "foto": foto,
                     "pg": "" if pg is None else pg}
     return out
 
@@ -399,9 +457,9 @@ def _fine_10day(team_id: str) -> str:
     return ""
 
 
-async def _genera_roster_png(team: dict, stagione: str, as_of=None, formato: str = "png") -> str:
+async def _genera_roster_png(team: dict, stagione: str, as_of=None, formato: str = "png", ppi: int = PPI_ROSTER) -> str:
     """
-    Genera il PNG del roster tramite Typst (o il PDF, `formato="pdf"`, per /pdf_roster).
+    Genera il PNG del roster tramite Typst (o il PDF, `formato="pdf"`, con foto e loghi in miniatura, per /pdf_roster).
     as_of: datetime opzionale — se presente, mostra il roster a quella data.
     """
     team_id = team["id"]
@@ -415,28 +473,8 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None, formato: str
         contratti = db.get_contratti_team(team_id)
 
     ruoli, posizioni = _ruoli_e_posizioni(team_id, stagione, as_of)
-    # Fantapunti (colonna FP): stessa stagione per tutta la lega (quella in corso da quando
-    # almeno metà dei giocatori sotto contratto ce l'ha). Chi in quella stagione non ce l'ha
-    # (v5.4.2: i rookie a inizio stagione) mostra quella dell'altra stagione con l'asterisco;
-    # "—" chi non ce l'ha in nessuna. Roster a una data: tutto a quella data
-    fm_altra, fm_nota = set(), ""
-    try:
-        stagione_fm = db.stagione_fantamedia(as_of)
-        ids = [r["giocatore_id"] for r in roster]
-        fm = db.fantamedie(ids, stagione_fm, as_of)
-        # solo a inizio stagione (si mostra ancora la stagione prima): chi non ce l'ha prende quella in corso
-        corrente = str(int(stagione) + 1) if as_of is None else str(as_of.year + 1 if as_of.month >= 7 else as_of.year)
-        altra = str(int(stagione_fm) + 1)
-        extra = db.fantamedie([i for i in ids if i not in fm], altra, as_of) if altra == corrente else {}
-        if extra:
-            fm.update(extra)
-            fm_altra = set(extra)
-            fm_nota = f"* = FP {int(altra) - 1 - 2000:02d}-{int(altra) - 2000:02d}"
-        fm_label = f"FP {int(stagione_fm) - 1 - 2000:02d}-{int(stagione_fm) - 2000:02d}"
-    except Exception as e:
-        logger.warning("Fantapunti per il roster: %s", e)
-        fm, fm_label = {}, "FP"
-    nba = _nba_ed_eta(roster, as_of)
+    fm, fm_altra, fm_label, fm_nota = _fantamedie_roster(roster, stagione, as_of)
+    nba = _nba_ed_eta(roster, as_of, mini=formato == "pdf")
     giocatori_str = _build_giocatori_str(roster, contratti, team_colori=team,
                                          ruoli=ruoli, posizioni=posizioni, fm=fm, fm_altra=fm_altra, nba=nba)
 
@@ -457,6 +495,8 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None, formato: str
 
     # Logo
     logo = _logo_path(team_id)
+    if formato == "pdf":
+        logo = miniatura(logo, 256)
 
     # Tagli e cambi ruolo — placeholder, da collegare a DB quando implementato
     stagione_str = settings.stagione_corrente()
@@ -484,7 +524,7 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None, formato: str
         "--input", f"fm_label={fm_label}",
         "--input", f"fm_nota={fm_nota}",
         "--input", f"fine_10day={'' if as_of else _fine_10day(team_id)}",
-        "--root", "/", "--ppi", str(PPI_ROSTER),
+        "--root", "/", "--ppi", str(ppi),
         os.path.abspath(TYPST_TEMPLATE),
         tmp.name,
     ]
@@ -655,8 +695,9 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
     diritti  = db.get_diritti_2nd_team(team_id)
 
     ruoli, posizioni = _ruoli_e_posizioni(team_id, stagione)
+    fm, fm_altra, fm_label, fm_nota = _fantamedie_roster(roster, stagione)      # v6.20.0: FP anche in /assets
     giocatori_str = _build_giocatori_str(roster, contratti, team_colori=team,
-                                         ruoli=ruoli, posizioni=posizioni)
+                                         ruoli=ruoli, posizioni=posizioni, fm=fm, fm_altra=fm_altra)
     picks_str     = _build_picks_str(picks, team_id)
     diritti_str   = _build_diritti_str(diritti)
 
@@ -695,6 +736,8 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
         "--input", f"fine_10day={_fine_10day(team_id)}",
         "--input", f"picks={picks_str}",
         "--input", f"diritti={diritti_str}",
+        "--input", f"fm_label={fm_label}",
+        "--input", f"fm_nota={fm_nota}",
         "--root", "/", "--ppi", str(PPI_ASSETS),
         os.path.abspath(ASSETS_TEMPLATE),
         tmp.name,
@@ -760,29 +803,45 @@ async def cmd_assets(update: Update, context: ContextTypes.DEFAULT_TYPE):
 _PDF_IN_CORSO = {"si": False}
 
 
-async def genera_pdf_roster(as_of=None) -> tuple[str, int]:
-    """Un PDF coi roster di tutte le squadre (una pagina ciascuna, ordine di teams.json), oggi o a una data: lo stesso
-    template di /roster in PDF, pagine unite con pypdf. → (percorso del PDF, squadre)."""
+LIMITE_PDF = 45 * 1024 * 1024           # Telegram: documenti dei bot fino a 50 MB
+
+
+def _unisci(pdfs: list[str]) -> str:
     from pypdf import PdfWriter
+    w = PdfWriter()
+    for p in pdfs:
+        w.append(p)
+    w.compress_identical_objects(remove_identicals=True)     # loghi NBA uguali in più pagine: una copia sola
+    out = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    out.close()
+    with open(out.name, "wb") as f:
+        w.write(f)
+    return out.name
+
+
+async def genera_pdf_roster(as_of=None) -> tuple[list[str], int]:
+    """I roster di tutte le squadre in un PDF vettoriale, una pagina ciascuna (ordine di teams.json), oggi o a una data:
+    il template di /roster in PDF con foto e loghi in miniatura (v6.20.0; con le foto intere passava i 50 MB di
+    Telegram), pagine unite con pypdf. Se è comunque troppo grande si divide in più file. → ([PDF], squadre)."""
     stagione = settings.stagione_corrente()
-    out = PdfWriter()
-    pezzi, n = [], 0
+    pagine = []
     try:
         for team in tm.get_all_teams():
             rs = db.get_roster_team_at(team["id"], as_of.isoformat()) if as_of else db.get_roster_team(team["id"])
-            if not rs:
-                continue
-            p = await _genera_roster_png(team, stagione, as_of=as_of, formato="pdf")
-            pezzi.append(p)
-            out.append(p)
-            n += 1
-        tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-        tmp.close()
-        with open(tmp.name, "wb") as f:
-            out.write(f)
-        return tmp.name, n
+            if rs:
+                pagine.append(await _genera_roster_png(team, stagione, as_of=as_of, formato="pdf"))
+        parti = 1
+        while True:
+            passo = -(-len(pagine) // parti) if pagine else 1
+            gruppi = [pagine[i:i + passo] for i in range(0, len(pagine), passo)] or [[]]
+            pdfs = [await asyncio.to_thread(_unisci, gr) for gr in gruppi]
+            if all(os.path.getsize(p) <= LIMITE_PDF for p in pdfs) or passo == 1:
+                return pdfs, len(pagine)
+            for p in pdfs:
+                _togli(p)
+            parti += 1
     finally:
-        for p in pezzi:
+        for p in pagine:
             _togli(p)
 
 
@@ -811,18 +870,20 @@ async def cmd_pdf_roster(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _PDF_IN_CORSO["si"] = True
     data_label = as_of.strftime("%d/%m/%Y") if as_of else datetime.now().strftime("%d/%m/%Y")
     await msg.reply_text(f"⏳ Preparo il PDF dei roster{' al ' + data_label if as_of else ''}: ci vuole qualche secondo…")
-    path = None
+    paths = []
     try:
-        path, n = await genera_pdf_roster(as_of)
-        with open(path, "rb") as f:
-            await msg.reply_document(document=f, filename=f"roster_{data_label.replace('/', '-')}.pdf",
-                                     caption=f"📄 Roster di {n} squadre" + (f" al {data_label}" if as_of else f" · {data_label}"))
+        paths, n = await genera_pdf_roster(as_of)
+        for i, path in enumerate(paths, 1):
+            parte = f" ({i}/{len(paths)})" if len(paths) > 1 else ""
+            with open(path, "rb") as f:
+                await msg.reply_document(document=f, filename=f"roster_{data_label.replace('/', '-')}{parte.replace(' ', '_').replace('/', 'di')}.pdf",
+                                         caption=f"📄 Roster di {n} squadre" + (f" al {data_label}" if as_of else f" · {data_label}") + parte)
     except Exception as e:
         logger.exception("PDF dei roster")
         await msg.reply_text(f"❌ PDF dei roster non riuscito: {e}")
     finally:
         _PDF_IN_CORSO["si"] = False
-        if path:
+        for path in paths:
             _togli(path)
 
 

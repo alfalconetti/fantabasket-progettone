@@ -151,7 +151,8 @@ Alla convalida i risultati vanno in `lega_risultati` e sul foglio Calendario.
 | `/ricalcola N` | admin | riscarica i tabellini, ricalcola la giornata e la ripropone da convalidare |
 | `/tanking [N]` | admin | controllo del tanking: indizi nelle formazioni della giornata (in automatico al gruppo admin alle 11 dopo la prima notte) |
 | `/storico_calcolo N` | admin | le versioni calcolate della giornata e cosa cambia tra una e l'altra |
-| `/live` | admin | aggiorna subito i punteggi live sul canale principale (o l'anteprima) |
+| `/live [N]` | tutti | l'immagine del live della giornata (quella del canale), a chi la chiede |
+| `/update` | admin | aggiorna subito i punteggi live sul canale principale (o l'anteprima) |
 | `/live_results [N]` | tutti | il live della giornata in testo, completo (sul canale c'è l'immagine) |
 | `/fantapunti [N]` | admin | fantapunti della giornata dei giocatori a roster, per squadra |
 | `/set_valid_status GIOCATORE N` | admin | lo status che vale per il calcolo della giornata, scelto tra quelli degli snapshot |

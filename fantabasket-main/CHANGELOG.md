@@ -1791,3 +1791,13 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - **`/pdf_roster [DATA]`** (Luca, 04/11, per tutti i GM, anche nei gruppi): i roster di tutte le squadre in un PDF, una pagina ciascuna come `/roster`; con una data, i roster di quel giorno
 - **Diritti** (Luca, 04/11): la fantamedia accanto al nome («FP 12.3», «FP —» se non c'è, es. chi gioca in Europa) in `/assets`, nei bottoni e nei riepiloghi delle trade e nella firma dei diritti. Nel log del job di Basketball-Reference anche i giocatori coi soli diritti che sono in un roster NBA ma mai visti su bref (nome da abbinare o non ancora entrati); l'abbinamento già valeva per tutti
 - **Tolto `yahoo-router`** (Luca, 31/10): servizio e secrets dal compose, cartella cancellata, README, guide e prova `router_health` aggiornati. Nuovo campo `ferma` nel `rilascio.json`: il deploy ferma e cancella il container dei servizi tolti dal compose. Sul server restano il volume `fantabasket-progettone_yahoo_data` e i file `secrets/yahoo_*`, da cancellare a mano
+
+## v6.19.1 (2026-11-04)
+
+- `/pdf_roster` (Luca, 04/11: «Request Entity Too Large»): il PDF in vettoriale, con le foto dei giocatori incorporate pagina per pagina, passava i 50 MB che Telegram accetta dai bot. Ora le pagine sono le immagini di `/roster` a 200 ppi messe una per pagina (qualche MB in tutto); se il file supera comunque 45 MB arriva diviso in più parti. Tolto `pypdf`
+
+## v6.20.0 (2026-11-04)
+
+- `/pdf_roster` di nuovo vettoriale (Luca, 04/11), con foto e loghi in miniatura (foto JPEG da 120 pixel, loghi NBA da 64, logo della squadra da 256: Pillow, cache in /tmp): in prova una pagina passa da circa 600 KB a meno di 50 KB e il testo resta selezionabile. Pagine unite con `pypdf`; oltre i 45 MB comunque divisi in più file. `pillow` e `pypdf` nelle dipendenze
+- `/assets` (Luca, 04/11): la fantamedia dei giocatori (come in `/roster`, con l'asterisco a inizio stagione) e importo e anni nella stessa bolla di `/roster`; niente foto né squadre NBA
+- loucabot v82: **`/live [N]` per tutti** manda l'immagine del live (la stessa del canale) a chi la chiede, stessa giornata di `/live_results`; l'aggiornamento a mano degli admin si chiama **`/update`**

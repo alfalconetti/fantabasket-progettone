@@ -405,3 +405,7 @@ Il calcolo dei fantapunti.
 ## v81 (2026-11-02)
 
 - `/partita` (Luca, 02/11, mockup approvato): sotto la panchina di ogni squadra, tra due righe viola, la **Tribuna** con gli altri giocatori a roster e il loro punteggio della giornata: media e singole partite tra parentesi se ne ha giocate più d'una, «vs XXX» se deve ancora giocare, DNP, «—» se la sua squadra NBA non gioca, NA se non ha una squadra NBA. Rosa alla scadenza: i ceduti dopo restano nella squadra vecchia fino a fine giornata. Va a capo tra un giocatore e l'altro
+
+## v82 (2026-11-04)
+
+- **`/live [N]` per tutti** (Luca, 04/11): l'immagine del live della giornata (la stessa del canale, coi dati dell'ultimo aggiornamento) a chi la chiede, con le regole di `/live_results` per la giornata; anche nei gruppi. L'aggiornamento a mano degli admin, che prima era `/live`, ora è **`/update`**

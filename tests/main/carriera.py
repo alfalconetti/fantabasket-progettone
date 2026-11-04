@@ -178,23 +178,37 @@ try:
 except ImportError:
     pass
 
-# /pdf_roster (v6.19.0): un PDF, una pagina per squadra con giocatori (il Typst vero sostituito da typst-py)
+# /pdf_roster (v6.20.0): PDF vettoriale per squadra con foto e loghi in miniatura, pagine unite (Typst vero sostituito da typst-py)
 try:
     import typst as _typ, tempfile as _tf
     from pypdf import PdfReader
+    from PIL import Image as _Im
     _fatte = []
-    async def _finto_pdf(team, stagione, as_of=None, formato="png"):
-        _fatte.append(team["id"])
+    async def _finto_pdf(team, stagione, as_of=None, formato="png", ppi=288):
+        _fatte.append((team["id"], formato))
         f = _tf.NamedTemporaryFile(suffix=".pdf", delete=False); f.close()
         open(f.name, "wb").write(_typ.compile(bytes(f"= {team['id']}", "utf-8"), format="pdf"))
         return f.name
-    _vero = RO._genera_roster_png
+    _v1 = RO._genera_roster_png
     RO._genera_roster_png = _finto_pdf
-    _pdf, _n = asyncio.run(RO.genera_pdf_roster())
-    RO._genera_roster_png = _vero
-    ok(_n >= 1 and len(PdfReader(_pdf).pages) == _n == len(_fatte) and not any(os.path.exists(x) for x in [_pdf + "x"]),
-       f"/pdf_roster: un PDF con una pagina per squadra con giocatori ({_n})")
-    os.unlink(_pdf)
+    _pdfs, _n = asyncio.run(RO.genera_pdf_roster())
+    ok(len(_pdfs) == 1 and _n >= 1 and len(PdfReader(_pdfs[0]).pages) == _n == len(_fatte) and all(x[1] == "pdf" for x in _fatte),
+       f"/pdf_roster: un PDF, una pagina per squadra con giocatori ({_n})")
+    for _x in _pdfs: os.unlink(_x)
+    _lim = RO.LIMITE_PDF
+    RO.LIMITE_PDF = 1                      # troppo grande: si divide, fino a una squadra per file
+    _pdfs, _n = asyncio.run(RO.genera_pdf_roster())
+    RO.LIMITE_PDF = _lim
+    ok(len(_pdfs) == _n and all(len(PdfReader(x).pages) == 1 for x in _pdfs), f"/pdf_roster: oltre il limite di Telegram si divide in più file ({len(_pdfs)})")
+    for _x in _pdfs: os.unlink(_x)
+    RO._genera_roster_png = _v1
+    _f = _tf.NamedTemporaryFile(suffix=".png", delete=False); _f.close()
+    _Im.new("RGBA", (520, 380), (200, 50, 50, 255)).save(_f.name)
+    _m = RO.miniatura(_f.name, 120, jpeg=True)
+    ok(_m != _f.name and _m.endswith(".jpg") and max(_Im.open(_m).size) == 120 and RO.miniatura(_f.name, 120, jpeg=True) == _m,
+       "miniatura: foto a 120 pixel in JPEG, in cache")
+    ok(RO.miniatura("/nonesiste.png", 64) == "/nonesiste.png", "miniatura di un file che non c'è: il percorso com'era")
+    os.unlink(_f.name)
 except ImportError:
     pass
 

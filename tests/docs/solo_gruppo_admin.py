@@ -15,9 +15,9 @@ BOT = {
                               {"chiudi_asta", "annulla_asta", "set_cap", "add_cap", "set_fase", "broadcast", "reboot", "admin", "aste"}),
     "fantabasket-ipanchinari": ({"panchina", "quintetto", "soprannomi", "guida"},
                                 {"stato", "quintetti", "controlli", "report_formazioni", "quintetto_admin", "dev", "reboot"}),
-    "fantabasket-loucabot": ({"classifica", "partita", "giornata", "calendario", "live_results", "player"},
+    "fantabasket-loucabot": ({"classifica", "partita", "giornata", "calendario", "live_results", "player", "live"},
                              {"calcola", "ricalcola", "ricontrolla", "tanking", "fantapunti", "set_valid_status",
-                              "congela", "storico_calcolo", "controllo_notte", "dev", "reboot", "live"}),
+                              "congela", "storico_calcolo", "controllo_notte", "dev", "reboot", "update"}),
 }
 
 for bot, (devono, mai) in BOT.items():

@@ -808,6 +808,16 @@ class _MsgL:
     async def reply_text(self, t, **k): _rl.append(t)
 asyncio.run(LV.cmd_live_results(types.SimpleNamespace(effective_message=_MsgL()), types.SimpleNamespace(args=[str(N)])))
 ok(_rl and "punteggi live" in _rl[0] and all(len(x) <= 4096 for x in _rl), "/live_results N: il testo completo del live")
+# /live N per tutti (v6.20.0): l'immagine del live a chi la chiede
+_fl = []
+class _MsgImg:
+    async def reply_photo(self, p, **k): _fl.append((p, k))
+    async def reply_text(self, t, **k): _fl.append((t, k))
+db.q("INSERT INTO lega_live (stagione, giornata, chat_id, message_id, aggiornato) VALUES (%s, %s, -1, 9, %s) "
+     "ON CONFLICT (stagione, giornata) DO UPDATE SET message_id = 9, chiuso = NULL", (S, N, t0))
+asyncio.run(LV.cmd_live_img(types.SimpleNamespace(effective_message=_MsgImg()), types.SimpleNamespace(args=[str(N)])))
+ok(_fl and isinstance(_fl[-1][0], bytes) and _fl[-1][0][:4] == b"\x89PNG" and "live" in _fl[-1][1].get("caption", ""),
+   "/live N: l'immagine del live con la didascalia")
 _dock = open(os.path.join(os.path.dirname(LV.TEMPLATE), "Dockerfile")).read()
 ok("fonts-noto-color-emoji" in _dock and '"Noto Color Emoji"' in open(LV.TEMPLATE).read() and LV.font_emoji(),
    "emoji del tabellone: il font nel Dockerfile di loucabot e nel template (e c'è qui, dove girano le prove)")

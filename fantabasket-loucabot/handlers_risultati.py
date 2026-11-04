@@ -625,7 +625,7 @@ async def cmd_dev_prova_calcolo(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def cmd_live(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/live (admin): il messaggio live della giornata in corso adesso, senza aspettare i 10 minuti.
+    """/update (admin; fino alla v6.19 era /live): il messaggio live della giornata in corso adesso, senza aspettare il giro.
     Se la giornata non è ancora iniziata, l'anteprima solo a chi lo chiede."""
     import live
     if not config.is_admin(update.effective_user.id):
@@ -674,6 +674,6 @@ async def cmd_storico_calcolo(update: Update, context: ContextTypes.DEFAULT_TYPE
 def get_handlers() -> list:
     return [CommandHandler("ricalcola", cmd_ricalcola), CommandHandler("storico_calcolo", cmd_storico_calcolo),
             CommandHandler("calcola", cmd_calcola), CommandHandler("ricontrolla", cmd_ricontrolla), CommandHandler("dev_prova_calcolo", cmd_dev_prova_calcolo),
-            CommandHandler("live", cmd_live), CommandHandler("controllo_notte", cmd_controllo_notte),
+            CommandHandler("update", cmd_live), CommandHandler("controllo_notte", cmd_controllo_notte),
             CallbackQueryHandler(cb_controllo, pattern=r"^cn:(ok|no|ag|la):\d+$"),
             CallbackQueryHandler(cb_risultati, pattern=r"^rc:")]

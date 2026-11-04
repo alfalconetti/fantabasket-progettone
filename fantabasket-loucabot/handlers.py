@@ -499,6 +499,11 @@ async def _cmd_notte(update, context):
     await notte.cmd_notte(update, context)
 
 
+async def _cmd_live_img(update, context):
+    import live
+    await live.cmd_live_img(update, context)
+
+
 async def _cmd_live_results(update, context):
     import live
     await live.cmd_live_results(update, context)
@@ -521,6 +526,7 @@ def get_handlers() -> list:
         CommandHandler("calendario_full", cmd_calendario_full),
         CommandHandler(["giornata", "risultati"], cmd_giornata),
         CommandHandler("live_results", _cmd_live_results),
+        CommandHandler("live", _cmd_live_img, block=False),
         CommandHandler("notte", _cmd_notte),
         CommandHandler("importa_calendario", cmd_importa_calendario),
         MessageHandler(filters.Document.ALL & filters.CaptionRegex(r"^/importa_calendario"), cmd_importa_calendario),
