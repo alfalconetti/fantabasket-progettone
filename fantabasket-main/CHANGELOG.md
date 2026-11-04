@@ -1815,3 +1815,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
   - **`/pdf_giornata [N]`**: la giornata in PDF, risultati in prima pagina e poi le 12 partite come `/partita`; **`/pdf_partite [SQUADRA] [STAGIONE]`**: tutte le partite di una squadra nella stagione finora (playoff compresi quando ci saranno). PDF vettoriali con foto e loghi in miniatura, oltre i 45 MB in più file. `pypdf` e `pillow` nelle dipendenze
   - `/partita`: un nome che comincia con una lettera accentata o con «—» (posto vuoto) non blocca più l'immagine (iniziali per grafema)
 - Miniature dei PDF in `shared/miniature.py` (usate da `/pdf_roster`, `/pdf_assets` e dai PDF di loucabot); iniziale della squadra nel logo di riserva di `/roster` e `/assets` per grafema
+
+## v6.23.0 (2026-11-04)
+
+- loucabot v84: **`/giornata` come immagine** (Luca, 04/11): il tabellone della giornata, lo stesso del live; a giornata calcolata o convalidata coi risultati (etichetta CALCOLATA o CONVALIDATA, in grassetto chi ha vinto, supplementari), senza etichette dei titolari né legenda; non ancora iniziata, le partite in testo. **`/risultati`** resta il testo (non sono più sinonimi). La prima pagina di `/pdf_giornata` è questo tabellone

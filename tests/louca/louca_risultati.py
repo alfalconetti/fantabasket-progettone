@@ -324,7 +324,7 @@ _vo = _NBx.oggi_et; _NBx.oggi_et = lambda: db.giornata(S, N)["al"] + timedelta(d
 _vg2 = []
 class _MsgG2:
     async def reply_text(self, t, **k): _vg2.append(t)
-asyncio.run(_HGx.cmd_giornata(types.SimpleNamespace(effective_message=_MsgG2(), effective_user=types.SimpleNamespace(id=900)),
+asyncio.run(_HGx.cmd_risultati(types.SimpleNamespace(effective_message=_MsgG2(), effective_user=types.SimpleNamespace(id=900)),
                               types.SimpleNamespace(args=[str(N)], bot=None)))
 _NBx.oggi_et = _vo
 ok(_vg2 and "risultati calcolati, in attesa della convalida di un admin" in _vg2[0] and "ufficiali quando un admin li convalida" in _vg2[-1],
@@ -837,6 +837,25 @@ _vl = TG.LIMITE; TG.LIMITE = 50
 asyncio.run(TG.cmd_top(types.SimpleNamespace(effective_message=_MsgTop()), types.SimpleNamespace(args=["10"])))
 TG.LIMITE = _vl
 ok(_fl2 and _fl2[-1][0] == "d" and "troppo lunga" in _fl2[-1][1]["caption"], "/top: se non sta in un messaggio, un file .md")
+# /giornata come immagine (v6.23.0): il tabellone del live; a giornata calcolata coi risultati, «modo» finale
+_g9 = db.giornata(S, N)
+_tb = LV.dati_tabellone(S, _g9, datetime(2026, 11, 20, tzinfo=timezone.utc))
+_cs = db.q("SELECT stato FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (S, N), one=True)
+ok(_tb and (_tb.get("modo") == "finale") == bool(_cs) and len(_tb["partite"]) == len(db.partite_giornata(S, N))
+   and LV.immagine(_tb)[:4] == b"\x89PNG", f"/giornata: tabellone ({_tb.get('modo', 'live')}, {_cs})")
+_gf = dict(_g9); _gf["numero"] = 999; _gf["prima_partita"] = datetime(2099, 1, 1, tzinfo=timezone.utc)
+ok(LV.dati_tabellone(S, _gf) is None, "/giornata: giornata non ancora iniziata → testo")
+_fin = {**_tb, "modo": "finale", "etichetta": "CONVALIDATA", "colore_stato": "#1B8A4B", "ora_label": "CALCOLATA", "ora": "12/11",
+        "nota_finale": "Risultati convalidati", "nba": []}
+ok(LV.immagine(_fin)[:4] == b"\x89PNG", "tabellone in modo finale: compila")
+_fg = []
+class _MsgGi:
+    async def reply_photo(self, p, **k): _fg.append(("foto", k))
+    async def reply_text(self, t, **k): _fg.append(("testo", t))
+import handlers as _HGi
+asyncio.run(_HGi.cmd_giornata(types.SimpleNamespace(effective_message=_MsgGi(), effective_user=types.SimpleNamespace(id=900)),
+                              types.SimpleNamespace(args=[str(N)])))
+ok(_fg and _fg[0][0] == "foto" and "/risultati" in _fg[0][1]["caption"], "/giornata N: l'immagine, il testo con /risultati")
 # /pdf_giornata e /pdf_partite (v6.22.0)
 import pdf_partite as PP
 from pypdf import PdfReader as _PR
@@ -1059,7 +1078,7 @@ _vero_dm = _CAL.da_mostrare
 _CAL.da_mostrare = lambda s_, ora=None: db.giornate(s_)[0]
 import nba as _NBg
 _vog = _NBg.oggi_et; _NBg.oggi_et = lambda: _dd(2026, 10, 1)   # giornata non ancora iniziata: l'elenco delle partite
-asyncio.run(_HG.cmd_giornata(types.SimpleNamespace(effective_message=_MsgG(), effective_user=types.SimpleNamespace(id=900)),
+asyncio.run(_HG.cmd_risultati(types.SimpleNamespace(effective_message=_MsgG(), effective_user=types.SimpleNamespace(id=900)),
                              types.SimpleNamespace(args=[], bot=None)))
 _CAL.da_mostrare = _vero_dm
 _NBg.oggi_et = _vog

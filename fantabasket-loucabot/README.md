@@ -133,7 +133,8 @@ Alla convalida i risultati vanno in `lega_risultati` e sul foglio Calendario.
 |---|---|---|
 | `/calendario [N] [SQUADRA]` | tutti | la giornata tua o di una squadra (avversario, casa o trasferta, scadenza, squadre che prendono la media) e le prossime |
 | `/calendario_full [SQUADRA]` | tutti | tutto il calendario di una squadra, coi risultati delle giornate convalidate |
-| `/giornata [N]` (o `/risultati`) | tutti | le partite di una giornata, coi risultati convalidati; iniziata e non convalidata, i punteggi live o calcolati in attesa della convalida (senza numero: la giornata finita resta fino alle 16 del primo giorno della nuova) |
+| `/giornata [N]` | tutti | il tabellone della giornata come immagine (come il live; a giornata calcolata o convalidata coi risultati); non ancora iniziata: le partite in testo |
+| `/risultati [N]` | tutti | le partite di una giornata, coi risultati convalidati; iniziata e non convalidata, i punteggi live o calcolati in attesa della convalida (senza numero: la giornata finita resta fino alle 16 del primo giorno della nuova) |
 | `/partita [SQUADRA] [GN]` · `/partita SQUADRA - SQUADRA` | tutti | una sfida come immagine: tabellone, quintetti e panchine notte per notte, quello che conta, FADD, medie, supplementari |
 | `/notte [SQUADRA] [DATA]` | tutti | gli schierati di una squadra in una notte NBA: partite, orari, fantapunti, infortuni |
 | `/classifica` · `/classifica_conference` · `/classifica_full` | tutti | classifica (immagine; il migliore di ogni colonna in verde, il peggiore in rosso) · divisa per conference · con tutte le statistiche (file) |

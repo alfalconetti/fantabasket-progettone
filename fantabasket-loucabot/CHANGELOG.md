@@ -415,3 +415,7 @@ Il calcolo dei fantapunti.
 - **`/top`** (Luca, 04/11): i migliori giocatori NBA per fantamedia della stagione (fantapunti ESPN, regular season e play-in), con partite, squadra NBA, squadra del fanta o «libero» e posizioni eleggibili; minimo il 40% delle partite della propria squadra (scritto in testa). `/top` i primi 20, `/top 50` i primi 50, `/top 50 80` dal 50° all'80°, `firmati` solo quelli sotto contratto; troppo lunga per un messaggio → file .md
 - **`/pdf_giornata [N]`**: la giornata in PDF, risultati in prima pagina e poi le 12 partite come `/partita`; **`/pdf_partite [SQUADRA] [STAGIONE]`**: tutte le partite di una squadra nella stagione finora (playoff compresi quando ci saranno). PDF vettoriali con foto e loghi in miniatura, oltre i 45 MB in più file. `pypdf` e `pillow` nelle dipendenze
 - `/partita`: un nome che comincia con una lettera accentata o con «—» (posto vuoto) non blocca più l'immagine (iniziali per grafema)
+
+## v84 (2026-11-04)
+
+- **`/giornata` come immagine** (Luca, 04/11): il tabellone della giornata, lo stesso del live; a giornata calcolata o convalidata coi risultati (etichetta CALCOLATA o CONVALIDATA, in grassetto chi ha vinto, supplementari), senza etichette dei titolari né legenda; non ancora iniziata, le partite in testo. **`/risultati`** resta il testo (non sono più sinonimi). La prima pagina di `/pdf_giornata` è questo tabellone

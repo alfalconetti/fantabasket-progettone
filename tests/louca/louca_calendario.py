@@ -153,7 +153,7 @@ ok("Prendono la media" in t and "CLE, DEN" in t, "/calendario: squadre che prend
 import nba as _NB
 from datetime import date as _dt
 _vo = _NB.oggi_et; _NB.oggi_et = lambda: _dt(2000, 1, 1)   # giornata non ancora iniziata: l'elenco delle partite
-t = comando(H.cmd_giornata, 999, ["2"])
+t = comando(H.cmd_risultati, 999, ["2"])
 _NB.oggi_et = _vo
 ok("Delta – Alfa" in t and "Beta – Gamma" in t, "/giornata: tutte le partite")
 ok("Solo admin" in comando(H.cmd_importa_calendario, 101), "/importa_calendario solo admin")

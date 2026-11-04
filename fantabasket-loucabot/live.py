@@ -606,6 +606,48 @@ def dati_immagine(c: dict, ora: datetime) -> dict:
             "bonus": f"{c['bonus']:g}"}
 
 
+def dati_tabellone(s: str, g: dict, ora: datetime | None = None) -> dict | None:
+    """Il tabellone di /giornata e della prima pagina di /pdf_giornata (v6.23.0, Luca 04/11): come il live (stesso
+    template), ma a giornata calcolata o convalidata in «modo finale» coi risultati (convalidati: quelli salvati in
+    lega_risultati); a giornata in corso e non calcolata, il live. None se la giornata non è iniziata."""
+    ora = ora or datetime.now(timezone.utc)
+    n = g["numero"]
+    r = db.q("SELECT stato, calcolato FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (s, n), one=True)
+    if not r and not (g.get("prima_partita") and g["prima_partita"] <= ora):
+        return None
+    c = calcolo(s, n)
+    if not r:
+        st = stato(s, n) or {}
+        return dati_immagine(c, st.get("aggiornato") or ora)
+    convalidata = r["stato"] == "convalidata"
+    salvati = {x["casa"]: x for x in (db.q("""SELECT * FROM lega_risultati WHERE stagione = %s AND giornata = %s
+                                               AND convalidato IS NOT NULL""", (s, n), many=True) or [])} if convalidata else {}
+    out = []
+    for k, x in enumerate(c["risultati"], 1):
+        sv = salvati.get(x["casa"])
+        pc, pt = (sv["punti_casa"], sv["punti_trasferta"]) if sv else (x["punti_casa"], x["punti_trasferta"])
+        vince = sv["vince"] if sv else x["vince"]
+        if sv and sv.get("supp_casa") is not None:
+            supp = (sv["supp_casa"], sv["supp_trasferta"])
+        elif not sv and x.get("supplementari"):
+            supp = tuple(x["esito"].get("punti_supplementari") or (None, None))
+        else:
+            supp = None
+        nota = f"SUPPLEMENTARI · {tp(supp[0])} – {tp(supp[1])}" if supp and supp[0] is not None else ""
+        lati = [{**_squadra_img(t), "punti": tp(p), "finito": True, "campo": 0, "giocare": 0, "rigiocare": 0, "finora": "",
+                 "media": 0} for t, p in ((x["casa"], pc), (x["trasferta"], pt))]
+        out.append({"k": k, "casa": lati[0], "tras": lati[1], "avanti": vince, "nota": nota})
+    quando = r["calcolato"].astimezone(ROMA) if r.get("calcolato") else None
+    return {"n": n, "date": f"{g['dal']:%d/%m} – {g['al']:%d/%m}", "nba": [], "nba_colonne": 5, "nba_notte": "", "notte": "",
+            "modo": "finale", "etichetta": "CONVALIDATA" if convalidata else "CALCOLATA · DA CONVALIDARE",
+            "colore_stato": "#1B8A4B" if convalidata else "#B26A00",
+            "ora_label": "CALCOLATA" if quando else "", "ora": f"{quando:%d/%m}" if quando else "",
+            "partite": out, "soglia": 10 - MAX_DA_GIOCARE, "bonus": f"{c['bonus']:g}",
+            "nota_finale": ("Risultati convalidati da un admin" if convalidata else
+                            "Risultati calcolati, in attesa della convalida di un admin: possono ancora cambiare")
+                           + f" · bonus casa +{c['bonus']:g} · in grassetto chi ha vinto · il dettaglio di ogni sfida con /partita"}
+
+
 _AVVISO_FONT = {"fatto": False}
 
 

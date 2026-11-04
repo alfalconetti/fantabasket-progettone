@@ -22,12 +22,18 @@
 }
 #let pill(t, c) = box(fill: c.lighten(85%), radius: 3pt, inset: (x: 3.5pt, y: 1.5pt), text(6.8pt, weight: "bold", fill: c)[#t])
 
+// v6.23.0 (Luca, 04/11): lo stesso tabellone a giornata calcolata o convalidata (/giornata, prima pagina di
+// /pdf_giornata): «modo» finale, etichetta dello stato al posto di LIVE, niente etichette dei titolari né legenda
+#let finale = d.at("modo", default: "live") == "finale"
+
 // ── testata ──
 #block(width: 100%, fill: gradient.linear(viola_scuro, viola, angle: 0deg), inset: (x: 14pt, y: 11pt))[
   #grid(columns: (1fr, auto), align: horizon,
-    [#text(15pt, weight: "bold", fill: white)[Giornata #d.n] #h(6pt) #box(fill: rosso, radius: 3pt, inset: (x: 5pt, y: 2.5pt), text(8pt, weight: "bold", fill: white)[● LIVE]) \
+    [#text(15pt, weight: "bold", fill: white)[Giornata #d.n] #h(6pt) #if finale {
+       box(fill: rgb(d.colore_stato), radius: 3pt, inset: (x: 5pt, y: 2.5pt), text(8pt, weight: "bold", fill: white)[#d.etichetta])
+     } else { box(fill: rosso, radius: 3pt, inset: (x: 5pt, y: 2.5pt), text(8pt, weight: "bold", fill: white)[● LIVE]) } \
      #v(3pt) #text(8.5pt, fill: white.transparentize(25%))[#d.date#if d.notte != "" [ · notte #d.notte]]],
-    align(right)[#text(7pt, fill: white.transparentize(30%), tracking: 0.5pt)[AGGIORNATO] \ #text(13pt, weight: "bold", fill: white)[#d.ora]])
+    align(right)[#text(7pt, fill: white.transparentize(30%), tracking: 0.5pt)[#d.at("ora_label", default: "AGGIORNATO")] \ #text(13pt, weight: "bold", fill: white)[#d.ora]])
 ]
 
 
@@ -69,7 +75,7 @@
   logo(s, 20pt),
   stack(spacing: 2.5pt,
     text(9pt, weight: if avanti { "bold" } else { "regular" })[#s.nome],
-    {
+    if not finale {
       if s.finito { pill("✅ finito", verde); h(2pt) } else {
         if s.campo > 0 { pill("🏀 " + str(s.campo), rosso); h(2pt) }
         if s.giocare > 0 { pill("⏳ " + str(s.giocare), grigio); h(2pt) }
@@ -97,6 +103,11 @@
 // ── legenda, bella evidente (Luca, 25/10), sempre al plurale ──
 #let voce(p, t) = box(width: 100%, height: 30pt, fill: white, stroke: 0.7pt + bordo, radius: 5pt, inset: (x: 7pt, y: 4pt),
   align(horizon, grid(columns: (auto, 1fr), column-gutter: 6pt, align: horizon, text(10pt)[#p], text(8.5pt, fill: rgb("#1D1630"))[#t])))
+#if finale {
+  block(width: 100%, fill: lilla, inset: (x: 10pt, y: 9pt))[
+    #text(7.5pt, fill: grigio)[#d.nota_finale]
+  ]
+} else [
 #block(width: 100%, fill: lilla, inset: (x: 10pt, top: 9pt, bottom: 10pt))[
   #text(8pt, weight: "bold", fill: viola_scuro, tracking: 0.8pt)[LEGENDA]
   #v(6pt)
@@ -110,4 +121,5 @@
   #v(6pt)
   #text(7.5pt, fill: grigio)[*HANNO GIOCATO IN MENO DI #d.soglia*: ancora nessuno avanti, troppi titolari devono giocare · *SI VA AI SUPPL.*: pari, col punteggio dei supplementari #linebreak()
     Provvisori, sui tabellini live di ESPN con le regole del calcolo (bonus casa +#d.bonus, FADD, supplementari): li convalida un admin. Il testo completo con /live\_results nel bot.]
+]
 ]

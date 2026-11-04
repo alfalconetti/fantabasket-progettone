@@ -1,6 +1,6 @@
 """
 PDF delle partite (v6.22.0, Luca 04/11), per tutti:
-- /pdf_giornata [N]: prima pagina coi risultati della giornata, poi le 12 partite una per pagina come /partita
+- /pdf_giornata [N]: prima pagina col tabellone della giornata (quello di /giornata, v6.23.0), poi le 12 partite una per pagina come /partita
   (senza numero la giornata di /partita);
 - /pdf_partite [SQUADRA] [STAGIONE]: tutte le /partita di una squadra nella stagione finora, in ordine di giornata,
   playoff compresi quando ci saranno (senza squadra la tua, senza stagione quella in corso).
@@ -46,24 +46,21 @@ def pagina(d: dict) -> bytes:
     return typst.compile(PA.TEMPLATE, root="/", format="pdf", sys_inputs={"dati": json.dumps(_piccole(d), ensure_ascii=False)})
 
 
-def prima_pagina(titolo: str, sotto: str, righe: list[dict]) -> bytes:
-    """La pagina dei risultati: una riga per partita, in grassetto chi vince (o è avanti)."""
+def prima_pagina(d: dict) -> bytes:
+    """La prima pagina: il tabellone di /giornata (live.typ, v6.23.0), loghi in miniatura."""
     import typst
-    corpo = {"titolo": titolo, "sotto": sotto, "righe": righe}
-    src = '''#let d = json(bytes(sys.inputs.at("dati")))
-#set page(width: 520pt, height: auto, margin: 18pt)
-#set text(font: ("Liberation Sans", "Noto Color Emoji"), size: 10pt)
-#text(18pt, weight: "bold", fill: rgb("#39007D"))[#d.titolo] \\
-#text(9pt, fill: rgb("#6B6480"))[#d.sotto]
-#v(10pt)
-#table(columns: (auto, 1fr, auto, auto, auto, 1fr), stroke: (x, y) => (bottom: 0.5pt + rgb("#D6C8F5")), inset: 6pt,
-  align: (center, right, right, center, left, left),
-  ..d.righe.map(r => (text(fill: rgb("#6B6480"))[#r.k], text(weight: if r.vince == "casa" { "bold" } else { "regular" })[#r.casa],
-    text(weight: if r.vince == "casa" { "bold" } else { "regular" })[#r.pc], [–],
-    text(weight: if r.vince == "trasferta" { "bold" } else { "regular" })[#r.pt],
-    text(weight: if r.vince == "trasferta" { "bold" } else { "regular" })[#r.trasferta])).flatten())
-'''
-    return typst.compile(src.encode("utf-8"), root="/", format="pdf", sys_inputs={"dati": json.dumps(corpo, ensure_ascii=False)})
+    import live
+    from shared.miniature import miniatura
+    d = json.loads(json.dumps(d, default=str))
+    for p in d.get("partite", []):
+        for lato in ("casa", "tras"):
+            if p[lato].get("logo"):
+                p[lato]["logo"] = miniatura(p[lato]["logo"], 128)
+    for p in d.get("nba", []):
+        for lato in ("casa", "tras"):
+            if p[lato].get("logo"):
+                p[lato]["logo"] = miniatura(p[lato]["logo"], 64)
+    return typst.compile(live.TEMPLATE, root="/", format="pdf", sys_inputs={"dati": json.dumps(d, ensure_ascii=False)})
 
 
 def unisci(pagine: list[bytes]) -> list[bytes]:
@@ -86,12 +83,6 @@ def unisci(pagine: list[bytes]) -> list[bytes]:
         parti += 1
 
 
-def _riga(k, d: dict) -> dict:
-    a, b = d["squadre"]
-    return {"k": str(k), "casa": a["nome"], "trasferta": b["nome"], "pc": a["punti"], "pt": b["punti"],
-            "vince": a["lato"] if a.get("vince") else (b["lato"] if b.get("vince") else "")}
-
-
 def pdf_giornata(s: str, n: int, ora: datetime | None = None) -> list[bytes]:
     g = db.giornata(s, n)
     if not g:
@@ -100,11 +91,9 @@ def pdf_giornata(s: str, n: int, ora: datetime | None = None) -> list[bytes]:
     dd = [PA.dati(s, n, p["casa"], p["trasferta"], ora) for p in db.partite_giornata(s, n)]
     if not dd:
         raise ValueError(f"nella giornata {n} non ci sono partite")
-    stato = dd[0]["stato"]
-    sotto = f"{g['dal']:%d/%m} – {g['al']:%d/%m} · " + {"convalidata": "risultati convalidati", "calcolata": "calcolata, da convalidare",
-                                                          "in corso": "in corso: punteggi provvisori", "da giocare": "da giocare"}.get(stato, stato)
-    prima = prima_pagina(f"Giornata {n}", sotto, [_riga(i, x) for i, x in enumerate(dd, 1)])
-    return unisci([prima] + [pagina(x) for x in dd])
+    import live
+    tab = live.dati_tabellone(s, g, ora)
+    return unisci(([prima_pagina(tab)] if tab else []) + [pagina(x) for x in dd])
 
 
 def pdf_partite(s: str, team_id: str, ora: datetime | None = None) -> tuple[list[bytes], int]:

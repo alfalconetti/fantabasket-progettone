@@ -221,7 +221,8 @@ async def _mostra_giornata(update, g):
     await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
 
 
-async def cmd_giornata(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def cmd_risultati(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/risultati [N]: la giornata in testo (fino alla v6.22 era anche /giornata)."""
     s = config.stagione()
     n = _numero(context.args)
     # senza numero come /partita: dopo la convalida resta quella appena finita fino alle 16 del primo giorno della nuova
@@ -230,6 +231,31 @@ async def cmd_giornata(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("Nessuna giornata da mostrare.")
         return
     await _mostra_giornata(update, g)
+
+
+async def cmd_giornata(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/giornata [N] (v6.23.0, Luca 04/11): il tabellone come immagine, come il live (a giornata calcolata o convalidata
+    coi risultati); una giornata non ancora iniziata in testo, con le partite in calendario."""
+    import asyncio
+    import live
+    s = config.stagione()
+    n = _numero(context.args)
+    g = db.giornata(s, n) if n else cal.da_mostrare(s)
+    if not g:
+        await update.effective_message.reply_text("Nessuna giornata da mostrare.")
+        return
+    try:
+        d = await asyncio.to_thread(live.dati_tabellone, s, g)
+        if d is None:
+            await _mostra_giornata(update, g)
+            return
+        png = await asyncio.to_thread(live.immagine, d)
+    except Exception:
+        logging.getLogger(__name__).exception("/giornata %s: immagine non riuscita", g["numero"])
+        await _mostra_giornata(update, g)
+        return
+    await update.effective_message.reply_photo(png, caption=f"🏀 Giornata {g['numero']} · il testo con /risultati {g['numero']}",
+                                               **live.TEMPI)
 
 
 # ── admin ──────────────────────────────────────────────────────────────────────
@@ -539,7 +565,8 @@ def get_handlers() -> list:
         CommandHandler("tanking", _cmd_tanking),
         CommandHandler("calendario", cmd_calendario),
         CommandHandler("calendario_full", cmd_calendario_full),
-        CommandHandler(["giornata", "risultati"], cmd_giornata),
+        CommandHandler("giornata", cmd_giornata, block=False),
+        CommandHandler("risultati", cmd_risultati),
         CommandHandler("live_results", _cmd_live_results),
         CommandHandler("live", _cmd_live_img, block=False),
         CommandHandler("top", _cmd_top, block=False),
