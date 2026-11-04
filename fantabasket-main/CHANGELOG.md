@@ -1807,3 +1807,11 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - **`/assets` a una data** (Luca, 04/11: «va assolutamente messo»): `/assets Alfa 01-12-26` mostra roster, contratti, pick e diritti di quel giorno, dal registro come `/roster` (senza il tag STEPIEN, che vale solo per oggi)
 - `/assets`: colonna **ETÀ** (a quella data, se c'è)
 - **`/pdf_assets [DATA]`**: gli asset di tutte le squadre in un PDF, una pagina ciascuna, come `/pdf_roster`
+
+## v6.22.0 (2026-11-04)
+
+- loucabot v83:
+  - **`/top`** (Luca, 04/11): i migliori giocatori NBA per fantamedia della stagione (fantapunti ESPN, regular season e play-in), con partite, squadra NBA, squadra del fanta o «libero» e posizioni eleggibili; minimo il 40% delle partite della propria squadra (scritto in testa). `/top` i primi 20, `/top 50` i primi 50, `/top 50 80` dal 50° all'80°, `firmati` solo quelli sotto contratto; troppo lunga per un messaggio → file .md
+  - **`/pdf_giornata [N]`**: la giornata in PDF, risultati in prima pagina e poi le 12 partite come `/partita`; **`/pdf_partite [SQUADRA] [STAGIONE]`**: tutte le partite di una squadra nella stagione finora (playoff compresi quando ci saranno). PDF vettoriali con foto e loghi in miniatura, oltre i 45 MB in più file. `pypdf` e `pillow` nelle dipendenze
+  - `/partita`: un nome che comincia con una lettera accentata o con «—» (posto vuoto) non blocca più l'immagine (iniziali per grafema)
+- Miniature dei PDF in `shared/miniature.py` (usate da `/pdf_roster`, `/pdf_assets` e dai PDF di loucabot); iniziale della squadra nel logo di riserva di `/roster` e `/assets` per grafema

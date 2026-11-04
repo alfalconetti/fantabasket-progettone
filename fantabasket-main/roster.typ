@@ -77,7 +77,7 @@
 #let stemma(d) = box(width: d, height: d, radius: 50%, clip: true, fill: c_dark,
   stroke: 1.5pt + _ton_hdr.transparentize(55%),
   if logo_path != "" { image(logo_path, width: d, height: d, fit: "contain") }
-  else { align(center + horizon, text(d * 0.42, weight: "bold", fill: _ton_dark)[#team_nome.slice(0, 1)]) })
+  else { align(center + horizon, text(d * 0.42, weight: "bold", fill: _ton_dark)[#team_nome.clusters().first()]) })
 
 // ── header ────────────────────────────────────────────────────────────────────
 #block(width: 100%, fill: gradient.linear(c_primary, c_primary.darken(12%), angle: 0deg), inset: (x: 10pt, y: 10pt))[

@@ -818,6 +818,38 @@ db.q("INSERT INTO lega_live (stagione, giornata, chat_id, message_id, aggiornato
 asyncio.run(LV.cmd_live_img(types.SimpleNamespace(effective_message=_MsgImg()), types.SimpleNamespace(args=[str(N)])))
 ok(_fl and isinstance(_fl[-1][0], bytes) and _fl[-1][0][:4] == b"\x89PNG" and "live" in _fl[-1][1].get("caption", ""),
    "/live N: l'immagine del live con la didascalia")
+# /top (v6.22.0): classifica per fantamedia, minimo 40% delle partite della squadra
+import top_giocatori as TG
+ok(TG.leggi_argomenti([]) == (1, 20, False, None) and TG.leggi_argomenti(["50"])[:3] == (1, 50, False)
+   and TG.leggi_argomenti(["80", "50", "firmati"])[:3] == (50, 80, True) and TG.leggi_argomenti(["50-80"])[:2] == (50, 80),
+   "/top: argomenti (20, N, da A a B anche in ordine inverso, firmati)")
+_cl = TG.classifica(S)
+ok(_cl and all(_cl[i]["media"] >= _cl[i + 1]["media"] for i in range(len(_cl) - 1)), f"/top: in ordine di fantamedia ({len(_cl)})")
+_ff = TG.classifica(S, True)
+ok(all(x["fanta"] != "libero" for x in _ff) and len(_ff) <= len(_cl), "/top firmati: solo i giocatori sotto contratto")
+_t, _k = TG.testo(S, 1, 3, False)
+ok("40%" in _t and _t.count("\n1. ") + _t.startswith("1. ") >= 1 and _k == min(3, len(_cl)), "/top: intestazione col minimo di partite e le righe")
+_fl2 = []
+class _MsgTop:
+    async def reply_text(self, t, **k): _fl2.append(("t", t))
+    async def reply_document(self, **k): _fl2.append(("d", k))
+_vl = TG.LIMITE; TG.LIMITE = 50
+asyncio.run(TG.cmd_top(types.SimpleNamespace(effective_message=_MsgTop()), types.SimpleNamespace(args=["10"])))
+TG.LIMITE = _vl
+ok(_fl2 and _fl2[-1][0] == "d" and "troppo lunga" in _fl2[-1][1]["caption"], "/top: se non sta in un messaggio, un file .md")
+# /pdf_giornata e /pdf_partite (v6.22.0)
+import pdf_partite as PP
+from pypdf import PdfReader as _PR
+import io as _io
+_pg = PP.pdf_giornata(S, N)
+ok(len(_pg) == 1 and len(_PR(_io.BytesIO(_pg[0])).pages) == 1 + len(db.partite_giornata(S, N)),
+   f"/pdf_giornata: prima pagina coi risultati e una pagina per partita ({len(db.partite_giornata(S, N))})")
+_pp, _np2 = PP.pdf_partite(S, db.partite_giornata(S, N)[0]["casa"], ora=datetime(2026, 11, 20, tzinfo=timezone.utc))
+ok(_np2 >= 1 and len(_PR(_io.BytesIO(_pp[0])).pages) == _np2, f"/pdf_partite: una pagina per giornata iniziata ({_np2})")
+_vlim = PP.LIMITE; PP.LIMITE = 1
+_div = PP.unisci([_pg[0], _pg[0]])
+PP.LIMITE = _vlim
+ok(len(_div) == 2, "PDF oltre il limite di Telegram: in più file")
 _dock = open(os.path.join(os.path.dirname(LV.TEMPLATE), "Dockerfile")).read()
 ok("fonts-noto-color-emoji" in _dock and '"Noto Color Emoji"' in open(LV.TEMPLATE).read() and LV.font_emoji(),
    "emoji del tabellone: il font nel Dockerfile di loucabot e nel template (e c'è qui, dove girano le prove)")

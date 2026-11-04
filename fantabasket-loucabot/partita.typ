@@ -21,7 +21,7 @@
   box(clip: true, radius: 50%, width: d, height: d, image(s.logo, width: d, height: d, fit: "cover"))
 } else {
   box(width: d, height: d, radius: 50%, fill: white.transparentize(75%),
-    align(center + horizon, text(size: d * 0.36, weight: "bold", fill: white)[#s.nome.slice(0, 1)]))
+    align(center + horizon, text(size: d * 0.36, weight: "bold", fill: white)[#s.nome.clusters().first()]))
 }
 
 // ── tabellone ──
@@ -123,7 +123,7 @@
           place(top + left, dx: -6.4pt, dy: -1pt, image(r.foto, height: 24pt, width: 32.8pt)))
       } else {
         box(width: 20pt, height: 20pt, radius: 50%, fill: lilla, stroke: 0.6pt + bordo,
-          align(center + horizon, text(7pt, weight: "bold", fill: viola)[#r.nome.split(" ").filter(p => p != "").map(p => p.slice(0, 1)).slice(0, calc.min(2, r.nome.split(" ").filter(p => p != "").len())).join()]))
+          align(center + horizon, text(7pt, weight: "bold", fill: viola)[#r.nome.split(" ").filter(p => p != "").map(p => p.clusters().first()).slice(0, calc.min(2, r.nome.split(" ").filter(p => p != "").len())).join()]))
       }
       // tondo e nome in una griglia centrata in verticale: con la foto e con le iniziali il nome sta alla
       // stessa altezza (prima, col box spostato sulla linea del testo, con le iniziali saliva)

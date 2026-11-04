@@ -105,7 +105,7 @@
 #let stemma(d) = box(width: d, height: d, radius: 50%, clip: true, fill: c_dark,
   stroke: 1.5pt + _ton_hdr.transparentize(55%),
   if logo_path != "" { image(logo_path, width: d, height: d, fit: "contain") }
-  else { align(center + horizon, text(d * 0.42, weight: "bold", fill: _ton_dark)[#team_nome.slice(0, 1)]) })
+  else { align(center + horizon, text(d * 0.42, weight: "bold", fill: _ton_dark)[#team_nome.clusters().first()]) })
 #let sezione(t, colore) = text(7pt, weight: "bold", fill: colore, tracking: 0.8pt)[#t]
 
 // ── header ────────────────────────────────────────────────────────────────────

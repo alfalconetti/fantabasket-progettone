@@ -499,6 +499,21 @@ async def _cmd_notte(update, context):
     await notte.cmd_notte(update, context)
 
 
+async def _cmd_top(update, context):
+    import top_giocatori
+    await top_giocatori.cmd_top(update, context)
+
+
+async def _cmd_pdf_giornata(update, context):
+    import pdf_partite
+    await pdf_partite.cmd_pdf_giornata(update, context)
+
+
+async def _cmd_pdf_partite(update, context):
+    import pdf_partite
+    await pdf_partite.cmd_pdf_partite(update, context)
+
+
 async def _cmd_live_img(update, context):
     import live
     await live.cmd_live_img(update, context)
@@ -527,6 +542,9 @@ def get_handlers() -> list:
         CommandHandler(["giornata", "risultati"], cmd_giornata),
         CommandHandler("live_results", _cmd_live_results),
         CommandHandler("live", _cmd_live_img, block=False),
+        CommandHandler("top", _cmd_top, block=False),
+        CommandHandler("pdf_giornata", _cmd_pdf_giornata, block=False),     # 13 pagine: il bot intanto risponde
+        CommandHandler("pdf_partite", _cmd_pdf_partite, block=False),
         CommandHandler("notte", _cmd_notte),
         CommandHandler("importa_calendario", cmd_importa_calendario),
         MessageHandler(filters.Document.ALL & filters.CaptionRegex(r"^/importa_calendario"), cmd_importa_calendario),
