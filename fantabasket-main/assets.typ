@@ -42,7 +42,7 @@
     (nome: p.at(0, default: ""), importo: p.at(1, default: "0"),
      anni: p.at(2, default: "1"), flag: p.at(3, default: "N"),
      importo_orig: p.at(4, default: ""), badge: p.at(5, default: ""),
-     ruolo: p.at(6, default: ""), eleg: p.at(7, default: ""), fm: p.at(8, default: ""), extra: p.at(9, default: ""))
+     ruolo: p.at(6, default: ""), eleg: p.at(7, default: ""), fm: p.at(8, default: ""), extra: p.at(9, default: ""), eta: p.at(13, default: ""))
   })
 }
 
@@ -74,7 +74,7 @@
 #let base_g    = giocatori.filter(g => g.extra == "")
 #let base_g    = if base_g.len() >= roster_max { base_g } else {
   base_g + range(roster_max - base_g.len()).map(_ =>
-    (nome: "", importo: "", anni: "", flag: "VUOTO", importo_orig: "", badge: "", ruolo: "", eleg: "", fm: "", extra: "")
+    (nome: "", importo: "", anni: "", flag: "VUOTO", importo_orig: "", badge: "", ruolo: "", eleg: "", fm: "", extra: "", eta: "")
   )
 }
 // fuori dai 15 (DPE che libera lo slot, 10-day): sotto, dopo una riga più spessa
@@ -128,7 +128,7 @@
 // ── roster ────────────────────────────────────────────────────────────────────
 #let titolo(t, al: center) = align(al, text(6.5pt, weight: "bold", fill: _ton_dark, tracking: 0.5pt)[#t])
 #table(
-  columns:  (32pt, 1fr, 46pt, 34pt, 28pt),
+  columns:  (32pt, 1fr, 26pt, 46pt, 34pt, 28pt),
   rows:     (16pt,) + base_g.map(g => if g.flag == "VUOTO" { 12pt } else { 18pt })
             + if extra_g.len() > 0 { (13pt,) + extra_g.map(_ => 18pt) } else { () },
   inset:    (x: 6pt, y: 0pt),
@@ -142,12 +142,12 @@
     if g == none { return white }
     if calc.odd(i) { c_row_odd } else { c_row_even }
   },
-  titolo[RUOLO], titolo(al: left)[GIOCATORI · #pieni/#roster_max], titolo[#fm_label], titolo[\$], titolo[ANNI],
+  titolo[RUOLO], titolo(al: left)[GIOCATORI · #pieni/#roster_max], titolo[ETÀ], titolo[#fm_label], titolo[\$], titolo[ANNI],
   ..if extra_g.len() > 0 { (table.hline(y: n_base + 1, stroke: 1.5pt + c_dark),) } else { () },
   ..giocatori.enumerate().map(((i, g)) => {
     // fuori dai 15 (DPE che libera lo slot, 10-day): sotto la riga spessa, con un'etichetta
     let etichetta = if extra_g.len() > 0 and i == n_base {
-      (table.cell(colspan: 5, inset: (x: 6pt, y: 0pt))[#text(6pt, weight: "bold", fill: _ton_sez, tracking: 0.6pt)[FUORI DAI 15]],)
+      (table.cell(colspan: 6, inset: (x: 6pt, y: 0pt))[#text(6pt, weight: "bold", fill: _ton_sez, tracking: 0.6pt)[FUORI DAI 15]],)
     } else { () }
     let is_vuoto = g.flag == "VUOTO"
     let (fc, bold) = if g.flag == "R0"    { (c_r0,  true) }
@@ -171,7 +171,7 @@
         grid(columns: (34fr, 28fr), align: center + horizon, importo, text(8pt, fill: scuro)[#g.anni])))
     }
     etichetta + if is_vuoto {
-      ([], text(6.5pt, fill: tc.transparentize(65%), style: "italic")[posto libero], [], [], [])
+      ([], text(6.5pt, fill: tc.transparentize(65%), style: "italic")[posto libero], [], [], [], [])
     } else {
       (
         align(center, box(fill: c_dark, radius: 3pt, inset: (x: 3pt, y: 2pt), width: 21pt,
@@ -181,6 +181,7 @@
           let t = text(8.5pt, fill: fc_nome, weight: if bold or ha_dpe {"bold"} else {"regular"})[#g.nome]
           if g.badge == "badge" { box(fill: white.transparentize(25%), radius: 2pt, inset: (x: 2pt, y: 1pt), t) } else { t }
         },
+        align(center, text(8pt, fill: tc)[#g.eta]),
         align(center, text(8pt, fill: tc)[#g.fm]),
         cella_importo,
       )

@@ -178,6 +178,11 @@ try:
 except ImportError:
     pass
 
+# /assets a una data (v6.21.0): diritti col nome, niente STEPIEN nel passato
+ok(RO._diritti_con_nome([{"giocatore_id": r, "pick_numero": 4, "anno_draft": "2026"}])[0]["nome_common"] == "Rook Prova",
+   "/assets a una data: i diritti di get_diritti_at col nome")
+ok(RO._data_non_valida(datetime(2099, 1, 1, tzinfo=timezone.utc)).startswith("❌") and RO._data_non_valida(None) is None,
+   "data nel futuro rifiutata")
 # /pdf_roster (v6.20.0): PDF vettoriale per squadra con foto e loghi in miniatura, pagine unite (Typst vero sostituito da typst-py)
 try:
     import typst as _typ, tempfile as _tf
@@ -202,6 +207,14 @@ try:
     ok(len(_pdfs) == _n and all(len(PdfReader(x).pages) == 1 for x in _pdfs), f"/pdf_roster: oltre il limite di Telegram si divide in più file ({len(_pdfs)})")
     for _x in _pdfs: os.unlink(_x)
     RO._genera_roster_png = _v1
+    # /pdf_assets (v6.21.0): stesso PDF con le pagine di /assets
+    _fatte.clear()
+    _va = RO._genera_assets_png
+    RO._genera_assets_png = _finto_pdf
+    _pdfs, _n = asyncio.run(RO.genera_pdf_roster(None, "assets"))
+    RO._genera_assets_png = _va
+    ok(len(_pdfs) == 1 and len(PdfReader(_pdfs[0]).pages) == _n == len(_fatte) >= 1, f"/pdf_assets: una pagina di asset per squadra ({_n})")
+    for _x in _pdfs: os.unlink(_x)
     _f = _tf.NamedTemporaryFile(suffix=".png", delete=False); _f.close()
     _Im.new("RGBA", (520, 380), (200, 50, 50, 255)).save(_f.name)
     _m = RO.miniatura(_f.name, 120, jpeg=True)

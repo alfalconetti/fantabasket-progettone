@@ -1801,3 +1801,9 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - `/pdf_roster` di nuovo vettoriale (Luca, 04/11), con foto e loghi in miniatura (foto JPEG da 120 pixel, loghi NBA da 64, logo della squadra da 256: Pillow, cache in /tmp): in prova una pagina passa da circa 600 KB a meno di 50 KB e il testo resta selezionabile. Pagine unite con `pypdf`; oltre i 45 MB comunque divisi in più file. `pillow` e `pypdf` nelle dipendenze
 - `/assets` (Luca, 04/11): la fantamedia dei giocatori (come in `/roster`, con l'asterisco a inizio stagione) e importo e anni nella stessa bolla di `/roster`; niente foto né squadre NBA
 - loucabot v82: **`/live [N]` per tutti** manda l'immagine del live (la stessa del canale) a chi la chiede, stessa giornata di `/live_results`; l'aggiornamento a mano degli admin si chiama **`/update`**
+
+## v6.21.0 (2026-11-04)
+
+- **`/assets` a una data** (Luca, 04/11: «va assolutamente messo»): `/assets Alfa 01-12-26` mostra roster, contratti, pick e diritti di quel giorno, dal registro come `/roster` (senza il tag STEPIEN, che vale solo per oggi)
+- `/assets`: colonna **ETÀ** (a quella data, se c'è)
+- **`/pdf_assets [DATA]`**: gli asset di tutte le squadre in un PDF, una pagina ciascuna, come `/pdf_roster`

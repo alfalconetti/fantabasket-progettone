@@ -637,7 +637,7 @@ async def cmd_roster(update: Update, context: ContextTypes.DEFAULT_TYPE):
             os.unlink(png_path)
 
 
-def _build_picks_str(picks: list, team_id: str) -> str:
+def _build_picks_str(picks: list, team_id: str, stepien: bool = True) -> str:
     """Costruisce la stringa pick per Typst: 'anno|round|by|S;...'
     (S = propria 1st bloccata dalla Stepien Rule).
     Include tutti gli anni da stagione+1 a max_pick_anno anche se vuoti.
@@ -653,7 +653,7 @@ def _build_picks_str(picks: list, team_id: str) -> str:
             picks_per_anno[anno].append(p)
 
     from validators.trade import anni_1st_bloccate_stepien
-    bloccate_stepien = anni_1st_bloccate_stepien(team_id)
+    bloccate_stepien = anni_1st_bloccate_stepien(team_id) if stepien else set()     # a una data passata: niente tag
 
     righe = []
     for anno in sorted(picks_per_anno):
@@ -685,20 +685,37 @@ def _build_diritti_str(diritti: list) -> str:
     return ", ".join(parts)
 
 
-async def _genera_assets_png(team: dict, stagione: str) -> str:
-    """Genera il PNG assets (roster + pick + diritti) tramite Typst."""
+def _diritti_con_nome(diritti: list) -> list:
+    """Le righe di rookie di get_diritti_at non hanno il nome: lo aggiunge (per /assets a una data)."""
+    ids = [d["giocatore_id"] for d in diritti if d.get("giocatore_id")]
+    nomi = {x["id"]: x["nome_common"] for x in (db._q("SELECT id, nome_common FROM giocatori WHERE id = ANY(%s)",
+                                                       (ids,), many=True) or [])} if ids else {}
+    return [{**d, "nome_common": d.get("nome_common") or nomi.get(d.get("giocatore_id"), "?")} for d in diritti]
+
+
+async def _genera_assets_png(team: dict, stagione: str, as_of=None, formato: str = "png") -> str:
+    """Genera il PNG assets (roster + pick + diritti) tramite Typst; a una data (`as_of`, v6.21.0: roster, contratti,
+    pick e diritti di quel momento, dal registro) e in PDF (`formato="pdf"`, logo in miniatura) per /pdf_assets."""
     team_id = team["id"]
 
-    roster   = db.get_roster_team(team_id)
-    contratti = db.get_contratti_team(team_id)
-    picks    = db.get_pick_team(team_id)
-    diritti  = db.get_diritti_2nd_team(team_id)
+    if as_of:
+        roster    = db.get_roster_team_at(team_id, as_of.isoformat())
+        contratti = db.get_contratti_team_at(team_id, as_of.isoformat())
+        picks     = sorted(db.get_pick_at(team_id, as_of.isoformat()), key=lambda p: (int(p["anno"]), p["round"]))
+        diritti   = _diritti_con_nome(db.get_diritti_at(team_id, as_of.isoformat()))
+    else:
+        roster   = db.get_roster_team(team_id)
+        contratti = db.get_contratti_team(team_id)
+        picks    = db.get_pick_team(team_id)
+        diritti  = db.get_diritti_2nd_team(team_id)
 
-    ruoli, posizioni = _ruoli_e_posizioni(team_id, stagione)
-    fm, fm_altra, fm_label, fm_nota = _fantamedie_roster(roster, stagione)      # v6.20.0: FP anche in /assets
+    ruoli, posizioni = _ruoli_e_posizioni(team_id, stagione, as_of)
+    fm, fm_altra, fm_label, fm_nota = _fantamedie_roster(roster, stagione, as_of)      # v6.20.0: FP anche in /assets
+    # v6.21.0: l'età (a quella data) nei campi in più della stringa, senza squadre NBA né foto
+    eta = {r["giocatore_id"]: {"eta": _eta(r.get("data_nascita"), as_of)} for r in roster}
     giocatori_str = _build_giocatori_str(roster, contratti, team_colori=team,
-                                         ruoli=ruoli, posizioni=posizioni, fm=fm, fm_altra=fm_altra)
-    picks_str     = _build_picks_str(picks, team_id)
+                                         ruoli=ruoli, posizioni=posizioni, fm=fm, fm_altra=fm_altra, nba=eta)
+    picks_str     = _build_picks_str(picks, team_id, stepien=as_of is None)
     diritti_str   = _build_diritti_str(diritti)
 
     cap_contratti = db.cap_roster(roster)          # x0 esclusi, RFA dichiarati inclusi (v3.11)
@@ -707,7 +724,7 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
     cap_totale    = cap_contratti + cap_impatto
     salary_detail = f"{cap_contratti}+{cap_impatto}" if cap_impatto > 0 else str(cap_contratti)
 
-    eta_list = [_eta(r.get("data_nascita")) for r in roster]
+    eta_list = [_eta(r.get("data_nascita"), as_of) for r in roster]
     eta_list = [e for e in eta_list if e is not None]
     eta_str  = f"{sum(eta_list)/len(eta_list):.1f}" if eta_list else "—"
 
@@ -717,8 +734,10 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
     cambi_usati = _cambi_usati(team["id"], stagione)
 
     logo = _logo_path(team_id)
+    if formato == "pdf":
+        logo = miniatura(logo, 256)
 
-    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    tmp = tempfile.NamedTemporaryFile(suffix=f".{formato}", delete=False)
     tmp.close()
 
     cmd = [
@@ -733,7 +752,7 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
         "--input", f"cambi_usati={cambi_usati}",
         "--input", f"logo_path={logo}",
         "--input", f"giocatori={giocatori_str}",
-        "--input", f"fine_10day={_fine_10day(team_id)}",
+        "--input", f"fine_10day={'' if as_of else _fine_10day(team_id)}",
         "--input", f"picks={picks_str}",
         "--input", f"diritti={diritti_str}",
         "--input", f"fm_label={fm_label}",
@@ -755,14 +774,20 @@ async def _genera_assets_png(team: dict, stagione: str) -> str:
 
 async def cmd_assets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    /assets [team_id]
-    Genera il PNG con roster, pick e diritti.
+    /assets [team_id] [DD-MM-YY]
+    Genera il PNG con roster, pick e diritti; con la data, la situazione di quel giorno (v6.21.0).
     """
     user = update.effective_user
     args = context.args or []
 
-    team = None
+    team, as_of = None, None
     for arg in args:
+        from datetime import datetime, timezone
+        from shared.date_comandi import leggi_data
+        g = leggi_data(arg) if arg[:1].isdigit() else None
+        if g:
+            as_of = datetime(g.year, g.month, g.day, 23, 59, tzinfo=timezone.utc)
+            continue
         team = tm.get_team_by_query(arg)
         if not team:
             await update.effective_message.reply_text(f"❌ Team '{arg}' non trovato.")
@@ -775,6 +800,10 @@ async def cmd_assets(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "⛔ Non sei registrato come GM. Usa /assets <team_id>."
             )
             return
+    errore = _data_non_valida(as_of)
+    if errore:
+        await update.effective_message.reply_text(errore)
+        return
 
     stagione = settings.stagione_corrente()
     await update.effective_message.reply_text(
@@ -784,11 +813,11 @@ async def cmd_assets(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     png_path = None
     try:
-        png_path = await _genera_assets_png(team, stagione)
+        png_path = await _genera_assets_png(team, stagione, as_of=as_of)
         with open(png_path, "rb") as f:
             await update.effective_message.reply_photo(
                 photo=f,
-                caption=f"🏀 <b>{team['nome']}</b> — Asset completi {stagione}",
+                caption=f"🏀 <b>{team['nome']}</b> — Asset completi {stagione}" + (f"\n📅 al {as_of:%d/%m/%Y}" if as_of else ""),
                 parse_mode="HTML",
             )
     except Exception as e:
@@ -797,6 +826,19 @@ async def cmd_assets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         if png_path and os.path.exists(png_path):
             os.unlink(png_path)
+
+
+def _data_non_valida(as_of) -> str | None:
+    """Messaggio d'errore per una data di /assets, /pdf_roster, /pdf_assets: nel futuro o prima del registro."""
+    if not as_of:
+        return None
+    from datetime import datetime, timezone
+    if as_of > datetime.now(tz=timezone.utc):
+        return "❌ La data non può essere nel futuro."
+    prima = db.get_prima_transazione()
+    if prima and as_of < prima:
+        return f"❌ Nessun dato disponibile prima del {prima.strftime('%d/%m/%Y')}."
+    return None
 
 
 # ── /pdf_roster (v6.19.0, Luca 04/11: per tutti i GM) ─────────────────────────
@@ -819,7 +861,7 @@ def _unisci(pdfs: list[str]) -> str:
     return out.name
 
 
-async def genera_pdf_roster(as_of=None) -> tuple[list[str], int]:
+async def genera_pdf_roster(as_of=None, tipo: str = "roster") -> tuple[list[str], int]:
     """I roster di tutte le squadre in un PDF vettoriale, una pagina ciascuna (ordine di teams.json), oggi o a una data:
     il template di /roster in PDF con foto e loghi in miniatura (v6.20.0; con le foto intere passava i 50 MB di
     Telegram), pagine unite con pypdf. Se è comunque troppo grande si divide in più file. → ([PDF], squadre)."""
@@ -829,7 +871,8 @@ async def genera_pdf_roster(as_of=None) -> tuple[list[str], int]:
         for team in tm.get_all_teams():
             rs = db.get_roster_team_at(team["id"], as_of.isoformat()) if as_of else db.get_roster_team(team["id"])
             if rs:
-                pagine.append(await _genera_roster_png(team, stagione, as_of=as_of, formato="pdf"))
+                gen = _genera_assets_png if tipo == "assets" else _genera_roster_png      # /pdf_assets (v6.21.0)
+                pagine.append(await gen(team, stagione, as_of=as_of, formato="pdf"))
         parti = 1
         while True:
             passo = -(-len(pagine) // parti) if pagine else 1
@@ -845,46 +888,55 @@ async def genera_pdf_roster(as_of=None) -> tuple[list[str], int]:
             _togli(p)
 
 
-async def cmd_pdf_roster(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/pdf_roster [DATA]: i roster di tutte le squadre in un PDF, una pagina per squadra (anche a una data passata)."""
+async def _cmd_pdf(update: Update, context: ContextTypes.DEFAULT_TYPE, tipo: str):
+    """/pdf_roster e /pdf_assets [DATA]: tutte le squadre in un PDF, una pagina per squadra (anche a una data passata)."""
     from datetime import datetime, timezone
     from shared.date_comandi import leggi_data
     msg = update.effective_message
+    cosa = "roster" if tipo == "roster" else "asset"
     as_of = None
     if context.args:
         g = leggi_data(context.args[0])
         if not g:
-            await msg.reply_text("Uso: /pdf_roster [GG-MM-AA] (senza data i roster di oggi)")
+            await msg.reply_text(f"Uso: /pdf_{tipo} [GG-MM-AA] (senza data la situazione di oggi)")
             return
         as_of = datetime(g.year, g.month, g.day, 23, 59, tzinfo=timezone.utc)
-        if as_of > datetime.now(tz=timezone.utc):
-            await msg.reply_text("❌ La data non può essere nel futuro.")
-            return
-        prima = db.get_prima_transazione()
-        if prima and as_of < prima:
-            await msg.reply_text(f"❌ Nessun dato disponibile prima del {prima.strftime('%d/%m/%Y')}.")
+        errore = _data_non_valida(as_of)
+        if errore:
+            await msg.reply_text(errore)
             return
     if _PDF_IN_CORSO["si"]:
-        await msg.reply_text("⏳ Sto già preparando un PDF dei roster: riprova tra un minuto.")
+        await msg.reply_text("⏳ Sto già preparando un PDF: riprova tra un minuto.")
         return
     _PDF_IN_CORSO["si"] = True
     data_label = as_of.strftime("%d/%m/%Y") if as_of else datetime.now().strftime("%d/%m/%Y")
-    await msg.reply_text(f"⏳ Preparo il PDF dei roster{' al ' + data_label if as_of else ''}: ci vuole qualche secondo…")
+    await msg.reply_text(f"⏳ Preparo il PDF degli {cosa}{' al ' + data_label if as_of else ''}: ci vuole qualche secondo…"
+                         if cosa == "asset" else
+                         f"⏳ Preparo il PDF dei roster{' al ' + data_label if as_of else ''}: ci vuole qualche secondo…")
     paths = []
     try:
-        paths, n = await genera_pdf_roster(as_of)
+        paths, n = await genera_pdf_roster(as_of, tipo)
         for i, path in enumerate(paths, 1):
             parte = f" ({i}/{len(paths)})" if len(paths) > 1 else ""
             with open(path, "rb") as f:
-                await msg.reply_document(document=f, filename=f"roster_{data_label.replace('/', '-')}{parte.replace(' ', '_').replace('/', 'di')}.pdf",
-                                         caption=f"📄 Roster di {n} squadre" + (f" al {data_label}" if as_of else f" · {data_label}") + parte)
+                await msg.reply_document(document=f, filename=f"{tipo}_{data_label.replace('/', '-')}{parte.replace(' ', '_').replace('/', 'di')}.pdf",
+                                         caption=f"📄 {'Roster' if tipo == 'roster' else 'Asset'} di {n} squadre"
+                                                 + (f" al {data_label}" if as_of else f" · {data_label}") + parte)
     except Exception as e:
-        logger.exception("PDF dei roster")
-        await msg.reply_text(f"❌ PDF dei roster non riuscito: {e}")
+        logger.exception("PDF %s", tipo)
+        await msg.reply_text(f"❌ PDF non riuscito: {e}")
     finally:
         _PDF_IN_CORSO["si"] = False
         for path in paths:
             _togli(path)
+
+
+async def cmd_pdf_roster(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await _cmd_pdf(update, context, "roster")
+
+
+async def cmd_pdf_assets(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await _cmd_pdf(update, context, "assets")
 
 
 def get_handlers() -> list:
@@ -892,4 +944,5 @@ def get_handlers() -> list:
         CommandHandler("roster", cmd_roster),
         CommandHandler("assets", cmd_assets),
         CommandHandler("pdf_roster", cmd_pdf_roster, block=False),     # 24 immagini: il bot intanto risponde
+        CommandHandler("pdf_assets", cmd_pdf_assets, block=False),
     ]
