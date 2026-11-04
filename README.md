@@ -77,6 +77,7 @@ validates them before they reach the league sheet and the main channel.
 | `bot-main`     | League management bot (contracts, trades, draft, rosters)       |
 | `bot-aste-beta` | Free agency / RFA auction bot                                 |
 | `loucabot`     | Season bot: league schedule synced with the NBA calendar, box scores and fantasy points |
+| `klra`         | What-if bot: the same lineups and box scores under alternative scoring systems made by the managers; read-only on the league database |
 | `ipanchinari`  | Lineups bot: bench messages from the managers (nicknames included) and starting fives |
 | `gas-router`   | Internal proxy to the Google Apps Script web app                |
 | `postgres`     | League database                                                 |

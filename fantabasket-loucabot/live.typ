@@ -26,6 +26,20 @@
 // /pdf_giornata): «modo» finale, etichetta dello stato al posto di LIVE, niente etichette dei titolari né legenda
 #let finale = d.at("modo", default: "live") == "finale"
 
+// klra (sistemi di punteggio alternativi, v7.0.0): filigrana «NON UFFICIALE» e striscia rossa in cima, solo se nei dati
+#let _filigrana = d.at("filigrana", default: "")
+#set page(foreground: if _filigrana != "" {
+  // una scritta ogni 450pt circa di altezza (le immagini corte ne hanno una sola, /partita tre)
+  layout(sz => {
+    let n = calc.max(1, calc.floor(sz.height / 450pt))
+    for i in range(n) { place(center + horizon, dy: sz.height * ((i + 0.5) / n - 0.5),
+      rotate(-22deg, text(50pt, weight: "bold", fill: rgb("#C0392B").transparentize(84%))[#_filigrana])) }
+  })
+})
+#if d.at("striscia", default: "") != "" {
+  block(width: 100%, fill: rgb("#C0392B"), inset: (x: 14pt, y: 6pt), align(center, text(9pt, weight: "bold", fill: white)[#d.striscia]))
+}
+
 // ── testata ──
 #block(width: 100%, fill: gradient.linear(viola_scuro, viola, angle: 0deg), inset: (x: 14pt, y: 11pt))[
   #grid(columns: (1fr, auto), align: horizon,

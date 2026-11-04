@@ -38,6 +38,20 @@
 #let punti(s) = text(28pt, weight: peso(s), fill: if dati.stato == "da giocare" { white.transparentize(40%) } else if s.vince or not finale { white } else { white.transparentize(30%) })[#if dati.stato == "da giocare" [–] else [#s.punti]]
 #let etichetta(t, c) = box(fill: c, radius: 4pt, inset: (x: 6pt, y: 2.5pt))[#text(8pt, weight: "bold", fill: white)[#t]]
 
+// klra (sistemi di punteggio alternativi, v7.0.0): filigrana «NON UFFICIALE» e striscia rossa in cima, solo se nei dati
+#let _filigrana = dati.at("filigrana", default: "")
+#set page(foreground: if _filigrana != "" {
+  // una scritta ogni 450pt circa di altezza (le immagini corte ne hanno una sola, /partita tre)
+  layout(sz => {
+    let n = calc.max(1, calc.floor(sz.height / 450pt))
+    for i in range(n) { place(center + horizon, dy: sz.height * ((i + 0.5) / n - 0.5),
+      rotate(-22deg, text(50pt, weight: "bold", fill: rgb("#C0392B").transparentize(84%))[#_filigrana])) }
+  })
+})
+#if dati.at("striscia", default: "") != "" {
+  block(width: 100%, fill: rgb("#C0392B"), inset: (x: 14pt, y: 6pt), align(center, text(9pt, weight: "bold", fill: white)[#dati.striscia]))
+}
+
 #block(width: 100%, fill: gradient.linear(viola_scuro, viola, angle: 0deg), inset: (x: 14pt, y: 12pt))[
   #align(center)[#text(9pt, weight: "bold", fill: white.transparentize(25%), tracking: 0.6pt)[#upper(dati.titolo) · #dati.date]]
   #v(12pt)
@@ -55,7 +69,9 @@
     lato(b, true))
   #v(8pt)
   #align(center, {
-    if dati.stato == "convalidata" { etichetta("CONVALIDATA", verde) }
+    // klra (sistemi di punteggio alternativi): al posto dello stato, il nome del sistema
+    if dati.at("sistema", default: "") != "" { etichetta("NON UFFICIALE · KLRA · " + upper(dati.sistema), rosso) }
+    else if dati.stato == "convalidata" { etichetta("CONVALIDATA", verde) }
     else if dati.stato == "calcolata" { etichetta("CALCOLATA · DA CONVALIDARE", arancio) }
     else if dati.stato == "in corso" { etichetta("IN CORSO · PROVVISORIO", rosso) }
     else { etichetta("DA GIOCARE", viola_medio) }
@@ -81,7 +97,7 @@
   else if c.k == "rinviata" { text(fill: arancio, size: 8.5pt)[#c.t] }
   else { [] }
 }
-#let conta(r) = {
+#let conta-base(r) = {
   let t = r.tag
   if t == "esce" { text(fill: grigio)[↓ FADD] }
   else if t == "entra" { text(fill: verde, weight: "bold")[↑ #r.conta] }
@@ -91,6 +107,13 @@
   else if t == "doppio" { text(fill: grigio)[0 #text(7pt)[ANCHE TITOLARE]] }
   else if t == "vuoto" { text(fill: grigio)[0 #text(7pt)[VUOTO]] }
   else { text(weight: "bold")[#r.conta] }
+}
+#let conta(r) = {
+  let t = r.tag
+  // klra: i bonus del sistema accanto ai punti (es. +5 TD)
+  let bonus = r.at("bonus", default: "")
+  if bonus != "" and t != "esce" and t != "ceduto" and t != "vuoto" { return [#conta-base(r) #text(6.5pt, fill: viola, weight: "bold")[#bonus]] }
+  conta-base(r)
 }
 
 #let squadra(s) = {

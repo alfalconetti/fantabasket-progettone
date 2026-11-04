@@ -4,6 +4,8 @@ Da admin puoi fare **tutto quello che fa un GM, al posto suo**: trade, tagli, ro
 
 Gli altri bot hanno la loro guida admin: **bot aste** (correzioni e aste per conto di una squadra), **loucabot** (import del calendario, ESPN, punteggi), **IPanchinari** (quintetti, panchine per conto di una squadra, riepiloghi prima della scadenza). Le fasi si cambiano solo qui.
 
+**klra** (v7.0.0) è il bot dei sistemi di punteggio alternativi: i GM creano regole diverse e guardano come sarebbe andata. È **tutto non ufficiale** (lo dice ogni immagine e ogni messaggio) e non può scrivere niente nel database della lega: lo impedisce PostgreSQL. Non ha comandi admin; il dev ha un comando di controllo che confronta l'Ufficiale di klra coi risultati della lega. Dettagli in `fantabasket-klra/README.md`.
+
 Si parte da **`/admin_menu`**, il pannello coi bottoni. Come il `/menu` dei GM mostra solo le voci che hanno senso nella fase corrente, più **📊 Situazione cap**: cap occupato e tetto di tutte le squadre in un colpo d'occhio.
 
 **Se sei anche GM**, dal `/menu` e dai comandi dei GM (`/dichiarazione_ruoli`, `/cambio_ruolo`, i bottoni dei ruoli da dichiarare, le trade) agisci come GM della tua squadra, con le stesse regole di tutti: solo la tua squadra, stesse fasi e stesse scadenze (dopo la deadline dei ruoli, dal menu sei bloccato anche tu). Le operazioni "da admin" (altre squadre, dopo le scadenze, cambio forzato, Saedro diretta, eccetera) stanno solo nel pannello e nei comandi admin (per i ruoli: pannello → 🎽 Ruoli squadre, anche per la tua squadra, o `/dichiarazione_ruoli SQUADRA`).

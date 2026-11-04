@@ -13,8 +13,9 @@ ASTE_PG=(pg_rfa_30giorni_dpe lista_fa_stagione registro_aste firma_per_conto rfa
 ASTE_ISOLATO=(apri_asta_admin apertura_gm cap_asta_chiusa rfa_proprietario team_ricerca regolamento_numeri_aste)
 LOUCA=(louca_calendario louca_calcolo louca_foglio louca_risultati louca_classifica)
 IPA=(ipa_panchine ipa_errori ipa_injury)
+KLRA=(klra_motore)
 DOCS=(guide_e_menu letture_transazioni nomi_importati router_health gas_node solo_gruppo_admin solo_lega)
-scelti=("$@"); [ ${#scelti[@]} -eq 0 ] && scelti=("${MAIN[@]}" "${ASTE_PG[@]}" "${ASTE_ISOLATO[@]}" "${LOUCA[@]}" "${IPA[@]}" "${DOCS[@]}")
+scelti=("$@"); [ ${#scelti[@]} -eq 0 ] && scelti=("${MAIN[@]}" "${ASTE_PG[@]}" "${ASTE_ISOLATO[@]}" "${LOUCA[@]}" "${IPA[@]}" "${KLRA[@]}" "${DOCS[@]}")
 in_lista() { local x=$1; shift; for y in "$@"; do [ "$x" = "$y" ] && return 0; done; return 1; }
 falliti=0
 for t in "${scelti[@]}"; do
@@ -26,6 +27,7 @@ for t in "${scelti[@]}"; do
   elif in_lista "$t" "${ASTE_ISOLATO[@]}"; then dir=fantabasket-aste-beta; file=tests/aste/$t.py; export PG_URL=
   elif in_lista "$t" "${LOUCA[@]}"; then dir=fantabasket-loucabot; file=tests/louca/$t.py; export PG_URL=$PGURL
   elif in_lista "$t" "${IPA[@]}"; then dir=fantabasket-ipanchinari; file=tests/ipa/$t.py; export PG_URL=$PGURL
+  elif in_lista "$t" "${KLRA[@]}"; then dir=fantabasket-klra; file=tests/klra/$t.py; export PG_URL=$PGURL
   elif in_lista "$t" "${DOCS[@]}"; then dir=.; file=tests/docs/$t.py
   else echo "?? prova sconosciuta: $t"; continue; fi
   echo "═══ $t"

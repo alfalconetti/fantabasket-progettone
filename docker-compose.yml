@@ -120,6 +120,30 @@ services:
     volumes:
       - ./config:/config:ro
       - ./shared:/app/shared:ro
+
+  # klra (v7.0.0): loucabot coi sistemi di punteggio alternativi. Sola lettura sul database della lega (utente klra,
+  # fantabasket-klra/setup_db.sql, eseguito da deploy.sh), database klra suo. Prima di avviarlo: token di BotFather in
+  # secrets/bot_token_klra.txt e password in secrets/pg_password_klra.txt (fantabasket-klra/README.md)
+  klra:
+    build: ./fantabasket-klra
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      BOT_TOKEN_FILE: /run/secrets/bot_token_klra
+      GLOBALS_PATH: /config/globals.json
+      TEAMS_PATH: /config/teams.json
+      DATABASE_URL: postgresql://klra@postgres/fantabasket          # sola lettura
+      KLRA_DATABASE_URL: postgresql://klra@postgres/klra
+      PG_PASSWORD_FILE: /run/secrets/pg_password_klra
+    secrets:
+      - bot_token_klra
+      - pg_password_klra
+    volumes:
+      - ./config:/config:ro
+      - ./shared:/app/shared:ro
+      - ./fantabasket-loucabot:/louca:ro                            # il codice di calcolo di loucabot
   gas-router:
     build: ./gas-router
     restart: unless-stopped
@@ -173,6 +197,10 @@ secrets:
     file: ./secrets/bot_token_ipanchinari.txt
   pg_password:
     file: ./secrets/pg_password.txt
+  bot_token_klra:
+    file: ./secrets/bot_token_klra.txt
+  pg_password_klra:
+    file: ./secrets/pg_password_klra.txt
   gas_token:
     file: ./secrets/gas_token
   gas_router_token:

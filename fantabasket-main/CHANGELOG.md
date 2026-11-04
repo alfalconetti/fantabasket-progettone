@@ -1833,3 +1833,12 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **🙋 Richiedi accesso** (Luca, 04/11): chi non è GM e scrive al bot principale riceve «bot riservato ai GM» con un bottone per chiedere l'accesso. La richiesta arriva **al dev** in privato con nome, username e user_id, e coi bottoni **🔁 Assegna una squadra** (elenco delle squadre, poi il riepilogo da confermare come `/riassegna`, col nome Telegram come nome del GM) e **🙈 Ignora**. Una richiesta ogni 24 ore per persona; tabella nuova `richieste_accesso`. Gli altri bot rimandano al bot principale
 - **👤 Riassegna squadra nel menu admin**: le richieste di accesso in attesa degli ultimi 30 giorni, ognuna col suo bottone; per chi non ha fatto richiesta resta `/riassegna`
+
+## v7.0.0 (2026-11-05)
+
+- **klra, il bot nuovo** (Luca, 04/11): la lega con altri sistemi di punteggio, creati dai GM (pesi delle statistiche, bonus come tripla doppia o 40 punti, bonus di squadra, bonus casa, scarto, supplementari o pareggio, FADD, chi non gioca, classifica a punti). Stesse formazioni e stessi tabellini; i risultati veri restano quelli di loucabot. **Separazione dal database della lega garantita da PostgreSQL**: database `klra` suo, utente `klra` con sola lettura su un elenco di tabelle. Dettagli in `fantabasket-klra/README.md` e nel suo CHANGELOG
+- **Prima del deploy**: token di BotFather in `secrets/bot_token_klra.txt` e `openssl rand -hex 24 > secrets/pg_password_klra.txt` (senza, il deploy si ferma prima di toccare qualcosa e lo dice)
+- `deploy.sh`: prima di avviare klra esegue `fantabasket-klra/setup_db.sql` (utente, database, permessi; rilanciabile)
+- Backup: se c'è il database di klra, nello zip anche `db/klra.sql`; ripristino in `docs/RECOVERY.md`
+- Comandi di klra: `/sistemi` (schede, editor a bottoni, copia di qualsiasi sistema; lo modifica solo chi l'ha creato), `/usa`, `/classifica`, `/giornata`, `/partita`, `/risultati`, `/confronta`, `/top`; sistema predefinito **Fantamedie** (chi gioca prende la sua media prima della giornata; chi non ha ancora giocato quest'anno quella dell'anno prima, se c'è, se no 0). **Tutto segnato NON UFFICIALE**: striscia rossa e filigrana su ogni immagine, didascalie e testi
+- loucabot: `partita.typ` e `live.typ` accettano etichetta del sistema, bonus accanto ai punti, striscia e filigrana (campi facoltativi, per klra: loucabot non cambia)

@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 # Backup UNICO del sistema (guida di ripristino: docs/RECOVERY.md nel repo).
 # Ogni zip è completo, qualunque sia il motivo (giornaliero, settimanale, shutdown, manuale):
 #   db/fantabasket.sql      pg_dump --clean --if-exists: ripristinabile su DB vuoto o esistente
+#   db/klra.sql             SE c'è il database di klra (v7.0.0): i sistemi di punteggio dei GM, stesso formato
 #   db/aste.db              SQLite del bot aste: copia verificata, WAL già consolidato (un solo file)
 #   config/**               tutta la cartella config (globals, teams, settings, tabelle, loghi, csv...)
 #   secrets.tar.gpg         SE presente: i secrets cifrati sul server con scripts/cifra_secrets.sh.
@@ -34,13 +35,17 @@ _SALTA = {"__pycache__", "foto"}
 _MAX_FILE = 20 * 1024 * 1024   # file di config oltre i 20 MB: saltati (limite Telegram 50 MB)
 
 
-def _pg_dump() -> bytes:
-    """Esegue pg_dump e restituisce i bytes del dump SQL."""
+def _pg_dump(database: str | None = None) -> bytes:
+    """Esegue pg_dump e restituisce i bytes del dump SQL (database: un altro database dello stesso server)."""
     db_url = os.environ.get("DATABASE_URL", "")
     # Ricava credenziali dai secrets se DATABASE_URL non è impostato
     if not db_url:
         pg_pass = open(os.environ.get("PG_PASSWORD_FILE", "/run/secrets/pg_password")).read().strip()
         db_url = f"postgresql://fantabasket:{pg_pass}@postgres:5432/fantabasket"
+    if database:
+        from urllib.parse import urlsplit, urlunsplit
+        u = urlsplit(db_url)
+        db_url = urlunsplit((u.scheme, u.netloc, "/" + database, u.query, u.fragment))
 
     result = subprocess.run(
         ["pg_dump", "--clean", "--if-exists", "--no-owner", db_url],
@@ -117,6 +122,15 @@ def _crea_backup_zip(includi_aste_db: bool = True) -> bytes:
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("db/fantabasket.sql", sql_data)
         contenuto.append(f"db/fantabasket.sql ({len(sql_data) // 1024} KB)")
+        try:                                   # klra (v7.0.0): solo se il suo database esiste
+            import database as _db
+            if _db._qval("SELECT 1 FROM pg_database WHERE datname = 'klra'"):
+                k = _pg_dump("klra")
+                zf.writestr("db/klra.sql", k)
+                contenuto.append(f"db/klra.sql ({len(k) // 1024} KB)")
+        except Exception as e:
+            logger.warning("Dump di klra: %s", e)
+            contenuto.append(f"⚠️ db/klra.sql NON incluso: {e}")
 
         aste_db_path = os.environ.get("ASTE_DB_PATH", "/data_aste/aste.db")
         if os.path.isfile(aste_db_path):

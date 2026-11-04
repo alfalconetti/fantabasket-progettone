@@ -25,6 +25,7 @@ File `backup_progettone_AAAAMMGG_HHMM.zip`:
 
 ```
 db/fantabasket.sql     database principale (contratti, trade, roster, pick, ruoli, tutto)
+db/klra.sql            se c'è klra: i sistemi di punteggio dei GM (database klra)
 db/aste.db             database del bot aste (aste, offerte, firme), copia verificata e completa
 config/                tutta la cartella config: globals.json, teams.json, settings.json,
                        divisions.json, tabelle/, loghi/, csv (non config/foto: le foto dei
@@ -132,6 +133,16 @@ anche sullo stesso server, perché ricreare il database azzera i permessi di con
 
 Su Windows (PowerShell) l'ultima riga diventa:
 `Get-Content (Get-Item restore/db/fantabasket*.sql).FullName | docker compose exec -T postgres psql -q -U fantabasket -d fantabasket`
+
+**klra** (se nel backup c'è `db/klra.sql`): prima utente, database e permessi di sola lettura (ricreare il
+database della lega li azzera), poi i suoi dati:
+```bash
+{ printf "\\set pw '%s'\n" "$(cat secrets/pg_password_klra.txt)"; cat fantabasket-klra/setup_db.sql; } \
+  | docker compose exec -T postgres psql -U fantabasket -d fantabasket -v ON_ERROR_STOP=1 -q
+cat restore/db/klra.sql | docker compose exec -T postgres psql -q -U klra -d klra
+```
+Con `-U klra` le tabelle restano di klra (il dump è senza proprietari): se si caricassero come `fantabasket`, klra
+non potrebbe più scriverle. Poi `docker compose up -d klra`.
 
 ### 3.4 Database del bot aste
 
