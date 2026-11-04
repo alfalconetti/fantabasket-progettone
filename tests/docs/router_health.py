@@ -1,11 +1,11 @@
-"""gas-router e yahoo-router: le richieste a /health (healthcheck di Docker) non finiscono nei log,
+"""gas-router: le richieste a /health (healthcheck di Docker) non finiscono nei log,
 le altre sì, anche con la configurazione dei log di uvicorn (che arriva prima del nostro main)."""
 import importlib.util, io, logging, logging.config, os
 from uvicorn.config import LOGGING_CONFIG
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ok = lambda c, m: print(("✅" if c else "❌ FAIL"), m)
 logging.config.dictConfig(LOGGING_CONFIG)
-for router, altro in (("gas-router", "/gas/calendario"), ("yahoo-router", "/yahoo/roster")):
+for router, altro in (("gas-router", "/gas/calendario"),):
     log = logging.getLogger("uvicorn.access")
     log.filters.clear()
     spec = importlib.util.spec_from_file_location(router.replace("-", "_"), os.path.join(ROOT, router, "main.py"))

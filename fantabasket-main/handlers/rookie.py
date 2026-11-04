@@ -44,7 +44,8 @@ class AttivazioneNonEseguibile(Exception):
 def _label_diritto(r: dict) -> str:
     slot = _slot_scala(r["pick_numero"])
     contratto = f" — {slot['imp']}x{slot['anni']}" if slot else ""
-    return f"{r['nome_common']} (#{r['pick_numero']} {r['anno_draft']}){contratto}"
+    fp = db.fp_testo([r.get("giocatore_id")]).get(r.get("giocatore_id"), "FP —")      # v6.19.0
+    return f"{r['nome_common']} (#{r['pick_numero']} {r['anno_draft']}) · {fp}{contratto}"
 
 
 def esegui_attivazione(rookie_id: int, team_id: str, importo: int, anni: int) -> dict:

@@ -4,3 +4,4 @@ aiohttp
 pandas
 lxml
 html5lib
+pypdf==5.9.0

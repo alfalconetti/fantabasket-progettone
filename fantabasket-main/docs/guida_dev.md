@@ -19,7 +19,6 @@ fantabasket-progettone/
 ├── fantabasket-ipanchinari/ IPanchinari: panchine (messaggi dei GM) e quintetti, README e docs/ suoi
 ├── gas-router/            ponte verso Google Apps Script (fogli)
 ├── gas/                   codice Apps Script (clasp)
-├── yahoo-router/          OAuth Yahoo (inutilizzato, da togliere)
 ├── scripts/               cifra_secrets.sh, setup_dashboard.sh
 ├── tests/                 prove locali (MAI sul server)
 └── docs/RECOVERY.md
@@ -35,7 +34,6 @@ fantabasket-progettone/
 | `loucabot` | calendario della lega sincronizzato con quello NBA, tabellini ESPN e fantapunti; tabelle sue `lega_*`, `nba_*`, più `giocatori.espn_id`; guida tecnica in `fantabasket-loucabot/docs/guida_dev.md` |
 | `ipanchinari` | panchine dai messaggi dei GM (soprannomi) pubblicate sul canale Panchinari, quintetti con promemoria e conferma; tabelle sue `ipa_*`; guida tecnica in `fantabasket-ipanchinari/docs/guida_dev.md` |
 | `gas-router` | riceve i dati dal bot e li gira alla web app Apps Script |
-| `yahoo-router` | OAuth e chiamate Yahoo (inutilizzato, accesso respinto: da togliere) |
 | `nocodb` | dashboard in LAN sulla 8090, di solito spenta |
 
 **Chi possiede cosa:**
@@ -107,8 +105,7 @@ fantabasket-progettone/
 
 - `bot_token_*.txt`, `pg_password.txt`;
 - `gas_token`, `gas_router_token`, `gas_roster_url`, `gas_scelte_url`;
-- `yahoo_*`;
-- `bot_main.env`, `yahoo_router.env`, `nocodb.env`.
+- `bot_main.env`, `nocodb.env`.
 
 Sono bind-mount per file: dopo una modifica serve `docker compose up -d --force-recreate <servizio>`, e poi `scripts/cifra_secrets.sh` perché il backup li includa.
 
@@ -369,7 +366,7 @@ ORDER BY t.timestamp, t.id;
 | `cambi_ruolo.py` | `/cambio_ruolo`: ordinario, Erminio, Saedro, forzato, Extra DPE |
 | `dieci_giorni.py` | `/firma_10day` (GM, richiesta), `/firma_10day_admin`, approvazione, pannello, scadenza |
 | `posizioni.py` | import e correzione delle posizioni eleggibili, `/data_erminio`; `/posizioni_mancanti` e `job_report_posizioni` (`mancanti`: sotto contratto e free agent con righe di `bref_stats` nelle stagioni di `shared/lista_fa.stagioni_valide`, le stesse di `/lista_fa` (quest'anno e l'anno prima, dopo lo switch al 70% dei firmati solo quest'anno); ogni mattina in privato al dev (`dev_id`) con `manda_lungo` se l'elenco cambia, impronta in `report_posizioni_inviato`; il lunedì comunque) |
-| `roster.py` | `/roster`, `/assets` (Typst). `/roster` dalla v6.13.0 (Luca, 31/10): `_nba_ed_eta` (squadra NBA con `carriera.squadra_nba_al`, età con `_eta(nascita, al)` e foto ESPN di loucabot, alla data del roster) e `percentuale_giocate` (% G, v6.16.0: partite con `giocato` in `nba_tabellini` su quelle finite della squadra in `nba_partite` dalla data in cui è arrivato, `carriera.squadra_nba_dal`) → 6 campi in più nella stringa dei giocatori; `roster.typ` largo 350pt: faccia, nome che si stringe fino a 6,5pt (poi senza eleggibili), logo NBA, ETÀ, % G, importo e anni in una bolla a cavallo delle due colonne. `/assets` resta com'è |
+| `roster.py` | `/roster`, `/assets` (Typst). `/roster` dalla v6.13.0 (Luca, 31/10): `_nba_ed_eta` (squadra NBA con `carriera.squadra_nba_al`, età con `_eta(nascita, al)` e foto ESPN di loucabot, alla data del roster) e `percentuale_giocate` (% G, v6.16.0: partite con `giocato` in `nba_tabellini` su quelle finite della squadra in `nba_partite` dalla data in cui è arrivato, `carriera.squadra_nba_dal`) → 6 campi in più nella stringa dei giocatori; `roster.typ` largo 350pt: faccia, nome che si stringe fino a 6,5pt (poi senza eleggibili), logo NBA, ETÀ, % G, importo e anni in una bolla a cavallo delle due colonne. `/assets` resta com'è. **`/pdf_roster [DATA]`** (v6.19.0): `genera_pdf_roster` = `_genera_roster_png(…, formato="pdf")` per ogni squadra con giocatori, pagine unite con `pypdf` (in requirements), un PDF solo per volta (`_PDF_IN_CORSO`), handler con `block=False`. Diritti con `database.fp_testo` («FP 12.3» o «FP —») in `_build_diritti_str`, nei bottoni dei diritti delle trade (`trade_crea`), nelle etichette delle trade (`trade_comune`) e nella firma dei diritti (`rookie._label_diritto`) |
 | `team_diff.py` | `/team_diff` |
 | `palette.py`, `myteam.py` | colori e dati squadra (colori effettivi e testo leggibile: `roster.colori_effettivi`, `roster.input_colori`) |
 | `nav.py` | navigazione dei menu: ✖️ Chiudi (`nav:x`), 🏠 Menu, ←, `mostra()` (da un bottone modifica il messaggio invece di mandarne uno nuovo) |
@@ -610,12 +607,10 @@ I comandi legati a una fase sono in `_fasi_comando`.
 - aggiungere righe a `bref_stats` per chi ha giocato;
 - aggiornare il foglio BrefRaw;
 - scrivere sul log aggiornati e cambi squadra NBA;
-- proporre al dev i giocatori nuovi (`bref_nuovi`, bottoni `brefn:`).
+- proporre al dev i giocatori nuovi (`bref_nuovi`, bottoni `brefn:`); l'abbinamento vale per tutta l'anagrafica, diritti compresi;
+- nel log anche i giocatori coi soli diritti che sono in un roster NBA di ESPN ma mai visti su bref (`diritti_senza_bref`, v6.19.0; chi gioca fuori dalla NBA non si elenca).
 
-**Yahoo** (`yahoo-router`). Inutilizzato: l'accesso alla Fantasy API è stato respinto (ottobre 2026), ogni chiamata dà 403. Da togliere (MIGRATION, cose da fare).
-
-- `docker compose exec -it yahoo-router python3 cli.py auth` per il primo token;
-- `cli.py teams` per verificare se l'accesso è arrivato.
+**Yahoo.** Nessun collegamento: l'accesso alla Fantasy API è stato respinto (ottobre 2026) e `yahoo-router` è stato tolto nella v6.19.0 (il codice resta nella storia del repo). Da Yahoo arrivano solo le posizioni eleggibili, col CSV importato a mano.
 
 **NocoDB.** `docker compose start|stop nocodb`. Utente PostgreSQL `lettore` in sola lettura con timeout di 30 secondi; dati interni nel database `nocodb`. `scripts/setup_dashboard.sh` è rilanciabile e va rilanciato dopo un ripristino del DB.
 

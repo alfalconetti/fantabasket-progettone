@@ -1,6 +1,6 @@
 # Messaggio di migrazione — Fantabasket Progettone
 
-**Stato: v6.18.0 · bot aste v82 · loucabot v81 · IPanchinari v36** (31/10/2026)
+**Stato: v6.19.0 · bot aste v82 · loucabot v81 · IPanchinari v36** (31/10/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 
@@ -20,7 +20,6 @@ Lega fantasy NBA a 24 squadre (due conference da 12) gestita su Telegram da quat
 | `loucabot` | il campionato: calendario, tabellini ESPN e fantapunti, foglio Calendario |
 | `ipanchinari` | panchine (dai messaggi dei GM, soprannomi compresi) e quintetti |
 | `gas-router` | ponte FastAPI verso la web app Apps Script (fogli Roster, Scelte, BrefRaw, Calendario) |
-| `yahoo-router` | OAuth2 Yahoo, inutilizzato (accesso alla Fantasy API respinto): da togliere |
 | `nocodb` | dashboard in LAN/Tailscale, di solito spenta |
 
 ```
@@ -31,7 +30,7 @@ fantabasket-progettone/
 ├── shared/        in comune ai bot: ruoli_core.py, cap.py, squadre.py, messaggi.py, dev_comune.py (/dev_log, /dev_pg, /reboot ed error handler di loucabot e IPanchinari) (montata :ro)
 ├── fantabasket-main/ · fantabasket-aste-beta/ · fantabasket-loucabot/ · fantabasket-ipanchinari/
 ├── gas/           Apps Script (clasp); globals.gs solo in locale
-├── gas-router/ · yahoo-router/
+├── gas-router/
 ├── scripts/       deploy.sh, cifra_secrets.sh, setup_dashboard.sh, prova_generale/
 ├── tests/         prove locali (mai sul server)
 └── docs/          RECOVERY.md (backup e ripristino), regolamento_e_codice.md (regolamento ↔ codice)
@@ -77,7 +76,7 @@ fantabasket-progettone/
 - **Comandi admin e dev solo in privato e nel gruppo admin** (v6.12.5, Luca 31/10: «è gravissimo altrimenti»): `shared/solo_gruppo_admin.py`, installato in ogni `bot.py` prima di tutti gli handler (gruppo -100). Negli altri gruppi e nei canali passano solo i comandi di `comandi.comandi_pubblici()` (menu dei gruppi e dei GM, in tutte le fasi) più /start, /help, /annulla; il resto si ignora in silenzio con una riga nel log. È una lista di permessi: un comando admin nuovo è già protetto; un comando **per i GM** nuovo che deve funzionare nei gruppi va nel menu (o in `comandi_pubblici`). Prova `tests/docs/solo_gruppo_admin.py`.
 - Log: in ogni bot `httpx` e `httpcore` a WARNING, così le chiamate all'API di Telegram (col token nell'URL) non finiscono nei log. Un bot nuovo fa lo stesso.
 - Immagini Typst: nei container ci sono solo Liberation Sans e Noto Color Emoji (`fonts-noto-color-emoji` nei Dockerfile di loucabot e del bot principale). Le prove disegnano i template con `ignore_system_fonts` e solo quei font, così un carattere che nel container non c'è si vede prima del rilascio. Dopo un rilascio che cambia un Dockerfile, il deploy ricostruisce l'immagine; per controllare quali font vede Typst: `docker compose exec bot-main typst fonts` (devono esserci Liberation Sans e Noto Color Emoji). Il Typst del bot principale è il binario statico, che i font di sistema li cerca tramite fontconfig (`/etc/fonts`), assente nell'immagine slim: per questo il Dockerfile imposta `TYPST_FONT_PATHS=/usr/share/fonts` (v6.12.4; prima i template del bot principale uscivano col font di riserva di Typst, in serif, e le emoji a quadratini).
-- Log: in ogni bot `httpx` e `httpcore` a WARNING (niente riga per ogni chiamata a Telegram, che conterrebbe anche il token nell'URL); nei router (`gas-router`, `yahoo-router`) un filtro su `uvicorn.access` toglie le richieste a `/health` dell'healthcheck di Docker (prova `tests/docs/router_health.py`). Un bot o un router nuovo fa lo stesso.
+- Log: in ogni bot `httpx` e `httpcore` a WARNING (niente riga per ogni chiamata a Telegram, che conterrebbe anche il token nell'URL); nel router (`gas-router`) un filtro su `uvicorn.access` toglie le richieste a `/health` dell'healthcheck di Docker (prova `tests/docs/router_health.py`). Un bot o un router nuovo fa lo stesso.
 - Prima di ogni zip: `pyflakes` e `tests/run.sh` con "Tutte le prove passate." (comprende `nomi_importati`, che trova gli import rotti dentro le funzioni).
 - Modifiche strutturali: prova generale su una copia del DB vero (`scripts/prova_generale/`: foto di tutte le squadre prima e dopo, confronto; differenze solo volute).
 
@@ -172,7 +171,7 @@ README e guide in `fantabasket-ipanchinari/`. Scrive solo `ipa_*`; legge roster 
 
 ## 9. Fonti esterne
 
-- **Yahoo**: dal luglio 2026 la Fantasy API richiede un'approvazione separata; la richiesta è stata **respinta** (ottobre 2026: API solo per USA e Canada). `yahoo-router` non lo usa nessuno: da togliere (vedi le cose da fare). Sarebbe servita solo per i quintetti: i punteggi si calcolano da ESPN, i quintetti li gestisce IPanchinari.
+- **Yahoo**: dal luglio 2026 la Fantasy API richiede un'approvazione separata; la richiesta è stata **respinta** (ottobre 2026: API solo per USA e Canada). `yahoo-router` tolto nella v6.19.0 (servizio, cartella, secrets nel compose; volume e file in `secrets/` restano sul server finché Luca non li cancella; il codice è nella storia del repo). Sarebbe servita solo per i quintetti: i punteggi si calcolano da ESPN, i quintetti li gestisce IPanchinari.
 - **ESPN**: partite, tabellini, infortunati, roster (loucabot).
 - **Basketball-Reference**: per_game giornaliero (bot principale), riserva per i tabellini.
 - **NBA.com**: bloccato dal server (403).
@@ -203,7 +202,7 @@ Cose che non stanno nelle guide e che servono quando qualcosa va storto.
 - Una "Nuova versione" della web app tiene l'URL; un "Nuovo deployment" no. Il foglio Roster si sincronizza sempre per tutte le 24 squadre (decisione di Luca). Il bot aste non chiama il gas-router: accoda in `gas_sync_queue`.
 
 **Yahoo e NBA**
-- Yahoo: Fantasy API non disponibile (richiesta respinta, ottobre 2026). Le leghe Yahoo sono due (la seconda contiene anche account admin da escludere nel mapping); i loro ID solo in `secrets/yahoo_router.env`.
+- Yahoo: Fantasy API non disponibile (richiesta respinta, ottobre 2026). Le leghe Yahoo sono due (la seconda contiene anche account admin da escludere nel mapping); i loro ID solo nei secrets sul server (mai nel repo).
 - Posizioni eleggibili: CSV dalle pagine giocatori Yahoo (`yahoo_id;nome;team;posizioni`); dal secondo import l'abbinamento è per `yahoo_id` (i nomi accorciati di Yahoo non si salvano). Erminio conta da `data_yahoo` se impostata con `/data_erminio`, altrimenti dalla data della riga.
 - NBA.com (cdn.nba.com) è bloccato da Akamai anche dalla rete di casa, browser compreso.
 
@@ -242,9 +241,9 @@ PostgreSQL 16 locale, database `fbt` (utente `fb`), configurazione finta in `tes
 - ~~Live come immagine~~ **fatto nella v6.7.0** (loucabot v53, `live.typ`; emoji dal font Noto Color Emoji installato nel container di loucabot, legenda evidente al plurale). Specifica (Luca, 23/10: **pronto per la giornata 3**; mockup approvato: tabellone Typst con una scheda per partita in due colonne, loghi, punteggi, grassetto a chi è avanti, «HANNO GIOCATO IN MENO DI 6» quando l'esito non si dà (Luca, 23/10: al posto di «TROPPI DA GIOCARE»; il numero da `live.MAX_DA_GIOCARE`: 10 − 4), etichette 🏀 in campo · ⏳ da giocare · 🔁 da rigiocare coi punti già fatti · ✓ finito, supplementari in alto nella scheda, legenda una volta in fondo; colori di `/partita`). **Solo sul canale**: il messaggio live diventa una foto che si sostituisce ogni 10 minuti (didascalia con giornata e ora). **`/live_results`**: il testo completo di adesso, anche se lungo. Al gruppo admin la proposta delle 7:45 resta **solo testo**, senza immagine (Luca, 23/10). Il messaggio definitivo dopo la convalida resta testo. **Indicare chi prende la media** (Luca, 23/10): i titolari la cui squadra NBA non gioca nella giornata (e non sono indisponibili), per esempio un'etichetta «📉 N a media» sotto la squadra nel tabellone, e nel testo di `/live_results`.
 - ~~`/trova_trade NUMERO`~~ **fatto nella v6.12.0** (`handlers/trova_trade.py`, `trova_trade.typ`) (Luca, 23/10, per la settimana dopo: prima un mockup): un'immagine che riassume una trade cercata col numero (TRADE-2026-014, anche solo «014»; con un nome le trade che lo riguardano). In testa numero, data, stato (approvata, annullata con quando e chi, rifiutata); una colonna per squadra col logo. **Per ogni squadra due righe, «riceve» e «cede»**, ogni asset con da chi arriva / a chi va: nelle trade a tre non si ricava una dall'altra (Luca, 23/10). Giocatori con contratto e ruolo, pick con anno, giro e protezioni, diritti rookie; sotto ogni squadra come cambia il cap; in fondo chi l'ha proposta e la votazione dei GM. Stile di `/carriera` (blu, stretto). Il numero si vede già nelle schede delle trade di `/carriera` (v6.5.3). **Mockup del 31/10, deciso con Luca**: si cercano solo le trade ufficiali (con `trade_ref`, approvate o annullate), per numero o per nome di un giocatore (più trade → bottoni); in fondo il **percorso** di quello che è successo davvero (Luca, 31/10: non serve che accettino tutti, un GM può mandarla direttamente agli admin, e ci sono le trade scritte dagli admin): proposta da chi o scritta da un admin, le accettazioni o i rifiuti che ci sono (`trade_voti`, con l'ora), «mandata agli admin» da chi e quando (dal registro), approvata o annullata da chi e quando; niente voto di tutta la lega; **cap e roster al momento della trade** (subito prima e subito dopo, spalmature comprese), non quelli di oggi; trade a 4 squadre in griglia 2×2.
 - **Riassegnare una franchigia a un GM nuovo dal bot** (Luca, 23/10: se un GM lascia): oggi si fa a mano in `teams.json` (`gm_ids`, `gm_nome`). Da fare: comando admin che cambia GM (id Telegram e nome) di una squadra, con conferma, registro e canale log; avviso al GM nuovo con la guida; controllo che il vecchio non abbia più accesso (bozze di trade, aste aperte, offerte, voti) e che il nuovo non sia già GM di un'altra squadra.
-- **Togliere `yahoo-router`** (Luca, 31/10: non urgente; l'accesso alla Fantasy API è stato respinto, il router non lo chiama nessuno): cartella, servizio e secrets da `docker-compose.yml`, prova `tests/docs/router_health.py` (resta solo gas-router), README (anche l'architettura ASCII), guida_dev, RECOVERY. Nel deploy un campo `ferma` del `rilascio.json` per fermare e cancellare il container (oggi il deploy riavvia solo i servizi della lista). Volume `yahoo_data` e file in `secrets/` li cancella Luca a mano; le app sul portale developer non si toccano. Il codice resta nella storia del repo.
-- **Abbinare su Basketball-Reference anche i giocatori coi soli diritti** (Luca, 01/11): oggi l'abbinamento con bref (`nome_bref`, proposte `bref_nuovi`) riguarda i giocatori sotto contratto; vanno abbinati anche quelli che una squadra ha solo come diritti rookie (es. i draftati del 2025-2026 non ancora firmati), così statistiche, fantamedia, `/carriera` e la squadra NBA funzionano anche per loro.
-- **PDF all'occorrenza** (Luca, 01/11: per tutti i GM; da quale cominciare indifferente): `/pdf_giornata N` (prima pagina coi risultati, poi le 12 partite una per pagina come `/partita`) e `/pdf_roster [DATA]` (24 pagine, una per squadra, anche a una data passata). Stessi template Typst con `format="pdf"`, pagine unite, mandato come documento. Poi, eventualmente, i roster in PDF da soli alla trade deadline e a fine stagione (archivio) e, più avanti, l'annuario di fine stagione (con lo storico).
+- ~~Togliere `yahoo-router`~~ **fatto nella v6.19.0** (Luca, 31/10 e 04/11): servizio e secrets tolti dal compose, cartella cancellata, campo `ferma` nel `rilascio.json` (il deploy ferma e cancella il container), prova `router_health` solo su gas-router, README e guide aggiornati. Sul server restano il volume `fantabasket-progettone_yahoo_data` e i file `secrets/yahoo_*`: si cancellano a mano.
+- ~~Abbinare su Basketball-Reference anche i giocatori coi soli diritti~~ **fatto nella v6.19.0** (Luca, 01/11 e 04/11): l'abbinamento valeva già per tutta l'anagrafica; in più nel log del job bref i diritti in un roster NBA mai visti su bref, e la fantamedia dei diritti («FP —» se non c'è) in `/assets`, nelle trade e nella firma dei diritti.
+- **PDF all'occorrenza** (Luca, 01/11: per tutti i GM; `/pdf_roster` **fatto nella v6.19.0**): da fare `/pdf_giornata N` (prima pagina coi risultati, poi le 12 partite una per pagina come `/partita`) e `/pdf_roster [DATA]` (24 pagine, una per squadra, anche a una data passata). Stessi template Typst con `format="pdf"`, pagine unite, mandato come documento. Poi, eventualmente, i roster in PDF da soli alla trade deadline e a fine stagione (archivio) e, più avanti, l'annuario di fine stagione (con lo storico).
 - **Bot principale sulla libreria Typst** (Luca, 01/11, pulizia): `typst-py` come loucabot al posto del programma `typst` da riga di comando (`roster.py`, `carriera.py`, `trova_trade.py`): PNG in memoria, niente file temporanei, dati in un JSON (il roster oggi è una stringa con `|` e `;`), una sola versione di Typst per i due bot (oggi 0.13 e 0.15: controllare che `roster.typ`, `assets.typ`, `carriera.typ`, `trova_trade.typ` escano uguali).
 - Votazione GM delle trade da provare dall'inizio alla fine.
 - ~~`/risultati` (e `/giornata`) di una giornata non ancora convalidata~~ **fatto nella v6.8.0** (loucabot v62) (Luca, 25/10): invece delle sole partite, il testo dei risultati come `/live_results`, con scritto chiaramente cosa sono: **live** (provvisori, durante la giornata) oppure, dopo il calcolo delle 7:45, **calcolati e in attesa della convalida di un admin** (dal calcolo, non più dal live). Da convalidata resta come oggi, coi definitivi.
@@ -289,7 +288,7 @@ PostgreSQL 16 locale, database `fbt` (utente `fb`), configurazione finta in `tes
 cd ~/bots/fantabasket-progettone && \
 zip -r ~/fantabasket-progettone-export-$(date +%Y%m%d).zip \
   fantabasket-main/ fantabasket-aste-beta/ fantabasket-loucabot/ fantabasket-ipanchinari/ \
-  gas/ gas-router/ yahoo-router/ shared/ tests/ docs/ scripts/ \
+  gas/ gas-router/ shared/ tests/ docs/ scripts/ \
   docker-compose.yml README.md \
   --exclude "**/__pycache__/*" --exclude "**/*.pyc" --exclude "**/*.db" \
   --exclude "secrets/*" --exclude "config/*" \

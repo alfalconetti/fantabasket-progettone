@@ -1785,3 +1785,9 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v6.18.0 (2026-11-02)
 
 - loucabot v81: `/partita` (Luca, 02/11, mockup approvato): sotto la panchina di ogni squadra, tra due righe viola, la **Tribuna** con gli altri giocatori a roster e il loro punteggio della giornata: media e singole partite tra parentesi se ne ha giocate più d'una, «vs XXX» se deve ancora giocare, DNP, «—» se la sua squadra NBA non gioca, NA se non ha una squadra NBA. Rosa alla scadenza: i ceduti dopo restano nella squadra vecchia fino a fine giornata. Va a capo tra un giocatore e l'altro
+
+## v6.19.0 (2026-11-04)
+
+- **`/pdf_roster [DATA]`** (Luca, 04/11, per tutti i GM, anche nei gruppi): i roster di tutte le squadre in un PDF, una pagina ciascuna come `/roster`; con una data, i roster di quel giorno
+- **Diritti** (Luca, 04/11): la fantamedia accanto al nome («FP 12.3», «FP —» se non c'è, es. chi gioca in Europa) in `/assets`, nei bottoni e nei riepiloghi delle trade e nella firma dei diritti. Nel log del job di Basketball-Reference anche i giocatori coi soli diritti che sono in un roster NBA ma mai visti su bref (nome da abbinare o non ancora entrati); l'abbinamento già valeva per tutti
+- **Tolto `yahoo-router`** (Luca, 31/10): servizio e secrets dal compose, cartella cancellata, README, guide e prova `router_health` aggiornati. Nuovo campo `ferma` nel `rilascio.json`: il deploy ferma e cancella il container dei servizi tolti dal compose. Sul server restano il volume `fantabasket-progettone_yahoo_data` e i file `secrets/yahoo_*`, da cancellare a mano

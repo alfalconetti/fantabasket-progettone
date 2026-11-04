@@ -44,6 +44,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("team_diff", "Variazioni roster [team_id] [da] [a]"),
         BotCommand("carriera", "Carriera di un giocatore: fantabasket e NBA [nome]"),
         BotCommand("trova_trade", "Una trade ufficiale: per numero o per giocatore"),
+        BotCommand("pdf_roster", "I roster di tutte le squadre in un PDF [DATA]"),
     ]
     cmd_base = cmd_group + [
         BotCommand("menu",           "Menu principale"),

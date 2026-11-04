@@ -178,6 +178,26 @@ try:
 except ImportError:
     pass
 
+# /pdf_roster (v6.19.0): un PDF, una pagina per squadra con giocatori (il Typst vero sostituito da typst-py)
+try:
+    import typst as _typ, tempfile as _tf
+    from pypdf import PdfReader
+    _fatte = []
+    async def _finto_pdf(team, stagione, as_of=None, formato="png"):
+        _fatte.append(team["id"])
+        f = _tf.NamedTemporaryFile(suffix=".pdf", delete=False); f.close()
+        open(f.name, "wb").write(_typ.compile(bytes(f"= {team['id']}", "utf-8"), format="pdf"))
+        return f.name
+    _vero = RO._genera_roster_png
+    RO._genera_roster_png = _finto_pdf
+    _pdf, _n = asyncio.run(RO.genera_pdf_roster())
+    RO._genera_roster_png = _vero
+    ok(_n >= 1 and len(PdfReader(_pdf).pages) == _n == len(_fatte) and not any(os.path.exists(x) for x in [_pdf + "x"]),
+       f"/pdf_roster: un PDF con una pagina per squadra con giocatori ({_n})")
+    os.unlink(_pdf)
+except ImportError:
+    pass
+
 # comando
 out = []
 class M:

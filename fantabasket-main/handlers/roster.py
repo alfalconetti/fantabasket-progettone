@@ -399,9 +399,9 @@ def _fine_10day(team_id: str) -> str:
     return ""
 
 
-async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
+async def _genera_roster_png(team: dict, stagione: str, as_of=None, formato: str = "png") -> str:
     """
-    Genera il PNG del roster tramite Typst.
+    Genera il PNG del roster tramite Typst (o il PDF, `formato="pdf"`, per /pdf_roster).
     as_of: datetime opzionale — se presente, mostra il roster a quella data.
     """
     team_id = team["id"]
@@ -466,7 +466,7 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None) -> str:
     cambi_usati  = _cambi_usati(team["id"], stagione)
 
     # Genera in file temporaneo
-    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    tmp = tempfile.NamedTemporaryFile(suffix=f".{formato}", delete=False)
     tmp.close()
 
     cmd = [
@@ -637,10 +637,11 @@ def _build_picks_str(picks: list, team_id: str) -> str:
 def _build_diritti_str(diritti: list) -> str:
     """Costruisce la stringa diritti per Typst: 'Nome (#NN AAAA), ...'"""
     parts = []
+    fp = db.fp_testo([d.get("giocatore_id") for d in diritti])       # v6.19.0: la fantamedia, o «—»
     for d in diritti:
         pick = d.get("pick_numero", "?")
         anno = d.get("anno_draft", "?")
-        parts.append(f"{d['nome_common']} (#{pick} {anno})")
+        parts.append(f"{d['nome_common']} (#{pick} {anno} · {fp.get(d.get('giocatore_id'), 'FP —')})")
     return ", ".join(parts)
 
 
@@ -755,8 +756,79 @@ async def cmd_assets(update: Update, context: ContextTypes.DEFAULT_TYPE):
             os.unlink(png_path)
 
 
+# ── /pdf_roster (v6.19.0, Luca 04/11: per tutti i GM) ─────────────────────────
+_PDF_IN_CORSO = {"si": False}
+
+
+async def genera_pdf_roster(as_of=None) -> tuple[str, int]:
+    """Un PDF coi roster di tutte le squadre (una pagina ciascuna, ordine di teams.json), oggi o a una data: lo stesso
+    template di /roster in PDF, pagine unite con pypdf. → (percorso del PDF, squadre)."""
+    from pypdf import PdfWriter
+    stagione = settings.stagione_corrente()
+    out = PdfWriter()
+    pezzi, n = [], 0
+    try:
+        for team in tm.get_all_teams():
+            rs = db.get_roster_team_at(team["id"], as_of.isoformat()) if as_of else db.get_roster_team(team["id"])
+            if not rs:
+                continue
+            p = await _genera_roster_png(team, stagione, as_of=as_of, formato="pdf")
+            pezzi.append(p)
+            out.append(p)
+            n += 1
+        tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        tmp.close()
+        with open(tmp.name, "wb") as f:
+            out.write(f)
+        return tmp.name, n
+    finally:
+        for p in pezzi:
+            _togli(p)
+
+
+async def cmd_pdf_roster(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/pdf_roster [DATA]: i roster di tutte le squadre in un PDF, una pagina per squadra (anche a una data passata)."""
+    from datetime import datetime, timezone
+    from shared.date_comandi import leggi_data
+    msg = update.effective_message
+    as_of = None
+    if context.args:
+        g = leggi_data(context.args[0])
+        if not g:
+            await msg.reply_text("Uso: /pdf_roster [GG-MM-AA] (senza data i roster di oggi)")
+            return
+        as_of = datetime(g.year, g.month, g.day, 23, 59, tzinfo=timezone.utc)
+        if as_of > datetime.now(tz=timezone.utc):
+            await msg.reply_text("❌ La data non può essere nel futuro.")
+            return
+        prima = db.get_prima_transazione()
+        if prima and as_of < prima:
+            await msg.reply_text(f"❌ Nessun dato disponibile prima del {prima.strftime('%d/%m/%Y')}.")
+            return
+    if _PDF_IN_CORSO["si"]:
+        await msg.reply_text("⏳ Sto già preparando un PDF dei roster: riprova tra un minuto.")
+        return
+    _PDF_IN_CORSO["si"] = True
+    data_label = as_of.strftime("%d/%m/%Y") if as_of else datetime.now().strftime("%d/%m/%Y")
+    await msg.reply_text(f"⏳ Preparo il PDF dei roster{' al ' + data_label if as_of else ''}: ci vuole qualche secondo…")
+    path = None
+    try:
+        path, n = await genera_pdf_roster(as_of)
+        with open(path, "rb") as f:
+            await msg.reply_document(document=f, filename=f"roster_{data_label.replace('/', '-')}.pdf",
+                                     caption=f"📄 Roster di {n} squadre" + (f" al {data_label}" if as_of else f" · {data_label}"))
+    except Exception as e:
+        logger.exception("PDF dei roster")
+        await msg.reply_text(f"❌ PDF dei roster non riuscito: {e}")
+    finally:
+        _PDF_IN_CORSO["si"] = False
+        if path:
+            _togli(path)
+
+
 def get_handlers() -> list:
     return [
         CommandHandler("roster", cmd_roster),
         CommandHandler("assets", cmd_assets),
+        CommandHandler("pdf_roster", cmd_pdf_roster, block=False),     # 24 immagini: il bot intanto risponde
     ]

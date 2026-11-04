@@ -36,6 +36,10 @@ Due cose da sapere:
 
 Con una data (`/roster Alfa 01-12-26`) squadra NBA, età e % G sono quelle di quel giorno.
 
+**`/pdf_roster`** ti manda un PDF coi roster di tutte le squadre, una pagina ciascuna, uguali a `/roster`. Con una data (`/pdf_roster 01-12-26`) i roster di quel giorno. Ci mette qualche secondo.
+
+Nei diritti (in `/assets`, nelle trade e nella firma dei diritti) accanto al nome c'è la fantamedia, «FP —» se non ce l'ha (per esempio se gioca in Europa).
+
 I posti liberi sono righe basse con scritto «posto libero». Chi sta fuori dai 15 (il 10-day, la DPE che libera lo slot) è in fondo, sotto una riga più spessa e l'etichetta «FUORI DAI 15». In fondo, tre riquadri: età media, tagli senza impatto usati e cambi ruolo usati.
 
 Dalla fase dei rinnovi all'inizio della free agency i contratti finiti compaiono con durata **0** (per esempio 10x0) e non entrano nel cap. L'RFA dichiarato è segnato con la sigla **A** e invece nel cap c'è.

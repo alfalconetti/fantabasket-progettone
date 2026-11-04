@@ -14,7 +14,9 @@ Job (12:00, `orari.bref` in settings.json; solo regular season e playoff), una s
     uno per uno; ✅ crea solo quelli senza simili; ❌ ignora. L'elenco sta in bref_nuovi: i
     bottoni funzionano anche dopo un riavvio e gli ignorati non vengono riproposti.
 - sul canale log anche chi è stato abbinato e i giocatori a roster che su bref non ci sono
-  ancora (rookie non ancora entrati, o nome diverso da sistemare).
+  ancora (rookie non ancora entrati, o nome diverso da sistemare); dalla v6.19.0 anche quelli coi soli
+  diritti che sono in un roster NBA di ESPN (chi gioca fuori dalla NBA no).
+- L'abbinamento (automatico e proposte al dev) vale per tutta l'anagrafica, diritti compresi.
 """
 import asyncio
 import html
@@ -98,6 +100,20 @@ def senza_bref() -> list[dict]:
     return db._q("""SELECT g.nome_common, c.team_id FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
                     WHERE c.attivo AND NOT EXISTS (SELECT 1 FROM bref_stats b WHERE b.nome_bref = g.nome_bref)
                     ORDER BY c.team_id, g.nome_common""", many=True) or []
+
+
+def diritti_senza_bref() -> list[dict]:
+    """Giocatori coi soli diritti (non firmati, non scaduti) che sono in un roster NBA di ESPN (nba_atleti di loucabot)
+    ma di cui su bref non c'è nessuna riga: nome diverso da sistemare, o non ancora entrati (v6.19.0, Luca 04/11).
+    Chi gioca fuori dalla NBA (Europa, college) non è in nessun roster ESPN e non si elenca: per lui FP «—»."""
+    if not db._qval("SELECT to_regclass('nba_atleti') IS NOT NULL"):
+        return []
+    return db._q("""SELECT DISTINCT g.nome_common, r.team_id FROM rookie r JOIN giocatori g ON g.id = r.giocatore_id
+                    JOIN nba_atleti a ON a.atleta = g.espn_id AND a.squadra IS NOT NULL
+                    WHERE NOT r.firmato AND NOT r.diritti_scaduti
+                      AND NOT EXISTS (SELECT 1 FROM bref_stats b WHERE b.nome_bref = g.nome_bref)
+                      AND NOT EXISTS (SELECT 1 FROM contratti c WHERE c.attivo AND c.giocatore_id = g.id)
+                    ORDER BY r.team_id, g.nome_common""", many=True) or []
 
 
 def _testo_nuovi() -> tuple[str, InlineKeyboardMarkup | None]:
@@ -186,6 +202,12 @@ async def job_bref(context: ContextTypes.DEFAULT_TYPE) -> None:
                          "o nome diverso da quello di bref")
             righe.append(", ".join(f"{html.escape(x['nome_common'])} ({html.escape(x['team_id'])})" for x in mancano[:25])
                          + (" …" if len(mancano) > 25 else ""))
+        dir_mancano = diritti_senza_bref()
+        if dir_mancano:
+            righe.append(f"\n⚠️ <b>Coi diritti, in NBA ma mai visti su bref</b> ({len(dir_mancano)}): non ancora entrati, "
+                         "o nome diverso da quello di bref (finché non si abbinano, FP «—»)")
+            righe.append(", ".join(f"{html.escape(x['nome_common'])} ({html.escape(x['team_id'])})" for x in dir_mancano[:25])
+                         + (" …" if len(dir_mancano) > 25 else ""))
         if esito["cambi"]:
             righe.append("\n🔀 <b>Cambi squadra NBA</b>")
             righe += [f"• {html.escape(n)}: {da} → <b>{a}</b>" for n, da, a in esito["cambi"][:30]]

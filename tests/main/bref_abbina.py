@@ -104,3 +104,31 @@ asyncio.run(BR.job_bref(types.SimpleNamespace(bot=_B())))
 settings.load_globals = _vecchio_lg
 ok(len(_inviati) == 1 and _inviati[0]["text"].startswith("⏳ Bref") and "❌" not in _inviati[0]["text"] and not _fogli,
    f"job bref a stagione non iniziata: ⏳ sul canale log, foglio BrefRaw non toccato {_inviati}")
+
+# v6.19.0 (Luca, 04/11): diritti abbinati come gli altri; nel log quelli in NBA mai visti su bref; FP o «—»
+import importlib.util as _ilu, os as _o
+_spec = _ilu.spec_from_file_location("louca_db", _o.path.join(_o.path.dirname(_o.path.dirname(_o.path.dirname(_o.path.abspath(__file__)))), "fantabasket-loucabot", "db.py"))
+_ldb = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_ldb); _ldb.init_db()
+db._q("DELETE FROM rookie WHERE giocatore_id IN (SELECT id FROM giocatori WHERE nome_bref LIKE 'Dir %%')")
+db._q("DELETE FROM bref_stats WHERE nome_bref LIKE 'Dir %%'"); db._q("DELETE FROM nba_atleti WHERE atleta LIKE 'dir%%'")
+db._q("DELETE FROM giocatori WHERE nome_bref LIKE 'Dir %%'")
+_d = {n: db._qval("INSERT INTO giocatori (nome_bref, nome_common, nome_norm, espn_id) VALUES (%s, %s, %s, %s) RETURNING id",
+                  (n, n, n.lower(), e)) for n, e in [("Dir In NBA", "dir1"), ("Dir In Europa", None), ("Dir Con Stats", "dir3")]}
+for _n in _d:
+    db._q("INSERT INTO rookie (giocatore_id, team_id, round, pick_numero, anno_draft) VALUES (%s, 'team01', 2, 40, '2026')", (_d[_n],))
+db._q("INSERT INTO nba_atleti (atleta, nome, squadra) VALUES ('dir1', 'Dir In NBA', 'BOS'), ('dir3', 'Dir Con Stats', 'NYK')")
+from settings import stagione_corrente as _sc
+db._q("""INSERT INTO bref_stats (stagione, nome_bref, g, pts, ast, orb, drb, fg3m, fga, fgm, fta, ftm, stl, blk, tov)
+         VALUES (%s, 'Dir Con Stats', 3, 10, 2, 1, 3, 1, 8, 4, 2, 2, 1, 0, 1)""", (str(int(_sc()) + 1),))
+_ds = {x["nome_common"] for x in BR.diritti_senza_bref()}
+ok("Dir In NBA" in _ds and "Dir In Europa" not in _ds and "Dir Con Stats" not in _ds,
+   f"diritti mai visti su bref: solo chi è in un roster NBA (chi gioca in Europa no, chi è su bref no) {_ds}")
+_fp = db.fp_testo(list(_d.values()))
+ok(_fp[_d["Dir In Europa"]] == "FP —" and _fp[_d["Dir Con Stats"]].startswith("FP ") and _fp[_d["Dir Con Stats"]] != "FP —",
+   f"FP dei diritti: la fantamedia se c'è, se no «—» {_fp}")
+from handlers.roster import _build_diritti_str
+_s = _build_diritti_str([{"giocatore_id": _d["Dir In Europa"], "nome_common": "Dir In Europa", "pick_numero": 40, "anno_draft": "2026"}])
+ok(_s == "Dir In Europa (#40 2026 · FP —)", f"/assets: i diritti con la FP ({_s})")
+db._q("DELETE FROM rookie WHERE giocatore_id = ANY(%s)", (list(_d.values()),))
+db._q("DELETE FROM bref_stats WHERE nome_bref LIKE 'Dir %%'"); db._q("DELETE FROM nba_atleti WHERE atleta LIKE 'dir%%'")
+db._q("DELETE FROM giocatori WHERE id = ANY(%s)", (list(_d.values()),))

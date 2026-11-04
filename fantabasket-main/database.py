@@ -1658,6 +1658,25 @@ def stagione_fantamedia(as_of=None) -> str:
     return corrente if tot and con_fm * 2 >= tot else str(int(corrente) - 1)
 
 
+def fp_testo(gids) -> dict[int, str]:
+    """«FP 12.3» o «FP —» per ogni giocatore (v6.19.0, Luca 04/11: diritti in /assets, nelle trade e nella firma dei
+    diritti; «—» per chi non ha una fantamedia, es. chi gioca in Europa). Stagione della colonna FP del roster
+    (stagione_fantamedia); a inizio stagione chi non ce l'ha prende quella in corso, come nel roster."""
+    ids = [int(g) for g in gids if g]
+    if not ids:
+        return {}
+    try:
+        from settings import stagione_corrente
+        st = stagione_fantamedia()
+        fm = fantamedie(ids, st)
+        corrente = str(int(stagione_corrente()) + 1)
+        if st != corrente:
+            fm.update(fantamedie([i for i in ids if i not in fm], corrente))
+    except Exception:
+        fm = {}
+    return {i: (f"FP {fm[i]:.1f}" if i in fm else "FP —") for i in ids}
+
+
 def fantamedie(gids: list[int], stagione_bref: str, as_of=None) -> dict[int, float]:
     """Ultima fantamedia della stagione per ciascun giocatore, fino a `as_of` se dato
     (bref_stats è a snapshot: una riga per ogni aggiornamento). Chi non ce l'ha manca."""

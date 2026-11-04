@@ -184,9 +184,10 @@ async def cb_asset_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             if i["team_id_da"] == team_id and i["tipo"] == "diritti"
         ]
         bottoni = []
+        fp = db.fp_testo([d["giocatore_id"] for d in diritti])
         for d in diritti:
             check = "✅ " if d["giocatore_id"] in items_di else ""
-            label = f"{check}{d['nome_common']} (pick {d['pick_numero']} {d['anno_draft']})"
+            label = f"{check}{d['nome_common']} (pick {d['pick_numero']} {d['anno_draft']}) · {fp.get(d['giocatore_id'], 'FP —')}"
             bottoni.append([InlineKeyboardButton(label, callback_data=f"trade_di:{trade_id}:{team_id}:{d['id']}")])
         bottoni.append([InlineKeyboardButton("← Indietro", callback_data=f"trade_am:back:{trade_id}:{team_id}")])
         await query.answer()
@@ -313,9 +314,10 @@ async def cb_toggle_diritti(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if i["team_id_da"] == team_id and i["tipo"] == "diritti"
     ]
     bottoni = []
+    fp = db.fp_testo([d["giocatore_id"] for d in diritti])
     for d in diritti:
         check = "✅ " if d["giocatore_id"] in items_di else ""
-        label = f"{check}{d['nome_common']} (pick {d['pick_numero']} {d['anno_draft']})"
+        label = f"{check}{d['nome_common']} (pick {d['pick_numero']} {d['anno_draft']}) · {fp.get(d['giocatore_id'], 'FP —')}"
         bottoni.append([InlineKeyboardButton(label, callback_data=f"trade_di:{trade_id}:{team_id}:{d['id']}")])
     bottoni.append([InlineKeyboardButton("← Indietro", callback_data=f"trade_am:back:{trade_id}:{team_id}")])
     await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(bottoni))

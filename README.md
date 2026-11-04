@@ -43,8 +43,8 @@ each other: they share one PostgreSQL database, each writing its own tables.
  Basketball-Reference ───────► │ bot-main           │ ──┐
    daily season stats          │ contracts, cap,    │   │            private chats
                                │ trades, roles      │   │            main channel
- Yahoo Fantasy API ◄─ ─ ─ ─ ─ ─│                    │   │            league group
-   via yahoo-router (pending)  └────────────────────┘   │            admin group
+                               │                    │   │            league group
+                               └────────────────────┘   │            admin group
                                ┌────────────────────┐   ├──────────► auction channel
                                │ bot-aste-beta      │ ──┤            bench channel
                                │ FA / RFA auctions  │   │            log channels
@@ -79,33 +79,13 @@ validates them before they reach the league sheet and the main channel.
 | `loucabot`     | Season bot: league schedule synced with the NBA calendar, box scores and fantasy points |
 | `ipanchinari`  | Lineups bot: bench messages from the managers (nicknames included) and starting fives |
 | `gas-router`   | Internal proxy to the Google Apps Script web app                |
-| `yahoo-router` | Internal proxy to the Yahoo Fantasy API (OAuth2, token refresh) |
 | `postgres`     | League database                                                 |
 | `nocodb`       | Read-only table browser for the admin, reachable only on the home network / VPN |
 
-The routers are only reachable on the internal Docker network. Credentials are
+The router is only reachable on the internal Docker network. Credentials are
 stored as Docker secrets and are never committed to this repository.
 
-## Yahoo Fantasy data usage
-
-`yahoo-router` is the only component that talks to Yahoo. Its scope is
-deliberately narrow:
-
-- **Read-only.** No write access is requested or needed.
-- **Two leagues only.** The two private leagues that make up our group, both of
-  which the author is a member of. No other leagues or users are queried.
-- **Minimal data.** League teams, team rosters and players' eligible positions.
-  Eligible positions matter because our ruleset requires each player's role to be
-  one of the positions Yahoo lists for him.
-- **Low volume.** Roughly one refresh per day, cached locally.
-- **Private.** Data is shown only to the members of these two leagues, in our
-  Telegram group and our league spreadsheet. It is not published, redistributed,
-  sold, or used to train AI models.
-
-Current status: OAuth and league/team lookup are implemented; roster and position
-sync are planned.
-
-### What ends up in the league spreadsheet
+## What ends up in the league spreadsheet
 
 The Google Sheet is our league's own ledger, and almost none of it comes from
 Yahoo. Per team it contains:
