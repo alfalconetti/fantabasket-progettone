@@ -33,6 +33,7 @@ VOCI = {
                 "panchina": ("Panchinari che entrano", "int", (0, 5)),
                 "fadd": ("FADD", "bool", None),
                 "fantapunti": ("Chi gioca prende", "scelta", KR.FANTAPUNTI),
+                "chi_conta": ("Nel totale contano", "scelta", KR.CHI_CONTA),
                 "assenti": ("Chi non gioca", "scelta", KR.ASSENTI),
                 "assenti_pct": ("% della media", "num", (0, 100))},
     "classifica": {"modo": ("Classifica", "scelta", KR.CLASSIFICA),
@@ -43,7 +44,7 @@ VOCI = {
                    "sconfitta": ("Sconfitta", "num", (-10, 10))},
 }
 BREVI = {"panchina": "panchina", "pareggio": "pareggio", "nessuno": "chi fa di più", "trasferta": "trasferta",
-         "media": "media", "percentuale": "% media", "partite": "le partite", "zero": "0", "vittorie": "V-S", "punti": "a punti"}
+         "cumulativa": "cumulativa", "media": "media", "percentuale": "% media", "partite": "le partite", "titolari": "titolari", "tutti": "tutti", "zero": "0", "vittorie": "V-S", "punti": "a punti"}
 
 
 def mostra(v) -> str:

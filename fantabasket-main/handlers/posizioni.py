@@ -418,9 +418,39 @@ async def cmd_data_erminio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from handlers.registro import segna
     await segna(context.bot, update.effective_user, "admin", "data Erminio", giocatore_id=g["id"], oggetto=g["nome_common"],
                 dopo=giorno.isoformat(), nota=f"posizioni {r['posizioni']}")
+    avvisati = await avvisa_gm_erminio(context.bot, g, giorno)
     await update.effective_message.reply_text(
         f"✅ {g['nome_common']} ({r['posizioni']}): ultima posizione aggiunta su Yahoo il "
-        f"{giorno.strftime('%d/%m/%Y')}. La finestra Erminio di 14 giorni parte da questa data.")
+        f"{giorno.strftime('%d/%m/%Y')}. La finestra Erminio di 14 giorni parte da questa data."
+        + (f"\n📨 Avvisato il GM ({avvisati})." if avvisati else ""))
+
+
+async def avvisa_gm_erminio(bot, g: dict, giorno) -> str:
+    """v7.1.0 (Luca, 05/11): con la data Erminio inserita, il GM della squadra che ha il giocatore riceve in privato
+    le posizioni nuove e fino a quando può fare il cambio di ruolo Erminio (gratuito). Niente se la finestra è già
+    chiusa o il giocatore è svincolato. → nome della squadra avvisata, o ""."""
+    from datetime import timedelta
+    from handlers.cambi_ruolo import ruoli_erminio
+    from shared import regole
+    import teams as tm
+    nuove = sorted(ruoli_erminio(g["id"]))
+    c = db.get_contratto_attivo(g["id"])
+    team = tm.get_team_by_id(c["team_id"]) if c else None
+    if not nuove or not team:
+        return ""
+    fino = giorno + timedelta(days=regole.giorni_erminio())
+    testo = (f"📍 <b>Erminio</b>: Yahoo ha aggiunto a <b>{html.escape(g['nome_common'])}</b> "
+             f"{'la posizione' if len(nuove) == 1 else 'le posizioni'} <b>{', '.join(nuove)}</b> il {giorno:%d/%m/%Y}.\n"
+             f"Fino al {fino:%d/%m/%Y} puoi cambiargli ruolo verso {'questa posizione' if len(nuove) == 1 else 'una di queste'} "
+             f"gratis (cambio Erminio) con /cambio_ruolo.")
+    fatto = False
+    for uid in team.get("gm_ids") or []:
+        try:
+            await bot.send_message(chat_id=int(uid), text=testo, parse_mode="HTML")
+            fatto = True
+        except Exception as err:
+            logger.info("Avviso Erminio al GM %s non mandato: %s", uid, err)
+    return team["nome"] if fatto else ""
 
 
 # ── posizioni eleggibili mancanti: report automatico e /posizioni_mancanti (Luca, 24/10) ──────────

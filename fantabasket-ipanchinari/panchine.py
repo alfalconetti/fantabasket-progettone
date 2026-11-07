@@ -395,6 +395,11 @@ async def pubblica(update, context, b: dict):
                prima="una panchina già mandata" if precedente else None,
                dopo=", ".join(nomi.get(r["giocatore_id"], "?") for r in righe),
                nota="a giornata chiusa" if b["dati"].get("correzione") else None)
+    if b["fonte"] == "admin":
+        import avvisi_gm
+        await avvisi_gm.avvisa(context.bot, b["team_id"], update.effective_user,
+                               ("corretto" if b["dati"].get("correzione") else "mandato") + f" la panchina della giornata {b['giornata']}",
+                               "\n".join(f"{i}. {e(nomi.get(r['giocatore_id'], '?'))}" for i, r in enumerate(righe, 1)))
     await log(context.bot, f"🪑 Panchina G{b['giornata']} {e(config.nome(b['team_id']))} da {chi(update)}"
                            + (" (admin)" if b["fonte"] == "admin" else "") + ": "
                            + ", ".join(e(nomi.get(r["giocatore_id"], "?")) for r in righe)

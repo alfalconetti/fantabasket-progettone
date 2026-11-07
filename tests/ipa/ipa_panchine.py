@@ -350,10 +350,18 @@ ok(not BOT.mandati, "promemoria e riepilogo una volta sola")
 db.q("UPDATE lega_giornate SET al = %s WHERE numero = 1", (date.today() + timedelta(days=1),))
 def admin(testo):
     m = Msg(testo); asyncio.run(Q.cmd_quintetto_admin(upd(900, m), CTX)); return m.risposte[-1][0]
+BOT.mandati.clear()
 r = admin("/quintetto_admin Alfa\nMorant\nBooker\nBridges\nGrant Williams\nMark Williams")
 ok(db.formazione(S, 1, "team01")["PG"] == gids["Ja Morant"] and db.quintetto("team01")["PG"] == gids["Ja Morant"]
    and "giornata in corso (1)" in r, "admin a giornata in corso: cambia quintetto e formazione della giornata")
+_avv = [x for x in BOT.mandati if x["chat_id"] in (101, 111) and "(admin) ha impostato il quintetto" in x["text"]]
+ok(len(_avv) == 2 and "Ja Morant" in _avv[0]["text"], "v7.1.0: i due GM di Alfa avvisati in privato del quintetto cambiato da un admin")
+BOT.mandati.clear()
 r = admin("/quintetto_admin Alfa G1\nBrunson\nBooker\nBridges\nGrant Williams\nMark Williams")
+ok(any(x["chat_id"] == 101 and "corretto la formazione della giornata 1" in x["text"] for x in BOT.mandati), "avvisati anche della formazione corretta")
+import avvisi_gm
+ok(avvisi_gm.destinatari("team01", 101) == [] and avvisi_gm.destinatari("team01", 900) == [101, 111],
+   "se chi modifica è GM di quella squadra non si avvisa nessuno")
 ok(db.formazione(S, 1, "team01")["PG"] == gids["Jalen Brunson"] and db.quintetto("team01")["PG"] == gids["Ja Morant"],
    "con G1: corregge solo la formazione della giornata 1")
 ok("non è ancora chiusa" in admin("/quintetto_admin Alfa G2\nBrunson\nBooker\nBridges\nGrant Williams\nMark Williams"),

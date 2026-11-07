@@ -18,12 +18,15 @@ BOT = {
     "fantabasket-loucabot": ({"classifica", "partita", "giornata", "calendario", "live_results", "player", "live"},
                              {"calcola", "ricalcola", "ricontrolla", "tanking", "fantapunti", "set_valid_status",
                               "congela", "storico_calcolo", "controllo_notte", "dev", "reboot", "update"}),
+    "fantabasket-klra": ({"sistemi", "classifica", "partita", "giornata", "top", "confronta", "pdf_giornata", "calendario"},
+                         {"klra_verifica"}),
 }
 
 for bot, (devono, mai) in BOT.items():
-    codice = "import json, comandi; print(json.dumps(sorted(comandi.comandi_pubblici())))"
+    klra = bot == "fantabasket-klra"
+    codice = ("import json, klra.comandi as comandi" if klra else "import json, comandi") + "; print(json.dumps(sorted(comandi.comandi_pubblici())))"
     r = subprocess.run([sys.executable, "-c", codice], cwd=os.path.join(ROOT, bot), capture_output=True, text=True,
-                       env={**os.environ, "PYTHONPATH": ".:.."})
+                       env={**os.environ, "PYTHONPATH": ".:..:../fantabasket-loucabot" if klra else ".:.."})
     try:
         pub = set(json.loads(r.stdout.strip().splitlines()[-1]))
     except Exception:
@@ -31,7 +34,7 @@ for bot, (devono, mai) in BOT.items():
         continue
     ok(devono <= pub, f"{bot}: i comandi dei GM e dei gruppi passano nei gruppi {sorted(devono - pub) or ''}")
     ok(not (mai & pub), f"{bot}: nessun comando admin o dev tra i pubblici {sorted(mai & pub) or ''}")
-    t = open(os.path.join(ROOT, bot, "bot.py"), encoding="utf-8").read()
+    t = open(os.path.join(ROOT, bot, "klra", "bot.py") if klra else os.path.join(ROOT, bot, "bot.py"), encoding="utf-8").read()
     ok("solo_gruppo_admin.installa(app, " in t, f"{bot}: guardia installata in bot.py")
 
 # la guardia

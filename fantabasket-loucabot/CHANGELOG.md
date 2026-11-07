@@ -423,3 +423,11 @@ Il calcolo dei fantapunti.
 ## v85 (2026-11-04)
 
 - **Controllo del tanking, parte 2: a consuntivo** (Luca, 25/10 e 04/11): alla convalida di una giornata, al gruppo admin, per ogni squadra i punti dei titolari schierati contro quelli della **formazione migliore possibile** con la rosa alla scadenza (un giocatore per ruolo tra le posizioni eleggibili, punti con le regole del calcolo). Sono elencate le squadre con efficienza **sotto l'80%**, con quante volte è successo nella stagione, la posizione in classifica (⬇️ nell'ultimo terzo) e la formazione migliore; se nessuna, una riga. Storico nella tabella nuova `lega_tanking` (riconvalidare non duplica)
+
+## v86 (2026-11-06)
+
+- **FADD nei ricalcoli di giornate vecchie** (Luca, 04/11, trovato con klra): chi non ha nessun tabellino (fuori da inizio stagione, es. Coby White e Lively in G1) per una giornata finita da più di una settimana restava «squadra NBA sconosciuta» e il ricalcolo perdeva la FADD avuta alla convalida (G1 Tibur–Pelicancer ricalcolata −3,25 e −7). Ora la squadra si prende dagli snapshot infortuni di quei giorni. Non cambia nessun risultato convalidato; `/partita` e `/ricalcola` delle giornate vecchie tornano giusti
+- **`/status [SQUADRA]`** (Luca, 06/11): gli injury status dei giocatori di una squadra, di default la tua, dall'ultimo snapshot: stato, da quando, squadra NBA, dettaglio
+- **`/player`**: la prossima partita NBA (avversario, casa o fuori, giorno e ora, giornata del fantabasket) (Luca, 05/11)
+- Per klra: `classifica.typ` accetta striscia e filigrana NON UFFICIALE, `/calendario` e `/calendario_full` sanno mostrare un pareggio (campi e valori che la lega non usa: loucabot non cambia)
+- **Tanking a consuntivo senza cambi ruolo** (Luca, 07/11): la formazione migliore mette ognuno solo nel posto del suo ruolo di adesso, non in tutte le posizioni eleggibili (un cambio ruolo non si fa a metà giornata)

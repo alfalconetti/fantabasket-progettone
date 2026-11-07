@@ -73,8 +73,8 @@
     )).flatten(),
   ))
 } else {
-  block(width: 100%, pad(x: 12pt, y: 8pt, text(fill: c_grigio)[Nessuna: tutte le partite finiscono come nella realtà.]))
+  block(width: 100%, pad(x: 12pt, y: 8pt, text(fill: c_grigio)[#dati.at("nota_partite", default: "Nessuna.")]))
 }
 #block(width: 100%, fill: rgb("#F6F7FA"))[#pad(x: 12pt, y: 7pt)[#text(8pt, fill: c_grigio)[
-  ± = posizioni guadagnate o perse rispetto all'Ufficiale · i punteggi sono quelli col sistema #dati.sistema, bonus casa compreso · solo le giornate convalidate dalla lega
+  ± = posizioni guadagnate o perse rispetto all'Ufficiale · Ufficiale = regole della lega sui dati di oggi (può differire di poco dalla classifica convalidata se ESPN ha corretto dei tabellini) · i punteggi sono quelli col sistema #dati.sistema, bonus casa compreso · solo le giornate convalidate dalla lega
 ]]]

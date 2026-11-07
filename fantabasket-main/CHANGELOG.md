@@ -1842,3 +1842,12 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - Backup: se c'è il database di klra, nello zip anche `db/klra.sql`; ripristino in `docs/RECOVERY.md`
 - Comandi di klra: `/sistemi` (schede, editor a bottoni, copia di qualsiasi sistema; lo modifica solo chi l'ha creato), `/usa`, `/classifica`, `/giornata`, `/partita`, `/risultati`, `/confronta`, `/top`; sistema predefinito **Fantamedie** (chi gioca prende la sua media prima della giornata; chi non ha ancora giocato quest'anno quella dell'anno prima, se c'è, se no 0). **Tutto segnato NON UFFICIALE**: striscia rossa e filigrana su ogni immagine, didascalie e testi
 - loucabot: `partita.typ` e `live.typ` accettano etichetta del sistema, bonus accanto ai punti, striscia e filigrana (campi facoltativi, per klra: loucabot non cambia)
+
+## v7.1.0 (2026-11-06)
+
+- **loucabot v86**: FADD giusta nei ricalcoli di giornate vecchie (il bug trovato con klra), `/status`, prossima partita in `/player`, tanking a consuntivo senza cambi ruolo (ognuno nel posto del suo ruolo)
+- **`/team_diff`** (Luca, 05/11, caso Konchar): le trade annullate non contano più (né la trade né il suo annullamento) e vale l'ultimo movimento del periodo: Konchar esce «Decaduto», non «Trade»
+- **Avviso Erminio** (Luca, 05/11): con `/data_erminio` il GM della squadra che ha il giocatore riceve le posizioni nuove, fino a quando può fare il cambio Erminio gratuito e come
+- **`/trova_trade`**: la FP (fantamedia) di giocatori e diritti nella stagione della trade, in estate quella che stava per cominciare (Luca, 06/11)
+- **IPanchinari v37**: il GM viene avvisato quando un admin gli cambia quintetto, formazione o panchina
+- **klra v2**: come loucabot (`/calendario`, `/calendario_full`, `/classifica_full`, `/classifica_conference`, `/pdf_giornata`, `/pdf_partite` col sistema), `/klra_verifica` e `/confronta` sul ricalcolo di oggi, sistema predefinito **Fantapanchine** (solo i panchinari, classifica cumulativa), **classifica cumulativa** nell'editor, **conference alternative** (`/conference`, anche estratte a caso), `/player` col sistema; dettagli nel suo CHANGELOG

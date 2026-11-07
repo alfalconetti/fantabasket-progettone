@@ -50,7 +50,10 @@ SUPPLEMENTARI = {"panchina": "supplementari coi panchinari (Ufficiale)",
                  "nessuno": "vince chi fa di più, niente scarto né supplementari"}
 PARI_FINALE = {"trasferta": "vince la squadra in trasferta (Ufficiale)", "pareggio": "pareggio"}
 ASSENTI = {"media": "la sua media della stagione (Ufficiale)", "percentuale": "una percentuale della media", "zero": "0"}
-CLASSIFICA = {"vittorie": "vittorie e sconfitte (Ufficiale)", "punti": "a punti"}
+CLASSIFICA = {"vittorie": "vittorie e sconfitte (Ufficiale)", "punti": "a punti",
+              "cumulativa": "cumulativa: punti fatti in totale, senza partite né bonus casa"}
+# chi conta nel totale della squadra (v2, Luca 05/11: Fantapanchine)
+CHI_CONTA = {"titolari": "i titolari (Ufficiale)", "panchina": "solo i panchinari, sommati", "tutti": "titolari e panchinari, sommati"}
 # fantamedie (Luca, 04/11): chi ha giocato nella giornata prende la sua media della stagione fino al giorno prima
 FANTAPUNTI = {"partite": "i fantapunti delle sue partite (Ufficiale)",
               "media": "la sua media della stagione prima della giornata, se non ha ancora giocato quella dell'anno prima (fantamedie)"}
@@ -67,7 +70,7 @@ def ufficiale() -> dict:
         "partita": {"bonus_casa": R.bonus_casa(), "bonus_casa_playoff": R.bonus_casa(playoff=True),
                     "scarto": R.scarto_minimo(), "supplementari": "panchina", "pari_finale": "trasferta",
                     "panchina": R.giocatori_panchina(), "fadd": True, "assenti": "media", "assenti_pct": 100,
-                    "fantapunti": "partite"},
+                    "fantapunti": "partite", "chi_conta": "titolari"},
         "classifica": {"modo": "vittorie", "vittoria": 3, "vittoria_supp": 2, "sconfitta_supp": 1, "pareggio": 1,
                        "sconfitta": 0},
     }
@@ -132,6 +135,8 @@ def differenze(p: dict, rispetto: dict | None = None, breve: bool = False) -> li
         out.append(f"Sotto lo scarto: {SUPPLEMENTARI[pb['supplementari']]}")
     if pa["pari_finale"] != pb["pari_finale"] and pb["supplementari"] == "panchina":
         out.append(f"Pari anche dopo i supplementari: {PARI_FINALE[pb['pari_finale']]}")
+    if pa["chi_conta"] != pb["chi_conta"]:
+        out.append("Nel totale della squadra contano " + CHI_CONTA[pb["chi_conta"]])
     if pa["fantapunti"] != pb["fantapunti"]:
         out.append("Chi gioca prende " + FANTAPUNTI[pb["fantapunti"]])
     if pa["fadd"] != pb["fadd"]:
@@ -144,5 +149,29 @@ def differenze(p: dict, rispetto: dict | None = None, breve: bool = False) -> li
         out.append(f"Classifica a punti: vittoria {_n(cb['vittoria'])}, ai supplementari {_n(cb['vittoria_supp'])}-"
                    f"{_n(cb['sconfitta_supp'])}, pareggio {_n(cb['pareggio'])}, sconfitta {_n(cb['sconfitta'])}")
     elif cb["modo"] != ca["modo"]:
-        out.append("Classifica: vittorie e sconfitte")
+        out.append("Classifica " + CLASSIFICA[cb["modo"]].replace(" (Ufficiale)", ""))
     return out
+
+
+# ── sistemi predefiniti: seguono le regole della lega con poche modifiche, nessuno li modifica, tutti li copiano ──
+PREDEFINITI = {
+    "fantamedie": {"nome": "Fantamedie", "modifiche": {"partita": {"fantapunti": "media"}},
+                   "descrizione": "a ogni giornata chi ha giocato prende la sua media della stagione fino al giorno prima (non i "
+                                  "punti delle partite); se quest'anno non ha ancora giocato, la fantamedia dell'anno prima, se c'è, "
+                                  "se no 0. Chi non ha giocato come nella lega. Il resto come la lega",
+                   "breve": "chi gioca prende la sua media prima della giornata, il resto come la lega"},
+    "fantapanchine": {"nome": "Fantapanchine", "modifiche": {"partita": {"chi_conta": "panchina", "supplementari": "nessuno"},
+                                                             "classifica": {"modo": "cumulativa"}},
+                      "descrizione": "il totale della squadra è la somma dei punti effettivi dei panchinari (con le regole di "
+                                     "sempre: media se la squadra NBA non ha partite, 0 se non gioca); vince chi fa di più, "
+                                     "niente supplementari (i panchinari sono già tutti in campo); classifica cumulativa, "
+                                     "coi punti fatti in totale. Il resto come la lega",
+                      "breve": "contano solo i panchinari, sommati; classifica cumulativa"},
+}
+
+
+def predefinito(chiave: str) -> dict:
+    P = ufficiale()
+    for sez, voci in PREDEFINITI[chiave]["modifiche"].items():
+        P[sez].update(voci)
+    return P

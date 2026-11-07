@@ -556,6 +556,16 @@ def salva_atleti(atleti: list[dict], giorno=None) -> None:
                             ([a["atleta"] for a in atleti],))
 
 
+def squadra_snapshot(atleti: list[str], giorni: list) -> dict[str, str]:
+    """La squadra NBA scritta nell'ultimo snapshot infortuni di quei giorni (per chi non ha tabellini: v7.1.0)."""
+    if not atleti or not giorni:
+        return {}
+    righe = q("""SELECT DISTINCT ON (atleta) atleta, squadra FROM nba_infortuni
+                 WHERE atleta = ANY(%s) AND giorno = ANY(%s) AND squadra IS NOT NULL ORDER BY atleta, preso DESC""",
+              (list(atleti), list(giorni)), many=True) or []
+    return {r["atleta"]: r["squadra"] for r in righe}
+
+
 def squadre_roster(atleti: list[str]) -> dict[str, str]:
     """La squadra NBA di adesso dai roster ESPN (aggiornati ogni mattina alle 8:30)."""
     righe = q("SELECT atleta, squadra FROM nba_atleti WHERE atleta = ANY(%s) AND squadra IS NOT NULL",

@@ -129,7 +129,7 @@ uff = basi.q("SELECT * FROM klra_sistemi WHERE ufficiale", one=True)
 
 # ── l'Ufficiale di klra = i risultati convalidati, al centesimo ──
 d = M.verifica(S)
-ok(d == [], f"Ufficiale di klra identico ai risultati convalidati della lega {d}")
+ok(d["motore"] == [] and d["dati"] == [], f"Ufficiale di klra identico al ricalcolo di loucabot e ai risultati convalidati {d}")
 copia = basi.q("INSERT INTO klra_sistemi (nome, autore, parametri, base_id) VALUES ('Copia', 900, %s, %s) RETURNING *",
                (json.dumps(KR.ufficiale()), uff["id"]), one=True)
 rc = {(r["giornata"], r["casa"]): r for r in M.risultati_stagione(copia, S)}
@@ -209,6 +209,20 @@ ok(_tutti_f["k8"]["fp"] == 0 and _tutti_f["k8"]["come"] == "zero", "chi era a re
 gu1 = M.risultati_giornata(uff, S, 1)
 ok(gf["risultati"][0]["punti_casa"] != gu1["risultati"][0]["punti_casa"], "i risultati cambiano rispetto all'Ufficiale")
 
+# ── Fantapanchine (predefinito, v2): il totale è la somma dei panchinari, vince chi fa di più ──
+fp_ = basi.q("SELECT * FROM klra_sistemi WHERE predefinito = 'fantapanchine'", one=True)
+gp = M.risultati_giornata(fp_, S, 1)
+_r0 = gp["risultati"][0]
+_pan = round(sum(x["fp"] for x in _r0["sc"]["panchina"]) * 8) / 8
+ok(fp_ and _r0["sc"]["totale"] == _pan and _r0["punti_casa"] == _pan + gp["bonus_casa"] and _r0["supplementari"] == 0,
+   f"Fantapanchine: totale = somma dei panchinari (+ bonus casa), niente supplementari ({_r0['sc']['totale']} vs {_pan})")
+ok(_r0["vince"] == ("casa" if _r0["punti_casa"] > _r0["punti_trasferta"] else "trasferta"), "vince chi fa di più")
+pt_ = KR.ufficiale(); pt_["partita"]["chi_conta"] = "tutti"
+gt_ = M.calcola_giornata(pt_, S, 1)["risultati"][0]
+_gu1 = M.risultati_giornata(uff, S, 1)
+ok(gt_["sc"]["totale"] == round((_gu1["risultati"][0]["sc"]["totale"] + _pan) * 8) / 8, "«tutti»: titolari più panchinari")
+ok(any("solo i panchinari, sommati" in x for x in KR.differenze(KR.predefinito("fantapanchine"))), "differenze a parole")
+
 # ── squadra: quintetto completo, MVP, sotto zero ──
 psq = KR.ufficiale(); psq["squadra"].update(mvp_bonus=7, quintetto_bonus=4, quintetto_soglia=-100, negativo_malus=-1)
 gs = M.risultati_giornata(sid("Squadra", psq), S, 1)
@@ -239,6 +253,24 @@ tb = {r["team"]: r for r in M.tabella(ris, Pc)}
 ok(tb["team01"]["pt"] == 3 and tb["team02"]["pt"] == 2 and tb["team03"]["pt"] == 2 and tb["team04"]["pt"] == 1 and tb["team03"]["p"] == 1,
    "a punti: vittoria 3, ai supplementari 2 e 1, pareggio 1")
 ok(tb["team01"]["pos"] == 1 and tb["team02"]["pos"] < tb["team03"]["pos"], "ordine per punti, a parità lo scontro diretto")
+
+# ── classifica cumulativa (v2): punti fatti in totale, senza bonus casa né supplementari ──
+from klra import sistemi as SI, viste as V
+risc = [{"giornata": 1, "casa": "team01", "trasferta": "team02", "punti_casa": 103, "punti_trasferta": 120, "vince": "trasferta", "supplementari": 0,
+         "sc": {"totale": 100}, "st": {"totale": 120}},
+        {"giornata": 2, "casa": "team02", "trasferta": "team01", "punti_casa": 93, "punti_trasferta": 140, "vince": "trasferta", "supplementari": 0,
+         "sc": {"totale": 90}, "st": {"totale": 140}}]
+Pcu = KR.ufficiale(); Pcu["classifica"]["modo"] = "cumulativa"
+tcu = {r["team"]: r for r in M.tabella(risc, Pcu)}
+ok(tcu["team01"]["cumulati"] == 240 and tcu["team02"]["cumulati"] == 210 and tcu["team01"]["pos"] == 1 and tcu["team01"]["pt"] == 240,
+   "cumulativa: somma dei totali senza bonus casa (team01 240 prima di team02 210, anche se team02 ha più punti col bonus)")
+ok(KR.predefinito("fantapanchine")["classifica"]["modo"] == "cumulativa", "Fantapanchine usa la classifica cumulativa")
+ok(V.dati_classifica(basi.q("SELECT * FROM klra_sistemi WHERE predefinito = 'fantapanchine'", one=True), S)["cumulativa"],
+   "immagine della classifica cumulativa")
+_pngc = V.img_classifica(basi.q("SELECT * FROM klra_sistemi WHERE predefinito = 'fantapanchine'", one=True), S)
+ok(_pngc[:4] == b"\x89PNG", "immagine della classifica cumulativa disegnata")
+if os.environ.get("KLRA_IMMAGINI"):
+    open(os.path.join(os.environ["KLRA_IMMAGINI"], "klra_cumulativa.png"), "wb").write(_pngc)
 
 # ── cache ──
 c1 = basi.q("SELECT calcolato FROM klra_risultati WHERE sistema_id = %s AND giornata = 1", (sp["id"],), one=True)["calcolato"]
@@ -283,6 +315,7 @@ class Msg:
     def __init__(s): s.testi, s.foto, s.chat = [], [], types.SimpleNamespace(type="private")
     async def reply_text(s, t, **k): s.testi.append((t, k.get("reply_markup"))); return types.SimpleNamespace(delete=lambda: asyncio.sleep(0))
     async def reply_photo(s, p, **k): s.foto.append((p, k.get("caption")))
+    async def reply_document(s, document=None, **k): s.foto.append((document, k.get("caption")))
 class Q:
     def __init__(s, uid, data, msg): s.from_user, s.data, s.message, s.testo, s.kb, s.alert = types.SimpleNamespace(id=uid), data, msg, None, None, None
     async def answer(s, t=None, show_alert=False): s.alert = t
@@ -365,6 +398,98 @@ m = Msg(); asyncio.run(CM.cmd_classifica(upd(900, m), ctx(["Hockey"])))
 ok(m.foto and "Hockey" in m.foto[0][1] and m.foto[0][1].startswith("🧪 NON UFFICIALE"), "/classifica NOME, didascalia NON UFFICIALE")
 m = Msg(); asyncio.run(CM.cmd_partita(upd(900, m), ctx(["Alfa", "1", "Hockey"])))
 ok(m.foto and "Hockey" in m.foto[0][1], "/partita SQUADRA N NOME " + str(m.testi[-1:] if not m.foto else ""))
+
+# ── v7.1.0: i comandi di loucabot dentro il contesto del sistema ──
+import classifica as CLL
+par = SI.per_nome("Pareggi")
+with M.contesto(par):
+    _rc = CLL.risultati(S)
+ok(len(_rc) == 4 and all(r["vince"] == "pari" for r in _rc), "dentro il contesto loucabot legge i risultati del sistema (tutti pareggi)")
+ok(all(r["vince"] != "pari" for r in CLL.risultati(S)), "fuori dal contesto i risultati veri: niente è stato toccato")
+with M.contesto(hk):
+    _cl = [r["team"] for r in CLL.calcola(S)[0]]
+ok(_cl == [r["team"] for r in M.classifica(hk, S)], "la classifica di loucabot col sistema ha l'ordine del sistema (a punti)")
+m = Msg(); asyncio.run(CM.cmd_calendario_full(upd(900, m), ctx(["Alfa", "Pareggi"])))
+ok(m.testi and m.testi[-1][0].startswith("🧪 <b>NON UFFICIALE</b> · sistema <b>Pareggi</b>"), "/calendario_full SQUADRA NOME: il testo di loucabot, NON UFFICIALE in testa " + (m.testi[-1][0][:200] if m.testi else ""))
+m = Msg(); asyncio.run(CM.cmd_classifica_full(upd(900, m), ctx(["Hockey"])))
+ok(m.foto and m.foto[-1][1].startswith("🧪 NON UFFICIALE"), "/classifica_full NOME: immagine di loucabot, didascalia NON UFFICIALE")
+with M.contesto(hk):
+    _dt = CLL.dati_typst(CLL.calcola(S, True)[0], 2, True)
+ok(_dt.get("filigrana") == "NON UFFICIALE" and "Hockey" in _dt.get("striscia", ""), "e con filigrana e striscia")
+ok("filigrana" not in CLL.dati_typst(CLL.calcola(S, True)[0], 2, True), "fuori dal contesto la classifica di loucabot è quella di sempre")
+_pg = V.pdf_giornata(hk, S, 1)
+ok(_pg and _pg[0][:4] == b"%PDF", "/pdf_giornata col sistema")
+_pp, _np = V.pdf_partite(hk, S, "team01")
+ok(_pp and _pp[0][:4] == b"%PDF" and _np == 2, "/pdf_partite col sistema: le partite delle giornate convalidate")
+m = Msg(); asyncio.run(CM.cmd_pdf_giornata(upd(900, m), ctx(["1", "Hockey"])))
+ok(m.foto and m.foto[-1][1].startswith("🧪 NON UFFICIALE"), "/pdf_giornata N NOME")
+
+# ── conference alternative (v2) ──
+from klra import conference as CO
+_div = os.path.join(os.path.dirname(os.environ.get("TEAMS_PATH", "")), "divisions.json")
+json.dump({"conference": {"Est": ["E"], "Ovest": ["O"]}, "team_div": {"team01": "E", "team02": "E", "team03": "O", "team04": "O"}},
+          open(_div, "w"))
+ok(CO.configurate() and CO.nomi() == ["Est", "Ovest"], "conference della lega lette da divisions.json")
+inc = CO.crea("Incrocio", 900, "Luca", ["team01", "team03"])
+_map = inc["mappa"] if isinstance(inc["mappa"], dict) else json.loads(inc["mappa"])
+ok(sorted(_map) == ["team01", "team02", "team03", "team04"] and {_map["team01"], _map["team03"]} == {"team01", "team02"}
+   and {_map["team02"], _map["team04"]} == {"team03", "team04"}, f"accoppiamento a caso, ognuno al posto di uno della sua conference {_map}")
+_vere = {(p["casa"], p["trasferta"]) for p in db.partite_giornata(S, 1)}
+with M.in_conference(inc):
+    _perm = [(p["casa"], p["trasferta"]) for p in db.partite_giornata(S, 1)]
+    _conf = CLL.conference()
+    gc = M.risultati_giornata(uff, S, 1)
+ok(all(_conf[a] == _conf[b] for a, b in _perm) and _conf["team01"] == _conf["team03"] == "Est", "G1 intra conference resta intra con le nuove conference")
+ok({(p["casa"], p["trasferta"]) for p in db.partite_giornata(S, 1)} == _vere, "fuori: il calendario vero, niente toccato")
+_tot_v = {t: s_["totale"] for r in gu1["risultati"] for t, s_ in ((r["casa"], r["sc"]), (r["trasferta"], r["st"]))}
+_tot_c = {t: s_["totale"] for r in gc["risultati"] for t, s_ in ((r["casa"], r["sc"]), (r["trasferta"], r["st"]))}
+ok(_tot_v == _tot_c and {(r["casa"], r["trasferta"]) for r in gc["risultati"]} == set(_perm),
+   "i punti delle squadre non cambiano, cambiano le sfide (ricalcolate col motore di loucabot)")
+ok(basi.q("SELECT COUNT(DISTINCT firma) AS n FROM klra_risultati WHERE sistema_id = %s AND giornata = 1", (uff["id"],), one=True)["n"] >= 2,
+   "in cache a parte: ogni conference la sua firma")
+with M.in_conference(inc):
+    _cfc = M.confronta(hk, S)
+ok(_cfc["righe"] and len(_cfc["righe"]) == len(config.squadre()), "/confronta con le conference alternative contro l'Ufficiale vero")
+# interfaccia
+UD.clear()
+q, _ = None, None
+def cbc(uid, data):
+    msg = Msg(); q_ = Q(uid, data, msg)
+    asyncio.run(CM.cb_conference(types.SimpleNamespace(callback_query=q_), ctx()))
+    return q_
+q = cbc(905, "kc:n")
+ok("scegli le 2 squadre della <b>Est</b>" in q.testo, "nuove conference: scelta delle squadre della prima")
+cbc(905, "kc:t:team02"); cbc(905, "kc:t:team04")
+q = cbc(905, "kc:t:team01")
+ok("Sono già 2" in (q.alert or ""), "non più di quante ne servono")
+q = cbc(905, "kc:ok")
+ok("Come le chiami" in q.testo, "accoppia e salva: chiede il nome")
+m = Msg(); m.text = "Pari e dispari"; asyncio.run(CM.testo_libero(upd(905, m), ctx()))
+pd = CO.per_nome("Pari e dispari")
+ok(pd and CO.attiva(905)["id"] == pd["id"] and "sono le tue attive" in m.testi[-1][0], "create e attive per chi le ha fatte")
+q = cbc(906, f"kc:m:{pd['id']}")
+ok("solo chi le ha create" in (q.alert or ""), "un altro non le modifica")
+m = Msg(); asyncio.run(CM.cmd_classifica(upd(905, m), ctx([])))
+ok(m.foto and "conference Pari e dispari" in m.foto[-1][1], "/classifica con le conference attive: lo dice")
+q = cbc(907, "kc:n"); q = cbc(907, "kc:caso")
+ok(len(UD["klra_conf"]["a"]) == 2 and "Accoppia e salva (2/2)" in str([b.text for r in q.kb.inline_keyboard for b in r]), "squadre estratte a caso")
+q = cbc(905, "kc:u:0")
+ok(CO.attiva(905) is None, "si torna alle ufficiali")
+os.unlink(_div)
+
+# /player col sistema (v2)
+m = Msg(); asyncio.run(CM.cmd_player(upd(900, m), ctx(["Klra", "4", "Stoppate"])))
+_t = (m.testi[-1][0] if m.testi else "") + (m.foto[-1][1] if m.foto else "")
+ok("NON UFFICIALE" in _t and "Col sistema Stoppate" in _t and "Fantamedia" in _t and "(lega " in _t, "/player NOME SISTEMA: la scheda di loucabot con la stagione del sistema " + _t[-300:])
+import player as _PL
+ok("Col sistema" not in _PL.scheda(gid[4]), "/player di loucabot fuori da klra: com'era")
+
+# verifica: dati cambiati dopo la convalida (un tabellino corretto) → motore uguale, differenza nei dati
+db._pool = pool_lega
+db.q("UPDATE nba_tabellini SET fp = fp + 10, pts = pts + 20 WHERE atleta = 'k2' AND partita = 'b10'")
+db._pool = _k
+d = M.verifica(S)
+ok(d["motore"] == [] and d["dati"] and d["dati"][0].startswith("G1"), f"verifica: motore uguale a loucabot, i dati cambiati a parte {d}")
 
 # pulizia (lega con l'utente della prova)
 db._pool = pool_lega

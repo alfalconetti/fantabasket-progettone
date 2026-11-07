@@ -95,3 +95,5 @@ Solo per `dev_id`, nel menu `/` del dev.
 Import più comodo dei quintetti nel formato di `/quintetti_import`. Il calcolo dei risultati da `ipa_formazioni` e `ipa_panchine` lo fa loucabot (fatto).
 
 **Menu dei comandi** (`comandi.py`, v33): privato (GM), admin e dev in privato, gruppi e amministratori dei gruppi senza i comandi solo privati (`SOLO_PRIVATO`: /panchina, /build_panchina, /edit, /toggle_injures), gruppo admin col menu admin senza quelli.
+
+**Avvisi ai GM** (v37): `avvisi_gm.avvisa(bot, team, utente, cosa, dettaglio)` a tutti i `gm_ids` della squadra, nessuno se chi modifica ne è GM (`destinatari`); chiamato da `quintetti.py` (conferma e cambio coi bottoni da admin, `/quintetto_admin` con righe e con G, `/quintetti_import` tramite `_IMPORTATI`) e da `panchine.py` (pubblicazione con fonte admin). Errori di invio solo nel log.

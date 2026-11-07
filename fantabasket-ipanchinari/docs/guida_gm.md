@@ -2,6 +2,8 @@
 
 IPanchinari è il bot delle panchine e dei quintetti. Si usa in **chat privata**: scrivigli `/start` una volta, così può mandarti i promemoria.
 
+Se un admin cambia il tuo quintetto, la formazione di una giornata o la tua panchina, **ti arriva un messaggio in privato** con chi l'ha fatto e cosa ha cambiato.
+
 In breve: **la panchina è obbligatoria** (sempre 5 giocatori, mai meno). **Il quintetto nel bot no**: per il regolamento fa fede Yahoo, e tenerlo aggiornato qui è un favore che fai agli admin.
 
 ---

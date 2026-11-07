@@ -35,6 +35,8 @@ Alfa
 
 Per ogni squadra il nome esatto (o l'id) nella prima riga, poi i 5 titolari, con o senza il ruolo davanti; squadre separate da una riga vuota. Va bene anche un file .txt con didascalia `/quintetti_import`. Il nome della squadra deve essere esatto: in un import di tante squadre una ricerca tollerante potrebbe sbagliare squadra. Le squadre con un errore non si salvano, le altre sì, e il bot dice quali.
 
+**Il GM viene avvisato** (v37, Luca 05/11): ogni volta che un admin che non è GM di quella squadra le cambia quintetto (righe, bottoni, import), formazione di una giornata chiusa o panchina, i GM della squadra ricevono in privato chi l'ha fatto e cosa è cambiato (prima → dopo).
+
 **Una squadra alla volta**: `/quintetto_admin SQUADRA` e sotto i 5 titolari (qui il nome della squadra può essere approssimativo: il bot risponde col nome giusto). **Senza righe si apre il quintetto della squadra coi bottoni**, partendo da quello attuale: tocchi il ruolo e scegli il giocatore (solo quelli di quel ruolo). Vale come le righe: anche a giornata in corso aggiorna la formazione della giornata.
 
 Il ruolo di ogni titolare è quello di roster: un giocatore scritto in un ruolo diverso, due giocatori nello stesso ruolo o un ruolo mancante bloccano il salvataggio.

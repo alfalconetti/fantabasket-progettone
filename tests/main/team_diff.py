@@ -24,3 +24,21 @@ async def main():
     await TD.cmd_team_diff(upd, types.SimpleNamespace(args=["team01","01-08-27","02-08-27"]))
     await TD.cmd_team_diff(upd, types.SimpleNamespace(args=["team01","15-09-26","01-08-27"]))
 asyncio.run(main()); print("\n=====\n".join(out))
+
+# v7.1.0 (Luca, 05/11): trade di prova annullata e poi decadimento → «Decaduto», non «Trade»
+ok = lambda c, m: print(("✅" if c else "❌ FAIL"), m)
+p6 = g("Konchar")
+c6 = c(p6, "team01", 1, 1, False)
+db._q("INSERT INTO transazioni (tipo,giocatore_id,team_id_da,team_id_a,stagione,contratto_id,timestamp,note) VALUES "
+      "('signed',%s,NULL,'team01','2026',%s,'2026-07-25','migrazione iniziale'),"
+      "('traded',%s,'team01','team03','2026',%s,'2026-10-03 18:54','TRADE-2026-026'),"
+      "('traded',%s,'team03','team01','2026',%s,'2026-10-03 18:56','ANNULLAMENTO TRADE-2026-026'),"
+      "('decadimento',%s,'team01',NULL,'2026',%s,'2026-10-25 22:59','Decadimento: firma in altra lega')", (p6, c6) * 4)
+from datetime import datetime as _dt
+ok(TD._motivo_giocatore("team01", p6, _dt(2026, 9, 30), _dt(2026, 11, 5), "out") == "Decaduto", "trade annullata saltata: esce per decadimento")
+p7 = g("Sette")
+c7 = c(p7, "team02", 1, 1)
+db._q("INSERT INTO transazioni (tipo,giocatore_id,team_id_da,team_id_a,stagione,contratto_id,timestamp,note) VALUES "
+      "('cut',%s,'team01',NULL,'2026',%s,'2026-10-01',NULL), ('signed',%s,NULL,'team01','2026',%s,'2026-10-02',NULL),"
+      "('traded',%s,'team01','team02','2026',%s,'2026-10-10','TRADE-2026-030')", (p7, c7) * 3)
+ok(TD._motivo_giocatore("team01", p7, _dt(2026, 9, 30), _dt(2026, 11, 5), "out") == "Trade", "più uscite nel periodo: conta l'ultima (trade, non il taglio)")

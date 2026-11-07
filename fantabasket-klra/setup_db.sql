@@ -45,5 +45,7 @@ SELECT format('GRANT SELECT ON %I TO %I', c.relname, :'ruolo')
    AND c.relname IN ('giocatori', 'ruolo_attuale', 'posizioni_attuali', 'contratti', 'movimenti_giocatori',
                      'ipa_formazioni', 'ipa_panchine', 'ipa_stato_giornata', 'ipa_quintetto',
                      'nba_partite', 'nba_tabellini', 'nba_atleti', 'nba_infortuni',
-                     'lega_giornate', 'lega_partite', 'lega_risultati', 'lega_status_validi', 'lega_live', 'bref_stats') \gexec
+                     'lega_giornate', 'lega_partite', 'lega_risultati', 'lega_status_validi', 'lega_live', 'bref_stats',
+                     -- /player (v2): contratti e anagrafica del bot principale, movimenti NBA
+                     'dpe', 'rookie', 'ruoli_pendenti', 'rfa_dichiarati', 'nba_movimenti') \gexec
 SELECT format('ALTER ROLE %I IN DATABASE %I SET default_transaction_read_only = on', :'ruolo', current_database()) \gexec

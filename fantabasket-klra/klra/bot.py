@@ -57,7 +57,7 @@ def precalcola() -> int:
     conv = motore.giornate_convalidate(s)
     for sist in basi.q("SELECT * FROM klra_sistemi ORDER BY id", many=True) or []:
         for n, c in conv.items():
-            f = motore.KR.firma(motore.parametri(sist))
+            f = motore.firma_cache(motore.parametri(sist))
             r = basi.q("SELECT convalidato FROM klra_risultati WHERE sistema_id = %s AND firma = %s AND stagione = %s AND giornata = %s",
                        (sist["id"], f, s, n), one=True)
             if not r or r["convalidato"] != c:
@@ -80,6 +80,8 @@ def main():
     basi.apri_ufficiale()
     basi.apri_klra()
     motore.installa()
+    # la cache fatta con un motore vecchio non serve più (VERSIONE_MOTORE)
+    basi.q("DELETE FROM klra_risultati WHERE firma NOT LIKE %s", ("%:" + motore.VERSIONE_MOTORE,))
     app = ApplicationBuilder().token(_token()).post_init(post_init).build()
     from shared import solo_lega
     solo_lega.installa(app)

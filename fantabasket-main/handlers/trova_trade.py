@@ -205,6 +205,16 @@ def dati(trade_id: int) -> dict:
     stagione = int(t.get("stagione") or _stagione_al(quando))
     prima, dopo = quando - timedelta(milliseconds=1), quando + timedelta(seconds=1)
     assets = {it["id"]: _asset(it, trade_id, stagione) for it in items}
+    # v7.1.0 (Luca, 06/11): la fantamedia dei giocatori nella stagione di riferimento della trade, quella in corso o,
+    # in off-season (da luglio), quella che sta per cominciare; da basketball-reference come la colonna FP del roster
+    rif = _stagione_al(quando)
+    fm = db.fantamedie([it["giocatore_id"] for it in items if it["tipo"] in ("giocatore", "diritti") and it.get("giocatore_id")],
+                       str(rif + 1))
+    for it in items:
+        if it["tipo"] in ("giocatore", "diritti") and it.get("giocatore_id"):
+            x = fm.get(it["giocatore_id"])
+            assets[it["id"]]["fp"] = f"FP {x:.1f}" if x is not None else "FP —"
+    fp_stagione = f"{rif}-{str(rif + 1)[-2:]}"
     _ordine = {"giocatore": 0, "pick": 1, "diritti": 2}
     colonne = []
     for s in squadre:
@@ -222,7 +232,8 @@ def dati(trade_id: int) -> dict:
     if t["stato"] == "annullata":
         stato_nota = "eseguita e poi annullata"
     return {"numero": t["trade_ref"], "data": quando.astimezone(ROME).strftime("%d/%m/%Y"), "stato": t["stato"],
-            "stato_nota": stato_nota, "asset": len(items), "squadre": colonne, "percorso": _percorso(t, squadre)}
+            "stato_nota": stato_nota, "asset": len(items), "squadre": colonne, "percorso": _percorso(t, squadre),
+            "fp_stagione": fp_stagione}
 
 
 async def immagine(trade_id: int) -> str:

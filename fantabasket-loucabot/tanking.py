@@ -23,7 +23,7 @@ Per ogni squadra, dalla formazione congelata (ipa_formazioni) e dalla panchina (
 - Le squadre nell'ultimo terzo della classifica sono segnate ⬇️ (lì il tanking conviene).
 Parte 2 (v6.25.0, Luca 25/10 e 04/11), a consuntivo **alla convalida**, sempre solo al gruppo admin: per ogni squadra i
 punti dei titolari schierati (FADD compresa, come il calcolo) contro quelli della formazione migliore possibile con la
-rosa alla scadenza (un giocatore per ruolo tra le sue posizioni eleggibili, punti della giornata con le regole del
+rosa alla scadenza (un giocatore per ruolo, nel posto del suo ruolo di adesso: senza cambi ruolo, Luca 07/11; punti della giornata con le regole del
 calcolo: media delle partite, media della stagione se la squadra NBA non gioca, 0 se non ha giocato). Efficienza in %;
 sotto SOGLIA_EFFICIENZA (80%) la squadra è elencata, con quante volte le è successo nella stagione (lega_tanking).
 """
@@ -330,7 +330,12 @@ def consuntivo(s: str, n: int) -> list[dict]:
         dove.update(rosa.squadre_al(db.q, list(tutti), scad))
     atleti = [tutti[gid]["espn_id"] for gid, t in dove.items() if t and gid in tutti and tutti[gid]["espn_id"]]
     punti = CA.punteggio_giocatori(s, g, atleti)
-    pos = _posizioni([gid for gid, t in dove.items() if t])
+    # senza cambiare ruoli (Luca, 07/11): ognuno può stare solo nel posto del suo ruolo di adesso, non in tutte le sue
+    # posizioni eleggibili (un cambio ruolo non si fa a metà giornata)
+    ruoli = {r["giocatore_id"]: r["ruolo"] for r in (db.q("SELECT giocatore_id, ruolo FROM ruolo_attuale WHERE stagione = %s "
+                                                          "AND giocatore_id = ANY(%s)", (s, [gid for gid, t in dove.items() if t]),
+                                                          many=True) or [])}
+    pos = {gid: {r} for gid, r in ruoli.items() if r}
     out = []
     for r in c["risultati"]:
         for team, sq in ((r["casa"], r["sc"]), (r["trasferta"], r["st"])):
@@ -369,7 +374,7 @@ def testo_consuntivo(s: str, n: int, righe: list[dict]) -> str:
     media = sum(x["efficienza"] for x in righe) / len(righe) if righe else 1.0
     out = [f"🕵️ <b>Tanking a consuntivo · giornata {n}</b>",
            f"<i>Solo per gli admin. Punti dei titolari schierati rispetto alla formazione migliore possibile con la rosa "
-           f"alla scadenza (un giocatore per ruolo tra le posizioni eleggibili, punti con le regole del calcolo). "
+           f"alla scadenza (un giocatore per ruolo, ognuno nel suo ruolo: senza cambi ruolo; punti con le regole del calcolo). "
            f"Indizi, non verdetti. Efficienza media della lega {media:.0%}.</i>", ""]
     if not sotto:
         out.append(f"✅ Tutte le squadre sopra il {SOGLIA_EFFICIENZA:.0%}.")

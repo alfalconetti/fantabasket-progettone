@@ -8,10 +8,10 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 PGURL=${PGURL:-postgresql://fb:fb@localhost/fbt}
 # niente prove sul server: le prove fanno TRUNCATE (stessi controlli di tests/guardia.py)
 DATABASE_URL=$PGURL PG_URL=$PGURL python3 "$ROOT/tests/guardia.py" || exit 1
-MAIN=(trade_3_squadre carriera registro_azioni ruoli_trade date_comandi backup_foto menu_palette admin_poteri regole_config impostazioni report_ruoli report_dati bref_abbina penalita dieci_giorni revisione_regolamento dpe_trade_tagli team_diff report_spalmature penalita_cap sync_fogli registro_unico taglio_admin stagione stagione_ui cap_condiviso regolamento_numeri riassegna)
+MAIN=(trade_3_squadre carriera registro_azioni ruoli_trade date_comandi backup_foto menu_palette admin_poteri regole_config impostazioni report_ruoli report_dati bref_abbina penalita dieci_giorni revisione_regolamento dpe_trade_tagli team_diff report_spalmature penalita_cap sync_fogli registro_unico taglio_admin stagione stagione_ui cap_condiviso regolamento_numeri riassegna erminio_avviso)
 ASTE_PG=(pg_rfa_30giorni_dpe lista_fa_stagione registro_aste firma_per_conto rfa_lascio_andare menu_e_listteams autoslot giocatore_id rfa_dichiarati tempo_scaduto)
 ASTE_ISOLATO=(apri_asta_admin apertura_gm cap_asta_chiusa rfa_proprietario team_ricerca regolamento_numeri_aste)
-LOUCA=(louca_calendario louca_calcolo louca_foglio louca_risultati louca_classifica)
+LOUCA=(louca_calendario louca_calcolo louca_foglio louca_risultati louca_classifica louca_status)
 IPA=(ipa_panchine ipa_errori ipa_injury)
 KLRA=(klra_motore)
 DOCS=(guide_e_menu letture_transazioni nomi_importati router_health gas_node solo_gruppo_admin solo_lega)

@@ -104,7 +104,13 @@ def _motivo_giocatore(team_id: str, giocatore_id: int,
     nel periodo da→a. verso = 'in' | 'out'
     """
     rows = db.get_transazioni_giocatore_periodo(giocatore_id, da.isoformat(), a.isoformat())
-    for r in rows:
+    # v7.1.0 (Luca, 05/11, caso Konchar): le trade annullate non contano (né la trade né il suo annullamento) e vale
+    # l'ULTIMO movimento in entrata/uscita del periodo, non il primo
+    annullate = {(r.get("note") or "").split(" ", 1)[1].strip() for r in rows
+                 if (r.get("note") or "").startswith("ANNULLAMENTO ") and len((r.get("note") or "").split(" ", 1)) > 1}
+    rows = [r for r in rows if not (r.get("note") or "").startswith("ANNULLAMENTO")
+            and (r.get("note") or "").strip() not in annullate]
+    for r in reversed(rows):
         if verso == "in" and r["team_id_a"] == team_id:
             return {
                 "signed":      "FA",

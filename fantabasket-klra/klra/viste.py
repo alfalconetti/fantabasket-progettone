@@ -24,7 +24,7 @@ FILIGRANA = "NON UFFICIALE"
 
 
 def striscia(s: dict) -> str:
-    return f"🧪 KLRA · NON UFFICIALE · sistema {s['nome']} · i risultati veri sono quelli di loucabot"
+    return M.STRISCIA.format(M.nome_contesto(s))
 
 
 def _anno(s: str) -> str:
@@ -40,8 +40,8 @@ def riassunto(s: dict, max_righe: int = 3) -> str:
     """Le differenze dall'Ufficiale in una riga (per le liste e le bande)."""
     if s["ufficiale"]:
         return "le regole della lega"
-    if s.get("predefinito") == "fantamedie":
-        return "chi gioca prende la sua media prima della giornata, il resto come la lega"
+    if s.get("predefinito") in KR.PREDEFINITI:
+        return KR.PREDEFINITI[s["predefinito"]]["breve"]
     d = KR.differenze(SI.parametri(s), breve=True)
     if not d:
         return "uguale all'Ufficiale"
@@ -59,12 +59,15 @@ def dati_classifica(s: dict, stagione: str) -> dict | None:
     col = CL.colori(righe, False)
     out = [{"pos": r["pos"], "nome": config.nome(r["team"]), "logo": CL._logo(r["team"]), "w": r["w"], "l": r["l"], "p": r["p"],
             "pt": f"{r['pt']:g}", "pf": tp(r["pf"]), "ps": tp(r["ps"]), "media": tp(r["media"]), "striscia": r["striscia"],
+            "cumulati": tp(r["cumulati"]), "media_cumulati": tp(r["media_cumulati"]), "g": r["g"],
             "col": col.get(r["team"], {})} for r in righe]
     punti = P["classifica"]["modo"] == "punti"
+    cumulativa = P["classifica"]["modo"] == "cumulativa"
     return {"filigrana": FILIGRANA, "striscia": striscia(s), "titolo": f"Classifica {_anno(stagione)}", "sotto": f"dopo {giornate} {'giornata' if giornate == 1 else 'giornate'} convalidate",
             "sistema": s["nome"], "regole": riassunto(s, 2), "righe": out, "punti": punti,
-            "pareggi": any(r["p"] for r in righe),
-            "ordine": ("ordine per punti in classifica, a parità scontri diretti, media punti, differenza" if punti else
+            "pareggi": any(r["p"] for r in righe), "cumulativa": cumulativa,
+            "ordine": ("classifica cumulativa: punti fatti in tutte le giornate, senza bonus casa né supplementari" if cumulativa else
+                       "ordine per punti in classifica, a parità scontri diretti, media punti, differenza" if punti else
                        "ordine per vittorie, a parità scontri diretti, media punti, differenza")}
 
 
@@ -89,18 +92,20 @@ def dati_confronta(s: dict, stagione: str) -> dict | None:
                       "rec": rec(r), "supp": sum(1 for x in r["partite"] if x["supp"]), "pt": f"{r['pt']:g}"})
     ris = {(x["giornata"], x["casa"]): x for x in M.risultati_stagione(s, stagione)}
     nome_esito = lambda v, casa, tr, supp: ("pareggio" if v == "pari" else config.nome(casa if v == "casa" else tr)) + (" (supp.)" if supp and v != "pari" else "")
-    vere = {(x["giornata"], x["casa"]): x for x in CL.risultati(stagione)}
+    vere = {(x["giornata"], x["casa"]): x for x in M.risultati_stagione(M.ufficiale_sistema(), stagione)}
     cambi = []
     for c in cf["cambiano"]:
         r = ris[(c["giornata"], c["casa"])]
         v = vere[(c["giornata"], c["casa"])]
         cambi.append({"giornata": c["giornata"], "casa": config.nome(c["casa"]), "trasferta": config.nome(c["trasferta"]),
                       "punti": f"{tp(r['punti_casa'])} – {tp(r['punti_trasferta'])}",
-                      "prima": nome_esito(v["vince"], c["casa"], c["trasferta"], v["supp_casa"] is not None),
+                      "prima": nome_esito(v["vince"], c["casa"], c["trasferta"], v["supplementari"]),
                       "dopo": nome_esito(r["vince"], c["casa"], c["trasferta"], r["supplementari"])})
     return {"filigrana": FILIGRANA, "striscia": striscia(s), "sistema": s["nome"], "sotto": f"stagione {_anno(stagione)} · {cf['giornate']} giornate convalidate",
             "regole": "" if s["ufficiale"] else f"{s['nome']}" + (f" (di {s['autore_nome']})" if s.get("autore_nome") else "") + ": " + riassunto(s, 3),
-            "punti": P["classifica"]["modo"] == "punti", "righe": righe, "cambiano": cambi, "partite": len(ris)}
+            "punti": P["classifica"]["modo"] in ("punti", "cumulativa"), "righe": righe, "cambiano": cambi, "partite": len(ris),
+            "nota_partite": (f"Con le conference {M._CONF.get()['nome']} il calendario è un altro: le partite non si confrontano una per una."
+                             if M._CONF.get() else "Nessuna: tutte le partite finiscono come con le regole della lega.")}
 
 
 def img_confronta(s: dict, stagione: str) -> bytes | None:
@@ -196,7 +201,7 @@ def testo_risultati(s: dict, stagione: str, n: int) -> str:
     import html
     e = lambda x: html.escape(str(x), quote=False)
     d = M.risultati_giornata(s, stagione, n)
-    vere = {x["casa"]: x for x in CL.risultati(stagione) if x["giornata"] == n}
+    vere = {x["casa"]: x for x in M.risultati_giornata(M.ufficiale_sistema(), stagione, n)["risultati"]}
     righe = [f"🧪 <b>NON UFFICIALE</b> · sistema <b>{e(s['nome'])}</b>", f"📅 <b>Giornata {n}</b>", f"<i>{e(riassunto(s, 3))}</i>", ""]
     for x in d["risultati"]:
         c, t = config.nome(x["casa"]), config.nome(x["trasferta"])
@@ -214,7 +219,7 @@ def testo_risultati(s: dict, stagione: str, n: int) -> str:
         if v and v["vince"] != x["vince"]:
             riga += "  🔄 <i>nella realtà " + ("pareggio" if v["vince"] == "pari" else e(config.nome(x["casa"] if v["vince"] == "casa" else x["trasferta"]))) + "</i>"
         righe.append(riga)
-    righe += ["", "🔄 = finisce diversamente dalla realtà · i risultati veri sono quelli di loucabot"]
+    righe += ["", "🔄 = finisce diversamente con le regole della lega (ricalcolo di oggi) · i risultati veri sono quelli di loucabot"]
     return "\n".join(righe)
 
 
@@ -290,3 +295,27 @@ def testo_top(s: dict, stagione: str, da: int, a: int, solo_firmati: bool) -> st
     if not scelti:
         righe.append("Nessun giocatore in questo intervallo.")
     return "\n".join(righe)
+
+
+# ── PDF (come /pdf_giornata e /pdf_partite di loucabot, v7.1.0) ──
+
+def pdf_giornata(s: dict, stagione: str, n: int) -> list[bytes]:
+    """Prima pagina il tabellone della giornata col sistema, poi le partite una per pagina come /partita."""
+    import pdf_partite as PP
+    with M.memo():
+        pagine = [PP.prima_pagina(dati_giornata(s, stagione, n))]
+        for p in db.partite_giornata(stagione, n):
+            pagine.append(PP.pagina(dati_partita(s, stagione, n, p["casa"], p["trasferta"])))
+    return PP.unisci(pagine)
+
+
+def pdf_partite(s: dict, stagione: str, team_id: str) -> tuple[list[bytes], int]:
+    """Tutte le partite di una squadra nelle giornate convalidate, col sistema."""
+    import pdf_partite as PP
+    pagine = []
+    with M.memo():
+        for n in M.giornate_convalidate(stagione):
+            p = db.partita_squadra(stagione, n, team_id)
+            if p:
+                pagine.append(PP.pagina(dati_partita(s, stagione, n, p["casa"], p["trasferta"])))
+    return (PP.unisci(pagine) if pagine else []), len(pagine)

@@ -206,6 +206,29 @@ def anno_prima(gid: int, stagione: str) -> str | None:
 FONTE = "<i>Dati NBA: tabellini, roster e infortunati di ESPN.</i>"
 
 
+GIORNI = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"]
+
+
+def prossima_partita(sq: str, ora: datetime | None = None) -> str:
+    """v7.1.0 (Luca, 05/11): la prossima partita NBA della sua squadra, con avversario, casa/trasferta, giorno e ora
+    italiana e la giornata del fantabasket in cui cade. "" se non ce n'è in calendario."""
+    from datetime import timezone
+    from zoneinfo import ZoneInfo
+    ora = ora or datetime.now(timezone.utc)
+    p = db.q("""SELECT * FROM nba_partite WHERE (casa = %s OR trasferta = %s) AND inizio > %s
+                  AND stato NOT IN ('STATUS_FINAL', 'STATUS_POSTPONED', 'STATUS_CANCELED')
+                ORDER BY inizio LIMIT 1""", (sq, sq, ora), one=True)
+    if not p:
+        return ""
+    casa = p["casa"] == sq
+    avv = p["trasferta"] if casa else p["casa"]
+    t = p["inizio"].astimezone(ZoneInfo("Europe/Rome"))
+    gg = db.q("SELECT numero FROM lega_giornate WHERE stagione = %s AND dal <= %s AND al >= %s LIMIT 1",
+              (config.stagione(), p["data_et"], p["data_et"]), one=True)
+    return (f"📅 Prossima: {'vs' if casa else '@'} <b>{e(avv)}</b>, {GIORNI[t.weekday()]} {t:%d/%m} ore {t:%H:%M}"
+            + (f" · giornata {gg['numero']}" if gg else ""))
+
+
 def scheda(gid: int) -> str:
     s = config.stagione()
     g = db.q("SELECT id, nome_common, espn_id, data_nascita FROM giocatori WHERE id = %s", (gid,), one=True)
@@ -226,6 +249,9 @@ def scheda(gid: int) -> str:
             inf = db.q("SELECT stato, dettaglio FROM nba_infortuni WHERE atleta = %s AND preso = %s", (a, ultimo["p"]), one=True)
         stato = f" · 🩹 {e(inf['stato'])}" + (f" <i>({e(inf['dettaglio'][:80])})</i>" if inf.get("dettaglio") else "") if inf else ""
         righe.append(f"🇺🇸 NBA: <b>{e(sq) if sq else 'senza squadra'}</b>{stato}")
+        pp = prossima_partita(sq) if sq else ""
+        if pp:
+            righe.append(pp)
     else:
         righe.append("🇺🇸 NBA: <i>non abbinato a ESPN (niente statistiche)</i>")
 

@@ -146,6 +146,21 @@ async def main():
     ok(_pt[0].startswith("Proposta da") and any(x.startswith("Mandata agli admin da") and "senza le accettazioni di" in x for x in _pt)
        and any(x.startswith("Approvata") for x in _pt) and _pt[-1].startswith("Annullata"),
        f"/trova_trade: percorso vero (mandata agli admin senza tutte le accettazioni, approvata, annullata) {_pt}")
+    # v7.1.0: FP della stagione di riferimento della trade (in corso, o in off-season quella dopo) per giocatori e diritti
+    _rif = TT2._stagione_al(db.get_trade(nuovo).get("approvata_at") or db.get_trade(nuovo)["timestamp"])
+    db._q("DELETE FROM bref_stats WHERE nome_bref = %s", (db.get_giocatore(G['team01_p0'])["nome_bref"],))
+    db._q("""INSERT INTO bref_stats (stagione, nome_bref, pts, ast, orb, drb, fg3m, fga, fgm, fta, ftm, stl, blk, tov)
+             VALUES (%s, %s, 30, 6, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0)""", (str(_rif + 1), db.get_giocatore(G['team01_p0'])["nome_bref"]))
+    _d = TT2.dati(nuovo)
+    _per = {s_["id"]: s_ for s_ in _d["squadre"]}
+    _a0 = next(a_ for a_ in _per["team01"]["cede"] if a_["nome"] == _nome0)
+    ok(_a0.get("fp") == "FP 32.0" and _d["fp_stagione"] == f"{_rif}-{str(_rif + 1)[-2:]}"
+       and all(a_.get("fp", "").startswith("FP") for x_ in _d["squadre"] for a_ in x_["riceve"] if a_["tipo"] in ("giocatore", "diritti"))
+       and not any("fp" in a_ for x_ in _d["squadre"] for a_ in x_["riceve"] if a_["tipo"] == "pick"),
+       f"/trova_trade: FP della stagione della trade per giocatori e diritti (FP — se manca), non per le pick {_a0}")
+    from datetime import datetime, timezone
+    ok(TT2._stagione_al(datetime(2026, 8, 1, tzinfo=timezone.utc)) == 2026 and TT2._stagione_al(datetime(2027, 2, 1, tzinfo=timezone.utc)) == 2026,
+       "stagione di riferimento: in off-season quella che comincia, durante la stagione quella in corso")
     try:
         import typst as _ty
         # coi soli font del container (Liberation Sans e Noto Color Emoji), a tre e a due squadre (Luca, 31/10)
@@ -155,6 +170,9 @@ async def main():
         _png2 = _ty.compile(TT2.TEMPLATE, root="/", format="png", ppi=100, sys_inputs={"dati": json.dumps(_d2, ensure_ascii=False, default=str)},
                             font_paths=["/usr/share/fonts/truetype/liberation", "/usr/share/fonts/truetype/noto"], ignore_system_fonts=True)
         ok(_png[:4] == b"\x89PNG" and _png2[:4] == b"\x89PNG", "/trova_trade: l'immagine si disegna coi soli font del container, a tre e a due squadre")
+        if os.environ.get("TT_IMMAGINE"):
+            open(os.environ["TT_IMMAGINE"], "wb").write(_ty.compile(TT2.TEMPLATE, root="/", format="png", ppi=200,
+                                                                    sys_inputs={"dati": json.dumps(_d, ensure_ascii=False, default=str)}))
     except ImportError:
         pass
     _df = open(os.path.join(os.path.dirname(os.path.abspath(TT2.TEMPLATE)), "Dockerfile")).read()

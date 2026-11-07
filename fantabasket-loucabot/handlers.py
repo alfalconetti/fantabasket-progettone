@@ -121,7 +121,7 @@ def testo_calendario_full(s: str, team: dict) -> str:
     """Tutte le giornate di una squadra: avversario, casa/trasferta e, se convalidato, il risultato."""
     from numeri import testo as tp
     tid = team["id"]
-    righe, v, l = [], 0, 0
+    righe, v, l, pa = [], 0, 0, 0
     for g in db.giornate(s):
         p = db.partita_squadra(s, g["numero"], tid)
         if not p:
@@ -132,16 +132,20 @@ def testo_calendario_full(s: str, team: dict) -> str:
         r = _risultato(s, g["numero"], p)
         if r:
             mio, suo = (r["punti_casa"], r["punti_trasferta"]) if casa else (r["punti_trasferta"], r["punti_casa"])
-            vinta = (r["vince"] == "casa") == casa
-            v, l = v + vinta, l + (not vinta)
             supp = " <i>(supp.)</i>" if r["supp_casa"] is not None else ""
-            t += f" — {'✅ V' if vinta else '❌ S'} <b>{tp(mio)}</b>–{tp(suo)}{supp}"
+            if r["vince"] == "pari":                       # solo nei sistemi di klra (v7.1.0): la lega non ha pareggi
+                pa += 1
+                t += f" — 🤝 P <b>{tp(mio)}</b>–{tp(suo)}{supp}"
+            else:
+                vinta = (r["vince"] == "casa") == casa
+                v, l = v + vinta, l + (not vinta)
+                t += f" — {'✅ V' if vinta else '❌ S'} <b>{tp(mio)}</b>–{tp(suo)}{supp}"
         elif (_stato_calcolo(s, g["numero"]) or "") not in ("", "convalidata"):
             t += " — ⏳ da convalidare"
         righe.append(t)
     if not righe:
         return f"Nessuna partita in calendario per {e(team['nome'])}."
-    testa = [f"📅 <b>Calendario di {e(team['nome'])}</b>" + (f" · {v}V {l}S" if v + l else ""), ""]
+    testa = [f"📅 <b>Calendario di {e(team['nome'])}</b>" + (f" · {v}V {l}S" + (f" {pa}P" if pa else "") if v + l + pa else ""), ""]
     return "\n".join(testa + righe + ["", "<i>Punti col bonus casa; i risultati dopo la convalida degli admin.</i>"])
 
 
@@ -182,11 +186,13 @@ def riga_partita(s: str, n: int, p: dict) -> str:
         return f"• {casa} – {tr}"
     if r["vince"] == "casa":
         casa = f"<b>{casa}</b>"
-    else:
+    elif r["vince"] == "trasferta":
         tr = f"<b>{tr}</b>"
     t = f"• {casa} {tp(r['punti_casa'])} – {tp(r['punti_trasferta'])} {tr}"
     if r["supp_casa"] is not None:
         t += f" <i>(supp. {tp(r['supp_casa'])} – {tp(r['supp_trasferta'])})</i>"
+    if r["vince"] == "pari":                               # solo nei sistemi di klra (v7.1.0)
+        t += " · 🤝 pareggio"
     return t
 
 

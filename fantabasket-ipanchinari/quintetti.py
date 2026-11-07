@@ -291,6 +291,10 @@ async def cb_quintetto(update: Update, context: ContextTypes.DEFAULT_TYPE):
                        oggetto=f"quintetto G{n}", dopo="confermato")
             await q.answer("Confermato")
             await log(context.bot, f"✅ Quintetto G{n} {e(team['nome'])} confermato da {chi(update)}" + (" (admin)" if admin else ""))
+            if admin:
+                import avvisi_gm
+                await avvisi_gm.avvisa(context.bot, team_id, update.effective_user, f"confermato il quintetto per la giornata {n}",
+                                       testo_quintetto(team_id, gg))
             # dopo la conferma il menu si chiude (Luca, 19/10): resta il riepilogo, e come cambiarlo
             await q.edit_message_text(
                 f"✅ <b>Quintetto confermato per la giornata {n}</b>" + (f" ({e(team['nome'])}, da admin)" if admin else "")
@@ -336,6 +340,11 @@ async def cb_quintetto(update: Update, context: ContextTypes.DEFAULT_TYPE):
                    dopo=roster[gid]["nome_common"])
         if g:
             db.conferma(s, g["numero"], team_id, "modificato", uid)
+        if admin:
+            import avvisi_gm
+            prima = db.nomi_giocatori([vecchio_q[ruolo]]).get(vecchio_q[ruolo]) if vecchio_q.get(ruolo) else "vuoto"
+            await avvisi_gm.avvisa(context.bot, team_id, update.effective_user, "cambiato il quintetto",
+                                   f"{ruolo}: {e(prima)} → <b>{e(roster[gid]['nome_common'])}</b>")
         extra = ""
         if admin:
             in_corso = giornata_in_corso(s)
@@ -413,6 +422,8 @@ async def cmd_quintetto_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
         await msg.reply_text(f"✅ Formazione della giornata {solo_g} di {e(team['nome'])} corretta (☑️ controllata): {e(elenco)}",
                              parse_mode="HTML")
         await log(context.bot, f"✏️ Formazione G{solo_g} {e(team['nome'])} corretta da {chi(update)}: {e(elenco)}")
+        import avvisi_gm
+        await avvisi_gm.avvisa(context.bot, team["id"], u, f"corretto la formazione della giornata {solo_g}", e(elenco))
         from registro import segna_sync
         segna_sync(update.effective_user, "admin", "formazione corretta", squadre=team["id"], oggetto=f"formazione G{solo_g}",
                    dopo=elenco, nota="a giornata chiusa (☑️ controllata)")
@@ -434,6 +445,9 @@ async def cmd_quintetto_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
                dopo=elenco, nota=f"anche la formazione della G{in_corso['numero']} in corso" if in_corso else None)
     await log(context.bot, f"✏️ Quintetto {e(team['nome'])} impostato da {chi(update)} (admin): {e(elenco)}"
                            + (f" · anche G{in_corso['numero']} in corso" if in_corso else ""))
+    import avvisi_gm
+    await avvisi_gm.avvisa(context.bot, team["id"], update.effective_user, "impostato il quintetto",
+                           e(elenco) + (f"\nVale anche per la giornata {in_corso['numero']} in corso." if in_corso else ""))
 
 
 def importa(testo: str) -> tuple[list[str], list[str]]:
@@ -466,7 +480,11 @@ def importa(testo: str) -> tuple[list[str], list[str]]:
             continue
         db.salva_quintetto(team["id"], q, "import")
         ok.append(team["nome"])
+        _IMPORTATI.append((team["id"], q))
     return ok, errori
+
+
+_IMPORTATI: list = []      # (team_id, quintetto) dell'ultimo import, per gli avvisi ai GM
 
 
 async def cmd_quintetti_import(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -483,7 +501,13 @@ async def cmd_quintetti_import(update: Update, context: ContextTypes.DEFAULT_TYP
         await msg.reply_text("Uso: /quintetti_import e sotto, per ogni squadra, il nome nella prima riga e i 5 titolari; "
                              "squadre separate da una riga vuota. Va bene anche un file .txt con didascalia /quintetti_import.")
         return
+    _IMPORTATI.clear()
     ok, errori = importa(testo)
+    import avvisi_gm
+    for tid, qq in list(_IMPORTATI):
+        nomi_q = db.nomi_giocatori(list(qq.values()))
+        await avvisi_gm.avvisa(context.bot, tid, update.effective_user, "importato il quintetto",
+                               e(", ".join(f"{r} {nomi_q.get(qq[r], '?')}" for r in RUOLI)))
     t = f"✅ Quintetti salvati: {len(ok)}" + (f"\n{e(', '.join(ok))}" if ok else "")
     if errori:
         t += "\n\n❌ Non salvati:\n• " + "\n• ".join(e(x) for x in errori)

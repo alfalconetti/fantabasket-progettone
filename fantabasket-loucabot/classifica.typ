@@ -14,6 +14,20 @@
 #set block(spacing: 0pt)
 #set text(font: ("Liberation Sans", "Noto Color Emoji"), size: if full { 10pt } else { 10pt })
 
+// klra (sistemi di punteggio alternativi, v7.0.0): filigrana «NON UFFICIALE» e striscia rossa in cima, solo se nei dati
+#let _filigrana = dati.at("filigrana", default: "")
+#set page(foreground: if _filigrana != "" {
+  // una scritta ogni 450pt circa di altezza (le immagini corte ne hanno una sola, /partita tre)
+  layout(sz => {
+    let n = calc.max(1, calc.floor(sz.height / 450pt))
+    for i in range(n) { place(center + horizon, dy: sz.height * ((i + 0.5) / n - 0.5),
+      rotate(-22deg, text(50pt, weight: "bold", fill: rgb("#C0392B").transparentize(84%))[#_filigrana])) }
+  })
+})
+#if dati.at("striscia", default: "") != "" {
+  block(width: 100%, fill: rgb("#C0392B"), inset: (x: 14pt, y: 6pt), align(center, text(9pt, weight: "bold", fill: white)[#dati.striscia]))
+}
+
 #block(width: 100%, fill: c_head)[
   #pad(x: 12pt, y: 9pt)[
     #text(15pt, weight: "bold", fill: white)[#dati.titolo]

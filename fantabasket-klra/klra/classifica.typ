@@ -55,6 +55,10 @@
   ("PF", r => col(r, "pf", [#r.pf])), ("PS", r => col(r, "ps", [#r.ps])),
   ("Media", r => col(r, "media", [#r.media])), ("Striscia", r => striscia(r.striscia)),
 )
+#let colonne = if dati.at("cumulativa", default: false) { (
+  ("#", r => [#r.pos]), ("", r => logo(r.logo)), ("Squadra", r => text(weight: "bold")[#r.nome]),
+  ("PUNTI", r => text(weight: "bold", fill: c_alt)[#r.cumulati]), ("Media", r => [#r.media_cumulati]), ("G", r => [#r.g]),
+) } else { colonne }
 #let larghezze = colonne.enumerate().map(((i, c)) => if i == 2 { 1fr } else if i == 1 { 22pt } else { auto })
 #table(
   columns: larghezze,

@@ -169,6 +169,24 @@ S3 = calcolo.punteggio_squadra(G3, Q, B, calcolo.punteggio_giocatori("2026", G3,
 ok(S3["fadd"] is None and not any("snapshot" in a for a in S3["avvisi"]), "giornata in corso: lo snapshot di oggi e dei prossimi giorni non manca ancora")
 calcolo.oggi_et = _oggi
 
+# ── v7.1.0: chi non ha mai un tabellino (fuori da inizio stagione), giornata vecchia: la squadra NBA dagli snapshot
+# infortuni di quei giorni, così la FADD avuta alla convalida resta anche nel ricalcolo (Coby White e Lively in G1)
+_oggi2 = calcolo.oggi_et
+calcolo.oggi_et = lambda: date(2026, 12, 1)                       # giornata finita da più di una settimana
+db.salva_infortuni(date(2026, 11, 2), [{"atleta": "5", "nome": "Gioc 5", "stato": "Out"}, {"atleta": "3", "nome": "Gioc 3", "stato": "Questionable"},
+                                       {"atleta": "77", "nome": "Gioc 77", "squadra": "NYK", "stato": "Out"}])
+db.salva_infortuni(date(2026, 11, 3), [{"atleta": "3", "nome": "Gioc 3", "stato": "Out"},
+                                       {"atleta": "77", "nome": "Gioc 77", "squadra": "NYK", "stato": "Out"}])
+Q77 = [dict(x) for x in Q]
+Q77[1] = {"atleta": "77", "ruolo": "PG", "nome": "Settantasette"}
+P77 = calcolo.punteggio_giocatori("2026", G, [x["atleta"] for x in Q77 + B])
+ok(P77["77"]["squadra"] == "NYK" and P77["77"]["come"] == "zero", f"mai un tabellino, giornata vecchia: squadra dagli snapshot (NYK) {P77['77']}")
+S77 = calcolo.punteggio_squadra(G, Q77, B, P77)
+ok(S77["fadd"] and S77["fadd"]["esce"]["atleta"] == "77" and S77["fadd"]["entra"]["atleta"] == "8",
+   "e quindi la FADD c'è anche nel ricalcolo")
+ok(calcolo.punteggio_giocatori("2026", G, ["ignoto"])["ignoto"]["nota"].endswith("sconosciuta"), "chi non è nemmeno negli snapshot: ancora sconosciuto")
+calcolo.oggi_et = _oggi2
+
 # ── status deciso da un admin (/set_valid_status): vince sugli snapshot ──
 GS = {**G, "stagione": "2026"}
 db.set_status_valido("2026", 5, "3", None, 900)                    # "sano": niente FADD anche se gli snapshot dicono Out

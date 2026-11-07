@@ -170,3 +170,7 @@ Primo rilascio: panchine e quintetti.
 ## v36 (2026-10-31)
 
 - **Solo per la lega** (Luca, 31/10): in privato il bot risponde solo ai GM, agli admin e al dev; agli altri «🔒 Questo bot è riservato ai GM della lega. Se pensi che sia un errore, scrivi al dev.» (anche ai bottoni e, nel bot principale, al guest mode). Dai gruppi e canali che non sono in globals.json esce da solo e lo scrive al dev (`shared/solo_lega.py`, prova `tests/docs/solo_lega.py`)
+
+## v37 (2026-11-06)
+
+- **Avviso al GM quando un admin gli cambia la formazione** (Luca, 05/11): quintetto (righe, bottoni, conferma per conto della squadra, `/quintetti_import`), formazione di una giornata chiusa e panchina mandata o corretta da un admin che non è GM di quella squadra: i GM ricevono in privato chi, cosa e per quale giornata (`avvisi_gm.py`)

@@ -43,7 +43,9 @@
   #grid(columns: (auto, 1fr), column-gutter: 4pt,
     text(9pt)[#icone.at(a.tipo, default: "•")],
     stack(spacing: 2.5pt,
-      text(8.3pt, weight: "bold")[#a.nome],
+      grid(columns: (1fr, auto), column-gutter: 4pt, align: horizon,
+        text(8.3pt, weight: "bold")[#a.nome],
+        if a.at("fp", default: "") != "" { box(fill: azzurro, radius: 3pt, inset: (x: 3.5pt, y: 1.5pt), text(6.8pt, weight: "bold", fill: blu_scuro)[#a.fp]) }),
       if a.dettaglio != "" { text(6.8pt, fill: grigio)[#a.dettaglio] },
       if not due { text(6.8pt, fill: blu)[#verso #box(baseline: 25%, logo(a.altra, 10pt)) #a.altra.nome] }))
 ]
@@ -82,5 +84,5 @@
     ..d.percorso.map(p => (segno.at(p.segno, default: [•]), text(8pt)[#p.testo], text(7pt, fill: grigio)[#p.quando])).flatten())
 ]
 #block(width: 100%, fill: white, inset: (x: 12pt, y: 6pt))[
-  #text(6.5pt, fill: grigio)[🏀 giocatore (ruolo, contratto di allora: importo × anni rimasti) · 🎟️ pick (anno, giro, di chi era, protezioni) · 📜 diritti rookie (giro, numero e anno del draft) · Cap e roster al momento della trade, subito prima e subito dopo, spalmature comprese · /trova_trade 014, o il nome di un giocatore per le trade ufficiali che lo riguardano]
+  #text(6.5pt, fill: grigio)[FP = fantamedia #d.at("fp_stagione", default: "") (basketball-reference: la stagione della trade, o quella che stava per cominciare se in off-season) · 🏀 giocatore (ruolo, contratto di allora: importo × anni rimasti) · 🎟️ pick (anno, giro, di chi era, protezioni) · 📜 diritti rookie (giro, numero e anno del draft) · Cap e roster al momento della trade, subito prima e subito dopo, spalmature comprese · /trova_trade 014, o il nome di un giocatore per le trade ufficiali che lo riguardano]
 ]

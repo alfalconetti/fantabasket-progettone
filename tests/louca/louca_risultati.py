@@ -21,6 +21,8 @@ N = 7
 DAL, AL = date(2026, 11, 10), date(2026, 11, 12)
 
 # giocatori dell'anagrafica con id ESPN (r1…r40); i ruoli della panchina sono quelli congelati
+for _t in ("cambi_ruolo", "contratti"):                       # avanzi di una prova interrotta
+    db.q(f"DELETE FROM {_t} WHERE giocatore_id IN (SELECT id FROM giocatori WHERE espn_id LIKE 'r%%' AND nome_common LIKE 'Prova %%')")
 db.q("DELETE FROM giocatori WHERE espn_id LIKE 'r%%' AND nome_common LIKE 'Prova %%'")   # avanzi di una prova interrotta
 gid = {}
 for i in range(1, 41):
@@ -346,6 +348,17 @@ ok(db.q("SELECT COUNT(*) AS n FROM lega_risultati WHERE stagione = %s AND giorna
 _tk = [x.get("text", "") for x in BOT.mandati if "Tanking a consuntivo" in x.get("text", "")]
 ok(_tk and "non riuscito" not in _tk[-1] and db.q("SELECT COUNT(*) AS n FROM lega_tanking WHERE stagione = %s AND giornata = %s", (S, N), one=True)["n"] == 4,
    "convalida: tanking a consuntivo al gruppo admin e nello storico " + (_tk[-1][:300] if _tk else ""))
+# senza cambiare ruoli (Luca, 07/11): con tutti di ruolo C, la formazione migliore riempie solo il posto da C
+for _i in (1, 2, 3):
+    db.q("INSERT INTO contratti (giocatore_id, team_id, importo, anni_originali, stagione_firma, tipo, attivo) "
+         "VALUES (%s, 'team01', 1, 1, %s, 'normale', TRUE)", (gid[_i], S))
+    db.q("INSERT INTO cambi_ruolo (giocatore_id, team_id, ruolo_a, stagione, tipo) VALUES (%s, 'team01', 'C', %s, 'iniziale')", (gid[_i], S))
+import tanking as TK
+_cons = TK.consuntivo(S, N)
+ok(_cons and all(set(x["formazione"]) <= {"C"} for x in _cons) and any(x["formazione"] for x in _cons if x["team"] == "team01"),
+   "consuntivo: ognuno solo nel posto del suo ruolo, niente cambi ruolo")
+db.q("DELETE FROM cambi_ruolo WHERE giocatore_id = ANY(%s)", ([gid[1], gid[2], gid[3]],))
+db.q("DELETE FROM contratti WHERE giocatore_id = ANY(%s) AND team_id = 'team01' AND importo = 1", ([gid[1], gid[2], gid[3]],))
 ok("non è più valida" in premi(900, f"rc:ok:{N}:2").risposte[-1], "una seconda convalida dello stesso bottone non fa niente")
 # ricalcolo di una giornata convalidata: cosa cambia rispetto ai risultati convalidati (Luca, 26/10)
 _lc = db.q("SELECT risultati FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (S, N), one=True)["risultati"]
@@ -1105,6 +1118,16 @@ from datetime import date as _dd
 ok(PLY.eta(_dd(2004, 1, 4), _dd(2026, 1, 3)) == 21 and PLY.eta(_dd(2004, 1, 4), _dd(2026, 1, 4)) == 22, "/player: età giusta il giorno prima e il giorno del compleanno")
 db.q("UPDATE giocatori SET data_nascita = '2004-01-04' WHERE id = %s", (gid1,))
 ok("🎂 04/01/2004 (" in PLY.scheda(gid1), "/player: data di nascita con l'età")
+# v7.1.0: la prossima partita NBA
+from datetime import datetime as _dt2, timezone as _tz2, date as _d2
+db.salva_partite_nba([{"espn_id": "pp1", "stagione": S, "tipo": 2, "data_et": _d2(2030, 1, 4), "casa": "ZZB", "trasferta": "ZZA",
+                       "inizio": _dt2(2030, 1, 5, 0, 30, tzinfo=_tz2.utc), "stato": "STATUS_SCHEDULED"},
+                      {"espn_id": "pp0", "stagione": S, "tipo": 2, "data_et": _d2(2030, 1, 2), "casa": "ZZA", "trasferta": "ZZC",
+                       "inizio": _dt2(2030, 1, 3, 0, 0, tzinfo=_tz2.utc), "stato": "STATUS_POSTPONED"}])
+_pp = PLY.prossima_partita("ZZA", _dt2(2030, 1, 1, tzinfo=_tz2.utc))
+ok(_pp == "📅 Prossima: @ <b>ZZB</b>, sab 05/01 ore 01:30", f"/player: prossima partita (trasferta, ora italiana, saltata la rinviata) {_pp}")
+ok(PLY.prossima_partita("ZZA", _dt2(2030, 2, 1, tzinfo=_tz2.utc)) == "", "/player: nessuna partita in calendario, nessuna riga")
+db.q("DELETE FROM nba_partite WHERE espn_id IN ('pp0', 'pp1')")
 db.q("UPDATE giocatori SET data_nascita = NULL WHERE id = %s", (gid1,))
 _P = lambda i, d: {"espn_id": f"x{i}", "data_et": d, "casa": "NYK", "trasferta": "BOS", "squadra": "NYK"}
 _parts = [_P(i, _dd(2026, 11, i)) for i in range(1, 15)]

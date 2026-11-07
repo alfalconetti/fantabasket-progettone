@@ -33,6 +33,17 @@ from klra import regole as KR
 
 logger = logging.getLogger(__name__)
 _ATTIVO: contextvars.ContextVar = contextvars.ContextVar("klra_sistema", default=None)
+# v7.1.0: i risultati della stagione col sistema, al posto di lega_risultati nelle letture del codice di loucabot
+# (calendario, calendario_full, classifiche): vedi contesto() e _q
+_RIS: contextvars.ContextVar = contextvars.ContextVar("klra_risultati", default=None)
+_NOME: contextvars.ContextVar = contextvars.ContextVar("klra_nome", default=None)
+# v2: conference alternative attive (riga di klra_conference) e le loro partite al posto di lega_partite
+_CONF: contextvars.ContextVar = contextvars.ContextVar("klra_conference", default=None)
+_PARTITE: contextvars.ContextVar = contextvars.ContextVar("klra_partite", default=None)
+_TABELLA_PARTITE = """(SELECT * FROM json_to_recordset(%s::json) AS x(id int, stagione text, giornata int, casa text, trasferta text))"""
+STRISCIA = "🧪 KLRA · NON UFFICIALE · sistema {} · i risultati veri sono quelli di loucabot"
+_TABELLA = """(SELECT * FROM json_to_recordset(%s::json) AS x(stagione text, giornata int, casa text, trasferta text,
+  punti_casa numeric, punti_trasferta numeric, supp_casa numeric, supp_trasferta numeric, vince text, convalidato timestamptz))"""
 _orig: dict = {}
 
 
@@ -202,13 +213,175 @@ def _stato_calcolo(s, n):
     return "calcolata" if _ATTIVO.get() else _orig["stato"](s, n)
 
 
+def _sostituisci(sql: str, params, righe_json: str, tabella: str = "lega_risultati", con: str | None = None):
+    """Ogni «lega_risultati» (o la tabella indicata) della query diventa una tabella fatta coi dati di klra
+    (json_to_recordset), col suo parametro al posto giusto. Solo letture: klra non scrive mai nel database della lega."""
+    import re
+    params = list(params) if params is not None else []
+    out, i = "", 0
+    for m in re.finditer(r"\b" + tabella + r"\b", sql):
+        out += sql[i:m.start()]
+        params.insert(out.count("%s"), righe_json)
+        out += con or _TABELLA
+        i = m.end()
+    out += sql[i:]
+    return out, tuple(params)
+
+
+def _q(sql, params=None, one=False, many=False):
+    righe = _RIS.get()
+    if righe is not None and "lega_risultati" in sql:
+        sql, params = _sostituisci(sql, params, righe)
+    partite = _PARTITE.get()
+    if partite is not None and "lega_partite" in sql:
+        sql, params = _sostituisci(sql, params, partite, "lega_partite", _TABELLA_PARTITE)
+    return _orig["q"](sql, params, one=one, many=many)
+
+
+class in_conference:
+    """with motore.in_conference(conf): calcoli e codice di loucabot col calendario delle conference alternative
+    (None = le ufficiali, anche dentro un altro in_conference)."""
+    def __init__(self, conf: dict | None, stagione: str | None = None):
+        self.conf, self.stagione = conf, stagione or config.stagione()
+
+    def __enter__(self):
+        installa()
+        if self.conf:
+            from klra import conference as CO
+            prima = _PARTITE.set(None)                       # le partite vere, per costruire quelle permutate
+            try:
+                pj = CO.partite_json(self.conf, self.stagione)
+            finally:
+                _PARTITE.reset(prima)
+        else:
+            pj = None
+        self._t = (_CONF.set(self.conf), _PARTITE.set(pj))
+        return self
+
+    def __exit__(self, *a):
+        _PARTITE.reset(self._t[1])
+        _CONF.reset(self._t[0])
+        return False
+
+
+def _conference_lega():
+    """classifica.conference di loucabot: con le conference alternative, le loro."""
+    c = _CONF.get()
+    if c:
+        from klra import conference as CO
+        return CO.appartenenza(c)
+    return _orig["conference"]()
+
+
+def _scheda_player(gid: int) -> str:
+    """/player di loucabot: dentro contesto(), in testa NON UFFICIALE e in fondo la stagione col sistema (v2)."""
+    t = _orig["scheda"](gid)
+    P, nome = _ATTIVO.get(), _NOME.get()
+    if not P or not nome:
+        return t
+    return t + "\n\n" + sezione_player(gid, P, nome)
+
+
+def sezione_player(gid: int, P: dict, nome: str) -> str:
+    """Fantamedia della stagione e ultime 5 partite coi fantapunti del sistema, accanto quelli della lega."""
+    import html
+    from numeri import testo as tp
+    g = db.q("SELECT espn_id FROM giocatori WHERE id = %s", (gid,), one=True)
+    a = (g or {}).get("espn_id")
+    righe = [f"🧪 <b>Col sistema {html.escape(nome)}</b> (NON UFFICIALE)"]
+    if not a:
+        return righe[0] + "\n<i>non abbinato a ESPN: niente statistiche</i>"
+    tab = db.q("""SELECT t.*, p.inizio, p.casa, p.trasferta FROM nba_tabellini t JOIN nba_partite p ON p.espn_id = t.partita
+                  WHERE t.atleta = %s AND p.stagione = %s AND p.tipo = ANY(%s) AND t.giocato ORDER BY p.inizio""",
+               (a, config.stagione(), [2, 5]), many=True) or []
+    es = _esiti_nba({r["partita"] for r in tab}) if P["giocatore"]["vittoria_nba"] else {}
+    conta = [r for r in tab if not (float(r["fp"] or 0) == 0 and int(r["minuti"] or 0) == 0)]
+    if not conta:
+        return righe[0] + "\n<i>nessuna partita in stagione</i>"
+    mia = [fp_riga(r, P, es) for r in conta]
+    lega = [float(r["fp"] or 0) for r in conta]
+    righe.append(f"Fantamedia <b>{tp(ottavi(sum(mia) / len(mia)))}</b> (lega {tp(ottavi(sum(lega) / len(lega)))}) su {len(mia)} partite")
+    from zoneinfo import ZoneInfo
+    for r, x in list(zip(conta, mia))[-5:]:
+        avv = r["trasferta"] if r["squadra"] == r["casa"] else r["casa"]
+        b = bonus_riga(r, P, es)
+        righe.append(f"• {r['inizio'].astimezone(ZoneInfo('Europe/Rome')):%d/%m} {'vs' if r['squadra'] == r['casa'] else '@'} {avv}: "
+                     f"<b>{tp(x)}</b> (lega {tp(float(r['fp'] or 0))})" + (" " + " ".join(f"{'+' if v > 0 else ''}{v:g} {l}" for l, v in b) if b else ""))
+    return "\n".join(righe)
+
+
+def nome_contesto(sist: dict) -> str:
+    c = _CONF.get()
+    return sist["nome"] + (f" · conference {c['nome']}" if c else "")
+
+
+def _ordina(st):
+    """classifica.ordina di loucabot: col sistema, l'ordine della classifica del sistema (a punti, pareggi)."""
+    P, righe = _ATTIVO.get(), _RIS.get()
+    if P is None or righe is None:
+        return _orig["ordina"](st)
+    ordine = [r["team"] for r in tabella(json.loads(righe), P)]
+    return [t for t in ordine if t in st] + [t for t in st if t not in ordine]
+
+
+def righe_lega(sist: dict, stagione: str) -> str:
+    """I risultati del sistema nella forma di lega_risultati (JSON per _sostituisci)."""
+    conv = giornate_convalidate(stagione)
+    out = []
+    for r in risultati_stagione(sist, stagione):
+        out.append({"stagione": stagione, "giornata": r["giornata"], "casa": r["casa"], "trasferta": r["trasferta"],
+                    "punti_casa": centesimi(r["punti_casa"]), "punti_trasferta": centesimi(r["punti_trasferta"]),
+                    "supp_casa": centesimi(r["supp_casa"]), "supp_trasferta": centesimi(r["supp_trasferta"]),
+                    "vince": r["vince"], "supplementari": r["supplementari"], "convalidato": str(conv.get(r["giornata"])),
+                    "tot_casa": r["sc"]["totale"], "tot_trasferta": r["st"]["totale"]})
+    return json.dumps(out)
+
+
+class contesto:
+    """with motore.contesto(sistema): il codice di loucabot chiamato dentro vede risultati e regole del sistema."""
+    def __init__(self, sist: dict, stagione: str | None = None, righe: str | None = None):
+        self.sist, self.stagione, self.righe = sist, stagione or config.stagione(), righe
+
+    def __enter__(self):
+        installa()
+        # prima di sostituire: legge la lega vera (in un comando, calcolata prima in un thread e passata qui)
+        righe = self.righe if self.righe is not None else righe_lega(self.sist, self.stagione)
+        self._t = (_ATTIVO.set(KR.completa(parametri(self.sist))), _RIS.set(righe), _NOME.set(nome_contesto(self.sist)))
+        return self
+
+    def __exit__(self, *a):
+        _NOME.reset(self._t[2])
+        _RIS.reset(self._t[1])
+        _ATTIVO.reset(self._t[0])
+        return False
+
+
+def _non_ufficiale(f):
+    """Le immagini di loucabot fatte dentro contesto(): con striscia e filigrana NON UFFICIALE."""
+    def g(*a, **k):
+        d = f(*a, **k)
+        if _NOME.get() and isinstance(d, dict):
+            d = {**d, "filigrana": "NON UFFICIALE", "striscia": STRISCIA.format(_NOME.get())}
+        return d
+    return g
+
+
 def installa() -> None:
     if _orig:
         return
     import live
     import partita
     _orig.update(tab=db.tabellini_atleti, medie=db.medie_stagione, pg=calcolo.punteggio_giocatori,
-                 fadd=calcolo._fadd_possibile, calcola=RIS.calcola, live=live.calcolo, stato=partita._stato_calcolo)
+                 fadd=calcolo._fadd_possibile, calcola=RIS.calcola, live=live.calcolo, stato=partita._stato_calcolo,
+                 q=db.q, ordina=CL.ordina, conference=CL.conference)
+    CL.conference = _conference_lega
+    import player
+    _orig["scheda"] = player.scheda
+    player.scheda = _scheda_player
+    db.q = _q
+    CL.ordina = _ordina
+    CL.dati_typst = _non_ufficiale(CL.dati_typst)
+    CL.dati_conference = _non_ufficiale(CL.dati_conference)
     db.tabellini_atleti = _tabellini
     db.medie_stagione = _medie
     calcolo.punteggio_giocatori = _punteggio_giocatori
@@ -248,7 +421,32 @@ def _giocatore(x: dict, bonus: dict) -> dict:
             "bonus": bonus.get(x.get("atleta"), [])}
 
 
+_MEMO: contextvars.ContextVar = contextvars.ContextVar("klra_memo", default=None)
+
+
+class memo:
+    """with motore.memo(): dentro, calcolo_completo della stessa giornata col sistema si fa una volta (PDF: v7.1.0)."""
+    def __enter__(self):
+        self._t = _MEMO.set({})
+        return self
+
+    def __exit__(self, *a):
+        _MEMO.reset(self._t)
+        return False
+
+
 def calcolo_completo(P: dict, stagione: str, n: int, sch: dict | None = None) -> dict:
+    m = _MEMO.get()
+    if m is not None and sch is None:
+        import copy
+        k = (KR.firma(P), stagione, n)
+        if k not in m:
+            m[k] = _calcolo_completo(P, stagione, n)
+        return copy.deepcopy(m[k])
+    return _calcolo_completo(P, stagione, n, sch)
+
+
+def _calcolo_completo(P: dict, stagione: str, n: int, sch: dict | None = None) -> dict:
     """Il calcolo di risultati.calcola col sistema P, con bonus di squadra ed esito del sistema: stessa forma
     (c["risultati"][i]["sc"/"st"/"esito"/"vince"/"punti_casa"…], c["bonus"]) più c["klra_bonus"] {atleta: [[etichetta, valore]]}
     e sc/st["bonus_squadra"]. Serve a calcola_giornata e a /partita (partita.dati di loucabot). Non scrive niente."""
@@ -270,6 +468,12 @@ def calcolo_completo(P: dict, stagione: str, n: int, sch: dict | None = None) ->
     sq = {}
     for r in c["risultati"]:
         sq[r["casa"]], sq[r["trasferta"]] = r["sc"], r["st"]
+    cc = P["partita"]["chi_conta"]
+    if cc != "titolari":                                   # Fantapanchine (v2): i panchinari nel totale
+        for s in sq.values():
+            pan = ottavi(sum(float(x["fp"]) for x in s["panchina"]))
+            s["totale_titolari"] = s["totale"]
+            s["totale"] = pan if cc == "panchina" else ottavi(s["totale"] + pan)
     S = P["squadra"]
     mvp = set()
     if S["mvp_bonus"]:
@@ -290,7 +494,8 @@ def calcolo_completo(P: dict, stagione: str, n: int, sch: dict | None = None) ->
         s["bonus_squadra"] = e
         s["totale"] = ottavi(s["totale"] + sum(v for _, v in e))
     for r in c["risultati"]:
-        es = esito(r["sc"]["totale"], r["st"]["totale"], r["sc"]["panchina"], r["st"]["panchina"], P, bc)
+        senza = cc != "titolari"                           # panchinari già nel totale: nessuno per i supplementari
+        es = esito(r["sc"]["totale"], r["st"]["totale"], [] if senza else r["sc"]["panchina"], [] if senza else r["st"]["panchina"], P, bc)
         r.update(esito=es, vince=es["vince"], supplementari=es["supplementari"],
                  punti_casa=es["regolamentari"][0], punti_trasferta=es["regolamentari"][1],
                  supp_casa=es["punti_supplementari"][0] if es["punti_supplementari"] else None,
@@ -328,10 +533,8 @@ def parametri(sist: dict) -> dict:
     """I parametri di un sistema: l'Ufficiale e i predefiniti seguono le regole della lega di adesso."""
     if sist["ufficiale"]:
         return KR.ufficiale()
-    if sist.get("predefinito") == "fantamedie":
-        P = KR.ufficiale()
-        P["partita"]["fantapunti"] = "media"
-        return P
+    if sist.get("predefinito") in KR.PREDEFINITI:
+        return KR.predefinito(sist["predefinito"])
     p = sist["parametri"] if isinstance(sist["parametri"], dict) else json.loads(sist["parametri"])
     return KR.completa(p)
 
@@ -343,9 +546,25 @@ def giornate_convalidate(stagione: str) -> dict[int, object]:
     return {r["giornata"]: r["c"] for r in righe}
 
 
+# cambia quando cambia il modo di calcolare (motore o loucabot): la cache vecchia non vale più
+# v2 (v7.1.0): FADD di chi non ha tabellini nei ricalcoli di giornate vecchie
+VERSIONE_MOTORE = "2"
+
+
+def firma_cache(P: dict) -> str:
+    """Parametri + versione del motore + (se attive) le conference alternative con il loro accoppiamento."""
+    c = _CONF.get()
+    extra = ""
+    if c:
+        import hashlib
+        m = c["mappa"] if isinstance(c["mappa"], dict) else json.loads(c["mappa"])
+        extra = ":c" + hashlib.sha256(json.dumps(m, sort_keys=True).encode()).hexdigest()[:12]
+    return KR.firma(P) + ":" + VERSIONE_MOTORE + extra
+
+
 def risultati_giornata(sist: dict, stagione: str, n: int, convalidato=None) -> dict:
     P = parametri(sist)
-    f = KR.firma(P)
+    f = firma_cache(P)
     if convalidato is None:
         convalidato = giornate_convalidate(stagione).get(n)
     r = basi.q("SELECT dati, convalidato FROM klra_risultati WHERE sistema_id = %s AND firma = %s AND stagione = %s AND giornata = %s",
@@ -386,10 +605,13 @@ def tabella(ris: list[dict], P: dict) -> list[dict]:
     for r in ris:
         pc, pt = float(r["punti_casa"]), float(r["punti_trasferta"])
         supp = bool(r.get("supplementari"))
-        for t, avv, f, s, lato in ((r["casa"], r["trasferta"], pc, pt, "casa"), (r["trasferta"], r["casa"], pt, pc, "trasferta")):
+        # totali della squadra senza bonus casa né supplementari (classifica cumulativa, v2)
+        tc = float(r["sc"]["totale"] if "sc" in r else r.get("tot_casa", pc))
+        tt = float(r["st"]["totale"] if "st" in r else r.get("tot_trasferta", pt))
+        for t, avv, f, s, lato, tot in ((r["casa"], r["trasferta"], pc, pt, "casa", tc), (r["trasferta"], r["casa"], pt, pc, "trasferta", tt)):
             pari, vinta = r["vince"] == "pari", r["vince"] == lato
             per.setdefault(t, []).append({"giornata": r["giornata"], "avv": avv, "fatti": f, "subiti": s, "vinta": vinta,
-                                          "pari": pari, "supp": supp, "punti": _punti_partita(vinta, pari, supp, C)})
+                                          "pari": pari, "supp": supp, "punti": _punti_partita(vinta, pari, supp, C), "tot": tot})
     st = {}
     for t in [x["id"] for x in config.squadre()]:
         p = per.get(t, [])
@@ -397,14 +619,18 @@ def tabella(ris: list[dict], P: dict) -> list[dict]:
         st[t] = {"team": t, "g": n, "w": sum(x["vinta"] for x in p), "p": sum(x["pari"] for x in p),
                  "l": sum(not x["vinta"] and not x["pari"] for x in p), "pt": sum(x["punti"] for x in p),
                  "pf": fatti, "ps": subiti, "media": ottavi(fatti / n) if n else 0.0, "diff": fatti - subiti,
-                 "striscia": CL._striscia(p), "partite": p}
+                 "striscia": CL._striscia(p), "partite": p, "cumulati": ottavi(sum(x["tot"] for x in p)),
+                 "media_cumulati": ottavi(sum(x["tot"] for x in p) / n) if n else 0.0}
+    if C["modo"] == "cumulativa":                         # punti fatti in totale, niente partite (Luca, 05-06/11)
+        st_ = sorted(st, key=lambda t: (-st[t]["cumulati"], -st[t]["media_cumulati"], t))
+        return [{**st[t], "pos": i + 1, "pt": st[t]["cumulati"]} for i, t in enumerate(st_)]
     if C["modo"] == "punti":
         per_p = {t: s["partite"] for t, s in st.items()}
         ordine = []
         for v in sorted({s["pt"] for s in st.values()}, reverse=True):
             ordine += CL._ordina_pari([t for t, s in st.items() if s["pt"] == v], st, per_p)
     else:
-        ordine = CL.ordina(st)
+        ordine = _orig.get("ordina", CL.ordina)(st)          # quella di loucabot, non la sostituta (_ordina)
     return [{**st[t], "pos": i + 1} for i, t in enumerate(ordine)]
 
 
@@ -412,13 +638,20 @@ def classifica(sist: dict, stagione: str) -> list[dict]:
     return tabella(risultati_stagione(sist, stagione), parametri(sist))
 
 
+def ufficiale_sistema() -> dict:
+    return basi.q("SELECT * FROM klra_sistemi WHERE ufficiale", one=True)
+
+
 def confronta(sist: dict, stagione: str) -> dict:
-    """Ufficiale (lega_risultati, la classifica di loucabot) contro il sistema: posizioni e partite che cambiano esito."""
-    uff, _ = CL.calcola(stagione)
-    pos_u = {r["team"]: r for r in uff}
+    """L'Ufficiale ricalcolato coi dati di oggi contro il sistema: posizioni e partite che cambiano esito. Si parte dal
+    ricalcolo e non dai risultati convalidati, così le differenze vengono solo dalle regole (v7.1.0: le correzioni di
+    ESPN arrivate dopo la convalida non si mescolano)."""
+    uff = ufficiale_sistema()
+    with in_conference(None):                              # l'Ufficiale col calendario vero, anche con conference alternative
+        pos_u = {r["team"]: r for r in classifica(uff, stagione)}
+        vere = {(r["giornata"], r["casa"]): r for r in risultati_stagione(uff, stagione)}
     alt = classifica(sist, stagione)
     righe = [{**r, "uff": pos_u.get(r["team"])} for r in alt]
-    vere = {(r["giornata"], r["casa"]): r for r in CL.risultati(stagione)}
     cambiano = []
     for r in risultati_stagione(sist, stagione):
         v = vere.get((r["giornata"], r["casa"]))
@@ -434,18 +667,23 @@ def centesimi(x):
     return None if x is None else float(Decimal(repr(float(x))).quantize(Decimal("0.01"), ROUND_HALF_UP))
 
 
-def verifica(stagione: str) -> list[str]:
-    """L'Ufficiale di klra contro i risultati convalidati della lega: deve dare gli stessi numeri."""
-    uff = basi.q("SELECT * FROM klra_sistemi WHERE ufficiale", one=True)
-    vere = {(r["giornata"], r["casa"]): r for r in CL.risultati(stagione)}
-    diff = []
-    for r in risultati_stagione(uff, stagione):
-        v = vere.get((r["giornata"], r["casa"]))
-        if not v:
-            continue
-        a = (float(v["punti_casa"]), float(v["punti_trasferta"]), v["vince"],
-             None if v["supp_casa"] is None else float(v["supp_casa"]), None if v["supp_trasferta"] is None else float(v["supp_trasferta"]))
-        b = (centesimi(r["punti_casa"]), centesimi(r["punti_trasferta"]), r["vince"], centesimi(r["supp_casa"]), centesimi(r["supp_trasferta"]))
-        if a != b:
-            diff.append(f"G{r['giornata']} {config.nome(r['casa'])}–{config.nome(r['trasferta'])}: lega {a}, klra {b}")
-    return diff
+def verifica(stagione: str) -> dict:
+    """{"motore": differenze tra l'Ufficiale di klra e il ricalcolo di oggi di loucabot (devono essere zero),
+        "dati": partite in cui il ricalcolo di oggi è diverso dalla convalida (dati cambiati dopo: correzioni di ESPN,
+        decisioni degli admin; i risultati ufficiali restano quelli convalidati)}."""
+    installa()
+    uff = ufficiale_sistema()
+    motore, dati = [], []
+    for n, conv in giornate_convalidate(stagione).items():
+        oggi = _orig["calcola"](stagione, n)
+        kl = {r["casa"]: r for r in calcola_giornata(parametri(uff), stagione, n)["risultati"]}   # niente cache: i dati di oggi
+        for r in oggi["risultati"]:
+            k = kl.get(r["casa"])
+            a = (centesimi(r["punti_casa"]), centesimi(r["punti_trasferta"]), r["vince"], centesimi(r.get("supp_casa")),
+                 centesimi(r.get("supp_trasferta")))
+            b = (centesimi(k["punti_casa"]), centesimi(k["punti_trasferta"]), k["vince"], centesimi(k["supp_casa"]),
+                 centesimi(k["supp_trasferta"])) if k else None
+            if a != b:
+                motore.append(f"G{n} {config.nome(r['casa'])}–{config.nome(r['trasferta'])}: loucabot {a}, klra {b}")
+        dati += [f"G{n} " + x.lstrip("• ") for x in (RIS.differenze(stagione, n, oggi["risultati"]) or [])]
+    return {"motore": motore, "dati": dati}

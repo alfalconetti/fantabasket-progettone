@@ -26,7 +26,7 @@ guardano il sistema del calcolo in corso (una ContextVar: senza sistema si compo
 solo le giornate **convalidate** dalla lega; i risultati vanno in cache per firma dei parametri e si rifanno se la
 giornata viene riconvalidata. Un job ogni ora porta avanti la cache di tutti i sistemi.
 
-Il sistema **Ufficiale** legge le regole di adesso da `config/settings.json`. C'è anche un predefinito, **Fantamedie** (Luca, 04/11): chi ha giocato nella giornata prende la sua media della stagione fino al giorno prima, invece dei punti delle partite (se quest'anno non ha ancora giocato, la fantamedia dell'anno prima: dai tabellini ESPN se ci sono, se no da basketball-reference, `bref_stats`; se no 0); chi non ha giocato come nella lega; il resto come l'Ufficiale (voce «Chi gioca prende» della sezione Partita, che si può usare in ogni sistema). I predefiniti non li modifica nessuno, si copiano. Un sistema nuovo nasce sempre come copia
+Il sistema **Ufficiale** legge le regole di adesso da `config/settings.json`. C'è anche un predefinito, **Fantamedie** (Luca, 04/11): chi ha giocato nella giornata prende la sua media della stagione fino al giorno prima, invece dei punti delle partite (se quest'anno non ha ancora giocato, la fantamedia dell'anno prima: dai tabellini ESPN se ci sono, se no da basketball-reference, `bref_stats`; se no 0); chi non ha giocato come nella lega; il resto come l'Ufficiale (voce «Chi gioca prende» della sezione Partita, che si può usare in ogni sistema). I predefiniti non li modifica nessuno, si copiano. Dalla v2 c'è anche **Fantapanchine** (Luca, 05/11): il totale della squadra è la somma dei punti effettivi dei panchinari, vince chi fa di più, niente supplementari (voce «Nel totale contano: titolari / panchina / tutti»). I predefiniti stanno in `regole.PREDEFINITI` (nome, modifiche alle regole della lega, descrizione) e `basi.migra` li crea. Un sistema nuovo nasce sempre come copia
 di un altro, qualsiasi; **solo chi l'ha creato** lo modifica, gli altri lo modificano facendone una copia (Luca, 04/11);
 nessun limite di numero. Se cambia, i risultati si rifanno da soli (cache per firma dei parametri). `/klra_verifica` (dev) controlla che l'Ufficiale
 di klra dia esattamente i risultati convalidati.
@@ -47,9 +47,20 @@ a vittorie o a punti).
 | `/risultati [N] [NOME]` | in testo, 🔄 dove finisce diversamente dalla realtà |
 | `/confronta [NOME]` | classifica col sistema accanto all'ufficiale (▲▼) e le partite che cambiano esito |
 | `/top [N] [DA A] [firmati] [NOME]` | come /top di loucabot (minimo 40% delle partite) con la fantamedia del sistema; tra parentesi quella della lega e la posizione nella top vera |
-| `/klra_verifica` (dev) | l'Ufficiale di klra contro i risultati convalidati |
+| `/calendario`, `/calendario_full`, `/classifica_full`, `/classifica_conference` | quelli di loucabot, uguali, coi risultati del sistema (v2: dentro `motore.contesto` ogni lettura di `lega_risultati` del codice di loucabot diventa una tabella coi risultati del sistema, e l'ordine della classifica è quello del sistema); risposte che cominciano con NON UFFICIALE |
+| `/pdf_giornata [N] [NOME]`, `/pdf_partite [SQUADRA] [NOME]` | come loucabot, col sistema, con striscia e filigrana |
+| `/conference` | conference alternative (v2, Luca 06/11): lista, scheda (squadre e posti nel calendario), Usa queste, Classifica per conference, Confronta; «➕ Nuove conference»: si scelgono le squadre della prima conference coi bottoni, «🔀 Squadre a caso» le estrae (poi si possono cambiare), «🎲 Accoppia e salva» estrae a caso il posto di ognuna nel calendario vero (tabella `klra_conference`, `mappa` salvata), poi il nome. Le modifica solo chi le ha create (nuovo accoppiamento); attive per utente (`klra_scelte.conference_id`) e valgono in tutti i comandi insieme al sistema |
+| `/klra_verifica` (dev) | il motore: l'Ufficiale di klra contro il ricalcolo di oggi di loucabot (deve essere identico); a parte le partite in cui il ricalcolo di oggi è diverso dalla convalida (dati cambiati dopo) |
 
 **Tutto è segnato NON UFFICIALE** (Luca, 04/11): striscia rossa in cima e filigrana in diagonale su ogni immagine (campi `striscia` e `filigrana`, letti anche da `partita.typ` e `live.typ` di loucabot), etichetta rossa al posto dello stato, didascalie e testi che iniziano con «🧪 NON UFFICIALE», avviso in `/start` e `/sistemi`.
+
+**Conference alternative** (`klra/conference.py`, `motore.in_conference`): dentro, ogni lettura di `lega_partite` del codice di loucabot diventa il calendario permutato (chi ha preso il posto di X gioca le partite di X) e `classifica.conference` le nuove conference; le sfide si ricalcolano da zero (bonus casa e supplementari dipendono dall'avversario); in cache con firma a parte. `/confronta` confronta sempre con l'Ufficiale sul calendario vero.
+
+**Classifica cumulativa** (v2): terza modalità oltre a vittorie e punti, i punti fatti in tutte le giornate senza bonus casa né supplementari (immagine con PUNTI, media e giornate); Fantapanchine la usa.
+
+`/confronta` e il 🔄 di `/risultati` partono dall'**Ufficiale ricalcolato coi dati di oggi**, non dai risultati convalidati: così le differenze vengono solo dalle regole del sistema. La cache dei risultati è per firma dei parametri più `VERSIONE_MOTORE` (si alza quando cambia il modo di calcolare: all'avvio la cache vecchia si cancella).
+
+`/player NOME [SISTEMA]` è quello di loucabot con in fondo la stagione col sistema (fantamedia e ultime 5 partite coi fantapunti e i bonus del sistema, accanto quelli della lega); `/live`, `/live_results` e `/notte` non ci sono: klra lavora solo sulle giornate convalidate (per il live c'è loucabot).
 
 Senza NOME vale il tuo sistema attivo; N di default è l'ultima giornata convalidata. Editor (`klra/editor.py`, solo in
 privato): cinque sezioni, un bottone per voce col valore; le voci a scelta cambiano a ogni tocco, quelle numeriche

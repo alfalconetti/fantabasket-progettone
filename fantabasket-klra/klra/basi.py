@@ -105,8 +105,23 @@ def migra() -> None:
     q("ALTER TABLE klra_bozze ADD COLUMN IF NOT EXISTS modifica_id INT REFERENCES klra_sistemi(id) ON DELETE CASCADE")
     if not q("SELECT 1 AS x FROM klra_sistemi WHERE ufficiale", one=True):
         q("INSERT INTO klra_sistemi (nome, ufficiale, autore_nome) VALUES ('Ufficiale', TRUE, 'la lega')")
+    # conference alternative (v2, Luca 06/11): le squadre della prima conference e l'accoppiamento estratto col calendario vero
+    q("""CREATE TABLE IF NOT EXISTS klra_conference (
+            id          SERIAL PRIMARY KEY,
+            nome        TEXT NOT NULL,
+            autore      BIGINT,
+            autore_nome TEXT,
+            squadre_a   JSONB NOT NULL,                     -- le squadre della prima conference (le altre nella seconda)
+            mappa       JSONB NOT NULL,                     -- {squadra: squadra di cui prende il posto nel calendario}
+            creato      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            modificato  TIMESTAMPTZ)""")
+    q("CREATE UNIQUE INDEX IF NOT EXISTS klra_conference_nome ON klra_conference (lower(nome))")
+    q("ALTER TABLE klra_scelte ADD COLUMN IF NOT EXISTS conference_id INT REFERENCES klra_conference(id) ON DELETE SET NULL")
     # sistemi predefiniti (Luca, 04/11): seguono le regole della lega, nessuno li modifica, tutti li copiano
     q("ALTER TABLE klra_sistemi ADD COLUMN IF NOT EXISTS predefinito TEXT")
-    if not q("SELECT 1 AS x FROM klra_sistemi WHERE predefinito = 'fantamedie'", one=True):
-        nome = "Fantamedie" if not q("SELECT 1 AS x FROM klra_sistemi WHERE lower(nome) = 'fantamedie'", one=True) else "Fantamedie (klra)"
-        q("INSERT INTO klra_sistemi (nome, autore_nome, predefinito) VALUES (%s, 'klra', 'fantamedie')", (nome,))
+    from klra.regole import PREDEFINITI
+    for chiave, d in PREDEFINITI.items():
+        if not q("SELECT 1 AS x FROM klra_sistemi WHERE predefinito = %s", (chiave,), one=True):
+            nome = d["nome"] if not q("SELECT 1 AS x FROM klra_sistemi WHERE lower(nome) = lower(%s)", (d["nome"],), one=True) \
+                else f"{d['nome']} (klra)"
+            q("INSERT INTO klra_sistemi (nome, autore_nome, predefinito) VALUES (%s, 'klra', %s)", (nome, chiave))

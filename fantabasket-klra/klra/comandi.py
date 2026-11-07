@@ -16,6 +16,7 @@ Si calcolano solo le giornate convalidate dalla lega.
 """
 import asyncio
 import html
+import json
 import logging
 import re
 
@@ -25,6 +26,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, f
 
 import config
 import db
+from klra import conference as CO
 from klra import editor as ED
 from klra import motore as M
 from klra import regole as KR
@@ -39,6 +41,19 @@ def e(x) -> str:
     return html.escape(str(x), quote=False)
 
 
+def con_conference(f):
+    """Il comando gira con le conference attive di chi lo usa (calendario permutato): tutto il resto di klra lo segue."""
+    import functools
+
+    @functools.wraps(f)
+    async def g(update, context):
+        u = getattr(update, "effective_user", None) or update.callback_query.from_user
+        uid = u.id
+        with M.in_conference(CO.attiva(uid)):
+            return await f(update, context)
+    return g
+
+
 PUBBLICI = [("sistemi", "I sistemi di punteggio: scegli, copia, modifica"),
             ("classifica", "La classifica col tuo sistema [NOME]"),
             ("giornata", "Una giornata col tuo sistema [N] [NOME]"),
@@ -46,7 +61,15 @@ PUBBLICI = [("sistemi", "I sistemi di punteggio: scegli, copia, modifica"),
             ("risultati", "I risultati in testo [N] [NOME]"),
             ("confronta", "Ufficiale contro un sistema [NOME]"),
             ("top", "Migliori per fantamedia col tuo sistema [N] o [DA A] [firmati] [NOME]"),
+            ("calendario", "La giornata tua o di una squadra col sistema [N] [SQUADRA] [NOME]"),
+            ("calendario_full", "Il calendario di una squadra coi risultati del sistema [SQUADRA] [NOME]"),
+            ("classifica_full", "La classifica completa col sistema [NOME]"),
+            ("classifica_conference", "La classifica per conference col sistema [NOME]"),
+            ("pdf_giornata", "La giornata col sistema in PDF [N] [NOME]"),
+            ("pdf_partite", "Le partite di una squadra col sistema in PDF [SQUADRA] [NOME]"),
             ("usa", "Scegli il tuo sistema: /usa NOME"),
+            ("conference", "Conference alternative: scegli, crea, confronta"),
+            ("player", "Un giocatore, con la fantamedia del tuo sistema [NOME SISTEMA]"),
             ("start", "Cos'è klra")]
 DEV = [("klra_verifica", "L'Ufficiale di klra contro i risultati convalidati della lega")]
 
@@ -100,11 +123,8 @@ def scheda(s: dict, uid: int) -> tuple[str, K]:
             righe.append(f"<i>copia di {e(b['nome'])}</i>")
     if s["ufficiale"]:
         righe.append("Le regole della lega (si aggiornano se cambia il regolamento).")
-    elif s.get("predefinito") == "fantamedie":
-        righe.append("Predefinito: a ogni giornata chi ha giocato prende la sua media della stagione fino al giorno prima "
-                     "(non i punti delle partite); se quest'anno non ha ancora giocato, la fantamedia dell'anno prima, "
-                     "se c'è, se no 0. Chi non ha giocato come nella lega (media se la sua squadra NBA non ha partite, "
-                     "se no 0). Il resto come la lega. Nessuno lo modifica; si può copiare.")
+    elif s.get("predefinito") in KR.PREDEFINITI:
+        righe.append(f"Predefinito: {e(KR.PREDEFINITI[s['predefinito']]['descrizione'])}. Nessuno lo modifica; si può copiare.")
     else:
         d = KR.differenze(SI.parametri(s))
         righe += ["", "Cosa cambia rispetto all'Ufficiale:"] + ([f"• {e(x)}" for x in d] if d else ["• niente: è uguale"])
@@ -170,7 +190,8 @@ async def cmd_start(update, context):
         "Stesse formazioni e stessi tabellini, regole diverse: fantapunti, bonus, supplementari, classifica. "
         "I risultati veri restano quelli di loucabot: qui si guarda come sarebbe andata.\n\n"
         "/sistemi per scegliere o creare un sistema; poi /classifica, /giornata, /partita, /risultati e /confronta "
-        "usano il tuo (o quello che scrivi dopo il comando). Si calcolano le giornate convalidate dalla lega.",
+        "usano il tuo (o quello che scrivi dopo il comando). Con /conference puoi anche rimescolare le conference: "
+        "ognuno sceglie le sue, e valgono insieme al sistema. Si calcolano le giornate convalidate dalla lega.",
         parse_mode="HTML")
 
 
@@ -226,7 +247,7 @@ async def manda_classifica(msg, s):
         if not png:
             await msg.reply_text("Nessuna giornata convalidata dalla lega, per ora.")
             return
-        await msg.reply_photo(png, caption=f"🧪 NON UFFICIALE · 🏆 Classifica col sistema {s['nome']}", **TEMPI)
+        await msg.reply_photo(png, caption=f"🧪 NON UFFICIALE · 🏆 Classifica col sistema {M.nome_contesto(s)}", **TEMPI)
     finally:
         await _cancella(w)
 
@@ -238,7 +259,7 @@ async def manda_confronta(msg, s):
         if not png:
             await msg.reply_text("Nessuna giornata convalidata dalla lega, per ora.")
             return
-        await msg.reply_photo(png, caption=f"🧪 NON UFFICIALE · ⚖️ Ufficiale contro {s['nome']}", **TEMPI)
+        await msg.reply_photo(png, caption=f"🧪 NON UFFICIALE · ⚖️ Ufficiale contro {M.nome_contesto(s)}", **TEMPI)
     finally:
         await _cancella(w)
 
@@ -253,6 +274,7 @@ async def _errore(msg, err, cosa):
     await msg.reply_text(f"❌ {cosa} non riuscito: {e(str(err))[:200]}")
 
 
+@con_conference
 async def cmd_classifica(update, context):
     s, _ = _sistema_e_resto(update, context)
     try:
@@ -261,6 +283,7 @@ async def cmd_classifica(update, context):
         await _errore(update.effective_message, err, "Classifica")
 
 
+@con_conference
 async def cmd_confronta(update, context):
     s, _ = _sistema_e_resto(update, context)
     if s["ufficiale"]:
@@ -273,6 +296,7 @@ async def cmd_confronta(update, context):
         await _errore(update.effective_message, err, "Confronto")
 
 
+@con_conference
 async def cmd_risultati(update, context):
     s, resto = _sistema_e_resto(update, context)
     n, err = _giornata(resto)
@@ -285,6 +309,7 @@ async def cmd_risultati(update, context):
         await _errore(update.effective_message, er, "Risultati")
 
 
+@con_conference
 async def cmd_giornata(update, context):
     s, resto = _sistema_e_resto(update, context)
     n, err = _giornata(resto)
@@ -294,7 +319,7 @@ async def cmd_giornata(update, context):
     w = await _attesa(update.effective_message)
     try:
         png = await asyncio.to_thread(V.img_giornata, s, config.stagione(), n)
-        await update.effective_message.reply_photo(png, caption=f"🧪 NON UFFICIALE · 📅 Giornata {n} col sistema {s['nome']}", **TEMPI)
+        await update.effective_message.reply_photo(png, caption=f"🧪 NON UFFICIALE · 📅 Giornata {n} col sistema {M.nome_contesto(s)}", **TEMPI)
     except Exception as er:
         await _errore(update.effective_message, er, "Giornata")
     finally:
@@ -306,12 +331,13 @@ async def _manda_partita(msg, s, n, casa, tr):
     try:
         png, d = await asyncio.to_thread(V.img_partita, s, config.stagione(), n, casa, tr)
         sq = d["squadre"]
-        await msg.reply_photo(png, caption=f"🧪 NON UFFICIALE · 🏀 Giornata {n} · {sq[0]['nome']} {sq[0]['punti']} – {sq[1]['punti']} {sq[1]['nome']} col sistema {s['nome']}",
+        await msg.reply_photo(png, caption=f"🧪 NON UFFICIALE · 🏀 Giornata {n} · {sq[0]['nome']} {sq[0]['punti']} – {sq[1]['punti']} {sq[1]['nome']} col sistema {M.nome_contesto(s)}",
                               **TEMPI)
     finally:
         await _cancella(w)
 
 
+@con_conference
 async def cmd_partita(update, context):
     import partita
     msg = update.effective_message
@@ -379,6 +405,168 @@ async def cmd_top(update, context):
                              caption=f"🧪 NON UFFICIALE · 📄 Top {da}–{a} col sistema {s['nome']}: troppo lunga per un messaggio")
 
 
+# ── comandi di loucabot, col sistema (v7.1.0, Luca: «uguale a loucabot») ──
+
+class _NonUfficiale:
+    """Il messaggio passato ai comandi di loucabot: ogni risposta comincia con NON UFFICIALE e il sistema."""
+    def __init__(self, msg, s: dict):
+        self._m, self._s = msg, s
+        self._bc = SI.parametri(s)["partita"]["bonus_casa"]
+
+    def _testo(self, t: str, html_: bool) -> str:
+        t = (t or "").replace("in casa (+3)", f"in casa (+{self._bc:g})")
+        nome = M.nome_contesto(self._s)
+        return (f"🧪 <b>NON UFFICIALE</b> · sistema <b>{e(nome)}</b>\n" if html_ else
+                f"🧪 NON UFFICIALE · sistema {nome}\n") + t
+
+    async def reply_text(self, t, **k):
+        return await self._m.reply_text(self._testo(t, k.get("parse_mode") == "HTML"), **k)
+
+    async def reply_photo(self, photo=None, caption=None, **k):
+        c = self._testo(caption or "", k.get("parse_mode") == "HTML")
+        if len(c) > 1024:                                  # col prefisso non sta più in una didascalia: foto, poi il testo
+            await self._m.reply_photo(photo, caption=self._testo("", False).strip(), **TEMPI)
+            return await self._m.reply_text(c, parse_mode=k.get("parse_mode"))
+        return await self._m.reply_photo(photo, caption=c, **{**TEMPI, **k})
+
+    async def reply_document(self, document=None, caption=None, **k):
+        return await self._m.reply_document(document=document, caption=self._testo(caption or "", k.get("parse_mode") == "HTML"),
+                                            **{**TEMPI, **k})
+
+    def __getattr__(self, nome):
+        return getattr(self._m, nome)
+
+
+async def _di_loucabot(update, context, funzione):
+    """Un comando di loucabot (stessi argomenti, stesso testo e immagini) dentro il contesto del sistema."""
+    s, resto = _sistema_e_resto(update, context)
+    await _di_loucabot_su(update.effective_message, update.effective_user, context, s, funzione, resto)
+
+
+async def _di_loucabot_su(messaggio, utente, context, s, funzione, args):
+    import types
+    msg = _NonUfficiale(messaggio, s)
+    u = types.SimpleNamespace(effective_message=msg, message=msg, effective_user=utente,
+                              effective_chat=getattr(messaggio, "chat", None), callback_query=None)
+    c = types.SimpleNamespace(args=args, bot=context.bot, user_data=getattr(context, "user_data", {}), bot_data={})
+    w = await _attesa(messaggio)
+    try:
+        M.installa()
+        righe = await asyncio.to_thread(M.righe_lega, s, config.stagione())
+        with M.contesto(s, righe=righe):          # le ContextVar valgono per questo task e per i to_thread che apre
+            await funzione(u, c)
+    except Exception as er:
+        await _errore(messaggio, er, "Comando")
+    finally:
+        await _cancella(w)
+
+
+@con_conference
+async def cmd_calendario(update, context):
+    import handlers as LH
+    await _di_loucabot(update, context, LH.cmd_calendario)
+
+
+@con_conference
+async def cmd_calendario_full(update, context):
+    import handlers as LH
+    await _di_loucabot(update, context, LH.cmd_calendario_full)
+
+
+async def cmd_player(update, context):
+    import player
+    await _di_loucabot(update, context, player.cmd_player)
+
+
+async def cb_player(update, context):
+    """I bottoni «Quale?» di /player (pl:<id>), col sistema attivo."""
+    import player
+    q = update.callback_query
+    await q.answer()
+    gid = int(q.data.split(":")[1])
+    s = SI.attivo(q.from_user.id)
+    righe = await asyncio.to_thread(M.righe_lega, s, config.stagione())
+    with M.contesto(s, righe=righe):
+        if player._foto(gid):
+            await q.edit_message_text("🏀 ⬇️")
+            await player.manda(_NonUfficiale(q.message, s), gid)
+        else:
+            t = await asyncio.to_thread(player.scheda, gid)
+            await q.edit_message_text(_NonUfficiale(q.message, s)._testo(t, True), parse_mode="HTML")
+
+
+@con_conference
+async def cmd_classifica_full(update, context):
+    import classifica as CL
+    await _di_loucabot(update, context, CL.cmd_classifica_full)
+
+
+@con_conference
+async def cmd_classifica_conference(update, context):
+    import classifica as CL
+    await _di_loucabot(update, context, CL.cmd_classifica_conference)
+
+
+async def _manda_pdf(msg, pdfs, nome, didascalia):
+    import io
+    for i, b in enumerate(pdfs, 1):
+        parte = f" ({i}/{len(pdfs)})" if len(pdfs) > 1 else ""
+        await msg.reply_document(document=io.BytesIO(b), filename=f"klra_{nome}{'_' + str(i) if len(pdfs) > 1 else ''}.pdf",
+                                 caption=f"🧪 NON UFFICIALE · {didascalia}{parte}", **TEMPI)
+
+
+_PDF = {"in_corso": False}
+
+
+@con_conference
+async def cmd_pdf_giornata(update, context):
+    msg = update.effective_message
+    s, resto = _sistema_e_resto(update, context)
+    n, err = _giornata(resto)
+    if err:
+        await msg.reply_text(err)
+        return
+    if _PDF["in_corso"]:
+        await msg.reply_text("⏳ Sto già preparando un PDF: riprova tra un minuto.")
+        return
+    _PDF["in_corso"] = True
+    try:
+        await msg.reply_text(f"⏳ Preparo il PDF della giornata {n} col sistema {s['nome']}: ci vuole un po'…")
+        pdfs = await asyncio.to_thread(V.pdf_giornata, s, config.stagione(), n)
+        await _manda_pdf(msg, pdfs, f"giornata_{n}", f"📄 Giornata {n} col sistema {s['nome']}: risultati e partite")
+    except Exception as er:
+        await _errore(msg, er, "PDF")
+    finally:
+        _PDF["in_corso"] = False
+
+
+@con_conference
+async def cmd_pdf_partite(update, context):
+    from shared.squadre import cerca_squadra
+    msg = update.effective_message
+    s, resto = _sistema_e_resto(update, context)
+    testo = " ".join(resto).strip()
+    sq = cerca_squadra(testo, config.squadre()) if testo else config.squadra_del_gm(update.effective_user.id)
+    if not sq:
+        await msg.reply_text(f"Squadra non trovata: «{e(testo)}»." if testo else "Uso: /pdf_partite [SQUADRA] [SISTEMA]")
+        return
+    if _PDF["in_corso"]:
+        await msg.reply_text("⏳ Sto già preparando un PDF: riprova tra un minuto.")
+        return
+    _PDF["in_corso"] = True
+    try:
+        await msg.reply_text(f"⏳ Preparo il PDF delle partite di {sq['nome']} col sistema {s['nome']}: ci vuole un po'…")
+        pdfs, n = await asyncio.to_thread(V.pdf_partite, s, config.stagione(), sq["id"])
+        if not pdfs:
+            await msg.reply_text(f"{sq['nome']} non ha partite in giornate convalidate, per ora.")
+            return
+        await _manda_pdf(msg, pdfs, f"partite_{sq['id']}", f"📄 {sq['nome']}: {n} partite col sistema {s['nome']}")
+    except Exception as er:
+        await _errore(msg, er, "PDF")
+    finally:
+        _PDF["in_corso"] = False
+
+
 async def cmd_verifica(update, context):
     if update.effective_user.id != config.dev_id():
         return
@@ -389,12 +577,190 @@ async def cmd_verifica(update, context):
         logger.exception("verifica")
         await msg.edit_text(f"❌ {e(err)[:300]}")
         return
-    await msg.edit_text("✅ L'Ufficiale di klra dà esattamente i risultati della lega." if not d else
-                        "⚠️ Differenze:\n" + "\n".join(e(x) for x in d[:40]))
+    t = ("✅ <b>Motore</b>: l'Ufficiale di klra dà esattamente il ricalcolo di oggi di loucabot." if not d["motore"] else
+         "❌ <b>Motore</b>: klra e loucabot non danno gli stessi numeri (va guardato):\n" + "\n".join(e(x) for x in d["motore"][:30]))
+    if d["dati"]:
+        t += ("\n\nℹ️ <b>Dati cambiati dopo la convalida</b> (correzioni di ESPN o decisioni prese dopo; i risultati "
+              "ufficiali restano quelli convalidati). Ricalcolando oggi:\n" + "\n".join(d["dati"][:30]))
+    else:
+        t += "\n\n✅ E il ricalcolo di oggi coincide coi risultati convalidati."
+    await msg.edit_text(t, parse_mode="HTML")
+
+
+# ── conference alternative (v2, mockup approvato da Luca il 06/11) ───────────────
+
+def lista_conference(uid: int) -> tuple[str, K]:
+    att = CO.attiva(uid)
+    u = CO.ufficiali()
+    righe = ["🗺 <b>Conference</b> · " + e(V._anno(config.stagione())),
+             "<b>⚠️ NON UFFICIALE</b>: le conference alternative cambiano solo i conti di klra.", "",
+             f"Le tue attive: <b>{e(att['nome']) if att else 'Ufficiali'}</b>", "",
+             f"{'⭐' if not att else '🏛'} <b>Ufficiali</b> · quelle della lega"]
+    for c in CO.tutte():
+        a = c["squadre_a"] if isinstance(c["squadre_a"], list) else json.loads(c["squadre_a"])
+        righe.append(f"{'⭐' if att and att['id'] == c['id'] else '▫️'} <b>{e(c['nome'])}</b> · {e(c.get('autore_nome') or '?')} · "
+                     f"<i>{e(', '.join(config.nome(t) for t in a[:3]))}…</i>")
+    bot = [B(("⭐ " if not att else "") + "Ufficiali", callback_data="kc:v:0")] + \
+          [B(("⭐ " if att and att["id"] == c["id"] else "") + c["nome"], callback_data=f"kc:v:{c['id']}") for c in CO.tutte()]
+    kb = [bot[i:i + 2] for i in range(0, len(bot), 2)] + [[B("➕ Nuove conference", callback_data="kc:n")]]
+    if not u:
+        righe.append("\n<i>Le conference della lega non sono configurate (config/divisions.json).</i>")
+    return "\n".join(righe), K(kb)
+
+
+def scheda_conference(cid: int, uid: int) -> tuple[str, K]:
+    att = CO.attiva(uid)
+    if not cid:
+        gruppi = CO.ufficiali()
+        titolo, attive = "🏛 <b>Ufficiali</b> · quelle della lega", not att
+        kb = [] if attive else [[B("✅ Usa queste", callback_data="kc:u:0")]]
+    else:
+        c = CO.per_id(cid)
+        mappa = c["mappa"] if isinstance(c["mappa"], dict) else json.loads(c["mappa"])
+        na, nb = CO.nomi()
+        a = set(c["squadre_a"] if isinstance(c["squadre_a"], list) else json.loads(c["squadre_a"]))
+        gruppi = {na: sorted(a), nb: sorted(t for t in mappa if t not in a)}
+        titolo = f"🗺 <b>{e(c['nome'])}</b> · di {e(c.get('autore_nome') or '?')}" + \
+                 (f" · modificate il {_quando(c['modificato'])}" if c.get("modificato") else "")
+        attive = att and att["id"] == c["id"]
+        kb = [] if attive else [[B("✅ Usa queste", callback_data=f"kc:u:{cid}")]]
+        if CO.puo_modificare(c, uid):
+            kb.append([B("✏️ Modifica", callback_data=f"kc:m:{cid}")])
+    righe = [titolo, ""]
+    for nome, sq in gruppi.items():
+        righe.append(f"<b>{e(nome)}</b>: " + ", ".join(e(config.nome(t)) for t in sq))
+    if cid:
+        mappa = c["mappa"] if isinstance(c["mappa"], dict) else json.loads(c["mappa"])
+        righe += ["", "<i>Nel calendario: " + ", ".join(f"{e(config.nome(t))} al posto di {e(config.nome(p))}"
+                                                      for t, p in sorted(mappa.items()) if t != p)[:900] + "</i>"]
+    if attive:
+        righe += ["", "Sono le tue attive."]
+    kb.append([B("🏆 Classifica per conference", callback_data=f"kc:cl:{cid}"), B("⚖️ Confronta", callback_data=f"kc:cf:{cid}")])
+    kb.append([B("← Conference", callback_data="kc:l")])
+    return "\n".join(righe), K(kb)
+
+
+def scelta_squadre(scelte: set, modifica: int | None) -> tuple[str, K]:
+    u = CO.ufficiali()
+    na = CO.nomi()[0]
+    n = len(u[na])
+    tutte = sorted((t for x in u.values() for t in x), key=config.nome)
+    bot = [B(("✅ " if t in scelte else "") + config.nome(t), callback_data=f"kc:t:{t}") for t in tutte]
+    kb = [bot[i:i + 3] for i in range(0, len(bot), 3)]
+    kb.append([B("🔀 Squadre a caso", callback_data="kc:caso")])
+    kb.append([B(f"🎲 Accoppia e salva ({len(scelte)}/{n})", callback_data="kc:ok"), B("❌ Annulla", callback_data="kc:l")])
+    t = (f"{'✏️ Modifica' if modifica else '➕ Nuove conference'} · scegli le {n} squadre della <b>{e(na)}</b> "
+         f"({len(scelte)}/{n}).\nLe altre vanno nella {e(CO.nomi()[1])}. Con «Accoppia e salva» ogni squadra prende a caso il "
+         f"posto di una della sua conference nel calendario vero.")
+    return t, K(kb)
+
+
+async def cmd_conference(update, context):
+    if not CO.configurate():
+        await update.effective_message.reply_text("Le conference della lega non sono configurate (config/divisions.json): "
+                                                  "chiedi al dev.")
+        return
+    t, kb = await asyncio.to_thread(lista_conference, update.effective_user.id)
+    await update.effective_message.reply_text(t, parse_mode="HTML", reply_markup=kb)
+
+
+async def cb_conference(update, context):
+    q = update.callback_query
+    uid = q.from_user.id
+    p = q.data.split(":")
+    az = p[1]
+
+    async def mostra(t, kb):
+        await q.edit_message_text(t, parse_mode="HTML", reply_markup=kb)
+
+    if az in ("n", "m", "t", "ok", "caso") and not (q.message and q.message.chat.type == "private"):
+        await q.answer("Le conference si creano in privato: scrivimi /conference in chat.", show_alert=True)
+        return
+    if az == "l":
+        context.user_data.pop("klra_conf", None)
+        await q.answer()
+        await mostra(*lista_conference(uid))
+    elif az == "v":
+        await q.answer()
+        await mostra(*scheda_conference(int(p[2]), uid))
+    elif az == "u":
+        cid = int(p[2]) or None
+        CO.scegli(uid, cid)
+        await q.answer("Ora usi " + (CO.per_id(cid)["nome"] if cid else "le conference ufficiali"))
+        await mostra(*scheda_conference(int(p[2]), uid))
+    elif az in ("n", "m"):
+        if az == "m":
+            c = CO.per_id(p[2])
+            if not CO.puo_modificare(c, uid):
+                await q.answer("Le modifica solo chi le ha create: fanne di nuove.", show_alert=True)
+                return
+            a = c["squadre_a"] if isinstance(c["squadre_a"], list) else json.loads(c["squadre_a"])
+            context.user_data["klra_conf"] = {"a": set(a), "modifica": c["id"]}
+        else:
+            context.user_data["klra_conf"] = {"a": set(), "modifica": None}
+        await q.answer()
+        st = context.user_data["klra_conf"]
+        await mostra(*scelta_squadre(st["a"], st["modifica"]))
+    elif az == "t":
+        st = context.user_data.setdefault("klra_conf", {"a": set(), "modifica": None})
+        n = len(CO.ufficiali()[CO.nomi()[0]])
+        t = p[2]
+        if t in st["a"]:
+            st["a"].discard(t)
+        elif len(st["a"]) >= n:
+            await q.answer(f"Sono già {n}: togline una prima.", show_alert=True)
+            return
+        else:
+            st["a"].add(t)
+        await q.answer()
+        await mostra(*scelta_squadre(st["a"], st["modifica"]))
+    elif az == "caso":                                     # estrazione casuale delle squadre (Luca, 06/11)
+        import random
+        st = context.user_data.setdefault("klra_conf", {"a": set(), "modifica": None})
+        u = CO.ufficiali()
+        n = len(u[CO.nomi()[0]])
+        st["a"] = set(random.SystemRandom().sample(sorted(t for x in u.values() for t in x), n))
+        await q.answer("Estratte: puoi cambiarle o salvare")
+        await mostra(*scelta_squadre(st["a"], st["modifica"]))
+    elif az == "ok":
+        st = context.user_data.get("klra_conf")
+        n = len(CO.ufficiali()[CO.nomi()[0]])
+        if not st or len(st["a"]) != n:
+            await q.answer(f"Servono esattamente {n} squadre.", show_alert=True)
+            return
+        if st["modifica"]:
+            if CO.aggiorna(st["modifica"], uid, sorted(st["a"])):
+                context.user_data.pop("klra_conf", None)
+                await q.answer("Salvate, con un nuovo accoppiamento")
+                await mostra(*scheda_conference(st["modifica"], uid))
+            else:
+                await q.answer("Le modifica solo chi le ha create.", show_alert=True)
+            return
+        context.user_data["klra_attesa"] = ("conf_nome",)
+        await q.answer()
+        await mostra("💾 <b>Come le chiami?</b> Scrivi il nome (da 2 a 30 caratteri).", K([[B("❌ Annulla", callback_data="kc:l")]]))
+    elif az in ("cl", "cf"):
+        await q.answer()
+        cid = int(p[2]) or None
+        conf = CO.per_id(cid) if cid else None
+        s = SI.attivo(uid)
+        with M.in_conference(conf):
+            try:
+                if az == "cl":
+                    await _di_loucabot_su(q.message, q.from_user, context, s, __import__("classifica").cmd_classifica_conference, [])
+                elif s["ufficiale"] and not conf:
+                    await q.message.reply_text("Ufficiale con le conference ufficiali: non c'è niente da confrontare.")
+                else:
+                    await manda_confronta(q.message, s)
+            except Exception as er:
+                await _errore(q.message, er, "Conference")
+    else:
+        await q.answer()
 
 
 # ── bottoni ──────────────────────────────────────────────────────────────────────
 
+@con_conference
 async def cb(update, context):
     q = update.callback_query
     uid = q.from_user.id
@@ -530,6 +896,24 @@ async def testo_libero(update, context):
     uid = update.effective_user.id
     msg = update.effective_message
     bz = SI.bozza(uid)
+    if att[0] == "conf_nome":
+        st = context.user_data.get("klra_conf")
+        nome = (msg.text or "").strip()
+        err = CO.nome_valido(nome)
+        if err:
+            await msg.reply_text(f"❌ {err} Scrivi un altro nome.")
+            return
+        if not st:
+            context.user_data.pop("klra_attesa", None)
+            return
+        c = CO.crea(nome, uid, update.effective_user.full_name or str(uid), sorted(st["a"]))
+        CO.scegli(uid, c["id"])
+        context.user_data.pop("klra_conf", None)
+        context.user_data.pop("klra_attesa", None)
+        t, kb = scheda_conference(c["id"], uid)
+        await msg.reply_text(f"✅ Create <b>{e(nome)}</b> (accoppiamento estratto), e sono le tue attive.\n\n" + t,
+                             parse_mode="HTML", reply_markup=kb)
+        return
     if not bz:
         context.user_data.pop("klra_attesa", None)
         return
@@ -565,5 +949,10 @@ def handlers() -> list:
             CommandHandler("classifica", cmd_classifica), CommandHandler("confronta", cmd_confronta),
             CommandHandler("risultati", cmd_risultati), CommandHandler("giornata", cmd_giornata),
             CommandHandler("partita", cmd_partita), CommandHandler("top", cmd_top), CommandHandler("klra_verifica", cmd_verifica),
-            CallbackQueryHandler(cb, pattern=r"^ks:"),
+            CommandHandler("calendario", cmd_calendario), CommandHandler("calendario_full", cmd_calendario_full),
+            CommandHandler("classifica_full", cmd_classifica_full), CommandHandler("classifica_conference", cmd_classifica_conference),
+            CommandHandler("pdf_giornata", cmd_pdf_giornata), CommandHandler("pdf_partite", cmd_pdf_partite),
+            CommandHandler("conference", cmd_conference), CommandHandler("player", cmd_player),
+            CallbackQueryHandler(cb_player, pattern=r"^pl:\d+$"),
+            CallbackQueryHandler(cb, pattern=r"^ks:"), CallbackQueryHandler(cb_conference, pattern=r"^kc:"),
             MessageHandler(filters.ChatType.PRIVATE & filters.TEXT & ~filters.COMMAND, testo_libero)]
