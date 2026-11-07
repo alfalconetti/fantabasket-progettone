@@ -2,7 +2,7 @@
 # Deploy di una versione del progettone da uno zip di rilascio (dalla v3.12.0).
 #
 # Ogni zip contiene questo script e rilascio.json (versione, messaggio di commit, file da
-# cancellare, servizi da riavviare). Uso, dalla cartella ~/bots:
+# cancellare, servizi da riavviare, servizi da fermare e togliere: «ferma»). Uso, dalla cartella ~/bots:
 #
 #   Z=fantabasket-progettone-vX.Y.Z.zip; bash <(unzip -p $Z deploy.sh) $Z
 #
@@ -41,8 +41,10 @@ print("\n".join(map(str, v)) if isinstance(v, list) else ("" if v is None else s
     }
     local VER MSG FERMA ATTESA
     VER="$(campo versione)"; MSG="$(campo messaggio)"; FERMA="$(campo ferma_aste_prima)"; ATTESA="$(campo attesa_main)"
-    local -a ELIMINA RIAVVIA LOGS
+    local -a ELIMINA RIAVVIA LOGS TOGLI
     mapfile -t ELIMINA < <(campo elimina | sed '/^$/d')
+    # servizi tolti dal docker-compose.yml (v6.19.0): il container va fermato e cancellato a mano, compose non lo conosce più
+    mapfile -t TOGLI < <(campo ferma | sed '/^$/d')
     mapfile -t RIAVVIA < <(campo riavvia | sed '/^$/d')
     mapfile -t LOGS < <(campo log_attesi | sed '/^$/d')
     [ ${#RIAVVIA[@]} -gt 0 ] || RIAVVIA=(bot-main bot-aste-beta)
@@ -73,6 +75,14 @@ print("\n".join(map(str, v)) if isinstance(v, list) else ("" if v is None else s
             AVVISO="⚠️  ATTENZIONE: la v$VER è PIÙ VECCHIA di quella installata (v$ATTUALE). Hai preso lo zip giusto?"
         fi
     fi
+    # zip con le sole modifiche da una versione (campo «richiede»): serve almeno quella installata
+    local RICHIEDE
+    RICHIEDE="$(campo richiede)"
+    if [ -n "$RICHIEDE" ] && { [ -z "$ATTUALE" ] || [ "$(printf '%s\n%s\n' "$RICHIEDE" "$ATTUALE" | sort -V | head -1)" != "$RICHIEDE" ]; }; then
+        echo "❌ Questo zip contiene solo le modifiche dalla v$RICHIEDE, ma è installata la v${ATTUALE:-?}."
+        echo "   Installa prima la v$RICHIEDE (o chiedi uno zip completo): non ho toccato niente."
+        exit 1
+    fi
     local SPORCO
     SPORCO="$(git -C "$R" status --porcelain)"
 
@@ -82,6 +92,7 @@ print("\n".join(map(str, v)) if isinstance(v, list) else ("" if v is None else s
     echo " Zip:      $(basename "$Z")  ($(unzip -Z1 "$Z" | grep -vcE '^(deploy\.sh|rilascio\.json)$|/$') file)"
     echo " Riavvio:  ${RIAVVIA[*]}$( [ "$FERMA" = "true" ] && echo "  (bot aste fermato prima)")"
     [ ${#ELIMINA[@]} -gt 0 ] && printf ' Cancello: %s\n' "${ELIMINA[@]}"
+    [ ${#TOGLI[@]} -gt 0 ] && echo " Fermo e tolgo i servizi: ${TOGLI[*]} (volumi e secrets restano)"
     echo " Commit:   $MSG"
     echo "════════════════════════════════════════════════"
     [ -n "$AVVISO" ] && echo "$AVVISO"
@@ -123,6 +134,27 @@ print("\n".join(map(str, v)) if isinstance(v, list) else ("" if v is None else s
         echo "  docker compose up --build -d --force-recreate ${RIAVVIA[*]}"
     }
 
+    # servizi tolti dal compose: fermati e cancellati (i volumi restano, si cancellano a mano se servono)
+    local T IDS
+    for T in "${TOGLI[@]}"; do
+        IDS="$(docker ps -aq --filter "label=com.docker.compose.project=$(basename "$R")" --filter "label=com.docker.compose.service=$T")"
+        if [ -n "$IDS" ]; then
+            docker rm -f $IDS >/dev/null && echo "🗑  $T fermato e tolto"
+        else
+            echo "   $T: nessun container da togliere"
+        fi
+    done
+
+    # klra (v7.0.0): prima di avviarlo il suo utente PostgreSQL, il suo database e i permessi di sola lettura
+    # sul database della lega (fantabasket-klra/setup_db.sql, rilanciabile), a ogni rilascio che lo riavvia
+    if printf '%s\n' "${RIAVVIA[@]}" | grep -qx klra && [ -f fantabasket-klra/setup_db.sql ]; then
+        echo "🔐 klra: utente, database e permessi di sola lettura…"
+        if ! { printf "\\set pw '%s'\n" "$(tr -d "\n'" < secrets/pg_password_klra.txt)"; cat fantabasket-klra/setup_db.sql; } \
+               | docker compose exec -T postgres psql -U fantabasket -d fantabasket -v ON_ERROR_STOP=1 -q; then
+            echo "❌ Permessi di klra non impostati: non lo avvio"; torna_indietro; exit 1
+        fi
+    fi
+
     # 5. riavvio e controlli
     local INIZIO; INIZIO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     [ "$FERMA" = "true" ] && docker compose stop bot-aste-beta >/dev/null 2>&1
@@ -160,19 +192,24 @@ print("\n".join(map(str, v)) if isinstance(v, list) else ("" if v is None else s
     done
 
     # 6. commit, push, zip vecchi in archivio
-    git add -A
-    # rete di sicurezza: token, config e database non vanno mai su GitHub, anche senza .gitignore
-    local SENSIBILI
-    SENSIBILI="$(git diff --cached --name-only | grep -E '^(secrets|config)/|\.db$|globals\.gs$' || true)"
-    if [ -n "$SENSIBILI" ]; then
-        printf '%s\n' "$SENSIBILI" | while read -r f; do git reset -q -- "$f"; done
-        echo "🔒 Tenuti fuori dal commit ($(printf '%s\n' "$SENSIBILI" | wc -l) file in secrets/, config/, .db, globals.gs)."
-        echo "   Controlla che .gitignore li escluda:  grep -nE 'secrets|config' .gitignore"
-    fi
-    if git diff --cached --quiet; then
-        echo "ℹ️  Niente da salvare in git (versione già committata)."
+    # Se c'è ~/bots/commit_hook.sh (fuori dal repo), commit e push li fa lui, col messaggio come argomento.
+    if [ -x "$HOME/bots/commit_hook.sh" ]; then
+        REPO="$R" "$HOME/bots/commit_hook.sh" "$MSG" || echo "⚠️  commit_hook.sh non è andato a buon fine: controlla con  cd $R && git status"
     else
-        git commit -q -m "$MSG" && git push -q origin main && echo "📤 Commit e push fatti."
+        git add -A
+        # rete di sicurezza: token, config e database non vanno mai su GitHub, anche senza .gitignore
+        local SENSIBILI
+        SENSIBILI="$(git diff --cached --name-only | grep -E '^(secrets|config)/|\.db$|globals\.gs$' || true)"
+        if [ -n "$SENSIBILI" ]; then
+            printf '%s\n' "$SENSIBILI" | while read -r f; do git reset -q -- "$f"; done
+            echo "🔒 Tenuti fuori dal commit ($(printf '%s\n' "$SENSIBILI" | wc -l) file in secrets/, config/, .db, globals.gs)."
+            echo "   Controlla che .gitignore li escluda:  grep -nE 'secrets|config' .gitignore"
+        fi
+        if git diff --cached --quiet; then
+            echo "ℹ️  Niente da salvare in git (versione già committata)."
+        else
+            git commit -q -m "$MSG" && git push -q origin main && echo "📤 Commit e push fatti."
+        fi
     fi
     mkdir -p "$D/archivio/progettone/v3"
     ls -1v "$D"/fantabasket-progettone-v*.zip 2>/dev/null | head -n -$TIENI_ZIP | xargs -r mv -t "$D/archivio/progettone/v3/" || true

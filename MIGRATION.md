@@ -1,14 +1,16 @@
 # Messaggio di migrazione — Fantabasket Progettone
 
-**Stato: v7.1.0 · bot aste v82 · loucabot v86 · IPanchinari v37 · klra v2** (04/11/2026)
+> Progetto hobbistico: i bot che gestiscono una lega fantasy NBA tra amici (vedi `README.md`). Questo file è il quaderno di lavoro: stato, regole, decisioni e cose da fare.
 
-Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
+**Stato: v7.1.0 · bot aste v82 · loucabot v86 · IPanchinari v37 · klra v2** (07/11/2026)
+
+Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`, `fantabasket-klra/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 
 ---
 
 ## 1. Panorama
 
-Lega fantasy NBA a 24 squadre (due conference da 12) gestita su Telegram da quattro bot, su un server domestico Ubuntu con Docker Compose, in `~/bots/fantabasket-progettone` (repo git, push su `origin main`). Il vecchio bot aste standalone (`~/bots/fantabasket-aste`, v48) è spento e congelato.
+Lega fantasy NBA a 24 squadre (due conference da 12) gestita su Telegram da quattro bot ufficiali più klra (il bot «what-if», che sui dati ufficiali legge e basta), su un server domestico Ubuntu con Docker Compose, in `~/bots/fantabasket-progettone` (repo git, push su `origin main`). Il vecchio bot aste standalone (`~/bots/fantabasket-aste`, v48) è spento e congelato.
 
 **Stack:** Python 3.12, python-telegram-bot 22.8 [job-queue], PostgreSQL 16, SQLite (solo bot aste), Typst (PNG di roster e assets), FastAPI (router), Google Apps Script (fogli), httpx/aiohttp, pandas + lxml (bref).
 
@@ -19,16 +21,17 @@ Lega fantasy NBA a 24 squadre (due conference da 12) gestita su Telegram da quat
 | `bot-aste-beta` | bot delle aste FA e RFA (SQLite per le aste, PostgreSQL per cap e slot) |
 | `loucabot` | il campionato: calendario, tabellini ESPN e fantapunti, foglio Calendario |
 | `ipanchinari` | panchine (dai messaggi dei GM, soprannomi compresi) e quintetti |
+| `klra` | what-if: le stesse formazioni e gli stessi tabellini con sistemi di punteggio e conference alternativi; database suo (`klra`), sola lettura su quello ufficiale |
 | `gas-router` | ponte FastAPI verso la web app Apps Script (fogli Roster, Scelte, BrefRaw, Calendario) |
 | `nocodb` | dashboard in LAN/Tailscale, di solito spenta |
 
 ```
 fantabasket-progettone/
-├── docker-compose.yml
+├── docker-compose.yml · deploy.sh · README.md · MIGRATION.md (questo file)
 ├── config/        globals.json, teams.json, settings.json, divisions.json, tabelle/, loghi/   (solo sul server)
 ├── secrets/       token, password, URL dei fogli, *.env; cifrati/secrets.tar.gpg               (solo sul server)
 ├── shared/        in comune ai bot: ruoli_core.py, cap.py, squadre.py, messaggi.py, dev_comune.py (/dev_log, /dev_pg, /reboot ed error handler di loucabot e IPanchinari) (montata :ro)
-├── fantabasket-main/ · fantabasket-aste-beta/ · fantabasket-loucabot/ · fantabasket-ipanchinari/
+├── fantabasket-main/ · fantabasket-aste-beta/ · fantabasket-loucabot/ · fantabasket-ipanchinari/ · fantabasket-klra/
 ├── gas/           Apps Script (clasp); globals.gs solo in locale
 ├── gas-router/
 ├── scripts/       deploy.sh, cifra_secrets.sh, setup_dashboard.sh, prova_generale/
@@ -127,6 +130,7 @@ Lo specchietto completo regolamento ↔ codice ↔ prove, con i testi proposti p
 - **RFA**: si dichiara e si cambia quante volte si vuole fino all'inizio delle aste RFA (anche nel draft). In trade prima delle aste la dichiarazione decade (chi lo cede ne dichiara un altro, per chi lo riceve è un x0 che non pesa); dalle aste in poi segue il giocatore, massimo uno per squadra. Sui canali: una riga per evento sul log, un riepilogo unico aggiornato sul canale principale.
 - **Ruoli**: PG/SG/SF/PF/C tra le posizioni eleggibili; minimi 4G/4F/2C; dichiarazione a inizio stagione, in RS dichiarazioni post-trade/firma entro 48 h (poi estrazione) e regola dei 60 giorni; cambi ordinari 2 a stagione, Erminio (14 giorni dall'aggiunta della posizione), Saedro (10 giorni, una volta), forzati admin che non contano.
 - **Partita** (loucabot): fantapunti = punto +0,5, assist +2, rimb. off. +2, dif. +1,25, tripla +1,5, tiro tentato −0,5 e segnato +1, libero tentato −0,75 e segnato +1, recupero +2, stoppata +2, palla persa −2. Più partite nella giornata → media (uno 0 con 0 minuti non conta, uno 0 con dei minuti sì), arrotondata all'ottavo come la media della stagione (Luca, 13/10: solo ,00 ,13 ,25 ,38 ,50 ,63 ,75 ,88; la metà per eccesso, come ROUND dei fogli; `loucabot/numeri.py`); squadre NBA senza partite → media della stagione, 0 se indisponibile; FADD anche quando la squadra del titolare non gioca (deciso con Luca il 13/10), poi la panchina scala e resta di 4; supplementari sul Calendario come soli punti dei supplementari; vince chi ha 5 o più punti di scarto bonus casa compreso (3, playoff 5), poi supplementari con la panchina, pari fino al decimo uomo → trasferta. Vale il calcolo delle squadre a media dalle partite NBA, non le note del calendario.
+- **Media della squadra senza partite** (Luca, 13/10): la media vale solo sulla stagione in corso; chi non ha ancora partite quando serve la media prende 0, mai la media della stagione prima (alla prima giornata non si prende nessuna media). È già così in `calcolo.punteggio_giocatori`. (vale per il campionato ufficiale; i sistemi di klra possono fare diversamente)
 - **Ceduti prima della scadenza** (Luca, 18/10): un panchinaro che alla scadenza non è più della squadra (registro dei movimenti, `shared/rosa.py`) esce dalla panchina e gli altri scalano (diverso dal **titolare messo anche in panchina**: lì quella posizione della panchina vale 0 e gli altri **non** scalano, Luca 23/10); alla chiusura IPanchinari lo segnala al gruppo admin (penalità). Un titolare non più in squadra resta (fa fede Yahoo: lo correggono gli admin), con l'avviso. Chi è ceduto dopo la scadenza conta per la vecchia squadra fino a fine giornata.
 - **Cambi dei numeri del regolamento** (Luca, 18/10): si decidono alla riunione di lega di giugno e si cambiano in `settings.json`. Se cambiano i pesi dei fantapunti: `/dev_ricalcola_fp` su loucabot per la stagione nuova; le giornate già convalidate non si ricalcolano mai.
 
@@ -146,11 +150,11 @@ Guida tecnica completa: `fantabasket-main/docs/guida_dev.md`.
 - **Basketball-Reference**: job giornaliero alle 12:00, `orari.bref` (per_game → `bref_stats`, fantamedie, cambi squadra NBA). L'aggancio all'anagrafica è per `giocatori.nome_bref` uguale al nome di bref: un nome nuovo uguale senza accenti a uno e un solo giocatore mai visto su bref si abbina da solo (v5.4.1), gli altri vanno al dev (🔗 abbina a un simile, 🆕 crea, ✅ crea quelli senza simili); nel log chi è abbinato e chi a roster su bref non c'è.
 - **Anagrafica** `giocatori`: `nome_common`, `nome_bref`, `nome_yahoo`, `yahoo_id`, `espn_id` e `nome_espn` (questi due li scrive loucabot), `data_nascita`.
 
-## 7. Bot aste (`fantabasket-aste-beta`, v64)
+## 7. Bot aste (`fantabasket-aste-beta`)
 
 Guida tecnica: `fantabasket-aste-beta/docs/guida_dev.md`. Aste in SQLite per scelta (si può sempre tornare al v48), cap e slot da PostgreSQL (`pg_client.py`, `shared/cap.py`); `config/` in sola lettura. FA e RFA (aste RFA aperte da sole all'inizio della fase), `/apri_asta` per conto di una squadra, menu comandi per ruolo e fase, nessun backup suo (lo fa il principale), file grandi divisi nella v3.13.0 (`admin_*`, `firma_*`).
 
-## 8. loucabot (`fantabasket-loucabot`, v9)
+## 8. loucabot (`fantabasket-loucabot`)
 
 README e guide in `fantabasket-loucabot/` e `docs/`. Legge tutto, scrive solo le sue tabelle (`lega_*`, `nba_*`) più `giocatori.espn_id`/`nome_espn`. Canale log suo (`log_channel_id_louca`), gruppo admin solo per i cambi del calendario; menu per scope e guide come gli altri bot.
 
@@ -160,7 +164,7 @@ README e guide in `fantabasket-loucabot/` e `docs/`. Legge tutto, scrive solo le
 - **Calcolo** (`calcolo.py`): punteggio del giocatore nella giornata, della squadra con FADD, esito con supplementari, tutto provato. `/fantapunti N` per controllo.
 - **Foglio Calendario** (stesso file del Roster, oggi un foglio parallelo di test): a ogni aggiornamento si ricarica tutta la pagina, colonne A:E (formattazione e celle unite restano), con le squadre a media calcolate e i punteggi in B e D (regolamentari nella riga delle squadre, supplementari sotto) da `lega_risultati`. All'import, quando cambiano le squadre a media, con `/calendario_foglio`; da fare anche dopo ogni giornata ufficializzata. La classifica sul foglio ha le sue formule.
 
-## 8b. IPanchinari (`fantabasket-ipanchinari`, v5)
+## 8b. IPanchinari (`fantabasket-ipanchinari`)
 
 README e guide in `fantabasket-ipanchinari/`. Scrive solo `ipa_*`; legge roster e ruoli (bot principale), giornate e partite NBA (loucabot). Deciso con Luca (13/10/2026), per venire incontro alle abitudini dei GM:
 - **Panchine come sempre, da messaggio**: il GM manda al bot in privato le righe dei panchinari (soprannomi "High CAI" compresi, titolo facoltativo sopra separato da una riga vuota); il bot le abbina ai giocatori della squadra (tollerante; dubbi coi bottoni; soprannomi ricordati, che seguono il giocatore nelle trade; `/soprannomi` per vederli e cancellarli), chiede conferma e pubblica sul **canale Panchinari solo le righe come le ha scritte il GM**, mai i nomi veri. **Sempre 5 giocatori, mai meno.** Vale per la prossima giornata aperta; rimandata, il messaggio sul canale si modifica. Chi vuole la compone coi bottoni (`/build_panchina`: solo giocatori non nel quintetto; con il bottone 😎 CAI mode titolo e soprannomi).
@@ -168,6 +172,13 @@ README e guide in `fantabasket-ipanchinari/`. Scrive solo `ipa_*`; legge roster 
 - Alla scadenza i quintetti si congelano in `ipa_formazioni`: sono quelli che userà il calcolo, insieme a `ipa_panchine`. Gli admin li correggono anche a giornata in corso (`/quintetto_admin SQUADRA [GN]`, senza righe coi bottoni partendo dal quintetto attuale; `/panchina_admin SQUADRA` senza righe apre il builder): il lavoro su Yahoo non va fatto per forza prima della scadenza.
 - Per il quintetto fa fede Yahoo (regolamento): i GM non sono obbligati ad aggiornarlo nel bot; un panchinaro titolare nel bot è solo segnalato (al GM e sul canale log), non blocca. Il bot lo ripete ovunque inviti ad aggiornare il quintetto: "non è obbligatorio, è un favore agli admin" (`comune.FAVORE`).
 - **Trade e tagli**: un giocatore schierato (quintetto, panchina della prossima giornata, giornata in corso) che esce dalla squadra fa partire un avviso ai GM e al canale log, una volta sola (job ogni 5 minuti).
+
+## 8c. klra (`fantabasket-klra`)
+
+README e CHANGELOG in `fantabasket-klra/`. Il frontend è quello di loucabot (stessi comandi e immagini), con **NON UFFICIALE** ovunque (striscia rossa, filigrana, testi). Il motore usa il codice di loucabot montato in sola lettura e sostituisce solo le letture dei risultati con quelle del sistema scelto.
+- **Separazione assoluta** (Luca, 04/11): database PostgreSQL `klra` con utente suo; sul database ufficiale solo SELECT sulle tabelle elencate in `setup_db.sql` e transazioni in sola lettura. `deploy.sh` esegue `setup_db.sql` prima di avviarlo.
+- **Sistemi**: Ufficiale, Fantamedie e Fantapanchine predefiniti; quelli dei GM si copiano da qualsiasi sistema e li modifica solo chi li ha creati. Conference alternative salvate da chiunque, anche estratte a caso.
+- `/klra_verifica`: con l'Ufficiale klra deve dare esattamente i risultati convalidati di loucabot.
 
 ## 9. Fonti esterne
 
@@ -214,17 +225,11 @@ Cose che non stanno nelle guide e che servono quando qualcosa va storto.
 
 ## 10. Prove
 
-PostgreSQL 16 locale, database `fbt` (utente `fb`), configurazione finta in `tests/config/` (4 squadre, admin 900), Telegram simulato. `tests/run.sh` lancia le 48 prove (bot principale, bot aste con e senza PG, loucabot, IPanchinari, documentazione); `tests/run.sh nome` solo quelle. Le prove fanno `TRUNCATE`: `tests/guardia.py` le blocca sul server o su un database non locale, e sul server `run.sh` non è eseguibile. Dettagli: `tests/README.md`. Lo script Apps Script si prova simulando il foglio con node.
+PostgreSQL 16 locale, database `fbt` (utente `fb`), configurazione finta in `tests/config/` (4 squadre, admin 900), Telegram simulato. `tests/run.sh` lancia le 62 prove (bot principale, bot aste con e senza PG, loucabot, IPanchinari, klra, documentazione); `tests/run.sh nome` solo quelle. Le prove fanno `TRUNCATE`: `tests/guardia.py` le blocca sul server o su un database non locale, e sul server `run.sh` non è eseguibile. Dettagli: `tests/README.md`. Lo script Apps Script si prova simulando il foglio con node.
 
 ---
 
 ## 11. Da fare
-
-**Prima dell'inizio della stagione (20/10/2026)**, in quest'ordine:
-1. ~~IPanchinari in produzione~~ **fatto** (in produzione dal 20/10): token, canale, quintetti di partenza (`/quintetti_import`), qualche giro di prova con 2-3 GM prima del 20.
-2. ~~Regole di calcolo complete~~ **fatto nella v5.1.0**: calcolo alle 7:45 coi definitivi dai quintetti congelati e dalle panchine, tab «Calcolo GN» sul foglio di controllo (formule che rifanno i conti del bot), proposta al gruppo admin con Convalida/Ricalcola, correzioni dal bot (`/set_valid_status`, `/quintetto_admin SQUADRA GN`, `/panchina_admin SQUADRA GN`, `/ricalcola N`), controllo dei tabellini alle 10:00, alla convalida `lega_risultati` e foglio Calendario. Deciso con Luca il 13/10: il foglio di controllo è un file a parte (`CALCOLO_SPREADSHEET_ID` in `gas/globals.gs`); le correzioni si fanno sempre dal bot, mai sul foglio; nella classifica media e differenza punti col bonus casa; sul Calendario punti col bonus casa e sotto i soli punti dei supplementari; senza panchina si gioca senza supplementari (avviso agli admin); il giocatore ceduto a giornata in corso conta per la vecchia squadra fino a fine giornata.
-   - Deciso con Luca il 13/10: la media vale solo sulla stagione in corso; chi non ha ancora partite quando serve la media prende 0, mai la media della stagione prima (alla prima giornata non si prende nessuna media). È già così in `calcolo.punteggio_giocatori`.
-3. ~~Classifica~~ **fatto nella v5.5.0** (`/classifica`, `/classifica_full`; Luca 16/10: colonne e statistiche). Classifica nel bot, `/classifica` come immagine Typst (parità: prima gli scontri diretti, se le squadre si sono già incontrate, poi i punti fatti (media) e la differenza punti, col bonus casa; ribadito da Luca il 13/10; con tre o più squadre a pari la classifica avulsa, cioè solo gli scontri diretti tra loro, e negli scontri diretti contano solo vittorie e sconfitte, mai lo scarto (Luca, 13/10); fa fede quella dei fogli). Da confermare: "indisponibile" = stato diverso da Probable nello snapshot che conta di ogni giorno della giornata (l'ultimo prima della prima partita).
 
 **Dopo** (ordine deciso con Luca il 13/10: live e classifica, 10-day il prima possibile, poi playoff, draft e rinnovi)
 - ~~Foglio Google pubblico di calcolo automatico~~: è il foglio di controllo del calcolo (tab «Calcolo GN»), per trasparenza verso i GM (Luca, 13/10). A fine stagione se ne fa un backup e si azzera.
@@ -245,7 +250,6 @@ PostgreSQL 16 locale, database `fbt` (utente `fb`), configurazione finta in `tes
   - **Sistema «Ufficiale»** = le regole di adesso, primo della lista; prova che con quello klra dà esattamente i risultati convalidati di loucabot.
   - **Cosa si cambia**: pesi di ogni statistica dei fantapunti (anche falli e minuti); bonus e malus del giocatore (doppia, tripla e quadrupla doppia, 5x5, 40 punti, 20 rimbalzi, 15 assist, 5 stoppate, mano calda ≥8 tiri e ≥70%, mattone ≥10 tiri e <30%, 30+ minuti senza palle perse, 6 falli, tetto ai fantapunti di un giocatore); bonus di squadra (quintetto tutto sopra una soglia, MVP di giornata, malus per titolare sotto zero); regole della partita (bonus casa, scarto minimo per vincere, supplementari sì/no/pareggio, FADD sì/no, chi non gioca: media, % della media o 0, quanti panchinari entrano); classifica (punti per vittoria, sconfitta ai supplementari, pareggio, oppure vinte-perse). **Più avanti**: modalità a categorie (9 categorie, stile fantabasket americano), che cambia anche la grafica di `/partita`.
   - **Regole decise (Luca, 04/11)**: un sistema si crea sempre come copia di un altro e si modifica coi bottoni; lo modifica **solo chi l'ha creato**, gli altri lo modificano facendone una copia (04/11, prima era «congelato»); **nessun limite** di sistemi per GM. Calcoli solo sulle giornate convalidate dalla lega, in cache per firma dei parametri: rifatti se la giornata viene riconvalidata o se il sistema cambia.
-  - Prima del codice i **mockup** di `/sistemi`, dell'editor e di `/confronta`.
 - ~~**Riassegnare una franchigia a un GM nuovo dal bot**~~ **fatto nella v6.25.0** (v6.26.0: anche dal menu admin e dalla richiesta di accesso del nuovo GM; `/riassegna`, admin, con conferma, registro, canale log, avvisi; tutti i bot leggono l'accesso da teams.json, quindi il vecchio GM perde subito bozze, aste, offerte e voti) (Luca, 23/10: se un GM lascia): prima si faceva a mano in `teams.json` (`gm_ids`, `gm_nome`). Da fare: comando admin che cambia GM (id Telegram e nome) di una squadra, con conferma, registro e canale log; avviso al GM nuovo con la guida; controllo che il vecchio non abbia più accesso (bozze di trade, aste aperte, offerte, voti) e che il nuovo non sia già GM di un'altra squadra.
 - ~~Togliere `yahoo-router`~~ **fatto nella v6.19.0** (Luca, 31/10 e 04/11): servizio e secrets tolti dal compose, cartella cancellata, campo `ferma` nel `rilascio.json` (il deploy ferma e cancella il container), prova `router_health` solo su gas-router, README e guide aggiornati. Sul server restano il volume `fantabasket-progettone_yahoo_data` e i file `secrets/yahoo_*`: si cancellano a mano.
 - ~~Abbinare su Basketball-Reference anche i giocatori coi soli diritti~~ **fatto nella v6.19.0** (Luca, 01/11 e 04/11): l'abbinamento valeva già per tutta l'anagrafica; in più nel log del job bref i diritti in un roster NBA mai visti su bref, e la fantamedia dei diritti («FP —» se non c'è) in `/assets`, nelle trade e nella firma dei diritti.
@@ -265,7 +269,6 @@ PostgreSQL 16 locale, database `fbt` (utente `fb`), configurazione finta in `tes
 - ~~Classifica: migliore e peggiore di ogni colonna~~ **fatto nella v6.8.0** (loucabot v62; `classifica.DIREZIONI`, a pari merito tutti colorati, colonna tutta uguale senza colori) (Luca, 28/10): in `/classifica` e `/classifica_full` (immagini Typst di loucabot) il valore migliore di ogni colonna in verde e il peggiore in rosso, tranne W/L. Da decidere per colonna cosa è «migliore» (es. punti subiti: il più basso) e cosa fare con le parità (tutti colorati).
 - ~~Gestione degli status per la FADD~~ **fatto nella v6.10.1** (loucabot v68; Luca 31/10, casi Kawhi Leonard e VJ Edgecombe in G3: Out dopo la prima partita della notte ma prima della loro): per ogni giorno in cui la sua squadra gioca conta l'ultimo injury report prima della **sua** partita, non della prima della notte; vale anche se gioca solo il secondo o terzo giorno.
 - **Notti già congelate che ESPN corregge dopo** (Luca, 30/10): non è certo che Yahoo le ignori. Per ora alle 20 il bot rilegge le notti prima della giornata e chiede agli admin coi bottoni (✅ aggiorna come Yahoo / ❌ lascia com'è). Da verificare su Yahoo nelle prossime settimane: se Yahoo non aggiorna mai una notte già chiusa, si toglie la rilettura e resta solo `/controllo_notte` per le eccezioni.
-- **«Colerabot»** (Luca, 28/10): idea nuova, la spiega Luca più avanti.
 - **Controllo del tanking** (parte 1 **fatta nella v6.10.0**, loucabot v67, `tanking.py`: alle 11 dopo la prima notte, soglia +8 o +30%, ruolo dalle posizioni eleggibili di Yahoo, Luca 30/10; v6.10.3: injury report delle 21 italiane, solo Out che non rigiocano, secondo giro a fine giornata, Luca 31/10; **parte 2 a consuntivo fatta nella v6.25.0**, loucabot v85: alla convalida, efficienza sotto l'80%, storico in `lega_tanking`; v86: senza cambi ruolo, Luca 07/11) (Luca, 25/10: «prossimamente»): segnalare al gruppo admin, mai in pubblico, le formazioni che sembrano fatte per perdere. Due momenti: (1) **alle 11 del mattino dopo la prima notte** di ogni giornata (Luca, 25/10: non alla scadenza, perché i quintetti congelati si possono ancora correggere; dopo la prima notte il quintetto è quello; orario in `orari`, es. `controllo_tanking`), **da subito e a ogni giornata**: per ogni posto, c'è in rosa (o in panchina) un giocatore che può giocare quel ruolo, ha partite nella giornata, non è indisponibile nell'injury report, e ha una fantamedia nettamente più alta del titolare (soglia in `regole`, es. +8 o +30%)? titolari Out o senza partite (che non prendono la media) al posto di giocatori sani; posti vuoti; panchina non mandata. (2) **dopo la convalida**, a consuntivo: quanti punti avrebbe fatto la formazione migliore possibile rispetto a quella schierata (efficienza %), e lo storico per squadra (quante giornate sotto soglia). Report a ogni giornata (una riga «nessun indizio» se non c'è niente); peso maggiore per le squadre in fondo alla classifica o già fuori dai playoff, dove il tanking conviene. Il report dà gli **indizi** (chi, al posto di chi, medie, partite, stato injury), non un verdetto: decidono gli admin (scelte legittime: minutaggi, rientri, riposi). Soglie e orari in `settings.json`. Dati già tutti nel database: formazioni congelate, rose, posizioni eleggibili, medie, calendario NBA, snapshot degli infortunati.
 - **Guest mode** (eventuale; Luca, 25/10): con la Bot API 10.0 (maggio 2026) un bot si può citare con @nome in una chat dove non è membro e risponde lì, vedendo solo il messaggio in cui è citato e le risposte a quello (aggiornamenti `guest_message`, `answerGuestQuery`). python-telegram-bot la supporta dalla 22.8, quella che usiamo. **Già provata** (Luca, 25/10): in risposta manda solo foto già caricate su Telegram, non un PNG appena generato come i nostri (roster, assets, `/player`, `/carriera`). Strada possibile, da provare: il bot genera l'immagine, la manda prima in una chat sua (es. il canale log) per avere il `file_id` e risponde in guest mode con quello. Costa un messaggio in più per richiesta e qualche secondo. Da decidere se ne vale la pena, con quali bot e per chi (solo GM e admin?).
 - **Aggiornare python-telegram-bot per le funzioni nuove dei bot** (Luca, 25/10): di tanto in tanto, a ogni versione nuova, vedere cosa aggiunge la Bot API e cosa ci serve. Il primo candidato sono i **rich messages** (Bot API 10.1–10.3, giugno-agosto 2026: `sendRichMessage`, blocchi con titoli, elenchi, tabelle anche compatte, citazioni espandibili, bottoni dentro il messaggio, modifica con `editMessageText`), che renderebbero leggibili come testo cose oggi lunghe o in immagine (live, `/live_results`, proposta delle 7:45, report, `/lista_fa`). La 22.8 arriva alla Bot API 10.0, quindi i rich messages vanno aspettati in una versione nuova di python-telegram-bot. Ogni aggiornamento: changelog per le rotture, tutte le prove, un deploy da solo.
@@ -293,9 +296,9 @@ PostgreSQL 16 locale, database `fbt` (utente `fb`), configurazione finta in `tes
 ```bash
 cd ~/bots/fantabasket-progettone && \
 zip -r ~/fantabasket-progettone-export-$(date +%Y%m%d).zip \
-  fantabasket-main/ fantabasket-aste-beta/ fantabasket-loucabot/ fantabasket-ipanchinari/ \
+  fantabasket-main/ fantabasket-aste-beta/ fantabasket-loucabot/ fantabasket-ipanchinari/ fantabasket-klra/ \
   gas/ gas-router/ shared/ tests/ docs/ scripts/ \
-  docker-compose.yml README.md \
+  docker-compose.yml deploy.sh README.md MIGRATION.md \
   --exclude "**/__pycache__/*" --exclude "**/*.pyc" --exclude "**/*.db" \
   --exclude "secrets/*" --exclude "config/*" \
   --exclude "gas/globals.gs" --exclude "gas/.clasp.json" \

@@ -1,122 +1,115 @@
 # Fantabasket Progettone
 
-A private, self-hosted set of Telegram bots that runs the day-to-day management of
-**one fantasy NBA league played among friends**: 24 teams, split across two Yahoo
-Fantasy Basketball leagues because Yahoo caps leagues at 20 members.
+Un progetto **hobbistico**: un gruppo di bot Telegram che gestisce **una lega fantasy NBA
+giocata tra amici** (24 squadre). Lo usano solo i membri della lega e gira su un piccolo
+server di casa.
 
-This is a non-commercial hobby project. It has no public users, no website and no
-app store presence: the only people who interact with it are the members of our
-league.
+## Perché esiste
 
-**Yahoo remains the platform where the league is actually played.** Every team
-manager actively uses Yahoo Fantasy to set their starting lineup for each matchday.
-These bots do not replace that: they only handle the "dynasty" layer that Yahoo
-does not support natively (multi-year contracts, salary cap, auctions, trades with
-draft picks, rookie contracts).
+Le formazioni si schierano su Yahoo Fantasy Basketball, ma la lega ha regole sue che Yahoo
+non gestisce: contratti pluriennali, salary cap, aste per i free agent, trade con scelte al
+draft, contratti da rookie, panchine e un calendario proprio con punteggi calcolati da noi.
+Per anni tutto questo si è fatto a mano su un foglio condiviso. I bot automatizzano i conti e
+le procedure e tengono il foglio aggiornato.
 
-## What it does
+## Cosa fanno
 
-That dynasty layer has been run by hand on a shared spreadsheet for years. These
-bots automate the bookkeeping:
+- **Contratti e cap**: contratti pluriennali, tetto salariale e minimo, dead money dei tagli,
+  eccezioni per infortunio.
+- **Aste**: aste a tempo in un canale Telegram per i free agent, anche ristrette (RFA) con
+  diritto di pareggio.
+- **Trade**: proposta, controlli (cap, roster, regole sulle scelte), approvazione; registro di
+  tutti i movimenti.
+- **Draft e rookie**: scelte, diritti e contratti da rookie; cambio di stagione automatico.
+- **Campionato**: calendario della lega allineato a quello NBA, fantapunti dai tabellini delle
+  partite (anche in diretta), risultati convalidati da un admin, classifiche e immagini.
+- **Formazioni**: panchine mandate dai GM come messaggio, quintetti, avvisi su infortuni e
+  giocatori ceduti.
+- **What-if**: le stesse giornate rigiocate con sistemi di punteggio inventati dai GM, sempre
+  segnate come **non ufficiali** e separate dai dati veri.
+- **Foglio della lega**: il Google Sheet condiviso resta aggiornato in automatico.
 
-- **Contracts and salary cap**: multi-year contracts, cap and salary floor checks,
-  dead money from releases.
-- **Free agency auctions**: timed auctions in a Telegram channel, including
-  restricted free agency (RFA) with matching rights.
-- **Trades**: proposal, validation (cap, roster limits, draft-pick rules) and
-  approval flow.
-- **Draft and rookie scale**: draft picks, rookie rights and rookie-scale contracts.
-- **Season rollover**: expiring contracts, rookie-scale steps, rookie renewals and
-  restricted free agency declarations, new draft picks.
-- **League sheet sync**: keeps the league's Google Sheet (rosters, picks) up to
-  date via Google Apps Script.
-- **Roster cards**: rendered roster images (Typst) posted on request.
+## Architettura
 
-## Architecture
-
-Everything runs with Docker Compose on a small home server. The four bots never call
-each other: they share one PostgreSQL database, each writing its own tables.
+Tutto gira con Docker Compose. I bot non si chiamano tra loro: condividono un database
+PostgreSQL, ognuno scrive solo le sue tabelle.
 
 ```
- OUTSIDE                          THE FOUR BOTS                      TELEGRAM
+ FONTI                            I BOT                              TELEGRAM
                                ┌────────────────────┐
  Basketball-Reference ───────► │ bot-main           │ ──┐
-   daily season stats          │ contracts, cap,    │   │            private chats
-                               │ trades, roles      │   │            main channel
-                               │                    │   │            league group
-                               └────────────────────┘   │            admin group
-                               ┌────────────────────┐   ├──────────► auction channel
-                               │ bot-aste-beta      │ ──┤            bench channel
-                               │ FA / RFA auctions  │   │            log channels
-                               └────────────────────┘   │
- ESPN public data ───────────► ┌────────────────────┐   │
-   NBA schedule, box scores,   │ loucabot           │ ──┤
-   injuries, rosters           │ schedule, fantasy  │   │
-                               │ points, results    │   │
+   medie stagionali            │ contratti, cap,    │   │            chat private
+                               │ trade, ruoli       │   │            canale principale
+                               └────────────────────┘   │            gruppo della lega
+                               ┌────────────────────┐   │            gruppo admin
+                               │ bot-aste-beta      │ ──┤            canale aste
+                               │ aste FA e RFA      │   ├──────────► canale panchine
+                               └────────────────────┘   │            canali di log
+ ESPN (dati pubblici) ───────► ┌────────────────────┐   │
+   calendario NBA, tabellini,  │ loucabot           │ ──┤
+   infortuni, roster           │ calendario, punti, │   │
+                               │ risultati          │   │
                                └────────────────────┘   │
                                ┌────────────────────┐   │
-                               │ ipanchinari        │ ──┘
-                               │ benches, lineups   │
+                               │ ipanchinari        │ ──┤
+                               │ panchine, quintetti│   │
+                               └────────────────────┘   │
+                               ┌────────────────────┐   │
+                               │ klra (what-if)     │ ──┘
+                               │ sola lettura       │
                                └────────────────────┘
-                                         │ all four bots
+                                         │
                                          ▼
-                ┌───────────────────────────────────────────┐   aste.db (SQLite, auctions)
-                │ PostgreSQL: one database, per-bot tables  │   config/, secrets/ (server only)
-                └───────────────────────────────────────────┘   NocoDB (read-only, home network)
+     ┌───────────────────────────────────────────────┐   aste.db (SQLite, aste)
+     │ PostgreSQL: database della lega               │   config/, secrets/ (solo sul server)
+     │ + database separato per klra                  │   NocoDB (sola lettura, rete di casa)
+     └───────────────────────────────────────────────┘
 
- Google Sheets ◄── gas-router ◄── bot-main  (rosters, picks, stats)
- (league sheet)   (Apps Script) ◄── loucabot  (calendar, results)
+ Google Sheets ◄── gas-router ◄── bot-main  (roster, scelte, statistiche)
+ (foglio lega)   (Apps Script) ◄── loucabot  (calendario, risultati)
 ```
 
-A typical matchday: lineups lock at the first NBA game; loucabot follows the games live
-from ESPN box scores, computes the results the morning after the last night, and an admin
-validates them before they reach the league sheet and the main channel.
+| Servizio        | Ruolo                                                                      |
+|-----------------|----------------------------------------------------------------------------|
+| `bot-main`      | Bot principale: contratti, cap, trade, tagli, draft, ruoli, stagione, backup |
+| `bot-aste-beta` | Aste dei free agent (FA e RFA)                                             |
+| `loucabot`      | Il campionato: calendario, tabellini e fantapunti, risultati, classifiche  |
+| `ipanchinari`   | Panchine dai messaggi dei GM e quintetti                                   |
+| `klra`          | What-if coi sistemi di punteggio alternativi; database suo, sola lettura su quello della lega |
+| `gas-router`    | Ponte interno verso Google Apps Script                                     |
+| `postgres`      | Database                                                                   |
+| `nocodb`        | Consultazione delle tabelle in sola lettura, solo dalla rete di casa       |
 
-| Service        | Role                                                            |
-|----------------|-----------------------------------------------------------------|
-| `bot-main`     | League management bot (contracts, trades, draft, rosters)       |
-| `bot-aste-beta` | Free agency / RFA auction bot                                 |
-| `loucabot`     | Season bot: league schedule synced with the NBA calendar, box scores and fantasy points |
-| `klra`         | What-if bot: the same lineups and box scores under alternative scoring systems made by the managers; read-only on the league database |
-| `ipanchinari`  | Lineups bot: bench messages from the managers (nicknames included) and starting fives |
-| `gas-router`   | Internal proxy to the Google Apps Script web app                |
-| `postgres`     | League database                                                 |
-| `nocodb`       | Read-only table browser for the admin, reachable only on the home network / VPN |
+Una giornata tipo: i quintetti si bloccano alla prima partita NBA, loucabot segue le partite
+dai tabellini ESPN, la mattina dopo l'ultima notte calcola i risultati e un admin li convalida
+prima che finiscano sul foglio e sul canale.
 
-The router is only reachable on the internal Docker network. Credentials are
-stored as Docker secrets and are never committed to this repository.
+## Dati
 
-## What ends up in the league spreadsheet
+- **ESPN** (pagine pubbliche delle partite): calendario NBA, risultati, tabellini, infortuni,
+  squadre dei giocatori.
+- **Basketball-Reference**: medie stagionali, da cui si calcola la fantamedia di ogni
+  giocatore con la formula della lega.
+- **Yahoo**: solo le posizioni in cui ogni giocatore può essere schierato, importate a mano.
+  Nessuna statistica, punteggio o classifica di Yahoo viene salvata o mostrata.
 
-The Google Sheet is our league's own ledger, and almost none of it comes from
-Yahoo. Per team it contains:
+Credenziali, ID e configurazione della lega stanno solo sul server (Docker secrets e file
+esclusi dal repo).
 
-- players under contract, with **salary and years left** (our league's contracts,
-  not Yahoo data);
-- each player's **league role**, chosen by the team manager among the positions
-  Yahoo lists for that player (this is the only Yahoo-derived field);
-- dead money from released players, injury exceptions, cap penalties and rule
-  counters (free releases, role changes used);
-- draft picks, unsigned draft rights and rookie-scale contracts.
+## Documentazione
 
-No Yahoo stats, scores, projections or rankings are stored or shown anywhere: the
-fantasy averages our rules need are computed from Basketball-Reference (see below).
+- `MIGRATION.md`: stato del progetto, regole di lavoro, decisioni e cose da fare.
+- Ogni bot ha README, CHANGELOG e guide (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md`).
+- `docs/RECOVERY.md`: backup e ripristino. `docs/regolamento_e_codice.md`: dove il regolamento
+  sta nel codice.
+- `tests/README.md`: le prove, che girano solo in locale.
 
-## Other data sources
+## Tecnologie
 
-- **ESPN** (public NBA game pages): NBA schedule, scores and box scores, from which the
-  bots compute fantasy points (live during the games and final after them), the injury
-  list, players' NBA teams and headshots.
-- **Basketball-Reference**: daily season averages, used to compute each player's
-  fantasy average with our league's scoring formula (minimum salaries, renewals,
-  free agent lists).
-
-## Tech stack
-
-Python 3.12 · python-telegram-bot · PostgreSQL 16 · FastAPI · Typst ·
+Python 3.12 · python-telegram-bot · PostgreSQL 16 · SQLite · FastAPI · Typst ·
 Google Apps Script · Docker Compose
 
-## Disclaimer
+## Note
 
-Not affiliated with, endorsed by, or sponsored by Yahoo or the NBA. All trademarks
-belong to their respective owners.
+Non affiliato a Yahoo, alla NBA, a ESPN o a
+Basketball-Reference, né approvato da loro. I marchi appartengono ai rispettivi proprietari.

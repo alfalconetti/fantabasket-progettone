@@ -9,6 +9,7 @@ Promemoria tecnico: cosa c'è nel bot, dove sta e come funziona. Il bot aste ha 
 ```
 fantabasket-progettone/
 ├── docker-compose.yml
+├── README.md · MIGRATION.md  presentazione del progetto; stato, regole, decisioni e cose da fare
 ├── config/             globals.json, teams.json, settings.json, divisions.json, loghi/ …  (NON in git)
 ├── secrets/            token, password, URL dei fogli, *.env                            (NON in git)
 │   └── cifrati/        secrets.tar.gpg per il backup (scripts/cifra_secrets.sh)
@@ -17,9 +18,10 @@ fantabasket-progettone/
 ├── fantabasket-aste-beta/ bot aste
 ├── fantabasket-loucabot/  loucabot: calendario e calcolo dei fantapunti, README e docs/ suoi
 ├── fantabasket-ipanchinari/ IPanchinari: panchine (messaggi dei GM) e quintetti, README e docs/ suoi
+├── fantabasket-klra/      klra: what-if coi sistemi di punteggio alternativi, database suo, README suo
 ├── gas-router/            ponte verso Google Apps Script (fogli)
 ├── gas/                   codice Apps Script (clasp)
-├── scripts/               cifra_secrets.sh, setup_dashboard.sh
+├── scripts/               deploy.sh, cifra_secrets.sh, setup_dashboard.sh, prova_generale/
 ├── tests/                 prove locali (MAI sul server)
 └── docs/RECOVERY.md
 ```
@@ -672,7 +674,7 @@ PostgreSQL 16 locale, database `fbt` (fb/fb), config finta in `tests/config/`. `
 
 1. voce `## vX.Y.Z (data)` nel CHANGELOG (la versione del bot si legge da lì);
 2. voce `## vNN` nel CHANGELOG del bot aste, se lo tocchi;
-3. `MIGRATION.md` aggiornato dove cambia lo stato (decisioni, architettura, operazioni, da fare): niente righe per versione, la storia sta nei CHANGELOG;
+3. `MIGRATION.md` (nella root) aggiornato dove cambia lo stato (decisioni, architettura, operazioni, da fare): niente righe per versione, la storia sta nei CHANGELOG;
 4. zip con i percorsi del repo, senza `config/`, `secrets/`, `.db`, `gas/globals.gs`, più alla radice `deploy.sh` (copia di `scripts/deploy.sh`) e `rilascio.json` (`versione`, `messaggio` di commit, `elimina`, `riavvia`, `ferma_aste_prima`, `attesa_main`, `log_attesi`).
 
 Deploy di uno zip, da `~/bots`: `Z=fantabasket-progettone-vX.Y.Z.zip; bash <(unzip -p $Z deploy.sh) $Z`. Controlla zip e versione, chiede conferma, fa il dump del database in `archivio/backup-deploy/`, scompatta, cancella i file tolti, riavvia controllando i log, fa commit e push e archivia gli zip oltre gli ultimi 5. Se un bot non parte non fa il commit e stampa come tornare indietro.

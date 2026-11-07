@@ -189,4 +189,4 @@ NYK-SAS del 1/3/2026, formula, infortunati, partite/media/zero, FADD, supplement
 
 ## Da fare
 
-Nella roadmap di `fantabasket-main/MIGRATION.md`: tabellone e calendario dei playoff (con il congelamento della regular season e i controlli per notte), lottery (c'è già il codice di un admin da portare qui), controllo del tanking.
+Nella roadmap di `MIGRATION.md` (nella root del repo): tabellone e calendario dei playoff (con il congelamento della regular season e i controlli per notte), lottery (c'è già il codice di un admin da portare qui), controllo del tanking.
