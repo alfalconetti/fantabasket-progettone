@@ -481,6 +481,11 @@ async def _cmd_top(update, context):
     await top_giocatori.cmd_top(update, context)
 
 
+async def _cmd_top_storica(update, context):
+    import top_giocatori
+    await top_giocatori.cmd_top_storica(update, context)
+
+
 async def _cmd_pdf_giornata(update, context):
     import pdf_partite
     await pdf_partite.cmd_pdf_giornata(update, context)
@@ -521,6 +526,7 @@ def get_handlers() -> list:
         CommandHandler("live_results", _cmd_live_results),
         CommandHandler("live", _cmd_live_img, block=False),
         CommandHandler("top", _cmd_top, block=False),
+        CommandHandler("top_storica", _cmd_top_storica, block=False),
         CommandHandler("pdf_giornata", _cmd_pdf_giornata, block=False),     # 13 pagine: il bot intanto risponde
         CommandHandler("pdf_partite", _cmd_pdf_partite, block=False),
         CommandHandler("notte", _cmd_notte),

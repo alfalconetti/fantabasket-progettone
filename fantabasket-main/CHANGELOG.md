@@ -1871,3 +1871,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - **loucabot v89: `/rendimento` e `/rendimento_carriera`** (Luca, 09/11, mockup approvati): la stagione partita per partita e la carriera stagione per stagione (Basketball-Reference dal 2002-03, anche i giocatori mai stati nella lega). Anche qui, in privato, come /player
 - **`bref_scraper.py --migrate`** da solo (fuori dal bot) leggeva la password del database solo senza `DATABASE_URL`: ora sempre dal secret
 - Prove: `louca_rendimento`; `louca_risultati` chiama `live.migra()` all'inizio (su un database di prova nuovo `lega_live` non c'era ancora)
+
+## v7.4.1 (2026-11-09)
+
+- **loucabot v90**: `/top_storica ANNO [N] o [DA A]`, i migliori per fantamedia di una stagione passata (Basketball-Reference, dal 2002-03; 2014 = 2014-15); `/rendimento_carriera` cerca prima il nome esatto nel bot, poi tra tutti i nomi di Basketball-Reference (prima «Deron Williams» dava i Williams della lega). Anche nel bot principale, in privato, la ricerca nuova

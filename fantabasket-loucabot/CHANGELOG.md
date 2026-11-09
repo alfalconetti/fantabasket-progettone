@@ -446,3 +446,8 @@ Il calcolo dei fantapunti.
 - **`/rendimento NOME`** (Luca, 09/11, mockup approvato): la stagione partita per partita in un grafico, tutte le partite (play-in e playoff accorpati in fondo, col rombo), punti col colore della squadra del fantabasket di quel giorno (grigio se libero), × se non ha giocato, media delle ultime 5 e media dall'inizio della stagione, fasce delle squadre con la loro media
 - **`/rendimento_carriera NOME`**: la fantamedia stagione per stagione da Basketball-Reference (regular season; chi ha cambiato squadra: il totale e le squadre in ordine), la stagione in corso dai tabellini come /player, il tondo della squadra del fantabasket; anche i giocatori storici, cercati tra i nomi di Basketball-Reference (dati dal 2002-03, caricati da Luca il 09/11)
 - Codice in `shared/rendimento.py` e `shared/rendimento.typ`: gli stessi comandi anche nel bot principale, in privato
+
+## v90 (2026-11-09, progettone v7.4.1)
+
+- **`/top_storica ANNO [N] o [DA A]`** (Luca, 09/11): i migliori per fantamedia di una stagione passata, dalle medie di Basketball-Reference (regular season, dal 2002-03); anno come nella lega (2014 = 2014-15, anche «2014-15»); minimo il 40% delle partite di chi ne ha giocate di più quell'anno; chi ha cambiato squadra col totale e le squadre in ordine
+- **`/rendimento_carriera`: come cerca il nome** (Luca, 09/11: «Deron Williams» dava i Williams della lega): prima i giocatori del bot col nome esatto, se no tutti i nomi di Basketball-Reference (un nome che è nel bot si ricollega al giocatore), solo alla fine i nomi simili del bot

@@ -339,7 +339,16 @@ async def cmd_rendimento(update, context):
     await _rendimento(msg, trovati[0]["id"])
 
 
+def _gid_da_bref(nome_bref: str) -> int | None:
+    r = L.q("SELECT id FROM giocatori WHERE nome_bref = %s ORDER BY id LIMIT 1", (nome_bref,), one=True)
+    return r["id"] if r else None
+
+
 async def cmd_rendimento_carriera(update, context):
+    """Il nome si cerca così (Luca, 09/11: «Deron Williams» dava i Williams della lega): prima i giocatori del bot con
+    quel nome esatto; se no tutti i nomi di Basketball-Reference (anche gli storici: un nome che è nel bot si ricollega
+    al giocatore, per il fantabasket e la stagione in corso); solo se lì non c'è niente, i nomi simili del bot."""
+    from shared import parole_nome as PN
     msg = update.effective_message
     testo = " ".join(context.args or [])
     if not testo:
@@ -347,21 +356,23 @@ async def cmd_rendimento_carriera(update, context):
                              "stagione, anche dei giocatori che non sono nel fantabasket (dati dal 2002-03).")
         return
     trovati = G.cerca(testo)
-    if trovati and (len(trovati) == 1 or L.norm(trovati[0]["nome_common"]) == L.norm(testo)):
-        await _carriera(msg, trovati[0]["id"], None)
+    esatti = [x for x in trovati if L.norm(x["nome_common"]) == L.norm(testo) or PN.stesse_parole(testo, x["nome_common"])]
+    if len(esatti) == 1:
+        await _carriera(msg, esatti[0]["id"], None)
         return
-    if len(trovati) > 1:
+    nomi = nomi_bref(testo)
+    if len(nomi) == 1 or (nomi and (L.norm(nomi[0]) == L.norm(testo) or PN.stesse_parole(testo, nomi[0]))
+                          and sum(1 for x in nomi if L.norm(x) == L.norm(nomi[0])) == 1):
+        await _carriera(msg, _gid_da_bref(nomi[0]), nomi[0])
+        return
+    if nomi:
+        await msg.reply_text("Quale?", reply_markup=K([[B(x, callback_data=f"rcb:{x}"[:64])] for x in nomi]))
+        return
+    if trovati:                                   # niente in Basketball-Reference: i nomi simili del bot
         await msg.reply_text("Quale?", reply_markup=K([[B(x["nome_common"] + (" ✅" if x["a_roster"] else ""), callback_data=f"rc:{x['id']}")]
                                                        for x in trovati]))
         return
-    nomi = nomi_bref(testo)                       # nessuno nell'anagrafica: tutti i nomi di Basketball-Reference
-    if not nomi:
-        await msg.reply_text(f"Nessun giocatore si chiama «{testo}», nemmeno tra quelli di Basketball-Reference (dal 2002-03).")
-        return
-    if len(nomi) > 1 and L.norm(nomi[0]) != L.norm(testo):
-        await msg.reply_text("Quale?", reply_markup=K([[B(x, callback_data=f"rcb:{x}"[:64])] for x in nomi]))
-        return
-    await _carriera(msg, None, nomi[0])
+    await msg.reply_text(f"Nessun giocatore si chiama «{testo}», nemmeno tra quelli di Basketball-Reference (dal 2002-03).")
 
 
 async def cb_rendimento(update, context):
@@ -374,7 +385,7 @@ async def cb_rendimento(update, context):
     elif tipo == "rc":
         await _carriera(q.message, int(val), None)
     else:
-        await _carriera(q.message, None, val)
+        await _carriera(q.message, _gid_da_bref(val), val)
 
 
 PATTERN = r"^(rs|rc):\d+$|^rcb:.+$"

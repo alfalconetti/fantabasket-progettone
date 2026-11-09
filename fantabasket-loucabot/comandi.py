@@ -21,6 +21,7 @@ def liste_comandi() -> dict:
         BotCommand("risultati",  "I risultati di una giornata in testo [N]"),
         BotCommand("live",       "L'immagine del live della giornata [N]"),
         BotCommand("top",        "Migliori per fantamedia: [N] o [DA A], [firmati]"),
+        BotCommand("top_storica", "Migliori per fantamedia di una stagione passata: ANNO [N] o [DA A]"),
         BotCommand("pdf_giornata", "La giornata in PDF: risultati e partite [N]"),
         BotCommand("pdf_partite", "Tutte le partite di una squadra in PDF [SQUADRA] [STAGIONE]"),
         BotCommand("live_results", "Il live della giornata in testo, completo [N]"),

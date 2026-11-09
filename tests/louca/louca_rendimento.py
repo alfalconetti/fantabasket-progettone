@@ -14,7 +14,7 @@ B1 = str(int(S) + 1)                                    # Basketball-Reference: 
 
 def pulisci():
     db.q("DELETE FROM nba_tabellini WHERE atleta LIKE 'rd%%'"); db.q("DELETE FROM nba_partite WHERE espn_id LIKE 'rd%%'")
-    db.q("DELETE FROM bref_stats WHERE nome_bref LIKE 'Rend %%' OR nome_bref = 'Vecchio Storico'")
+    db.q("DELETE FROM bref_stats WHERE nome_bref LIKE 'Rend %%' OR nome_bref IN ('Vecchio Storico', 'Deron Rendi')")
     for r in db.q("SELECT id FROM giocatori WHERE nome_bref LIKE 'Rend %%'", many=True) or []:
         db.q("DELETE FROM transazioni WHERE giocatore_id = %s", (r["id"],)); db.q("DELETE FROM contratti WHERE giocatore_id = %s", (r["id"],))
         db.q("DELETE FROM giocatori WHERE id = %s", (r["id"],))
@@ -98,6 +98,21 @@ png = R.immagine(dh)
 if _os.environ.get("REND_PNG"): open(_os.environ["REND_PNG"] + "_storico.png", "wb").write(png)
 ok(png[:4] == b"\x89PNG", "immagine del giocatore storico")
 
+# /top_storica (v7.4.0): la classifica di una stagione passata dalle medie di Basketball-Reference
+import top_giocatori as TG
+ok(TG.leggi_storica(["2014"], S)[:3] == ("2014", 1, 20) and TG.leggi_storica(["2014-15", "50"], S)[:3] == ("2014", 1, 50)
+   and TG.leggi_storica(["14-15", "10", "30"], S)[:3] == ("2014", 10, 30) and TG.leggi_storica(["2009/10"], S)[0] == "2009",
+   "anno come nella lega (2014 = 2014-15), anche «2014-15», «14-15», N, DA A")
+ok("c'è /top" in TG.leggi_storica([S], S)[3] and TG.leggi_storica([], S)[3].startswith("Uso:"), "stagione in corso: /top; senza anno: l'uso")
+bref("2012", "Rend Uno", "SAC", 69, 200, oggi - timedelta(days=5000))       # 2011-12: Vecchio Storico (3TM, 70 G) e Rend Uno
+bref("2012", "Rend Poco", "SAC", 20, 300, oggi - timedelta(days=5000))      # 20 partite su 70: sotto il 40%
+cl = [x for x in TG.classifica_storica("2011") if x["nome"] in ("Rend Uno", "Vecchio Storico", "Rend Poco")]
+ok([x["nome"] for x in cl] == ["Rend Uno", "Vecchio Storico"] and cl[1]["squadra"] == "MIA·NYK·BOS" and cl[1]["partite"] == 70,
+   f"classifica: fantamedia, minimo di partite, chi ha cambiato squadra col totale e le squadre {cl}")
+tt, _n = TG.testo_storica("2011", 1, 500)
+ok("stagione 2011-12" in tt and "Rend Uno 100,00 · 69 G · 30,0′ · SAC" in tt and "Rend Poco" not in tt, "testo\n" + tt[:400])
+ok("Nessun dato" in TG.testo_storica("1990", 1, 20)[0], "stagione senza dati")
+
 # i comandi
 out = []
 class M:
@@ -110,6 +125,16 @@ asyncio.run(R.cmd_rendimento_carriera(u, types.SimpleNamespace(args=["Vecchio", 
 asyncio.run(R.cmd_rendimento(u, types.SimpleNamespace(args=["Vecchio", "Storico"])))
 asyncio.run(R.cmd_rendimento_carriera(u, types.SimpleNamespace(args=["Nessunissimo"])))
 asyncio.run(R.cmd_rendimento(u, types.SimpleNamespace(args=[])))
+# il nome (Luca, 09/11: «Deron Williams» dava i Williams della lega): esatto nel bot, se no Basketball-Reference
+bref("2010", "Deron Rendi", "UTA", 76, 80, oggi - timedelta(days=6000))
+_n0 = len(out)
+asyncio.run(R.cmd_rendimento_carriera(u, types.SimpleNamespace(args=["Deron", "Rendi"])))
+asyncio.run(R.cmd_rendimento_carriera(u, types.SimpleNamespace(args=["Rendi", "Deron"])))
+asyncio.run(R.cmd_rendimento_carriera(u, types.SimpleNamespace(args=["Rend"])))
+ok(out[_n0][0] == "foto" and out[_n0 + 1][0] == "foto", "un nome che è solo in Basketball-Reference: dritto alla carriera, anche al contrario")
+_bott = [b.callback_data for r in out[_n0 + 2][2].inline_keyboard for b in r] if out[_n0 + 2][2] else []
+ok(out[_n0 + 2][1] == "Quale?" and "rcb:Rend Uno" in _bott and "rcb:Deron Rendi" in _bott, f"nome a metà: i nomi di Basketball-Reference {_bott}")
+ok(R._gid_da_bref("Rend Uno") == gid and R._gid_da_bref("Deron Rendi") is None, "un nome di bref che è nel bot si ricollega al giocatore")
 ok([x[0] for x in out[:3]] == ["foto"] * 3, "/rendimento e /rendimento_carriera (anche di un giocatore storico) mandano l'immagine")
 ok(out[3][0] == "testo" and "/rendimento_carriera" in out[3][1], "/rendimento di uno storico: rimanda a /rendimento_carriera")
 ok("nemmeno tra quelli di Basketball-Reference" in out[4][1] and out[5][1].startswith("Uso:"), "nome che non c'è da nessuna parte, uso")

@@ -102,3 +102,84 @@ async def cmd_top(update, context):
         return
     await msg.reply_document(document=io.BytesIO(t.encode("utf-8")), filename=f"top_{da}-{a}.md",
                              caption=f"📄 Top {da}–{a}: troppo lunga per un messaggio, eccola in un file.")
+
+
+# ── /top_storica ANNO [N | DA A] (v7.4.0, Luca 09/11) ─────────────────────────
+# La classifica per fantamedia di una stagione passata dalle medie di Basketball-Reference (regular season, dati dal
+# 2002-03). L'anno come nel resto della lega: la stagione che comincia quell'anno (2014 = 2014-15); vanno bene anche
+# «2014-15» e «14-15». Minimo di partite: il 40% (MINIMO) delle partite giocate da chi ne ha giocate di più quell'anno
+# (bref non ha le partite delle squadre: così vale anche per le stagioni corte, come 2011-12 e 2019-20). Chi ha
+# cambiato squadra: la riga del totale e le squadre in ordine. La stagione in corso è /top (tabellini ESPN).
+
+def leggi_storica(args: list[str], s_ora: str) -> tuple[str | None, int, int, str | None]:
+    """(stagione della lega, da, a, errore)."""
+    testo = " ".join(args)
+    m = re.search(r"\b(\d{2}|\d{4})\s*[-/]\s*(\d{2}|\d{4})\b", testo)
+    if m:
+        inizio = int(m.group(1))
+        inizio = inizio + (2000 if inizio < 50 else 1900) if inizio < 100 else inizio
+        resto = testo[:m.start()] + " " + testo[m.end():]
+    else:
+        anni = [int(x) for x in re.findall(r"\b(\d{4})\b", testo)]
+        if not anni:
+            return None, 1, DEFAULT, "Uso: /top_storica ANNO [N] o [DA A], es. /top_storica 2014 (= 2014-15), /top_storica 2009-10 50"
+        inizio = anni[0]
+        resto = testo.replace(str(inizio), " ", 1)
+    if inizio >= int(s_ora):
+        return None, 1, DEFAULT, f"Per la stagione in corso c'è /top (tabellini ESPN). /top_storica arriva fino al {int(s_ora) - 1}-{str(s_ora)[-2:]}."
+    da, a, _f, errore = leggi_argomenti(re.findall(r"\d+", resto))
+    return str(inizio), da, a, errore
+
+
+def classifica_storica(s: str) -> list[dict]:
+    """Per ogni giocatore della stagione (bref: anno di fine = s + 1) l'ultima istantanea di ogni riga; totale e squadre."""
+    righe = db.q("""SELECT DISTINCT ON (nome_bref, team) nome_bref, team, g, mp, fantamedia,
+                           MIN(id) OVER (PARTITION BY nome_bref, team) AS primo
+                    FROM bref_stats WHERE stagione = %s ORDER BY nome_bref, team, timestamp DESC, id DESC""",
+                 (str(int(s) + 1),), many=True) or []
+    per = {}
+    for r in righe:
+        per.setdefault(r["nome_bref"], []).append(r)
+    out = []
+    for nome, rr in per.items():
+        tot = [r for r in rr if (r["team"] or "").upper() == "TOT" or (r["team"] or "").upper().endswith("TM")]
+        base = tot[0] if tot else max(rr, key=lambda r: r["g"] or 0)
+        squadre = [r["team"] for r in sorted([r for r in rr if r not in tot], key=lambda r: r["primo"]) if r["team"]]
+        out.append({"nome": nome, "media": float(base["fantamedia"] or 0), "partite": int(base["g"] or 0),
+                    "minuti": float(base["mp"] or 0), "squadra": "·".join(squadre) or (base["team"] or "—")})
+    massimo = max((x["partite"] for x in out), default=0)
+    minimo = math.ceil(MINIMO * massimo)
+    out = [x for x in out if x["partite"] >= minimo]
+    out.sort(key=lambda x: (-x["media"], x["nome"]))
+    return out
+
+
+def testo_storica(s: str, da: int, a: int) -> tuple[str, int]:
+    tutti = classifica_storica(s)
+    anno = f"{s}-{str(int(s) + 1)[-2:]}"
+    if not tutti:
+        return f"Nessun dato di Basketball-Reference per il {anno} (ci sono dal 2002-03).", 0
+    scelti = tutti[da - 1:a]
+    righe = [f"🏛️ Top {da}–{min(a, da - 1 + len(scelti))} per fantamedia · stagione {anno}",
+             f"Medie di Basketball-Reference, regular season · almeno il {int(MINIMO * 100)}% delle partite "
+             f"({len(tutti)} giocatori in classifica)", ""]
+    for i, x in enumerate(scelti, da):
+        righe.append(f"{i}. {x['nome']} {tp(x['media'])} · {x['partite']} G · " + f"{x['minuti']:.1f}".replace(".", ",") + f"′ · {x['squadra']}")
+    if not scelti:
+        righe.append("Nessun giocatore in questo intervallo.")
+    return "\n".join(righe), len(scelti)
+
+
+async def cmd_top_storica(update, context):
+    msg = update.effective_message
+    s, da, a, errore = leggi_storica(list(context.args or []), config.stagione())
+    if errore:
+        await msg.reply_text(errore)
+        return
+    import asyncio
+    t, _n = await asyncio.to_thread(testo_storica, s, da, a)
+    if len(t) <= LIMITE:
+        await msg.reply_text(t)
+        return
+    await msg.reply_document(document=io.BytesIO(t.encode("utf-8")), filename=f"top_storica_{s}_{da}-{a}.md",
+                             caption=f"📄 Top {da}–{a} del {s}-{str(int(s) + 1)[-2:]}: troppo lunga per un messaggio, eccola in un file.")
