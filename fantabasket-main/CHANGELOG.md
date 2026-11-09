@@ -1865,3 +1865,9 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - **`/player`, `/status`, `/calendario` anche qui, in privato** (Luca, 09/11): lo stesso codice di loucabot, spostato in `shared/`; nei gruppi restano di loucabot e qui non compaiono nel menu, così niente risposte doppie
 - **loucabot v88**: il codice di quei tre comandi in `shared/` (per lui non cambia niente)
 - Prove: `pick`, `lega_comandi` (gira dopo le prove di loucabot)
+
+## v7.4.0 (2026-11-09)
+
+- **loucabot v89: `/rendimento` e `/rendimento_carriera`** (Luca, 09/11, mockup approvati): la stagione partita per partita e la carriera stagione per stagione (Basketball-Reference dal 2002-03, anche i giocatori mai stati nella lega). Anche qui, in privato, come /player
+- **`bref_scraper.py --migrate`** da solo (fuori dal bot) leggeva la password del database solo senza `DATABASE_URL`: ora sempre dal secret
+- Prove: `louca_rendimento`; `louca_risultati` chiama `live.migra()` all'inizio (su un database di prova nuovo `lega_live` non c'era ancora)

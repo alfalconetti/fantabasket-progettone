@@ -1,5 +1,5 @@
 """
-/player, /status e /calendario anche nel bot principale (v7.3.0, Luca 09/11): stesso codice di loucabot
+/player, /status, /calendario (v7.3.0) e /rendimento, /rendimento_carriera (v7.4.0) anche nel bot principale (v7.3.0, Luca 09/11): stesso codice di loucabot
 (shared/giocatore.py, shared/status_squadra.py, shared/calendario_squadra.py), stesse risposte.
 
 Solo in privato: nei gruppi questi comandi sono di loucabot (risponde lui, e qui non compaiono nemmeno nel menu dei
@@ -11,6 +11,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, filters
 from shared import calendario_squadra as CS
 from shared import giocatore as G
 from shared import lettura as L
+from shared import rendimento as R
 from shared.status_squadra import cmd_status
 
 cmd_player, manda, cb_player = G.handlers(G.scheda)
@@ -41,7 +42,7 @@ async def cmd_calendario(update, context):
 
 
 # fuori dal menu del gruppo admin, come i comandi @solo_privato (comandi.trova_solo_privato)
-for _f in (cmd_player, cmd_status, cmd_calendario):
+for _f in (cmd_player, cmd_status, cmd_calendario, R.cmd_rendimento, R.cmd_rendimento_carriera):
     try:
         _f._solo_privato = True
     except AttributeError:
@@ -53,4 +54,7 @@ def get_handlers() -> list:
     return [CommandHandler("player", cmd_player, filters=privato),
             CallbackQueryHandler(cb_player, pattern=r"^pl:\d+$"),
             CommandHandler("status", cmd_status, filters=privato),
-            CommandHandler("calendario", cmd_calendario, filters=privato)]
+            CommandHandler("calendario", cmd_calendario, filters=privato),
+            CommandHandler("rendimento", R.cmd_rendimento, filters=privato),             # v7.4.0
+            CommandHandler("rendimento_carriera", R.cmd_rendimento_carriera, filters=privato),
+            CallbackQueryHandler(R.cb_rendimento, pattern=R.PATTERN)]

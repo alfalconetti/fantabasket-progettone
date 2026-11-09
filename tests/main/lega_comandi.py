@@ -74,14 +74,15 @@ ok(out[-1].startswith("Uso:"), "/calendario senza squadra e non GM: l'uso")
 # solo in privato: nei gruppi sono di loucabot (niente risposte doppie), e nel menu dei gruppi non ci sono
 from telegram.ext import filters
 hs = {h.commands and next(iter(h.commands)): h for h in LG.get_handlers() if hasattr(h, "commands")}
-ok(all(hs[c].filters is not None and "PRIVATE" in str(hs[c].filters).upper() for c in ("player", "status", "calendario")),
-   "/player, /status, /calendario: solo in privato")
+ok(all(hs[c].filters is not None and "PRIVATE" in str(hs[c].filters).upper() for c in ("player", "status", "calendario", "rendimento", "rendimento_carriera")),
+   "/player, /status, /calendario, /rendimento, /rendimento_carriera: solo in privato")
 li = comandi.liste_comandi(settings.fase())
 gruppo = {c.command for c in li["group"]}
-ok(not gruppo & {"player", "status", "calendario"} and {"player", "status", "calendario"} <= {c.command for c in li["gm"]}
+_lc = {"player", "status", "calendario", "rendimento", "rendimento_carriera"}
+ok(not gruppo & _lc and _lc <= {c.command for c in li["gm"]}
    and "pick" in gruppo, "menu: nei gruppi no, in privato sì (/pick sì anche nei gruppi)")
 app = types.SimpleNamespace(handlers={0: LG.get_handlers()})
-ok({"player", "status", "calendario"} <= comandi.trova_solo_privato(app), "fuori dal menu del gruppo admin")
+ok(_lc <= comandi.trova_solo_privato(app), "fuori dal menu del gruppo admin")
 
 # pulizia
 db._q("DELETE FROM nba_infortuni WHERE atleta LIKE 'lc%%'"); db._q("DELETE FROM nba_tabellini WHERE atleta LIKE 'lc%%'")

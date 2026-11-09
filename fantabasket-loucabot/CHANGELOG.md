@@ -440,3 +440,9 @@ Il calcolo dei fantapunti.
 ## v88 (2026-11-09, progettone v7.3.0)
 
 - **`/player`, `/status` e `/calendario` di una squadra in comune col bot principale** (Luca, 09/11): il codice sta in `shared/` (`giocatore.py`, `status_squadra.py`, `calendario_squadra.py`, `numeri.py`, `lettura.py`, `foto_player.typ`). In loucabot non cambia niente: stessi comandi, stesse risposte, e nei gruppi questi comandi restano suoi (il bot principale risponde solo in privato)
+
+## v89 (2026-11-09, progettone v7.4.0)
+
+- **`/rendimento NOME`** (Luca, 09/11, mockup approvato): la stagione partita per partita in un grafico, tutte le partite (play-in e playoff accorpati in fondo, col rombo), punti col colore della squadra del fantabasket di quel giorno (grigio se libero), × se non ha giocato, media delle ultime 5 e media dall'inizio della stagione, fasce delle squadre con la loro media
+- **`/rendimento_carriera NOME`**: la fantamedia stagione per stagione da Basketball-Reference (regular season; chi ha cambiato squadra: il totale e le squadre in ordine), la stagione in corso dai tabellini come /player, il tondo della squadra del fantabasket; anche i giocatori storici, cercati tra i nomi di Basketball-Reference (dati dal 2002-03, caricati da Luca il 09/11)
+- Codice in `shared/rendimento.py` e `shared/rendimento.typ`: gli stessi comandi anche nel bot principale, in privato

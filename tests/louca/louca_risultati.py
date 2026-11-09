@@ -16,6 +16,7 @@ db.q("TRUNCATE nba_tabellini, nba_infortuni, nba_atleti, lega_giornate, lega_par
      "lega_calcoli, lega_calcoli_storico, lega_status_validi")
 db.q("TRUNCATE ipa_formazioni, ipa_panchine, ipa_stato_giornata")
 import congelamento as _CGm; _CGm.migra(); db.q("TRUNCATE lega_controlli_notte")
+import live as _LVm; _LVm.migra()                      # lega_live serve già a /giornata (su un database di prova nuovo non c'era ancora)
 S = config.stagione()
 N = 7
 DAL, AL = date(2026, 11, 10), date(2026, 11, 12)

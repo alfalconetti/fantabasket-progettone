@@ -1,0 +1,380 @@
+"""
+/rendimento GIOCATORE e /rendimento_carriera GIOCATORE (v7.4.0, Luca 09/11, mockup approvato): in loucabot e nel
+bot principale (lì solo in privato, come /player). Disegno in rendimento.typ, stile di /carriera.
+
+/rendimento: la stagione in corso partita per partita dai tabellini ESPN, tutte le partite (regular season, play-in
+e playoff; play-in e playoff accorpati, in fondo dorato, col rombo). Punti col colore della squadra del fantabasket in
+cui era quel giorno (dal registro dei movimenti: l'ultimo movimento prima della palla a due; grigio se libero), × se
+non ha giocato (o 0 con 0 minuti: non fa media, come in /player). Due linee: media delle ultime 5 e media dall'inizio
+della stagione. Sotto, una fascia per ogni periodo in una squadra, con la sua media. In alto la media della stagione
+come in /player (regular season e play-in), e quella dei playoff se ci sono.
+
+/rendimento_carriera: una barra per stagione con la fantamedia di Basketball-Reference (regular season, l'ultima
+istantanea di ogni stagione; chi ha cambiato squadra: la riga del totale e sotto tutte le squadre in ordine), la
+stagione in corso dai tabellini ESPN (lo stesso numero di /player); il tondo della squadra del fantabasket (a fine
+stagione, o adesso). Se il nome non è nell'anagrafica del bot cerca tra tutti i nomi di Basketball-Reference: anche
+i giocatori storici (i dati partono dal 2002-03).
+"""
+import html
+import json
+import os
+from datetime import datetime, timezone
+
+from telegram import InlineKeyboardButton as B, InlineKeyboardMarkup as K
+
+from shared import giocatore as G
+from shared import lettura as L
+from shared.numeri import ottavi, testo as tp
+
+TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rendimento.typ")
+TIPI_TUTTE = (2, 3, 5)           # regular season, playoff, play-in (la preseason no)
+LIBERO = "#A7B0C0"
+
+
+def e(x) -> str:
+    return html.escape(str(x), quote=False)
+
+
+def _t(x: float) -> str:
+    return tp(ottavi(x))
+
+
+def _iniziali(nome: str) -> str:
+    p = [x for x in (nome or "").split() if x[:1].isalpha()]
+    return "".join(x[0] for x in p[:2]).upper() or "?"
+
+
+def etichetta_stagione(s: int | str) -> str:
+    """Basketball-Reference: «2025» è la 2024-25 → «24-25»."""
+    s = int(s)
+    return f"{(s - 1) % 100:02d}-{s % 100:02d}"
+
+
+# ── squadre del fantabasket nel tempo ─────────────────────────────────────────
+
+def movimenti(gid: int) -> list[dict]:
+    """I movimenti del giocatore (vista movimenti_giocatori del registro), in ordine."""
+    return L.q("""SELECT team_id_a, timestamp FROM movimenti_giocatori WHERE giocatore_id = %s
+                  ORDER BY timestamp, id""", (gid,), many=True) or []
+
+
+def squadra_al(mov: list[dict], quando) -> str | None:
+    """La squadra del fantabasket a un istante: quella dell'ultimo movimento fino ad allora (None = libero)."""
+    team = None
+    for m in mov:
+        if m["timestamp"] <= quando:
+            team = m["team_id_a"]
+        else:
+            break
+    return team
+
+
+# senza un colore scelto con /palette (colore_header) ogni squadra ne prende uno di questi, sempre lo stesso (ordine di
+# teams.json): così due squadre non hanno lo stesso blu di default
+TAVOLOZZA = ["#7A1F2B", "#1F6E43", "#1F4E79", "#8E5A00", "#5B2C83", "#00695C", "#B23A48", "#2E7D32", "#283593", "#6D4C41",
+             "#AD1457", "#00838F", "#9E6B00", "#455A64", "#4E342E", "#1565C0", "#827717", "#6A1B9A", "#C62828", "#2E4057",
+             "#00796B", "#5D4037", "#3949AB", "#7B1FA2"]
+
+
+def colore_squadra(t: dict) -> str:
+    if t.get("colore_header") and L.colore(t) == t.get("colore_header"):
+        return L.colore(t)
+    ids = [x["id"] for x in L.squadre()]
+    i = ids.index(t["id"]) if t.get("id") in ids else sum(map(ord, t.get("id", ""))) 
+    return TAVOLOZZA[i % len(TAVOLOZZA)]
+
+
+def _info_squadra(team_id: str | None) -> dict:
+    if not team_id:
+        return {"nome": "Libero", "colore": LIBERO, "logo": ""}
+    t = L.squadra(team_id) or {"id": team_id, "nome": team_id}
+    return {"nome": t.get("nome", team_id), "colore": colore_squadra(t), "logo": L.logo(team_id)}
+
+
+def _testata(gid: int | None, nome: str) -> dict:
+    """Foto, iniziali e la riga sotto il nome (squadra NBA, età, squadra del fantabasket e contratto)."""
+    if gid is None:
+        return {"nome": nome, "iniziali": _iniziali(nome), "foto": "", "sotto": "dati storici di Basketball-Reference · non è nel bot"}
+    g = L.q("SELECT nome_common, espn_id, data_nascita FROM giocatori WHERE id = %s", (gid,), one=True) or {}
+    pezzi = []
+    if g.get("espn_id"):
+        nba = L.squadre_roster([g["espn_id"]]).get(g["espn_id"])
+        if nba:
+            pezzi.append(nba)
+    if g.get("data_nascita"):
+        pezzi.append(f"{G.eta(g['data_nascita'])} anni")
+    c = L.q("SELECT team_id, importo, anni_originali, stagione_firma FROM contratti WHERE giocatore_id = %s AND attivo LIMIT 1",
+            (gid,), one=True)
+    pezzi.append(f"{L.nome(c['team_id'])}, {tp(c['importo'])} × {c['anni_originali']}" if c else "free agent")
+    return {"nome": g.get("nome_common") or nome, "iniziali": _iniziali(g.get("nome_common") or nome),
+            "foto": L.foto(g.get("espn_id")) or "", "sotto": " · ".join(pezzi)}
+
+
+# ── /rendimento: la stagione ──────────────────────────────────────────────────
+
+def partite(atleta: str, stagione: str) -> list[dict]:
+    return L.q("""SELECT t.*, p.tipo, p.inizio, p.data_et, p.casa, p.trasferta FROM nba_tabellini t
+                  JOIN nba_partite p ON p.espn_id = t.partita
+                  WHERE t.atleta = %s AND p.stagione = %s AND p.tipo = ANY(%s) ORDER BY p.inizio""",
+               (atleta, stagione, list(TIPI_TUTTE)), many=True) or []
+
+
+def _asse(valori: list[float]) -> tuple[int, int, int]:
+    alto = max([40.0] + [v + 4 for v in valori])          # spazio sopra per le etichette
+    basso = min([0.0] + valori)
+    hi = int(-(-alto // 10) * 10)
+    lo = int((basso // 10) * 10)
+    passo = 10 if hi - lo <= 70 else 20
+    return lo, hi, passo
+
+
+def dati_stagione(gid: int, stagione: str | None = None) -> dict | None:
+    stagione = stagione or L.stagione()
+    g = L.q("SELECT nome_common, espn_id FROM giocatori WHERE id = %s", (gid,), one=True)
+    if not g or not g.get("espn_id"):
+        return None
+    tab = partite(g["espn_id"], stagione)
+    if not tab:
+        return None
+    mov = movimenti(gid)
+    out, contano, reg, post = [], [], [], []
+    for r in tab:
+        conta = L.conta(r)
+        fp = float(r["fp"]) if conta else None
+        sq = squadra_al(mov, r["inizio"])
+        if fp is not None:
+            contano.append(fp)
+            (reg if r["tipo"] in G.TIPI else post).append(fp)
+        avv = r["trasferta"] if r["squadra"] == r["casa"] else r["casa"]
+        out.append({"fp": fp, "sq": sq or "_libero", "tipo": "rs" if r["tipo"] == 2 else "post",
+                    "prog": round(sum(contano) / len(contano), 3) if fp is not None else None,
+                    "mobile": round(sum(contano[-5:]) / 5, 3) if fp is not None and len(contano) >= 5 else None,
+                    "data": r["data_et"], "avv": avv})
+    n = len(out)
+    passo = max(1, round(n / 8))
+    for i, p in enumerate(out):
+        p["data_lbl"] = f"{p.pop('data'):%d/%m}" if i % passo == 0 else ""
+    # fasce: periodi consecutivi nella stessa squadra del fantabasket
+    fasce = []
+    for i, p in enumerate(out):
+        if fasce and fasce[-1]["sq"] == p["sq"]:
+            fasce[-1]["a"] = i
+        else:
+            fasce.append({"sq": p["sq"], "da": i, "a": i})
+    for f in fasce:
+        v = [p["fp"] for p in out[f["da"]:f["a"] + 1] if p["fp"] is not None]
+        f["media"] = _t(sum(v) / len(v)) if v else "—"
+        f["g"] = len(v)
+    squadre = {s: _info_squadra(None if s == "_libero" else s) for s in {p["sq"] for p in out}}
+    vals = [p["fp"] for p in out if p["fp"] is not None]
+    lo, hi, passo_y = _asse(vals)
+    bi = max((i for i, p in enumerate(out) if p["fp"] is not None), key=lambda i: out[i]["fp"], default=None)
+    i_post = next((i for i, p in enumerate(out) if p["tipo"] == "post"), None)
+    media = sum(reg) / len(reg) if reg else (sum(vals) / len(vals) if vals else 0.0)
+    sotto = [f"{len(reg)} partite su {sum(1 for r in tab if r['tipo'] in G.TIPI)}"]
+    if post or any(r["tipo"] == 3 for r in tab):
+        sotto.append(f"playoff {_t(sum(post) / len(post)) if post else '—'} ({len(post)})")
+    if bi is not None:
+        sotto.append(f"migliore {_t(out[bi]['fp'])}")
+    a = int(stagione)
+    return {"modo": "stagione", **_testata(gid, g["nome_common"]),
+            "titolo": f"Stagione {a}-{(a + 1) % 100:02d}", "media_big": _t(media) if reg or vals else "—",
+            "media_sotto": " · ".join(sotto), "partite": out, "squadre": squadre, "fasce": fasce,
+            "y_min": lo, "y_max": hi, "y_passo": passo_y, "post": i_post,
+            "migliore": ({"i": bi, "fp": out[bi]["fp"], "t": f"{_t(out[bi]['fp'])} vs {out[bi]['avv']}"} if bi is not None
+                         else {"i": 0, "fp": 0, "t": ""})}
+
+
+# ── /rendimento_carriera ───────────────────────────────────────────────────────
+
+def stagioni_bref(nome_bref: str) -> list[dict]:
+    """Per ogni stagione di Basketball-Reference: l'ultima istantanea di ogni riga (squadra o totale)."""
+    righe = L.q("""SELECT DISTINCT ON (stagione, team) stagione, team, g, mp, fantamedia, id,
+                          MIN(id) OVER (PARTITION BY stagione, team) AS primo
+                   FROM bref_stats WHERE nome_bref = %s ORDER BY stagione, team, timestamp DESC, id DESC""",
+                (nome_bref,), many=True) or []
+    per = {}
+    for r in righe:
+        per.setdefault(r["stagione"], []).append(r)
+    out = []
+    for s, rr in sorted(per.items(), key=lambda x: int(x[0])):
+        tot = [r for r in rr if (r["team"] or "").upper() in ("TOT",) or (r["team"] or "").upper().endswith("TM")]
+        squadre = sorted([r for r in rr if r not in tot], key=lambda r: r["primo"])
+        base = tot[0] if tot else max(rr, key=lambda r: r["g"] or 0)
+        out.append({"stagione": int(s), "g": int(base["g"] or 0), "mp": float(base["mp"] or 0),
+                    "fm": float(base["fantamedia"] or 0), "teams": [r["team"] for r in squadre if r["team"]] or [base["team"] or ""]})
+    return out
+
+
+def _righe_squadre(teams: list[str]) -> list[str]:
+    if len(teams) <= 2:
+        return ["·".join(teams)]
+    meta = (len(teams) + 1) // 2
+    return ["·".join(teams[:meta]), "·".join(teams[meta:])]
+
+
+def stagione_in_corso(atleta: str, stagione: str) -> dict | None:
+    """La stagione in corso dai tabellini ESPN, come la media di /player (regular season e play-in)."""
+    tab = [r for r in partite(atleta, stagione) if r["tipo"] in G.TIPI]
+    contano = [r for r in tab if L.conta(r)]
+    if not contano:
+        return None
+    teams = []
+    for r in tab:
+        if r["squadra"] and r["squadra"] not in teams:
+            teams.append(r["squadra"])
+    return {"stagione": int(stagione) + 1, "g": len(contano), "mp": sum(int(r["minuti"] or 0) for r in contano) / len(contano),
+            "fm": sum(float(r["fp"]) for r in contano) / len(contano), "teams": teams, "in_corso": True}
+
+
+def dati_carriera(gid: int | None, nome_bref: str, nome: str | None = None) -> dict | None:
+    s_ora = L.stagione()
+    stagioni = [x for x in stagioni_bref(nome_bref) if x["stagione"] <= int(s_ora)]   # quella in corso: dai tabellini
+    atleta = None
+    if gid is not None:
+        g = L.q("SELECT espn_id FROM giocatori WHERE id = %s", (gid,), one=True) or {}
+        atleta = g.get("espn_id")
+    corso = stagione_in_corso(atleta, s_ora) if atleta else None
+    if corso:
+        stagioni.append(corso)
+    elif gid is None:
+        stagioni += [x for x in stagioni_bref(nome_bref) if x["stagione"] > int(s_ora)]
+    if not stagioni:
+        return None
+    mov = movimenti(gid) if gid is not None else []
+    ora = datetime.now(timezone.utc)
+    out = []
+    for x in stagioni:
+        fanta = None
+        if gid is not None and x["stagione"] >= 2027:            # il fantabasket nel bot: dal 2026-27
+            fine = datetime(x["stagione"], 7, 1, tzinfo=timezone.utc)
+            fanta = squadra_al(mov, min(fine, ora))
+        info = _info_squadra(fanta) if fanta else None
+        sigla = "".join(p[0] for p in info["nome"].split()[:3]).upper() if info else ""
+        out.append({"lbl": etichetta_stagione(x["stagione"]), "fm": round(x["fm"], 3), "fm_t": _t(x["fm"]), "g": x["g"],
+                    "min": f"{x['mp']:.1f}".replace(".", ","), "team": _righe_squadre(x["teams"]),
+                    "in_corso": bool(x.get("in_corso")), "fanta": sigla or None, "fanta_colore": info["colore"] if info else "#000000",
+                    "fanta_logo": info["logo"] if info else ""})
+    tot_g = sum(x["g"] for x in stagioni)
+    media = sum(x["fm"] * x["g"] for x in stagioni) / tot_g if tot_g else 0.0
+    _, hi, passo = _asse([x["fm"] for x in stagioni])
+    nota = ("Fantamedia di ogni stagione dalle medie di Basketball-Reference (regular season), con le partite giocate"
+            + (", i minuti a partita" if len(out) <= 14 else "") + " e le squadre NBA in ordine")
+    if gid is not None:
+        nota += " · il tondo: la squadra del fantabasket (dal 2026-27)"
+    if corso:
+        nota += " · la stagione in corso dai tabellini ESPN, come /player"
+    nota += " · dati dal 2002-03"
+    test = _testata(gid, nome or nome_bref)
+    return {"modo": "carriera", **test, "titolo": "Rendimento in carriera", "media_big": _t(media),
+            "media_sotto": f"fantamedia in carriera · {tot_g:,} partite in {len(out)} {'stagione' if len(out) == 1 else 'stagioni'}".replace(",", "."),
+            "stagioni": out, "y_max": hi, "y_passo": passo, "nota": nota}
+
+
+def nomi_bref(testo: str) -> list[str]:
+    """I nomi di Basketball-Reference (tutti, anche i giocatori storici) che corrispondono al testo."""
+    import difflib
+    from shared import parole_nome as PN
+    n = L.norm(testo)
+    if not n:
+        return []
+    tutti = [r["nome_bref"] for r in (L.q("SELECT DISTINCT nome_bref FROM bref_stats", many=True) or [])]
+    esatti = [x for x in tutti if L.norm(x) == n or PN.stesse_parole(testo, x)]
+    trovati = esatti or [x for x in tutti if n in L.norm(x) or PN.contiene_parole(testo, x)]
+    if not trovati:
+        nomi = {PN.ordinata(x): x for x in tutti}
+        trovati = [nomi[x] for x in difflib.get_close_matches(PN.ordinata(testo), list(nomi), n=5, cutoff=0.8)]
+    return sorted(trovati)[:8]
+
+
+def immagine(d: dict) -> bytes:
+    import typst
+    fonts = [f for f in ("/usr/share/fonts",) if os.path.isdir(f)]
+    png = typst.compile(TEMPLATE, root="/", format="png", ppi=170, font_paths=fonts,
+                        sys_inputs={"dati": json.dumps(d, ensure_ascii=False, default=str)})
+    return png[0] if isinstance(png, list) else png
+
+
+# ── comandi ───────────────────────────────────────────────────────────────────
+
+async def _manda(msg, d: dict | None, vuoto: str) -> None:
+    import asyncio
+    if not d:
+        await msg.reply_text(vuoto)
+        return
+    png = await asyncio.to_thread(immagine, d)
+    await msg.reply_photo(png)
+
+
+async def _rendimento(msg, gid: int) -> None:
+    import asyncio
+    d = await asyncio.to_thread(dati_stagione, gid)
+    await _manda(msg, d, "Nessuna partita in questa stagione nei tabellini ESPN.")
+
+
+async def _carriera(msg, gid: int | None, nome_bref: str | None) -> None:
+    import asyncio
+    if gid is not None and not nome_bref:
+        g = L.q("SELECT nome_bref, nome_common FROM giocatori WHERE id = %s", (gid,), one=True) or {}
+        nome_bref = g.get("nome_bref") or g.get("nome_common") or ""
+    d = await asyncio.to_thread(dati_carriera, gid, nome_bref)
+    await _manda(msg, d, "Nessuna stagione di questo giocatore nei dati di Basketball-Reference.")
+
+
+async def cmd_rendimento(update, context):
+    msg = update.effective_message
+    testo = " ".join(context.args or [])
+    if not testo:
+        await msg.reply_text("Uso: /rendimento NOME (es. /rendimento Wembanyama): la stagione partita per partita.\n"
+                             "Per tutta la carriera: /rendimento_carriera NOME")
+        return
+    trovati = G.cerca(testo)
+    if not trovati:
+        await msg.reply_text(f"Nessun giocatore si chiama «{testo}». Per i giocatori di altre epoche: /rendimento_carriera NOME")
+        return
+    if len(trovati) > 1 and L.norm(trovati[0]["nome_common"]) != L.norm(testo):
+        await msg.reply_text("Quale?", reply_markup=K([[B(x["nome_common"] + (" ✅" if x["a_roster"] else ""), callback_data=f"rs:{x['id']}")]
+                                                       for x in trovati]))
+        return
+    await _rendimento(msg, trovati[0]["id"])
+
+
+async def cmd_rendimento_carriera(update, context):
+    msg = update.effective_message
+    testo = " ".join(context.args or [])
+    if not testo:
+        await msg.reply_text("Uso: /rendimento_carriera NOME (es. /rendimento_carriera LeBron James): la fantamedia stagione per "
+                             "stagione, anche dei giocatori che non sono nel fantabasket (dati dal 2002-03).")
+        return
+    trovati = G.cerca(testo)
+    if trovati and (len(trovati) == 1 or L.norm(trovati[0]["nome_common"]) == L.norm(testo)):
+        await _carriera(msg, trovati[0]["id"], None)
+        return
+    if len(trovati) > 1:
+        await msg.reply_text("Quale?", reply_markup=K([[B(x["nome_common"] + (" ✅" if x["a_roster"] else ""), callback_data=f"rc:{x['id']}")]
+                                                       for x in trovati]))
+        return
+    nomi = nomi_bref(testo)                       # nessuno nell'anagrafica: tutti i nomi di Basketball-Reference
+    if not nomi:
+        await msg.reply_text(f"Nessun giocatore si chiama «{testo}», nemmeno tra quelli di Basketball-Reference (dal 2002-03).")
+        return
+    if len(nomi) > 1 and L.norm(nomi[0]) != L.norm(testo):
+        await msg.reply_text("Quale?", reply_markup=K([[B(x, callback_data=f"rcb:{x}"[:64])] for x in nomi]))
+        return
+    await _carriera(msg, None, nomi[0])
+
+
+async def cb_rendimento(update, context):
+    q = update.callback_query
+    await q.answer()
+    tipo, _, val = q.data.partition(":")
+    await q.edit_message_text("📈 ⬇️")
+    if tipo == "rs":
+        await _rendimento(q.message, int(val))
+    elif tipo == "rc":
+        await _carriera(q.message, int(val), None)
+    else:
+        await _carriera(q.message, None, val)
+
+
+PATTERN = r"^(rs|rc):\d+$|^rcb:.+$"

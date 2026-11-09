@@ -98,3 +98,20 @@ def ultima_squadra(atleti: list[str], prima_del) -> dict[str, str]:
                  WHERE t.atleta = ANY(%s) AND p.data_et < %s ORDER BY t.atleta, p.inizio DESC""",
               (list(atleti), prima_del), many=True) or []
     return {r["atleta"]: r["squadra"] for r in righe}
+
+
+# ── squadre del fantabasket: colore e logo (v7.4.0, /rendimento) ──────────────
+
+def colore(team: dict | None) -> str:
+    """Il colore dell'intestazione scelto con /palette (colore_header), se no il blu di sempre."""
+    c = (team or {}).get("colore_header") or ""
+    return c if re.fullmatch(r"#[0-9A-Fa-f]{6}", c) else "#1A237E"
+
+
+def logo(team_id: str) -> str:
+    cartella = os.environ.get("LOGHI_DIR") or os.path.join(os.path.dirname(os.environ.get("TEAMS_PATH", "/config/teams.json")), "loghi")
+    for ext in ("png", "jpg", "jpeg", "webp"):
+        p = os.path.join(cartella, f"{team_id}_logo.{ext}")
+        if os.path.exists(p):
+            return p
+    return ""

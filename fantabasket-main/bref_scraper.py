@@ -33,12 +33,11 @@ HEADERS = {
 # ── DB ────────────────────────────────────────────────────────────────────────
 
 def _get_conn():
-    dsn = os.environ.get("DATABASE_URL", "")
-    if not dsn:
-        pw_file = os.environ.get("PG_PASSWORD_FILE", "/run/secrets/pg_password")
-        if os.path.exists(pw_file):
-            os.environ["PGPASSWORD"] = open(pw_file).read().strip()
-        dsn = "postgresql://fantabasket@postgres:5432/fantabasket"
+    dsn = os.environ.get("DATABASE_URL", "") or "postgresql://fantabasket@postgres:5432/fantabasket"
+    # la password dal secret anche con DATABASE_URL (che non ce l'ha): da solo (--migrate) nessuno l'ha messa in PGPASSWORD
+    pw_file = os.environ.get("PG_PASSWORD_FILE", "/run/secrets/pg_password")
+    if not os.environ.get("PGPASSWORD") and os.path.exists(pw_file):
+        os.environ["PGPASSWORD"] = open(pw_file).read().strip()
     return psycopg2.connect(dsn)
 
 

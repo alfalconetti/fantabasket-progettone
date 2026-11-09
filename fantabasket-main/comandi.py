@@ -54,6 +54,8 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("player",     "Un giocatore: NBA, fantabasket, contratto, statistiche [nome]"),
         BotCommand("status",     "Injury status dei giocatori di una squadra [SQUADRA]"),
         BotCommand("calendario", "La giornata tua o di una squadra [N] [SQUADRA]"),
+        BotCommand("rendimento", "La stagione di un giocatore partita per partita [nome]"),
+        BotCommand("rendimento_carriera", "La fantamedia stagione per stagione, anche dei giocatori storici [nome]"),
     ]
     cmd_base = cmd_group + cmd_lega + [
         BotCommand("menu",           "Menu principale"),
