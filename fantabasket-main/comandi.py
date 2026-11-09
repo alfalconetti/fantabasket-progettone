@@ -44,10 +44,18 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("team_diff", "Variazioni roster [team_id] [da] [a]"),
         BotCommand("carriera", "Carriera di un giocatore: fantabasket e NBA [nome]"),
         BotCommand("trova_trade", "Una trade ufficiale: per numero o per giocatore"),
+        BotCommand("pick", "Di chi è una pick e la sua storia [SQUADRA] [1|2] [ANNO]"),
+        BotCommand("pick_lega", "Tutte le pick della lega in un'immagine"),
         BotCommand("pdf_roster", "I roster di tutte le squadre in un PDF [DATA]"),
         BotCommand("pdf_assets", "Gli asset di tutte le squadre in un PDF [DATA]"),
     ]
-    cmd_base = cmd_group + [
+    # v7.3.0: in comune con loucabot, solo in privato (nei gruppi sono di loucabot: lì non si suggeriscono)
+    cmd_lega = [
+        BotCommand("player",     "Un giocatore: NBA, fantabasket, contratto, statistiche [nome]"),
+        BotCommand("status",     "Injury status dei giocatori di una squadra [SQUADRA]"),
+        BotCommand("calendario", "La giornata tua o di una squadra [N] [SQUADRA]"),
+    ]
+    cmd_base = cmd_group + cmd_lega + [
         BotCommand("menu",           "Menu principale"),
         BotCommand("penalita",       "Penalità della tua squadra, o di SQUADRA"),
         BotCommand("registro",       "Registro delle azioni sulla tua squadra (.md)"),

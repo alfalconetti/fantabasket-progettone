@@ -13,7 +13,7 @@ fantabasket-progettone/
 ├── config/             globals.json, teams.json, settings.json, divisions.json, loghi/ …  (NON in git)
 ├── secrets/            token, password, URL dei fogli, *.env                            (NON in git)
 │   └── cifrati/        secrets.tar.gpg per il backup (scripts/cifra_secrets.sh)
-├── shared/              in comune ai bot: ruoli_core.py (ruoli), cap.py (cap e slot), squadre.py (ricerca squadra), lista_fa.py (stagioni della lista FA e switch al 70% dei firmati, per aste e report posizioni), messaggi.py (report lunghi), dev_comune.py (/dev_log, /dev_pg, /reboot ed error handler di loucabot e IPanchinari), parole_nome.py (nomi in qualsiasi ordine), squadre_nba.py (nomi, colori, sigle e loghi delle 30 squadre NBA), solo_lega.py (solo GM, admin e dev in privato, solo le chat della lega: esce dalle altre), solo_gruppo_admin.py (comandi admin e dev solo in privato e nel gruppo admin, in tutti e quattro i bot: negli altri gruppi passano solo quelli di `comandi.comandi_pubblici()`)
+├── shared/              in comune ai bot: ruoli_core.py (ruoli), cap.py (cap e slot), squadre.py (ricerca squadra), lista_fa.py (stagioni della lista FA e switch al 70% dei firmati, per aste e report posizioni), messaggi.py (report lunghi), dev_comune.py (/dev_log, /dev_pg, /reboot ed error handler di loucabot e IPanchinari), parole_nome.py (nomi in qualsiasi ordine), squadre_nba.py (nomi, colori, sigle e loghi delle 30 squadre NBA), solo_lega.py (solo GM, admin e dev in privato, solo le chat della lega: esce dalle altre), solo_gruppo_admin.py (comandi admin e dev solo in privato e nel gruppo admin, in tutti e quattro i bot: negli altri gruppi passano solo quelli di `comandi.comandi_pubblici()`), numeri.py (fantapunti all'ottavo), lettura.py + giocatore.py + status_squadra.py + calendario_squadra.py (v7.3.0: /player, /status e /calendario di loucabot, anche nel bot principale; il database lo dà ogni bot con `lettura.usa(q)`), foto_player.typ
 ├── fantabasket-main/      ← questo bot
 ├── fantabasket-aste-beta/ bot aste
 ├── fantabasket-loucabot/  loucabot: calendario e calcolo dei fantapunti, README e docs/ suoi
@@ -376,6 +376,8 @@ ORDER BY t.timestamp, t.id;
 | `admin_panel.py` | `/admin_menu`, fasi, DPE e tagli admin, `/registra_firma`, `/list`, `/set_cap_penalizzato`, `/riassegna` (callback `riass:ok`/`riass:no`, `conferma_riassegna`), situazione cap |
 | `accesso.py` | richieste di accesso (v6.26.0): `richiedi` (dalla guardia di `shared/solo_lega`, tabella `richieste_accesso`, una ogni 24 ore, al dev), `riass:menu` (voce del menu admin), `riass:utente`, `riass:sq`, `riass:ignora` |
 | `trova_trade.py` | `/trova_trade` (v6.12.0): `per_numero` / `per_giocatore` (solo `stato` approvata o annullata, con `trade_ref`), `dati` (asset dal movimento della trade: contratto di allora da `transazioni.contratto_id`; `_cap_roster` a un istante: roster a una data, DPE a una data, spalmature con la transazione fino ad allora; `_percorso` da `trade`, `trade_voti` e `registro_azioni`), `trova_trade.typ` (in verde) col Typst della libreria (`typst_compila`, v6.24.0), emoji dal font Noto Color Emoji (`fonts-noto-color-emoji` nel Dockerfile, come loucabot); trade a due solo «riceve»; FP di giocatori e diritti (v7.1.0) da `db.fantamedie` nella stagione `_stagione_al(data della trade)` + 1 di bref |
+| `pick.py` | `/pick` (v7.3.0): `leggi_argomenti` (giro 1/2, «2°», «r2»; anno a 4 o 2 cifre; il resto è la squadra; default prossimo draft = stagione + 1), `trova`, `storia` (`database.storia_pick`: transazioni con `oggetto = 'pick'` e `trade_ref`), `righe_storia` (l'annullamento sulla riga della trade, stesso `trade_id`), `scheda`. `/pick_lega`: `sigle` (campo `sigla` di teams.json, se no tre lettere rese uniche), `dati_lega` (anni > stagione, casella per giro: propria / altra / usata / nessuna, protezioni, «in mano»), `immagine_lega` (`pick_lega.typ`, variante A del mockup del 09/11) |
+| `lega.py` | `/player`, `/status`, `/calendario` (v7.3.0) col codice di loucabot in `shared/` (`giocatore.py`, `status_squadra.py`, `calendario_squadra.py`; letture con `shared/lettura.py`, che usa `database._q` da `database.py`): solo in privato (`filters.ChatType.PRIVATE`, segnati come `_solo_privato` per il menu del gruppo admin), nei gruppi sono di loucabot; nel menu solo negli scope privati (`cmd_lega` in `comandi.py`) |
 | (shared) `parole_nome.py` | nomi dei giocatori in qualsiasi ordine (v6.11.1): `nomi.esatti`/`simili`, `db.cerca_giocatori` (ogni parola, se il pezzo intero non c'è), `posizioni._cerca_giocatori` (anche `/carriera`), `dieci_giorni.cerca` |
 | `bref.py` | job Basketball-Reference e conferma dei giocatori nuovi; dopo ogni abbinamento (`abbina_auto`, bottone 🔗) `aggiorna_foglio` risincronizza il foglio Roster se il giocatore è sotto contratto (v6.9.0) |
 | `nascite.py` | `/set_nascita`, `/nascite_mancanti` |
@@ -579,6 +581,8 @@ Gli errori dei job vanno a `log_job_error`: canale log e privato del dev. `/job_
 | Area | Comandi |
 |---|---|
 | menu e squadra | `/menu` (anche `/start`), `/roster`, `/assets`, `/team_diff`, `/palette`, `/my_team` |
+| pick | `/pick`, `/pick_lega` (anche nei gruppi) |
+| come loucabot, solo in privato | `/player`, `/status`, `/calendario` |
 | trade | `/build_trade`, `/import_trade`, `/bozze_trade`, `/my_trades` (alias `/mie_trade`), `/edit_trade` |
 | roster | `/taglia`, `/dpe`, `/attiva_diritti`, `/decadimento` |
 | rinnovi (fase rinnovi) | `/rinnovo_rookie`, `/dichiara_rfa` |
@@ -587,7 +591,7 @@ Gli errori dei job vanno a `log_job_error`: canale log e privato del dev. `/job_
 
 **Menu "/".** Lo costruisce `comandi.liste_comandi(fase)` per scope:
 
-- gruppi: solo `/roster` e `/assets`;
+- gruppi: `cmd_group` (roster, asset, `/team_diff`, `/carriera`, `/trova_trade`, `/pick`, `/pick_lega`, i PDF); non `/player`, `/status`, `/calendario`, che nei gruppi sono di loucabot;
 - privato: GM;
 - chat dei singoli admin e gruppo admin: admin;
 - dev: tutto.

@@ -1568,6 +1568,13 @@ def get_item_trade(item_id: int) -> dict | None:
     return _q("SELECT * FROM trade_items WHERE id = %s", (item_id,), one=True)
 
 
+def storia_pick(pick_id: int) -> list[dict]:
+    """/pick (v7.3.0): i movimenti di una pick nel registro, in ordine, col numero e lo stato della trade."""
+    return _q("""SELECT t.*, tr.trade_ref, tr.stato AS stato_trade FROM transazioni t
+                 LEFT JOIN trade tr ON tr.id = t.trade_id
+                 WHERE t.oggetto = 'pick' AND t.pick_id = %s ORDER BY t.timestamp, t.id""", (pick_id,), many=True) or []
+
+
 def get_max_pick_anno() -> int:
     """Anno massimo di pick presenti nel DB."""
     val = _qval("SELECT MAX(anno) FROM pick")
@@ -1699,3 +1706,8 @@ def minimo_cam_thomas(giocatore_id: int, team_id: str) -> int | None:
                       AND t.note LIKE '%%Cam Thomas%%' AND t.timestamp > NOW() - INTERVAL '1 year'
                     ORDER BY t.timestamp DESC LIMIT 1""", (giocatore_id, team_id))
 
+
+
+# v7.3.0: /player, /status e /calendario anche qui (codice in shared/, con loucabot): le letture usano _q.
+from shared import lettura as _lettura  # noqa: E402
+_lettura.usa(lambda sql, params=None, one=False, many=False: _q(sql, params if params is not None else (), one=one, many=many))

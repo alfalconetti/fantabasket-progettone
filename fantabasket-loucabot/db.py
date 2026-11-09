@@ -598,3 +598,9 @@ def risultati(stagione: str) -> dict[tuple, dict]:
     """{(giornata, casa, trasferta): riga} dei risultati della stagione."""
     righe = q("SELECT * FROM lega_risultati WHERE stagione = %s", (stagione,), many=True) or []
     return {(r["giornata"], r["casa"], r["trasferta"]): r for r in righe}
+
+
+# v7.3.0: le letture in comune col bot principale (shared/lettura.py: /player, /status, /calendario) usano questo q.
+# Con una lambda, così vale anche il q che klra mette al posto di questo (sola lettura, risultati del sistema).
+from shared import lettura as _lettura  # noqa: E402
+_lettura.usa(lambda sql, params=None, one=False, many=False: q(sql, params, one=one, many=many))

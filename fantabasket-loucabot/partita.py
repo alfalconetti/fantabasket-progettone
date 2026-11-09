@@ -44,6 +44,37 @@ def _logo(team_id: str) -> str:
     return ""
 
 
+def _wl(righe: list[dict], team: str) -> tuple[int, int, int]:
+    """Vinte, perse e pari di una squadra in queste righe (come lega_risultati: casa, trasferta, vince)."""
+    w = l = p = 0
+    for r in righe:
+        if team not in (r["casa"], r["trasferta"]):
+            continue
+        lato = "casa" if r["casa"] == team else "trasferta"
+        if r["vince"] == lato:
+            w += 1
+        elif r["vince"] == "pari":                 # solo klra: la lega non ha pareggi
+            p += 1
+        else:
+            l += 1
+    return w, l, p
+
+
+def testo_record(x: tuple[int, int, int]) -> str:
+    return f"{x[0]}-{x[1]}" + (f"-{x[2]}" if x[2] else "")
+
+
+def record(righe: list[dict], team: str, n: int) -> dict:
+    """v87 (Luca, 09/11): il record W-L di adesso (tutte le giornate convalidate della stagione) e, se non è
+    semplicemente quello di prima della giornata n più il risultato di questa partita (cioè se dopo ne sono state
+    convalidate altre), anche quello di prima. righe = risultati convalidati della stagione (anche quelli di klra)."""
+    ora = _wl(righe, team)
+    prima = _wl([r for r in righe if int(r["giornata"]) < n], team)
+    questa = _wl([r for r in righe if int(r["giornata"]) == n], team)
+    atteso = tuple(a + b for a, b in zip(prima, questa))
+    return {"record": testo_record(ora), "record_prima": testo_record(prima) if ora != atteso else ""}
+
+
 def _stato_calcolo(s: str, n: int) -> str | None:
     r = db.q("SELECT stato FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (s, n), one=True)
     return r["stato"] if r else None
@@ -210,6 +241,10 @@ def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None)
             "tribuna": tribuna(t, g, ora, iniziata, {x.get("gid") for x in orig["quintetto"] + orig["panchina"] if x.get("gid")},
                                giorni, partite_giorno),
             "panchina_mandata": orig["panchina"] != [] or bool(sq_calc["panchina"])})
+    import classifica                                  # i convalidati della stagione (come la classifica)
+    convalidati = classifica.risultati(s)
+    for sq in squadre_out:
+        sq.update(record(convalidati, sq["id"], n))
     if salvato and (abs(float(salvato["punti_casa"] or 0) - es["regolamentari"][0]) > 0.001
                     or abs(float(salvato["punti_trasferta"] or 0) - es["regolamentari"][1]) > 0.001 or salvato["vince"] != r["vince"]):
         note.insert(0, f"In testa il risultato convalidato. Ricalcolando oggi verrebbe {tp(es['regolamentari'][0])} – "

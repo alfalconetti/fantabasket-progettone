@@ -183,6 +183,10 @@ def dati_partita(s: dict, stagione: str, n: int, casa: str, trasferta: str) -> d
     if r["vince"] == "pari":
         d["note"].insert(0, "Pareggio col sistema " + s["nome"])
     d["note"].insert(0, f"Sistema {s['nome']}: {riassunto(s, 4)}")
+    # il record W-L sotto i loghi coi risultati del sistema (klra v3), non quelli della lega
+    righe = json.loads(M.righe_lega(s, stagione))
+    for sq in d["squadre"]:
+        sq.update(partita.record(righe, sq["id"], n))
     d["sistema"] = s["nome"]
     d["filigrana"], d["striscia"] = FILIGRANA, striscia(s)
     d["bonus"] = tp(c["bonus"])

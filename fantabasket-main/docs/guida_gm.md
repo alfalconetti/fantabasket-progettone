@@ -55,6 +55,12 @@ Il comando funziona anche in altri modi:
 
 **`/trova_trade NUMERO`** (o `/trova_trade GIOCATORE`) manda un'immagine con una trade ufficiale, approvata o poi annullata: `/trova_trade 014` (o `TRADE-2026-014`), oppure il nome di un giocatore per le trade che lo riguardano (se sono più d'una scegli coi bottoni). Per ogni squadra cosa riceve e cosa cede, da chi arriva e a chi va ogni giocatore, pick o diritto (nelle trade a due solo cosa riceve ciascuna: il resto si capisce da solo); cap e roster di ogni squadra **al momento della trade**, prima e dopo; accanto a ogni giocatore e diritto la **FP**, la fantamedia della stagione della trade (o, per una trade in estate, di quella che stava per cominciare); in fondo il percorso: chi l'ha proposta (o scritta, se un admin), chi ha accettato, se è stata mandata agli admin senza aspettare tutti, chi l'ha approvata e, se è il caso, annullata. Va bene anche nei gruppi.
 
+**`/pick [SQUADRA] [1|2] [ANNO]`** ti dice di chi è una pick e la sua storia. Gli argomenti vanno in qualsiasi ordine: la squadra a cui spettava (nome, GM o alias; senza, la tua), il giro (1 o 2, anche «2°» o «r2»; senza, il primo) e l'anno del draft (2028 o «28»; senza, il prossimo draft: nella stagione 2026-27 è il 2027). Risponde col proprietario di adesso, le protezioni, se è già stata usata (numero e giocatore scelto) e la **storia**: com'era all'avvio del bot e ogni trade che l'ha spostata, col suo numero (da aprire con `/trova_trade`); una trade annullata resta sulla sua riga con la data dell'annullamento. Va bene anche nei gruppi.
+
+**`/pick_lega`** manda un'immagine con **tutte le pick della lega**: una riga per squadra (a cui spetta la pick), per ogni anno del draft due caselle, 1° e 2° giro, con logo e sigla di chi ce l'ha adesso: in grigio se ce l'ha ancora lei, in grassetto su fondo chiaro se è passata a un'altra squadra. `*` vuol dire protetta, una casella grigia col numero è una pick già usata. In fondo a ogni riga quante pick di ogni giro ha in mano la squadra, sue e di altri. Va bene anche nei gruppi.
+
+**`/player NOME`**, **`/status [SQUADRA]`** e **`/calendario [N] [SQUADRA]`** sono gli stessi di loucabot (stesso codice, stesse risposte: la guida è quella di loucabot), qui **solo in privato**: nei gruppi risponde loucabot, così nessuno riceve due risposte. `/calendario` senza squadra vale per la tua; la giornata intera e la classifica sono su loucabot.
+
 **`/team_diff`** ti dice cosa è cambiato nell'ultima settimana: chi è arrivato, chi è uscito e chi ha cambiato contratto (per esempio per una DPE, un rinnovo o un rookie che passa al II anno, 12x2 → 13x1). Esempio di risposta:
 
 ```
@@ -351,6 +357,8 @@ Gli admin possono dare una penalità alla squadra (panchina in ritardo, formazio
 |---|---|
 | vedere la mia squadra | `/roster`, `/assets` |
 | vedere cosa è cambiato | `/team_diff` |
+| di chi è una pick, tutte le pick | `/pick`, `/pick_lega` |
+| un giocatore, gli infortunati, il calendario (anche qui, in privato) | `/player`, `/status`, `/calendario` |
 | fare una trade | `/build_trade` o `/import_trade` |
 | vedere le mie trade | `/my_trades` |
 | tagliare | menu → Tagli (`/taglia`) |

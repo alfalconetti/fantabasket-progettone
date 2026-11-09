@@ -11,6 +11,7 @@ from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes, MessageHandler, filters
 
 import calendario as cal
+from shared import calendario_squadra as CS
 import config
 import db
 import nba
@@ -48,25 +49,10 @@ def _numero(args) -> int | None:
         return None
 
 
-def _riga_giornata(g: dict) -> str:
-    righe = [f"📅 <b>Giornata {g['numero']}</b> · {g['dal']:%d/%m} – {g['al']:%d/%m}"]
-    if g.get("prima_partita"):
-        righe.append(f"⏰ Formazione e panchina entro <b>{cal.ora(g['prima_partita'])}</b> (prima partita NBA)")
-    media = g["media"] if g.get("media") is not None else g.get("media_file")
-    if media:
-        righe.append(f"📈 Prendono la media (senza partite NBA): <b>{', '.join(media)}</b>")
-    return "\n".join(righe)
+_riga_giornata = CS.riga_giornata                 # v7.3.0: in shared/calendario_squadra.py (anche nel bot principale)
 
 
-def _argomenti(args) -> tuple[int | None, str]:
-    """(numero di giornata, testo della squadra) da /calendario [N] [SQUADRA] (in qualsiasi ordine)."""
-    n, resto = None, []
-    for a in args or []:
-        if n is None and a.isdigit():
-            n = int(a)
-        else:
-            resto.append(a)
-    return n, " ".join(resto).strip()
+_argomenti = CS.argomenti
 
 
 def _squadra(update, testo: str) -> tuple[dict | None, str | None]:
@@ -76,6 +62,10 @@ def _squadra(update, testo: str) -> tuple[dict | None, str | None]:
         t = cerca_squadra(testo, config.squadre())
         return (t, None) if t else (None, f"Nessuna squadra trovata con «{e(testo)}».")
     return config.squadra_del_gm(update.effective_user.id), None
+
+
+PIEDE_CALENDARIO = ("/giornata per tutte le partite · /calendario N [SQUADRA] per un'altra giornata o squadra · "
+                    "/calendario_full [SQUADRA] per tutta la stagione")
 
 
 async def cmd_calendario(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -94,27 +84,7 @@ async def cmd_calendario(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not team:
         await _mostra_giornata(update, g)
         return
-    righe = [_riga_giornata(g), ""]
-    p = db.partita_squadra(s, g["numero"], team["id"])
-    if p:
-        casa = p["casa"] == team["id"]
-        avv = p["trasferta"] if casa else p["casa"]
-        righe.append(f"🏀 <b>{e(team['nome'])}</b> {'in casa (+3)' if casa else 'in trasferta'} contro "
-                     f"<b>{e(config.nome(avv))}</b>")
-        if _risultato(s, g["numero"], p):
-            righe.append(riga_partita(s, g["numero"], p))
-    prossime = [x for x in db.giornate(s) if x["numero"] > g["numero"]][:3]
-    if prossime:
-        righe += ["", "<b>Le prossime</b>"]
-        for x in prossime:
-            p = db.partita_squadra(s, x["numero"], team["id"])
-            if p:
-                casa = p["casa"] == team["id"]
-                righe.append(f"• G{x['numero']} {x['dal']:%d/%m}: {'🏠' if casa else '✈️'} "
-                             f"{e(config.nome(p['trasferta'] if casa else p['casa']))}")
-    righe += ["", "<i>/giornata per tutte le partite · /calendario N [SQUADRA] per un'altra giornata o squadra · "
-                  "/calendario_full [SQUADRA] per tutta la stagione</i>"]
-    await update.effective_message.reply_text("\n".join(righe), parse_mode="HTML")
+    await update.effective_message.reply_text(CS.testo_squadra(s, g, team, PIEDE_CALENDARIO), parse_mode="HTML")
 
 
 def testo_calendario_full(s: str, team: dict) -> str:
@@ -162,38 +132,13 @@ async def cmd_calendario_full(update: Update, context: ContextTypes.DEFAULT_TYPE
     await update.effective_message.reply_text(t, parse_mode="HTML")
 
 
-def _risultato(s: str, n: int, p: dict) -> dict | None:
-    """Il risultato convalidato di una partita della lega, se c'è."""
-    r = db.q("SELECT * FROM lega_risultati WHERE stagione = %s AND giornata = %s AND casa = %s AND convalidato IS NOT NULL",
-             (s, n, p["casa"]), one=True)
-    return r
+_risultato = CS.risultato
 
 
-def _stato_calcolo(s: str, n: int) -> str | None:
-    try:
-        r = db.q("SELECT stato FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (s, n), one=True)
-    except Exception:
-        return None
-    return r["stato"] if r else None
+_stato_calcolo = CS.stato_calcolo
 
 
-def riga_partita(s: str, n: int, p: dict) -> str:
-    """«Casa – Trasferta», col risultato se la giornata è convalidata (vincente in grassetto)."""
-    from numeri import testo as tp
-    casa, tr = e(config.nome(p["casa"])), e(config.nome(p["trasferta"]))
-    r = _risultato(s, n, p)
-    if not r:
-        return f"• {casa} – {tr}"
-    if r["vince"] == "casa":
-        casa = f"<b>{casa}</b>"
-    elif r["vince"] == "trasferta":
-        tr = f"<b>{tr}</b>"
-    t = f"• {casa} {tp(r['punti_casa'])} – {tp(r['punti_trasferta'])} {tr}"
-    if r["supp_casa"] is not None:
-        t += f" <i>(supp. {tp(r['supp_casa'])} – {tp(r['supp_trasferta'])})</i>"
-    if r["vince"] == "pari":                               # solo nei sistemi di klra (v7.1.0)
-        t += " · 🤝 pareggio"
-    return t
+riga_partita = CS.riga_partita
 
 
 async def _mostra_giornata(update, g):

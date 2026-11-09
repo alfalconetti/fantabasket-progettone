@@ -37,10 +37,7 @@ def indisponibile(stato: str | None) -> bool:
     return bool(stato) and stato.strip().lower() not in STATI_DISPONIBILE
 
 
-def conta(r: dict) -> bool:
-    """Una riga di tabellino fa media? Solo se è entrato, e uno 0 con 0 minuti no (deciso con
-    Luca il 13/10): uno 0 con dei minuti sì."""
-    return bool(r["giocato"]) and not (float(r["fp"] or 0) == 0 and int(r.get("minuti") or 0) == 0)
+from shared.lettura import conta  # noqa: E402,F401  — v7.3.0: in comune col bot principale (/player)
 
 
 def _giorni(dal, al) -> list:
@@ -217,16 +214,7 @@ def esito(casa: dict, trasferta: dict, bonus: float | None = None) -> dict:
 
 # ── abbinamento giocatori ↔ ESPN ───────────────────────────────────────────────
 
-_SUFFISSI = {"jr", "sr", "ii", "iii", "iv", "v"}
-_LETTERE = str.maketrans({"đ": "d", "Đ": "d", "ø": "o", "Ø": "o", "ł": "l", "Ł": "l", "ß": "ss", "æ": "ae", "þ": "th"})
-
-
-def norm(nome: str) -> str:
-    import re
-    import unicodedata
-    s = unicodedata.normalize("NFKD", (nome or "").translate(_LETTERE)).encode("ascii", "ignore").decode().lower()
-    parole = [p for p in re.sub(r"[^a-z ]", "", s.replace("-", " ")).split() if p not in _SUFFISSI]
-    return "".join(parole)
+from shared.lettura import _LETTERE, _SUFFISSI, norm  # noqa: E402,F401  — v7.3.0: in comune col bot principale
 
 
 def abbina_auto(atleti: dict[str, str]) -> dict:

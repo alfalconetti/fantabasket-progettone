@@ -32,8 +32,14 @@
 #let peso(s) = if not finale or s.vince { "bold" } else { "regular" }
 #let lato(s, dx) = {
   let nome = [#text(13pt, weight: peso(s), fill: white)[#s.nome] \ #text(8.5pt, fill: white.transparentize(30%))[#if s.gm != "" [GM #s.gm · ]#if s.lato == "casa" [casa] else [trasferta]]]
-  if dx { grid(columns: (1fr, auto), column-gutter: 8pt, align: (right + horizon, horizon), align(right, nome), logo(s, 40pt)) }
-  else { grid(columns: (auto, 1fr), column-gutter: 8pt, align: horizon, logo(s, 40pt), nome) }
+  // record W-L della stagione sotto il logo (Luca, 09/11): campo facoltativo
+  let rec = s.at("record", default: "")
+  let prima = s.at("record_prima", default: "")
+  let lg = if rec != "" { stack(spacing: 4pt, align(center, logo(s, 40pt)),
+    align(center, text(9pt, weight: "bold", fill: white.transparentize(15%), tracking: 0.3pt)[#rec]),
+    ..(if prima != "" { (align(center, box(width: 58pt, align(center, text(6.5pt, fill: white.transparentize(30%))[prima di questa partita: #text(weight: "bold")[#prima]]))),) } else { () })) } else { logo(s, 40pt) }
+  if dx { grid(columns: (1fr, auto), column-gutter: 8pt, align: (right + horizon, horizon), align(right, nome), lg) }
+  else { grid(columns: (auto, 1fr), column-gutter: 8pt, align: horizon, lg, nome) }
 }
 #let punti(s) = text(28pt, weight: peso(s), fill: if dati.stato == "da giocare" { white.transparentize(40%) } else if s.vince or not finale { white } else { white.transparentize(30%) })[#if dati.stato == "da giocare" [–] else [#s.punti]]
 #let etichetta(t, c) = box(fill: c, radius: 4pt, inset: (x: 6pt, y: 2.5pt))[#text(8pt, weight: "bold", fill: white)[#t]]

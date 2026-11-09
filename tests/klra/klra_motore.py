@@ -387,6 +387,10 @@ for nome, f in (("classifica", lambda: V.img_classifica(hk, S)), ("confronta", l
     except Exception as err:
         ok(False, f"immagine {nome}: {err}")
 dp = V.dati_partita(hk, S, 1, "team01", "team02")
+import partita as _PAk
+_rk = json.loads(M.righe_lega(hk, S))
+ok(all(sq["record"] == _PAk.record(_rk, sq["id"], 1)["record"] for sq in dp["squadre"]),
+   f"/partita: il record W-L coi risultati del sistema {[(sq['id'], sq['record'], sq['record_prima']) for sq in dp['squadre']]}")
 ok(dp["sistema"] == "Hockey" and any(r.get("bonus") == "+5 TD" for sq in dp["squadre"] for r in sq["righe"]), "/partita: il nome del sistema e il bonus accanto (+5 TD)")
 t = V.testo_risultati(hk, S, 1)
 ok("Hockey" in t and "Giornata 1" in t and t.startswith("🧪 <b>NON UFFICIALE</b>"), "/risultati in testo, NON UFFICIALE in testa")

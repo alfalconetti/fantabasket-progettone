@@ -17,3 +17,7 @@
 - **Classifica cumulativa** (Luca, 06/11): opzione dell'editor, i punti fatti in tutte le giornate senza bonus casa né supplementari; Fantapanchine la usa
 - **Conference alternative** (`/conference`, Luca 06/11): le crea chiunque scegliendo le squadre della prima conference, ognuna prende a caso il posto di una squadra della sua conference nel calendario vero (accoppiamento salvato); attive per utente, valgono in tutti i comandi insieme al sistema; le modifica solo chi le ha create
 - **`/player`** col sistema (Luca, 06/11): la scheda di loucabot con in fondo fantamedia e ultime 5 partite del sistema; **🔀 Squadre a caso** nella creazione delle conference
+
+## v3 (2026-11-09, progettone v7.2.0)
+
+- **`/partita`: record W-L sotto i loghi coi risultati del sistema** (Luca, 09/11), con la stessa regola di loucabot («prima di questa partita: W-L» se dopo ne sono state convalidate altre); i pareggi del sistema come terzo numero (es. 5-2-1)

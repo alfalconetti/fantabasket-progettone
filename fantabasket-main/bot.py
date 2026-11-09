@@ -23,6 +23,8 @@ from handlers.myteam      import get_handlers as myteam_handlers
 from handlers.team_diff   import get_handlers as team_diff_handlers
 from handlers.carriera    import get_handlers as carriera_handlers
 from handlers.trova_trade import get_handlers as trova_trade_handlers
+from handlers.pick        import get_handlers as pick_handlers
+from handlers.lega        import get_handlers as lega_handlers
 from handlers.admin_panel import get_handlers as admin_panel_handlers
 from handlers.dev_player  import get_handlers as dev_player_handlers
 from handlers.dev         import get_handlers as dev_handlers
@@ -354,6 +356,10 @@ def main():
     for h in carriera_handlers():
         app.add_handler(h)
     for h in trova_trade_handlers():
+        app.add_handler(h)
+    for h in pick_handlers():
+        app.add_handler(h)
+    for h in lega_handlers():                 # /player, /status, /calendario: solo in privato (nei gruppi loucabot)
         app.add_handler(h)
     for h in admin_panel_handlers():
         app.add_handler(h)

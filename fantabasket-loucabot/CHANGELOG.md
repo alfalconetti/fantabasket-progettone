@@ -431,3 +431,12 @@ Il calcolo dei fantapunti.
 - **`/player`**: la prossima partita NBA (avversario, casa o fuori, giorno e ora, giornata del fantabasket) (Luca, 05/11)
 - Per klra: `classifica.typ` accetta striscia e filigrana NON UFFICIALE, `/calendario` e `/calendario_full` sanno mostrare un pareggio (campi e valori che la lega non usa: loucabot non cambia)
 - **Tanking a consuntivo senza cambi ruolo** (Luca, 07/11): la formazione migliore mette ognuno solo nel posto del suo ruolo di adesso, non in tutte le posizioni eleggibili (un cambio ruolo non si fa a metà giornata)
+
+## v87 (2026-11-09, progettone v7.2.0)
+
+- **`/player`: media delle ultime 5 giocate** (Luca, 09/11): sotto le medie della stagione, i fantapunti medi e i minuti delle ultime 5 partite in cui è entrato (le saltate e i «non è entrato» non contano, come nella media della stagione). Compare solo da 6 partite giocate in su: prima sarebbe uguale alla media della stagione
+- **`/partita`: record W-L sotto i loghi** (Luca, 09/11): quello di adesso, contando le giornate convalidate della stagione; se non è semplicemente quello di prima della giornata più il risultato della partita (perché dopo ne sono state convalidate altre), sotto c'è anche «prima di questa partita: W-L». `partita.typ` accetta i campi `record` e `record_prima` (facoltativi)
+
+## v88 (2026-11-09, progettone v7.3.0)
+
+- **`/player`, `/status` e `/calendario` di una squadra in comune col bot principale** (Luca, 09/11): il codice sta in `shared/` (`giocatore.py`, `status_squadra.py`, `calendario_squadra.py`, `numeri.py`, `lettura.py`, `foto_player.typ`). In loucabot non cambia niente: stessi comandi, stesse risposte, e nei gruppi questi comandi restano suoi (il bot principale risponde solo in privato)

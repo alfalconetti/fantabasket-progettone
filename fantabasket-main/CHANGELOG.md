@@ -1852,3 +1852,16 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - **IPanchinari v37**: il GM viene avvisato quando un admin gli cambia quintetto, formazione o panchina
 - **Documentazione**: `README.md` riscritto (in italiano, aggiornato, progetto hobbistico); `MIGRATION.md` spostato nella root e aggiornato (klra, struttura, versioni); `scripts/deploy.sh` allineato a quello della root
 - **klra v2**: come loucabot (`/calendario`, `/calendario_full`, `/classifica_full`, `/classifica_conference`, `/pdf_giornata`, `/pdf_partite` col sistema), `/klra_verifica` e `/confronta` sul ricalcolo di oggi, sistema predefinito **Fantapanchine** (solo i panchinari, classifica cumulativa), **classifica cumulativa** nell'editor, **conference alternative** (`/conference`, anche estratte a caso), `/player` col sistema; dettagli nel suo CHANGELOG
+
+## v7.2.0 (2026-11-09)
+
+- **loucabot v87**: `/player` mostra anche la media dei fantapunti (e i minuti) delle ultime 5 partite giocate; `/partita` col record W-L sotto i loghi (quello di adesso e, se dopo ne sono state convalidate altre, quello di prima della partita) (Luca, 09/11)
+- **klra v3**: `/partita` col record W-L del sistema sotto i loghi
+
+## v7.3.0 (2026-11-09)
+
+- **`/pick [SQUADRA] [1|2] [ANNO]`** (Luca, 09/11): di chi è una pick (di default la tua, 1° giro, prossimo draft), protezioni, se è già stata usata, e la storia: avvio del bot e ogni trade col suo numero, le annullate segnate sulla loro riga. Anche nei gruppi
+- **`/pick_lega`** (Luca, 09/11, mockup approvato, variante A): un'immagine con tutte le pick della lega, chi ce l'ha di ogni squadra per anno e giro (logo e sigla; in grigio se ce l'ha ancora lei), protette, usate e quante ne ha in mano ognuno. Anche nei gruppi. Sigle automatiche (tre lettere del nome, diverse tra loro) o il campo `sigla` di teams.json
+- **`/player`, `/status`, `/calendario` anche qui, in privato** (Luca, 09/11): lo stesso codice di loucabot, spostato in `shared/`; nei gruppi restano di loucabot e qui non compaiono nel menu, così niente risposte doppie
+- **loucabot v88**: il codice di quei tre comandi in `shared/` (per lui non cambia niente)
+- Prove: `pick`, `lega_comandi` (gira dopo le prove di loucabot)

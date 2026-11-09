@@ -43,7 +43,7 @@ a vittorie o a punti).
 | `/usa NOME` | il tuo sistema attivo (di default l'Ufficiale) |
 | `/classifica [NOME]` | immagine, con P (pareggi) e PT (classifica a punti) se servono |
 | `/giornata [N] [NOME]` | il tabellone (live.typ di loucabot, etichetta KLRA) |
-| `/partita [SQUADRA] [N] [NOME]` | la sfida (partita.typ di loucabot) coi bonus accanto ai punti (es. +5 TD) e i bonus di squadra nelle note |
+| `/partita [SQUADRA] [N] [NOME]` | la sfida (partita.typ di loucabot) coi bonus accanto ai punti (es. +5 TD), i bonus di squadra nelle note e il record W-L del sistema sotto i loghi |
 | `/risultati [N] [NOME]` | in testo, 🔄 dove finisce diversamente dalla realtà |
 | `/confronta [NOME]` | classifica col sistema accanto all'ufficiale (▲▼) e le partite che cambiano esito |
 | `/top [N] [DA A] [firmati] [NOME]` | come /top di loucabot (minimo 40% delle partite) con la fantamedia del sistema; tra parentesi quella della lega e la posizione nella top vera |

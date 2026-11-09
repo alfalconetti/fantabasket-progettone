@@ -1003,6 +1003,20 @@ ok(len(_d7["notti"]) == 3 and _d7["notti"][0].endswith(f"{DAL:%d/%m}") and len(_
    f"/partita: una colonna per notte (con la data), quintetto e panchina {_d7['notti']}")
 _k = {c["k"] for x in _d7["squadre"][0]["righe"] + _d7["squadre"][1]["righe"] for c in x["celle"]}
 ok(_k <= {"fp", "dnp", "prossima", "live", "rinviata", "vuota"} and "fp" in _k, f"/partita: celle fp / DNP / vs @ / vuote {_k}")
+# record W-L sotto i loghi (Luca, 09/11): quello di adesso; quello di prima solo se dopo se ne sono convalidate altre
+_rr = lambda g, c, t, v: {"giornata": g, "casa": c, "trasferta": t, "vince": v}
+_righe = [_rr(1, "A", "B", "casa"), _rr(2, "C", "A", "casa"), _rr(3, "A", "D", "casa"), _rr(4, "E", "A", "trasferta"), _rr(4, "B", "C", "casa")]
+ok(PA.record(_righe, "A", 4) == {"record": "3-1", "record_prima": ""}, "record: ultima giornata convalidata, niente «prima»")
+ok(PA.record(_righe, "A", 2) == {"record": "3-1", "record_prima": "1-0"}, "record: giornata vecchia, il record di adesso e quello di prima (1-0)")
+ok(PA.record(_righe, "A", 5) == {"record": "3-1", "record_prima": ""}, "record: giornata non convalidata, record di adesso = quello di prima")
+ok(PA.record(_righe, "Z", 1) == {"record": "0-0", "record_prima": ""}, "record: squadra senza partite 0-0")
+ok(PA.record(_righe + [_rr(5, "A", "B", "pari")], "A", 5)["record"] == "3-1-1", "record: un pareggio (solo klra) come terzo numero")
+import classifica as _CLr
+_conv7 = _CLr.risultati(S)
+ok(all(sq["record"] == PA.record(_conv7, sq["id"], N)["record"] and "record_prima" in sq for sq in _d7["squadre"]),
+   f"/partita: il record dai risultati convalidati {[(sq['id'], sq['record'], sq['record_prima']) for sq in _d7['squadre']]}")
+ok(PA.immagine({**_d7, "squadre": [{**_d7["squadre"][0], "record": "6-3", "record_prima": "4-2"}, _d7["squadre"][1]]})[:4] == b"\x89PNG",
+   "/partita: immagine col record e «prima di questa partita»")
 _png = PA.immagine(_d7)
 if _os_pa := __import__("os").environ.get("PARTITA_PNG"): open(_os_pa, "wb").write(_png)
 ok(_png[:8] == b"\x89PNG\r\n\x1a\n" and len(_png) > 20000, "/partita: immagine Typst")
@@ -1113,6 +1127,29 @@ db.q("DELETE FROM giocatori WHERE id = %s", (_nc,))
 sc = PLY.scheda(gid1)
 ok("🇺🇸 NBA:" in sc and "🏆 Fantabasket: <b>" in sc and "media <b>" in sc and "Ultime partite" in sc and "fantapunti" in sc,
    "/player: NBA, fantabasket, media e ultime partite\n" + sc)
+# v87: media delle ultime 5 giocate, solo da 6 in su (Luca, 09/11)
+import calcolo as _CAu
+from numeri import ottavi as _ott
+_a1 = db.q("SELECT espn_id FROM giocatori WHERE id = %s", (gid1,), one=True)["espn_id"]
+_tu = db.q("""SELECT t.* FROM nba_tabellini t JOIN nba_partite p ON p.espn_id = t.partita
+               WHERE t.atleta = %s AND p.stagione = %s AND p.tipo = ANY(%s) ORDER BY p.inizio""", (_a1, S, list(PLY.TIPI)), many=True) or []
+_cu = [r for r in _tu if _CAu.conta(r)]
+if len(_cu) > 5:
+    _att = tp(_ott(sum(float(r["fp"]) for r in _cu[-5:]) / 5))
+    ok(f"📈 Ultime 5 giocate: media <b>{_att}</b> fantapunti" in sc, f"/player: media delle ultime 5 giocate ({_att}, {len(_cu)} giocate)")
+else:
+    ok("Ultime 5 giocate" not in sc, f"/player: con {len(_cu)} giocate niente media delle ultime 5 (sarebbe quella della stagione)")
+_orig_q = PLY.db.q
+_fin = [{"partita": f"u{i}", "data_et": _dd(2026, 10, 20 + i), "casa": "NYK", "trasferta": "BOS", "squadra": "NYK", "giocato": True,
+         "minuti": 0 if i == 6 else 20 + i, "fp": 0.0 if i == 6 else 10.0 + i, **{k: 1 for k in ("pts", "oreb", "dreb", "ast", "stl", "blk", "tov", "fgm", "fga", "tpm", "tpa", "ftm", "fta")}}
+        for i in range(8)]
+PLY.db.q = lambda sql, *a, **k: _fin if "FROM nba_tabellini t JOIN nba_partite" in sql else _orig_q(sql, *a, **k)
+try:
+    _sf = PLY.scheda(gid1)
+finally:
+    PLY.db.q = _orig_q
+# la 6 con 0 minuti e 0 punti non conta (come nella media della stagione): ultime 5 = 12, 13, 14, 15, 17 → 14,20 → all'ottavo 14,25; minuti 22..25 e 27
+ok("📈 Ultime 5 giocate: media <b>14,25</b> fantapunti · 24,2 min" in _sf, "/player: media delle ultime 5 senza la partita a 0 minuti\n" + _sf)
 # data di nascita ed età; partite saltate di fila in una riga sola (Luca, 25/10)
 from datetime import date as _dd
 ok(PLY.eta(_dd(2004, 1, 4), _dd(2026, 1, 3)) == 21 and PLY.eta(_dd(2004, 1, 4), _dd(2026, 1, 4)) == 22, "/player: età giusta il giorno prima e il giorno del compleanno")

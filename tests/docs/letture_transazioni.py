@@ -9,7 +9,7 @@ AMMESSE = {
         "_migra_registro_unico", "storico_pick_diritti_presente", "_eventi_trade_asset",
         "crea_storico_pick_diritti", "_verifica_storico_asset", "controlli_coerenza",
         "get_tagli_gratuiti_usati", "get_pick_at", "get_diritti_at", "movimento_asset_periodo",
-        "movimenti_carriera"},
+        "movimenti_carriera", "storia_pick"},
 }
 RE = re.compile(r"\b(FROM|JOIN)\s+transazioni\b", re.IGNORECASE)
 trovate = []
