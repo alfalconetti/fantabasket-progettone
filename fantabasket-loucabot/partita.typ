@@ -99,7 +99,10 @@
   if c.k == "fp" { text(weight: "bold")[#c.t] }
   else if c.k == "live" { text(weight: "bold", fill: rosso)[#c.t] }
   else if c.k == "dnp" { text(fill: grigio)[DNP] }
-  else if c.k == "prossima" { text(fill: viola_medio, size: 8.5pt)[#c.t] }
+  else if c.k == "prossima" {        // con l'orario di Roma sotto (Luca, 11/11)
+    let o = c.at("o", default: "")
+    if o != "" { [#text(fill: viola_medio, size: 8.5pt)[#c.t] \ #text(fill: grigio, size: 7pt)[#o]] } else { text(fill: viola_medio, size: 8.5pt)[#c.t] }
+  }
   else if c.k == "rinviata" { text(fill: arancio, size: 8.5pt)[#c.t] }
   else { [] }
 }
@@ -145,6 +148,11 @@
       let sep = if i == 5 { (table.cell(colspan: 5 + nn, fill: lilla, inset: (x: 5pt, y: 3pt))[#text(7pt, weight: "bold", fill: viola_scuro, tracking: 0.5pt)[PANCHINA]],) } else { () }
       let nome = if r.tag == "esce" { text(fill: grigio)[#strike[#r.nome]] } else if r.titolare or r.tag == "entra" { text(weight: "bold")[#r.nome] } else { [#r.nome] }
       let nome = if r.at("ruolo", default: "") != "" { [#nome #text(8pt, fill: grigio)[(#r.ruolo)]] } else { nome }
+      // lo status dell'ultimo report infortuni (Luca, 11/11), finché la giornata si gioca
+      let nome = if r.at("inf", default: "") != "" {
+        let c = if r.inf_k == "out" { rosso } else { arancio }
+        [#nome #h(3pt) #box(fill: c.transparentize(85%), stroke: 0.5pt + c, radius: 2pt, inset: (x: 3pt, y: 1.5pt), baseline: 1.5pt)[#text(6.5pt, weight: "bold", fill: c)[#r.inf]]]
+      } else { nome }
       // headshot ESPN tondo accanto al nome (Luca, 23/10): la foto è un mezzo busto largo (520×380).
       // 24/10: meno ingrandita (si vede tutta la testa) e alzata di un filo; senza foto le iniziali
       let testa = if r.at("foto", default: "") != "" {

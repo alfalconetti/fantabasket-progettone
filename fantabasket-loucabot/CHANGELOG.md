@@ -486,3 +486,7 @@ Il calcolo dei fantapunti.
 ## v98 (2026-11-10, progettone v7.5.2)
 
 - **`/giocatori`**: più valori dello stesso filtro in «o» (`fa firmati`, `nba:LAL,BOS`, `squadra:Alfa,Beta`, `nba:no,BOS`), filtri diversi in «e»
+
+## v99 (2026-11-11, progettone v7.5.3)
+
+- **`/partita`**: status abbreviato dell'ultimo report infortuni accanto al nome (OUT e SOSP rossi; D, Q, DTD, PROB arancio) finché la giornata si gioca; orario italiano sotto le partite da giocare

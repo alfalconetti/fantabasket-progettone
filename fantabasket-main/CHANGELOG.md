@@ -1914,3 +1914,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.5.2 (2026-11-10)
 
 - **`/giocatori`: più valori dello stesso filtro insieme** (Luca, 10/11): valgono in «o» — `fa firmati`, `stato:firmati,diritti`, `nba:LAL,BOS` (o `nba:LAL nba:BOS`), `nba:no,BOS`, `squadra:Alfa,Beta` — mentre filtri diversi restano in «e» (`fa firmati C`: i centri firmati o FA). Prima l'ultimo valore scritto sostituiva gli altri (loucabot v98)
+
+## v7.5.3 (2026-11-11)
+
+- **loucabot v99, `/partita`** (Luca, 11/11): accanto al nome lo **status** dell'ultimo report infortuni, abbreviato (OUT e SOSP in rosso; D, Q, DTD, PROB in arancio), finché la giornata è da giocare o in corso; nelle partite da giocare, sotto «vs XXX» / «@XXX», l'**orario** italiano. Vale anche per `/pdf_giornata`, `/pdf_partite` e klra, che usano lo stesso template

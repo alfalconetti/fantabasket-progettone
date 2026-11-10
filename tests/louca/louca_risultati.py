@@ -1029,6 +1029,22 @@ ok(PA.immagine({**_d7, "squadre": [{**_d7["squadre"][0], "record": "6-3", "recor
    "/partita: immagine col record e «prima di questa partita»")
 _png = PA.immagine(_d7)
 if _os_pa := __import__("os").environ.get("PARTITA_PNG"): open(_os_pa, "wb").write(_png)
+# v7.5.3 (Luca, 11/11): le partite da giocare con l'orario di Roma; lo status dell'ultimo report finché la giornata si gioca
+_pp = {"casa": "LAL", "trasferta": "BOS", "stato": "STATUS_SCHEDULED", "inizio": datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)}
+ok(PA._cella({}, "x", "LAL", "d", {("LAL", "d"): _pp}, {}) == {"t": "vs BOS", "k": "prossima", "o": "01:30"}
+   and PA._cella({}, "x", "BOS", "d", {("BOS", "d"): {**_pp, "inizio": None}}, {})["o"] == "", "/partita: da giocare con l'orario (Roma)")
+_a7 = next(r for r in _c7["squadre"][_r7["casa"]]["quintetto"] if r.get("atleta"))["atleta"]
+db.q("INSERT INTO nba_infortuni (giorno, atleta, nome, squadra, stato, dettaglio, preso) VALUES (%s, %s, 'x', 'LAL', 'Questionable', '', %s)",
+     (date.today(), _a7, datetime.now(timezone.utc) + timedelta(days=4000)))
+_sc_vero = PA._stato_calcolo
+PA._stato_calcolo = lambda s, n: None
+_d7g = PA.dati(S, N, _r7["casa"], _r7["trasferta"], ora=datetime(2000, 1, 1, tzinfo=timezone.utc))
+PA._stato_calcolo = _sc_vero
+_ri = {r["nome"]: r for r in _d7g["squadre"][0]["righe"]}
+ok(_d7g["stato"] == "da giocare" and any(r["inf"] == "Q" and r["inf_k"] == "dubbio" for r in _ri.values())
+   and all(r["inf"] == "" for r in _d7["squadre"][0]["righe"]), "/partita: lo status abbreviato finché si gioca, non a giornata calcolata")
+ok(PA.immagine(_d7g)[:4] == b"\x89PNG", "/partita: immagine con lo status")
+db.q("DELETE FROM nba_infortuni WHERE atleta = %s AND preso > NOW() + INTERVAL '3000 days'", (_a7,))
 ok(_png[:8] == b"\x89PNG\r\n\x1a\n" and len(_png) > 20000, "/partita: immagine Typst")
 # «dati aggiornati alle…» (Luca, 01/11): l'ultimo giro del live o l'ultimo tabellino definitivo della giornata
 _g7 = db.giornata(S, N)

@@ -135,6 +135,9 @@ def leggi_argomenti(args: list[str], squadre: list[dict]) -> tuple[list[dict], i
 
 # ── dati per l'immagine ────────────────────────────────────────────────────────
 
+# lo status dell'ultimo report infortuni accanto al nome (Luca, 11/11): rosso Out, arancio gli altri
+INF_BREVE = {"Out": "OUT", "Doubtful": "D", "Questionable": "Q", "Day-To-Day": "DTD", "Probable": "PROB", "Suspension": "SOSP"}
+
 def _cella(x: dict | None, a: str | None, sq: str | None, d, partite_giorno: dict, tab: dict) -> dict:
     """La casella della notte d: {t: testo, k: tipo} (k: fp, live, dnp, prossima, rinviata, vuota)."""
     p = partite_giorno.get((sq, d)) if sq else None
@@ -148,8 +151,9 @@ def _cella(x: dict | None, a: str | None, sq: str | None, d, partite_giorno: dic
         if r and r.get("giocato") and not (float(r["fp"] or 0) == 0 and not r.get("minuti")):
             return {"t": tp(r["fp"]), "k": "fp"}
         return {"t": "DNP", "k": "dnp"}
-    if p["stato"] == "STATUS_SCHEDULED":
-        return {"t": vs, "k": "prossima"}
+    if p["stato"] == "STATUS_SCHEDULED":                          # con l'orario di Roma (Luca, 11/11)
+        ora = p["inizio"].astimezone(__import__("zoneinfo").ZoneInfo("Europe/Rome")).strftime("%H:%M") if p.get("inizio") else ""
+        return {"t": vs, "k": "prossima", "o": ora}
     if r and r.get("giocato"):                                    # in corso, tabellino parziale
         return {"t": tp(r["fp"]), "k": "live"}
     return {"t": vs, "k": "live"}
@@ -182,6 +186,12 @@ def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None)
     stato = ("convalidata" if stato_c == "convalidata" else "calcolata" if stato_c else
              "in corso" if iniziata else "da giocare")
     es = r["esito"]
+    # lo status degli infortunati (Luca, 11/11): dall'ultimo report, solo finché la giornata si gioca
+    inf = {}
+    if stato in ("da giocare", "in corso") and atleti:
+        inf = {x["atleta"]: x["stato"] for x in db.q(
+            "SELECT atleta, stato FROM nba_infortuni WHERE atleta = ANY(%s) AND preso = (SELECT MAX(preso) FROM nba_infortuni)",
+            (atleti,), many=True) or []}
     note: list[str] = []
     squadre_out = []
     supp = r["supplementari"]
@@ -223,7 +233,9 @@ def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None)
                           "ruolo": "" if tit else (x.get("ruolo") or ""),
                           "titolare": tit, "nome": x.get("nome") or "—", "nba": sq_nba or "", "celle": celle,
                           "media": tp(m) if m is not None else ("0,00" if a else ""),
-                          "conta": conta, "tag": tag, "foto": (foto.percorso(a) or "") if a else ""})
+                          "conta": conta, "tag": tag, "foto": (foto.percorso(a) or "") if a else "",
+                          "inf": INF_BREVE.get(inf.get(a), inf.get(a) or "") if a else "",
+                          "inf_k": "out" if inf.get(a) in ("Out", "Suspension") else "dubbio" if inf.get(a) else ""})
         if fadd:
             note.append(f"FADD {config.nome(t)}: esce {fadd['esce'].get('nome')} ({fadd.get('motivo')}), "
                         f"entra {fadd['entra'].get('nome')} dalla panchina, stesso ruolo")
