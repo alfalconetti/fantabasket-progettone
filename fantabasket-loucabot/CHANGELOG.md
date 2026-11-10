@@ -478,3 +478,7 @@ Il calcolo dei fantapunti.
 ## v96 (2026-11-10, progettone v7.5.0)
 
 - **`/giocatori [filtri]`** (Luca, 10/11): cerca tra i giocatori per posizioni eleggibili, FA/firmati/diritti, squadra NBA o del fantabasket, nome (regex), stagione, top per media, costo, anni, infortunati; un messaggio, o i primi 10 e un file `.md`. `/giocatori aiuto` per i filtri. Codice comune col bot principale in `shared/elenco_giocatori.py`
+
+## v97 (2026-11-10, progettone v7.5.1)
+
+- **`/giocatori` risponde con un'immagine** sul viola di Yahoo come `/partita`, con le foto (un album oltre i 25), e sotto sempre il file `.md` con tutti

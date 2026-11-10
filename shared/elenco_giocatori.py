@@ -16,7 +16,9 @@ Filtri, in qualsiasi ordine (`/giocatori aiuto` li elenca):
 - `top:N`, `min_g:N`, `costo:<10` / `costo:5-10`, `anni:1` / `anni:>=2`, `infortunati:no|si`,
   `ordina:media|costo|partite|ultime5|nome`.
 Senza `anno:` ci sono i firmati e i diritti sempre e i FA che hanno giocato; con `anno:` solo chi ha giocato quella
-stagione (il contratto è sempre quello di oggi). Se non entra in un messaggio, i primi 10 e il file .md con tutti.
+stagione (il contratto è sempre quello di oggi). La risposta (v7.5.0, Luca 10/11): un'immagine sul viola di Yahoo
+come /partita (elenco_giocatori.typ, 25 giocatori con la foto ESPN), un album se sono di più (fino a 10 immagini),
+e sotto sempre il file .md con tutti.
 """
 import html
 import io
@@ -32,8 +34,8 @@ STATI = ("fa", "firmati", "diritti", "tutti")
 ORDINI = ("media", "costo", "partite", "ultime5", "nome")
 TIPI = (2, 5)                    # regular season e play-in, come /player
 ULTIME = 5
-MAX_MESSAGGIO = 3800             # Telegram ne accetta 4096: un po' di margine per l'intestazione
-NEL_MESSAGGIO = 10               # quanti nel messaggio quando c'è il file
+PER_IMMAGINE = 25                # giocatori in un'immagine
+MAX_IMMAGINI = 10                # un album di Telegram: oltre, i giocatori sono solo nel file
 MAX_REGEX = 100
 
 AIUTO = ("<b>/giocatori</b> [filtri] — cerca tra i giocatori; i filtri si combinano, in qualsiasi ordine:\n"
@@ -243,7 +245,7 @@ def dati(anno: int, oggi: int) -> list[dict]:
     out = []
     for g in gioc:
         a, c = g["espn_id"], contr.get(g["id"])
-        x = {"id": g["id"], "nome": g["nome_common"], "nba": nba.get(a) if a else None, "pos": pos.get(g["id"], []),
+        x = {"id": g["id"], "nome": g["nome_common"], "atleta": a, "nba": nba.get(a) if a else None, "pos": pos.get(g["id"], []),
              "inf": inf.get(a) if a else None, "contratto": c, "diritti": None if c else dir_.get(g["id"]),
              "media": None, "g": 0, "ult5": None, "fonte": None}
         if c:
@@ -314,22 +316,30 @@ def _senza_accenti(s: str) -> str:
     return unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
 
 
-# ── il testo ──────────────────────────────────────────────────────────────────
+# ── l'immagine e il file ──────────────────────────────────────────────────────
 
 def contratto_breve(x: dict) -> str:
+    """Il contratto senza la squadra: «30M × 3 anni (rookie) · ruolo C»."""
     c = x["contratto"]
-    if c:
-        if c["tipo"] == "10day":
-            t = f"{c['importo']}M · 10-day"
-        elif x["anni"] <= 0:
-            t = f"{c['importo']}M · x0"
-        else:
-            t = f"{c['importo']}M × {x['anni']} {'anno' if x['anni'] == 1 else 'anni'}"
-        if c["tipo"] == "rookie":
-            t += " (rookie)"
-        if c.get("ruolo"):
-            t += f" · ruolo {c['ruolo']}"
-        return f"{L.nome(c['team_id'])} · {t}"
+    if not c:
+        return ""
+    if c["tipo"] == "10day":
+        t = f"{c['importo']}M · 10-day"
+    elif x["anni"] <= 0:
+        t = f"{c['importo']}M · x0"
+    else:
+        t = f"{c['importo']}M × {x['anni']} {'anno' if x['anni'] == 1 else 'anni'}"
+    if c["tipo"] == "rookie":
+        t += " (rookie)"
+    if c.get("ruolo"):
+        t += f" · ruolo {c['ruolo']}"
+    return t
+
+
+def situazione(x: dict) -> str:
+    """La situazione nel fantabasket in una riga, per il file: «Alfa · 30M × 3 anni», «diritti di Beta», «FA»."""
+    if x["contratto"]:
+        return f"{L.nome(x['contratto']['team_id'])} · {contratto_breve(x)}"
     if x["diritti"]:
         return f"diritti di {L.nome(x['diritti'])}"
     return "FA"
@@ -339,63 +349,112 @@ def media_txt(x: dict) -> str:
     return tp(x["media"]) if x["media"] is not None else "—"
 
 
-def riga(n: int, x: dict) -> str:
-    icona = "📝" if x["contratto"] else "🔒" if x["diritti"] else "🆓"
-    dettagli = [f"{x['g']} G"] if x["media"] is not None else []
+def _colore(team_id: str) -> str:
+    from shared.rendimento import colore_squadra                 # come i tondi di /rendimento
+    return colore_squadra(L.squadra(team_id) or {"id": team_id})
+
+
+def riga_immagine(n: int, x: dict) -> dict:
+    sotto = []
+    if x["media"] is not None:
+        sotto.append(f"{x['g']} G")
     if x["ult5"] is not None:
-        dettagli.append(f"ult. 5: {tp(x['ult5'])}")
-    testa = (f"{n}. <b>{e(x['nome'])}</b> · {e(x['nba'] or '—')} · <b>{media_txt(x)}</b>"
-             + (f" ({', '.join(dettagli)})" if dettagli else "") + (f" · 🩹 {e(x['inf'])}" if x["inf"] else ""))
-    return f"{testa}\n   {icona} {e(contratto_breve(x))}"
+        sotto.append(f"ult. 5: {tp(x['ult5'])}")
+    tid = (x["contratto"] or {}).get("team_id") or x["diritti"]
+    f = L.foto(x["atleta"]) if x["atleta"] else None
+    return {"n": n, "nome": x["nome"], "foto": f and __import__("os").path.abspath(f),
+            "iniziali": "".join(p[0] for p in x["nome"].split()[:2]).upper(), "inf": x["inf"],
+            "pos": ",".join(x["pos"]) or "posizioni non registrate", "dettagli": "", "nba": x["nba"] or "—",
+            "media": media_txt(x), "sotto_media": " · ".join(sotto) or "non ha giocato",
+            "stato": stato(x), "colore": _colore(tid) if tid else "#1B8A4B",
+            "squadra": L.nome(tid) if x["contratto"] else f"diritti · {L.nome(tid)}" if tid else "FA",
+            "contratto": contratto_breve(x) if x["contratto"] else "rookie non firmato" if tid else "libero"}
 
 
-def intestazione(f: dict, oggi: int, quanti: int) -> str:
-    d = descrizione(f, oggi)
-    return f"🏀 <b>Giocatori</b> · {lbl(f['anno'])}" + (f" · {e(d)}" if d else "") + f" · {quanti}"
+def fonte(f: dict, oggi: int) -> str:
+    return ("Media: tabellini ESPN della stagione (regular season e play-in), all'ottavo; Basketball-Reference per chi non è su ESPN"
+            if f["anno"] == oggi else f"Media: Basketball-Reference, stagione {lbl(f['anno'])}; squadra NBA e contratto di oggi") + \
+           " · status: ultimo report infortuni · tutti i giocatori nel file .md"
+
+
+def pagine_immagini(righe: list[dict], f: dict, oggi: int) -> list[dict]:
+    """I dati delle immagini: PER_IMMAGINE giocatori l'una, al massimo MAX_IMMAGINI (un album)."""
+    tot = len(righe)
+    usate = righe[:PER_IMMAGINE * MAX_IMMAGINI]
+    pagine = -(-len(usate) // PER_IMMAGINE)
+    out = []
+    for p in range(pagine):
+        da = p * PER_IMMAGINE
+        pezzo = usate[da:da + PER_IMMAGINE]
+        out.append({"stagione": lbl(f["anno"]), "filtri": descrizione(f, oggi) or "tutti i giocatori", "tot": tot,
+                    "da": da + 1, "a": da + len(pezzo), "pagina": p + 1, "pagine": pagine,
+                    "righe": [riga_immagine(da + i + 1, x) for i, x in enumerate(pezzo)], "fonte": fonte(f, oggi)})
+    return out
+
+
+def immagine(d: dict) -> bytes:
+    import json
+    import os
+    import typst
+    tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "elenco_giocatori.typ")
+    fonts = [x for x in ("/usr/share/fonts",) if os.path.isdir(x)]
+    return typst.compile(tpl, root="/", format="png", ppi=170, font_paths=fonts,
+                         sys_inputs={"dati": json.dumps(d, ensure_ascii=False)})
 
 
 def markdown(righe: list[dict], f: dict, oggi: int) -> str:
     cella = lambda s: str(s).replace("|", "\\|")
     d = descrizione(f, oggi)
     out = [f"# Giocatori · {lbl(f['anno'])}", "", f"Filtri: {d or 'nessuno'} · {len(righe)} giocatori", "",
-           "| # | Giocatore | NBA | Pos. | Media | G | Ult. 5 | Contratto | Status |",
-           "|---|-----------|-----|------|-------|---|--------|-----------|--------|"]
+           "| # | Giocatore | NBA | Pos. | Media | G | Ult. 5 | Fantabasket | Status |",
+           "|---|-----------|-----|------|-------|---|--------|-------------|--------|"]
     for i, x in enumerate(righe, 1):
         out.append("| " + " | ".join(cella(v) for v in (
             i, x["nome"], x["nba"] or "—", ",".join(x["pos"]) or "—", media_txt(x), x["g"] if x["media"] is not None else "—",
-            tp(x["ult5"]) if x["ult5"] is not None else "—", contratto_breve(x), x["inf"] or "")) + " |")
-    out += ["", "Media: tabellini ESPN della stagione in corso (regular season e play-in); stagioni passate e "
-                "giocatori senza ESPN: Basketball-Reference."]
+            tp(x["ult5"]) if x["ult5"] is not None else "—", situazione(x), x["inf"] or "")) + " |")
+    out += ["", fonte(f, oggi).replace(" · tutti i giocatori nel file .md", "") + "."]
     return "\n".join(out) + "\n"
 
 
-def risposta(testo: str) -> tuple[str, str | None, str | None]:
-    """(messaggio HTML, contenuto del file .md o None, nome del file)."""
+def nome_file(f: dict, oggi: int) -> str:
+    return ("giocatori_" + re.sub(r"[^a-z0-9]+", "_", (descrizione(f, oggi) or "tutti").lower()).strip("_")[:50]
+            + f"_{lbl(f['anno'])}.md")
+
+
+def risposta(testo: str) -> dict:
+    """{"testo": messaggio HTML (aiuto, errori, nessuno)} oppure
+    {"pagine": [dati delle immagini], "didascalia", "md", "nome"}."""
     oggi = int(L.stagione())
     try:
         f = leggi(testo, oggi)
     except Errore as err:
-        return f"⚠️ {e(err)}\n\n/giocatori aiuto per i filtri.", None, None
+        return {"testo": f"⚠️ {e(err)}\n\n/giocatori aiuto per i filtri."}
     if f["aiuto"]:
-        return AIUTO, None, None
+        return {"testo": AIUTO}
     righe = filtra(dati(f["anno"], oggi), f, oggi)
+    d = descrizione(f, oggi)
     if not righe:
-        return intestazione(f, oggi, 0) + "\n\nNessun giocatore con questi filtri.", None, None
-    testa = intestazione(f, oggi, len(righe))
-    corpo = [riga(i, x) for i, x in enumerate(righe, 1)]
-    msg = testa + "\n\n" + "\n".join(corpo)
-    if len(msg) <= MAX_MESSAGGIO:
-        return msg, None, None
-    nome = "giocatori_" + re.sub(r"[^a-z0-9]+", "_", (descrizione(f, oggi) or "tutti").lower()).strip("_")[:50] + f"_{lbl(f['anno'])}.md"
-    return (testa + f"\n<i>i primi {NEL_MESSAGGIO} qui, tutti nel file</i>\n\n" + "\n".join(corpo[:NEL_MESSAGGIO]),
-            markdown(righe, f, oggi), nome)
+        return {"testo": f"🏀 <b>Giocatori</b> · {lbl(f['anno'])}" + (f" · {e(d)}" if d else "") + "\n\nNessun giocatore con questi filtri."}
+    pagine = pagine_immagini(righe, f, oggi)
+    didascalia = f"🏀 Giocatori · {lbl(f['anno'])}" + (f" · {d}" if d else "") + f" · {len(righe)}"
+    if len(righe) > PER_IMMAGINE * MAX_IMMAGINI:
+        didascalia += f" (nelle immagini i primi {PER_IMMAGINE * MAX_IMMAGINI})"
+    return {"pagine": pagine, "didascalia": didascalia[:1000], "md": markdown(righe, f, oggi), "nome": nome_file(f, oggi)}
 
 
 async def cmd_giocatori(update, context):
+    import asyncio
+    from telegram import InputMediaPhoto
     msg = update.effective_message
     testo = (msg.text or "").split(maxsplit=1)
-    testo = testo[1] if len(testo) > 1 else ""
-    m, md, nome = risposta(testo)
-    await msg.reply_text(m, parse_mode="HTML", disable_notification=True)
-    if md:
-        await msg.reply_document(document=io.BytesIO(md.encode("utf-8")), filename=nome)
+    r = await asyncio.to_thread(risposta, testo[1] if len(testo) > 1 else "")
+    if "testo" in r:
+        await msg.reply_text(r["testo"], parse_mode="HTML", disable_notification=True)
+        return
+    png = [await asyncio.to_thread(immagine, p) for p in r["pagine"]]
+    if len(png) == 1:
+        await msg.reply_photo(photo=png[0], caption=r["didascalia"])
+    else:
+        await msg.reply_media_group([InputMediaPhoto(media=x, caption=r["didascalia"] if i == 0 else None)
+                                     for i, x in enumerate(png)])
+    await msg.reply_document(document=io.BytesIO(r["md"].encode("utf-8")), filename=r["nome"])

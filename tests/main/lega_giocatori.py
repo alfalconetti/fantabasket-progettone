@@ -1,7 +1,7 @@
 import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))); import guardia  # noqa: E402,F401  — blocca le prove sul server (TRUNCATE)
 # v7.5.0 (Luca, 10/11): /giocatori, la ricerca coi filtri (shared/elenco_giocatori.py), in loucabot e nel bot principale.
 # Gira dopo le prove di loucabot (le tabelle nba_*): giocatori «Elenco *», atleti «eg*».
-import asyncio, re, types
+import asyncio, types
 from datetime import datetime, timedelta, timezone
 import database as db
 import settings
@@ -69,77 +69,129 @@ db._q(f"INSERT INTO bref_stats (timestamp, stagione, nome_bref, team, g, pts{z})
 db._q(f"INSERT INTO bref_stats (stagione, nome_bref, team, g, pts{z}) VALUES ('2025', 'Elenco Guardia Fa', 'LAL', 60, 50, 0,0,0,0,0,0,0,0,0,0,0)")
 
 
-def nomi(testo):
-    m, md, _ = EG.risposta("nome:^Elenco " + testo)
-    return re.findall(r"<b>(Elenco [^<]+)</b>", m), m, md
+def risp(testo):
+    return EG.risposta("nome:^Elenco " + testo)
 
+
+def righe(testo):
+    r = risp(testo)
+    return [x for p in r.get("pagine", []) for x in p["righe"]]
+
+
+def nomi(testo):
+    return [x["nome"] for x in righe(testo)]
+
+
+def riga(testo, nome):
+    return next(x for x in righe(testo) if x["nome"] == nome)
+
+
+# la foto ESPN di uno (le scarica loucabot): nell'immagine il percorso, gli altri le iniziali
+import tempfile
+from PIL import Image
+_os.environ["FOTO_DIR"] = tempfile.mkdtemp()
+Image.new("RGBA", (350, 254), (120, 80, 200, 255)).save(_os.path.join(_os.environ["FOTO_DIR"], "eg1.png"))
 
 # tutti: firmati e diritti sempre, i FA solo se hanno giocato; ordine per media
-n, m, _ = nomi("")
+n = nomi("")
 ok(n == ["Elenco Centro Firmato", "Elenco Guardia Fa", "Elenco Jokić Accento", "Elenco Senza Espn", "Elenco Ala Diritti", "Elenco Fa Panchina"],
-   "tutti, per media; il FA che non ha mai giocato no\n" + m)
-ok("Elenco Centro Firmato</b> · DEN · <b>34,25</b> (7 G, ult. 5: 40,00)" in m, "media ESPN, partite e ultime 5")
-ok("📝 Alfa · 30M × 3 anni · ruolo C" in m and "📝 Beta · 4M × 1 anno (rookie)" in m, "contratto: squadra, importo, anni, rookie, ruolo")
-ok("🔒 diritti di " in m and "🆓 FA" in m, "diritti e FA")
-ok("Elenco Fa Panchina</b> · — · <b>5,00</b> (1 G)" in m, "uno 0 con 0 minuti non conta; senza squadra NBA il trattino")
-ok("Elenco Senza Espn</b> · — · <b>18,00</b> (12 G)" in m, "chi non è su ESPN: la media di Basketball-Reference")
-ok("🩹 Out" in m, "l'infortunio dell'ultimo snapshot")
+   "tutti, per media; il FA che non ha mai giocato no: " + str(n))
+c = riga("", "Elenco Centro Firmato")
+ok(c["nba"] == "DEN" and c["media"] == "34,25" and c["sotto_media"] == "7 G · ult. 5: 40,00" and c["pos"] == "PF,C",
+   "media ESPN, partite, ultime 5, posizioni " + str(c))
+ok(c["stato"] == "firmati" and c["squadra"] == "Alfa" and c["contratto"] == "30M × 3 anni · ruolo C" and c["colore"].startswith("#"),
+   "firmato: squadra col suo colore, contratto e ruolo")
+ok(c["foto"] and c["foto"].endswith("eg1.png") and riga("", "Elenco Guardia Fa")["foto"] is None
+   and riga("", "Elenco Guardia Fa")["iniziali"] == "EG", "la foto ESPN, se no le iniziali")
+ok(riga("", "Elenco Jokić Accento")["contratto"] == "4M × 1 anno (rookie)", "contratto rookie")
+d = riga("", "Elenco Ala Diritti")
+ok(d["stato"] == "diritti" and d["squadra"] == "diritti · Gamma", "diritti")
+fa = riga("", "Elenco Fa Panchina")
+ok(fa["stato"] == "fa" and fa["squadra"] == "FA" and fa["nba"] == "—" and fa["media"] == "5,00" and fa["sotto_media"] == "1 G",
+   "FA; uno 0 con 0 minuti non conta; senza squadra NBA il trattino")
+ok(riga("", "Elenco Senza Espn")["media"] == "18,00", "chi non è su ESPN: la media di Basketball-Reference")
+ok(riga("", "Elenco Guardia Fa")["inf"] == "Out", "l'infortunio dell'ultimo snapshot")
 
 # i filtri
-ok(nomi("fa")[0] == ["Elenco Guardia Fa", "Elenco Senza Espn", "Elenco Fa Panchina"], "fa")
-ok(nomi("stato:firmati")[0] == ["Elenco Centro Firmato", "Elenco Jokić Accento"], "stato:firmati")
-ok(nomi("diritti")[0] == ["Elenco Ala Diritti"], "diritti")
-ok(nomi("C")[0] == ["Elenco Centro Firmato", "Elenco Jokić Accento", "Elenco Fa Panchina"], "un ruolo scritto da solo")
-ok(nomi("g sf")[0] == ["Elenco Guardia Fa", "Elenco Ala Diritti"], "G = PG o SG, più ruoli insieme")
-ok(nomi("ruolo:PF")[0] == ["Elenco Centro Firmato"], "ruolo:")
-ok(nomi("nba:lal")[0] == ["Elenco Guardia Fa"], "nba:")
-ok(nomi("nba:no")[0] == ["Elenco Senza Espn", "Elenco Fa Panchina"], "nba:no")
-ok(nomi("squadra:Gamma")[0] == ["Elenco Ala Diritti"], "squadra: anche i diritti")
-ok(nomi("ruolo_squadra:C")[0] == ["Elenco Centro Firmato"], "ruolo_squadra:")
-ok(nomi("top:2")[0] == ["Elenco Centro Firmato", "Elenco Guardia Fa"], "top:")
-ok(nomi("min_g:3")[0] == ["Elenco Centro Firmato", "Elenco Guardia Fa", "Elenco Jokić Accento", "Elenco Senza Espn"], "min_g:")
-ok(nomi("costo:>10")[0] == ["Elenco Centro Firmato"] and nomi("costo:1-5")[0] == ["Elenco Jokić Accento"], "costo: confronto e fascia")
-ok(nomi("anni:1")[0] == ["Elenco Jokić Accento"], "anni:")
-ok(nomi("infortunati:no")[0] == ["Elenco Centro Firmato", "Elenco Jokić Accento", "Elenco Senza Espn", "Elenco Ala Diritti", "Elenco Fa Panchina"],
+ok(nomi("fa") == ["Elenco Guardia Fa", "Elenco Senza Espn", "Elenco Fa Panchina"], "fa")
+ok(nomi("stato:firmati") == ["Elenco Centro Firmato", "Elenco Jokić Accento"], "stato:firmati")
+ok(nomi("diritti") == ["Elenco Ala Diritti"], "diritti")
+ok(nomi("C") == ["Elenco Centro Firmato", "Elenco Jokić Accento", "Elenco Fa Panchina"], "un ruolo scritto da solo")
+ok(nomi("g sf") == ["Elenco Guardia Fa", "Elenco Ala Diritti"], "G = PG o SG, più ruoli insieme")
+ok(nomi("ruolo:PF") == ["Elenco Centro Firmato"], "ruolo:")
+ok(nomi("nba:lal") == ["Elenco Guardia Fa"], "nba:")
+ok(nomi("nba:no") == ["Elenco Senza Espn", "Elenco Fa Panchina"], "nba:no")
+ok(nomi("squadra:Gamma") == ["Elenco Ala Diritti"], "squadra: anche i diritti")
+ok(nomi("squadra:gamm") == ["Elenco Ala Diritti"], "squadra: anche scritta a metà")
+ok(nomi("ruolo_squadra:C") == ["Elenco Centro Firmato"], "ruolo_squadra:")
+ok(nomi("top:2") == ["Elenco Centro Firmato", "Elenco Guardia Fa"], "top:")
+ok(nomi("min_g:3") == ["Elenco Centro Firmato", "Elenco Guardia Fa", "Elenco Jokić Accento", "Elenco Senza Espn"], "min_g:")
+ok(nomi("costo:>10") == ["Elenco Centro Firmato"] and nomi("costo:1-5") == ["Elenco Jokić Accento"], "costo: confronto e fascia")
+ok(nomi("anni:1") == ["Elenco Jokić Accento"], "anni:")
+ok(nomi("infortunati:no") == ["Elenco Centro Firmato", "Elenco Jokić Accento", "Elenco Senza Espn", "Elenco Ala Diritti", "Elenco Fa Panchina"],
    "infortunati:no")
-ok(nomi("ordina:costo")[0][:2] == ["Elenco Centro Firmato", "Elenco Jokić Accento"], "ordina:costo")
-ok(nomi("ordina:ultime5")[0][0] == "Elenco Centro Firmato", "ordina:ultime5 (chi non ne ha 5: la media)")
-ok(EG.risposta("nome:jokic")[0].count("Elenco Jokić") == 1, "regex: accenti indifferenti")
-ok(EG.risposta("nome:^ELENCO.*panchina$")[0].count("<b>Elenco") == 1, "regex: maiuscole indifferenti")
-ok(nomi("guardia")[0] == ["Elenco Guardia Fa"], "le parole da sole cercano nel nome")
-ok(nomi("C fa top:1")[0] == ["Elenco Fa Panchina"], "i filtri si combinano")
+ok(nomi("ordina:costo")[:2] == ["Elenco Centro Firmato", "Elenco Jokić Accento"], "ordina:costo")
+ok(nomi("ordina:ultime5")[0] == "Elenco Centro Firmato", "ordina:ultime5 (chi non ne ha 5: la media)")
+_n = lambda t: [x["nome"] for p in EG.risposta(t).get("pagine", []) for x in p["righe"]]
+ok(_n("nome:jokic") == ["Elenco Jokić Accento"], "regex: accenti indifferenti")
+ok(_n("nome:^ELENCO.*panchina$") == ["Elenco Fa Panchina"], "regex: maiuscole indifferenti")
+ok(nomi("guardia") == ["Elenco Guardia Fa"], "le parole da sole cercano nel nome")
+ok(nomi("C fa top:1") == ["Elenco Fa Panchina"], "i filtri si combinano")
 
 # stagione passata: solo chi ha giocato, dalla riga più recente di bref; il contratto è quello di oggi
-n, m, _ = nomi("anno:2024")
-ok(n == ["Elenco Centro Firmato", "Elenco Guardia Fa", "Elenco Fa Panchina"] and "2024-25" in m
-   and "Elenco Guardia Fa</b> · LAL · <b>25,00</b> (60 G)" in m and "📝 Alfa" in m and "ult. 5" not in m,
-   "anno:2024: Basketball-Reference, la riga più recente, contratto di oggi\n" + m)
+r = risp("anno:2024")
+g = riga("anno:2024", "Elenco Guardia Fa")
+ok(nomi("anno:2024") == ["Elenco Centro Firmato", "Elenco Guardia Fa", "Elenco Fa Panchina"] and r["pagine"][0]["stagione"] == "2024-25"
+   and g["media"] == "25,00" and g["sotto_media"] == "60 G" and riga("anno:2024", "Elenco Centro Firmato")["squadra"] == "Alfa"
+   and "Basketball-Reference" in r["pagine"][0]["fonte"], "anno:2024: Basketball-Reference, la riga più recente, contratto di oggi")
 
-# errori e aiuto
-ok(EG.risposta("pippo:1")[0].startswith("⚠️ Filtro sconosciuto"), "filtro sconosciuto")
-ok("non valida" in EG.risposta("nome:(")[0], "regex non valida")
-ok("PG, SG, SF, PF, C" in EG.risposta("ruolo:X")[0], "ruolo sbagliato")
-ok("dal 1979" in EG.risposta("anno:1900")[0], "anno fuori dai limiti")
-ok("costo:&lt;10" in EG.risposta("aiuto")[0], "aiuto")
-ok("Nessun giocatore" in EG.risposta("nome:^Nessunoconquestonome$")[0], "nessun risultato")
+# errori e aiuto: testo
+ok(EG.risposta("pippo:1")["testo"].startswith("⚠️ Filtro sconosciuto"), "filtro sconosciuto")
+ok("non valida" in EG.risposta("nome:(")["testo"], "regex non valida")
+ok("PG, SG, SF, PF, C" in EG.risposta("ruolo:X")["testo"], "ruolo sbagliato")
+ok("dal 1979" in EG.risposta("anno:1900")["testo"], "anno fuori dai limiti")
+ok("costo:&lt;10" in EG.risposta("aiuto")["testo"], "aiuto")
+ok("Nessun giocatore" in EG.risposta("nome:^Nessunoconquestonome$")["testo"], "nessun risultato")
 ok(EG.leggi('squadra:"Alfa" nome:"^Elenco C"', int(S))["squadra"]["id"] == "team01", "valori tra virgolette")
 
-# troppi per un messaggio: i primi 10 e il file .md
-_max = EG.MAX_MESSAGGIO
-EG.MAX_MESSAGGIO = 300
-m, md, nome_f = EG.risposta("nome:^Elenco")
-EG.MAX_MESSAGGIO = _max
-ok(md and nome_f.endswith(".md") and "| # | Giocatore | NBA | Pos. |" in md and "| Elenco Fa Panchina | — | C | 5,00 | 1 |" in md
-   and "i primi 10" in m, "oltre il messaggio: il file markdown con tutti\n" + (md or "")[:600])
+# l'immagine, la didascalia e il file .md con tutti
+r = risp("")
+p0 = r["pagine"][0]
+ok(len(r["pagine"]) == 1 and p0["da"] == 1 and p0["a"] == 6 and p0["tot"] == 6 and p0["pagine"] == 1
+   and r["didascalia"].startswith("🏀 Giocatori · ") and r["didascalia"].endswith(" · 6"), "una pagina, didascalia " + r["didascalia"])
+png = EG.immagine(p0)
+ok(png[:8] == b"\x89PNG\r\n\x1a\n" and len(png) > 20000, "l'immagine (Typst)")
+ok(r["nome"].endswith(".md") and "| # | Giocatore | NBA | Pos. | Media | G | Ult. 5 | Fantabasket | Status |" in r["md"]
+   and "| Elenco Fa Panchina | — | C | 5,00 | 1 | — | FA |" in r["md"] and "| Alfa · 30M × 3 anni · ruolo C |" in r["md"]
+   and "diritti di Gamma" in r["md"], "il file markdown\n" + r["md"][:500])
+# più di 25: un album; oltre le 10 immagini solo nel file
+_pi, _mi = EG.PER_IMMAGINE, EG.MAX_IMMAGINI
+EG.PER_IMMAGINE, EG.MAX_IMMAGINI = 2, 2
+r = risp("")
+EG.PER_IMMAGINE, EG.MAX_IMMAGINI = _pi, _mi
+ok(len(r["pagine"]) == 2 and [p["da"] for p in r["pagine"]] == [1, 3] and r["pagine"][1]["a"] == 4 and r["pagine"][1]["pagine"] == 2
+   and r["pagine"][1]["righe"][0]["n"] == 3 and "nelle immagini i primi 4" in r["didascalia"] and r["md"].count("| Elenco") == 6,
+   "album: le immagini a gruppi, oltre il limite solo nel file")
 
-# il comando: messaggio e file
+# il comando: immagine (o album) e sotto il file; errori in testo
 out = []
 class M:
     text = "/giocatori nome:^Elenco fa"
     async def reply_text(s, t, **k): out.append(("t", t))
+    async def reply_photo(s, photo=None, caption=None, **k): out.append(("f", caption))
+    async def reply_media_group(s, media, **k): out.append(("a", len(media)))
     async def reply_document(s, document=None, filename=None, **k): out.append(("d", filename))
 asyncio.run(EG.cmd_giocatori(types.SimpleNamespace(effective_message=M()), types.SimpleNamespace(args=[])))
-ok(out and out[0][0] == "t" and "Elenco Guardia Fa" in out[0][1] and len(out) == 1, "/giocatori: un messaggio")
+ok([k for k, _ in out] == ["f", "d"] and "FA" in out[0][1] and out[1][1].endswith(".md"), "/giocatori: l'immagine e il file " + str(out))
+out.clear()
+EG.PER_IMMAGINE = 2
+asyncio.run(EG.cmd_giocatori(types.SimpleNamespace(effective_message=M()), types.SimpleNamespace(args=[])))
+EG.PER_IMMAGINE = _pi
+ok([k for k, _ in out] == ["a", "d"] and out[0][1] == 2, "/giocatori: l'album e il file " + str(out))
+out.clear()
+M.text = "/giocatori pippo:1"
+asyncio.run(EG.cmd_giocatori(types.SimpleNamespace(effective_message=M()), types.SimpleNamespace(args=[])))
+ok([k for k, _ in out] == ["t"], "/giocatori: gli errori in testo")
 
 # nel bot principale solo in privato, nel menu in privato e non nei gruppi
 hs = {next(iter(h.commands)): h for h in LG.get_handlers() if hasattr(h, "commands")}

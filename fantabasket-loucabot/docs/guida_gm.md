@@ -56,7 +56,7 @@ Nelle immagini il valore migliore di ogni colonna è in **verde** e il peggiore 
 
 **`/confronto A vs B`** mette **due giocatori** uno sopra l'altro nello stesso grafico della stagione: A in blu, B in arancione, le partite sulle date (così quelle dello stesso giorno sono una sopra l'altra), per ognuno la media delle ultime 5 (piena) e quella dall'inizio (tratteggiata); sotto una tabella con fantamedia (come `/player`), partite, ultime 5, playoff, minuti e migliore partita, il migliore dei due in grassetto. **`/confronto_carriera A vs B`** confronta le **carriere**: barre affiancate stagione per stagione, allineate per **stagione di carriera** (1ª, 2ª…: così si confrontano anche giocatori di epoche diverse), sotto le stagioni vere; tabella con fantamedia in carriera, stagioni, partite e stagione migliore. Funziona anche coi giocatori storici. I nomi: `A vs B`, `A contro B`, `A, B` o `A - B`; se un nome è ambiguo il bot elenca i possibili e chiede il nome completo.
 
-**`/giocatori [filtri]`** cerca tra **tutti i giocatori**, coi filtri che si combinano in qualsiasi ordine. Per ognuno: squadra NBA, **fantamedia** (con le partite e la media delle ultime 5) e la situazione nel fantabasket (📝 squadra, contratto e ruolo · 🔒 diritti di chi · 🆓 FA), più l'infortunio se c'è. I filtri:
+**`/giocatori [filtri]`** cerca tra **tutti i giocatori**, coi filtri che si combinano in qualsiasi ordine. Risponde con un'**immagine** sul viola di Yahoo, come `/partita`: per ognuno foto, posizioni, squadra NBA, **fantamedia** (con le partite e la media delle ultime 5), l'infortunio se c'è e la situazione nel fantabasket (etichetta piena col colore della squadra per i firmati, con contratto e ruolo; bordata per i diritti; verde per i FA). I filtri:
 - `PG` `SG` `SF` `PF` `C` scritti da soli (anche `G` = PG o SG, `F` = SF o PF, o `ruolo:G,C`): le **posizioni eleggibili** (in off-season quelle della stagione prima);
 - `fa`, `firmati`, `diritti`, `tutti`: la situazione nel fantabasket (di default tutti: firmati e diritti sempre, i FA solo se hanno giocato);
 - `nba:LAL` (o `nba:LAL,BOS`, `nba:no`), `squadra:NOME` (contratto o diritti), `ruolo_squadra:C` (il ruolo ufficiale dei firmati);
@@ -64,7 +64,7 @@ Nelle immagini il valore migliore di ogni colonna è in **verde** e il peggiore 
 - `anno:2024` per la media del 2024-25 (da Basketball-Reference; senza, la stagione in corso dai tabellini);
 - `top:20`, `min_g:10`, `costo:<10` o `costo:5-10`, `anni:1` o `anni:>=2`, `infortunati:no` (o `si`), `ordina:media` (o costo, partite, ultime5, nome).
 
-Con spazi nel valore si usano le virgolette: `squadra:"Los Tizi"`. Se i risultati non stanno in un messaggio arrivano i primi 10 e un file `.md` con tutti. `/giocatori aiuto` elenca i filtri. Esempio: `/giocatori fa C top:10 min_g:5`.
+Con spazi nel valore si usano le virgolette: `squadra:"Los Tizi"`. 25 giocatori per immagine: se sono di più arriva un album (fino a 10 immagini, cioè 250 giocatori). Sotto c'è sempre il file `.md` con tutti, in testo. `/giocatori aiuto` elenca i filtri. Esempio: `/giocatori fa C top:10 min_g:5`.
 
 Ci sono anche nel bot principale, in privato.
 

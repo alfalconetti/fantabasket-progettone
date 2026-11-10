@@ -1906,3 +1906,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **`/giocatori [filtri]`** (Luca, 10/11), anche qui in privato come `/player` (nei gruppi risponde loucabot): la ricerca tra tutti i giocatori coi filtri che si combinano (ruoli eleggibili scritti da soli o `ruolo:`, `fa`/`firmati`/`diritti`, `nba:`, `squadra:`, `ruolo_squadra:`, `nome:` con le regex, `anno:`, `top:`, `min_g:`, `costo:`, `anni:`, `infortunati:`, `ordina:`). Per ognuno squadra NBA, fantamedia con partite e ultime 5, contratto o diritti o FA; se non entra in un messaggio, i primi 10 e il file `.md`. Codice in `shared/elenco_giocatori.py`
 - Contiene la v7.4.6 e la v7.4.5
+
+## v7.5.1 (2026-11-10)
+
+- **`/giocatori` risponde con un'immagine** (Luca, 10/11), sul viola di Yahoo come `/partita`: 25 giocatori con la foto ESPN (se no le iniziali), posizioni, squadra NBA, fantamedia con partite e ultime 5, infortunio, e un'etichetta per la situazione (piena col colore della squadra per i firmati, con contratto e ruolo; bordata per i diritti; verde per i FA). Oltre i 25 un album (fino a 10 immagini); sotto sempre il file `.md` con tutti. Template `shared/elenco_giocatori.typ` (loucabot v97)
