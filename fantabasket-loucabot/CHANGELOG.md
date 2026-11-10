@@ -474,3 +474,7 @@ Il calcolo dei fantapunti.
 ## v95 (2026-11-10, progettone v7.4.6)
 
 - **`/rendimento_carriera`** (Luca, 10/11): un tondo per ogni squadra del fantabasket in cui è stato nella stagione (prima solo una), uno sopra l'altro, e i nomi colorati sotto la barra
+
+## v96 (2026-11-10, progettone v7.5.0)
+
+- **`/giocatori [filtri]`** (Luca, 10/11): cerca tra i giocatori per posizioni eleggibili, FA/firmati/diritti, squadra NBA o del fantabasket, nome (regex), stagione, top per media, costo, anni, infortunati; un messaggio, o i primi 10 e un file `.md`. `/giocatori aiuto` per i filtri. Codice comune col bot principale in `shared/elenco_giocatori.py`

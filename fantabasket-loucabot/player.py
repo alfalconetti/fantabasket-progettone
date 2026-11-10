@@ -9,6 +9,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler
 import calcolo  # noqa: F401  — usato da congelamento (player.calcolo.norm)
 import db  # noqa: F401  — le prove sostituiscono db.q
 from shared import giocatore as G
+from shared.elenco_giocatori import cmd_giocatori
 from shared.giocatore import (ANNO_BOT, FONTE, GIORNI, NOTA_FIRMA, NOTA_FIRMA_FINO_AL, TIPI, ULTIME_MEDIA,  # noqa: F401
                               anno_prima, cerca, e, eta, immagine, partite_squadra, prossima_partita,
                               scadenza_diritti, testo_su, ultime)
@@ -29,4 +30,5 @@ cmd_player, manda, cb_player = G.handlers(lambda gid: scheda(gid), lambda gid: _
 
 
 def get_handlers() -> list:
-    return [CommandHandler("player", cmd_player), CallbackQueryHandler(cb_player, pattern=r"^pl:\d+$")]
+    return [CommandHandler("player", cmd_player), CallbackQueryHandler(cb_player, pattern=r"^pl:\d+$"),
+            CommandHandler("giocatori", cmd_giocatori)]                    # v7.5.0: shared/elenco_giocatori.py

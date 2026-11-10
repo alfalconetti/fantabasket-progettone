@@ -1901,3 +1901,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - Stesso errore, «l'ultima riga per timestamp» invece della stagione più recente, nel **bot aste v84** (fantamedia della lista FA e delle offerte) e nel **report delle spalmature** (ultima stagione su bref al posto della data, per le stagioni passate). I controlli dei nomi di bref (`senza_bref`, abbinamenti automatici, report dati) guardano solo le stagioni recenti: un omonimo di trent'anni fa non vale come «visto»
 - **loucabot v95: `/rendimento_carriera`** con un tondo per ogni squadra del fantabasket della stagione (prima uno solo), coi nomi colorati sotto la barra
 - Contiene anche la v7.4.5 (bot aste su python-telegram-bot 22.8), non installata
+
+## v7.5.0 (2026-11-10)
+
+- **`/giocatori [filtri]`** (Luca, 10/11), anche qui in privato come `/player` (nei gruppi risponde loucabot): la ricerca tra tutti i giocatori coi filtri che si combinano (ruoli eleggibili scritti da soli o `ruolo:`, `fa`/`firmati`/`diritti`, `nba:`, `squadra:`, `ruolo_squadra:`, `nome:` con le regex, `anno:`, `top:`, `min_g:`, `costo:`, `anni:`, `infortunati:`, `ordina:`). Per ognuno squadra NBA, fantamedia con partite e ultime 5, contratto o diritti o FA; se non entra in un messaggio, i primi 10 e il file `.md`. Codice in `shared/elenco_giocatori.py`
+- Contiene la v7.4.6 e la v7.4.5

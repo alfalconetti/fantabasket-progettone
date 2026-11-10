@@ -371,6 +371,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
              "/calendario_full [SQUADRA] — tutto il calendario di una squadra, coi risultati\n"
              "/giornata [N] — tutte le partite di una giornata, coi risultati quando sono convalidati\n"
              "/player NOME — dove gioca nella NBA e nel fantabasket, contratto, media e statistiche della stagione\n"
+             "/giocatori [filtri] — cerca tra i giocatori (ruolo, squadra, FA, top per media…): /giocatori aiuto\n"
              "/classifica — la classifica · /classifica_conference — divisa per conference · /classifica_full — con tutte le statistiche")
     if config.is_admin(update.effective_user.id):
         testo += ("\n\n<b>Admin</b>\n/importa_calendario — col CSV allegato (sostituisce quello della stagione)\n"

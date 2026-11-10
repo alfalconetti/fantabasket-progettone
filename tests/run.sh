@@ -14,7 +14,7 @@ ASTE_ISOLATO=(apri_asta_admin apertura_gm cap_asta_chiusa rfa_proprietario team_
 LOUCA=(louca_calendario louca_calcolo louca_foglio louca_risultati louca_classifica louca_status louca_rendimento)
 IPA=(ipa_panchine ipa_errori ipa_injury)
 KLRA=(klra_motore)
-CONDIVISI=(lega_comandi)     # codice di loucabot (shared/) nel bot principale: dopo le prove di loucabot, che creano le tabelle
+CONDIVISI=(lega_comandi lega_giocatori)     # codice di loucabot (shared/) nel bot principale: dopo le prove di loucabot, che creano le tabelle
 DOCS=(guide_e_menu letture_transazioni nomi_importati router_health gas_node solo_gruppo_admin solo_lega)
 scelti=("$@"); [ ${#scelti[@]} -eq 0 ] && scelti=("${MAIN[@]}" "${ASTE_PG[@]}" "${ASTE_ISOLATO[@]}" "${LOUCA[@]}" "${IPA[@]}" "${KLRA[@]}" "${CONDIVISI[@]}" "${DOCS[@]}")
 in_lista() { local x=$1; shift; for y in "$@"; do [ "$x" = "$y" ] && return 0; done; return 1; }
