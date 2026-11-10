@@ -462,3 +462,7 @@ Il calcolo dei fantapunti.
 - **`/confronto_carriera A vs B`**: due carriere stagione per stagione, allineate per stagione di carriera (1ª, 2ª…), anche storiche; tabella con fantamedia in carriera, stagioni, partite, stagione migliore
 - Codice in `shared/confronto.py` e `shared/confronto.typ`: anche nel bot principale, in privato
 - **Dati storici dal 1979-80** (Luca, 10/11): caricate le stagioni di Basketball-Reference fino al 1979-80, la prima con tutte le statistiche della fantamedia (le triple); testi di /top_storica e /rendimento_carriera aggiornati. Le righe senza fantamedia (stagioni prima, se mai caricate) non entrano
+
+## v93 (2026-11-10, progettone v7.4.4)
+
+- **Nomi scritti male in `/rendimento_carriera`, `/confronto_carriera`** (Luca, 10/11: «Micheal Jordan» chiedeva di scegliere tra Jordan Mickey e Michael Jordan): i nomi simili di Basketball-Reference in ordine di somiglianza, e se il primo è nettamente il più vicino (`SOMIGLIANZA` 0,88, `STACCO` 0,06) vale solo lui

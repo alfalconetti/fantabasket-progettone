@@ -14,7 +14,7 @@ B1 = str(int(S) + 1)                                    # Basketball-Reference: 
 
 def pulisci():
     db.q("DELETE FROM nba_tabellini WHERE atleta LIKE 'rd%%'"); db.q("DELETE FROM nba_partite WHERE espn_id LIKE 'rd%%'")
-    db.q("DELETE FROM bref_stats WHERE nome_bref LIKE 'Rend %%' OR nome_bref IN ('Vecchio Storico', 'Deron Rendi')")
+    db.q("DELETE FROM bref_stats WHERE nome_bref LIKE 'Rend %%' OR nome_bref IN ('Vecchio Storico', 'Deron Rendi', 'Michael Jorrdan', 'Jorrdan Mikey')")
     db.q("DELETE FROM nba_tabellini WHERE atleta LIKE 'rd%%'")
     for r in db.q("SELECT id FROM giocatori WHERE nome_bref LIKE 'Rend %%'", many=True) or []:
         db.q("DELETE FROM transazioni WHERE giocatore_id = %s", (r["id"],)); db.q("DELETE FROM contratti WHERE giocatore_id = %s", (r["id"],))
@@ -135,6 +135,8 @@ asyncio.run(R.cmd_rendimento_carriera(u, types.SimpleNamespace(args=["Rend"])))
 ok(out[_n0][0] == "foto" and out[_n0 + 1][0] == "foto", "un nome che è solo in Basketball-Reference: dritto alla carriera, anche al contrario")
 _bott = [b.callback_data for r in out[_n0 + 2][2].inline_keyboard for b in r] if out[_n0 + 2][2] else []
 ok(out[_n0 + 2][1] == "Quale?" and "rcb:Rend Uno" in _bott and "rcb:Deron Rendi" in _bott, f"nome a metà: i nomi di Basketball-Reference {_bott}")
+bref("2000", "Michael Jorrdan", "CHI", 80, 60, oggi - timedelta(days=9500)); bref("2016", "Jorrdan Mikey", "MIL", 40, 20, oggi - timedelta(days=3500))
+ok(R.nomi_bref("Micheal Jorrdan") == ["Michael Jorrdan"], f"nome scritto male: il più simile, se nettamente {R.nomi_bref('Micheal Jorrdan')}")
 ok(R._gid_da_bref("Rend Uno") == gid and R._gid_da_bref("Deron Rendi") is None, "un nome di bref che è nel bot si ricollega al giocatore")
 ok([x[0] for x in out[:3]] == ["foto"] * 3, "/rendimento e /rendimento_carriera (anche di un giocatore storico) mandano l'immagine")
 ok(out[3][0] == "testo" and "/rendimento_carriera" in out[3][1], "/rendimento di uno storico: rimanda a /rendimento_carriera")

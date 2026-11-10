@@ -273,6 +273,10 @@ def dati_carriera(gid: int | None, nome_bref: str, nome: str | None = None) -> d
             "stagioni": out, "y_max": hi, "y_passo": passo, "nota": nota}
 
 
+SOMIGLIANZA = 0.88      # un nome scritto male vale per quello giusto se gli somiglia almeno così…
+STACCO = 0.06           # …e più degli altri di almeno tanto
+
+
 def nomi_bref(testo: str) -> list[str]:
     """I nomi di Basketball-Reference (tutti, anche i giocatori storici) che corrispondono al testo."""
     import difflib
@@ -284,8 +288,15 @@ def nomi_bref(testo: str) -> list[str]:
     esatti = [x for x in tutti if L.norm(x) == n or PN.stesse_parole(testo, x)]
     trovati = esatti or [x for x in tutti if n in L.norm(x) or PN.contiene_parole(testo, x)]
     if not trovati:
+        # nome scritto male (Luca, 10/11: «Micheal Jordan» dava anche Jordan Mickey): i simili in ordine di somiglianza,
+        # e se il primo è nettamente il più vicino solo lui
         nomi = {PN.ordinata(x): x for x in tutti}
-        trovati = [nomi[x] for x in difflib.get_close_matches(PN.ordinata(testo), list(nomi), n=5, cutoff=0.8)]
+        simili = difflib.get_close_matches(PN.ordinata(testo), list(nomi), n=5, cutoff=0.8)
+        voto = lambda x: difflib.SequenceMatcher(None, PN.ordinata(testo), x).ratio()
+        simili.sort(key=voto, reverse=True)
+        if simili and voto(simili[0]) >= SOMIGLIANZA and (len(simili) == 1 or voto(simili[0]) - voto(simili[1]) >= STACCO):
+            simili = simili[:1]
+        return [nomi[x] for x in simili]
     return sorted(trovati)[:8]
 
 

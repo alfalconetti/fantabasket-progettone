@@ -2,7 +2,7 @@
 
 > Progetto hobbistico: i bot che gestiscono una lega fantasy NBA tra amici (vedi `README.md`). Questo file è il quaderno di lavoro: stato, regole, decisioni e cose da fare.
 
-**Stato: v7.4.3 · bot aste v82 · loucabot v92 · IPanchinari v37 · klra v3** (10/11/2026)
+**Stato: v7.4.4 · bot aste v82 · loucabot v93 · IPanchinari v37 · klra v3** (10/11/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`, `fantabasket-klra/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 

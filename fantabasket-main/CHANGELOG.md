@@ -1884,3 +1884,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **loucabot v92: `/confronto A vs B` e `/confronto_carriera A vs B`** (Luca, 10/11): due giocatori a confronto nella stagione (stesso grafico di /rendimento, sovrapposti) e nella carriera (per stagione di carriera, anche storici). Anche qui, in privato
 - **Dati storici dal 1979-80**: i testi di /top_storica e /rendimento_carriera (prima «dal 2002-03»); le righe di Basketball-Reference senza fantamedia non entrano
+
+## v7.4.4 (2026-11-10)
+
+- **loucabot v93**: un nome scritto male in /rendimento_carriera e /confronto_carriera vale per il giocatore nettamente più simile (prima «Micheal Jordan» chiedeva di scegliere tra Jordan Mickey e Michael Jordan)
+- Prove: `ipa_panchine` falliva se girava tra le 7 e le 8 di Roma (il promemoria della giornata di prova non era ancora passato): ora sceglie un'ora di inizio col promemoria già passato

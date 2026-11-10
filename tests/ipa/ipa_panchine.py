@@ -335,7 +335,12 @@ ok(db.stato_giornata(S, 1)["chiusa"] and db.formazione(S, 1, "team01")["PG"] == 
    and any("Giornata 1 chiusa" in x["text"] and "Beta" in x["text"] for x in BOT.mandati),
    "scadenza passata: quintetti congelati, panchine mancanti agli admin")
 ok("**chiusa**: formazioni congelate" in RP.report(db.giornata(S, 1)), "report di una giornata chiusa: le formazioni congelate")
-db.q("UPDATE lega_giornate SET prima_partita = %s WHERE numero = 2", (datetime.now(timezone.utc) + timedelta(hours=1),))
+# fra un'ora; ma tra le 7 e le 8 di Roma il promemoria (le 8 di quel giorno) non è ancora passato: allora poco prima delle 8,
+# così il promemoria è quello di ieri (la prova falliva se girava in quell'ora, Luca 10/11)
+_pp = datetime.now(timezone.utc) + timedelta(hours=1)
+if comune.ora_promemoria({"prima_partita": _pp}) > datetime.now(timezone.utc):
+    _pp = datetime.combine(datetime.now(roma).date(), datetime.min.time(), tzinfo=roma) + timedelta(hours=7, minutes=59, seconds=59)
+db.q("UPDATE lega_giornate SET prima_partita = %s WHERE numero = 2", (_pp,))
 BOT.mandati.clear()
 asyncio.run(Q.job_giornate(CTX))
 prom = [x for x in BOT.mandati if x["chat_id"] in (101, 111)]
