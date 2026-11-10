@@ -451,3 +451,7 @@ Il calcolo dei fantapunti.
 
 - **`/top_storica ANNO [N] o [DA A]`** (Luca, 09/11): i migliori per fantamedia di una stagione passata, dalle medie di Basketball-Reference (regular season, dal 2002-03); anno come nella lega (2014 = 2014-15, anche «2014-15»); minimo il 40% delle partite di chi ne ha giocate di più quell'anno; chi ha cambiato squadra col totale e le squadre in ordine
 - **`/rendimento_carriera`: come cerca il nome** (Luca, 09/11: «Deron Williams» dava i Williams della lega): prima i giocatori del bot col nome esatto, se no tutti i nomi di Basketball-Reference (un nome che è nel bot si ricollega al giocatore), solo alla fine i nomi simili del bot
+
+## v91 (2026-11-10, progettone v7.4.2)
+
+- **Tabellone live e finale: la fascia «PRENDONO LA MEDIA IN QUESTA GIORNATA»** (Luca, 10/11, mockup approvato): le squadre NBA senza partite nella giornata, la stessa fascia di /partita, sotto la banda NBA; anche in /live, /giornata, prima pagina di /pdf_giornata e in klra. `live.media_nba(g)`, campo `media_nba` (facoltativo) in live.typ

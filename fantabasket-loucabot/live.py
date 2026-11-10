@@ -599,7 +599,7 @@ def dati_immagine(c: dict, ora: datetime) -> dict:
         out.append({"k": k, "casa": lati[0], "tras": lati[1], "avanti": avanti, "nota": nota})
     nb = notte_banda(g, ora)
     banda = banda_nba(nb)
-    return {"n": g["numero"], "date": f"{g['dal']:%d/%m} – {g['al']:%d/%m}",
+    return {"n": g["numero"], "date": f"{g['dal']:%d/%m} – {g['al']:%d/%m}", "media_nba": media_nba(g),
             "nba": banda, "nba_colonne": colonne_banda(len(banda)), "nba_notte": f"{nb:%d/%m}" if nb else "",
             "notte": f"del {max(iniziate):%d/%m}" if iniziate else "",
             "ora": f"{ora.astimezone(ROMA):%H:%M}", "partite": out, "soglia": 10 - MAX_DA_GIOCARE,
@@ -638,7 +638,7 @@ def dati_tabellone(s: str, g: dict, ora: datetime | None = None) -> dict | None:
                  "media": 0} for t, p in ((x["casa"], pc), (x["trasferta"], pt))]
         out.append({"k": k, "casa": lati[0], "tras": lati[1], "avanti": vince, "nota": nota})
     quando = r["calcolato"].astimezone(ROMA) if r.get("calcolato") else None
-    return {"n": n, "date": f"{g['dal']:%d/%m} – {g['al']:%d/%m}", "nba": [], "nba_colonne": 5, "nba_notte": "", "notte": "",
+    return {"n": n, "date": f"{g['dal']:%d/%m} – {g['al']:%d/%m}", "media_nba": media_nba(g), "nba": [], "nba_colonne": 5, "nba_notte": "", "notte": "",
             "modo": "finale", "etichetta": "CONVALIDATA" if convalidata else "CALCOLATA · DA CONVALIDARE",
             "colore_stato": "#1B8A4B" if convalidata else "#B26A00",
             "ora_label": "CALCOLATA" if quando else "", "ora": f"{quando:%d/%m}" if quando else "",
@@ -646,6 +646,12 @@ def dati_tabellone(s: str, g: dict, ora: datetime | None = None) -> dict | None:
             "nota_finale": ("Risultati convalidati da un admin" if convalidata else
                             "Risultati calcolati, in attesa della convalida di un admin: possono ancora cambiare")
                            + f" · bonus casa +{c['bonus']:g} · in grassetto chi ha vinto · il dettaglio di ogni sfida con /partita"}
+
+
+def media_nba(g: dict) -> str:
+    """Le squadre NBA che prendono la media nella giornata (senza partite), come la fascia di /partita (v7.4.2)."""
+    m = g.get("media") if g.get("media") is not None else (g.get("media_file") or [])
+    return ", ".join(m) if m else ""
 
 
 _AVVISO_FONT = {"fatto": False}

@@ -84,6 +84,14 @@
   ]
 }
 
+// ── squadre NBA che prendono la media nella giornata (v7.4.2, Luca 10/11): la stessa fascia di /partita ──
+#if d.at("media_nba", default: "") != "" {
+  block(width: 100%, fill: rgb("#FFF3E0"), inset: (x: 14pt, y: 7pt), stroke: (bottom: 0.5pt + rgb("#F0C890")))[
+    #text(8.5pt, fill: rgb("#C26A00"), weight: "bold")[PRENDONO LA MEDIA IN QUESTA GIORNATA] #h(6pt)
+    #text(8.5pt, fill: rgb("#5A3A00"))[#d.media_nba (squadre NBA senza partite: i loro giocatori prendono la media della stagione)]
+  ]
+}
+
 // ── una squadra nella scheda ──
 #let riga(s, avanti) = grid(columns: (auto, 1fr, auto), column-gutter: 6pt, align: horizon,
   logo(s, 20pt),

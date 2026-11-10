@@ -1875,3 +1875,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.4.1 (2026-11-09)
 
 - **loucabot v90**: `/top_storica ANNO [N] o [DA A]`, i migliori per fantamedia di una stagione passata (Basketball-Reference, dal 2002-03; 2014 = 2014-15); `/rendimento_carriera` cerca prima il nome esatto nel bot, poi tra tutti i nomi di Basketball-Reference (prima «Deron Williams» dava i Williams della lega). Anche nel bot principale, in privato, la ricerca nuova
+
+## v7.4.2 (2026-11-10)
+
+- **loucabot v91**: nel tabellone live e finale la fascia «prendono la media in questa giornata», come in /partita (Luca, 10/11)

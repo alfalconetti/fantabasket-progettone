@@ -790,6 +790,14 @@ ok("▶ al momento vince Beta ai supplementari (1): " in tl and "▶ al momento 
 _cf2 = LV.calcolo(S, N); _di = LV.dati_immagine(_cf2, t0)
 _pb = next(p for p in _di["partite"] if "SUPPL." in p["nota"])
 _png = LV.immagine(_di)
+# v7.4.2 (Luca, 10/11): la fascia «prendono la media» di /partita anche nel tabellone live e finale
+ok(LV.media_nba({"media": ["SAS", "BOS"]}) == "SAS, BOS" and LV.media_nba({"media": None, "media_file": ["UTA"]}) == "UTA"
+   and LV.media_nba({"media": [], "media_file": ["UTA"]}) == "", "squadre che prendono la media: quelle della giornata (vuoto se l'admin le ha tolte)")
+ok(_di["media_nba"] == LV.media_nba(_cf2["giornata"]), "il live le ha nei dati")
+_pm = LV.immagine({**_di, "media_nba": "SAS, BOS"})
+ok(_pm[:4] == b"\x89PNG" and len(_pm) != len(_png), "immagine del live con la fascia")
+if __import__("os").environ.get("LIVE_PNG"):
+    open(__import__("os").environ["LIVE_PNG"], "wb").write(_pm)
 ok(_pb["avanti"] in ("casa", "trasferta") and any(p["avanti"] for p in _di["partite"]) and _png[:8] == b"\x89PNG\r\n\x1a\n"
    and _di["soglia"] == 6 and _di["notte"] == f"del {DAL:%d/%m}", f"tabellone a partite finite: chi è avanti, supplementari ({_pb['nota']}), immagine")
 # v6.13.0: banda NBA in alto, con le partite vere della notte (Luca, 31/10)
@@ -857,6 +865,7 @@ ok(_fl2 and _fl2[-1][0] == "d" and "troppo lunga" in _fl2[-1][1]["caption"], "/t
 # /giornata come immagine (v6.23.0): il tabellone del live; a giornata calcolata coi risultati, «modo» finale
 _g9 = db.giornata(S, N)
 _tb = LV.dati_tabellone(S, _g9, datetime(2026, 11, 20, tzinfo=timezone.utc))
+ok(_tb is None or _tb.get("media_nba") == LV.media_nba(_g9), "/giornata (tabellone finale): anche la fascia della media")
 _cs = db.q("SELECT stato FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (S, N), one=True)
 ok(_tb and (_tb.get("modo") == "finale") == bool(_cs) and len(_tb["partite"]) == len(db.partite_giornata(S, N))
    and LV.immagine(_tb)[:4] == b"\x89PNG", f"/giornata: tabellone ({_tb.get('modo', 'live')}, {_cs})")
