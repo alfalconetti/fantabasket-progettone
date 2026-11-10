@@ -197,7 +197,7 @@ def get_fa_rows_pg() -> list[dict]:
                     SELECT fantamedia, stagione
                     FROM bref_stats
                     WHERE nome_bref = g.nome_bref
-                    ORDER BY timestamp DESC
+                    ORDER BY stagione DESC, timestamp DESC, id DESC   -- la stagione più recente, non l'ultima scaricata
                     LIMIT 1
                 ) bs ON TRUE
                 WHERE NOT EXISTS (
@@ -555,7 +555,7 @@ def get_bref_fantamedie_bulk(nomi: list[str]) -> dict[str, tuple[float | None, s
                     lower(nome_bref) AS nome_key, fantamedia, stagione
                 FROM bref_stats
                 WHERE lower(nome_bref) = ANY(%s)
-                ORDER BY lower(nome_bref), timestamp DESC
+                ORDER BY lower(nome_bref), stagione DESC, timestamp DESC, id DESC
             """, ([n.lower() for n in nomi],))
             return {row[0]: (float(row[1]) if row[1] is not None else None, row[2])
                     for row in cur.fetchall()}

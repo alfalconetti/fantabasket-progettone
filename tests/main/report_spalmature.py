@@ -14,9 +14,13 @@ c=db._qval("INSERT INTO contratti (giocatore_id,team_id,importo,anni_originali,s
 c2=db._qval("INSERT INTO contratti (giocatore_id,team_id,importo,anni_originali,stagione_firma,tipo,attivo) VALUES (%s,'team02',8,1,'2026','normale',FALSE) RETURNING id",(ct,))
 db._q("INSERT INTO transazioni (tipo,giocatore_id,team_id_da,stagione,contratto_id,note) VALUES ('decadimento',%s,'team02','2026',%s,'Decadimento: ✂️ Cam Thomas exception')",(ct,c2))
 db._q("INSERT INTO bref_stats (timestamp,stagione,nome_bref,team,g) VALUES (%s,'2025','Vecchio Ritirato','LAL',30)",(datetime.now(timezone.utc)-timedelta(days=400),))
+# v7.4.6: una stagione storica scaricata oggi non è «l'ultima partita rilevata»
+db._q("INSERT INTO bref_stats (timestamp,stagione,nome_bref,team,g) VALUES (%s,'2012','Vecchio Ritirato','SEA',70)",(datetime.now(timezone.utc),))
 from handlers.spalmature import testi_report, job_report_spalmature
 t="".join(testi_report())
 ok("Vecchio Ritirato" in t and "Alfa 3M" in t and "Beta 2M" in t, "free agent con spalmature su due squadre (solo stagione corrente e future)")
+ok("ultima stagione su Basketball-Reference: 2024-25 (LAL)" in t and "SEA" not in t,
+   "la stagione più recente (non l'ultima scaricata), senza la data di download")
 ok("Sotto Contratto" not in t, "chi ha un contratto non compare")
 ok("Cam Free" in t and "Cam Thomas il" in t and "mai rilevato" in t, "Cam Thomas segnalato, giocatore mai visto su bref")
 ok("9M" not in t, "le rate delle stagioni passate non contano")

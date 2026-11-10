@@ -466,3 +466,11 @@ Il calcolo dei fantapunti.
 ## v93 (2026-11-10, progettone v7.4.4)
 
 - **Nomi scritti male in `/rendimento_carriera`, `/confronto_carriera`** (Luca, 10/11: «Micheal Jordan» chiedeva di scegliere tra Jordan Mickey e Michael Jordan): i nomi simili di Basketball-Reference in ordine di somiglianza, e se il primo è nettamente il più vicino (`SOMIGLIANZA` 0,88, `STACCO` 0,06) vale solo lui
+
+## v94 (2026-11-10, progettone v7.4.5)
+
+- `disable_web_page_preview` (deprecato in python-telegram-bot) sostituito da `link_preview_options` (nessun cambio visibile)
+
+## v95 (2026-11-10, progettone v7.4.6)
+
+- **`/rendimento_carriera`** (Luca, 10/11): un tondo per ogni squadra del fantabasket in cui è stato nella stagione (prima solo una), uno sopra l'altro, e i nomi colorati sotto la barra

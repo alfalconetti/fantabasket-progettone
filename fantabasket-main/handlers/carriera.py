@@ -192,8 +192,11 @@ def eventi_nba(espn: str | None, nome_bref: str | None) -> list[dict]:
                          (espn, DAL), many=True) or []
     bref, bref_primo = [], None
     if nome_bref and _c_e("bref_stats"):
-        righe = db._q("""SELECT timestamp::date AS giorno, team FROM bref_stats WHERE nome_bref = %s AND timestamp >= %s
-                         ORDER BY timestamp""", (nome_bref, DAL), many=True) or []
+        # solo le stagioni bref dalla 2026-27 («2027»): le stagioni storiche scaricate dopo (v7.4.0, dal 1980) hanno
+        # il timestamp del giorno in cui sono state scaricate e diventerebbero cambi di squadra finti (v7.4.6)
+        righe = db._q("""SELECT timestamp::date AS giorno, team FROM bref_stats
+                         WHERE nome_bref = %s AND timestamp >= %s AND stagione >= %s
+                         ORDER BY stagione, timestamp, id""", (nome_bref, DAL, str(DAL.year + 1)), many=True) or []
         prima = None
         for r in righe:
             t = sigla_nba(r["team"])

@@ -7,7 +7,7 @@ Dev:         /dev, /guida_dev, /dev_version, /job_status
 import html
 import logging
 
-from telegram import Update
+from telegram import Update, LinkPreviewOptions
 from telegram.ext import CommandHandler, ContextTypes, MessageHandler, filters
 
 import calendario as cal
@@ -26,7 +26,7 @@ async def log(bot, testo: str):
         return
     try:
         await bot.send_message(chat_id=config.canale_log(), text=testo, parse_mode="HTML",
-                               disable_web_page_preview=True)
+                               link_preview_options=LinkPreviewOptions(is_disabled=True))
     except Exception as err:
         logger.warning("Canale log: %s", err)
 

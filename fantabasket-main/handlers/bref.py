@@ -31,6 +31,13 @@ import nomi
 from utils import normalizza
 from settings import FASI_RUOLI_RS
 
+
+def recenti() -> str:
+    """La prima stagione bref che conta per gli abbinamenti e i controlli: la stagione passata della lega («2026» per
+    la 2026-27, cioè il 2025-26). Le stagioni storiche (dal 1980, v7.4.0) non contano: un omonimo di trent'anni fa
+    non deve far sembrare abbinato un giocatore di adesso (v7.4.6)."""
+    return str(int(settings.stagione_corrente()))
+
 logger = logging.getLogger(__name__)
 
 
@@ -49,7 +56,8 @@ def abbina_auto(nuovi: list[str]) -> list[tuple[str, str]]:
     diventa quello di bref. → [(nome in anagrafica, nome bref)]."""
     if not nuovi:
         return []
-    visti = {r["nome_bref"] for r in db._q("SELECT DISTINCT nome_bref FROM bref_stats", many=True) or []}
+    visti = {r["nome_bref"] for r in db._q("SELECT DISTINCT nome_bref FROM bref_stats WHERE stagione >= %s",
+                                            (recenti(),), many=True) or []}
     indice: dict[str, list[dict]] = {}
     for g in _anagrafica():
         if g["nome_bref"] in visti:
@@ -98,8 +106,8 @@ def senza_bref() -> list[dict]:
     """Giocatori a roster di cui su bref non c'è nessuna riga (mai): rookie non ancora entrati,
     o nome in anagrafica diverso da quello di bref."""
     return db._q("""SELECT g.nome_common, c.team_id FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
-                    WHERE c.attivo AND NOT EXISTS (SELECT 1 FROM bref_stats b WHERE b.nome_bref = g.nome_bref)
-                    ORDER BY c.team_id, g.nome_common""", many=True) or []
+                    WHERE c.attivo AND NOT EXISTS (SELECT 1 FROM bref_stats b WHERE b.nome_bref = g.nome_bref AND b.stagione >= %s)
+                    ORDER BY c.team_id, g.nome_common""", (recenti(),), many=True) or []
 
 
 def diritti_senza_bref() -> list[dict]:
@@ -111,9 +119,9 @@ def diritti_senza_bref() -> list[dict]:
     return db._q("""SELECT DISTINCT g.nome_common, r.team_id FROM rookie r JOIN giocatori g ON g.id = r.giocatore_id
                     JOIN nba_atleti a ON a.atleta = g.espn_id AND a.squadra IS NOT NULL
                     WHERE NOT r.firmato AND NOT r.diritti_scaduti
-                      AND NOT EXISTS (SELECT 1 FROM bref_stats b WHERE b.nome_bref = g.nome_bref)
+                      AND NOT EXISTS (SELECT 1 FROM bref_stats b WHERE b.nome_bref = g.nome_bref AND b.stagione >= %s)
                       AND NOT EXISTS (SELECT 1 FROM contratti c WHERE c.attivo AND c.giocatore_id = g.id)
-                    ORDER BY r.team_id, g.nome_common""", many=True) or []
+                    ORDER BY r.team_id, g.nome_common""", (recenti(),), many=True) or []
 
 
 def _testo_nuovi() -> tuple[str, InlineKeyboardMarkup | None]:

@@ -104,7 +104,8 @@
   let hi = d.y_max
   let n = d.stagioni.len()
   let bw = (W - 20pt) / n
-  pad(x: 30pt, top: 18pt, bottom: 4pt, box(width: W, height: H + 52pt, {
+  let righe_sotto = calc.max(..d.stagioni.map(s => s.team.len() + s.fanta.len()), 1)
+  pad(x: 30pt, top: 18pt, bottom: 4pt, box(width: W, height: H + 40pt + righe_sotto * 9pt, {
     for v in asse_y(0, hi, d.y_passo) {
       place(dx: 0pt, dy: ys(v, lo, hi), line(length: W, stroke: 0.4pt + bordo))
       place(dx: -24pt, dy: ys(v, lo, hi) - 5pt, box(width: 20pt, align(right, text(7pt, fill: grigio)[#v])))
@@ -121,15 +122,18 @@
       place(dx: x - 8pt, dy: H + 5pt, box(width: w + 16pt, align(center, stack(spacing: 3pt,
         text(if fitto { 6.5pt } else { 7.5pt }, weight: "bold")[#s.lbl],
         text(6.5pt, fill: grigio)[#s.g G#if not fitto [ · #s.min']],
-        ..s.team.map(x => text(6.5pt, fill: grigio)[#x])))))
+        ..s.team.map(x => text(6.5pt, fill: grigio)[#x]),
+        // le squadre del fantabasket della stagione, col loro colore (Luca, 10/11)
+        ..s.fanta.map(f => text(6.3pt, weight: "bold", fill: rgb(f.colore))[#f.nome])))))
       if s.in_corso { place(dx: x - 6pt, dy: H - h - 25pt, box(width: w + 12pt, align(center, text(6pt, weight: "bold", fill: blu, tracking: 0.5pt)[IN CORSO]))) }
-      if s.fanta != none {
-        let dd = calc.min(14pt, w * 0.9)
-        place(dx: x + w / 2 - dd / 2, dy: H - dd - 3pt, if s.fanta_logo != "" {
-          box(width: dd, height: dd, radius: 50%, clip: true, fill: white, stroke: 1pt + white, image(s.fanta_logo, width: dd, height: dd, fit: "cover"))
+      // un tondo per squadra del fantabasket, dal basso in su (in ordine)
+      let dd = calc.min(14pt, w * 0.9)
+      for (k, f) in s.fanta.enumerate() {
+        place(dx: x + w / 2 - dd / 2, dy: H - (dd + 3pt) * (k + 1), if f.logo != "" {
+          box(width: dd, height: dd, radius: 50%, clip: true, fill: white, stroke: 1pt + white, image(f.logo, width: dd, height: dd, fit: "cover"))
         } else {
-          box(width: dd, height: dd, radius: 50%, fill: rgb(s.fanta_colore), stroke: 1pt + white,
-            align(center + horizon, text(dd * 0.36, weight: "bold", fill: white)[#s.fanta]))
+          box(width: dd, height: dd, radius: 50%, fill: rgb(f.colore), stroke: 1pt + white,
+            align(center + horizon, text(dd * 0.36, weight: "bold", fill: white)[#f.sigla]))
         })
       }
     }

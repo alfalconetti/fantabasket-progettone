@@ -20,6 +20,7 @@ qui finisce solo nel log del processo.
 
 Nessuna dipendenza dai bot: riceve q (la funzione di query del bot, q(sql, params, one=, many=)).
 """
+from telegram import LinkPreviewOptions
 import html
 import json
 import logging
@@ -135,7 +136,7 @@ async def azione(q, tg_bot, chat_log, bot: str, user, veste: str, azione_: str, 
                      "squadre": [campi["squadre"]] if isinstance(campi.get("squadre"), str) else list(campi.get("squadre") or [])}
         try:
             await tg_bot.send_message(chat_id=chat_log, text=riga_log(riga, nomi_squadre), parse_mode="HTML",
-                                      disable_web_page_preview=True)
+                                      link_preview_options=LinkPreviewOptions(is_disabled=True))
         except Exception as err:
             logger.warning("Riga del registro sul canale log: %s", err)
     return r

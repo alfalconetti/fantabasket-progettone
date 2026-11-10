@@ -78,6 +78,10 @@ ok(db._qval("SELECT nome_bref FROM giocatori WHERE id = %s", (gid["Zaccharie Ris
 db._q("INSERT INTO contratti (giocatore_id, team_id, importo, anni_originali, stagione_firma, tipo) VALUES (%s, 'team01', 1, 1, '2026', 'rookie')",
       (gid["Gioc Doppio"],))
 ok(any(x["nome_common"] == "Gioc Doppio" for x in BR.senza_bref()), "a roster senza nessuna riga bref: nel log")
+# v7.4.6: un omonimo di una stagione storica (dal 1980) non conta come «visto»
+db._q("INSERT INTO bref_stats (stagione, nome_bref, pts) VALUES ('1995', %s, 10)",
+      (db._qval("SELECT nome_bref FROM giocatori WHERE id = %s", (gid["Gioc Doppio"],)),))
+ok(any(x["nome_common"] == "Gioc Doppio" for x in BR.senza_bref()), "omonimo del 1995 su bref: resta senza bref")
 
 db._q("DELETE FROM contratti WHERE giocatore_id = ANY(%s)", (list(gid.values()),))
 db._q("DELETE FROM bref_nuovi WHERE nome_bref LIKE 'Nikola Topi%%' OR nome_bref LIKE 'Zacc%%' OR nome_bref LIKE 'Gioc %%'")

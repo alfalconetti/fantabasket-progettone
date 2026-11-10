@@ -172,8 +172,9 @@ def senza_bref(stagione: str) -> list[dict]:
                             (SELECT r.anno_draft FROM rookie r WHERE r.giocatore_id = g.id ORDER BY r.anno_draft DESC LIMIT 1) AS anno_draft,
                             {esp} AS esperienza
                      FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
-                     WHERE c.attivo AND NOT EXISTS (SELECT 1 FROM bref_stats b WHERE b.nome_bref = g.nome_bref)
-                     ORDER BY c.team_id, g.nome_common""", many=True) or []
+                     WHERE c.attivo AND NOT EXISTS (SELECT 1 FROM bref_stats b WHERE b.nome_bref = g.nome_bref
+                                                    AND b.stagione >= %s)
+                     ORDER BY c.team_id, g.nome_common""", (str(int(settings.stagione_corrente())),), many=True) or []
 
 
 def _esito(sez: tuple) -> str:

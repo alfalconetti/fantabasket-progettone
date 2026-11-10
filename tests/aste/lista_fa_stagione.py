@@ -26,6 +26,9 @@ for n in ("Uno Giocato", "Due Fermo", "Nikola Jokić"):
     riga(n, "2026", ts="2026-04-10 12:00+02")
 riga("Vecchio Ritirato", "2025", ts="2025-04-10 12:00+02")
 riga("Uno Giocato", "2027")
+# v7.4.6: stagioni storiche scaricate dopo (timestamp di oggi): non sono «i dati più recenti»
+for n in ("Due Fermo", "Nikola Jokić"):
+    riga(n, "2017", fm=99, ts="2026-11-10 03:00+01")
 # 10 firmati: 6 hanno giocato nel 2026-27 (60%: sotto il 70%)
 firmati = []
 for i in range(10):
@@ -43,7 +46,7 @@ righe, nascosti = U.righe_lista_fa()
 fa = {r["nome"]: r for r in righe}
 ok(nascosti == 2 and set(fa) == {"Uno Giocato", "Due Fermo", "Nikola Jokic"}
    and fa["Uno Giocato"]["stagione_bref"] is None and fa["Due Fermo"]["stagione_bref"] == "2025" and fa["Nikola Jokic"]["stagione_bref"] == "2025"
-   and fa["Nikola Jokic"].get("fantamedia") is not None,
+   and fa["Nikola Jokic"].get("fantamedia") is not None and float(fa["Due Fermo"]["fantamedia"]) < 50,
    "prima dello switch: chi ha giocato quest'anno o l'anno prima, coi dati più recenti (con l'anno; Jokic col nome di bref); "
    "mai chi non gioca da più di una stagione o non ha mai giocato")
 ok(pg.avviso_non_ha_giocato("Due Fermo") == "" and "non gioca in NBA dal 2024-25" in pg.avviso_non_ha_giocato("Vecchio Ritirato")

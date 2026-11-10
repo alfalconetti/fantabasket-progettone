@@ -1889,3 +1889,15 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **loucabot v93**: un nome scritto male in /rendimento_carriera e /confronto_carriera vale per il giocatore nettamente più simile (prima «Micheal Jordan» chiedeva di scegliere tra Jordan Mickey e Michael Jordan)
 - Prove: `ipa_panchine` falliva se girava tra le 7 e le 8 di Roma (il promemoria della giornata di prova non era ancora passato): ora sceglie un'ora di inizio col promemoria già passato
+
+## v7.4.5 (2026-11-10)
+
+- **Bot aste v83: python-telegram-bot 22.8**, come tutti gli altri bot (prima 21.6). Prima fase del passaggio alle funzioni nuove della Bot API (Luca, 10/11), in un rilascio da solo
+- `disable_web_page_preview` (deprecato) sostituito da `link_preview_options` in tutti i bot (`shared/azioni.py`, loucabot v94, IPanchinari v38, bot aste)
+
+## v7.4.6 (2026-11-10)
+
+- **Squadra NBA sbagliata in `/roster` e `/carriera`** (Luca, 10/11: «ho tutti i giocatori con la squadra che li ha draftati»): le stagioni storiche di Basketball-Reference caricate in questi giorni hanno il timestamp del giorno del download, e `eventi_nba` le leggeva come cambi di squadra di oggi (l'ultima scaricata, la stagione da rookie, diventava la squadra di adesso). Ora per i cambi contano solo le stagioni dalla 2026-27, in ordine di stagione. Si sistemano da sole anche la % G del roster e la timeline NBA di `/carriera`
+- Stesso errore, «l'ultima riga per timestamp» invece della stagione più recente, nel **bot aste v84** (fantamedia della lista FA e delle offerte) e nel **report delle spalmature** (ultima stagione su bref al posto della data, per le stagioni passate). I controlli dei nomi di bref (`senza_bref`, abbinamenti automatici, report dati) guardano solo le stagioni recenti: un omonimo di trent'anni fa non vale come «visto»
+- **loucabot v95: `/rendimento_carriera`** con un tondo per ogni squadra del fantabasket della stagione (prima uno solo), coi nomi colorati sotto la barra
+- Contiene anche la v7.4.5 (bot aste su python-telegram-bot 22.8), non installata

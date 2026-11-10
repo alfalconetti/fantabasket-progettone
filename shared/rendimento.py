@@ -247,23 +247,28 @@ def dati_carriera(gid: int | None, nome_bref: str, nome: str | None = None) -> d
     ora = datetime.now(timezone.utc)
     out = []
     for x in stagioni:
-        fanta = None
+        fanta = []
         if gid is not None and x["stagione"] >= 2027:            # il fantabasket nel bot: dal 2026-27
-            fine = datetime(x["stagione"], 7, 1, tzinfo=timezone.utc)
-            fanta = squadra_al(mov, min(fine, ora))
-        info = _info_squadra(fanta) if fanta else None
-        sigla = "".join(p[0] for p in info["nome"].split()[:3]).upper() if info else ""
+            # tutte le squadre del fantabasket della stagione, in ordine (Luca, 10/11): quella all'inizio (1° agosto)
+            # e quelle dei movimenti fino al 1° luglio dopo (o adesso)
+            inizio = datetime(x["stagione"] - 1, 8, 1, tzinfo=timezone.utc)
+            fine = min(datetime(x["stagione"], 7, 1, tzinfo=timezone.utc), ora)
+            ids = [squadra_al(mov, inizio)] + [m["team_id_a"] for m in mov if inizio < m["timestamp"] <= fine]
+            for t_id in ids:
+                if t_id and t_id not in [f["id"] for f in fanta]:
+                    info = _info_squadra(t_id)
+                    fanta.append({"id": t_id, "nome": info["nome"], "colore": info["colore"], "logo": info["logo"],
+                                  "sigla": "".join(p[0] for p in info["nome"].split()[:3]).upper()})
         out.append({"lbl": etichetta_stagione(x["stagione"]), "fm": round(x["fm"], 3), "fm_t": _t(x["fm"]), "g": x["g"],
                     "min": f"{x['mp']:.1f}".replace(".", ","), "team": _righe_squadre(x["teams"]),
-                    "in_corso": bool(x.get("in_corso")), "fanta": sigla or None, "fanta_colore": info["colore"] if info else "#000000",
-                    "fanta_logo": info["logo"] if info else ""})
+                    "in_corso": bool(x.get("in_corso")), "fanta": fanta})
     tot_g = sum(x["g"] for x in stagioni)
     media = sum(x["fm"] * x["g"] for x in stagioni) / tot_g if tot_g else 0.0
     _, hi, passo = _asse([x["fm"] for x in stagioni])
     nota = ("Fantamedia di ogni stagione dalle medie di Basketball-Reference (regular season), con le partite giocate"
             + (", i minuti a partita" if len(out) <= 14 else "") + " e le squadre NBA in ordine")
     if gid is not None:
-        nota += " · il tondo: la squadra del fantabasket (dal 2026-27)"
+        nota += " · i tondi e i nomi colorati: le squadre del fantabasket in cui è stato nella stagione (dal 2026-27)"
     if corso:
         nota += " · la stagione in corso dai tabellini ESPN, come /player"
     nota += " · dati dal 1979-80"

@@ -53,7 +53,7 @@ def _get_ultima(conn, stagione: str) -> dict[str, tuple]:
             SELECT DISTINCT ON (nome_bref) nome_bref, g, team
             FROM bref_stats
             WHERE stagione = %s
-            ORDER BY nome_bref, timestamp DESC
+            ORDER BY nome_bref, timestamp DESC, id DESC
         """, (stagione,))
         return {r["nome_bref"]: (r["g"], r["team"]) for r in cur.fetchall()}
 

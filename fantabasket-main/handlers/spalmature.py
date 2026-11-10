@@ -38,13 +38,13 @@ def _righe_report() -> list[dict]:
         JOIN giocatori g ON g.id = it.giocatore_id
         LEFT JOIN LATERAL (SELECT timestamp AS ultima, stagione AS stagione_bref, team AS team_bref
                            FROM bref_stats WHERE nome_bref = g.nome_bref
-                           ORDER BY timestamp DESC LIMIT 1) b ON TRUE
+                           ORDER BY stagione DESC, timestamp DESC, id DESC LIMIT 1) b ON TRUE
         LEFT JOIN LATERAL (SELECT MAX(timestamp) AS data_ct FROM movimenti_giocatori
                            WHERE giocatore_id = g.id AND tipo = 'decadimento'
                              AND note LIKE '%%Cam Thomas%%') ct ON TRUE
         WHERE NOT EXISTS (SELECT 1 FROM contratti c WHERE c.giocatore_id = g.id AND c.attivo = TRUE)
         GROUP BY g.id, g.nome_common, b.ultima, b.stagione_bref, b.team_bref, ct.data_ct
-        ORDER BY b.ultima NULLS FIRST, g.nome_common
+        ORDER BY b.stagione_bref NULLS FIRST, b.ultima, g.nome_common
     """, (stagione,), many=True) or []
 
 
@@ -62,9 +62,13 @@ def testi_report() -> list[str]:
     blocchi = []
     for r in righe:
         squadre = ", ".join(f"{_nome_team(s['team'])} {s['tot']}M" for s in r["squadre"])
-        if r["ultima"]:
+        if r["ultima"] and str(r["stagione_bref"]) >= str(int(settings.stagione_corrente()) + 1):
             ultima = (f"ultima partita rilevata {r['ultima'].astimezone(ROME).strftime('%d/%m/%Y')}"
                       f" ({r['team_bref'] or '?'}, stagione {r['stagione_bref']})")
+        elif r["ultima"]:
+            # stagione passata: la data della riga è quella in cui è stata scaricata (le stagioni storiche, v7.4.6)
+            a = int(r["stagione_bref"])
+            ultima = f"ultima stagione su Basketball-Reference: {a - 1}-{str(a)[-2:]} ({r['team_bref'] or '?'})"
         else:
             ultima = "mai rilevato su Basketball-Reference"
         extra = (f"\n   ✂️ Cam Thomas il {r['data_ct'].astimezone(ROME).strftime('%d/%m/%Y')}"

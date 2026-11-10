@@ -711,3 +711,11 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 ## v82 (2026-10-31)
 
 - **Solo per la lega** (Luca, 31/10): in privato il bot risponde solo ai GM, agli admin e al dev; agli altri «🔒 Questo bot è riservato ai GM della lega. Se pensi che sia un errore, scrivi al dev.» (anche ai bottoni e, nel bot principale, al guest mode). Dai gruppi e canali che non sono in globals.json esce da solo e lo scrive al dev (`shared/solo_lega.py`, prova `tests/docs/solo_lega.py`)
+
+## v83 (2026-11-10, progettone v7.4.5)
+
+- **python-telegram-bot da 21.6 a 22.8**, come gli altri bot (Luca, 10/11: prima fase del passaggio alle funzioni nuove della Bot API). Nessuna rottura nel codice del bot aste tra 21.6 e 22.8 (i cambi delle versioni 21.7–22.8 non toccano quello che usa); `disable_web_page_preview` (deprecato) sostituito da `link_preview_options=LinkPreviewOptions(is_disabled=True)` in /lista_fa. Rilascio da solo, con tutte le prove (anche quelle con PostgreSQL)
+
+## v84 (2026-11-10, progettone v7.4.6)
+
+- **Fantamedia della lista FA e delle offerte**: si prende la stagione più recente di Basketball-Reference, non l'ultima riga scaricata (con le stagioni storiche caricate in questi giorni poteva uscire la fantamedia di un anno vecchio)

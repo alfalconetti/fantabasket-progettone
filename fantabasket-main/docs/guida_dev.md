@@ -193,7 +193,7 @@ Il bot aste vede la fase nuova entro 5 minuti.
 | `richieste_admin` | richieste aperte (DPE, Saedro, decadimento): una per giocatore, decisione unica |
 | `cap_anticipato`, `slot_anticipato` | `/autocap` e `/autoslot` del bot aste (48 ore) |
 | `gas_sync_queue` | il bot aste ci accoda le firme, questo bot sincronizza i fogli |
-| `bref_stats` | snapshot Basketball-Reference: una riga quando G aumenta (`bref_schema.sql`) |
+| `bref_stats` | snapshot Basketball-Reference: una riga quando G aumenta (`bref_schema.sql`). Ci sono anche le stagioni storiche (dal 1979-80, v7.4.0), con il `timestamp` del giorno in cui sono state scaricate: **«la riga più recente» si cerca sempre per `stagione DESC` e poi `timestamp DESC`**, mai per il solo timestamp (v7.4.6) |
 | `bref_nuovi` | giocatori bref non in anagrafica, con decisione del dev |
 | `penalita` | nello schema, non usata (la penalità è in teams.json) |
 
@@ -344,7 +344,7 @@ ORDER BY t.timestamp, t.id;
 
 | File | Cosa contiene |
 |---|---|
-| `carriera.py` | `/carriera` (v6.5.0): `eventi_fanta` (`database.movimenti_carriera` dal 25/07/2026, più `dpe`; trade annullate tolte con l'annullamento, stesso `trade_id`), `eventi_nba` (squadra al 25/07, `nba_movimenti` di loucabot, cambi nelle righe di `bref_stats`; un cambio di bref già visto da ESPN nei 30 giorni prima non si ripete), `righe_timeline`, `dati`, `genera_png` (Typst a 220 dpi); nomi, colori e loghi delle 30 squadre da `shared/squadre_nba.py` (loghi scaricati da loucabot da ESPN in `config/foto/nba/`, uno a mano in `config/loghi/nba/` vale prima, v6.13.0); `squadra_nba_al(espn, nome_bref, istante)` per `/roster` a una data; callback `car:<id>` |
+| `carriera.py` | `/carriera` (v6.5.0): `eventi_fanta` (`database.movimenti_carriera` dal 25/07/2026, più `dpe`; trade annullate tolte con l'annullamento, stesso `trade_id`), `eventi_nba` (squadra al 25/07, `nba_movimenti` di loucabot, cambi nelle righe di `bref_stats` delle stagioni dalla 2026-27 (v7.4.6: le storiche scaricate dopo non sono cambi); un cambio di bref già visto da ESPN nei 30 giorni prima non si ripete), `righe_timeline`, `dati`, `genera_png` (Typst a 220 dpi); nomi, colori e loghi delle 30 squadre da `shared/squadre_nba.py` (loghi scaricati da loucabot da ESPN in `config/foto/nba/`, uno a mano in `config/loghi/nba/` vale prima, v6.13.0); `squadra_nba_al(espn, nome_bref, istante)` per `/roster` a una data; callback `car:<id>` |
 | `menu.py` | `/menu` per fase (`AZIONI_FASE`, `AZIONI_SEMPRE`), `/guida`, `/guida_admin` |
 | `trade.py` | registrazione di comandi, bottoni e conversazioni delle trade (`get_handlers`), `/annulla_trade`; in testa l'indice dei moduli `trade_*` |
 | `trade_comune.py` | stati delle conversazioni, `_STATI`, testo del riepilogo, tastiere, chi può toccare una bozza, annuncio sul canale, notifiche alle squadre |

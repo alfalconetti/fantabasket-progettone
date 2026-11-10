@@ -49,6 +49,10 @@ tx("iniziale", r, None, "team02", None, "2026-07-25 22:00+02", "Situazione all'a
 # NBA: al 25/07 a CHA (bref), poi trade a SAC vista da ESPN il 05/02 e da bref il 07/02 (non si ripete)
 for ts, team in [("2026-10-22", "CHO"), ("2026-10-23", "CHO"), ("2027-02-07", "SAC"), ("2027-02-08", "SAC")]:
     db._q("INSERT INTO bref_stats (timestamp, stagione, nome_bref, team, g) VALUES (%s, '2027', 'Gio Prova', %s, 1)", (ts, team))
+# v7.4.6: le stagioni storiche scaricate dopo (dal 1980 all'indietro, col timestamp del giorno del download): non sono
+# cambi di squadra, e l'ultima scaricata (la squadra che l'ha draftato) non deve diventare la squadra di adesso
+for ts, st, team in [("2027-03-01 10:00", "2026", "DEN"), ("2027-03-01 10:01", "2025", "BOS"), ("2027-03-01 10:02", "2024", "UTA")]:
+    db._q("INSERT INTO bref_stats (timestamp, stagione, nome_bref, team, g) VALUES (%s, %s, 'Gio Prova', %s, 82)", (ts, st, team))
 ldb.salva_atleti([{"atleta": "e1", "nome": "Gio Prova", "squadra": "CHA"}], giorno=date(2026, 10, 23))
 ldb.salva_atleti([{"atleta": "e1", "nome": "Gio Prova", "squadra": "SAC"}], giorno=date(2027, 2, 5))
 mv = db._q("SELECT giorno, da, a FROM nba_movimenti WHERE atleta = 'e1'", many=True)

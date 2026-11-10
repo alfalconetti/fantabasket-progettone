@@ -4,7 +4,7 @@ Comandi utente non legati al flusso offerte:
 """
 import logging
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 
 import database as db
@@ -133,7 +133,7 @@ async def cmd_watched(update: Update, context: ContextTypes.DEFAULT_TYPE):
     testo = "\n\n".join(righe)
     if len(testo) <= 4096:
         await update.effective_message.reply_text(
-            testo, parse_mode="HTML", disable_web_page_preview=True
+            testo, parse_mode="HTML", link_preview_options=LinkPreviewOptions(is_disabled=True)
         )
     else:
         chunk = righe[0]  # intestazione
@@ -141,14 +141,14 @@ async def cmd_watched(update: Update, context: ContextTypes.DEFAULT_TYPE):
             candidato = chunk + "\n\n" + riga
             if len(candidato) > 4096:
                 await update.effective_message.reply_text(
-                    chunk, parse_mode="HTML", disable_web_page_preview=True
+                    chunk, parse_mode="HTML", link_preview_options=LinkPreviewOptions(is_disabled=True)
                 )
                 chunk = riga
             else:
                 chunk = candidato
         if chunk:
             await update.effective_message.reply_text(
-                chunk, parse_mode="HTML", disable_web_page_preview=True
+                chunk, parse_mode="HTML", link_preview_options=LinkPreviewOptions(is_disabled=True)
             )
 
 

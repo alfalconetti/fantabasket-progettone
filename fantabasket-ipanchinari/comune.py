@@ -1,4 +1,5 @@
 """Cose comuni di IPanchinari: giornata di riferimento, orari, partite dei giocatori, canale log."""
+from telegram import LinkPreviewOptions
 import html
 import logging
 from datetime import datetime, time as dtime, timedelta, timezone
@@ -153,7 +154,7 @@ async def log(bot, testo: str):
     if not config.canale_log():
         return
     try:
-        await bot.send_message(chat_id=config.canale_log(), text=testo, parse_mode="HTML", disable_web_page_preview=True)
+        await bot.send_message(chat_id=config.canale_log(), text=testo, parse_mode="HTML", link_preview_options=LinkPreviewOptions(is_disabled=True))
     except Exception as err:
         logger.warning("Canale log: %s", err)
 

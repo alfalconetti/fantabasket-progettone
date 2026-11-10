@@ -174,3 +174,7 @@ Primo rilascio: panchine e quintetti.
 ## v37 (2026-11-06)
 
 - **Avviso al GM quando un admin gli cambia la formazione** (Luca, 05/11): quintetto (righe, bottoni, conferma per conto della squadra, `/quintetti_import`), formazione di una giornata chiusa e panchina mandata o corretta da un admin che non è GM di quella squadra: i GM ricevono in privato chi, cosa e per quale giornata (`avvisi_gm.py`)
+
+## v38 (2026-11-10, progettone v7.4.5)
+
+- `disable_web_page_preview` (deprecato in python-telegram-bot) sostituito da `link_preview_options` nei messaggi al canale log

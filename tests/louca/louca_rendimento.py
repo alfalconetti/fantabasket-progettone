@@ -78,7 +78,8 @@ st = dc["stagioni"]
 ok([x["lbl"] for x in st] == ["23-24", "24-25", f"{(int(S)) % 100:02d}-{(int(S) + 1) % 100:02d}"], f"stagioni in ordine, quella in corso una volta {[x['lbl'] for x in st]}")
 ok(st[0]["g"] == 60 and st[0]["fm"] == 15.0, "l'ultima istantanea di Basketball-Reference (fantamedia = pts × 0,5 qui)")
 ok(st[1]["g"] == 70 and st[1]["fm"] == 20.0 and st[1]["team"] == ["SAC·MIA"], "cambio di squadra: la riga del totale e le squadre in ordine")
-ok(st[2]["in_corso"] and st[2]["g"] == 6 and st[2]["fm_t"] == "29,63" and st[2]["fanta"], "stagione in corso dai tabellini (regular season e play-in, come /player), col tondo della squadra")
+ok(st[2]["in_corso"] and st[2]["g"] == 6 and st[2]["fm_t"] == "29,63" and [f["id"] for f in st[2]["fanta"]] == ["team01", "team02"],
+   "stagione in corso dai tabellini (regular season e play-in, come /player), con tutte le squadre del fantabasket in ordine (libero in mezzo no)")
 tot = 60 + 70 + 6
 ok(dc["media_big"] == R._t((15 * 60 + 20 * 70 + 178 / 6 * 6) / tot) and f"{tot} partite in 3 stagioni" in dc["media_sotto"], "media in carriera pesata sulle partite")
 png = R.immagine(dc)
