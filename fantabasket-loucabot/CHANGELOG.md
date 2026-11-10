@@ -482,3 +482,7 @@ Il calcolo dei fantapunti.
 ## v97 (2026-11-10, progettone v7.5.1)
 
 - **`/giocatori` risponde con un'immagine** sul viola di Yahoo come `/partita`, con le foto (un album oltre i 25), e sotto sempre il file `.md` con tutti
+
+## v98 (2026-11-10, progettone v7.5.2)
+
+- **`/giocatori`**: più valori dello stesso filtro in «o» (`fa firmati`, `nba:LAL,BOS`, `squadra:Alfa,Beta`, `nba:no,BOS`), filtri diversi in «e»

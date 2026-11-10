@@ -137,6 +137,16 @@ ok(_n("nome:jokic") == ["Elenco Jokić Accento"], "regex: accenti indifferenti")
 ok(_n("nome:^ELENCO.*panchina$") == ["Elenco Fa Panchina"], "regex: maiuscole indifferenti")
 ok(nomi("guardia") == ["Elenco Guardia Fa"], "le parole da sole cercano nel nome")
 ok(nomi("C fa top:1") == ["Elenco Fa Panchina"], "i filtri si combinano")
+# v7.5.2: più valori dello stesso filtro in «o», filtri diversi in «e»
+ok(nomi("fa diritti") == ["Elenco Guardia Fa", "Elenco Senza Espn", "Elenco Ala Diritti", "Elenco Fa Panchina"], "fa diritti: l'uno o l'altro")
+ok(nomi("stato:firmati,diritti") == ["Elenco Centro Firmato", "Elenco Jokić Accento", "Elenco Ala Diritti"], "stato:firmati,diritti")
+ok(nomi("firmati tutti") == nomi(""), "tutti = nessun filtro sullo stato")
+ok(nomi("nba:lal nba:bos") == ["Elenco Guardia Fa", "Elenco Ala Diritti"] and nomi("nba:lal,bos") == nomi("nba:lal nba:bos"), "nba: più squadre")
+ok(nomi("nba:no,bos") == ["Elenco Senza Espn", "Elenco Ala Diritti", "Elenco Fa Panchina"], "nba:no con una squadra")
+ok(nomi("squadra:Alfa,Gamma") == ["Elenco Centro Firmato", "Elenco Ala Diritti"] and nomi('squadra:Alfa squadra:Gamma') == nomi("squadra:Alfa,Gamma"),
+   "squadra: più squadre")
+ok(nomi("fa firmati C") == ["Elenco Centro Firmato", "Elenco Jokić Accento", "Elenco Fa Panchina"], "o nello stesso filtro, e tra filtri diversi")
+ok(" o " in risp("fa firmati")["pagine"][0]["filtri"], "intestazione: «firmati o FA»")
 
 # stagione passata: solo chi ha giocato, dalla riga più recente di bref; il contratto è quello di oggi
 r = risp("anno:2024")
@@ -152,7 +162,7 @@ ok("PG, SG, SF, PF, C" in EG.risposta("ruolo:X")["testo"], "ruolo sbagliato")
 ok("dal 1979" in EG.risposta("anno:1900")["testo"], "anno fuori dai limiti")
 ok("costo:&lt;10" in EG.risposta("aiuto")["testo"], "aiuto")
 ok("Nessun giocatore" in EG.risposta("nome:^Nessunoconquestonome$")["testo"], "nessun risultato")
-ok(EG.leggi('squadra:"Alfa" nome:"^Elenco C"', int(S))["squadra"]["id"] == "team01", "valori tra virgolette")
+ok(EG.leggi('squadra:"Alfa" nome:"^Elenco C"', int(S))["squadra"][0]["id"] == "team01", "valori tra virgolette")
 
 # l'immagine, la didascalia e il file .md con tutti
 r = risp("")

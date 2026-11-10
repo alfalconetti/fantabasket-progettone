@@ -41,6 +41,8 @@ MAX_REGEX = 100
 AIUTO = ("<b>/giocatori</b> [filtri] — cerca tra i giocatori; i filtri si combinano, in qualsiasi ordine:\n"
          "• <code>PG SG SF PF C</code> (o <code>G</code>, <code>F</code>) — posizioni eleggibili, anche <code>ruolo:G,C</code>\n"
          "• <code>fa</code> · <code>firmati</code> · <code>diritti</code> · <code>tutti</code> — situazione nel fantabasket\n"
+         "Più valori dello stesso filtro valgono in «o» (<code>fa firmati</code>, <code>nba:LAL,BOS</code>, <code>squadra:Alfa,Beta</code>), "
+         "filtri diversi in «e».\n"
          "• <code>nba:LAL</code> (anche <code>nba:LAL,BOS</code>, <code>nba:no</code>) — squadra NBA\n"
          "• <code>squadra:NOME</code> — squadra del fantabasket · <code>ruolo_squadra:C</code> — ruolo ufficiale dei firmati\n"
          "• <code>nome:REGEX</code> — nome con un'espressione regolare (<code>nome:^jal</code>); le parole da sole cercano nel nome\n"
@@ -97,13 +99,25 @@ def _ruoli(chiave: str, v: str) -> set:
     return out
 
 
+def _stati(v: str, scritto: str | None = None) -> set:
+    """«fa» · «fa,firmati» · «tutti» (= nessun filtro: tutti e tre)."""
+    out = set()
+    for x in filter(None, v.lower().split(",")):
+        if x not in STATI:
+            raise Errore(f"«{scritto or v}»: lo stato è fa, firmati, diritti o tutti.")
+        out |= {"fa", "firmati", "diritti"} if x == "tutti" else {x}
+    return out
+
+
 def leggi(testo: str, oggi: int) -> dict:
     """I filtri dal testo dopo il comando. `oggi` = la stagione della lega (anno di inizio)."""
     try:
         parti = shlex.split(testo or "")
     except ValueError:                                  # virgolette non chiuse
         parti = (testo or "").split()
-    f = {"ruoli": set(), "stato": "tutti", "nba": None, "squadra": None, "ruolo_squadra": set(), "regex": None,
+    # dentro lo stesso filtro le condizioni sono in «o» (fa firmati, nba:LAL,BOS, squadra:Alfa,Beta), tra filtri
+    # diversi in «e» (v7.5.2, Luca 10/11); un insieme vuoto = nessun filtro
+    f = {"ruoli": set(), "stato": set(), "nba": set(), "squadra": [], "ruolo_squadra": set(), "regex": None,
          "parole": [], "anno": oggi, "top": None, "min_g": None, "costo": None, "anni": None, "infortunati": None,
          "ordina": "media", "aiuto": False, "descr": []}
     for p in parti:
@@ -116,7 +130,7 @@ def leggi(testo: str, oggi: int) -> dict:
             elif up in RUOLI or up in GRUPPI:
                 f["ruoli"] |= _ruoli("ruolo", up)
             elif p.lower() in STATI:
-                f["stato"] = p.lower()
+                f["stato"] |= _stati(p)
             else:
                 f["parole"].append(p)
             continue
@@ -125,19 +139,19 @@ def leggi(testo: str, oggi: int) -> dict:
         if k in ("ruolo", "ruoli", "pos"):
             f["ruoli"] |= _ruoli(k, v)
         elif k == "stato":
-            if v.lower() not in STATI:
-                raise Errore(f"«{p}»: lo stato è fa, firmati, diritti o tutti.")
-            f["stato"] = v.lower()
+            f["stato"] |= _stati(v, p)
         elif k == "nba":
-            f["nba"] = {"no"} if v.lower() == "no" else {x.upper() for x in v.split(",") if x}
+            f["nba"] |= {x.upper() for x in v.split(",") if x}
         elif k in ("squadra", "team"):
             from shared.squadre import cerca_squadra
-            t = cerca_squadra(v, L.squadre())
-            if not t:
-                raise Errore(f"Nessuna squadra trovata con «{v}».")
-            f["squadra"] = t
+            for nome_sq in filter(None, (x.strip() for x in v.split(","))):
+                t = cerca_squadra(nome_sq, L.squadre())
+                if not t:
+                    raise Errore(f"Nessuna squadra trovata con «{nome_sq}».")
+                if t["id"] not in [x["id"] for x in f["squadra"]]:
+                    f["squadra"].append(t)
         elif k == "ruolo_squadra":
-            f["ruolo_squadra"] = _ruoli(k, v)
+            f["ruolo_squadra"] |= _ruoli(k, v)
         elif k == "nome":
             if len(v) > MAX_REGEX:
                 raise Errore(f"«nome:»: al massimo {MAX_REGEX} caratteri.")
@@ -176,12 +190,12 @@ def descrizione(f: dict, oggi: int) -> str:
     d = []
     if f["ruoli"]:
         d.append("/".join(r for r in RUOLI if r in f["ruoli"]))
-    if f["stato"] != "tutti":
-        d.append({"fa": "FA", "firmati": "firmati", "diritti": "diritti"}[f["stato"]])
+    if f["stato"] and len(f["stato"]) < 3:
+        d.append(" o ".join({"fa": "FA", "firmati": "firmati", "diritti": "diritti"}[s] for s in ("firmati", "diritti", "fa") if s in f["stato"]))
     if f["nba"]:
-        d.append("senza squadra NBA" if f["nba"] == {"no"} else "NBA " + ",".join(sorted(f["nba"])))
+        d.append(" o ".join(("senza squadra NBA" if x == "NO" else "NBA " + x) for x in sorted(f["nba"])))
     if f["squadra"]:
-        d.append(L.nome(f["squadra"]["id"]))
+        d.append(" o ".join(L.nome(t["id"]) for t in f["squadra"]))
     if f["ruolo_squadra"]:
         d.append("ruolo " + "/".join(r for r in RUOLI if r in f["ruolo_squadra"]))
     if f["regex"]:
@@ -273,19 +287,15 @@ def filtra(righe: list[dict], f: dict, oggi: int) -> list[dict]:
         if f["anno"] != oggi or st == "fa":
             if x["media"] is None:          # chi non ha giocato: solo i firmati e i diritti, nella stagione in corso
                 continue
-        if f["stato"] != "tutti" and st != f["stato"]:
+        if f["stato"] and st not in f["stato"]:
             continue
         if f["ruoli"] and not f["ruoli"] & set(x["pos"]):
             continue
-        if f["nba"] is not None:
-            if f["nba"] == {"no"}:
-                if x["nba"]:
-                    continue
-            elif (x["nba"] or "").upper() not in f["nba"]:
-                continue
+        if f["nba"] and (x["nba"] or "NO").upper() not in f["nba"]:      # «no» = senza squadra NBA
+            continue
         if f["squadra"]:
             tid = x["contratto"]["team_id"] if x["contratto"] else x["diritti"]
-            if tid != f["squadra"]["id"]:
+            if tid not in [t["id"] for t in f["squadra"]]:
                 continue
         if f["ruolo_squadra"] and not (x["contratto"] and x["contratto"].get("ruolo") in f["ruolo_squadra"]):
             continue

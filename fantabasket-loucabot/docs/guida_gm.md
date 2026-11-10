@@ -64,7 +64,7 @@ Nelle immagini il valore migliore di ogni colonna è in **verde** e il peggiore 
 - `anno:2024` per la media del 2024-25 (da Basketball-Reference; senza, la stagione in corso dai tabellini);
 - `top:20`, `min_g:10`, `costo:<10` o `costo:5-10`, `anni:1` o `anni:>=2`, `infortunati:no` (o `si`), `ordina:media` (o costo, partite, ultime5, nome).
 
-Con spazi nel valore si usano le virgolette: `squadra:"Los Tizi"`. 25 giocatori per immagine: se sono di più arriva un album (fino a 10 immagini, cioè 250 giocatori). Sotto c'è sempre il file `.md` con tutti, in testo. `/giocatori aiuto` elenca i filtri. Esempio: `/giocatori fa C top:10 min_g:5`.
+Più valori dello **stesso filtro** valgono in «o»: `fa firmati` (gli uni o gli altri), `nba:LAL,BOS` o `nba:LAL nba:BOS`, `squadra:Alfa,Beta`, `nba:no,BOS`. **Filtri diversi** valgono in «e»: `fa firmati C` sono i centri firmati o FA. Con spazi nel valore si usano le virgolette: `squadra:"Los Tizi"`. 25 giocatori per immagine: se sono di più arriva un album (fino a 10 immagini, cioè 250 giocatori). Sotto c'è sempre il file `.md` con tutti, in testo. `/giocatori aiuto` elenca i filtri. Esempio: `/giocatori fa C top:10 min_g:5`.
 
 Ci sono anche nel bot principale, in privato.
 

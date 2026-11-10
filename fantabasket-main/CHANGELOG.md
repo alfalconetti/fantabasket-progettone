@@ -1910,3 +1910,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.5.1 (2026-11-10)
 
 - **`/giocatori` risponde con un'immagine** (Luca, 10/11), sul viola di Yahoo come `/partita`: 25 giocatori con la foto ESPN (se no le iniziali), posizioni, squadra NBA, fantamedia con partite e ultime 5, infortunio, e un'etichetta per la situazione (piena col colore della squadra per i firmati, con contratto e ruolo; bordata per i diritti; verde per i FA). Oltre i 25 un album (fino a 10 immagini); sotto sempre il file `.md` con tutti. Template `shared/elenco_giocatori.typ` (loucabot v97)
+
+## v7.5.2 (2026-11-10)
+
+- **`/giocatori`: più valori dello stesso filtro insieme** (Luca, 10/11): valgono in «o» — `fa firmati`, `stato:firmati,diritti`, `nba:LAL,BOS` (o `nba:LAL nba:BOS`), `nba:no,BOS`, `squadra:Alfa,Beta` — mentre filtri diversi restano in «e» (`fa firmati C`: i centri firmati o FA). Prima l'ultimo valore scritto sostituiva gli altri (loucabot v98)
