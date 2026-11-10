@@ -74,11 +74,11 @@ ok(out[-1].startswith("Uso:"), "/calendario senza squadra e non GM: l'uso")
 # solo in privato: nei gruppi sono di loucabot (niente risposte doppie), e nel menu dei gruppi non ci sono
 from telegram.ext import filters
 hs = {h.commands and next(iter(h.commands)): h for h in LG.get_handlers() if hasattr(h, "commands")}
-ok(all(hs[c].filters is not None and "PRIVATE" in str(hs[c].filters).upper() for c in ("player", "status", "calendario", "rendimento", "rendimento_carriera")),
+ok(all(hs[c].filters is not None and "PRIVATE" in str(hs[c].filters).upper() for c in ("player", "status", "calendario", "rendimento", "rendimento_carriera", "confronto", "confronto_carriera")),
    "/player, /status, /calendario, /rendimento, /rendimento_carriera: solo in privato")
 li = comandi.liste_comandi(settings.fase())
 gruppo = {c.command for c in li["group"]}
-_lc = {"player", "status", "calendario", "rendimento", "rendimento_carriera"}
+_lc = {"player", "status", "calendario", "rendimento", "rendimento_carriera", "confronto", "confronto_carriera"}
 ok(not gruppo & _lc and _lc <= {c.command for c in li["gm"]}
    and "pick" in gruppo, "menu: nei gruppi no, in privato sì (/pick sì anche nei gruppi)")
 app = types.SimpleNamespace(handlers={0: LG.get_handlers()})

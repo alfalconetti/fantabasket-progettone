@@ -106,7 +106,7 @@ async def cmd_top(update, context):
 
 # ── /top_storica ANNO [N | DA A] (v7.4.0, Luca 09/11) ─────────────────────────
 # La classifica per fantamedia di una stagione passata dalle medie di Basketball-Reference (regular season, dati dal
-# 2002-03). L'anno come nel resto della lega: la stagione che comincia quell'anno (2014 = 2014-15); vanno bene anche
+# 1979-80). L'anno come nel resto della lega: la stagione che comincia quell'anno (2014 = 2014-15); vanno bene anche
 # «2014-15» e «14-15». Minimo di partite: il 40% (MINIMO) delle partite giocate da chi ne ha giocate di più quell'anno
 # (bref non ha le partite delle squadre: così vale anche per le stagioni corte, come 2011-12 e 2019-20). Chi ha
 # cambiato squadra: la riga del totale e le squadre in ordine. La stagione in corso è /top (tabellini ESPN).
@@ -135,7 +135,7 @@ def classifica_storica(s: str) -> list[dict]:
     """Per ogni giocatore della stagione (bref: anno di fine = s + 1) l'ultima istantanea di ogni riga; totale e squadre."""
     righe = db.q("""SELECT DISTINCT ON (nome_bref, team) nome_bref, team, g, mp, fantamedia,
                            MIN(id) OVER (PARTITION BY nome_bref, team) AS primo
-                    FROM bref_stats WHERE stagione = %s ORDER BY nome_bref, team, timestamp DESC, id DESC""",
+                    FROM bref_stats WHERE stagione = %s AND fantamedia IS NOT NULL ORDER BY nome_bref, team, timestamp DESC, id DESC""",
                  (str(int(s) + 1),), many=True) or []
     per = {}
     for r in righe:
@@ -158,7 +158,7 @@ def testo_storica(s: str, da: int, a: int) -> tuple[str, int]:
     tutti = classifica_storica(s)
     anno = f"{s}-{str(int(s) + 1)[-2:]}"
     if not tutti:
-        return f"Nessun dato di Basketball-Reference per il {anno} (ci sono dal 2002-03).", 0
+        return f"Nessun dato di Basketball-Reference per il {anno} (ci sono dal 1979-80).", 0
     scelti = tutti[da - 1:a]
     righe = [f"🏛️ Top {da}–{min(a, da - 1 + len(scelti))} per fantamedia · stagione {anno}",
              f"Medie di Basketball-Reference, regular season · almeno il {int(MINIMO * 100)}% delle partite "

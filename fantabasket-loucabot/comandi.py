@@ -30,6 +30,8 @@ def liste_comandi() -> dict:
         BotCommand("status",     "Injury status dei giocatori di una squadra [SQUADRA]"),
         BotCommand("rendimento", "La stagione di un giocatore partita per partita [nome]"),
         BotCommand("rendimento_carriera", "La fantamedia stagione per stagione, anche dei giocatori storici [nome]"),
+        BotCommand("confronto", "Due giocatori a confronto nella stagione: A vs B"),
+        BotCommand("confronto_carriera", "Due carriere a confronto, anche storiche: A vs B"),
         BotCommand("partita", "Una sfida in dettaglio (immagine) [SQUADRA] [GN] o SQUADRA - SQUADRA"),
         BotCommand("classifica", "La classifica (immagine)"),
         BotCommand("classifica_full", "La classifica con tutte le statistiche"),

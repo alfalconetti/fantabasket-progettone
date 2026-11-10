@@ -138,9 +138,11 @@ Alla convalida i risultati vanno in `lega_risultati` e sul foglio Calendario.
 | `/partita [SQUADRA] [GN]` · `/partita SQUADRA - SQUADRA` | tutti | una sfida come immagine: tabellone col record W-L sotto i loghi, quintetti e panchine notte per notte, quello che conta, FADD, medie, supplementari |
 | `/notte [SQUADRA] [DATA]` | tutti | gli schierati di una squadra in una notte NBA: partite, orari, fantapunti, infortuni |
 | `/classifica` · `/classifica_conference` · `/classifica_full` | tutti | classifica (immagine; il migliore di ogni colonna in verde, il peggiore in rosso) · divisa per conference · con tutte le statistiche (file) |
-| `/top_storica ANNO [N] o [DA A]` | tutti | i migliori per fantamedia di una stagione passata, dalle medie di Basketball-Reference (dal 2002-03; 2014 = 2014-15) (v90) |
+| `/top_storica ANNO [N] o [DA A]` | tutti | i migliori per fantamedia di una stagione passata, dalle medie di Basketball-Reference (dal 1979-80; 2014 = 2014-15) (v90) |
+| `/confronto A vs B` | tutti | due giocatori nello stesso grafico della stagione, con la tabella a confronto (v92) |
+| `/confronto_carriera A vs B` | tutti | due carriere stagione per stagione, allineate per stagione di carriera, anche storiche (v92) |
 | `/rendimento NOME` | tutti | la stagione partita per partita in un grafico: fantapunti col colore della squadra del fantabasket, media delle ultime 5 e dall'inizio, fasce delle squadre, play-in e playoff in fondo (v89) |
-| `/rendimento_carriera NOME` | tutti | la fantamedia stagione per stagione (Basketball-Reference dal 2002-03, la stagione in corso dai tabellini), anche dei giocatori mai stati nella lega (v89) |
+| `/rendimento_carriera NOME` | tutti | la fantamedia stagione per stagione (Basketball-Reference dal 1979-80, la stagione in corso dai tabellini), anche dei giocatori mai stati nella lega (v89) |
 | `/player NOME` | tutti | squadra NBA, posizioni eleggibili, squadra del fantabasket con ruolo e stato del contratto, data di nascita, prossima partita NBA, media dei fantapunti e statistiche della stagione (e media di quella prima) (partite su quelle della squadra), media delle ultime 5 giocate, ultime 5 partite con le saltate di fila in una riga |
 | `/start` | tutti | i comandi in breve |
 | `/guida` | tutti | la guida GM (file) |

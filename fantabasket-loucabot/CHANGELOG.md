@@ -455,3 +455,10 @@ Il calcolo dei fantapunti.
 ## v91 (2026-11-10, progettone v7.4.2)
 
 - **Tabellone live e finale: la fascia «PRENDONO LA MEDIA IN QUESTA GIORNATA»** (Luca, 10/11, mockup approvato): le squadre NBA senza partite nella giornata, la stessa fascia di /partita, sotto la banda NBA; anche in /live, /giornata, prima pagina di /pdf_giornata e in klra. `live.media_nba(g)`, campo `media_nba` (facoltativo) in live.typ
+
+## v92 (2026-11-10, progettone v7.4.3)
+
+- **`/confronto A vs B`** (Luca, 10/11; idea del 25/10): due giocatori nello stesso grafico della stagione, sulle date (A blu, B arancione), media delle ultime 5 e dall'inizio per ognuno; tabella a confronto (fantamedia come /player, partite, ultime 5, playoff, minuti, migliore), il migliore in grassetto
+- **`/confronto_carriera A vs B`**: due carriere stagione per stagione, allineate per stagione di carriera (1ª, 2ª…), anche storiche; tabella con fantamedia in carriera, stagioni, partite, stagione migliore
+- Codice in `shared/confronto.py` e `shared/confronto.typ`: anche nel bot principale, in privato
+- **Dati storici dal 1979-80** (Luca, 10/11): caricate le stagioni di Basketball-Reference fino al 1979-80, la prima con tutte le statistiche della fantamedia (le triple); testi di /top_storica e /rendimento_carriera aggiornati. Le righe senza fantamedia (stagioni prima, se mai caricate) non entrano

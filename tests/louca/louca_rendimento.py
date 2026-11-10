@@ -15,6 +15,7 @@ B1 = str(int(S) + 1)                                    # Basketball-Reference: 
 def pulisci():
     db.q("DELETE FROM nba_tabellini WHERE atleta LIKE 'rd%%'"); db.q("DELETE FROM nba_partite WHERE espn_id LIKE 'rd%%'")
     db.q("DELETE FROM bref_stats WHERE nome_bref LIKE 'Rend %%' OR nome_bref IN ('Vecchio Storico', 'Deron Rendi')")
+    db.q("DELETE FROM nba_tabellini WHERE atleta LIKE 'rd%%'")
     for r in db.q("SELECT id FROM giocatori WHERE nome_bref LIKE 'Rend %%'", many=True) or []:
         db.q("DELETE FROM transazioni WHERE giocatore_id = %s", (r["id"],)); db.q("DELETE FROM contratti WHERE giocatore_id = %s", (r["id"],))
         db.q("DELETE FROM giocatori WHERE id = %s", (r["id"],))
@@ -139,7 +140,41 @@ ok([x[0] for x in out[:3]] == ["foto"] * 3, "/rendimento e /rendimento_carriera 
 ok(out[3][0] == "testo" and "/rendimento_carriera" in out[3][1], "/rendimento di uno storico: rimanda a /rendimento_carriera")
 ok("nemmeno tra quelli di Basketball-Reference" in out[4][1] and out[5][1].startswith("Uso:"), "nome che non c'è da nessuna parte, uso")
 hs = LR.get_handlers()
-ok({next(iter(h.commands)) for h in hs if hasattr(h, "commands")} == {"rendimento", "rendimento_carriera"}, "loucabot: i due comandi")
+ok({"rendimento", "rendimento_carriera"} <= {next(iter(h.commands)) for h in hs if hasattr(h, "commands")}, "loucabot: i due comandi")
 import re as _re
 ok(all(_re.match(R.PATTERN, x) for x in ("rs:12", "rc:3", "rcb:LeBron James")) and not _re.match(R.PATTERN, "pl:3"), "callback dei bottoni")
+# /confronto e /confronto_carriera (v7.4.3, Luca 10/11)
+from shared import confronto as CF
+ok(CF.dividi("Wemby vs Chet") == ("Wemby", "Chet") and CF.dividi("A contro B C") == ("A", "B C") and CF.dividi("A, B") == ("A", "B")
+   and CF.dividi("Shai Gilgeous-Alexander - Luka") == ("Shai Gilgeous-Alexander", "Luka") and CF.dividi("solo uno") is None,
+   "i due nomi: vs, contro, virgola, trattino staccato (non quello dei nomi)")
+gid2 = db.q("INSERT INTO giocatori (nome_bref, nome_common, nome_norm, espn_id) VALUES ('Rend Due', 'Rend Due', 'rend due', 'rd2') RETURNING id", one=True)["id"]
+for i in range(0, 10, 2):
+    db.q("INSERT INTO nba_tabellini (partita, atleta, nome, squadra, giocato, minuti, fp) VALUES (%s, 'rd2', 'Rend Due', 'RDB', TRUE, 25, %s)",
+         (f"rd_p{i}", 10 + i))
+dcs = CF.dati_stagione(gid, gid2)
+ok(dcs and len(dcs["a"]["punti"]) == 10 and len(dcs["b"]["punti"]) == 5 and dcs["a"]["punti"][0]["x"] == 0 and dcs["a"]["punti"][-1]["x"] == 1
+   and dcs["b"]["punti"][1]["x"] == dcs["a"]["punti"][2]["x"], "stagione: punti sulle date, allineati tra i due")
+rr = {r["voce"]: r for r in dcs["righe"]}
+ok(rr["Fantamedia"]["a"] == "29,63" and rr["Fantamedia"]["meglio"] == "a" and rr["Partite"]["b"] == "4" and rr["Playoff"]["a"] == "39,00 (2)"
+   and rr["Migliore partita"]["a"] == "45,00", f"tabella: come /player, il migliore segnato {dcs['righe']}")
+ok(dcs["post_x"] is not None, "play-in e playoff in fondo")
+dcc = CF.dati_carriera((gid, "Rend Uno"), (None, "Vecchio Storico"))
+ok(len(dcc["anni"]) == 21 and dcc["anni"][0]["k"] == "1ª" and [x["a"]["lbl"] for x in dcc["anni"][:4]] == ["11-12", "23-24", "24-25", dc["stagioni"][-1]["lbl"]]
+   and dcc["anni"][0]["b"]["lbl"] == "02-03" and dcc["anni"][4]["a"] is None, "carriera: allineate per stagione di carriera, chi ne ha meno lascia vuoto")
+png = CF.immagine(dcs); png2 = CF.immagine(dcc)
+if _os.environ.get("REND_PNG"):
+    open(_os.environ["REND_PNG"] + "_confronto.png", "wb").write(png); open(_os.environ["REND_PNG"] + "_confronto_carriera.png", "wb").write(png2)
+ok(png[:4] == b"\x89PNG" and png2[:4] == b"\x89PNG", "le due immagini")
+out.clear()
+for f, args in ((CF.cmd_confronto, ["Rend", "Uno", "vs", "Rend", "Due"]), (CF.cmd_confronto_carriera, ["Rend", "Uno", "vs", "Vecchio", "Storico"]),
+                (CF.cmd_confronto, ["Rend", "vs", "Rend", "Due"]), (CF.cmd_confronto, ["Rend", "Uno", "vs", "Rend", "Uno"]),
+                (CF.cmd_confronto, ["Rend", "Uno", "vs", "Vecchio", "Storico"]), (CF.cmd_confronto, ["Rend", "Uno"]),
+                (CF.cmd_confronto_carriera, ["Rend", "Uno", "vs", "Nessunissimo"])):
+    asyncio.run(f(u, types.SimpleNamespace(args=args)))
+ok(out[0][0] == "foto" and out[1][0] == "foto", "/confronto e /confronto_carriera (con uno storico) mandano l'immagine")
+ok("può essere" in out[2][1] and "Rend Due" in out[2][1] and "stesso giocatore" in out[3][1], "nome ambiguo: li elenca; lo stesso due volte")
+ok("/confronto_carriera" in out[4][1] and out[5][1].startswith("Uso:") and "nemmeno tra quelli" in out[6][1], "storico in /confronto, un nome solo, nome che non c'è")
+ok({next(iter(h.commands)) for h in LR.get_handlers() if hasattr(h, "commands")} == {"rendimento", "rendimento_carriera", "confronto", "confronto_carriera"},
+   "loucabot: anche /confronto e /confronto_carriera")
 pulisci()

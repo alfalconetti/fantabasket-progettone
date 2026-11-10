@@ -59,7 +59,7 @@ Il comando funziona anche in altri modi:
 
 **`/pick_lega`** manda un'immagine con **tutte le pick della lega**: una riga per squadra (a cui spetta la pick), per ogni anno del draft due caselle, 1° e 2° giro, con logo e sigla di chi ce l'ha adesso: in grigio se ce l'ha ancora lei, in grassetto su fondo chiaro se è passata a un'altra squadra. `*` vuol dire protetta, una casella grigia col numero è una pick già usata. In fondo a ogni riga quante pick di ogni giro ha in mano la squadra, sue e di altri. Va bene anche nei gruppi.
 
-**`/player NOME`**, **`/status [SQUADRA]`**, **`/calendario [N] [SQUADRA]`**, **`/rendimento NOME`** e **`/rendimento_carriera NOME`** (la stagione partita per partita e la carriera stagione per stagione, anche dei giocatori storici) sono gli stessi di loucabot (stesso codice, stesse risposte: la guida è quella di loucabot), qui **solo in privato**: nei gruppi risponde loucabot, così nessuno riceve due risposte. `/calendario` senza squadra vale per la tua; la giornata intera e la classifica sono su loucabot.
+**`/player NOME`**, **`/status [SQUADRA]`**, **`/calendario [N] [SQUADRA]`**, **`/rendimento NOME`**, **`/rendimento_carriera NOME`** (la stagione partita per partita e la carriera stagione per stagione, anche dei giocatori storici), **`/confronto A vs B`** e **`/confronto_carriera A vs B`** (due giocatori a confronto) sono gli stessi di loucabot (stesso codice, stesse risposte: la guida è quella di loucabot), qui **solo in privato**: nei gruppi risponde loucabot, così nessuno riceve due risposte. `/calendario` senza squadra vale per la tua; la giornata intera e la classifica sono su loucabot.
 
 **`/team_diff`** ti dice cosa è cambiato nell'ultima settimana: chi è arrivato, chi è uscito e chi ha cambiato contratto (per esempio per una DPE, un rinnovo o un rookie che passa al II anno, 12x2 → 13x1). Esempio di risposta:
 
@@ -358,7 +358,7 @@ Gli admin possono dare una penalità alla squadra (panchina in ritardo, formazio
 | vedere la mia squadra | `/roster`, `/assets` |
 | vedere cosa è cambiato | `/team_diff` |
 | di chi è una pick, tutte le pick | `/pick`, `/pick_lega` |
-| un giocatore, gli infortunati, il calendario, il rendimento (anche qui, in privato) | `/player`, `/status`, `/calendario`, `/rendimento`, `/rendimento_carriera` |
+| un giocatore, gli infortunati, il calendario, il rendimento (anche qui, in privato) | `/player`, `/status`, `/calendario`, `/rendimento`, `/rendimento_carriera`, `/confronto`, `/confronto_carriera` |
 | fare una trade | `/build_trade` o `/import_trade` |
 | vedere le mie trade | `/my_trades` |
 | tagliare | menu → Tagli (`/taglia`) |

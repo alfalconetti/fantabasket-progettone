@@ -1879,3 +1879,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.4.2 (2026-11-10)
 
 - **loucabot v91**: nel tabellone live e finale la fascia «prendono la media in questa giornata», come in /partita (Luca, 10/11)
+
+## v7.4.3 (2026-11-10)
+
+- **loucabot v92: `/confronto A vs B` e `/confronto_carriera A vs B`** (Luca, 10/11): due giocatori a confronto nella stagione (stesso grafico di /rendimento, sovrapposti) e nella carriera (per stagione di carriera, anche storici). Anche qui, in privato
+- **Dati storici dal 1979-80**: i testi di /top_storica e /rendimento_carriera (prima «dal 2002-03»); le righe di Basketball-Reference senza fantamedia non entrano

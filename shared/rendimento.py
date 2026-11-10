@@ -13,7 +13,7 @@ come in /player (regular season e play-in), e quella dei playoff se ci sono.
 istantanea di ogni stagione; chi ha cambiato squadra: la riga del totale e sotto tutte le squadre in ordine), la
 stagione in corso dai tabellini ESPN (lo stesso numero di /player); il tondo della squadra del fantabasket (a fine
 stagione, o adesso). Se il nome non è nell'anagrafica del bot cerca tra tutti i nomi di Basketball-Reference: anche
-i giocatori storici (i dati partono dal 2002-03).
+i giocatori storici (i dati partono dal 1979-80).
 """
 import html
 import json
@@ -146,14 +146,16 @@ def dati_stagione(gid: int, stagione: str | None = None) -> dict | None:
             contano.append(fp)
             (reg if r["tipo"] in G.TIPI else post).append(fp)
         avv = r["trasferta"] if r["squadra"] == r["casa"] else r["casa"]
-        out.append({"fp": fp, "sq": sq or "_libero", "tipo": "rs" if r["tipo"] == 2 else "post",
+        out.append({"fp": fp, "sq": sq or "_libero", "tipo": "rs" if r["tipo"] == 2 else "post", "media_player": r["tipo"] in G.TIPI,
                     "prog": round(sum(contano) / len(contano), 3) if fp is not None else None,
                     "mobile": round(sum(contano[-5:]) / 5, 3) if fp is not None and len(contano) >= 5 else None,
                     "data": r["data_et"], "avv": avv})
     n = len(out)
     passo = max(1, round(n / 8))
     for i, p in enumerate(out):
-        p["data_lbl"] = f"{p.pop('data'):%d/%m}" if i % passo == 0 else ""
+        giorno = p.pop("data")
+        p["giorno"] = giorno.isoformat()                 # per /confronto: le partite dei due giocatori allineate per data
+        p["data_lbl"] = f"{giorno:%d/%m}" if i % passo == 0 else ""
     # fasce: periodi consecutivi nella stessa squadra del fantabasket
     fasce = []
     for i, p in enumerate(out):
@@ -191,7 +193,7 @@ def stagioni_bref(nome_bref: str) -> list[dict]:
     """Per ogni stagione di Basketball-Reference: l'ultima istantanea di ogni riga (squadra o totale)."""
     righe = L.q("""SELECT DISTINCT ON (stagione, team) stagione, team, g, mp, fantamedia, id,
                           MIN(id) OVER (PARTITION BY stagione, team) AS primo
-                   FROM bref_stats WHERE nome_bref = %s ORDER BY stagione, team, timestamp DESC, id DESC""",
+                   FROM bref_stats WHERE nome_bref = %s AND fantamedia IS NOT NULL ORDER BY stagione, team, timestamp DESC, id DESC""",
                 (nome_bref,), many=True) or []
     per = {}
     for r in righe:
@@ -264,7 +266,7 @@ def dati_carriera(gid: int | None, nome_bref: str, nome: str | None = None) -> d
         nota += " · il tondo: la squadra del fantabasket (dal 2026-27)"
     if corso:
         nota += " · la stagione in corso dai tabellini ESPN, come /player"
-    nota += " · dati dal 2002-03"
+    nota += " · dati dal 1979-80"
     test = _testata(gid, nome or nome_bref)
     return {"modo": "carriera", **test, "titolo": "Rendimento in carriera", "media_big": _t(media),
             "media_sotto": f"fantamedia in carriera · {tot_g:,} partite in {len(out)} {'stagione' if len(out) == 1 else 'stagioni'}".replace(",", "."),
@@ -353,7 +355,7 @@ async def cmd_rendimento_carriera(update, context):
     testo = " ".join(context.args or [])
     if not testo:
         await msg.reply_text("Uso: /rendimento_carriera NOME (es. /rendimento_carriera LeBron James): la fantamedia stagione per "
-                             "stagione, anche dei giocatori che non sono nel fantabasket (dati dal 2002-03).")
+                             "stagione, anche dei giocatori che non sono nel fantabasket (dati dal 1979-80).")
         return
     trovati = G.cerca(testo)
     esatti = [x for x in trovati if L.norm(x["nome_common"]) == L.norm(testo) or PN.stesse_parole(testo, x["nome_common"])]
@@ -372,7 +374,7 @@ async def cmd_rendimento_carriera(update, context):
         await msg.reply_text("Quale?", reply_markup=K([[B(x["nome_common"] + (" ✅" if x["a_roster"] else ""), callback_data=f"rc:{x['id']}")]
                                                        for x in trovati]))
         return
-    await msg.reply_text(f"Nessun giocatore si chiama «{testo}», nemmeno tra quelli di Basketball-Reference (dal 2002-03).")
+    await msg.reply_text(f"Nessun giocatore si chiama «{testo}», nemmeno tra quelli di Basketball-Reference (dal 1979-80).")
 
 
 async def cb_rendimento(update, context):

@@ -1,5 +1,5 @@
 """
-/player, /status, /calendario (v7.3.0) e /rendimento, /rendimento_carriera (v7.4.0) anche nel bot principale (v7.3.0, Luca 09/11): stesso codice di loucabot
+/player, /status, /calendario (v7.3.0) e /rendimento, /rendimento_carriera (v7.4.0), /confronto, /confronto_carriera (v7.4.3) anche nel bot principale (v7.3.0, Luca 09/11): stesso codice di loucabot
 (shared/giocatore.py, shared/status_squadra.py, shared/calendario_squadra.py), stesse risposte.
 
 Solo in privato: nei gruppi questi comandi sono di loucabot (risponde lui, e qui non compaiono nemmeno nel menu dei
@@ -12,6 +12,7 @@ from shared import calendario_squadra as CS
 from shared import giocatore as G
 from shared import lettura as L
 from shared import rendimento as R
+from shared import confronto as CF
 from shared.status_squadra import cmd_status
 
 cmd_player, manda, cb_player = G.handlers(G.scheda)
@@ -42,7 +43,7 @@ async def cmd_calendario(update, context):
 
 
 # fuori dal menu del gruppo admin, come i comandi @solo_privato (comandi.trova_solo_privato)
-for _f in (cmd_player, cmd_status, cmd_calendario, R.cmd_rendimento, R.cmd_rendimento_carriera):
+for _f in (cmd_player, cmd_status, cmd_calendario, R.cmd_rendimento, R.cmd_rendimento_carriera, CF.cmd_confronto, CF.cmd_confronto_carriera):
     try:
         _f._solo_privato = True
     except AttributeError:
@@ -57,4 +58,6 @@ def get_handlers() -> list:
             CommandHandler("calendario", cmd_calendario, filters=privato),
             CommandHandler("rendimento", R.cmd_rendimento, filters=privato),             # v7.4.0
             CommandHandler("rendimento_carriera", R.cmd_rendimento_carriera, filters=privato),
-            CallbackQueryHandler(R.cb_rendimento, pattern=R.PATTERN)]
+            CallbackQueryHandler(R.cb_rendimento, pattern=R.PATTERN),
+            CommandHandler("confronto", CF.cmd_confronto, filters=privato, block=False),     # v7.4.3
+            CommandHandler("confronto_carriera", CF.cmd_confronto_carriera, filters=privato, block=False)]
