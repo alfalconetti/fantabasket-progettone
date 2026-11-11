@@ -1923,3 +1923,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **Chi prende la media prende la fantamedia di Basketball-Reference** (Luca, 11/11; loucabot v100): squadra NBA senza partite nella giornata, partite rinviate o deciso da un admin. Vale l'ultima rilevazione di bref prima della prima partita della giornata; se bref non ha il giocatore, la media dei tabellini ESPN come prima. Anche nella colonna Media di `/partita` e del foglio di controllo. Le giornate iniziate prima dell'11/11 restano coi tabellini (i risultati convalidati non cambiano). In klra, con un sistema attivo, restano i tabellini coi pesi del sistema
 - **Bref alla vigilia**: alle 20 (`orari.bref_vigilia`) della sera prima di una giornata con squadre a media il bot riscarica Basketball-Reference, con una riga nel canale log
+
+## v7.6.1 (2026-11-11)
+
+- **Media di bref, ricalcoli** (Luca, 11/11): il taglio della rilevazione è sempre la prima partita della giornata; se il calendario non l'ha ancora salvata, la prima partita NBA dei suoi giorni, se no le 12 di New York del primo giorno. Prima, in quel caso raro, valeva «adesso» e un ricalcolo giorni dopo avrebbe preso una rilevazione più recente (loucabot v101)

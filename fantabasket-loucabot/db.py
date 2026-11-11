@@ -3,7 +3,7 @@ PostgreSQL di loucabot: lo stesso database dei due bot, tabelle sue con prefisso
 Legge (mai scrive) le tabelle degli altri bot. Le righe sono dict (RealDictCursor).
 """
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import os
 import re
 from contextlib import contextmanager
@@ -345,7 +345,12 @@ def medie_assenti(atleti: list[str], stagione: str, g: dict) -> dict[str, dict]:
     espn = medie_stagione(atleti, stagione, g["dal"])
     if not atleti or g["dal"] < MEDIA_BREF_DAL:
         return espn
-    prima = g.get("prima_partita") or datetime.now(timezone.utc)
+    # il taglio è sempre lo stesso, così un ricalcolo dopo giorni usa la stessa rilevazione: la prima partita della
+    # giornata; se il calendario non l'ha ancora salvata, la prima partita NBA dei suoi giorni; se no le 12 di New
+    # York del primo giorno (mai «adesso», che a ogni ricalcolo sarebbe diverso)
+    prima = g.get("prima_partita") or q("SELECT MIN(inizio) AS m FROM nba_partite WHERE data_et BETWEEN %s AND %s",
+                                         (g["dal"], g.get("al") or g["dal"]), one=True)["m"] \
+        or datetime.combine(g["dal"], datetime.min.time(), timezone.utc) + timedelta(hours=17)
     try:
         return {**espn, **medie_bref(atleti, stagione, prima)}
     except Exception as err:                                      # bref_stats che manca (prove, database nuovo)

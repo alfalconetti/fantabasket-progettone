@@ -40,6 +40,16 @@ ok(m["mb2"]["media"] == 25.0 and "fonte" not in m["mb2"], "senza bref: la media 
 mv = db.medie_assenti(["mb1"], S, vecchia)
 ok(mv["mb1"]["media"] == 25.0 and "fonte" not in mv["mb1"], "giornata prima di MEDIA_BREF_DAL: i tabellini ESPN, come alla convalida")
 ok(db.medie_assenti([], S, nuova) == {}, "nessun giocatore")
+# ricalcolo giorni dopo: le rilevazioni di bref arrivate dopo l'inizio non cambiano niente
+db.q(f"INSERT INTO bref_stats (timestamp, stagione, nome_bref, team, g, pts{z}) VALUES (NOW(), %s, 'Media Bref Uno', 'MBA', 20, 100, 0,0,0,0,0,0,0,0,0,0,0)", (B1,))
+ok(db.medie_assenti(["mb1"], S, nuova)["mb1"]["media"] == 31.5, "ricalcolo dopo: la stessa rilevazione (quella prima della prima partita)")
+# senza prima_partita salvata: la prima partita NBA dei giorni della giornata, mai «adesso»
+db.q("INSERT INTO nba_partite (espn_id, stagione, tipo, data_et, inizio, casa, trasferta, stato) VALUES ('mb_p9', %s, 2, %s, %s, 'MBB', 'MBC', 'STATUS_FINAL')",
+     (S, date(2026, 11, 20), PRIMA))
+ok(db.medie_assenti(["mb1"], S, {**nuova, "prima_partita": None})["mb1"]["media"] == 31.5, "senza prima_partita: la prima partita NBA della giornata")
+db.q("DELETE FROM nba_partite WHERE espn_id = 'mb_p9'")
+ok(db.medie_assenti(["mb1"], S, {**nuova, "prima_partita": None})["mb1"]["media"] == 25.0,
+   "senza partite: le 12 di New York del primo giorno (17 UTC del 20/11): conta la rilevazione di due giorni prima")
 
 # il calcolo: la squadra NBA non gioca nella giornata → la media di bref, con la nota
 p = calcolo.punteggio_giocatori(S, nuova, ["mb1", "mb2"])

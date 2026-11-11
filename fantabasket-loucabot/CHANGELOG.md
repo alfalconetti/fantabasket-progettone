@@ -494,3 +494,7 @@ Il calcolo dei fantapunti.
 ## v100 (2026-11-11, progettone v7.6.0)
 
 - **Chi prende la media prende la fantamedia di Basketball-Reference**, l'ultima rilevazione prima della prima partita della giornata (il bot principale la riscarica alle 20 della sera prima); se bref non ha il giocatore, i tabellini ESPN. Anche nella colonna Media di `/partita` e del foglio. Le giornate iniziate prima dell'11/11 non cambiano
+
+## v101 (2026-11-11, progettone v7.6.1)
+
+- Media di bref: taglio sempre fisso (prima partita della giornata, o la prima partita NBA dei suoi giorni, o le 12 di New York del primo giorno), mai «adesso»: un ricalcolo usa sempre la stessa rilevazione
