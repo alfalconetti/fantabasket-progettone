@@ -1927,3 +1927,11 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.6.1 (2026-11-11)
 
 - **Media di bref, ricalcoli** (Luca, 11/11): il taglio della rilevazione è sempre la prima partita della giornata; se il calendario non l'ha ancora salvata, la prima partita NBA dei suoi giorni, se no le 12 di New York del primo giorno. Prima, in quel caso raro, valeva «adesso» e un ricalcolo giorni dopo avrebbe preso una rilevazione più recente (loucabot v101)
+
+## v7.6.3 (2026-11-11)
+
+- **`/rendimento` ridisegnato** (Luca, 11/11, variante A; loucabot v102, anche nel bot principale): sul viola di Yahoo come `/partita`, quattro riquadri in alto (fantamedia, ultime 5, migliore, peggiore), una barra per partita dall'asse 0 col colore della squadra del fantabasket (oro la migliore, bordo dorato play-in e playoff, tacca grigia chi non ha giocato), media delle ultime 5 e media della stagione tratteggiata, i mesi sull'asse al posto delle date sovrapposte, le squadre del fantabasket in una striscia. **Con meno di 5 partite giocate** `/rendimento` risponde che i dati sono troppo pochi. `/rendimento_carriera` resta com'era (template a parte, `shared/rendimento_carriera.typ`)
+
+## v7.6.4 (2026-11-11)
+
+- **`/rendimento_carriera`** (Luca, 11/11; loucabot v103), sempre blu: quattro riquadri in alto (fantamedia in carriera, stagioni e partite, stagione migliore, stagione in corso — se non gioca quest'anno lo dice, con l'ultima stagione), la fantamedia della carriera come linea tratteggiata, la stagione migliore in oro

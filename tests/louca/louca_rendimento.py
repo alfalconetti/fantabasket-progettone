@@ -57,7 +57,16 @@ ok(abs(p[4]["prog"] - (20 + 30 + 25 + 35) / 4) < 1e-6 and p[4]["mobile"] is None
 ok(d["media_big"] == "29,63" and "playoff 39,00 (2)" in d["media_sotto"], f"in alto la media di regular season e play-in (come /player) {d['media_big']} · {d['media_sotto']}")
 ok(d["migliore"]["fp"] == 45 and "vs RDB" in d["migliore"]["t"], "la migliore, con l'avversario")
 ok(d["y_min"] == 0 and d["y_max"] >= 50, "asse y da 0 a sopra la migliore")
+# v7.6.2 (Luca, 11/11): i riquadri, i mesi, la media tratteggiata, le barre da 0
+_rq = {r["t"]: r for r in d["riquadri"]}
+ok(list(_rq) == ["Fantamedia", "Ultime 5", "Migliore", "Peggiore"] and _rq["Fantamedia"]["v"] == "29,63"
+   and _rq["Migliore"]["v"] == "45,00" and _rq["Migliore"]["s"].startswith("vs RDB · ") and _rq["Ultime 5"]["s"][0] in "▲▼",
+   f"i quattro riquadri {d['riquadri']}")
+ok(d["mesi"] and d["mesi"][0]["i"] == 0 and all(m["lbl"] in R.MESI for m in d["mesi"]), f"i mesi sull'asse {d['mesi']}")
+ok(d["media_val"] == 29.625 and d["y_barre"] >= 50 and d["giocate"] == sum(1 for p in d["partite"] if p["fp"] is not None),
+   "media della stagione, asse delle barre, partite giocate")
 png = R.immagine(d)
+if _os.environ.get("REND_PNG"): open(_os.environ["REND_PNG"] + "_stagione.json", "w").write(__import__("json").dumps(d, default=str, ensure_ascii=False))
 if _os.environ.get("REND_PNG"): open(_os.environ["REND_PNG"] + "_stagione.png", "wb").write(png)
 ok(png[:4] == b"\x89PNG", "immagine della stagione")
 
@@ -141,6 +150,20 @@ ok(R.nomi_bref("Micheal Jorrdan") == ["Michael Jorrdan"], f"nome scritto male: i
 ok(R._gid_da_bref("Rend Uno") == gid and R._gid_da_bref("Deron Rendi") is None, "un nome di bref che è nel bot si ricollega al giocatore")
 ok([x[0] for x in out[:3]] == ["foto"] * 3, "/rendimento e /rendimento_carriera (anche di un giocatore storico) mandano l'immagine")
 ok(out[3][0] == "testo" and "/rendimento_carriera" in out[3][1], "/rendimento di uno storico: rimanda a /rendimento_carriera")
+# meno di 5 partite giocate: niente grafico, troppo pochi dati (Luca, 11/11)
+_min = R.MIN_PARTITE
+R.MIN_PARTITE = 99
+_k = len(out)
+asyncio.run(R.cmd_rendimento(u, types.SimpleNamespace(args=["Rend", "Uno"])))
+R.MIN_PARTITE = _min
+ok(out[_k][0] == "testo" and out[_k][1].startswith("Troppo pochi dati: Rend Uno ha giocato") and "almeno 99" in out[_k][1],
+   "/rendimento con troppe poche partite: il messaggio, niente immagine")
+_dc = R.dati_carriera(gid, "Rend Uno")
+ok(R.TEMPLATE_CARRIERA.endswith("rendimento_carriera.typ") and [r["t"] for r in _dc["riquadri"]] == ["Fantamedia", "Stagioni", "Migliore", "In corso"]
+   and _dc["riquadri"][1]["v"] == str(len(_dc["stagioni"])) and _dc["riquadri"][3]["v"] != "—" and _dc["media_val"] > 0,
+   f"/rendimento_carriera: il suo template, coi quattro riquadri (v7.6.4) {_dc['riquadri']}")
+_dh = R.dati_carriera(None, "Vecchio Storico")
+ok(_dh["riquadri"][3]["v"] == "—" and _dh["riquadri"][3]["s"].startswith("non gioca nel "), f"senza stagione in corso: lo dice {_dh['riquadri'][3]}")
 ok("nemmeno tra quelli di Basketball-Reference" in out[4][1] and out[5][1].startswith("Uso:"), "nome che non c'è da nessuna parte, uso")
 hs = LR.get_handlers()
 ok({"rendimento", "rendimento_carriera"} <= {next(iter(h.commands)) for h in hs if hasattr(h, "commands")}, "loucabot: i due comandi")

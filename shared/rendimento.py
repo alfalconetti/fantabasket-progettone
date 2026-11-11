@@ -18,7 +18,7 @@ i giocatori storici (i dati partono dal 1979-80).
 import html
 import json
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from telegram import InlineKeyboardButton as B, InlineKeyboardMarkup as K
 
@@ -27,6 +27,8 @@ from shared import lettura as L
 from shared.numeri import ottavi, testo as tp
 
 TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rendimento.typ")
+# /rendimento_carriera resta col disegno di prima (Luca, 11/11): il suo template a parte
+TEMPLATE_CARRIERA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rendimento_carriera.typ")
 TIPI_TUTTE = (2, 3, 5)           # regular season, playoff, play-in (la preseason no)
 LIBERO = "#A7B0C0"
 
@@ -112,6 +114,9 @@ def _testata(gid: int | None, nome: str) -> dict:
 
 # ── /rendimento: la stagione ──────────────────────────────────────────────────
 
+MESI = ("", "gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic")
+MIN_PARTITE = 5          # sotto, /rendimento non disegna niente: troppo pochi dati (Luca, 11/11)
+
 def partite(atleta: str, stagione: str) -> list[dict]:
     return L.q("""SELECT t.*, p.tipo, p.inizio, p.data_et, p.casa, p.trasferta FROM nba_tabellini t
                   JOIN nba_partite p ON p.espn_id = t.partita
@@ -179,7 +184,27 @@ def dati_stagione(gid: int, stagione: str | None = None) -> dict | None:
     if bi is not None:
         sotto.append(f"migliore {_t(out[bi]['fp'])}")
     a = int(stagione)
+    # v7.6.2 (Luca, 11/11): i riquadri della testata, i mesi sull'asse, la media della stagione tratteggiata
+    giocate = [i for i, p in enumerate(out) if p["fp"] is not None]
+    ult = [out[i]["fp"] for i in giocate[-5:]]
+    u5 = sum(ult) / len(ult) if ult else 0.0
+    wi = min(giocate, key=lambda i: out[i]["fp"], default=None)
+    quando = lambda i: f"vs {out[i]['avv']} · {date.fromisoformat(out[i]['giorno']):%d/%m}"
+    sotto_fm = sotto[0] + (f" · {sotto[1]}" if len(sotto) > 2 else "")
+    riquadri = [{"t": "Fantamedia", "v": _t(media) if reg or vals else "—", "s": sotto_fm},
+                {"t": "Ultime 5", "v": _t(u5) if ult else "—",
+                 "s": ("▲ sopra la media" if u5 >= media else "▼ sotto la media") if ult else ""},
+                {"t": "Migliore", "v": _t(out[bi]["fp"]) if bi is not None else "—", "s": quando(bi) if bi is not None else ""},
+                {"t": "Peggiore", "v": _t(out[wi]["fp"]) if wi is not None else "—", "s": quando(wi) if wi is not None else ""}]
+    mesi, prima = [], None
+    for i, p in enumerate(out):
+        m = p["giorno"][5:7]
+        if m != prima:
+            mesi.append({"i": i, "lbl": MESI[int(m)]})
+            prima = m
     return {"modo": "stagione", **_testata(gid, g["nome_common"]),
+            "riquadri": riquadri, "mesi": mesi, "media_val": ottavi(media), "giocate": len(giocate),
+            "y_barre": max(40, int(-(-(max(vals, default=0) + 6) // 10) * 10)),
             "titolo": f"Stagione {a}-{(a + 1) % 100:02d}", "media_big": _t(media) if reg or vals else "—",
             "media_sotto": " · ".join(sotto), "partite": out, "squadre": squadre, "fasce": fasce,
             "y_min": lo, "y_max": hi, "y_passo": passo_y, "post": i_post,
@@ -273,7 +298,18 @@ def dati_carriera(gid: int | None, nome_bref: str, nome: str | None = None) -> d
         nota += " · la stagione in corso dai tabellini ESPN, come /player"
     nota += " · dati dal 1979-80"
     test = _testata(gid, nome or nome_bref)
-    return {"modo": "carriera", **test, "titolo": "Rendimento in carriera", "media_big": _t(media),
+    # i quattro riquadri (Luca, 11/11); senza la stagione in corso lo dice
+    mi = max(range(len(out)), key=lambda i: out[i]["fm"])
+    a_ora = int(s_ora)
+    ora_lbl = f"{a_ora}-{(a_ora + 1) % 100:02d}"
+    ul = out[-1]
+    riquadri = [{"t": "Fantamedia", "v": _t(media), "s": "in carriera, pesata sulle partite"},
+                {"t": "Stagioni", "v": str(len(out)), "s": f"{tot_g:,} partite".replace(",", ".")},
+                {"t": "Migliore", "v": out[mi]["fm_t"], "s": out[mi]["lbl"]},
+                {"t": "In corso", "v": ul["fm_t"], "s": f"{ora_lbl} · {ul['g']} G"} if ul["in_corso"] else
+                {"t": "In corso", "v": "—", "s": f"non gioca nel {ora_lbl} · ultima {ul['lbl']}"}]
+    return {"modo": "carriera", **test, "titolo": "Rendimento in carriera", "media_big": _t(media), "riquadri": riquadri,
+            "media_val": ottavi(media),
             "media_sotto": f"fantamedia in carriera · {tot_g:,} partite in {len(out)} {'stagione' if len(out) == 1 else 'stagioni'}".replace(",", "."),
             "stagioni": out, "y_max": hi, "y_passo": passo, "nota": nota}
 
@@ -308,7 +344,7 @@ def nomi_bref(testo: str) -> list[str]:
 def immagine(d: dict) -> bytes:
     import typst
     fonts = [f for f in ("/usr/share/fonts",) if os.path.isdir(f)]
-    png = typst.compile(TEMPLATE, root="/", format="png", ppi=170, font_paths=fonts,
+    png = typst.compile(TEMPLATE_CARRIERA if d.get("modo") == "carriera" else TEMPLATE, root="/", format="png", ppi=170, font_paths=fonts,
                         sys_inputs={"dati": json.dumps(d, ensure_ascii=False, default=str)})
     return png[0] if isinstance(png, list) else png
 
@@ -327,6 +363,11 @@ async def _manda(msg, d: dict | None, vuoto: str) -> None:
 async def _rendimento(msg, gid: int) -> None:
     import asyncio
     d = await asyncio.to_thread(dati_stagione, gid)
+    if d and d["giocate"] < MIN_PARTITE:
+        n = d["giocate"]
+        await msg.reply_text(f"Troppo pochi dati: {d['nome']} ha giocato {n} {'partita' if n == 1 else 'partite'} in questa "
+                             f"stagione, per il grafico ne servono almeno {MIN_PARTITE}. Intanto c'è /player.")
+        return
     await _manda(msg, d, "Nessuna partita in questa stagione nei tabellini ESPN.")
 
 

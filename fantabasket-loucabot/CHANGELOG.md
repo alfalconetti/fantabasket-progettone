@@ -498,3 +498,11 @@ Il calcolo dei fantapunti.
 ## v101 (2026-11-11, progettone v7.6.1)
 
 - Media di bref: taglio sempre fisso (prima partita della giornata, o la prima partita NBA dei suoi giorni, o le 12 di New York del primo giorno), mai «adesso»: un ricalcolo usa sempre la stessa rilevazione
+
+## v102 (2026-11-11, progettone v7.6.3)
+
+- **`/rendimento` ridisegnato** (variante A): viola Yahoo, quattro riquadri, barre per partita col colore della squadra del fantabasket, ultime 5 e media della stagione, mesi sull'asse; sotto le 5 partite giocate niente grafico ma «troppo pochi dati». `/rendimento_carriera` resta com'era
+
+## v103 (2026-11-11, progettone v7.6.4)
+
+- **`/rendimento_carriera`**: quattro riquadri (fantamedia, stagioni, migliore, in corso o «non gioca nel …»), linea tratteggiata della fantamedia in carriera, picco in oro; resta blu

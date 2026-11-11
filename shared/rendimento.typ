@@ -1,142 +1,120 @@
-// /rendimento e /rendimento_carriera (shared/rendimento.py, v7.4.0, mockup approvato da Luca il 09/11): la stagione
-// partita per partita (fantapunti, media delle ultime 5 e dall'inizio, fasce delle squadre del fantabasket, play-in e
-// playoff in fondo dorato) o la carriera stagione per stagione (fantamedia di Basketball-Reference, la stagione in
-// corso dai tabellini ESPN). Stile di /carriera (toni blu). Dati in sys.inputs.dati (JSON).
+// /rendimento (shared/rendimento.py). v7.6.2 (Luca, 11/11, variante A): sul viola di Yahoo come /partita e
+// /giocatori, quattro riquadri nella testata, una barra per partita dall'asse 0. /rendimento_carriera ha il suo
+// template, rendimento_carriera.typ, col disegno di prima.
+// Stagione: barre del colore della squadra del fantabasket (grigio: libero), la migliore in oro, play-in e playoff
+// col bordo dorato, chi non ha giocato una tacca grigia; linea spessa = media delle ultime 5, tratteggiata = media
+// della stagione; sull'asse i mesi, sotto una striscia per squadra del fantabasket. Dati in sys.inputs.dati (JSON).
 #let d = json(bytes(sys.inputs.at("dati")))
-#let blu = rgb("#1D4ED8")
-#let blu_scuro = rgb("#0B2A6B")
-#let lilla = rgb("#E6EEFB")
-#let lilla2 = rgb("#F3F7FD")
-#let bordo = rgb("#C9D7F2")
-#let grigio = rgb("#5E6B82")
-#let testo = rgb("#111C33")
-#let libero = rgb("#A7B0C0")
+#let viola = rgb("#5F01D1")
+#let viola_scuro = rgb("#39007D")
+#let viola_medio = rgb("#7B3FE4")
+#let lilla = rgb("#EFE7FD")
+#let bordo = rgb("#E4DAF7")
+#let grigio = rgb("#6B6480")
+#let testo = rgb("#1D1630")
+#let oro = rgb("#E0A21B")
+#let oro_scuro = rgb("#9A6A00")
 #set page(width: 620pt, height: auto, margin: 0pt, fill: white)
 #set block(spacing: 0pt)
-#set text(font: "Liberation Sans", size: 9pt, fill: testo)
+#set text(font: ("Liberation Sans", "Noto Color Emoji"), size: 9pt, fill: testo)
 
-#let W = 560pt
-#let H = 210pt
+#let W = 548pt
+#let H = 190pt
+#let fmt(x) = str(calc.round(x, digits: 2)).replace(".", ",")
 
 // ── testata ──
-#block(width: 100%, fill: gradient.linear(blu_scuro, blu, angle: 0deg), inset: (x: 14pt, y: 12pt))[
-  #grid(columns: (auto, 1fr, auto), column-gutter: 10pt, align: horizon,
-    box(width: 50pt, height: 50pt, radius: 50%, clip: true, fill: lilla, stroke: 2pt + white.transparentize(40%),
+#block(width: 100%, fill: gradient.linear(viola_scuro, viola, angle: 0deg), inset: (x: 16pt, top: 14pt, bottom: 12pt))[
+  #grid(columns: (auto, 1fr), column-gutter: 12pt, align: horizon,
+    box(width: 52pt, height: 52pt, radius: 50%, clip: true, fill: lilla, stroke: 2pt + white.transparentize(40%),
       // stesse proporzioni di /carriera: foto 520×380 alta 1,2 volte il tondo, centrata, un filo più su
-      if d.foto != "" { place(top + left, dx: -16pt, dy: -2.5pt, image(d.foto, height: 60pt, width: 82pt)) }
-      else { align(center + horizon, text(17pt, weight: "bold", fill: blu_scuro)[#d.iniziali]) }),
+      if d.foto != "" { place(top + left, dx: -16.5pt, dy: -2.5pt, image(d.foto, height: 62pt, width: 85pt)) }
+      else { align(center + horizon, text(17pt, weight: "bold", fill: viola_scuro)[#d.iniziali]) }),
     stack(spacing: 4pt,
-      text(15pt, weight: "bold", fill: white)[#d.nome],
-      text(8.5pt, fill: white.transparentize(20%))[#d.sotto]),
-    align(right, stack(spacing: 3pt,
-      text(8pt, weight: "bold", fill: white.transparentize(15%), tracking: 0.8pt)[#upper(d.titolo)],
-      text(20pt, weight: "bold", fill: white)[#d.media_big],
-      text(7.5pt, fill: white.transparentize(25%))[#d.media_sotto])))
+      text(16pt, weight: "bold", fill: white)[#d.nome],
+      text(8.5pt, fill: white.transparentize(20%))[#d.sotto · #d.titolo]))
+  #v(10pt)
+  #let riquadro(r) = box(fill: white.transparentize(88%), radius: 6pt, inset: (x: 10pt, y: 6pt), width: 100%,
+    stack(spacing: 3pt, text(6.5pt, weight: "bold", fill: white.transparentize(30%), tracking: 0.6pt)[#upper(r.t)],
+      text(15pt, weight: "bold", fill: white)[#r.v], text(6.5pt, fill: white.transparentize(30%))[#r.s]))
+  #grid(columns: (1fr,) * d.riquadri.len(), column-gutter: 8pt, ..d.riquadri.map(riquadro))
 ]
 
-#let asse_y(lo, hi, passo) = {
-  let v = lo
-  let out = ()
-  while v <= hi { out.push(v); v += passo }
-  out
+#let griglia(hi, passo, ys) = {
+  let v = 0
+  while v <= hi {
+    place(dx: 0pt, dy: ys(v), line(length: W, stroke: 0.4pt + bordo))
+    place(dx: -26pt, dy: ys(v) - 5pt, box(width: 20pt, align(right, text(7pt, fill: grigio)[#v])))
+    v += passo
+  }
 }
-#let ys(v, lo, hi) = H - (v - lo) / (hi - lo) * H
+#let linea_media(m, ys) = {
+  place(dx: 0pt, dy: ys(m), line(length: W, stroke: (paint: viola_medio, thickness: 0.8pt, dash: "dashed")))
+  place(dx: W + 3pt, dy: ys(m) - 5pt, text(6.5pt, weight: "bold", fill: viola_medio)[#fmt(m)])
+}
 
 #if d.modo == "stagione" {
-  let lo = d.y_min
-  let hi = d.y_max
-  let n = d.partite.len()
-  let xs(i) = 14pt + i * (W - 28pt) / calc.max(n - 1, 1)
-  pad(x: 30pt, top: 14pt, bottom: 4pt, box(width: W, height: H + 64pt, {
-    // griglia e valori dell'asse y
-    for v in asse_y(lo, hi, d.y_passo) {
-      place(dx: 0pt, dy: ys(v, lo, hi), line(length: W, stroke: 0.4pt + bordo))
-      place(dx: -24pt, dy: ys(v, lo, hi) - 5pt, box(width: 20pt, align(right, text(7pt, fill: grigio)[#v])))
-    }
-    // fase finale (play-in e playoff): fondo leggero da dove comincia
+  let P = d.partite
+  let n = P.len()
+  let hi = d.y_barre
+  let passo = if hi > 70 { 20 } else { 10 }
+  let ys(v) = H - v / hi * H
+  let slot = W / n
+  let xc(i) = slot * (i + 0.5)
+  let col(sq) = rgb(d.squadre.at(sq).colore)
+  pad(x: 36pt, top: 16pt, bottom: 2pt, box(width: W, height: H + 40pt, {
+    griglia(hi, passo, ys)
+    // play-in e playoff: da dove cominciano
     if d.post != none {
-      let x0 = (xs(d.post - 1) + xs(d.post)) / 2
-      place(dx: x0, dy: 0pt, rect(width: W - x0, height: H, fill: rgb("#FFF6E0")))
-      place(dx: x0 + 4pt, dy: 3pt, text(7pt, weight: "bold", fill: rgb("#B7791F"), tracking: 0.6pt)[PLAY-IN E PLAYOFF])
+      let x0 = xc(d.post) - slot / 2
+      place(dx: x0, dy: 0pt, line(length: H, angle: 90deg, stroke: (paint: oro, thickness: 0.8pt, dash: "dotted")))
+      // l'etichetta a destra della linea, o a sinistra se non c'è spazio
+      if W - x0 > 92pt { place(dx: x0 + 3pt, dy: 2pt, text(6.5pt, weight: "bold", fill: oro_scuro, tracking: 0.5pt)[PLAY-IN E PLAYOFF]) }
+      else { place(dx: x0 - 93pt, dy: 2pt, box(width: 90pt, align(right, text(6.5pt, weight: "bold", fill: oro_scuro, tracking: 0.5pt)[PLAY-IN E PLAYOFF →]))) }
     }
-    // media progressiva (dall'inizio della stagione fino a quella partita)
-    let pp = d.partite.enumerate().filter(((i, p)) => p.prog != none).map(((i, p)) => (xs(i), ys(p.prog, lo, hi)))
-    for k in range(1, pp.len()) { place(line(start: pp.at(k - 1), end: pp.at(k), stroke: (paint: rgb("#7FA4F0"), thickness: 1.4pt, dash: "dashed"))) }
-    // media mobile (ultime 5)
-    let pm = d.partite.enumerate().filter(((i, p)) => p.mobile != none).map(((i, p)) => (xs(i), ys(p.mobile, lo, hi)))
-    for k in range(1, pm.len()) { place(line(start: pm.at(k - 1), end: pm.at(k), stroke: 1.8pt + blu_scuro)) }
-    // punti
-    for (i, p) in d.partite.enumerate() {
-      let c = rgb(d.squadre.at(p.sq).colore)
+    linea_media(d.media_val, ys)
+    let bw = calc.min(slot * 0.64, 14pt)
+    for (i, p) in P.enumerate() {
       if p.fp == none {
-        place(dx: xs(i) - 2.5pt, dy: ys(0, lo, hi) - 5pt, text(7pt, fill: grigio)[×])
+        // non ha giocato: una tacca grigia sull'asse
+        place(dx: xc(i) - bw / 2, dy: H - 2pt, rect(width: bw, height: 2pt, fill: rgb("#C9C2D9")))
       } else {
-        let r = if n > 60 { 2.3pt } else if n > 35 { 2.8pt } else { 3.2pt }
-        if p.tipo == "rs" { place(dx: xs(i) - r, dy: ys(p.fp, lo, hi) - r, circle(radius: r, fill: c, stroke: 0.7pt + white)) }
-        else { place(dx: xs(i) - r * 1.25, dy: ys(p.fp, lo, hi) - r * 1.25, rotate(45deg, rect(width: r * 1.75, height: r * 1.75, fill: c, stroke: 0.7pt + white))) }
+        let h = calc.max(H - ys(p.fp), 0.8pt)
+        let migliore = i == d.migliore.i and d.migliore.t != ""
+        place(dx: xc(i) - bw / 2, dy: H - h, rect(width: bw, height: h, radius: (top: 1.5pt),
+          fill: if migliore { oro } else { col(p.sq).transparentize(15%) },
+          stroke: if p.tipo == "post" and not migliore { 1pt + oro } else { none }))
       }
     }
-    // migliore
-    let b = d.migliore
-    if b.t != "" { place(dx: calc.min(calc.max(xs(b.i) - 35pt, 0pt), W - 70pt), dy: ys(b.fp, lo, hi) - 16pt, box(width: 70pt, align(center, text(7pt, weight: "bold", fill: testo)[#b.t]))) }
-    // date sull'asse x
-    for (i, p) in d.partite.enumerate() {
-      if p.data_lbl != "" { place(dx: xs(i) - 14pt, dy: H + 4pt, box(width: 28pt, align(center, text(6.5pt, fill: grigio)[#p.data_lbl]))) }
+    // media delle ultime 5
+    let pts = P.enumerate().filter(((i, p)) => p.mobile != none).map(((i, p)) => (xc(i), ys(p.mobile)))
+    for k in range(1, pts.len()) {
+      place(line(start: pts.at(k - 1), end: pts.at(k), stroke: (paint: viola_scuro, thickness: 2pt, cap: "round")))
     }
-    // fascia delle squadre del fantabasket
+    // la migliore
+    if d.migliore.t != "" {
+      let b = d.migliore.i
+      place(dx: calc.min(calc.max(xc(b) - 30pt, 0pt), W - 60pt), dy: ys(P.at(b).fp) - 12pt,
+        box(width: 60pt, align(center, text(7pt, weight: "bold", fill: oro_scuro)[#fmt(P.at(b).fp)])))
+    }
+    // asse x: i mesi
+    for m in d.mesi {
+      let x = xc(m.i) - slot / 2
+      place(dx: x, dy: H, line(length: 4pt, angle: 90deg, stroke: 0.6pt + grigio))
+      place(dx: x + 3pt, dy: H + 4pt, text(7.5pt, weight: "bold", fill: grigio)[#m.lbl])
+    }
+    // le squadre del fantabasket
     for f in d.fasce {
-      let x0 = if f.da == 0 { 0pt } else { (xs(f.da - 1) + xs(f.da)) / 2 }
-      let x1 = if f.a == n - 1 { W } else { (xs(f.a) + xs(f.a + 1)) / 2 }
-      let c = rgb(d.squadre.at(f.sq).colore)
-      place(dx: x0, dy: H + 18pt, box(width: x1 - x0 - 2pt, height: 30pt, radius: 3pt, fill: c.transparentize(82%), stroke: 0.8pt + c,
-        align(center + horizon, if x1 - x0 < 90pt { stack(spacing: 3pt,
-          text(7pt, weight: "bold", fill: c.darken(20%))[#d.squadre.at(f.sq).nome], text(7pt, fill: testo)[*#f.media*]) } else { stack(spacing: 3pt,
-          text(7.5pt, weight: "bold", fill: c.darken(20%))[#d.squadre.at(f.sq).nome],
-          text(7pt, fill: testo)[media *#f.media* · #f.g partite]) })))
-    }
-  }))
-  pad(x: 16pt, top: 2pt, bottom: 10pt, text(7pt, fill: grigio)[
-    ● fantapunti di ogni partita, del colore della squadra del fantabasket in cui era (grigio: libero) · ◆ play-in e playoff · × non ha giocato ·
-    #box(width: 14pt, height: 2pt, fill: blu_scuro, baseline: -2pt) media delle ultime 5 · #box(width: 14pt, height: 1.4pt, stroke: (dash: "dashed", paint: rgb("#7FA4F0"), thickness: 1.4pt), baseline: -2pt) media dall'inizio della stagione])
-} else {
-  // ── carriera: una barra per stagione (fantamedia di Basketball-Reference) ──
-  let lo = 0
-  let hi = d.y_max
-  let n = d.stagioni.len()
-  let bw = (W - 20pt) / n
-  let righe_sotto = calc.max(..d.stagioni.map(s => s.team.len() + s.fanta.len()), 1)
-  pad(x: 30pt, top: 18pt, bottom: 4pt, box(width: W, height: H + 40pt + righe_sotto * 9pt, {
-    for v in asse_y(0, hi, d.y_passo) {
-      place(dx: 0pt, dy: ys(v, lo, hi), line(length: W, stroke: 0.4pt + bordo))
-      place(dx: -24pt, dy: ys(v, lo, hi) - 5pt, box(width: 20pt, align(right, text(7pt, fill: grigio)[#v])))
-    }
-    for (i, s) in d.stagioni.enumerate() {
-      let w = calc.min(bw * 0.64, 70pt)
-      let x = 10pt + i * bw + (bw - w) / 2
-      let h = s.fm / hi * H
-      let c = if s.in_corso { blu } else { blu_scuro.lighten(15%) }
-      place(dx: x, dy: H - h, rect(width: w, height: h, radius: (top: 3pt), fill: if s.in_corso { gradient.linear(blu, blu.lighten(35%), angle: 90deg) } else { c }))
-      let fitto = n > 14                         // tante stagioni: numeri più piccoli, senza minuti
-      place(dx: x - 6pt, dy: H - h - 13pt, box(width: w + 12pt, align(center, text(if fitto { 6.8pt } else { 8pt }, weight: "bold")[#s.fm_t])))
-      // sotto: stagione, partite, (minuti), squadra
-      place(dx: x - 8pt, dy: H + 5pt, box(width: w + 16pt, align(center, stack(spacing: 3pt,
-        text(if fitto { 6.5pt } else { 7.5pt }, weight: "bold")[#s.lbl],
-        text(6.5pt, fill: grigio)[#s.g G#if not fitto [ · #s.min']],
-        ..s.team.map(x => text(6.5pt, fill: grigio)[#x]),
-        // le squadre del fantabasket della stagione, col loro colore (Luca, 10/11)
-        ..s.fanta.map(f => text(6.3pt, weight: "bold", fill: rgb(f.colore))[#f.nome])))))
-      if s.in_corso { place(dx: x - 6pt, dy: H - h - 25pt, box(width: w + 12pt, align(center, text(6pt, weight: "bold", fill: blu, tracking: 0.5pt)[IN CORSO]))) }
-      // un tondo per squadra del fantabasket, dal basso in su (in ordine)
-      let dd = calc.min(14pt, w * 0.9)
-      for (k, f) in s.fanta.enumerate() {
-        place(dx: x + w / 2 - dd / 2, dy: H - (dd + 3pt) * (k + 1), if f.logo != "" {
-          box(width: dd, height: dd, radius: 50%, clip: true, fill: white, stroke: 1pt + white, image(f.logo, width: dd, height: dd, fit: "cover"))
-        } else {
-          box(width: dd, height: dd, radius: 50%, fill: rgb(f.colore), stroke: 1pt + white,
-            align(center + horizon, text(dd * 0.36, weight: "bold", fill: white)[#f.sigla]))
-        })
+      let x0 = xc(f.da) - slot / 2
+      let x1 = xc(f.a) + slot / 2
+      let c = col(f.sq)
+      place(dx: x0, dy: H + 18pt, rect(width: calc.max(x1 - x0 - 2pt, 2pt), height: 4pt, radius: 2pt, fill: c))
+      if x1 - x0 >= 40pt {
+        place(dx: x0, dy: H + 25pt, box(width: x1 - x0, clip: true, text(7.5pt)[#text(weight: "bold", fill: c)[#d.squadre.at(f.sq).nome] #text(fill: grigio)[· #f.media su #f.g]]))
       }
     }
   }))
-  pad(x: 16pt, top: 2pt, bottom: 10pt, text(7pt, fill: grigio)[#d.nota])
+  pad(x: 16pt, top: 6pt, bottom: 12pt, text(7pt, fill: grigio)[
+    ▮ fantapunti, col colore della squadra del fantabasket (grigio libero, oro la migliore, bordo dorato playoff, tacca grigia non ha giocato)
+    #h(4pt) #box(width: 14pt, height: 2pt, fill: viola_scuro, baseline: -2pt) media delle ultime 5
+    #h(4pt) #box(width: 14pt, height: 0pt, stroke: (top: (paint: viola_medio, thickness: 0.8pt, dash: "dashed")), baseline: -2pt) media della stagione])
 }
