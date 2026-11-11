@@ -201,6 +201,7 @@ def riduzione_dpe() -> float:
 ORARI = {
     # bot principale
     "bref": "12:00",                    # basketball-reference aggiorna in tarda mattinata (prima le 10)
+    "bref_vigilia": "20:00",            # di nuovo la sera prima di una giornata con squadre a media (v7.6.0)
     "scadenza_diritti": "09:00",
     "promemoria_deadline_ruoli": "10:00",
     "report_ruoli": "17:00",

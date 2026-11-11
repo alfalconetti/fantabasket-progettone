@@ -90,7 +90,12 @@ db.q("UPDATE lega_giornate SET prima_partita = %s WHERE stagione = %s AND numero
 _inviati = []
 async def _gas_ff(payload):
     _inviati.append(payload); return {"ok": True}
+# il giorno NBA di «adesso» è quello di _t0 (sera del 10/11): senza, dall'11/11 vero la prima notte risulta finita
+import calcolo as _CAff
+_oggi_vero = _CAff.oggi_et
+_CAff.oggi_et = lambda: date(2026, 11, 10)
 ff = asyncio.run(FF.aggiorna(ora=_t0 + timedelta(hours=1), manda=_gas_ff))
+_CAff.oggi_et = _oggi_vero
 _tab = _inviati[0]["righe"] if _inviati else []
 _cel = [c for r in _tab for c in r]
 ok(len(ff) == 1 and _inviati[0]["nome"] == f"Calcolo G{N}" and "Q-PG" in _cel and "P1" in _cel and "panchina non mandata" in _cel

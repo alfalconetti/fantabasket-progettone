@@ -610,7 +610,7 @@ I comandi legati a una fase sono in `_fasi_comando`.
 - **Deploy Apps Script:** `clasp push` dalla cartella `gas/` (escluso `globals.gs`, che ha la config vera e non va mai nello zip). La nuova versione si pubblica da Gestisci deployment → matita → Nuova versione. Un "Nuovo deployment" cambia l'URL: vanno aggiornati i secrets.
 - **Il foglio dice "Sync fallito":** chiama la web app dal container gas-router; se risponde HTML, il `<title>` dice l'errore.
 
-**Basketball-Reference** (`bref_scraper.py` + `handlers/bref.py`). Ogni giorno alle 12 (`orari.bref` in settings.json; prima alle 10, ma bref aggiorna in tarda mattinata), una sola richiesta per_game, che serve a:
+**Basketball-Reference** (`bref_scraper.py` + `handlers/bref.py`). Ogni giorno alle 12 (`orari.bref` in settings.json; prima alle 10, ma bref aggiorna in tarda mattinata), e alle 20 (`orari.bref_vigilia`, `job_bref_vigilia`, v7.6.0) della sera prima di una giornata con squadre NBA a media (`giornate_vigilia`: prima partita domani, ora di Roma; chi prende la media prende la fantamedia di bref, loucabot `db.medie_assenti`), una sola richiesta per_game, che serve a:
 
 - aggiungere righe a `bref_stats` per chi ha giocato;
 - aggiornare il foglio BrefRaw;

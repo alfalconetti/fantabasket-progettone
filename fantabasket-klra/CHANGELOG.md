@@ -21,3 +21,7 @@
 ## v3 (2026-11-09, progettone v7.2.0)
 
 - **`/partita`: record W-L sotto i loghi coi risultati del sistema** (Luca, 09/11), con la stessa regola di loucabot («prima di questa partita: W-L» se dopo ne sono state convalidate altre); i pareggi del sistema come terzo numero (es. 5-2-1)
+
+## v4 (2026-11-11, progettone v7.6.0)
+
+- Chi prende la media: coi pesi ufficiali la fantamedia di Basketball-Reference come loucabot v100; con un sistema attivo restano le medie dei tabellini coi pesi del sistema (`motore._medie_assenti`)

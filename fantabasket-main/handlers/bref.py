@@ -158,6 +158,42 @@ def _testo_nuovi() -> tuple[str, InlineKeyboardMarkup | None]:
     return "\n".join(righe), InlineKeyboardMarkup(tasti)
 
 
+def giornate_vigilia(stagione: str, oggi) -> list[dict]:
+    """Le giornate con squadre NBA a media la cui prima partita è domani (ora di Roma): stasera si riscarica bref,
+    perché chi prende la media prende la fantamedia di Basketball-Reference (loucabot db.medie_assenti, v7.6.0)."""
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
+    try:
+        righe = db._q("""SELECT numero, COALESCE(media, media_file) AS media,
+                                COALESCE(prima_partita, (SELECT MIN(p.inizio) FROM nba_partite p
+                                                         WHERE p.data_et BETWEEN g.dal AND g.al)) AS prima
+                         FROM lega_giornate g WHERE stagione = %s""", (stagione,), many=True) or []
+    except Exception as e:                                  # tabelle di loucabot che mancano
+        logger.warning("Vigilia bref: %s", e)
+        return []
+    domani = oggi + timedelta(days=1)
+    return [r for r in righe if r["prima"] and r["media"]
+            and r["prima"].astimezone(ZoneInfo("Europe/Rome")).date() == domani]
+
+
+async def job_bref_vigilia(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Alle 20 (orari.bref_vigilia): se domani inizia una giornata con squadre a media, riscarica bref (Luca, 11/11)."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    g = settings.load_globals()
+    if g.get("fase", "") not in FASI_RUOLI_RS:
+        return
+    gg = giornate_vigilia(str(g.get("stagione_corrente", 2026)), datetime.now(ZoneInfo("Europe/Rome")).date())
+    if not gg:
+        return
+    log_ch = g.get("log_channel_id_main")
+    if log_ch:
+        quali = "; ".join(f"G{x['numero']}: {', '.join(x['media'])}" for x in gg)
+        await context.bot.send_message(chat_id=log_ch, parse_mode="HTML",
+                                       text=f"🌙 Bref alla vigilia: domani inizia una giornata con squadre a media ({html.escape(quali)})")
+    await job_bref(context)
+
+
 async def job_bref(context: ContextTypes.DEFAULT_TYPE) -> None:
     g = settings.load_globals()
     if g.get("fase", "") not in FASI_RUOLI_RS:

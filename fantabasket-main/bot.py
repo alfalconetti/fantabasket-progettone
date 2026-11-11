@@ -450,6 +450,9 @@ def main():
         _bref_scraper_job,
         time=_ora("bref"),
     )
+    # e di nuovo alle 20 della sera prima di una giornata con squadre a media: la media è quella di bref (v7.6.0)
+    from handlers.bref import job_bref_vigilia
+    app.job_queue.run_daily(job_bref_vigilia, time=_ora("bref_vigilia"))
     # Date di nascita mancanti: report al dev il lunedì alle 9:30
     from handlers.nascite import job_report_nascite
     app.job_queue.run_daily(job_report_nascite, time=_ora("report_nascite"), days=(1,))  # PTB: 0 = domenica, 1 = lunedì

@@ -125,6 +125,14 @@ def _tabellini(atleti, dal, al):
     return righe
 
 
+def _medie_assenti(atleti, stagione, g):
+    """Chi prende la media: coi pesi ufficiali come loucabot (bref dalle giornate nuove), con un sistema attivo le
+    medie dei tabellini coi suoi pesi (bref ha solo quelli della lega)."""
+    if not _ATTIVO.get():
+        return _orig["assenti"](atleti, stagione, g)
+    return _medie(atleti, stagione, g["dal"])
+
+
 def _medie(atleti, stagione, prima_del):
     P = _ATTIVO.get()
     if not P:
@@ -371,7 +379,7 @@ def installa() -> None:
         return
     import live
     import partita
-    _orig.update(tab=db.tabellini_atleti, medie=db.medie_stagione, pg=calcolo.punteggio_giocatori,
+    _orig.update(tab=db.tabellini_atleti, medie=db.medie_stagione, assenti=db.medie_assenti, pg=calcolo.punteggio_giocatori,
                  fadd=calcolo._fadd_possibile, calcola=RIS.calcola, live=live.calcolo, stato=partita._stato_calcolo,
                  q=db.q, ordina=CL.ordina, conference=CL.conference)
     CL.conference = _conference_lega
@@ -384,6 +392,7 @@ def installa() -> None:
     CL.dati_conference = _non_ufficiale(CL.dati_conference)
     db.tabellini_atleti = _tabellini
     db.medie_stagione = _medie
+    db.medie_assenti = _medie_assenti
     calcolo.punteggio_giocatori = _punteggio_giocatori
     calcolo._fadd_possibile = _fadd
     live.calcolo = _live_calcolo

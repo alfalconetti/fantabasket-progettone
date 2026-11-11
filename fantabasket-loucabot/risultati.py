@@ -160,7 +160,7 @@ def _dettaglio(stagione: str, g: dict, atleti: list[str]) -> dict:
     for r in db.tabellini_atleti(atleti, g["dal"], g["al"]):
         if calcolo.conta(r):
             notti.setdefault(r["atleta"], {})[r["data_et"]] = float(r["fp"])
-    medie = db.medie_stagione(atleti, stagione, g["dal"])
+    medie = db.medie_assenti(atleti, stagione, g)               # le stesse del calcolo (bref dalle giornate nuove)
     stati = db.infortuni_alla_partita(db.squadre_della_giornata(atleti, g["dal"], g["al"]), giorni)   # come la FADD (v68)
     con_snap = db.giorni_con_snapshot(giorni)
     decisi = db.status_validi(stagione, g["numero"], atleti)

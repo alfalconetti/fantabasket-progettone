@@ -3,7 +3,7 @@ PostgreSQL di loucabot: lo stesso database dei due bot, tabelle sue con prefisso
 Legge (mai scrive) le tabelle degli altri bot. Le righe sono dict (RealDictCursor).
 """
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import os
 import re
 from contextlib import contextmanager
@@ -319,6 +319,38 @@ def medie_stagione(atleti: list[str], stagione: str, prima_del) -> dict[str, dic
                    AND t.giocato AND NOT (t.fp = 0 AND t.minuti = 0) GROUP BY t.atleta""", (list(atleti), stagione, [2, 5], prima_del), many=True) or []
     from numeri import ottavi
     return {r["atleta"]: {"media": ottavi(r["media"]), "partite": r["partite"]} for r in righe}
+
+
+# Chi prende la media (squadra NBA senza partite, rinviata, deciso da un admin): dalle giornate che iniziano da
+# MEDIA_BREF_DAL la fantamedia di Basketball-Reference (Luca, 11/11), l'ultima rilevazione prima della prima partita
+# della giornata (la sera prima, alle 20, il bot principale la riscarica: handlers/bref.job_bref_vigilia); se bref
+# non ce l'ha (nome non abbinato, nessuna rilevazione) la media dei tabellini ESPN di prima. Le giornate di prima
+# restano coi tabellini: i risultati convalidati non cambiano.
+MEDIA_BREF_DAL = date(2026, 11, 11)
+
+
+def medie_bref(atleti: list[str], stagione: str, prima_di) -> dict[str, dict]:
+    """{atleta: {media, partite, fonte}} dall'ultima riga di bref_stats della stagione (anno di fine) prima di `prima_di`."""
+    righe = q("""SELECT g.espn_id AS atleta, b.fantamedia, b.g FROM giocatori g
+                 JOIN LATERAL (SELECT fantamedia, g FROM bref_stats b
+                               WHERE lower(b.nome_bref) = lower(g.nome_bref) AND b.stagione = %s AND b.timestamp < %s
+                                 AND b.fantamedia IS NOT NULL
+                               ORDER BY b.timestamp DESC, b.id DESC LIMIT 1) b ON TRUE
+                 WHERE g.espn_id = ANY(%s)""", (str(int(stagione) + 1), prima_di, list(atleti)), many=True) or []
+    return {r["atleta"]: {"media": float(r["fantamedia"]), "partite": int(r["g"] or 0), "fonte": "bref"} for r in righe}
+
+
+def medie_assenti(atleti: list[str], stagione: str, g: dict) -> dict[str, dict]:
+    """Le medie per chi prende la media nella giornata g (e per la colonna Media di /partita e del foglio)."""
+    espn = medie_stagione(atleti, stagione, g["dal"])
+    if not atleti or g["dal"] < MEDIA_BREF_DAL:
+        return espn
+    prima = g.get("prima_partita") or datetime.now(timezone.utc)
+    try:
+        return {**espn, **medie_bref(atleti, stagione, prima)}
+    except Exception as err:                                      # bref_stats che manca (prove, database nuovo)
+        logging.getLogger(__name__).warning("Medie bref: %s", err)
+        return espn
 
 
 def ultima_squadra(atleti: list[str], prima_del) -> dict[str, str]:

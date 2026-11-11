@@ -48,6 +48,10 @@ def _media(valori: list[float]) -> float:
     return ottavi(sum(valori) / len(valori)) if valori else 0.0
 
 
+def _bref(m: dict | None) -> str:
+    return " Basketball-Reference" if m and m.get("fonte") == "bref" else ""
+
+
 def punteggio_giocatori(stagione: str, g: dict, atleti: list[str]) -> dict[str, dict]:
     """{atleta: {fp, come, partite, squadra, nota}}; come ∈ partite / media / zero."""
     atleti = [a for a in dict.fromkeys(atleti) if a]
@@ -72,7 +76,7 @@ def punteggio_giocatori(stagione: str, g: dict, atleti: list[str]) -> dict[str, 
     recente = al >= oggi_et() - timedelta(days=7)
     squadre_prima = {**db.squadra_snapshot(atleti, giorni), **db.ultima_squadra(atleti, al + timedelta(days=1)),
                      **(db.squadre_roster(atleti) if recente else {})}
-    medie = db.medie_stagione(atleti, stagione, dal)
+    medie = db.medie_assenti(atleti, stagione, g)       # Basketball-Reference dalle giornate nuove (Luca, 11/11)
     stati = db.infortuni(atleti, giorni)
     decisi = db.status_validi(stagione, g["numero"], atleti) if g.get("numero") else {}
     con_snap = db.giorni_con_snapshot(giorni)
@@ -95,7 +99,7 @@ def punteggio_giocatori(stagione: str, g: dict, atleti: list[str]) -> dict[str, 
             else:
                 m = medie.get(a)
                 out[a] = {"fp": m["media"] if m else 0.0, "come": "media", "partite": [], "squadra": squadra,
-                          "nota": (f"media su {m['partite']} partite" if m else "nessuna partita giocata, media 0")
+                          "nota": (f"media{_bref(m)} su {m['partite']} partite" if m else "nessuna partita giocata, media 0")
                                   + " (disponibile, deciso da un admin)"}
             continue
         if squadra and (senza_partite or solo_rinviate):
@@ -108,7 +112,7 @@ def punteggio_giocatori(stagione: str, g: dict, atleti: list[str]) -> dict[str, 
             m = medie.get(a)
             perche = "partita rinviata" if solo_rinviate else "squadra senza partite"
             out[a] = {"fp": m["media"] if m else 0.0, "come": "media", "partite": [], "squadra": squadra,
-                      "nota": f"{perche}: media su {m['partite']} partite" if m else f"{perche}: nessuna partita giocata, media 0"}
+                      "nota": f"{perche}: media{_bref(m)} su {m['partite']} partite" if m else f"{perche}: nessuna partita giocata, media 0"}
             if not snap:
                 out[a]["nota"] += " (nessuno snapshot infortunati: disponibilità non verificata)"
             continue

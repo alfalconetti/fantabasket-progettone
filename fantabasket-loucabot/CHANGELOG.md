@@ -490,3 +490,7 @@ Il calcolo dei fantapunti.
 ## v99 (2026-11-11, progettone v7.5.3)
 
 - **`/partita`**: status abbreviato dell'ultimo report infortuni accanto al nome (OUT e SOSP rossi; D, Q, DTD, PROB arancio) finché la giornata si gioca; orario italiano sotto le partite da giocare
+
+## v100 (2026-11-11, progettone v7.6.0)
+
+- **Chi prende la media prende la fantamedia di Basketball-Reference**, l'ultima rilevazione prima della prima partita della giornata (il bot principale la riscarica alle 20 della sera prima); se bref non ha il giocatore, i tabellini ESPN. Anche nella colonna Media di `/partita` e del foglio. Le giornate iniziate prima dell'11/11 non cambiano

@@ -1918,3 +1918,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.5.3 (2026-11-11)
 
 - **loucabot v99, `/partita`** (Luca, 11/11): accanto al nome lo **status** dell'ultimo report infortuni, abbreviato (OUT e SOSP in rosso; D, Q, DTD, PROB in arancio), finché la giornata è da giocare o in corso; nelle partite da giocare, sotto «vs XXX» / «@XXX», l'**orario** italiano. Vale anche per `/pdf_giornata`, `/pdf_partite` e klra, che usano lo stesso template
+
+## v7.6.0 (2026-11-11)
+
+- **Chi prende la media prende la fantamedia di Basketball-Reference** (Luca, 11/11; loucabot v100): squadra NBA senza partite nella giornata, partite rinviate o deciso da un admin. Vale l'ultima rilevazione di bref prima della prima partita della giornata; se bref non ha il giocatore, la media dei tabellini ESPN come prima. Anche nella colonna Media di `/partita` e del foglio di controllo. Le giornate iniziate prima dell'11/11 restano coi tabellini (i risultati convalidati non cambiano). In klra, con un sistema attivo, restano i tabellini coi pesi del sistema
+- **Bref alla vigilia**: alle 20 (`orari.bref_vigilia`) della sera prima di una giornata con squadre a media il bot riscarica Basketball-Reference, con una riga nel canale log

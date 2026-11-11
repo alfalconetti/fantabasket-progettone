@@ -11,10 +11,10 @@ DATABASE_URL=$PGURL PG_URL=$PGURL python3 "$ROOT/tests/guardia.py" || exit 1
 MAIN=(trade_3_squadre carriera registro_azioni ruoli_trade date_comandi backup_foto menu_palette admin_poteri regole_config impostazioni report_ruoli report_dati bref_abbina penalita dieci_giorni revisione_regolamento dpe_trade_tagli team_diff report_spalmature penalita_cap sync_fogli registro_unico taglio_admin stagione stagione_ui cap_condiviso regolamento_numeri riassegna erminio_avviso pick)
 ASTE_PG=(pg_rfa_30giorni_dpe lista_fa_stagione registro_aste firma_per_conto rfa_lascio_andare menu_e_listteams autoslot giocatore_id rfa_dichiarati tempo_scaduto)
 ASTE_ISOLATO=(apri_asta_admin apertura_gm cap_asta_chiusa rfa_proprietario team_ricerca regolamento_numeri_aste)
-LOUCA=(louca_calendario louca_calcolo louca_foglio louca_risultati louca_classifica louca_status louca_rendimento)
+LOUCA=(louca_calendario louca_calcolo louca_foglio louca_risultati louca_classifica louca_status louca_rendimento louca_media_bref)
 IPA=(ipa_panchine ipa_errori ipa_injury)
 KLRA=(klra_motore)
-CONDIVISI=(lega_comandi lega_giocatori)     # codice di loucabot (shared/) nel bot principale: dopo le prove di loucabot, che creano le tabelle
+CONDIVISI=(lega_comandi lega_giocatori bref_vigilia)     # codice di loucabot (shared/) nel bot principale: dopo le prove di loucabot, che creano le tabelle
 DOCS=(guide_e_menu letture_transazioni nomi_importati router_health gas_node solo_gruppo_admin solo_lega)
 scelti=("$@"); [ ${#scelti[@]} -eq 0 ] && scelti=("${MAIN[@]}" "${ASTE_PG[@]}" "${ASTE_ISOLATO[@]}" "${LOUCA[@]}" "${IPA[@]}" "${KLRA[@]}" "${CONDIVISI[@]}" "${DOCS[@]}")
 in_lista() { local x=$1; shift; for y in "$@"; do [ "$x" = "$y" ] && return 0; done; return 1; }

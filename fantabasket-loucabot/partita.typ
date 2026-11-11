@@ -205,6 +205,6 @@
     #text(fill: verde, weight: "bold")[↑] entra per la FADD · #text(fill: grigio)[↓ FADD] esce ·
     #text(fill: viola, weight: "bold")[S1…] supplementari · #text(fill: arancio, weight: "bold")[MEDIA] prende la media ·
     #text(fill: viola_medio)[vs / \@] deve giocare · DNP non è entrato ·
-    Media = media fantapunti della stagione all'inizio della giornata (la prende se la sua squadra NBA non gioca) ·
+    Media = fantamedia della stagione all'inizio della giornata (Basketball-Reference, se no tabellini ESPN; la prende se la sua squadra NBA non gioca) ·
     Punti effettivi = quelli che contano: la media delle sue partite nella giornata · bonus casa +#dati.bonus #h(1fr) immagine del #dati.aggiornato]
 ]
