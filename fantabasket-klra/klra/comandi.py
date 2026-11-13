@@ -487,12 +487,8 @@ async def cb_player(update, context):
     s = SI.attivo(q.from_user.id)
     righe = await asyncio.to_thread(M.righe_lega, s, config.stagione())
     with M.contesto(s, righe=righe):
-        if player._foto(gid):
-            await q.edit_message_text("🏀 ⬇️")
-            await player.manda(_NonUfficiale(q.message, s), gid)
-        else:
-            t = await asyncio.to_thread(player.scheda, gid)
-            await q.edit_message_text(_NonUfficiale(q.message, s)._testo(t, True), parse_mode="HTML")
+        await q.edit_message_text("🏀 ⬇️")                     # /player è un'immagine (v7.7.0): arriva sotto
+        await player.manda(_NonUfficiale(q.message, s), gid)
 
 
 @con_conference

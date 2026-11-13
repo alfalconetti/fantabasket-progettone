@@ -290,6 +290,12 @@ def _scheda_player(gid: int) -> str:
     return t + "\n\n" + sezione_player(gid, P, nome)
 
 
+def _extra_player(gid: int) -> str:
+    """/player di loucabot è un'immagine (v7.7.0): la stagione col sistema arriva sotto, in testo."""
+    P, nome = _ATTIVO.get(), _NOME.get()
+    return sezione_player(gid, P, nome) if P and nome else ""
+
+
 def sezione_player(gid: int, P: dict, nome: str) -> str:
     """Fantamedia della stagione e ultime 5 partite coi fantapunti del sistema, accanto quelli della lega."""
     import html
@@ -386,6 +392,7 @@ def installa() -> None:
     import player
     _orig["scheda"] = player.scheda
     player.scheda = _scheda_player
+    player.extra = _extra_player
     db.q = _q
     CL.ordina = _ordina
     CL.dati_typst = _non_ufficiale(CL.dati_typst)

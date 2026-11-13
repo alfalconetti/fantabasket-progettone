@@ -52,6 +52,34 @@ ok(out and "Lega Uno" in out[-1], "/player NOME nel bot principale")
 asyncio.run(LG.cmd_player(upd(101), types.SimpleNamespace(args=["Lega"])))
 ok(out[-1] == "Quale?", "/player con più giocatori: i bottoni")
 
+# v7.7.0 (Luca, 13/11): /player in immagine, didascalia «nome · giorno»
+d = LG.G.dati_scheda(g1)
+_rq = {r["t"]: r for r in d["riquadri"]}
+ok(d["nome"] == "Lega Uno" and d["nba"] == "LCA" and d["espn"] and d["prossima"].startswith("@ LCB")
+   and list(_rq)[:4] == ["Fantamedia", "Ultime 5", "Migliore", "Peggiore"] and _rq["Fantamedia"]["v"] == "31,50"
+   and _rq["Migliore"]["s"] == f"vs LCB · {(ora - timedelta(days=2)).date():%d/%m}" and _rq["Ultime 5"]["v"] == "—",
+   f"/player: testata e riquadri {d['riquadri']}")
+ok(d["fanta"]["tipo"] == "firmato" and d["fanta"]["squadra"] == "Alfa" and d["fanta"]["contratto"].startswith("5M × 2 anni rimasti")
+   and d["fanta"]["colore"].startswith("#"), f"/player: il fantabasket {d['fanta']}")
+ok([m["t"] for m in d["medie"]] == ["punti", "rimbalzi", "assist", "recuperi", "stoppate", "perse", "triple", "% tiro", "% liberi"]
+   and d["medie"][0]["v"] == "20,0" and d["sotto_medie"].startswith("1 partita su 1 della squadra · 30,0 minuti"),
+   f"/player: le 9 categorie, sotto le partite per intero {d['sotto_medie']}")
+ok(len(d["ultime"]) == 1 and d["ultime"][0]["fp"] == 31.5 and d["ultime"][0]["avv"] == "vs LCB" and "20 pt" in d["ultime"][0]["riga"],
+   f"/player: le ultime partite {d['ultime']}")
+_png = LG.G.immagine_scheda(d)
+if _os.environ.get("PLAYER_PNG"): open(_os.environ["PLAYER_PNG"], "wb").write(_png); open(_os.environ["PLAYER_PNG"] + "2.png", "wb").write(LG.G.immagine_scheda(LG.G.dati_scheda(g2)))
+ok(_png[:4] == b"\x89PNG" and len(_png) > 20000, "/player: l'immagine")
+ok(LG.G.didascalia(d).startswith("Lega Uno · ") and len(LG.G.didascalia(d)) == len("Lega Uno · 13/11/2026"), "/player: didascalia nome · giorno")
+d2 = LG.G.dati_scheda(g2)
+ok(d2["status"] == "OUT" and d2["status_k"] == "out" and "Caviglia" in d2["status_det"] and d2["riquadri"][0]["v"] == "—"
+   and d2["medie"] == [] and LG.G.immagine_scheda(d2)[:4] == b"\x89PNG", "/player: chi non ha giocato, con lo status abbreviato")
+_foto = []
+class MF:
+    async def reply_text(s, t, **k): _foto.append(("t", t))
+    async def reply_photo(s, photo=None, caption=None, **k): _foto.append(("f", caption))
+asyncio.run(LG.manda(MF(), g1))
+ok(len(_foto) == 1 and _foto[0][0] == "f" and _foto[0][1].startswith("Lega Uno · "), "/player manda l'immagine con la didascalia")
+
 # /status
 st = __import__("shared.status_squadra", fromlist=["x"]).testo("team01")
 ok("Lega Due" in st and "<b>Out</b>" in st and "Caviglia" in st, "/status: gli Out dell'ultimo snapshot\n" + st)

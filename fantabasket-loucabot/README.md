@@ -144,7 +144,7 @@ Alla convalida i risultati vanno in `lega_risultati` e sul foglio Calendario.
 | `/giocatori [filtri]` | tutti | cerca tra i giocatori: ruolo, stato (FA, firmati, diritti), squadra NBA o del fantabasket, nome (regex), stagione, top per media, costo, anni, infortunati; un'immagine (un album oltre i 25) e il file `.md` con tutti (v96, immagine dalla v97) |
 | `/rendimento NOME` | tutti | la stagione partita per partita in un grafico: fantapunti col colore della squadra del fantabasket, media delle ultime 5 e dall'inizio, fasce delle squadre, play-in e playoff in fondo (v89) |
 | `/rendimento_carriera NOME` | tutti | la fantamedia stagione per stagione (Basketball-Reference dal 1979-80, la stagione in corso dai tabellini), anche dei giocatori mai stati nella lega (v89) |
-| `/player NOME` | tutti | squadra NBA, posizioni eleggibili, squadra del fantabasket con ruolo e stato del contratto, data di nascita, prossima partita NBA, media dei fantapunti e statistiche della stagione (e media di quella prima) (partite su quelle della squadra), media delle ultime 5 giocate, ultime 5 partite con le saltate di fila in una riga |
+| `/player NOME` | tutti | un'immagine (v104) con squadra NBA, posizioni eleggibili, squadra del fantabasket con ruolo e stato del contratto, data di nascita, prossima partita NBA, media dei fantapunti e statistiche della stagione (e media di quella prima) (partite su quelle della squadra), media delle ultime 5 giocate, ultime 5 partite con le saltate di fila in una riga |
 | `/start` | tutti | i comandi in breve |
 | `/guida` | tutti | la guida GM (file) |
 | `/guida_admin` | admin | la guida admin (file) |

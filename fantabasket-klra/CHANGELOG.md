@@ -25,3 +25,7 @@
 ## v4 (2026-11-11, progettone v7.6.0)
 
 - Chi prende la media: coi pesi ufficiali la fantamedia di Basketball-Reference come loucabot v100; con un sistema attivo restano le medie dei tabellini coi pesi del sistema (`motore._medie_assenti`)
+
+## v5 (2026-11-13, progettone v7.7.0)
+
+- `/player` di loucabot è un'immagine: col sistema attivo la stagione col sistema arriva sotto in testo (`motore._extra_player` al posto di `player.extra`); i bottoni «Quale?» mandano sempre l'immagine

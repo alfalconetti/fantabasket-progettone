@@ -523,7 +523,12 @@ class Msg2:
 BOT.mandati.clear(); m2 = Msg2()
 u = types.SimpleNamespace(effective_user=types.SimpleNamespace(id=config.dev_id()), effective_message=m2,
                           effective_chat=types.SimpleNamespace(id=config.dev_id()))
+# la giornata «in corso» è quella delle prove, qualunque sia il giorno vero (dal 13/11 il calendario vero non ne ha più)
+import calendario as _calp
+_corr = _calp.corrente
+_calp.corrente = lambda s, *a, **k: db.giornata(S, N)
 asyncio.run(HR.cmd_dev_prova_calcolo(u, types.SimpleNamespace(bot=BOT, args=[f"{DAL:%d/%m/%Y}", f"{AL:%d/%m/%Y}"], application=None)))
+_calp.corrente = _corr
 HR.nba.sincronizza, HC2.aggiorna_tabellini = _s, _t
 prova = [x for x in BOT.mandati if x.get("chat_id") == config.dev_id()]
 ok(prova and "PROVA" in prova[0]["text"] and "Giornata 0 calcolata" in prova[0]["text"] and "reply_markup" not in prova[0]
@@ -949,7 +954,7 @@ conta = lambda: (db.q("SELECT count(*) AS n FROM nba_tabellini", one=True)["n"],
                  db.q("SELECT count(*) AS n FROM lega_live", one=True)["n"])
 prima_db = conta()
 import calendario as _cal
-stp = {"giorni": [DP], "chat": 900, "vera": _cal.corrente(S), "accoppiamenti": db.partite_giornata(S, N),
+stp = {"giorni": [DP], "chat": 900, "vera": _cal.corrente(S) or db.giornata(S, N), "accoppiamenti": db.partite_giornata(S, N),
        "partite": [], "tabellini": [], "finite": set(), "fatti_10": set(), "message_id": None, "aggiornato": None}
 orig = (db.partite_nba, db.tabellini_atleti)
 BP = BotL()

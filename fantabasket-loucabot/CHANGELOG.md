@@ -506,3 +506,11 @@ Il calcolo dei fantapunti.
 ## v103 (2026-11-11, progettone v7.6.4)
 
 - **`/rendimento_carriera`**: quattro riquadri (fantamedia, stagioni, migliore, in corso o «non gioca nel …»), linea tratteggiata della fantamedia in carriera, picco in oro; resta blu
+
+## v104 (2026-11-13, progettone v7.7.0)
+
+- **`/player` in immagine**: viola Yahoo, foto, status, prossima partita, riquadri (fantamedia in giallo, ultime 5, migliore, peggiore, stagione passata), fantabasket, 9 categorie, ultime partite; didascalia nome e giorno. `player.extra` per il testo sotto (klra)
+
+## v105 (2026-11-13, progettone v7.7.1)
+
+- `/player`: sotto le 9 categorie le partite giocate col dettaglio delle squadre NBA («BOS poi NYK»)

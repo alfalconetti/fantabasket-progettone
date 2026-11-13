@@ -1935,3 +1935,12 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.6.4 (2026-11-11)
 
 - **`/rendimento_carriera`** (Luca, 11/11; loucabot v103), sempre blu: quattro riquadri in alto (fantamedia in carriera, stagioni e partite, stagione migliore, stagione in corso — se non gioca quest'anno lo dice, con l'ultima stagione), la fantamedia della carriera come linea tratteggiata, la stagione migliore in oro
+
+## v7.7.0 (2026-11-13)
+
+- **`/player` in immagine** (Luca, 13/11; loucabot v104, anche nel bot principale in privato): sul viola di Yahoo come `/partita`, con foto, status abbreviato, prossima partita, cinque riquadri (fantamedia in giallo, ultime 5, migliore, peggiore, stagione passata), il fantabasket (contratto, ruolo, posizioni, nota sui contratti di prima del 2026; FA e diritti), le 9 categorie a partita e le ultime partite. Didascalia: nome e giorno, per cercarla in chat. Template `shared/giocatore.typ`; se l'immagine non riesce, la scheda in testo. In klra (v5) sotto l'immagine arriva in testo la stagione col sistema
+- Prove: `louca_risultati` non dipende più dal giorno vero per la giornata «in corso» (dal 13/11 falliva)
+
+## v7.7.1 (2026-11-13)
+
+- **`/player`** (Luca, 13/11; loucabot v105): sotto le 9 categorie le partite giocate per intero, col dettaglio di chi ha cambiato squadra («su 15 (BOS poi NYK)», «da quando è a NYK»), che nel riquadro della fantamedia non ci sta

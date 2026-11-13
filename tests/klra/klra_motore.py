@@ -487,6 +487,9 @@ _t = (m.testi[-1][0] if m.testi else "") + (m.foto[-1][1] if m.foto else "")
 ok("NON UFFICIALE" in _t and "Col sistema Stoppate" in _t and "Fantamedia" in _t and "(lega " in _t, "/player NOME SISTEMA: la scheda di loucabot con la stagione del sistema " + _t[-300:])
 import player as _PL
 ok("Col sistema" not in _PL.scheda(gid[4]), "/player di loucabot fuori da klra: com'era")
+ok(m.foto and m.testi and "Col sistema Stoppate" in m.testi[-1][0],
+   f"/player in klra (v7.7.0): l'immagine di loucabot, e sotto in testo la stagione col sistema {m.foto[-1][1] if m.foto else None!r}")
+ok(_PL.extra(gid[4]) == "", "fuori dal contesto di un sistema: niente testo in più")
 
 # verifica: dati cambiati dopo la convalida (un tabellino corretto) → motore uguale, differenza nei dati
 db._pool = pool_lega

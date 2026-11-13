@@ -373,9 +373,218 @@ def immagine(gid: int, f: str) -> bytes:
                                                           "sotto": sotto}, ensure_ascii=False)})
 
 
-def handlers(scheda_di, foto_di=None):
-    """(cmd_player, manda, cb_player) con la scheda del bot: scheda_di(gid) -> testo, chiamata ogni volta (così
-    chi la sostituisce dopo, come klra, vale anche qui). foto_di(gid) -> file della foto o None."""
+# ── /player in immagine (v7.7.0, Luca 13/11) ─────────────────────────────────────
+
+INF_BREVE = {"Out": "OUT", "Doubtful": "D", "Questionable": "Q", "Day-To-Day": "DTD", "Probable": "PROB", "Suspension": "SOSP"}
+
+
+def _piano(t: str) -> str:
+    """Il testo HTML delle righe di sempre senza tag né entità, per l'immagine."""
+    import re
+    return html.unescape(re.sub(r"<[^>]+>", "", t or ""))
+
+
+def _num(x: float) -> str:
+    return tp(ottavi(x))
+
+
+def dati_scheda(gid: int, foto_di=None) -> dict | None:
+    """I dati dell'immagine di /player (giocatore.typ): le stesse cose della scheda in testo."""
+    s = L.stagione()
+    g = L.q("SELECT id, nome_common, nome_bref, espn_id, data_nascita FROM giocatori WHERE id = %s", (gid,), one=True)
+    if not g:
+        return None
+    a = g["espn_id"]
+    f = (foto_di or foto)(gid)
+    d = {"nome": g["nome_common"], "iniziali": "".join(x[0] for x in g["nome_common"].split()[:2]).upper(),
+         "foto": os.path.abspath(f) if f else "", "stagione": f"{s}-{str(int(s) + 1)[-2:]}",
+         "nascita": f"🎂 {g['data_nascita']:%d/%m/%Y} · {eta(g['data_nascita'])} anni" if g.get("data_nascita") else "",
+         "nba": "", "status": "", "status_k": "", "status_det": "", "prossima": "", "espn": bool(a)}
+
+    def _q1(sql, params):
+        try:
+            return L.q(sql, params, one=True)
+        except Exception:                      # tabella del bot principale che manca (prove, database vuoto)
+            return None
+
+    # ── NBA ──
+    if a:
+        sq = (L.squadre_roster([a]).get(a) or L.ultima_squadra([a], "9999-12-31").get(a))
+        d["nba"] = sq or "senza squadra"
+        ultimo = L.q("SELECT MAX(preso) AS p FROM nba_infortuni", one=True)
+        if ultimo and ultimo["p"]:
+            inf = L.q("SELECT stato, dettaglio FROM nba_infortuni WHERE atleta = %s AND preso = %s", (a, ultimo["p"]), one=True)
+            if inf:
+                d.update(status=INF_BREVE.get(inf["stato"], inf["stato"]), status_k="out" if inf["stato"] in ("Out", "Suspension") else "dubbio",
+                         status_det=inf["stato"] + (f" · {inf['dettaglio'][:60]}" if inf.get("dettaglio") else ""))
+        if sq:
+            d["prossima"] = _piano(prossima_partita(sq)).replace("📅 Prossima: ", "")
+
+    # ── fantabasket ──
+    pos = _q1("SELECT posizioni FROM posizioni_attuali WHERE giocatore_id = %s", (gid,))
+    d["pos"] = [r for r in ("PG", "SG", "SF", "PF", "C") if r in set(((pos or {}).get("posizioni") or "").split(","))]
+    c = L.q("""SELECT c.*, (SELECT r.ruolo FROM ruolo_attuale r WHERE r.giocatore_id = c.giocatore_id AND r.stagione = %s LIMIT 1) AS ruolo,
+                       (SELECT d.importo_dpe FROM dpe d WHERE d.giocatore_id = c.giocatore_id AND d.team_id = c.team_id
+                         AND d.stagione = %s LIMIT 1) AS importo_dpe
+                FROM contratti c WHERE c.giocatore_id = %s AND c.attivo LIMIT 1""", (s, s, gid), one=True)
+    from shared.rendimento import colore_squadra
+    if c:
+        pend = _q1("SELECT scadenza FROM ruoli_pendenti WHERE giocatore_id = %s AND team_id = %s AND stato = 'aperta' LIMIT 1",
+                   (gid, c["team_id"]))
+        if c.get("ruolo"):
+            ruolo, ruolo_txt = c["ruolo"], ""
+        elif pend:
+            ruolo, ruolo_txt = "", f"da dichiarare entro {pend['scadenza'].astimezone(__import__('zoneinfo').ZoneInfo('Europe/Rome')):%d/%m %H:%M}"
+        else:
+            ruolo, ruolo_txt = "", "non ancora ufficiale"
+        anni = int(c["anni_originali"]) - (int(s) - int(c["stagione_firma"]))
+        fine = int(c["stagione_firma"]) + int(c["anni_originali"]) - 1
+        stagione_txt = lambda y: f"{y}-{str(y + 1)[-2:]}"
+        if c["tipo"] == "10day":
+            contratto = f"{c['importo']}M · 10-day" + (f", firmato il {c['firmato_at']:%d/%m}" if c.get("firmato_at") else "")
+        elif anni <= 0:
+            rfa = _q1("SELECT 1 AS x FROM rfa_dichiarati WHERE contratto_id = %s AND stato = 'attiva'", (c["id"],))
+            contratto = f"{c['importo']}M, contratto finito (x0)" + (" · dichiarato RFA" if rfa else " · a fine stagione può essere dichiarato RFA")
+        else:
+            contratto = (f"{c['importo']}M × {anni} {'anno' if anni == 1 else 'anni'} rimasti (fino al {stagione_txt(fine)}; "
+                         f"firmato nel {stagione_txt(int(c['stagione_firma']))} per {c['anni_originali']})")
+        if c["tipo"] == "rookie":
+            contratto += " · rookie"
+        if c.get("importo_dpe") is not None:
+            contratto += f" · 🏥 DPE quest'anno (pesa {c['importo_dpe']}M)"
+        nota = (NOTA_FIRMA if c["tipo"] != "10day" and str(c["stagione_firma"]) == ANNO_BOT
+                and datetime.now().year <= NOTA_FIRMA_FINO_AL else "")
+        d["fanta"] = {"tipo": "firmato", "squadra": L.nome(c["team_id"]), "colore": colore_squadra(L.squadra(c["team_id"]) or {"id": c["team_id"]}),
+                      "contratto": contratto, "ruolo": ruolo, "ruolo_txt": ruolo_txt, "nota": nota}
+    else:
+        dr = _q1("""SELECT team_id, round, anno_draft FROM rookie WHERE giocatore_id = %s AND NOT firmato
+                    AND NOT diritti_scaduti ORDER BY id DESC LIMIT 1""", (gid,))
+        if dr:
+            scad = scadenza_diritti(dr, s)
+            d["fanta"] = {"tipo": "diritti", "squadra": f"Diritti rookie di {L.nome(dr['team_id'])}",
+                          "colore": colore_squadra(L.squadra(dr["team_id"]) or {"id": dr["team_id"]}),
+                          "contratto": "svincolato" + (f" · diritti: {scad}" if scad else ""), "ruolo": "", "ruolo_txt": "", "nota": ""}
+        else:
+            d["fanta"] = {"tipo": "fa", "squadra": "Free agent", "colore": "#1B8A4B", "contratto": "svincolato, nessuno ha i diritti",
+                          "ruolo": "", "ruolo_txt": "", "nota": ""}
+
+    # ── la stagione passata (Basketball-Reference) ──
+    try:
+        bp = L.q("""SELECT b.g, b.fantamedia FROM giocatori g
+                    JOIN bref_stats b ON lower(b.nome_bref) IN (lower(g.nome_bref), lower(g.nome_common))
+                    WHERE g.id = %s AND b.stagione = %s AND b.fantamedia IS NOT NULL
+                    ORDER BY b.timestamp DESC, b.id DESC LIMIT 1""", (gid, str(int(s))), one=True)
+    except Exception:
+        bp = None
+    ap = int(s)
+    prima = {"t": f"Stagione {ap - 1}-{str(ap)[-2:]}", "v": _num(float(bp["fantamedia"])) if bp else "—",
+             "s": (f"{bp['g']} partite · bref" if bp and bp.get("g") else "bref") if bp else "nessun dato"}
+
+    d.update(riquadri=[], medie=[], sotto_medie="", ultime=[], nota_stagione="")
+    if not a:
+        d["riquadri"] = [{"t": "Fantamedia", "v": "—", "s": "non abbinato a ESPN"}, prima]
+        return d
+    tab = L.q("""SELECT t.*, p.data_et, p.casa, p.trasferta FROM nba_tabellini t JOIN nba_partite p ON p.espn_id = t.partita
+                  WHERE t.atleta = %s AND p.stagione = %s AND p.tipo = ANY(%s) ORDER BY p.inizio""",
+               (a, s, list(TIPI)), many=True) or []
+    contano = [r for r in tab if L.conta(r)]
+    partite = partite_squadra(tab, L.squadre_roster([a]).get(a), s, a)
+    su = _piano(testo_su(partite))
+    su_breve = f" su {len(partite)}" if partite else ""          # nel riquadro, corto: «11 partite su 12»
+    d["ultime"] = ultime_dati(tab, partite)
+    if not contano:
+        d["riquadri"] = [{"t": "Fantamedia", "v": "—", "s": "0 partite" + su_breve}, prima]
+        d["nota_stagione"] = f"Nessuna partita giocata nel {d['stagione']}" + su + (f" ({len(tab)} a referto senza entrare)" if tab else "")
+        return d
+    n = len(contano)
+    fp = [float(r["fp"]) for r in contano]
+    media = sum(fp) / n
+    quando = lambda r: f"{'vs' if r['squadra'] == r['casa'] else '@'} {r['trasferta'] if r['squadra'] == r['casa'] else r['casa']} · {r['data_et']:%d/%m}"
+    bi = max(range(n), key=lambda i: fp[i])
+    wi = min(range(n), key=lambda i: fp[i])
+    if n > ULTIME_MEDIA:
+        u5 = sum(fp[-ULTIME_MEDIA:]) / ULTIME_MEDIA
+        r5 = {"t": f"Ultime {ULTIME_MEDIA}", "v": _num(u5), "s": "▲ sopra la media" if ottavi(u5) >= ottavi(media) else "▼ sotto la media"}
+    else:
+        r5 = {"t": f"Ultime {ULTIME_MEDIA}", "v": "—", "s": f"servono più di {ULTIME_MEDIA} partite"}
+    d["riquadri"] = [{"t": "Fantamedia", "v": _num(media), "s": f"{n} {'partita' if n == 1 else 'partite'}{su_breve}"}, r5,
+                     {"t": "Migliore", "v": tp(fp[bi]), "s": quando(contano[bi])},
+                     {"t": "Peggiore", "v": tp(fp[wi]), "s": quando(contano[wi])}, prima]
+    tot = {k: sum(int(r[k]) for r in contano) for k in ("minuti", "pts", "oreb", "dreb", "ast", "stl", "blk", "tov",
+                                                       "fgm", "fga", "tpm", "tpa", "ftm", "fta")}
+    pc = lambda f, t: f"{100 * f / t:.1f}".replace(".", ",") if t else "—"
+    d["medie"] = [{"t": "punti", "v": _media(tot["pts"] / n)}, {"t": "rimbalzi", "v": _media((tot["oreb"] + tot["dreb"]) / n)},
+                  {"t": "assist", "v": _media(tot["ast"] / n)}, {"t": "recuperi", "v": _media(tot["stl"] / n)},
+                  {"t": "stoppate", "v": _media(tot["blk"] / n)}, {"t": "perse", "v": _media(tot["tov"] / n)},
+                  {"t": "triple", "v": _media(tot["tpm"] / n)}, {"t": "% tiro", "v": pc(tot["fgm"], tot["fga"])},
+                  {"t": "% liberi", "v": pc(tot["ftm"], tot["fta"])}]
+    # il dettaglio delle partite per intero (anche «BOS poi NYK», «da quando è a NYK»): nel riquadro non ci sta (Luca, 13/11)
+    d["sotto_medie"] = (f"{n} {'partita' if n == 1 else 'partite'}{su} · {_media(tot['minuti'] / n)} minuti · tiro {_media(tot['fgm'] / n)}/{_media(tot['fga'] / n)} · "
+                        f"da tre {_media(tot['tpm'] / n)}/{_media(tot['tpa'] / n)} ({_pct(tot['tpm'], tot['tpa'])}) · "
+                        f"liberi {_media(tot['ftm'] / n)}/{_media(tot['fta'] / n)}")
+    return d
+
+
+def ultime_dati(tab: list[dict], partite: list[dict], quante: int = 5) -> list[dict]:
+    """Le ultime partite come ultime(), per l'immagine: [{data, avv, riga, fp, fpt}] (fp None: saltata o non entrato)."""
+    sue = {r["partita"]: r for r in tab}
+    voci, viste = [], set()
+    for p in partite:
+        viste.add(p["espn_id"])
+        if p["espn_id"] in sue:
+            voci.append(("r", sue[p["espn_id"]]))
+        elif voci and voci[-1][0] == "s":
+            voci[-1][1].append(p)
+        else:
+            voci.append(("s", [p]))
+    for r in tab:
+        if r["partita"] not in viste:
+            voci.append(("r", r))
+    voci.sort(key=lambda v: (v[1]["data_et"] if v[0] == "r" else v[1][0]["data_et"]))
+    out = []
+    for tipo, x in voci[-quante:]:
+        if tipo == "s":
+            if len(x) == 1:
+                p = x[0]
+                dove, avv = ("vs", p["trasferta"]) if p["squadra"] == p["casa"] else ("@", p["casa"])
+                out.append({"data": f"{p['data_et']:%d/%m}", "avv": f"{dove} {avv}", "riga": "saltata", "fp": None, "fpt": ""})
+            else:
+                out.append({"data": f"{x[0]['data_et']:%d/%m}", "avv": "",
+                            "riga": f"{len(x)} partite saltate, fino al {x[-1]['data_et']:%d/%m}", "fp": None, "fpt": ""})
+            continue
+        r = x
+        avv = r["trasferta"] if r["squadra"] == r["casa"] else r["casa"]
+        dove = "vs" if r["squadra"] == r["casa"] else "@"
+        if not L.conta(r):
+            out.append({"data": f"{r['data_et']:%d/%m}", "avv": f"{dove} {avv}", "riga": "non è entrato", "fp": None, "fpt": ""})
+            continue
+        pezzi = [f"{r['pts']} pt", f"{r['oreb'] + r['dreb']} rb", f"{r['ast']} as"]
+        pezzi += [f"{r[k]} {t}" for k, t in (("stl", "rec"), ("blk", "st"), ("tpm", "triple"), ("tov", "perse")) if int(r[k] or 0)]
+        out.append({"data": f"{r['data_et']:%d/%m}", "avv": f"{dove} {avv}", "riga": " · ".join(pezzi) + f" · {r['minuti']}′",
+                    "fp": float(r["fp"]), "fpt": tp(float(r["fp"]))})
+    return out
+
+
+def immagine_scheda(d: dict) -> bytes:
+    import json
+    import typst
+    tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "giocatore.typ")
+    fonts = [x for x in ("/usr/share/fonts",) if os.path.isdir(x)]
+    return typst.compile(tpl, root="/", format="png", ppi=180, font_paths=fonts,
+                         sys_inputs={"dati": json.dumps(d, ensure_ascii=False, default=str)})
+
+
+def didascalia(d: dict) -> str:
+    """Il nome e il giorno, per cercarlo in chat (Luca, 13/11)."""
+    from zoneinfo import ZoneInfo
+    return f"{d['nome']} · {datetime.now(ZoneInfo('Europe/Rome')):%d/%m/%Y}"
+
+
+def handlers(scheda_di, foto_di=None, dati_di=None, extra_di=None):
+    """(cmd_player, manda, cb_player) con la scheda del bot: scheda_di(gid) -> testo (se l'immagine non viene),
+    chiamata ogni volta (così chi la sostituisce dopo vale anche qui). foto_di(gid) -> file della foto o None;
+    dati_di(gid) -> i dati dell'immagine (di default dati_scheda); extra_di(gid) -> testo da mandare sotto
+    l'immagine, o "" (klra: la stagione col sistema)."""
     foto_di = foto_di or foto
 
     async def cmd_player(update, context):
@@ -395,34 +604,30 @@ def handlers(scheda_di, foto_di=None):
         await manda(msg, trovati[0]["id"])
 
     async def manda(msg, gid: int) -> None:
-        """La scheda; con la foto ESPN se c'è già (si scarica di notte, qui mai). La didascalia di
-        una foto arriva a 1024 caratteri: oltre, la foto e sotto il testo."""
-        t = scheda_di(gid)
-        f = foto_di(gid)
-        img = None
-        if f:
-            try:
-                img = immagine(gid, f)
-            except Exception as err:                          # Typst o foto rovinata: solo testo
-                import logging
-                logging.getLogger(__name__).warning("Foto di /player: %s", err)
+        """v7.7.0 (Luca, 13/11): la scheda in immagine (giocatore.typ), con la didascalia «nome · giorno» per
+        cercarla in chat; sotto, il testo in più del bot se c'è (klra: la stagione col sistema). Se l'immagine
+        non viene (Typst, foto rovinata), la scheda in testo di sempre."""
+        import asyncio
+        try:
+            d = await asyncio.to_thread(dati_di, gid) if dati_di else await asyncio.to_thread(dati_scheda, gid, foto_di)
+            img = await asyncio.to_thread(immagine_scheda, d) if d else None
+        except Exception as err:
+            import logging
+            logging.getLogger(__name__).warning("Immagine di /player: %s", err)
+            d = img = None
         if not img:
-            await msg.reply_text(t, parse_mode="HTML")
+            await msg.reply_text(scheda_di(gid), parse_mode="HTML")
             return
-        if len(t) <= 1024:
-            await msg.reply_photo(img, caption=t, parse_mode="HTML")
-            return
-        await msg.reply_photo(img)
-        await msg.reply_text(t, parse_mode="HTML")
+        await msg.reply_photo(img, caption=didascalia(d))
+        extra = extra_di(gid) if extra_di else ""
+        if extra:
+            await msg.reply_text(extra, parse_mode="HTML")
 
     async def cb_player(update, context):
         q = update.callback_query
         await q.answer()
         gid = int(q.data.split(":")[1])
-        if foto_di(gid):                                 # con la foto: il «Quale?» si toglie, la scheda arriva sotto
-            await q.edit_message_text("🏀 ⬇️")
-            await manda(q.message, gid)
-            return
-        await q.edit_message_text(scheda_di(gid), parse_mode="HTML")
+        await q.edit_message_text("🏀 ⬇️")               # il «Quale?» si toglie, la scheda arriva sotto in immagine
+        await manda(q.message, gid)
 
     return cmd_player, manda, cb_player
