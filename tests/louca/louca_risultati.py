@@ -1038,6 +1038,12 @@ ok(all(sq["record"] == PA.record(_conv7, sq["id"], N)["record"] and "record_prim
 ok(PA.immagine({**_d7, "squadre": [{**_d7["squadre"][0], "record": "6-3", "record_prima": "4-2"}, _d7["squadre"][1]]})[:4] == b"\x89PNG",
    "/partita: immagine col record e «prima di questa partita»")
 _png = PA.immagine(_d7)
+if _os_t := __import__("os").environ.get("PARTITA_TEMPI"):
+    import time as _tm, cProfile as _cp, pstats as _ps
+    _t0x = _tm.perf_counter(); _dx = PA.dati(S, N, _r7["casa"], _r7["trasferta"]); _t1x = _tm.perf_counter(); PA.immagine(_dx); _t2x = _tm.perf_counter()
+    print(f"TEMPI dati {_t1x - _t0x:.3f}s immagine {_t2x - _t1x:.3f}s")
+    _pr = _cp.Profile(); _pr.enable(); PA.dati(S, N, _r7["casa"], _r7["trasferta"]); _pr.disable()
+    _ps.Stats(_pr).sort_stats("cumulative").print_stats(18)
 if _os_pa := __import__("os").environ.get("PARTITA_PNG"): open(_os_pa, "wb").write(_png)
 # v7.5.3 (Luca, 11/11): le partite da giocare con l'orario di Roma; lo status dell'ultimo report finché la giornata si gioca
 _pp = {"casa": "LAL", "trasferta": "BOS", "stato": "STATUS_SCHEDULED", "inizio": datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)}

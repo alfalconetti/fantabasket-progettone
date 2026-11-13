@@ -1944,3 +1944,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.7.1 (2026-11-13)
 
 - **`/player`** (Luca, 13/11; loucabot v105): sotto le 9 categorie le partite giocate per intero, col dettaglio di chi ha cambiato squadra («su 15 (BOS poi NYK)», «da quando è a NYK»), che nel riquadro della fantamedia non ci sta
+
+## v7.7.2 (2026-11-13)
+
+- **`/partita` di nuovo veloce** (Luca, 13/11; loucabot v106): la media da Basketball-Reference di chi non gioca (v7.6.0) faceva una sottoquery per giocatore su `bref_stats` confrontando i nomi in minuscolo, senza indice: 2,3 secondi su 2,5 del calcolo della giornata (anche nel live, `/giornata`, `/risultati`). Ora una sola lettura delle righe della stagione e poi l'abbinamento
+- `deploy.sh`: lo script di commit fuori dal repo si lancia con `bash` anche senza il permesso di esecuzione (prima, senza, `deploy.sh` faceva commit e push da solo, subito)

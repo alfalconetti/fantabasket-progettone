@@ -331,11 +331,12 @@ MEDIA_BREF_DAL = date(2026, 11, 11)
 
 def medie_bref(atleti: list[str], stagione: str, prima_di) -> dict[str, dict]:
     """{atleta: {media, partite, fonte}} dall'ultima riga di bref_stats della stagione (anno di fine) prima di `prima_di`."""
-    righe = q("""SELECT g.espn_id AS atleta, b.fantamedia, b.g FROM giocatori g
-                 JOIN LATERAL (SELECT fantamedia, g FROM bref_stats b
-                               WHERE lower(b.nome_bref) = lower(g.nome_bref) AND b.stagione = %s AND b.timestamp < %s
-                                 AND b.fantamedia IS NOT NULL
-                               ORDER BY b.timestamp DESC, b.id DESC LIMIT 1) b ON TRUE
+    # v7.7.2: una sola lettura delle righe della stagione (indice su stagione), poi l'abbinamento coi giocatori.
+    # Prima una sottoquery per giocatore con lower(nome_bref), che l'indice non usa: 2,3 secondi a /partita
+    righe = q("""WITH b AS (SELECT DISTINCT ON (lower(nome_bref)) lower(nome_bref) AS n, fantamedia, g FROM bref_stats
+                            WHERE stagione = %s AND timestamp < %s AND fantamedia IS NOT NULL
+                            ORDER BY lower(nome_bref), timestamp DESC, id DESC)
+                 SELECT g.espn_id AS atleta, b.fantamedia, b.g FROM giocatori g JOIN b ON b.n = lower(g.nome_bref)
                  WHERE g.espn_id = ANY(%s)""", (str(int(stagione) + 1), prima_di, list(atleti)), many=True) or []
     return {r["atleta"]: {"media": float(r["fantamedia"]), "partite": int(r["g"] or 0), "fonte": "bref"} for r in righe}
 

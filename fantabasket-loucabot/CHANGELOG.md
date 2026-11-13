@@ -514,3 +514,7 @@ Il calcolo dei fantapunti.
 ## v105 (2026-11-13, progettone v7.7.1)
 
 - `/player`: sotto le 9 categorie le partite giocate col dettaglio delle squadre NBA («BOS poi NYK»)
+
+## v106 (2026-11-13, progettone v7.7.2)
+
+- `db.medie_bref`: una sola query sulla stagione invece di una per giocatore (il calcolo della giornata passava da 0,2 a 2,5 secondi)
