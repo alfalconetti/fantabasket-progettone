@@ -159,15 +159,21 @@ def _cella(x: dict | None, a: str | None, sq: str | None, d, partite_giorno: dic
     return {"t": vs, "k": "live"}
 
 
-def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None) -> dict:
+def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None, turno: int | None = None) -> dict:
+    """Con `turno` (1, 2: v7.9.1) la partita della Quasi NBA Cup giocata nella giornata n (cup.py): stesse formazioni
+    e stessi punti di squadra, avversario e bonus casa della Cup."""
     import foto
     import live
     ora = ora or datetime.now(timezone.utc)
     g = db.giornata(s, n)
+    import cup
     c = live.calcolo(s, n)
+    if turno:
+        c = {**c, "risultati": cup.completi(s, n, c["risultati"], anche_provvisori=True)}
     r = next((x for x in c["risultati"] if x["casa"] == casa and x["trasferta"] == trasferta), None)
     if not r:
-        raise ValueError(f"nella giornata {n} non c'è {config.nome(casa)} – {config.nome(trasferta)}")
+        raise ValueError(f"nella {'Q' + str(turno) if turno else 'giornata ' + str(n)} non c'è "
+                         f"{config.nome(casa)} – {config.nome(trasferta)}")
     giorni = [g["dal"] + timedelta(days=i) for i in range((g["al"] - g["dal"]).days + 1)]
     atleti = [x["atleta"] for t in (casa, trasferta) for x in c["squadre"][t]["quintetto"] + c["squadre"][t]["panchina"] if x.get("atleta")]
     tab = {}
@@ -177,11 +183,14 @@ def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None)
     for p in db.partite_nba(g["dal"], g["al"]):
         for sq in (p["casa"], p["trasferta"]):
             partite_giorno[(sq, p["data_et"])] = p
-    stato_c = _stato_calcolo(s, n)
+    stato_c = cup.stato_turno(s, turno, n) if turno else _stato_calcolo(s, n)
     # giornata convalidata: in testa il risultato salvato (quello ufficiale); se il ricalcolo di oggi
     # desse altro (tabellini corretti dopo, decisioni cambiate) lo si dice nelle note
-    salvato = db.q("SELECT * FROM lega_risultati WHERE stagione = %s AND giornata = %s AND casa = %s AND convalidato IS NOT NULL",
-                   (s, n, casa), one=True) if stato_c == "convalidata" else None
+    if turno:
+        salvato = cup.salvati(s, turno).get(casa) if stato_c == "convalidata" else None
+    else:
+        salvato = db.q("SELECT * FROM lega_risultati WHERE stagione = %s AND giornata = %s AND casa = %s AND convalidato IS NOT NULL",
+                       (s, n, casa), one=True) if stato_c == "convalidata" else None
     iniziata = bool(g.get("prima_partita") and g["prima_partita"] <= ora)
     stato = ("convalidata" if stato_c == "convalidata" else "calcolata" if stato_c else
              "in corso" if iniziata else "da giocare")
@@ -257,6 +266,17 @@ def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None)
     convalidati = classifica.risultati(s)
     for sq in squadre_out:
         sq.update(record(convalidati, sq["id"], n))
+    extra = {}
+    if turno:                                          # Quasi NBA Cup: il piazzamento in qualificazione al posto del record
+        posti = cup.seed(s)
+        for sq in squadre_out:
+            sq["record"] = f"{posti[sq['id']]}ª QUALIFICATA" if sq["id"] in posti else ""
+            sq["record_prima"] = ""
+        note.insert(0, f"Partita della Quasi NBA Cup: stesse formazioni e stessi punti della giornata {n} (la partita di "
+                       "campionato non cambia); in casa la meglio classificata, col bonus casa.")
+        if cup.provvisorio(s, turno):
+            note.insert(1, "Se finisse oggi: la qualificazione non è ancora tutta convalidata, le semifinali possono cambiare.")
+        extra = {"cup": {"fase": cup.nome_fase(s, turno, casa)}}
     if salvato and (abs(float(salvato["punti_casa"] or 0) - es["regolamentari"][0]) > 0.001
                     or abs(float(salvato["punti_trasferta"] or 0) - es["regolamentari"][1]) > 0.001 or salvato["vince"] != r["vince"]):
         note.insert(0, f"In testa il risultato convalidato. Ricalcolando oggi verrebbe {tp(es['regolamentari'][0])} – "
@@ -270,7 +290,9 @@ def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None)
     nomi = {config.nome(casa), config.nome(trasferta)}
     note += [a for a in c["avvisi"] if a.split(": ")[0] in nomi and "FADD" not in a]
     return {
-        "titolo": f"Giornata {n}", "date": f"{g['dal']:%d/%m} – {g['al']:%d/%m}", "stato": stato,
+        **extra,
+        "titolo": f"Q{turno} · Giornata {n}" if turno else f"Giornata {n}", "date": f"{g['dal']:%d/%m} – {g['al']:%d/%m}",
+        "stato": stato,
         "notti": [f"{GIORNI[d.weekday()]} {d:%d/%m}" for d in giorni],
         "squadre": squadre_out, "supplementari": supp, "bonus": tp(c["bonus"]),
         "media_nba": ", ".join(media_nba) if media_nba else "",
@@ -371,23 +393,61 @@ def immagine(d: dict) -> bytes:
 
 # ── comando ────────────────────────────────────────────────────────────────────
 
-async def _manda(msg, s: str, n: int, casa: str, trasferta: str):
+async def _manda(msg, s: str, n: int, casa: str, trasferta: str, turno: int | None = None):
     import asyncio
-    d = await asyncio.to_thread(dati, s, n, casa, trasferta)
+    d = await asyncio.to_thread(dati, s, n, casa, trasferta, None, turno)
     png = await asyncio.to_thread(immagine, d)
     sq = d["squadre"]
     did = f"{e(sq[0]['nome'])} {sq[0]['punti']} – {sq[1]['punti']} {e(sq[1]['nome'])}"
-    await msg.reply_photo(png, caption=f"🏀 Giornata {n} · {did} · {d['stato']}", parse_mode="HTML")
+    testa = f"🏅 Quasi NBA Cup · {d['cup']['fase']} (Q{turno}, giornata {n})" if turno else f"🏀 Giornata {n}"
+    await msg.reply_photo(png, caption=f"{testa} · {did} · {d['stato']}", parse_mode="HTML")
+
+
+async def _partita_cup(update, s: str, t: int, args: list[str]):
+    """/partita Q1 [SQUADRA] (v7.9.1): la semifinale (Q2 la finale) della tua squadra o di SQUADRA; senza la tua
+    squadra in Cup, la prima del turno."""
+    import cup
+    from shared import quasi_cup as QC
+    msg = update.effective_message
+    motivo = cup.senza_squadre(s, t)
+    if motivo:
+        await msg.reply_text(motivo)
+        return
+    sq, _n, err = leggi_argomenti(args, config.squadre())
+    if err:
+        await msg.reply_text(f"❌ {err}")
+        return
+    coppie = QC.abbinamenti(s, t)
+    ids = [x["id"] for x in sq]
+    if not ids:
+        mia = config.squadra_del_gm(update.effective_user.id)
+        ids = [mia["id"]] if mia and any(mia["id"] in cp for cp in coppie) else []
+    scelta = next((cp for cp in coppie if all(i in cp for i in ids)), None) if ids else coppie[0]
+    if not scelta:
+        elenco = "; ".join(f"{config.nome(a)} – {config.nome(b)}" for a, b in coppie)
+        await msg.reply_text(f"{', '.join(config.nome(i) for i in ids)}: non nella Q{t} della Quasi NBA Cup. "
+                             f"Le partite: {elenco}.")
+        return
+    try:
+        await _manda(msg, s, cup.giornata_turno(s, t)["numero"], scelta[0], scelta[1], turno=t)
+    except Exception as err:
+        logger.warning("/partita Q%s: %s", t, err)
+        await msg.reply_text(f"❌ Non riesco a preparare la partita: {e(str(err))[:200]}", parse_mode="HTML")
 
 
 async def cmd_partita(update, context):
     from telegram import InlineKeyboardButton as B, InlineKeyboardMarkup as K
     msg = update.effective_message
     s = config.stagione()
-    sq, n, err = leggi_argomenti(list(context.args or []), config.squadre())
+    import cup
+    turno, args = cup.leggi_turno(context.args)
+    if turno:
+        await _partita_cup(update, s, turno, args)
+        return
+    sq, n, err = leggi_argomenti(args, config.squadre())
     if err:
         await msg.reply_text(f"❌ {err}\nUso: /partita [SQUADRA] [GN] oppure /partita SQUADRA SQUADRA "
-                             "(es. /partita Alfa G3, /partita Alfa - Beta)")
+                             "(es. /partita Alfa G3, /partita Alfa - Beta; Quasi NBA Cup: /partita Q1, /partita Q2)")
         return
     if not sq:
         mia = config.squadra_del_gm(update.effective_user.id)

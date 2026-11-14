@@ -59,6 +59,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("confronto", "Due giocatori a confronto nella stagione: A vs B"),
         BotCommand("confronto_carriera", "Due carriere a confronto, anche storiche: A vs B"),
         BotCommand("giocatori",  "Cerca tra i giocatori: ruolo, squadra, FA, top per media… [filtri] (aiuto)"),
+        BotCommand("quasi_cup",  "La Quasi NBA Cup: qualificazione e tabellone (immagine)"),
         BotCommand("watch",      "Segui un giocatore: avvisi e report della notte (watchlist)"),
         BotCommand("unwatch",    "Smetti di seguire un giocatore"),
         BotCommand("watchlist",  "I giocatori che segui [filtri di /giocatori]"),

@@ -83,16 +83,21 @@ def unisci(pagine: list[bytes]) -> list[bytes]:
         parti += 1
 
 
-def pdf_giornata(s: str, n: int, ora: datetime | None = None) -> list[bytes]:
+def pdf_giornata(s: str, n: int, ora: datetime | None = None, turno: int | None = None) -> list[bytes]:
+    """Con `turno` (v7.9.1) le partite della Quasi NBA Cup della giornata n (/pdf_giornata Q1)."""
     g = db.giornata(s, n)
     if not g:
         raise ValueError(f"la giornata {n} non c'è")
     ora = ora or datetime.now(timezone.utc)
-    dd = [PA.dati(s, n, p["casa"], p["trasferta"], ora) for p in db.partite_giornata(s, n)]
+    if turno:
+        from shared import quasi_cup as QC
+        dd = [PA.dati(s, n, a, b, ora, turno) for a, b in QC.abbinamenti(s, turno)]
+    else:
+        dd = [PA.dati(s, n, p["casa"], p["trasferta"], ora) for p in db.partite_giornata(s, n)]
     if not dd:
-        raise ValueError(f"nella giornata {n} non ci sono partite")
+        raise ValueError(f"nella {'Q' + str(turno) if turno else 'giornata ' + str(n)} non ci sono partite")
     import live
-    tab = live.dati_tabellone(s, g, ora)
+    tab = live.dati_tabellone(s, g, ora, turno)
     return unisci(([prima_pagina(tab)] if tab else []) + [pagina(x) for x in dd])
 
 
@@ -119,8 +124,18 @@ async def _manda(msg, pdfs: list[bytes], nome: str, didascalia: str) -> None:
 async def cmd_pdf_giornata(update, context):
     msg = update.effective_message
     s = config.stagione()
-    arg = next((a.lstrip("Gg") for a in (context.args or []) if a.lstrip("Gg").isdigit()), None)
-    g = db.giornata(s, int(arg)) if arg else PA.giornata_di_default(s)
+    import cup
+    turno, _resto = cup.leggi_turno(context.args)       # v7.9.1: /pdf_giornata Q1, Q2 (Quasi NBA Cup)
+    if turno:
+        motivo = cup.senza_squadre(s, turno)
+        if motivo:
+            await msg.reply_text(motivo)
+            return
+        g = cup.giornata_turno(s, turno)
+        arg = None
+    else:
+        arg = next((a.lstrip("Gg") for a in (context.args or []) if a.lstrip("Gg").isdigit()), None)
+        g = db.giornata(s, int(arg)) if arg else PA.giornata_di_default(s)
     if not g:
         await msg.reply_text("Nessuna giornata da mostrare." if not arg else f"La giornata {arg} non c'è.")
         return
@@ -129,9 +144,14 @@ async def cmd_pdf_giornata(update, context):
         return
     _IN_CORSO["si"] = True
     try:
-        await msg.reply_text(f"⏳ Preparo il PDF della giornata {g['numero']}: ci vuole qualche secondo…")
-        pdfs = await asyncio.to_thread(pdf_giornata, s, g["numero"])
-        await _manda(msg, pdfs, f"giornata_{g['numero']}", f"📄 Giornata {g['numero']}: risultati e le partite")
+        if turno:
+            await msg.reply_text(f"⏳ Preparo il PDF della Q{turno} della Quasi NBA Cup: ci vuole qualche secondo…")
+            pdfs = await asyncio.to_thread(pdf_giornata, s, g["numero"], None, turno)
+            await _manda(msg, pdfs, f"quasi_cup_Q{turno}", f"📄 Quasi NBA Cup · Q{turno} (giornata {g['numero']}): risultati e le partite")
+        else:
+            await msg.reply_text(f"⏳ Preparo il PDF della giornata {g['numero']}: ci vuole qualche secondo…")
+            pdfs = await asyncio.to_thread(pdf_giornata, s, g["numero"])
+            await _manda(msg, pdfs, f"giornata_{g['numero']}", f"📄 Giornata {g['numero']}: risultati e le partite")
     except Exception as err:
         logger.exception("PDF giornata")
         await msg.reply_text(f"❌ PDF non riuscito: {e(str(err))[:200]}")

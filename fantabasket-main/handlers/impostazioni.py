@@ -71,6 +71,12 @@ GRUPPI = [
         ("scarto_minimo", "Scarto per vincere senza supplementari", "num", 0, 50, "punti"),
         ("giocatori_panchina", "Giocatori in panchina (= supplementari)", "int", 1, 10, ""),
     ]),
+    ("cup", "🏅 Quasi NBA Cup", [
+        ("cup_inizio_giorno", "Qualificazione: dal giorno", "int", 1, 31, ""),
+        ("cup_inizio_mese", "Qualificazione: dal mese", "int", 1, 12, ""),
+        ("cup_fine_giorno", "Qualificazione: fino al giorno", "int", 1, 31, ""),
+        ("cup_fine_mese", "Qualificazione: fino al mese", "int", 1, 12, ""),
+    ]),
     ("fp", "🧮 Fantapunti", [
         (f"pesi_fantapunti.{k}", n, "num", -20, 20, "")
         for k, n in [("pts", "Punto"), ("ast", "Assist"), ("oreb", "Rimbalzo offensivo"), ("dreb", "Rimbalzo difensivo"),
@@ -98,7 +104,9 @@ GRUPPI = [
 TABELLE = {"rookie_scale": "Rookie scale", "tabella_minimo_contratto": "Minimi dei contratti per fantapunti"}
 NOTE = {"fp": "Dopo un cambio dei pesi: /dev_ricalcola_fp su loucabot per ricalcolare la stagione "
               "(le giornate convalidate restano come sono).",
-        "partita": "Valgono per i calcoli da adesso: le giornate convalidate restano come sono."}
+        "partita": "Valgono per i calcoli da adesso: le giornate convalidate restano come sono.",
+        "cup": "Nell'anno in cui inizia la stagione; conta anche la giornata a cavallo della fine. Semifinali e finale "
+               "sono le due giornate dopo. Una data impossibile (31/11) vale come il default (30/10 – 27/11)."}
 
 
 def e(x) -> str:

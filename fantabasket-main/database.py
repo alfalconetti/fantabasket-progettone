@@ -88,7 +88,7 @@ def migrate_db():
         "rookie_scala", "rookie_fine_scala", "creata"))
     _allinea_check("cambi_ruolo", (
         "iniziale", "ordinario", "erminio", "saedro", "forzato_admin",
-        "post_trade", "post_firma", "dpe_extra"))
+        "post_trade", "post_firma", "dpe_extra", "cup"))
     # v5.8.0 — fantamedia di bref_stats coi pesi dei fantapunti di settings.json (trigger)
     try:
         from shared import regole
@@ -242,6 +242,8 @@ def migrate_db():
     azioni.migra(_q)
     from shared import watchlist          # v7.8.0: la watchlist dei GM
     watchlist.crea(_q)
+    from shared import quasi_cup          # v7.9.0: Quasi NBA Cup (risultati di Q1/Q2: li scrive loucabot)
+    quasi_cup.crea(_q)
 
 
 # ── registro unico (v3.10.0) ──────────────────────────────────────────────────

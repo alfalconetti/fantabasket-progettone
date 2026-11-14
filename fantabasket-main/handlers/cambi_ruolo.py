@@ -15,6 +15,8 @@ Tipi (eventi cambi_ruolo):
                    (approvazione nel gruppo admin con l'elenco dei giocatori in quel ruolo),
                    l'admin può applicarlo direttamente. Ritorno automatico al ruolo originale.
 - forzato_admin  → solo admin, non conta nel contatore
+- cup            → v7.9.0: premio della Quasi NBA Cup (shared/quasi_cup.py), uno a stagione per la vincitrice,
+                   verso qualsiasi ruolo eleggibile, non conta nel contatore degli ordinari
 Vincoli 4G/4F/2C: bloccanti (passano i cambi che non peggiorano); per i cambi forzati
 dagli admin solo avviso. Annunci sul canale principale, sync roster di tutte le squadre.
 """
@@ -34,10 +36,10 @@ from shared import regole, ruoli_core as core
 logger = logging.getLogger(__name__)
 
 RUOLI = core.RUOLI
-TIPI = {"o": "ordinario", "e": "erminio", "s": "saedro", "f": "forzato_admin", "d": "dpe_extra"}
+TIPI = {"o": "ordinario", "e": "erminio", "s": "saedro", "f": "forzato_admin", "d": "dpe_extra", "c": "cup"}
 ETICHETTE = {"ordinario": "cambio ordinario", "erminio": "Erminio (ruolo aggiunto)",
              "saedro": "Saedro (10 day)", "forzato_admin": "forzato dagli admin",
-             "dpe_extra": "extra DPE post-deadline"}
+             "dpe_extra": "extra DPE post-deadline", "cup": "cambio Cup (premio della Quasi NBA Cup)"}
 
 
 # ══ dati ════════════════════════════════════════════════════════════════════
@@ -79,6 +81,24 @@ def dpe_extra(team_id: str) -> tuple[int, set[str]]:
         "SELECT ruolo FROM ruolo_attuale WHERE stagione = %s AND giocatore_id = ANY(%s)",
         (_stagione(), gids), many=True) or [] if r["ruolo"]}
     return max(0, len(gids) - usati), ruoli
+
+
+def cup_vinta(team_id: str) -> bool:
+    """La squadra ha vinto la Quasi NBA Cup di questa stagione (finale convalidata da loucabot)."""
+    from shared import quasi_cup
+    try:
+        return quasi_cup.campione(_stagione()) == team_id
+    except Exception as e:                           # tabelle di loucabot non ancora create: niente Cup
+        logger.info("Quasi Cup: %s", e)
+        return False
+
+
+def cup_disponibile(team_id: str) -> bool:
+    """Il cambio Cup (v7.9.0): uno a stagione, solo per la vincitrice della Quasi NBA Cup."""
+    if not cup_vinta(team_id):
+        return False
+    return not db._qval("SELECT count(*) FROM cambi_ruolo WHERE team_id = %s AND stagione = %s AND tipo = 'cup'",
+                        (team_id, _stagione()))
 
 
 def roster_ruoli(team_id: str) -> list[dict]:
@@ -140,6 +160,8 @@ def verifica(team_id: str, gid: int, nuovo: str, tipo: str, admin: bool) -> tupl
         errori.append(f"Erminio non applicabile: {nuovo} non è una posizione aggiunta negli ultimi {regole.giorni_erminio()} giorni.")
     if tipo == "saedro" and saedro_usata(team_id):
         errori.append("Saedro già usata in questa stagione.")
+    if tipo == "cup" and not cup_disponibile(team_id):
+        errori.append("Cambio Cup non disponibile: è della vincitrice della Quasi NBA Cup, uno a stagione.")
     if tipo == "forzato_admin" and not admin:
         errori.append("Solo gli admin possono forzare un cambio.")
     if tipo == "dpe_extra":
@@ -240,6 +262,8 @@ def _vista_team(team_id: str, admin: bool):
     rimasti_dpe, ruoli_dpe = dpe_extra(team_id)
     if rimasti_dpe:
         testo += f"\n🏥 Extra DPE: <b>{rimasti_dpe}</b> verso {', '.join(sorted(ruoli_dpe)) or '?'}"
+    if cup_vinta(team_id):
+        testo += f"\n🏅 Cambio Cup: <b>{'disponibile' if cup_disponibile(team_id) else 'usato'}</b>"
     testo += "\n\nScegli il giocatore:"
     kb = []
     for g in roster_ruoli(team_id):
@@ -324,7 +348,7 @@ async def cb_cambio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         g = next((x for x in roster_ruoli(team_id) if x["gid"] == gid), None)
         erminio = nuovo in ruoli_erminio(gid)
         rimasti_dpe, ruoli_dpe = dpe_extra(team_id)
-        tipi = ((["d"] if rimasti_dpe and nuovo in ruoli_dpe else [])
+        tipi = ((["c"] if cup_disponibile(team_id) else []) + (["d"] if rimasti_dpe and nuovo in ruoli_dpe else [])
                 + (["e", "s"] if erminio else ["o", "s"]) + (["f"] if admin_mode else []))
         righe, kb = [f"🔁 <b>{g['nome'] if g else gid}</b>: {g['ruolo'] if g else '?'} → <b>{nuovo}</b>\n"], []
         for k in tipi:
@@ -334,7 +358,8 @@ async def cb_cambio(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not errori:
                 label = {"o": f"Ordinario ({ordinari_usati(team_id)}/{regole.max_cambi_ordinari()})", "e": "✨ Erminio (ruolo aggiunto)",
                          "s": "⏳ Saedro (10 day)" + ("" if admin_mode else " — richiedi"), "f": "🛠 Forzato admin",
-                         "d": f"🏥 Extra DPE (gratuito, {rimasti_dpe} disponibil{'e' if rimasti_dpe == 1 else 'i'})"}[k]
+                         "d": f"🏥 Extra DPE (gratuito, {rimasti_dpe} disponibil{'e' if rimasti_dpe == 1 else 'i'})",
+                         "c": "🏅 Cambio Cup (premio, uno a stagione)"}[k]
                 passo = "cf" if k == "o" else "do"
                 kb.append([InlineKeyboardButton(label, callback_data=f"{p}:{passo}:{team_id}:{gid}:{nuovo}:{k}")])
         kb.append([InlineKeyboardButton("← Indietro", callback_data=f"{p}:g:{team_id}:{gid}")])

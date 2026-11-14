@@ -9,7 +9,8 @@ Calcolo definitivo di una giornata: dai quintetti congelati e dalle panchine di 
   supplementari, vincitore), più il riquadro dei risultati in cima. Deve dare gli stessi numeri del
   bot: lo verifica tests/louca/louca_risultati.py ricalcolando il foglio con LibreOffice.
 - salva_calcolo / convalida: lega_calcoli (la proposta da convalidare) e, alla convalida,
-  lega_risultati (quello che va sul foglio Calendario). Ogni versione resta in lega_calcoli_storico
+  lega_risultati (quello che va sul foglio Calendario); v7.9.0: anche le partite della Quasi Cup (c["cup"],
+  lega_calcoli.cup → lega_cup, cup.py). Ogni versione resta in lega_calcoli_storico
   (v6.9.0): /storico_calcolo N (testo_storico) mostra cosa è cambiato da un ricalcolo all'altro.
 """
 import json
@@ -493,10 +494,13 @@ def risultati_json(c: dict) -> list[dict]:
 def salva_calcolo(c: dict) -> int:
     """La proposta da convalidare (sostituisce la precedente). Restituisce la versione."""
     g = c["giornata"]
-    r = db.q("""INSERT INTO lega_calcoli (stagione, giornata, risultati, avvisi) VALUES (%s, %s, %s, %s)
+    cup = c.get("cup")                                   # v7.9.0: le partite della Quasi Cup della settimana (cup.py)
+    r = db.q("""INSERT INTO lega_calcoli (stagione, giornata, risultati, avvisi, cup) VALUES (%s, %s, %s, %s, %s)
                 ON CONFLICT (stagione, giornata) DO UPDATE SET risultati = EXCLUDED.risultati, avvisi = EXCLUDED.avvisi,
+                  cup = EXCLUDED.cup,
                   versione = lega_calcoli.versione + 1, calcolato = NOW(), stato = 'da_convalidare', messaggio = NULL
-                RETURNING versione, calcolato""", (c["stagione"], g["numero"], json.dumps(risultati_json(c)), json.dumps(c["avvisi"])),
+                RETURNING versione, calcolato""", (c["stagione"], g["numero"], json.dumps(risultati_json(c)), json.dumps(c["avvisi"]),
+                                                 json.dumps(cup, default=str) if cup else None),
              one=True)
     db.q("""INSERT INTO lega_calcoli_storico (stagione, giornata, versione, calcolato, risultati, avvisi) VALUES (%s,%s,%s,%s,%s,%s)
             ON CONFLICT (stagione, giornata, versione) DO UPDATE SET calcolato = EXCLUDED.calcolato, risultati = EXCLUDED.risultati,
@@ -549,6 +553,9 @@ def convalida(stagione: str, n: int, da: int) -> list[dict]:
                                  supp_casa, supp_trasferta, vince, convalidato) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())""",
                             (stagione, n, r["casa"], r["trasferta"], r["punti_casa"], r["punti_trasferta"],
                              r["supp_casa"], r["supp_trasferta"], r["vince"]))
+            import cup as _cup                          # v7.9.0: la Quasi Cup della settimana, con la stessa convalida
+            _c = lc.get("cup")
+            _cup.scrivi(cur, stagione, n, json.loads(_c) if isinstance(_c, str) else _c)
             cur.execute("UPDATE lega_calcoli SET stato = 'convalidata', convalidato = NOW(), convalidato_da = %s "
                         "WHERE stagione = %s AND giornata = %s", (da, stagione, n))
             cur.execute("UPDATE lega_calcoli_storico SET convalidato = NOW(), convalidato_da = %s "

@@ -349,6 +349,7 @@ Le scelte restano in bozza finché non premi **✅ Conferma**. Puoi anche confer
 - **Erminio.** Gratuito, quando Yahoo ha aggiunto quella posizione al giocatore negli ultimi 14 giorni (lo vedi segnato con ✨). Quando c'è, l'ordinario non viene proposto, così non lo sprechi.
 - **Saedro (10 giorni).** Cambio temporaneo, una volta a stagione, quando in un ruolo non hai nessuno disponibile. Lo approvano gli admin; dopo 10 giorni il giocatore torna da solo nel ruolo di prima.
 - **🏥 Extra DPE.** Gratuito, uno per ogni DPE approvata dopo la deadline, verso il ruolo dell'infortunato.
+- **🏅 Cambio Cup.** Il premio della Quasi NBA Cup (`/quasi_cup`): uno, per il resto della stagione, solo per la squadra che l'ha vinta, verso qualsiasi ruolo eleggibile. Non conta tra gli ordinari.
 
 Esempio: Yahoo ieri ha aggiunto "C" a un tuo PF. Apri `/cambio_ruolo`, scegli il giocatore e vedi l'opzione ✨ Erminio verso C, gratis.
 
@@ -382,6 +383,7 @@ Gli admin possono dare una penalità alla squadra (panchina in ritardo, formazio
 | chiudere un contratto (ritiro, altra lega, Cam Thomas) | `/decadimento` |
 | prendere un free agent per 10 giorni | `/firma_10day` |
 | dichiarare o cambiare ruoli | `/dichiarazione_ruoli`, `/cambio_ruolo` |
+| la Quasi NBA Cup: qualificazione e tabellone | `/quasi_cup` |
 | seguire dei giocatori, avvisi e report della notte | `/watch`, `/unwatch`, `/watchlist`, `/watch_soglia` |
 | vedere chi ha fatto cosa sulla mia squadra | `/registro` |
 | uscire da un'operazione bloccata | `/annulla` |

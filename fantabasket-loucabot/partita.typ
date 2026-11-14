@@ -54,6 +54,11 @@
       rotate(-22deg, text(50pt, weight: "bold", fill: rgb("#C0392B").transparentize(84%))[#_filigrana])) }
   })
 })
+// Quasi NBA Cup (v7.9.1, Luca 14/11): fascia giallo-arancio in cima con la fase (/partita Q1, /partita Q2)
+#if dati.at("cup", default: none) != none {
+  block(width: 100%, fill: gradient.linear(rgb("#FFD23F"), rgb("#FF9F1C"), angle: 0deg), inset: (x: 14pt, y: 7pt),
+    align(center, text(10pt, weight: "bold", fill: viola_scuro, tracking: 1pt)[🏅 QUASI NBA CUP · #upper(dati.cup.fase)]))
+}
 #if dati.at("striscia", default: "") != "" {
   block(width: 100%, fill: rgb("#C0392B"), inset: (x: 14pt, y: 6pt), align(center, text(9pt, weight: "bold", fill: white)[#dati.striscia]))
 }

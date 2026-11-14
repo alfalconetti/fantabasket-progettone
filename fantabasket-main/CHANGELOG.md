@@ -1954,3 +1954,12 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **Watchlist** (Luca, 13–14/11): ogni GM segue dei giocatori, in privato, senza limite e senza che gli altri lo sappiano. `/watch`, `/unwatch`, `/watchlist` (grafica di `/giocatori`), `/watch_soglia`; «👁 Segui» sotto `/player` in privato. Se il giocatore non gioca in NBA da più di una stagione `/watch` lo dice. Avvisi subito: asta aperta, movimenti, injury report solo le cose serie (Out, Doubtful, sospeso, e l'uscita), grande prestazione (default media +15 o 50 fantapunti, ognuno la sua soglia). Alle 9:30 il report della notte in immagine. `handlers/watchlist.py`, `shared/watchlist.py`, `shared/watchlist.typ`
 - **`/giocatori`** (loucabot v107, anche qui): `-` davanti nega un filtro, `|` (o «oppure») separa gruppi alternativi, filtro `watch` in privato
+
+## v7.9.0 (2026-11-14)
+
+- **Quasi NBA Cup** (Luca, 14/11; loucabot v108): la coppa d'inizio stagione. Qualificazione dal 30/10 al 27/11 (anche la giornata a cavallo) sul miglior punteggio di giornata, bonus casa compreso; passano le prime 4, a pari conta il secondo punteggio. Semifinali (Q1) e finale (Q2) nelle due giornate dopo, giocate come partite normali con le formazioni della giornata (in casa la meglio classificata, bonus casa, supplementari), convalidate insieme alla giornata. **`/quasi_cup`** (qui in privato, in loucabot ovunque): l'immagine con tabellone (finale al centro), qualificazione con i loghi, premio. Durante Q1 e Q2 un messaggio a parte sul canale principale che si aggiorna col live e resta alla convalida. `shared/quasi_cup.py`, `shared/quasi_cup.typ`
+- **Cambio ruolo Cup** (premio): un cambio in più, uno a stagione, solo per la vincitrice, in `/cambio_ruolo` come «🏅 Cambio Cup»; non conta tra gli ordinari. L'altro premio, la vittoria di ogni spareggio per il seed, va messo nel bot quando si faranno i playoff (MIGRATION)
+
+## v7.9.1 (2026-11-14)
+
+- **Quasi NBA Cup** (Luca, 14/11; loucabot v109): date della qualificazione in `/settings` (nuova sezione «🏅 Quasi NBA Cup»: giorno e mese di inizio e fine, default 30/10 – 27/11, ogni anno nell'anno della stagione). In loucabot Q1 e Q2 nei comandi come le giornate: `/partita Q1`, `/giornata Q1`, `/risultati Q1`, `/live Q1`, `/pdf_giornata Q1` (Q2 la finale)

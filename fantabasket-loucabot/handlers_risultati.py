@@ -69,11 +69,14 @@ async def esegui(bot, stagione: str, n: int, chi: str = "job delle 7:45", user=N
     """Calcola (o ricalcola) la giornata n, scrive il tab, manda la proposta. Restituisce l'esito."""
     from handlers import log
     c = R.calcola(stagione, n)
+    import cup as _cup                                   # v7.9.0: Quasi Cup (Q1/Q2) con le formazioni di questa giornata
+    c["cup"] = _cup.esiti(stagione, n, c["risultati"])
     vecchio = db.q("SELECT messaggio FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (stagione, n), one=True)
     versione = R.salva_calcolo(c)
     foglio = await R.scrivi_foglio(c)
     # giornata già convalidata (ricalcolo): cosa cambia rispetto ai risultati convalidati (Luca, 26/10)
-    testo = R.testo(c, versione) + R.testo_differenze(R.differenze(stagione, n, c["risultati"])) + f"\n\n<i>{e(foglio)}</i>"
+    testo = (R.testo(c, versione) + _cup.testo_admin(c["cup"]) + R.testo_differenze(R.differenze(stagione, n, c["risultati"]))
+             + f"\n\n<i>{e(foglio)}</i>")
     gruppo = config.gruppo_admin()
     if gruppo:
         if vecchio and vecchio["messaggio"]:
@@ -551,6 +554,14 @@ async def cb_risultati(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as err:
             logger.warning("Risultati definitivi sul canale G%s: %s", n, err)
             esito += f"; ⚠️ risultati definitivi non pubblicati sul canale ({str(err)[:120]})"
+        try:                                             # v7.9.0: Quasi Cup, il messaggio del turno diventa definitivo
+            import cup as _cup
+            _ec = await _cup.dopo_convalida(context.bot, s, n)
+            if _ec:
+                esito += "; " + _ec
+        except Exception as err:
+            logger.warning("Quasi Cup alla convalida G%s: %s", n, err)
+            esito += f"; ⚠️ Quasi Cup non aggiornata sul canale ({str(err)[:120]})"
         try:                                             # tanking parte 2, a consuntivo, al gruppo admin (v6.25.0)
             import tanking
             await tanking.manda_consuntivo(context.bot, s, n)

@@ -43,6 +43,11 @@ DEFAULT = {
     "max_tagli_gratuiti": 3,
     "giorni_10day": 10,
     "riduzione_dpe_percento": 25,       # arrotondata per eccesso
+    # Quasi NBA Cup (v7.9.1): la qualificazione, nell'anno in cui inizia la stagione (shared/quasi_cup.py)
+    "cup_inizio_giorno": 30,
+    "cup_inizio_mese": 10,
+    "cup_fine_giorno": 27,
+    "cup_fine_mese": 11,
 }
 
 _cache: dict = {"mtime": None, "dati": {}}
@@ -187,6 +192,22 @@ def max_tagli_gratuiti() -> int:
 
 def giorni_10day() -> int:
     return int(valore("giorni_10day"))
+
+
+def cup_qualificazione(anno: int):
+    """Inizio e fine della qualificazione della Quasi NBA Cup (date) nell'anno della stagione; una data impossibile
+    (31/11) o una fine prima dell'inizio → i default, con un avviso nel log."""
+    from datetime import date
+    try:
+        dal = date(anno, int(valore("cup_inizio_mese")), int(valore("cup_inizio_giorno")))
+        al = date(anno, int(valore("cup_fine_mese")), int(valore("cup_fine_giorno")))
+        if al < dal:
+            raise ValueError("fine prima dell'inizio")
+        return dal, al
+    except (ValueError, TypeError) as err:
+        _avvisa("settings.json: date della Quasi NBA Cup non valide (%s), uso i default", err)
+        d = DEFAULT
+        return (date(anno, d["cup_inizio_mese"], d["cup_inizio_giorno"]), date(anno, d["cup_fine_mese"], d["cup_fine_giorno"]))
 
 
 def riduzione_dpe() -> float:

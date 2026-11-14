@@ -40,10 +40,16 @@
   block(width: 100%, fill: rgb("#C0392B"), inset: (x: 14pt, y: 6pt), align(center, text(9pt, weight: "bold", fill: white)[#d.striscia]))
 }
 
+// Quasi NBA Cup (v7.9.1): /giornata Q1, /giornata Q2, prima pagina di /pdf_giornata Q1: la fascia della Cup in cima
+#if d.at("cup", default: "") != "" {
+  block(width: 100%, fill: gradient.linear(rgb("#FFD23F"), rgb("#FF9F1C"), angle: 0deg), inset: (x: 14pt, y: 7pt),
+    align(center, text(10pt, weight: "bold", fill: viola_scuro, tracking: 1pt)[🏅 QUASI NBA CUP · #upper(d.cup)]))
+}
+
 // ── testata ──
 #block(width: 100%, fill: gradient.linear(viola_scuro, viola, angle: 0deg), inset: (x: 14pt, y: 11pt))[
   #grid(columns: (1fr, auto), align: horizon,
-    [#text(15pt, weight: "bold", fill: white)[Giornata #d.n] #h(6pt) #if finale {
+    [#text(15pt, weight: "bold", fill: white)[#d.at("titolo", default: "Giornata " + str(d.n))] #h(6pt) #if finale {
        box(fill: rgb(d.colore_stato), radius: 3pt, inset: (x: 5pt, y: 2.5pt), text(8pt, weight: "bold", fill: white)[#d.etichetta])
      } else { box(fill: rosso, radius: 3pt, inset: (x: 5pt, y: 2.5pt), text(8pt, weight: "bold", fill: white)[● LIVE]) } \
      #v(3pt) #text(8.5pt, fill: white.transparentize(25%))[#d.date#if d.notte != "" [ · notte #d.notte]]],
@@ -109,7 +115,7 @@
 
 #let scheda(p) = box(width: 100%, fill: white, stroke: 0.7pt + bordo, radius: 7pt, clip: true)[
   #block(width: 100%, fill: lilla2, inset: (x: 8pt, y: 4pt))[
-    #text(6.5pt, weight: "bold", fill: grigio, tracking: 0.5pt)[PARTITA #p.k]
+    #text(6.5pt, weight: "bold", fill: grigio, tracking: 0.5pt)[#p.at("titolo", default: "PARTITA " + str(p.k))]
     #h(1fr)
     #if p.nota != "" { text(6.5pt, weight: "bold", fill: viola)[#p.nota] }
   ]

@@ -173,8 +173,13 @@ async def _mostra_giornata(update, g):
 
 
 async def cmd_risultati(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/risultati [N]: la giornata in testo (fino alla v6.22 era anche /giornata)."""
+    """/risultati [N]: la giornata in testo (fino alla v6.22 era anche /giornata). /risultati Q1, Q2: la Quasi NBA Cup."""
     s = config.stagione()
+    import cup
+    turno, _resto = cup.leggi_turno(context.args)
+    if turno:
+        await update.effective_message.reply_text(cup.testo_turno(s, turno), parse_mode="HTML")
+        return
     n = _numero(context.args)
     # senza numero come /partita: dopo la convalida resta quella appena finita fino alle 16 del primo giorno della nuova
     g = db.giornata(s, n) if n else cal.da_mostrare(s)
@@ -190,6 +195,11 @@ async def cmd_giornata(update: Update, context: ContextTypes.DEFAULT_TYPE):
     import asyncio
     import live
     s = config.stagione()
+    import cup
+    turno, _resto = cup.leggi_turno(context.args)
+    if turno:                                         # v7.9.1: /giornata Q1, Q2 (Quasi NBA Cup)
+        await _giornata_cup(update, s, turno)
+        return
     n = _numero(context.args)
     g = db.giornata(s, n) if n else cal.da_mostrare(s)
     if not g:
@@ -207,6 +217,26 @@ async def cmd_giornata(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.effective_message.reply_photo(png, caption=f"🏀 Giornata {g['numero']} · il testo con /risultati {g['numero']}",
                                                **live.TEMPI)
+
+
+async def _giornata_cup(update, s: str, t: int):
+    import asyncio
+    import cup
+    import live
+    msg = update.effective_message
+    g = cup.giornata_turno(s, t)
+    d = None
+    if g and not cup.senza_squadre(s, t):
+        try:
+            d = await asyncio.to_thread(live.dati_tabellone, s, g, None, t)
+        except Exception:
+            logging.getLogger(__name__).exception("/giornata Q%s: immagine non riuscita", t)
+    if d is None:                                     # non ancora iniziata (o senza squadre): il testo
+        await msg.reply_text(cup.testo_turno(s, t), parse_mode="HTML")
+        return
+    png = await asyncio.to_thread(live.immagine, d)
+    await msg.reply_photo(png, caption=f"🏅 Quasi NBA Cup · Q{t} (giornata {g['numero']}) · "
+                                       f"il testo con /risultati Q{t}", **live.TEMPI)
 
 
 # ── admin ──────────────────────────────────────────────────────────────────────

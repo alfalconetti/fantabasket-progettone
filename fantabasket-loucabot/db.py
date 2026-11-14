@@ -146,6 +146,10 @@ def migra():
     q("""INSERT INTO lega_calcoli_storico (stagione, giornata, versione, calcolato, risultati, avvisi, convalidato, convalidato_da)
          SELECT stagione, giornata, versione, calcolato, risultati, avvisi, convalidato, convalidato_da FROM lega_calcoli
          ON CONFLICT DO NOTHING""")                     # le versioni di adesso, la prima volta
+    # v7.9.0: Quasi NBA Cup: i risultati di Q1/Q2 calcolati con la giornata G della stessa settimana (cup.py)
+    q("ALTER TABLE lega_calcoli ADD COLUMN IF NOT EXISTS cup JSONB")
+    from shared import quasi_cup as _qc
+    _qc.crea(q)
     q("""CREATE TABLE IF NOT EXISTS lega_status_validi (
             stagione   TEXT NOT NULL,
             giornata   INT  NOT NULL,

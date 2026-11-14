@@ -606,22 +606,46 @@ def dati_immagine(c: dict, ora: datetime) -> dict:
             "bonus": f"{c['bonus']:g}"}
 
 
-def dati_tabellone(s: str, g: dict, ora: datetime | None = None) -> dict | None:
+def dati_tabellone(s: str, g: dict, ora: datetime | None = None, turno: int | None = None) -> dict | None:
     """Il tabellone di /giornata e della prima pagina di /pdf_giornata (v6.23.0, Luca 04/11): come il live (stesso
     template), ma a giornata calcolata o convalidata in «modo finale» coi risultati (convalidati: quelli salvati in
-    lega_risultati); a giornata in corso e non calcolata, il live. None se la giornata non è iniziata."""
+    lega_risultati); a giornata in corso e non calcolata, il live. None se la giornata non è iniziata.
+    Con `turno` (v7.9.1) le partite della Quasi NBA Cup della giornata (/giornata Q1): risultati da lega_cup."""
+    d = _dati_tabellone(s, g, ora, turno)
+    if d is not None and turno:
+        from shared import quasi_cup as QC
+        d.update({"titolo": f"Q{turno} · Giornata {g['numero']}", "cup": QC.TURNI[turno]})
+        for p in d["partite"]:
+            p["titolo"] = "FINALE" if turno == 2 else f"SEMIFINALE {p['k']}"
+    return d
+
+
+def _dati_tabellone(s: str, g: dict, ora: datetime | None, turno: int | None) -> dict | None:
     ora = ora or datetime.now(timezone.utc)
     n = g["numero"]
     r = db.q("SELECT stato, calcolato FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (s, n), one=True)
+    if turno:
+        import cup
+        st_c = cup.stato_turno(s, turno, n)
+        r = {"stato": st_c, "calcolato": (r or {}).get("calcolato")} if st_c else None
     if not r and not (g.get("prima_partita") and g["prima_partita"] <= ora):
         return None
     c = calcolo(s, n)
+    if turno:
+        c = {**c, "risultati": cup.completi(s, n, c["risultati"], anche_provvisori=True)}
     if not r:
-        st = stato(s, n) or {}
+        if turno:
+            from shared import quasi_cup as QC
+            st = QC.live(s, turno) or {}
+        else:
+            st = stato(s, n) or {}
         return dati_immagine(c, st.get("aggiornato") or ora)
     convalidata = r["stato"] == "convalidata"
-    salvati = {x["casa"]: x for x in (db.q("""SELECT * FROM lega_risultati WHERE stagione = %s AND giornata = %s
-                                               AND convalidato IS NOT NULL""", (s, n), many=True) or [])} if convalidata else {}
+    if turno:
+        salvati = cup.salvati(s, turno) if convalidata else {}
+    else:
+        salvati = {x["casa"]: x for x in (db.q("""SELECT * FROM lega_risultati WHERE stagione = %s AND giornata = %s
+                                                   AND convalidato IS NOT NULL""", (s, n), many=True) or [])} if convalidata else {}
     out = []
     for k, x in enumerate(c["risultati"], 1):
         sv = salvati.get(x["casa"])
@@ -757,6 +781,12 @@ async def aggiorna(bot, g: dict, d: date | None, ora: datetime, controllo: bool 
         m = await bot.send_photo(chat_id=canale, photo=png, caption=cap, parse_mode="HTML", **TEMPI)
         _salva(s, n, chat_id=canale, message_id=m.message_id)
     _salva(s, n, aggiornato=ora, prossimo=None)
+    try:                                                 # v7.9.0: la Quasi Cup, nello stesso giro (messaggio a parte)
+        import cup as _cup
+        c["cup"] = _cup.esiti(s, n, c["risultati"])
+        await _cup.aggiorna_live(bot, s, n, c, ora)
+    except Exception as err:                             # mai far saltare il live della giornata
+        logger.warning("Quasi Cup live G%s: %s", n, err)
     return " · ".join(f"{config.nome(r['casa'])} {tp(r['punti_casa'])}–{tp(r['punti_trasferta'])} {config.nome(r['trasferta'])}"
                       for r in c["risultati"])
 
@@ -970,6 +1000,12 @@ async def cmd_live_img(update, context):
     import asyncio
     msg = update.effective_message
     s = config.stagione()
+    import cup
+    turno, _resto = cup.leggi_turno(context.args)
+    if turno:                                         # v7.9.1: /live Q1, Q2: l'immagine della Quasi NBA Cup
+        from shared import quasi_cup as QC
+        await QC.cmd_quasi_cup(update, context)
+        return
     n = next((int(x.lstrip("Gg")) for x in (context.args or []) if x.lstrip("Gg").isdigit()), None)
     g = giornata_live(s, n)
     if not g:

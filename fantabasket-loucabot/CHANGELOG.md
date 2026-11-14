@@ -523,3 +523,12 @@ Il calcolo dei fantapunti.
 
 - **`/giocatori`**: negazioni (`-C`, `-nba:LAL`, `-firmati`), gruppi alternativi con `|` o «oppure» (`C fa | PF diritti`), filtro `watch` (la watchlist del bot principale, solo in privato)
 - `/player`: gancio `bottoni_di` per i bottoni sotto l'immagine (il bot principale ci mette «👁 Segui»)
+
+## v108 (2026-11-14, progettone v7.9.0)
+
+- **Quasi NBA Cup**: `cup.py` (esiti di Q1 e Q2 dai punteggi di squadra della giornata, nella proposta agli admin, salvati con la convalida in `lega_cup`), messaggio della Cup sul canale aggiornato nello stesso giro del live e definitivo alla convalida (dopo la finale anche il messaggio della vincitrice), `/quasi_cup`. Dati e immagine in `shared/quasi_cup.py`
+
+## v109 (2026-11-14, progettone v7.9.1)
+
+- **Quasi NBA Cup, Q1 e Q2 come le giornate**: `/partita Q1` (la tua semifinale, o `/partita Alfa Q1`; Q2 la finale), con la fascia della Cup, il piazzamento in qualificazione sotto i loghi, avversario e bonus casa della Cup; `/giornata Q1` (tabellone delle semifinali), `/risultati Q1`, `/live Q1` (l'immagine della Cup), `/pdf_giornata Q1`. Prima della fine della qualificazione le semifinali sono «se finisse oggi»
+- Date della qualificazione da `settings.json` (`/settings` nel bot principale)
