@@ -1,0 +1,314 @@
+{
+ "anno": "2026-27",
+ "fase": "Primo turno · gara 4 in corso (P4 = G42) · aggiornato alle 01:42",
+ "adesso": "Primo turno",
+ "ovest": {
+  "nome": "Conference Ovest",
+  "t1": {
+   "nome": "Los Tizi",
+   "sigla": "LO",
+   "colore": "#7A1F2B",
+   "logo": "",
+   "seed": "1"
+  },
+  "t2": {
+   "nome": "Caio Ballers",
+   "sigla": "CA",
+   "colore": "#1F6E43",
+   "logo": "",
+   "seed": "2"
+  },
+  "r1": [
+   {
+    "a": {
+     "nome": "Pippo United",
+     "sigla": "PI",
+     "colore": "#E65100",
+     "logo": "",
+     "seed": "4"
+    },
+    "b": {
+     "nome": "Mevio Team",
+     "sigla": "ME",
+     "colore": "#4A148C",
+     "logo": "",
+     "seed": "5"
+    },
+    "va": 2,
+    "vb": 1,
+    "nota": "gara 4 · P4 · 18/04–20/04",
+    "live": true,
+    "gare": [
+     {
+      "n": 1,
+      "p": "P1",
+      "casa": "in casa Pippo",
+      "pa": "512,50",
+      "pb": "498,00",
+      "v": "a"
+     },
+     {
+      "n": 2,
+      "p": "P2",
+      "casa": "in casa Mevio",
+      "pa": "470,25",
+      "pb": "488,00",
+      "v": "b"
+     },
+     {
+      "n": 3,
+      "p": "P3",
+      "casa": "in casa Pippo",
+      "pa": "530,00",
+      "pb": "501,50",
+      "v": "a"
+     },
+     {
+      "n": 4,
+      "p": "P4",
+      "casa": "in corso",
+      "pa": "301,50",
+      "pb": "288,00",
+      "v": ""
+     }
+    ]
+   },
+   {
+    "a": {
+     "nome": "Sempronio BC",
+     "sigla": "SE",
+     "colore": "#1A237E",
+     "logo": "",
+     "seed": "3"
+    },
+    "b": {
+     "nome": "Gamma",
+     "sigla": "GA",
+     "colore": "#006064",
+     "logo": "",
+     "seed": "6"
+    },
+    "va": 3,
+    "vb": 0,
+    "nota": "finita 3-0",
+    "fine": true,
+    "gare": [
+     {
+      "n": 1,
+      "p": "P1",
+      "casa": "in casa Sempronio",
+      "pa": "540,00",
+      "pb": "470,00",
+      "v": "a"
+     },
+     {
+      "n": 2,
+      "p": "P2",
+      "casa": "in casa Gamma",
+      "pa": "505,25",
+      "pb": "499,00",
+      "v": "a"
+     },
+     {
+      "n": 3,
+      "p": "P3",
+      "casa": "in casa Sempronio",
+      "pa": "520,00",
+      "pb": "480,50",
+      "v": "a"
+     }
+    ]
+   }
+  ],
+  "r2": [
+   {
+    "tipo": "attesa",
+    "a": "1 · Los Tizi",
+    "b": "vincente 4 – 5",
+    "nota": "semifinale · da P6"
+   },
+   {
+    "tipo": "serie",
+    "titolo": "2 – 3",
+    "a": {
+     "nome": "Caio Ballers",
+     "sigla": "CA",
+     "colore": "#1F6E43",
+     "logo": "",
+     "seed": "2"
+    },
+    "b": {
+     "nome": "Sempronio BC",
+     "sigla": "SE",
+     "colore": "#1A237E",
+     "logo": "",
+     "seed": "3"
+    },
+    "va": 0,
+    "vb": 0,
+    "nota": "da P6 · in casa Caio Ballers"
+   }
+  ],
+  "r3": {
+   "tipo": "attesa",
+   "a": "vincente semifinale 1",
+   "b": "vincente semifinale 2",
+   "nota": "finale di conference"
+  }
+ },
+ "est": {
+  "nome": "Conference Est",
+  "t1": {
+   "nome": "Delta Force",
+   "sigla": "DE",
+   "colore": "#880E4F",
+   "logo": "",
+   "seed": "1"
+  },
+  "t2": {
+   "nome": "Omega",
+   "sigla": "OM",
+   "colore": "#33691E",
+   "logo": "",
+   "seed": "2"
+  },
+  "r1": [
+   {
+    "a": {
+     "nome": "Theta",
+     "sigla": "TH",
+     "colore": "#BF360C",
+     "logo": "",
+     "seed": "4"
+    },
+    "b": {
+     "nome": "Kappa Five",
+     "sigla": "KA",
+     "colore": "#37474F",
+     "logo": "",
+     "seed": "5"
+    },
+    "va": 2,
+    "vb": 1,
+    "nota": "gara 4 · P4 · 18/04–20/04",
+    "live": true,
+    "gare": [
+     {
+      "n": 1,
+      "p": "P1",
+      "casa": "in casa Theta",
+      "pa": "512,50",
+      "pb": "498,00",
+      "v": "a"
+     },
+     {
+      "n": 2,
+      "p": "P2",
+      "casa": "in casa Kappa",
+      "pa": "470,25",
+      "pb": "488,00",
+      "v": "b"
+     },
+     {
+      "n": 3,
+      "p": "P3",
+      "casa": "in casa Theta",
+      "pa": "530,00",
+      "pb": "501,50",
+      "v": "a"
+     },
+     {
+      "n": 4,
+      "p": "P4",
+      "casa": "in corso",
+      "pa": "301,50",
+      "pb": "288,00",
+      "v": ""
+     }
+    ]
+   },
+   {
+    "a": {
+     "nome": "Zeta Club",
+     "sigla": "ZE",
+     "colore": "#0D47A1",
+     "logo": "",
+     "seed": "3"
+    },
+    "b": {
+     "nome": "Lambda",
+     "sigla": "LA",
+     "colore": "#827717",
+     "logo": "",
+     "seed": "6"
+    },
+    "va": 3,
+    "vb": 0,
+    "nota": "finita 3-0",
+    "fine": true,
+    "gare": [
+     {
+      "n": 1,
+      "p": "P1",
+      "casa": "in casa Zeta",
+      "pa": "540,00",
+      "pb": "470,00",
+      "v": "a"
+     },
+     {
+      "n": 2,
+      "p": "P2",
+      "casa": "in casa Lambda",
+      "pa": "505,25",
+      "pb": "499,00",
+      "v": "a"
+     },
+     {
+      "n": 3,
+      "p": "P3",
+      "casa": "in casa Zeta",
+      "pa": "520,00",
+      "pb": "480,50",
+      "v": "a"
+     }
+    ]
+   }
+  ],
+  "r2": [
+   {
+    "tipo": "attesa",
+    "a": "1 · Delta Force",
+    "b": "vincente 4 – 5",
+    "nota": "semifinale · da P6"
+   },
+   {
+    "tipo": "serie",
+    "titolo": "2 – 3",
+    "a": {
+     "nome": "Omega",
+     "sigla": "OM",
+     "colore": "#33691E",
+     "logo": "",
+     "seed": "2"
+    },
+    "b": {
+     "nome": "Zeta Club",
+     "sigla": "ZE",
+     "colore": "#0D47A1",
+     "logo": "",
+     "seed": "3"
+    },
+    "va": 0,
+    "vb": 0,
+    "nota": "da P6 · in casa Omega"
+   }
+  ],
+  "r3": {
+   "tipo": "attesa",
+   "a": "vincente semifinale 1",
+   "b": "vincente semifinale 2",
+   "nota": "finale di conference"
+  }
+ },
+ "finale_da": "16"
+}

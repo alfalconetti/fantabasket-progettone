@@ -29,3 +29,7 @@
 ## v5 (2026-11-13, progettone v7.7.0)
 
 - `/player` di loucabot è un'immagine: col sistema attivo la stagione col sistema arriva sotto in testo (`motore._extra_player` al posto di `player.extra`); i bottoni «Quale?» mandano sempre l'immagine
+
+## v6 (2026-11-14, progettone v7.9.4)
+
+- `motore._ordina` accetta la vincitrice della Quasi NBA Cup che la classifica di loucabot passa dalla v7.9.4: vale solo per l'Ufficiale, non per i sistemi

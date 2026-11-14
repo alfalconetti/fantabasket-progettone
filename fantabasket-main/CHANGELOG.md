@@ -1972,3 +1972,19 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.9.3 (2026-11-14)
 
 - **Live alla convalida** (Luca, 14/11; loucabot v111): il messaggio del live sul canale non si cancella più; diventa il tabellone della giornata convalidata (lo stesso di `/giornata`) con «✅ Giornata N · convalidata da … il …» nella didascalia. A ogni nuova convalida si rifà. Il messaggio dei risultati definitivi resta com'era
+
+## v7.9.4 (2026-11-14)
+
+- **Classifica e Quasi NBA Cup** (Luca, 14/11; loucabot v112): a pari vittorie e sconfitte la vincitrice della Cup passa davanti, prima degli scontri diretti; un 🏆 accanto al nome solo quando lo spareggio è servito (e la regola nella nota in fondo). Vale per `/classifica`, `/classifica_full`, `/classifica_conference` e quindi per il seed dei playoff
+
+## v7.9.5 (2026-11-14)
+
+- **Playoff, primo pezzo** (Luca, 14/11; loucabot v113): `/importa_playoff` (admin, CSV `giornata,giorno1,giorno2,giorno3` con le squadre a media facoltative in fondo) per le date di fino a 22 giornate P, coi controlli e il riepilogo (prima partita, squadre a media calcolate e confrontate col file); `/calendario_playoff`. Le giornate P entrano in calendario col passaggio ai playoff (prossimi passi)
+- **Codici G/P** (`shared/codici_giornata.py`): P1 = la giornata dopo l'ultima di regular season (quest'anno G39), sinonimi; senza lettera G in regular season e P nei playoff. In tutti i comandi con la giornata, anche `/calendario` qui
+- Il tabellone dei playoff approvato (`fantabasket-loucabot/playoff.typ`, con un esempio), non ancora collegato
+
+## v7.9.6 (2026-11-15)
+
+- **`/giocatori`, i FA con la regola della lista FA** (Luca, 15/11; loucabot v114): nella stagione in corso ci sono i FA che hanno giocato quest'anno o, fino allo switch del 70% dei firmati, la stagione prima; nessuno che non gioca da più di una stagione (`shared/lista_fa.py`)
+- Calendario dei playoff: corretto il testo del riepilogo, i nostri playoff si giocano nella parte finale della regular season NBA, non durante i playoff NBA
+- MIGRATION: classifica casa/trasferta, controllo delle funzioni per fase, scenari di fine regular season

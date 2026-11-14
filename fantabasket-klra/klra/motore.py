@@ -329,11 +329,12 @@ def nome_contesto(sist: dict) -> str:
     return sist["nome"] + (f" · conference {c['nome']}" if c else "")
 
 
-def _ordina(st):
-    """classifica.ordina di loucabot: col sistema, l'ordine della classifica del sistema (a punti, pareggi)."""
+def _ordina(st, campione=None):
+    """classifica.ordina di loucabot: col sistema, l'ordine della classifica del sistema (a punti, pareggi); lo spareggio
+    della Quasi Cup (`campione`, v7.9.4) vale solo fuori dai sistemi."""
     P, righe = _ATTIVO.get(), _RIS.get()
     if P is None or righe is None:
-        return _orig["ordina"](st)
+        return _orig["ordina"](st, campione)
     ordine = [r["team"] for r in tabella(json.loads(righe), P)]
     return [t for t in ordine if t in st] + [t for t in st if t not in ordine]
 

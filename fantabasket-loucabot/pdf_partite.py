@@ -134,8 +134,9 @@ async def cmd_pdf_giornata(update, context):
         g = cup.giornata_turno(s, turno)
         arg = None
     else:
-        arg = next((a.lstrip("Gg") for a in (context.args or []) if a.lstrip("Gg").isdigit()), None)
-        g = db.giornata(s, int(arg)) if arg else PA.giornata_di_default(s)
+        from shared import codici_giornata as CG
+        arg = next((CG.numero(a) for a in (context.args or []) if CG.numero(a) is not None), None)
+        g = db.giornata(s, arg) if arg else PA.giornata_di_default(s)
     if not g:
         await msg.reply_text("Nessuna giornata da mostrare." if not arg else f"La giornata {arg} non c'è.")
         return

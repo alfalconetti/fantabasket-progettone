@@ -20,6 +20,11 @@ ris = [r(1, "A", "B", 110, 100), r(1, "C", "D", 120, 90),
 st = C.base(ris, T)
 ok([st[t]["w"] for t in T] == [2, 2, 2, 0], "vittorie e sconfitte")
 ok(C.ordina(st) == ["A", "C", "B", "D"], f"tre a pari con avulsa 1-1 tra loro: poi media punti fatti {C.ordina(st)}")
+# v7.9.4 (Luca, 14/11): a pari record la vincitrice della Quasi NBA Cup va davanti, col 🏆 solo se è servito
+stc = C.base(ris, T)
+ok(C.ordina(stc, "B") == ["B", "C", "A", "D"] and stc["B"].get("cup_tb"), "Cup: a pari record la vincitrice davanti, segnata; le altre due con lo scontro diretto (C ha battuto A)")
+stc = C.base(ris, T)
+ok(C.ordina(stc, "D") == ["A", "C", "B", "D"] and not stc["D"].get("cup_tb"), "Cup: senza pari record niente spareggio, niente 🏆")
 # due a pari: vince lo scontro diretto anche con la media più bassa
 ris2 = ris + [r(4, "A", "D", 100, 200), r(4, "C", "B", 90, 120)]          # A e C 2-2 ... B 3-1
 st2 = C.base(ris2, T)

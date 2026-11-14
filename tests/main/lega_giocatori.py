@@ -220,6 +220,18 @@ ok([k for k, _ in out] == ["t"], "/giocatori: gli errori in testo")
 # nel bot principale solo in privato, nel menu in privato e non nei gruppi
 hs = {next(iter(h.commands)): h for h in LG.get_handlers() if hasattr(h, "commands")}
 ok("giocatori" in hs and "PRIVATE" in str(hs["giocatori"].filters).upper(), "bot principale: /giocatori solo in privato")
+# v7.9.6 (Luca, 15/11): i FA con la regola della lista FA: anche chi ha giocato la stagione prima (fino allo switch del
+# 70%), nessuno che non gioca da più di una stagione
+from shared import lista_fa as LF
+_prima = str(int(S))                                   # bref: la stagione prima di quella in corso (SB = S + 1)
+ok("Elenco Fa Mai Giocato" not in nomi("fa"), "FA senza partite nelle ultime due stagioni: fuori")
+db._q(f"INSERT INTO bref_stats (stagione, nome_bref, team, g, pts{z}) VALUES (%s, 'Elenco Fa Mai Giocato', 'LAL', 40, 30, 0,0,0,0,0,0,0,0,0,0,0)", (_prima,))
+_sw = LF.switch_fatto(db._q, S)
+ok(("Elenco Fa Mai Giocato" in nomi("fa")) == (not _sw),
+   f"FA che ha giocato la stagione prima: dentro prima dello switch (switch fatto: {_sw})")
+db._q("DELETE FROM bref_stats WHERE nome_bref = 'Elenco Fa Mai Giocato'")
+ok("Elenco Fa Mai Giocato" not in nomi("fa"), "e di nuovo fuori senza la riga")
+
 # v7.9.2 (Luca, 14/11): filtro rookie (solo i firmati col contratto rookie) e il draft in /player
 ok(nomi("rookie") == ["Elenco Jokić Accento"] and nomi("firmati -rookie") == ["Elenco Centro Firmato"]
    and "Elenco Ala Diritti" not in nomi("rookie"), "rookie: solo i firmati col contratto rookie; -rookie gli altri")

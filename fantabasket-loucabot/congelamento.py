@@ -234,8 +234,8 @@ async def _annuncia(bot, testo: str) -> None:
 
 
 def _numero(x: str) -> int | None:
-    m = re.fullmatch(r"[Gg]?(\d+)", x or "")
-    return int(m.group(1)) if m else None
+    from shared import codici_giornata as CG          # v7.9.5: anche P (P1 = la giornata dopo la regular season)
+    return CG.numero(x or "")
 
 
 async def _cambia(update: Update, context: ContextTypes.DEFAULT_TYPE, congela: bool):

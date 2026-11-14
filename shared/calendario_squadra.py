@@ -113,11 +113,12 @@ def testo_squadra(s: str, g: dict, team: dict, piede: str) -> str:
 
 
 def argomenti(args) -> tuple[int | None, str]:
-    """(numero di giornata, testo della squadra) da /calendario [N] [SQUADRA] (in qualsiasi ordine)."""
+    """(numero di giornata, testo della squadra) da /calendario [N] [SQUADRA] (in qualsiasi ordine); N anche G12, P3."""
+    from shared import codici_giornata as CG
     n, resto = None, []
     for a in args or []:
-        if n is None and a.isdigit():
-            n = int(a)
+        if n is None and CG.numero(a) is not None:
+            n = CG.numero(a)
         else:
             resto.append(a)
     return n, " ".join(resto).strip()

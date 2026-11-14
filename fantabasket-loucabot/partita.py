@@ -99,16 +99,16 @@ def sfide(s: str, a: str, b: str | None = None) -> list[dict]:
 
 
 def leggi_argomenti(args: list[str], squadre: list[dict]) -> tuple[list[dict], int | None, str | None]:
-    """(squadre trovate, giornata, errore). La giornata: «G5» o «5». Due squadre separate da «-»,
+    """(squadre trovate, giornata, errore). La giornata: «G5», «P3» o «5» (shared/codici_giornata.py). Due squadre separate da «-»,
     «vs», «,» oppure, se no, provando a dividere le parole in due nomi."""
     from shared.squadre import cerca_squadra
     import re
     n = None
     resto = []
     for a in args:
-        m = re.fullmatch(r"[Gg]?(\d{1,2})", a.strip())
-        if m and n is None:
-            n = int(m.group(1))
+        from shared import codici_giornata as CG     # v7.9.5: G, P (P1 = la giornata dopo la regular season)
+        if n is None and CG.e_codice(a) and CG.numero(a) is not None:
+            n = CG.numero(a)
         else:
             resto.append(a)
     testo = " ".join(resto).strip()

@@ -541,3 +541,18 @@ Il calcolo dei fantapunti.
 ## v111 (2026-11-14, progettone v7.9.3)
 
 - Alla convalida il live non si cancella: diventa il tabellone convalidato, con la convalida nella didascalia (`live.pubblica_definitivo`)
+
+## v112 (2026-11-14, progettone v7.9.4)
+
+- Classifica: la vincitrice della Quasi NBA Cup vince ogni spareggio a pari record, col 🏆 accanto al nome solo quando serve
+
+## v113 (2026-11-14, progettone v7.9.5)
+
+- `/importa_playoff` e `/calendario_playoff`: le date delle giornate dei playoff (`calendario_playoff.py`, tabella `lega_giornate_playoff`)
+- Codici G/P nei comandi con la giornata (P1 = la giornata dopo l'ultima di regular season)
+- `playoff.typ`: il tabellone approvato, ancora da collegare
+
+## v114 (2026-11-15, progettone v7.9.6)
+
+- `/giocatori`: i FA con la regola della lista FA (ultime due stagioni, fino allo switch)
+- `/calendario_playoff`: testo corretto (i nostri playoff sono nella parte finale della regular season NBA)

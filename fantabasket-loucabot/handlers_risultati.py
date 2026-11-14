@@ -434,11 +434,12 @@ async def cmd_ricalcola(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not config.is_admin(update.effective_user.id):
         await update.effective_message.reply_text("⛔ Solo admin.")
         return
-    if not context.args or not context.args[0].isdigit():
+    from shared import codici_giornata as CG          # v7.9.5: anche G12, P3
+    n = CG.numero(context.args[0]) if context.args else None
+    if n is None:
         await update.effective_message.reply_text("Uso: /ricalcola N (riscarica i tabellini della giornata N e ricalcola)")
         return
     from handlers import _chi
-    n = int(context.args[0])
     msg = update.effective_message
     await msg.reply_text(f"⏳ Ricalcolo la giornata {n}: riscarico i tabellini (un secondo a partita)…")
 
@@ -456,9 +457,10 @@ async def cmd_calcola(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     from handlers import _chi
     s = config.stagione()
-    arg = (context.args or [""])[0].lstrip("Gg")
-    if arg.isdigit():
-        n = int(arg)
+    from shared import codici_giornata as CG
+    _n = CG.numero((context.args or [""])[0])
+    if _n is not None:
+        n = _n
     else:
         da_fare = [g for g in db.giornate(s) if g["dal"] <= nba.oggi_et() and not _calcolata(s, g["numero"])]
         if not da_fare:
@@ -678,11 +680,13 @@ async def cmd_storico_calcolo(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not config.is_admin(update.effective_user.id):
         await update.effective_message.reply_text("⛔ Solo admin.")
         return
-    if not context.args or not context.args[0].lstrip("Gg").isdigit():
+    from shared import codici_giornata as CG
+    n = CG.numero(context.args[0]) if context.args else None
+    if n is None:
         await update.effective_message.reply_text("Uso: /storico_calcolo N (le versioni calcolate della giornata N)")
         return
     import live
-    t = R.testo_storico(config.stagione(), int(context.args[0].lstrip("Gg")))
+    t = R.testo_storico(config.stagione(), n)
     for pezzo in live._pezzi(t):
         await update.effective_message.reply_text(pezzo, parse_mode="HTML")
 

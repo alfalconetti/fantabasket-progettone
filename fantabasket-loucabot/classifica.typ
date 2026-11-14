@@ -55,7 +55,7 @@
 
 #let colonne = if full {
   (
-    ("#", r => [#r.pos]), ("", r => logo(r.logo)), ("Squadra", r => text(weight: "bold")[#r.nome]),
+    ("#", r => [#r.pos]), ("", r => logo(r.logo)), ("Squadra", r => [#text(weight: "bold")[#r.nome]#if r.at("cup", default: false) [ #box(baseline: 1.5pt, text(9pt)[🏆])]]),
     ("V", r => [#r.w]), ("S", r => [#r.l]), ("Punti\nfatti", r => col(r, "pf", [#r.pf])), ("Punti\nsubiti", r => col(r, "ps", [#r.ps])),
     ("Diff.", r => col(r, "diff", [#r.diff])), ("Media\npunti", r => col(r, "media", text(weight: "bold")[#r.media])), (dati.ult.replace(". ", ".\n"), r => col(r, "media_ult", [#r.media_ult])),
     ("Striscia", r => striscia(r.striscia)), ("Migliore\ndi giornata", r => col(r, "migliore", [#r.migliore])),
@@ -68,7 +68,7 @@
   )
 } else {
   (
-    ("#", r => [#r.pos]), ("", r => logo(r.logo)), ("Squadra", r => text(weight: "bold")[#r.nome]),
+    ("#", r => [#r.pos]), ("", r => logo(r.logo)), ("Squadra", r => [#text(weight: "bold")[#r.nome]#if r.at("cup", default: false) [ #box(baseline: 1.5pt, text(9pt)[🏆])]]),
     ("V", r => text(weight: "bold")[#r.w]), ("S", r => [#r.l]), ("PF", r => col(r, "pf", [#r.pf])), ("PS", r => col(r, "ps", [#r.ps])),
     ("Media", r => col(r, "media", [#r.media])), ("Striscia", r => striscia(r.striscia)),
   ) + if "sezioni" in dati { (("Gen.", r => text(fill: rgb("#5A6478"))[#r.gen]),) } else { () }
@@ -103,6 +103,6 @@
 #block(width: 100%, fill: c_head)[
   #pad(x: 12pt, y: 5pt)[
     #set par(justify: false)
-    #text(7pt, fill: white)[#text(fill: rgb("#7EE2A0"), weight: "bold")[verde] il migliore e #text(fill: rgb("#FF8A80"), weight: "bold")[rosso] il peggiore di ogni colonna · Punti col bonus casa · a parità di vittorie: scontri diretti (solo V/S), poi media punti, poi differenza#if "sezioni" in dati [ · ordine della classifica generale (Gen.), filtrato per conference]#if full [ · Record +/− subiti: volte in cui l'avversario ha fatto contro di te il suo massimo/minimo della stagione · roster di adesso, quintetto = il migliore possibile per fantapunti (uno per ruolo)]]
+    #text(7pt, fill: white)[#text(fill: rgb("#7EE2A0"), weight: "bold")[verde] il migliore e #text(fill: rgb("#FF8A80"), weight: "bold")[rosso] il peggiore di ogni colonna · Punti col bonus casa · a parità di vittorie: #if dati.at("cup", default: false) [prima la vincitrice della Quasi NBA Cup (🏆), poi ]scontri diretti (solo V/S), poi media punti, poi differenza#if "sezioni" in dati [ · ordine della classifica generale (Gen.), filtrato per conference]#if full [ · Record +/− subiti: volte in cui l'avversario ha fatto contro di te il suo massimo/minimo della stagione · roster di adesso, quintetto = il migliore possibile per fantapunti (uno per ruolo)]]
   ]
 ]

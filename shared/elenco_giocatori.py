@@ -15,7 +15,8 @@ Filtri, in qualsiasi ordine (`/giocatori aiuto` li elenca):
   tabellini ESPN (Basketball-Reference per chi non è abbinato a ESPN);
 - `top:N`, `min_g:N`, `costo:<10` / `costo:5-10`, `anni:1` / `anni:>=2`, `infortunati:no|si`,
   `ordina:media|costo|partite|ultime5|nome`.
-Senza `anno:` ci sono i firmati e i diritti sempre e i FA che hanno giocato; con `anno:` solo chi ha giocato quella
+Senza `anno:` ci sono i firmati e i diritti sempre e i FA con la regola della lista FA (v7.9.6: chi ha giocato
+nella stagione in corso o, fino allo switch del 70% dei firmati, in quella prima; shared/lista_fa.py); con `anno:` solo chi ha giocato quella
 stagione (il contratto è sempre quello di oggi). La risposta (v7.5.0, Luca 10/11): un'immagine sul viola di Yahoo
 come /partita (elenco_giocatori.typ, 25 giocatori con la foto ESPN), un album se sono di più (fino a 10 immagini),
 e sotto sempre il file .md con tutti.
@@ -307,6 +308,13 @@ def dati(anno: int, oggi: int) -> list[dict]:
         """SELECT DISTINCT ON (lower(nome_bref)) lower(nome_bref) AS n, fantamedia, g FROM bref_stats
            WHERE stagione = %s AND fantamedia IS NOT NULL ORDER BY lower(nome_bref), timestamp DESC, id DESC""",
         (str(anno + 1),))}
+    # v7.9.6 (Luca, 15/11): i FA come nella lista FA (shared/lista_fa.py): chi ha giocato nella stagione in corso o,
+    # prima dello switch del 70%, in quella prima; gli altri FA non ci sono
+    recenti = set()
+    if anno == oggi:
+        from shared import lista_fa as LF
+        recenti = {r["n"] for r in _q("SELECT DISTINCT lower(nome_bref) AS n FROM bref_stats WHERE stagione = ANY(%s)",
+                                      (list(LF.stagioni_valide(L.q, s)),))}
     espn = {}
     if anno == oggi:                        # la stagione in corso: i tabellini ESPN, come /player
         for r in _q("""SELECT t.atleta, t.fp, t.giocato, t.minuti FROM nba_tabellini t
@@ -320,7 +328,8 @@ def dati(anno: int, oggi: int) -> list[dict]:
         a, c = g["espn_id"], contr.get(g["id"])
         x = {"id": g["id"], "nome": g["nome_common"], "atleta": a, "nba": nba.get(a) if a else None, "pos": pos.get(g["id"], []),
              "inf": inf.get(a) if a else None, "contratto": c, "diritti": None if c else dir_.get(g["id"]),
-             "media": None, "g": 0, "ult5": None, "fonte": None}
+             "media": None, "g": 0, "ult5": None, "fonte": None,
+             "recente": bool(g.get("nome_bref") and g["nome_bref"].lower() in recenti)}
         if c:
             x["anni"] = int(c["anni_originali"]) - (oggi - int(c["stagione_firma"]))
         fp = espn.get(a) if a else None
@@ -344,8 +353,14 @@ def filtra(righe: list[dict], f: dict, oggi: int, seguiti: set | None = None) ->
     tutti_seguiti = usa_watch(f)
     for x in righe:
         if f["anno"] != oggi or stato(x) == "fa":
-            # chi non ha giocato: solo i firmati e i diritti, nella stagione in corso; e tutti quelli della watchlist
-            if x["media"] is None and not (tutti_seguiti and x["id"] in (seguiti or set())):
+            # chi non ha giocato: solo i firmati e i diritti, nella stagione in corso; e tutti quelli della watchlist.
+            # v7.9.6: i FA della stagione in corso come nella lista FA, cioè anche chi ha giocato la stagione prima
+            # (fino allo switch del 70%), ma nessuno che non gioca da più di una stagione
+            seguito = tutti_seguiti and x["id"] in (seguiti or set())
+            if f["anno"] == oggi and stato(x) == "fa":
+                if not (x.get("recente") or x["media"] is not None and x["fonte"] == "espn" or seguito):
+                    continue
+            elif x["media"] is None and not seguito:
                 continue
         if any(_passa(x, g, seguiti or set()) and not any(_passa(x, n, seguiti or set()) for n in g["neg"])
                for g in f.get("gruppi") or [f]):

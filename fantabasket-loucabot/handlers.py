@@ -43,10 +43,9 @@ def _esito_sync(r: dict) -> str:
 
 
 def _numero(args) -> int | None:
-    try:
-        return int(args[0]) if args else None
-    except ValueError:
-        return None
+    """La giornata dal primo argomento: «12», «G12», «P3» (v7.9.5, shared/codici_giornata.py)."""
+    from shared import codici_giornata as CG
+    return CG.numero(args[0]) if args else None
 
 
 _riga_giornata = CS.riga_giornata                 # v7.3.0: in shared/calendario_squadra.py (anche nel bot principale)

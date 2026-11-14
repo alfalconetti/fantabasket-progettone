@@ -1020,7 +1020,8 @@ async def cmd_live_img(update, context):
         from shared import quasi_cup as QC
         await QC.cmd_quasi_cup(update, context)
         return
-    n = next((int(x.lstrip("Gg")) for x in (context.args or []) if x.lstrip("Gg").isdigit()), None)
+    from shared import codici_giornata as CG
+    n = next((CG.numero(x) for x in (context.args or []) if CG.numero(x) is not None), None)
     g = giornata_live(s, n)
     if not g:
         await msg.reply_text("Nessuna giornata da mostrare." if not n else f"La giornata {n} non c'è.")
@@ -1043,7 +1044,8 @@ async def cmd_live_results(update, context):
     import asyncio
     msg = update.effective_message
     s = config.stagione()
-    n = next((int(x.lstrip("Gg")) for x in (context.args or []) if x.lstrip("Gg").isdigit()), None)
+    from shared import codici_giornata as CG
+    n = next((CG.numero(x) for x in (context.args or []) if CG.numero(x) is not None), None)
     g = giornata_live(s, n)
     if not g:
         await msg.reply_text("Nessuna giornata da mostrare." if not n else f"La giornata {n} non c'è.")

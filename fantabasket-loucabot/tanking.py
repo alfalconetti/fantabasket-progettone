@@ -259,9 +259,10 @@ async def cmd_tanking(update, context):
         await msg.reply_text("⛔ Solo admin.")
         return
     s = config.stagione()
-    arg = (context.args or [""])[0].lstrip("Gg")
-    if arg.isdigit():
-        g = db.giornata(s, int(arg))
+    from shared import codici_giornata as CG
+    arg = CG.numero((context.args or [""])[0])
+    if arg is not None:
+        g = db.giornata(s, arg)
     else:
         oggi = datetime.now(ROMA).date()
         iniziate = [x for x in db.giornate(s) if x["dal"] < oggi]

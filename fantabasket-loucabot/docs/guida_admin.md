@@ -35,6 +35,20 @@ Gli admin sono quelli di `admin_ids` in `globals.json`, gli stessi degli altri b
 
 ---
 
+### Il calendario dei playoff (v7.9.5)
+
+**`/importa_playoff`** come didascalia del CSV (o in risposta al file): le date delle giornate dei playoff, fino a 22. Una riga per giornata: `giornata,giorno1,giorno2,giorno3` (anche col `;`, intestazione facoltativa), con 1, 2 o 3 giorni NBA consecutivi; la giornata si scrive P1…P22, o col numero G (P1 = la giornata dopo l'ultima di regular season: quest'anno G39), o solo col numero. Date come `18/04/2027`, `18/04/27`, `2027-04-18` o `18/04`. In fondo alla riga, se vuoi, le squadre NBA che prendono la media (sigle separate da spazi): il bot le confronta con quelle calcolate. Esempio:
+
+```
+giornata,giorno1,giorno2,giorno3
+P1,18/04/2027,19/04/2027,20/04/2027
+P2,21/04/2027,22/04/2027
+```
+
+Il bot controlla giorni consecutivi, numerazione da P1 senza buchi, niente sovrapposizioni, P1 dopo la fine della regular season; se c'è un errore non tocca il calendario importato prima. Risponde con il riepilogo: per ogni P la G, i giorni, la prima partita e le squadre a media dalle partite NBA (⚠️ se diverse da quelle del file). **`/calendario_playoff`** rifà il riepilogo con le partite NBA di adesso (se il calendario NBA cambia, per esempio per un rinvio; i nostri playoff si giocano nella parte finale della regular season NBA, non durante i playoff NBA). Le giornate P entrano davvero in calendario solo col passaggio ai playoff (da fare).
+
+**Codici delle giornate**: G regular season, P playoff, Q Quasi NBA Cup. P e G sono sinonimi (P1 = G39 quest'anno); un numero senza lettera vale G in regular season e P nella fase playoff. Valgono in tutti i comandi con la giornata (`/partita`, `/giornata`, `/risultati`, `/live`, `/ricalcola`, `/calcola`, `/storico_calcolo`, `/congela`, …).
+
 ## Il calcolo della giornata
 
 **Alla scadenza**, appena IPanchinari congela quintetti e panchine, nel tab **«Calcolo GN»** del foglio di controllo esce l'elenco degli schierati, per trasparenza verso i GM: per ogni partita, per ogni squadra, i 5 del quintetto e la panchina in ordine, col ruolo e la squadra NBA (panchina non mandata, posti vuoti e doppioni sono segnati). Niente punteggi né formule. Se un admin corregge una formazione o una panchina, il tab si riscrive entro 5 minuti (riga sul canale log). Il calcolo della mattina riscrive lo stesso tab per intero.
@@ -175,6 +189,7 @@ Il bot scarica da ESPN le foto **piano piano, solo di notte negli Stati Uniti** 
 | Comando | Cosa fa |
 |---|---|
 | `/importa_calendario` | importa il CSV (didascalia del file, o in risposta al file) |
+| `/importa_playoff` | importa le date dei playoff (CSV, come sopra); `/calendario_playoff` il riepilogo |
 | `/calendario_check` | scadenze e squadre a media, confronto col CSV |
 | `/nba_sync` | riscarica le partite NBA della stagione |
 | `/calendario_foglio` | ricarica il foglio Google Calendario (A:E) |

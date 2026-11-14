@@ -43,6 +43,8 @@ def liste_comandi() -> dict:
         BotCommand("guida",      "Guida per i GM"),
     ]
     admin = gm + [
+        BotCommand("importa_playoff",    "Importa le date dei playoff (CSV allegato)"),
+        BotCommand("calendario_playoff", "Le giornate dei playoff: date, prima partita, squadre a media"),
         BotCommand("fantapunti",         "Fantapunti della giornata, giocatori a roster [N]"),
         BotCommand("set_valid_status",   "Status di un giocatore per il calcolo: GIOCATORE N"),
         BotCommand("ricalcola",          "Ricalcola la giornata N (riscarica solo le notti non congelate)"),

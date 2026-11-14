@@ -2,7 +2,7 @@
 Classifica (v27, decisa con Luca il 13 e il 16/10). Solo i risultati convalidati (lega_risultati).
 
 Punti fatti e subiti: i regolamentari col bonus casa (i supplementari decidono solo chi vince).
-Ordine: vittorie; a parità gli scontri diretti tra le squadre a pari (classifica avulsa, solo
+Ordine: vittorie; a parità (v7.9.4) prima la vincitrice della Quasi NBA Cup (🏆 accanto al nome solo se è servito), poi gli scontri diretti tra le squadre a pari (classifica avulsa, solo
 vittorie e sconfitte, mai lo scarto; si riapplica ai sottogruppi ancora a pari; se tra loro non si
 sono mai incontrate non conta), poi la media dei punti fatti, poi la differenza punti.
 
@@ -108,15 +108,31 @@ def _ordina_pari(gruppo: list[str], st: dict[str, dict], per: dict[str, list[dic
     return out
 
 
-def ordina(st: dict[str, dict]) -> list[str]:
+def ordina(st: dict[str, dict], campione: str | None = None) -> list[str]:
+    """v7.9.4 (Luca, 14/11): a pari record la vincitrice della Quasi NBA Cup (`campione`) passa davanti a tutte,
+    prima degli scontri diretti; quando succede, st[campione]["cup_tb"] = True (il 🏆 accanto al nome)."""
     per = {t: s["partite"] for t, s in st.items()}
     out = []
     for w in sorted({s["w"] for s in st.values()}, reverse=True):
         gruppo = [t for t, s in st.items() if s["w"] == w]
         # a parità di vittorie, prima chi ha giocato meno (meno sconfitte)
         for l in sorted({st[t]["l"] for t in gruppo}):
-            out += _ordina_pari([t for t in gruppo if st[t]["l"] == l], st, per)
+            pari = [t for t in gruppo if st[t]["l"] == l]
+            if campione in pari and len(pari) > 1:
+                st[campione]["cup_tb"] = True
+                out += [campione] + _ordina_pari([t for t in pari if t != campione], st, per)
+            else:
+                out += _ordina_pari(pari, st, per)
     return out
+
+
+def campione_cup(s: str) -> str | None:
+    try:
+        from shared import quasi_cup
+        return quasi_cup.campione(s)
+    except Exception as err:                         # tabelle non ancora create: niente Cup
+        logger.info("Quasi Cup in classifica: %s", err)
+        return None
 
 
 def extra(ris: list[dict], st: dict[str, dict]) -> None:
@@ -231,7 +247,7 @@ def calcola(stagione: str | None = None, full: bool = False) -> tuple[list[dict]
     if full:
         extra(ris, st)
         roster_stats(s, st)
-    ordine = ordina(st)
+    ordine = ordina(st, campione_cup(s))
     return [{**st[t], "pos": i + 1} for i, t in enumerate(ordine)], len({r["giornata"] for r in ris})
 
 
@@ -287,7 +303,8 @@ def dati_typst(righe: list[dict], giornate: int, full: bool) -> dict:
     for r in righe:
         x = {"pos": r["pos"], "nome": config.nome(r["team"]), "logo": _logo(r["team"]), "w": r["w"], "l": r["l"],
              "pf": _n(r["pf"]), "ps": _n(r["ps"]), "media": _n(r["media"]), "striscia": r["striscia"],
-             "diff": ("+" if r["diff"] > 0 else "") + _n(r["diff"]), "col": col.get(r["team"], {})}
+             "diff": ("+" if r["diff"] > 0 else "") + _n(r["diff"]), "col": col.get(r["team"], {}),
+             "cup": bool(r.get("cup_tb"))}
         if full:
             x.update({"media_ult": _n(r["media_ult"]), "migliore": r["migliore"], "max": _n(r["max"]), "min": _n(r["min"]),
                       "eta": _n(r["eta"], 1), "rec_pos": r["rec_pos_subiti"], "rec_neg": r["rec_neg_subiti"],
@@ -299,7 +316,7 @@ def dati_typst(righe: list[dict], giornate: int, full: bool) -> dict:
     n_ult = min(ULTIME, giornate)
     return {"titolo": f"Classifica {config.stagione()}-{str(int(config.stagione()) + 1)[-2:]}",
             "sotto": f"dopo {giornate} {'giornata' if giornate == 1 else 'giornate'} convalidate",
-            "ult": f"Media ult. {n_ult}", "righe": out}
+            "ult": f"Media ult. {n_ult}", "righe": out, "cup": any(x["cup"] for x in out)}
 
 
 def dati_conference(righe: list[dict], giornate: int, conf: dict[str, str]) -> dict:
