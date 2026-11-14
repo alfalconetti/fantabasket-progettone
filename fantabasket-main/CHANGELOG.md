@@ -1963,3 +1963,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.9.1 (2026-11-14)
 
 - **Quasi NBA Cup** (Luca, 14/11; loucabot v109): date della qualificazione in `/settings` (nuova sezione «🏅 Quasi NBA Cup»: giorno e mese di inizio e fine, default 30/10 – 27/11, ogni anno nell'anno della stagione). In loucabot Q1 e Q2 nei comandi come le giornate: `/partita Q1`, `/giornata Q1`, `/risultati Q1`, `/live Q1`, `/pdf_giornata Q1` (Q2 la finale)
+
+## v7.9.2 (2026-11-14)
+
+- **`/giocatori rookie`** (Luca, 14/11; loucabot v110, anche qui in privato): i firmati col contratto rookie; `-rookie` gli altri (chi ha solo i diritti no: c'è `diritti`)
+- **`/player`, il draft dei rookie**: per chi ha il contratto rookie o i diritti, sotto il contratto anno, giro e numero della pick, chi l'ha scelto e di chi era la pick se di un'altra squadra (quando la pick è nel bot), e per i firmati l'anno della scala («II anno su IV»); anche nella scheda in testo

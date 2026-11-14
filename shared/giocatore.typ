@@ -60,7 +60,10 @@
       #grid(columns: (1fr, auto), align: (left + horizon, right + horizon),
         stack(spacing: 4pt,
           text(11pt, weight: "bold", fill: cf)[#f.squadra],
-          text(8pt)[#f.contratto]),
+          text(8pt)[#f.contratto],
+          // il draft dei rookie, firmati e diritti (v7.9.2, Luca 14/11)
+          ..(if f.at("draft", default: "") != "" { (box(fill: lilla, radius: 3pt, inset: (x: 5pt, y: 2.5pt),
+            text(7.5pt, fill: viola_scuro)[#f.draft]),) } else { () })),
         stack(spacing: 4pt,
           if f.tipo == "firmato" {
             align(right)[#text(7pt, fill: grigio)[ruolo] #if f.ruolo != "" {

@@ -220,6 +220,28 @@ ok([k for k, _ in out] == ["t"], "/giocatori: gli errori in testo")
 # nel bot principale solo in privato, nel menu in privato e non nei gruppi
 hs = {next(iter(h.commands)): h for h in LG.get_handlers() if hasattr(h, "commands")}
 ok("giocatori" in hs and "PRIVATE" in str(hs["giocatori"].filters).upper(), "bot principale: /giocatori solo in privato")
+# v7.9.2 (Luca, 14/11): filtro rookie (solo i firmati col contratto rookie) e il draft in /player
+ok(nomi("rookie") == ["Elenco Jokić Accento"] and nomi("firmati -rookie") == ["Elenco Centro Firmato"]
+   and "Elenco Ala Diritti" not in nomi("rookie"), "rookie: solo i firmati col contratto rookie; -rookie gli altri")
+from shared import giocatore as GG
+db._q("DELETE FROM pick WHERE anno = %s AND numero_scelta IN (5, 7)", (S,))
+db._q("INSERT INTO rookie (giocatore_id, team_id, round, pick_numero, anno_draft, anno_firma, firmato) VALUES (%s, 'team02', 1, 7, %s, %s, TRUE)",
+      (gid["Elenco Jokić Accento"], str(int(S) - 1), str(int(S) - 1)))
+db._q("INSERT INTO pick (proprietario_orig, proprietario_att, anno, round, scattata, numero_scelta) VALUES ('team04', 'team02', %s, 1, TRUE, 7)",
+      (str(int(S) - 1),))
+dr = GG.draft(gid["Elenco Jokić Accento"], S, True)
+ok(dr == f"Draft {int(S) - 1} · 1° giro, pick 7 · scelto da Beta con la pick di Delta · scala: II anno su IV", f"draft del rookie firmato: {dr}")
+dd = GG.draft(gid["Elenco Ala Diritti"], S, False)
+ok(dd == f"Draft {S} · 1° giro, pick 5", f"draft dei diritti, senza la pick nella tabella: niente «scelto da» ({dd})")
+ok(GG.draft(gid["Elenco Centro Firmato"], S, True) == "", "chi non è nella tabella rookie: niente")
+_dj = GG.dati_scheda(gid["Elenco Jokić Accento"])
+_da = GG.dati_scheda(gid["Elenco Ala Diritti"])
+ok(_dj["fanta"]["draft"] == dr and _da["fanta"]["draft"] == dd and dr in GG.scheda(gid["Elenco Jokić Accento"])
+   and GG.immagine_scheda(_dj)[:4] == b"\x89PNG", "/player: il draft nell'immagine e nel testo")
+if _os.environ.get("PLAYER_PNG"):
+    open(_os.environ["PLAYER_PNG"], "wb").write(GG.immagine_scheda(_dj)); open(_os.environ["PLAYER_PNG"] + "2.png", "wb").write(GG.immagine_scheda(_da))
+db._q("DELETE FROM pick WHERE anno = %s AND numero_scelta = 7 AND proprietario_orig = 'team04'", (str(int(S) - 1),))
+
 li = comandi.liste_comandi(settings.fase())
 ok("giocatori" in {c.command for c in li["gm"]} and "giocatori" not in {c.command for c in li["group"]}, "menu: in privato sì, nei gruppi no")
 

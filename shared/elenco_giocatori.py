@@ -6,7 +6,7 @@ In loucabot (gruppi e privato) e nel bot principale (solo in privato), come /pla
 Filtri, in qualsiasi ordine (`/giocatori aiuto` li elenca):
 - PG SG SF PF C (anche G = PG o SG, F = SF o PF) scritti da soli, o `ruolo:G,C`: le posizioni eleggibili
   (l'ultima rilevazione: in off-season quelle della stagione prima);
-- `fa` / `firmati` / `diritti` / `tutti` da soli, o `stato:`;
+- `fa` / `firmati` / `diritti` / `tutti` da soli, o `stato:`; `rookie` i firmati col contratto rookie (v7.9.2, `-rookie` gli altri);
 - `nba:LAL,BOS` la squadra NBA di adesso (roster ESPN), `nba:no` senza squadra;
 - `squadra:` squadra del fantabasket (contratto o diritti), come negli altri comandi; `ruolo_squadra:C` il ruolo
   ufficiale della stagione dei firmati;
@@ -41,6 +41,7 @@ MAX_REGEX = 100
 AIUTO = ("<b>/giocatori</b> [filtri] — cerca tra i giocatori; i filtri si combinano, in qualsiasi ordine:\n"
          "• <code>PG SG SF PF C</code> (o <code>G</code>, <code>F</code>) — posizioni eleggibili, anche <code>ruolo:G,C</code>\n"
          "• <code>fa</code> · <code>firmati</code> · <code>diritti</code> · <code>tutti</code> — situazione nel fantabasket\n"
+         "• <code>rookie</code> — i firmati col contratto rookie (<code>-rookie</code> gli altri)\n"
          "Più valori dello stesso filtro valgono in «o» (<code>fa firmati</code>, <code>nba:LAL,BOS</code>, <code>squadra:Alfa,Beta</code>), "
          "filtri diversi in «e».\n"
          "• <code>nba:LAL</code> (anche <code>nba:LAL,BOS</code>, <code>nba:no</code>) — squadra NBA\n"
@@ -149,12 +150,12 @@ def _vuoto() -> dict:
     # dentro lo stesso filtro le condizioni sono in «o» (fa firmati, nba:LAL,BOS, squadra:Alfa,Beta), tra filtri
     # diversi in «e» (v7.5.2, Luca 10/11); un insieme vuoto = nessun filtro
     return {"ruoli": set(), "stato": set(), "nba": set(), "squadra": [], "ruolo_squadra": set(), "regex": None,
-            "parole": [], "min_g": None, "costo": None, "anni": None, "infortunati": None, "watch": False, "neg": []}
+            "parole": [], "min_g": None, "costo": None, "anni": None, "infortunati": None, "watch": False, "rookie": False, "neg": []}
 
 
 def _ha_condizioni(g: dict) -> bool:
     return any(g[k] for k in ("ruoli", "stato", "nba", "squadra", "ruolo_squadra", "regex", "parole", "min_g", "costo",
-                              "anni", "watch")) or g["infortunati"] is not None
+                              "anni", "watch", "rookie")) or g["infortunati"] is not None
 
 
 def _gruppo(parti: list[str], oggi: int, glob: dict) -> dict:
@@ -169,6 +170,8 @@ def _gruppo(parti: list[str], oggi: int, glob: dict) -> dict:
                 glob["aiuto"] = True
             elif p.lower() in ("watch", "watchlist", "seguiti"):
                 f["watch"] = True                        # la watchlist di chi scrive (v7.8.0), solo in privato
+            elif p.lower() in ("rookie", "rookies"):
+                f["rookie"] = True                       # contratto rookie (v7.9.2, Luca 14/11: solo i firmati)
             elif up in RUOLI or up in GRUPPI:
                 f["ruoli"] |= _ruoli("ruolo", up)
             elif p.lower() in STATI:
@@ -246,6 +249,8 @@ def _descr_gruppo(f: dict) -> str:
     d = []
     if f.get("watch"):
         d.append("watchlist")
+    if f.get("rookie"):
+        d.append("rookie")
     if f["ruoli"]:
         d.append("/".join(r for r in RUOLI if r in f["ruoli"]))
     if f["stato"] and len(f["stato"]) < 3:
@@ -356,6 +361,8 @@ def _passa(x: dict, f: dict, seguiti: set) -> bool:
         if f.get("watch") and x["id"] not in seguiti:
             continue
         if f["stato"] and st not in f["stato"]:
+            continue
+        if f.get("rookie") and not (x["contratto"] and x["contratto"].get("tipo") == "rookie"):
             continue
         if f["ruoli"] and not f["ruoli"] & set(x["pos"]):
             continue

@@ -55,6 +55,35 @@ NOTA_FIRMA = ("Il bot è nato nel 2026: i contratti firmati prima risultano firm
 TIPI = (2, 5)          # regular season e play-in, come la media della stagione
 
 
+ROMANI = {1: "I", 2: "II", 3: "III", 4: "IV"}
+
+
+def draft(gid: int, stagione: str, firmato: bool) -> str:
+    """Il draft di un rookie (v7.9.2, Luca 14/11), per chi ha il contratto rookie (`firmato`) o i diritti:
+    «Draft 2025 · 1° giro, pick 5 · scelto da Alfa con la pick di Beta · scala: II anno su IV». Chi l'ha scelto dalla
+    pick usata (tabella pick: chi l'aveva al draft, e di chi era in origine), se si trova: rookie.team_id cambia con le
+    trade dei diritti. Il punto della scala solo per i firmati. "" se nella tabella rookie non c'è."""
+    r = L.q(f"""SELECT round, pick_numero, anno_draft, anno_firma FROM rookie WHERE giocatore_id = %s
+                AND {'firmato' if firmato else 'NOT firmato AND NOT diritti_scaduti'} ORDER BY id DESC LIMIT 1""", (gid,), one=True)
+    if not r or not r.get("anno_draft"):
+        return ""
+    t = f"Draft {r['anno_draft']} · {r['round']}° giro, pick {r['pick_numero']}"
+    pk = L.q("""SELECT proprietario_orig, proprietario_att FROM pick WHERE anno = %s AND round = %s AND numero_scelta = %s
+                ORDER BY id LIMIT 1""", (str(r["anno_draft"]), r["round"], r["pick_numero"]), one=True)
+    if pk:
+        t += f" · scelto da {L.nome(pk['proprietario_att'])}"
+        if pk["proprietario_orig"] != pk["proprietario_att"]:
+            t += f" con la pick di {L.nome(pk['proprietario_orig'])}"
+    if firmato and r.get("anno_firma"):
+        try:
+            k = int(stagione) - int(r["anno_firma"]) + 1
+        except (TypeError, ValueError):
+            k = 0
+        if k in ROMANI:
+            t += f" · scala: {ROMANI[k]} anno su IV"
+    return t
+
+
 def e(x) -> str:
     return html.escape(str(x), quote=False)
 
@@ -298,6 +327,9 @@ def scheda(gid: int) -> str:
         if c.get("importo_dpe") is not None:
             contratto += f" · 🏥 DPE quest'anno (pesa {c['importo_dpe']}M)"
         righe.append(f"📝 Contratto: {e(contratto)}")
+        dr_t = draft(gid, s, True) if c["tipo"] == "rookie" else ""
+        if dr_t:
+            righe.append(e(dr_t))
         # il bot è nato nel 2026: i contratti firmati prima risultano firmati nel 2026-27 (Luca, 23/10;
         # la nota serve finché ci sono in giro contratti di prima, cioè fino al 2028)
         if c["tipo"] != "10day" and str(c["stagione_firma"]) == ANNO_BOT and datetime.now().year <= NOTA_FIRMA_FINO_AL:
@@ -309,6 +341,9 @@ def scheda(gid: int) -> str:
             scad = scadenza_diritti(diritti, s)
             righe.append(f"🏆 Fantabasket: <b>svincolato</b>, diritti rookie di <b>{e(L.nome(diritti['team_id']))}</b>"
                          + (f" ({scad})" if scad else ""))
+            dr_t = draft(gid, s, False)
+            if dr_t:
+                righe.append(e(dr_t))
         else:
             righe.append("🏆 Fantabasket: <b>svincolato</b> (free agent)")
 
@@ -455,7 +490,8 @@ def dati_scheda(gid: int, foto_di=None) -> dict | None:
         nota = (NOTA_FIRMA if c["tipo"] != "10day" and str(c["stagione_firma"]) == ANNO_BOT
                 and datetime.now().year <= NOTA_FIRMA_FINO_AL else "")
         d["fanta"] = {"tipo": "firmato", "squadra": L.nome(c["team_id"]), "colore": colore_squadra(L.squadra(c["team_id"]) or {"id": c["team_id"]}),
-                      "contratto": contratto, "ruolo": ruolo, "ruolo_txt": ruolo_txt, "nota": nota}
+                      "contratto": contratto, "ruolo": ruolo, "ruolo_txt": ruolo_txt, "nota": nota,
+                      "draft": draft(gid, s, True) if c["tipo"] == "rookie" else ""}
     else:
         dr = _q1("""SELECT team_id, round, anno_draft FROM rookie WHERE giocatore_id = %s AND NOT firmato
                     AND NOT diritti_scaduti ORDER BY id DESC LIMIT 1""", (gid,))
@@ -463,7 +499,8 @@ def dati_scheda(gid: int, foto_di=None) -> dict | None:
             scad = scadenza_diritti(dr, s)
             d["fanta"] = {"tipo": "diritti", "squadra": f"Diritti rookie di {L.nome(dr['team_id'])}",
                           "colore": colore_squadra(L.squadra(dr["team_id"]) or {"id": dr["team_id"]}),
-                          "contratto": "svincolato" + (f" · diritti: {scad}" if scad else ""), "ruolo": "", "ruolo_txt": "", "nota": ""}
+                          "contratto": "svincolato" + (f" · diritti: {scad}" if scad else ""), "ruolo": "", "ruolo_txt": "", "nota": "",
+                          "draft": draft(gid, s, False)}
         else:
             d["fanta"] = {"tipo": "fa", "squadra": "Free agent", "colore": "#1B8A4B", "contratto": "svincolato, nessuno ha i diritti",
                           "ruolo": "", "ruolo_txt": "", "nota": ""}

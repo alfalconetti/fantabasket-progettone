@@ -532,3 +532,8 @@ Il calcolo dei fantapunti.
 
 - **Quasi NBA Cup, Q1 e Q2 come le giornate**: `/partita Q1` (la tua semifinale, o `/partita Alfa Q1`; Q2 la finale), con la fascia della Cup, il piazzamento in qualificazione sotto i loghi, avversario e bonus casa della Cup; `/giornata Q1` (tabellone delle semifinali), `/risultati Q1`, `/live Q1` (l'immagine della Cup), `/pdf_giornata Q1`. Prima della fine della qualificazione le semifinali sono «se finisse oggi»
 - Date della qualificazione da `settings.json` (`/settings` nel bot principale)
+
+## v110 (2026-11-14, progettone v7.9.2)
+
+- `/giocatori`: filtro `rookie` (i firmati col contratto rookie), `-rookie`
+- `/player`: il draft dei rookie (firmati e diritti) sotto il contratto, nell'immagine e nel testo
