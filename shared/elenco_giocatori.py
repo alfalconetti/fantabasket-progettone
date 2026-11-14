@@ -49,6 +49,9 @@ AIUTO = ("<b>/giocatori</b> [filtri] — cerca tra i giocatori; i filtri si comb
          "• <code>anno:2024</code> — la media del 2024-25 (Basketball-Reference); senza, la stagione in corso\n"
          "• <code>top:20</code> · <code>min_g:10</code> · <code>costo:&lt;10</code> · <code>costo:5-10</code> · <code>anni:1</code> · <code>infortunati:no</code>\n"
          "• <code>ordina:media</code> (o costo, partite, ultime5, nome)\n"
+         "• <code>watch</code> — i giocatori della tua watchlist (solo in privato)\n"
+         "• <code>-</code> davanti nega un filtro: <code>-C</code>, <code>-nba:LAL</code>, <code>-firmati</code>\n"
+         "• <code>|</code> (o <code>oppure</code>) separa gruppi alternativi: <code>C fa | PF diritti</code>\n"
          "Con spazi nel valore, tra virgolette: <code>squadra:\"Los Tizi\"</code>. Es. <code>/giocatori fa C top:10 min_g:5</code>")
 
 
@@ -110,23 +113,62 @@ def _stati(v: str, scritto: str | None = None) -> set:
 
 
 def leggi(testo: str, oggi: int) -> dict:
-    """I filtri dal testo dopo il comando. `oggi` = la stagione della lega (anno di inizio)."""
+    """I filtri dal testo dopo il comando. `oggi` = la stagione della lega (anno di inizio).
+    v7.8.0 (Luca, 14/11): `|` (o «oppure») separa gruppi alternativi, in «o»; dentro un gruppo i filtri in «e»;
+    un `-` davanti nega un filtro (`-C`, `-nba:LAL`, `-firmati`). Le opzioni (anno, top, ordina) valgono per tutti.
+    Il risultato: i filtri del primo gruppo (come prima) più "gruppi" (tutti, ognuno con le sue negazioni "neg")."""
     try:
         parti = shlex.split(testo or "")
     except ValueError:                                  # virgolette non chiuse
         parti = (testo or "").split()
+    glob = {"anno": oggi, "top": None, "ordina": "media", "aiuto": False}
+    blocchi, cur = [], []
+    for p in parti:
+        if p in ("|", "||") or p.lower() == "oppure":
+            blocchi.append(cur)
+            cur = []
+        else:
+            cur.append(p)
+    blocchi.append(cur)
+    if len(blocchi) > 1 and not all(blocchi):
+        raise Errore("Un «|» (oppure) va tra due gruppi di filtri, es. /giocatori C fa | PF diritti.")
+    gruppi = []
+    for b in blocchi:
+        g = _gruppo([p for p in b if not (p.startswith("-") and len(p) > 1)], oggi, glob)
+        for p in b:
+            if p.startswith("-") and len(p) > 1:
+                n = _gruppo([p[1:]], oggi, glob)
+                if not _ha_condizioni(n):
+                    raise Errore(f"«{p}»: si nega un filtro (es. -C, -fa, -nba:LAL, -nome:^jal).")
+                g["neg"].append(n)
+        gruppi.append(g)
+    return {**gruppi[0], **glob, "gruppi": gruppi}
+
+
+def _vuoto() -> dict:
     # dentro lo stesso filtro le condizioni sono in «o» (fa firmati, nba:LAL,BOS, squadra:Alfa,Beta), tra filtri
     # diversi in «e» (v7.5.2, Luca 10/11); un insieme vuoto = nessun filtro
-    f = {"ruoli": set(), "stato": set(), "nba": set(), "squadra": [], "ruolo_squadra": set(), "regex": None,
-         "parole": [], "anno": oggi, "top": None, "min_g": None, "costo": None, "anni": None, "infortunati": None,
-         "ordina": "media", "aiuto": False, "descr": []}
+    return {"ruoli": set(), "stato": set(), "nba": set(), "squadra": [], "ruolo_squadra": set(), "regex": None,
+            "parole": [], "min_g": None, "costo": None, "anni": None, "infortunati": None, "watch": False, "neg": []}
+
+
+def _ha_condizioni(g: dict) -> bool:
+    return any(g[k] for k in ("ruoli", "stato", "nba", "squadra", "ruolo_squadra", "regex", "parole", "min_g", "costo",
+                              "anni", "watch")) or g["infortunati"] is not None
+
+
+def _gruppo(parti: list[str], oggi: int, glob: dict) -> dict:
+    """Un gruppo di filtri in «e». Le opzioni che valgono per tutti (anno, top, ordina, aiuto) vanno in glob."""
+    f = _vuoto()
     for p in parti:
         k, sep, v = p.partition(":")
         k = k.lower()
         if not sep:
             up = p.upper()
             if p.lower() in ("aiuto", "help", "?"):
-                f["aiuto"] = True
+                glob["aiuto"] = True
+            elif p.lower() in ("watch", "watchlist", "seguiti"):
+                f["watch"] = True                        # la watchlist di chi scrive (v7.8.0), solo in privato
             elif up in RUOLI or up in GRUPPI:
                 f["ruoli"] |= _ruoli("ruolo", up)
             elif p.lower() in STATI:
@@ -163,9 +205,9 @@ def leggi(testo: str, oggi: int) -> dict:
             m = re.fullmatch(r"(\d{4})(?:-\d{2,4})?", v)
             if not m or not 1979 <= int(m[1]) <= oggi:
                 raise Errore(f"«{p}»: l'anno è quello di inizio della stagione, dal 1979 al {oggi} (2024 = 2024-25).")
-            f["anno"] = int(m[1])
+            glob["anno"] = int(m[1])
         elif k == "top":
-            f["top"] = _numero(k, v) or None
+            glob["top"] = _numero(k, v) or None
         elif k in ("min_g", "ming", "partite"):
             f["min_g"] = _numero(k, v)
         elif k in ("costo", "importo"):
@@ -179,15 +221,31 @@ def leggi(testo: str, oggi: int) -> dict:
         elif k == "ordina":
             if v.lower() not in ORDINI:
                 raise Errore(f"«{p}»: si ordina per {', '.join(ORDINI)}.")
-            f["ordina"] = v.lower()
+            glob["ordina"] = v.lower()
         else:
             raise Errore(f"Filtro sconosciuto: «{k}:». /giocatori aiuto per l'elenco.")
     return f
 
 
 def descrizione(f: dict, oggi: int) -> str:
-    """I filtri in breve, per l'intestazione."""
+    """I filtri in breve, per l'intestazione: i gruppi separati da « | », le negazioni con «non»."""
+    pezzi = []
+    for g in f.get("gruppi") or [f]:
+        t = " · ".join(x for x in [_descr_gruppo(g)] + [f"non {_descr_gruppo(n)}" for n in g.get("neg", [])] if x)
+        if t:
+            pezzi.append(t)
+    d = [" | ".join(pezzi)] if pezzi else []
+    if f["top"]:
+        d.append(f"top {f['top']} per {f['ordina']}")
+    elif f["ordina"] != "media":
+        d.append(f"per {f['ordina']}")
+    return " · ".join(d)
+
+
+def _descr_gruppo(f: dict) -> str:
     d = []
+    if f.get("watch"):
+        d.append("watchlist")
     if f["ruoli"]:
         d.append("/".join(r for r in RUOLI if r in f["ruoli"]))
     if f["stato"] and len(f["stato"]) < 3:
@@ -210,10 +268,6 @@ def descrizione(f: dict, oggi: int) -> str:
         d.append("anni filtrati")
     if f["infortunati"] is not None:
         d.append("solo infortunati" if f["infortunati"] else "senza infortunati")
-    if f["top"]:
-        d.append(f"top {f['top']} per {f['ordina']}")
-    elif f["ordina"] != "media":
-        d.append(f"per {f['ordina']}")
     return " · ".join(d)
 
 
@@ -279,14 +333,28 @@ def stato(x: dict) -> str:
     return "firmati" if x["contratto"] else "diritti" if x["diritti"] else "fa"
 
 
-def filtra(righe: list[dict], f: dict, oggi: int) -> list[dict]:
-    parole = [L.norm(p) for p in f["parole"]]
+def filtra(righe: list[dict], f: dict, oggi: int, seguiti: set | None = None) -> list[dict]:
+    """Chi passa almeno un gruppo (e nessuna delle sue negazioni). `seguiti`: gli id della watchlist di chi scrive."""
     out = []
+    tutti_seguiti = usa_watch(f)
     for x in righe:
-        st = stato(x)
-        if f["anno"] != oggi or st == "fa":
-            if x["media"] is None:          # chi non ha giocato: solo i firmati e i diritti, nella stagione in corso
+        if f["anno"] != oggi or stato(x) == "fa":
+            # chi non ha giocato: solo i firmati e i diritti, nella stagione in corso; e tutti quelli della watchlist
+            if x["media"] is None and not (tutti_seguiti and x["id"] in (seguiti or set())):
                 continue
+        if any(_passa(x, g, seguiti or set()) and not any(_passa(x, n, seguiti or set()) for n in g["neg"])
+               for g in f.get("gruppi") or [f]):
+            out.append(x)
+    return _ordina(out, f)
+
+
+def _passa(x: dict, f: dict, seguiti: set) -> bool:
+    """x rispetta tutti i filtri del gruppo f."""
+    parole = [L.norm(p) for p in f["parole"]]
+    st = stato(x)
+    for _ in (0,):
+        if f.get("watch") and x["id"] not in seguiti:
+            continue
         if f["stato"] and st not in f["stato"]:
             continue
         if f["ruoli"] and not f["ruoli"] & set(x["pos"]):
@@ -311,7 +379,11 @@ def filtra(righe: list[dict], f: dict, oggi: int) -> list[dict]:
             continue
         if f["infortunati"] is not None and bool(x["inf"]) != f["infortunati"]:
             continue
-        out.append(x)
+        return True
+    return False
+
+
+def _ordina(out: list[dict], f: dict) -> list[dict]:
     chiave = {"media": lambda x: (x["media"] is None, -(x["media"] or 0), x["nome"]),
               "costo": lambda x: (not x["contratto"], -float((x["contratto"] or {}).get("importo") or 0), x["nome"]),
               "partite": lambda x: (-x["g"], -(x["media"] or 0), x["nome"]),
@@ -431,9 +503,13 @@ def nome_file(f: dict, oggi: int) -> str:
             + f"_{lbl(f['anno'])}.md")
 
 
-def risposta(testo: str) -> dict:
+def usa_watch(f: dict) -> bool:
+    return any(g.get("watch") or any(n.get("watch") for n in g["neg"]) for g in f.get("gruppi") or [f])
+
+
+def risposta(testo: str, uid: int | None = None, privato: bool = True) -> dict:
     """{"testo": messaggio HTML (aiuto, errori, nessuno)} oppure
-    {"pagine": [dati delle immagini], "didascalia", "md", "nome"}."""
+    {"pagine": [dati delle immagini], "didascalia", "md", "nome"}. uid e privato servono per `watch`."""
     oggi = int(L.stagione())
     try:
         f = leggi(testo, oggi)
@@ -441,7 +517,13 @@ def risposta(testo: str) -> dict:
         return {"testo": f"⚠️ {e(err)}\n\n/giocatori aiuto per i filtri."}
     if f["aiuto"]:
         return {"testo": AIUTO}
-    righe = filtra(dati(f["anno"], oggi), f, oggi)
+    seguiti = set()
+    if usa_watch(f):
+        if not privato or not uid:                      # la watchlist è privata: nessuno sa chi segue chi
+            return {"testo": "👁 Il filtro <code>watch</code> funziona solo in privato: la watchlist è solo tua."}
+        from shared import watchlist as W
+        seguiti = W.seguiti(uid)
+    righe = filtra(dati(f["anno"], oggi), f, oggi, seguiti)
     d = descrizione(f, oggi)
     if not righe:
         return {"testo": f"🏀 <b>Giocatori</b> · {lbl(f['anno'])}" + (f" · {e(d)}" if d else "") + "\n\nNessun giocatore con questi filtri."}
@@ -457,7 +539,16 @@ async def cmd_giocatori(update, context):
     from telegram import InputMediaPhoto
     msg = update.effective_message
     testo = (msg.text or "").split(maxsplit=1)
-    r = await asyncio.to_thread(risposta, testo[1] if len(testo) > 1 else "")
+    privato = getattr(getattr(update, "effective_chat", None), "type", "private") == "private"
+    uid = getattr(getattr(update, "effective_user", None), "id", None)
+    r = await asyncio.to_thread(risposta, testo[1] if len(testo) > 1 else "", uid, privato)
+    await manda(msg, r)
+
+
+async def manda(msg, r: dict) -> None:
+    """La risposta di `risposta`: testo, o immagine (album oltre le 25) e sotto il file .md."""
+    import asyncio
+    from telegram import InputMediaPhoto
     if "testo" in r:
         await msg.reply_text(r["testo"], parse_mode="HTML", disable_notification=True)
         return

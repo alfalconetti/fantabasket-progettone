@@ -147,6 +147,20 @@ ok(nomi("squadra:Alfa,Gamma") == ["Elenco Centro Firmato", "Elenco Ala Diritti"]
    "squadra: più squadre")
 ok(nomi("fa firmati C") == ["Elenco Centro Firmato", "Elenco Jokić Accento", "Elenco Fa Panchina"], "o nello stesso filtro, e tra filtri diversi")
 ok(" o " in risp("fa firmati")["pagine"][0]["filtri"], "intestazione: «firmati o FA»")
+# v7.8.0 (Luca, 14/11): negazioni con «-» e gruppi in «o» con «|» (o «oppure»); il nome «Elenco» in ogni gruppo
+_ng = lambda t: nomi(t.replace(" | ", " | nome:^Elenco ").replace(" oppure ", " oppure nome:^Elenco "))
+ok(nomi("-C") == ["Elenco Guardia Fa", "Elenco Senza Espn", "Elenco Ala Diritti"], "-C: chi non è centro")
+ok(nomi("-fa -diritti") == ["Elenco Centro Firmato", "Elenco Jokić Accento"], "più negazioni insieme")
+ok(nomi("-nba:LAL fa") == ["Elenco Senza Espn", "Elenco Fa Panchina"], "negazione e filtro insieme")
+ok(_ng("C firmati | diritti") == ["Elenco Centro Firmato", "Elenco Jokić Accento", "Elenco Ala Diritti"], "| : due gruppi in «o»")
+ok(_ng("C firmati oppure diritti") == _ng("C firmati | diritti"), "«oppure» come «|»")
+_x = _ng("C -firmati | SF")
+ok(_x == ["Elenco Ala Diritti", "Elenco Fa Panchina"], f"negazione dentro un gruppo, poi un altro gruppo {_x}")
+ok(_ng("fa | diritti top:2") == ["Elenco Guardia Fa", "Elenco Senza Espn"], "top vale per tutti i gruppi")
+_rf = risp("C -firmati | nome:^Elenco SF")["pagine"][0]["filtri"]
+ok(_rf == "C · nome ~ ^Elenco · non firmati | SF · nome ~ ^Elenco", f"intestazione dei gruppi e delle negazioni {_rf!r}")
+ok("va tra due gruppi" in EG.risposta("C |")["testo"] and "si nega un filtro" in EG.risposta("- C -top:3")["testo"],
+   "| senza un gruppo dopo, negazione di un'opzione: errore")
 
 # stagione passata: solo chi ha giocato, dalla riga più recente di bref; il contratto è quello di oggi
 r = risp("anno:2024")

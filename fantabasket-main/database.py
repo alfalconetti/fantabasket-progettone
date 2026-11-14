@@ -240,6 +240,8 @@ def migrate_db():
     # v6.0.0 — registro delle azioni (accountability), condiviso con gli altri bot
     from shared import azioni
     azioni.migra(_q)
+    from shared import watchlist          # v7.8.0: la watchlist dei GM
+    watchlist.crea(_q)
 
 
 # ── registro unico (v3.10.0) ──────────────────────────────────────────────────

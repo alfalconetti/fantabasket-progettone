@@ -59,6 +59,10 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("confronto", "Due giocatori a confronto nella stagione: A vs B"),
         BotCommand("confronto_carriera", "Due carriere a confronto, anche storiche: A vs B"),
         BotCommand("giocatori",  "Cerca tra i giocatori: ruolo, squadra, FA, top per media… [filtri] (aiuto)"),
+        BotCommand("watch",      "Segui un giocatore: avvisi e report della notte (watchlist)"),
+        BotCommand("unwatch",    "Smetti di seguire un giocatore"),
+        BotCommand("watchlist",  "I giocatori che segui [filtri di /giocatori]"),
+        BotCommand("watch_soglia", "La soglia della grande prestazione: +20, 45, default"),
     ]
     cmd_base = cmd_group + cmd_lega + [
         BotCommand("menu",           "Menu principale"),

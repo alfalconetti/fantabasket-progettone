@@ -359,6 +359,9 @@ def main():
         app.add_handler(h)
     for h in pick_handlers():
         app.add_handler(h)
+    from handlers.watchlist import get_handlers as watch_handlers     # v7.8.0: la watchlist, solo in privato
+    for h in watch_handlers():
+        app.add_handler(h)
     for h in lega_handlers():                 # /player, /status, /calendario: solo in privato (nei gruppi loucabot)
         app.add_handler(h)
     for h in admin_panel_handlers():
@@ -453,6 +456,10 @@ def main():
     # e di nuovo alle 20 della sera prima di una giornata con squadre a media: la media è quella di bref (v7.6.0)
     from handlers.bref import job_bref_vigilia
     app.job_queue.run_daily(job_bref_vigilia, time=_ora("bref_vigilia"))
+    # Watchlist (v7.8.0): gli avvisi ogni 5 minuti, il report della notte alle 9:30 (orari.watch_report)
+    from handlers.watchlist import job_avvisi as _watch_avvisi, job_report as _watch_report
+    app.job_queue.run_repeating(_watch_avvisi, interval=300, first=90)
+    app.job_queue.run_daily(_watch_report, time=_ora("watch_report"))
     # Date di nascita mancanti: report al dev il lunedì alle 9:30
     from handlers.nascite import job_report_nascite
     app.job_queue.run_daily(job_report_nascite, time=_ora("report_nascite"), days=(1,))  # PTB: 0 = domenica, 1 = lunedì

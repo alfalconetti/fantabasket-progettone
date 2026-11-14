@@ -518,3 +518,8 @@ Il calcolo dei fantapunti.
 ## v106 (2026-11-13, progettone v7.7.2)
 
 - `db.medie_bref`: una sola query sulla stagione invece di una per giocatore (il calcolo della giornata passava da 0,2 a 2,5 secondi)
+
+## v107 (2026-11-14, progettone v7.8.0)
+
+- **`/giocatori`**: negazioni (`-C`, `-nba:LAL`, `-firmati`), gruppi alternativi con `|` o «oppure» (`C fa | PF diritti`), filtro `watch` (la watchlist del bot principale, solo in privato)
+- `/player`: gancio `bottoni_di` per i bottoni sotto l'immagine (il bot principale ci mette «👁 Segui»)

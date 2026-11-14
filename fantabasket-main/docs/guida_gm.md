@@ -82,6 +82,19 @@ In tutti i menu a bottoni c'è un modo per uscire: ← per tornare alla schermat
 
 ---
 
+## La watchlist: i giocatori che segui
+
+Segui i giocatori che ti interessano (free agent, obiettivi di mercato, giocatori di altre squadre) e il bot ti avvisa **in privato** di quello che li riguarda. È **solo tua**: nessuno sa chi segui, e non c'è un limite.
+
+- **`/watch NOME`** per seguire un giocatore (se il nome è ambiguo, i bottoni); in privato c'è anche il bottone **«👁 Segui»** sotto l'immagine di `/player`. Se il giocatore non gioca in NBA da più di una stagione, te lo dice.
+- **`/unwatch NOME`** per smettere (o il bottone «👁 Non seguire più» sotto `/player`).
+- **`/watchlist`** i giocatori che segui, con la grafica di `/giocatori` (puoi aggiungere i suoi filtri: `/watchlist fa`); in `/giocatori` c'è il filtro `watch`, solo in privato.
+- **`/watch_soglia`** la soglia della grande prestazione: di default almeno **15 sopra la fantamedia** o **50 fantapunti**; `/watch_soglia +20`, `/watch_soglia 45`, tutte e due, o `/watch_soglia default`.
+
+**Gli avvisi arrivano subito**, una volta sola e solo per quello che succede dopo che hai iniziato a seguirlo: 🔨 un'**asta aperta** sul giocatore (non se l'hai aperta tu); 🔁 i **movimenti** (firmato, scambiato, tagliato, 10-day, fine contratto); 🩹 l'**injury report** solo per le cose serie (Out, Doubtful, sospeso) e ✅ quando ne esce; 🔥 una **grande prestazione** (sopra la tua soglia), col risultato e lo scarto dalla media.
+
+**Alle 9:30 il report della notte**: un'immagine coi giocatori seguiti che hanno giocato, dal migliore, coi fantapunti, la media e lo scarto (▲▼), in oro chi ha superato la soglia; sotto chi non ha giocato e perché. Se nessuno dei tuoi ha giocato, il report non arriva.
+
 ## Le trade
 
 ### Costruirla coi bottoni
@@ -369,6 +382,7 @@ Gli admin possono dare una penalità alla squadra (panchina in ritardo, formazio
 | chiudere un contratto (ritiro, altra lega, Cam Thomas) | `/decadimento` |
 | prendere un free agent per 10 giorni | `/firma_10day` |
 | dichiarare o cambiare ruoli | `/dichiarazione_ruoli`, `/cambio_ruolo` |
+| seguire dei giocatori, avvisi e report della notte | `/watch`, `/unwatch`, `/watchlist`, `/watch_soglia` |
 | vedere chi ha fatto cosa sulla mia squadra | `/registro` |
 | uscire da un'operazione bloccata | `/annulla` |
 | ricevere questa guida | `/guida` |

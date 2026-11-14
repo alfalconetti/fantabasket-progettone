@@ -580,11 +580,12 @@ def didascalia(d: dict) -> str:
     return f"{d['nome']} · {datetime.now(ZoneInfo('Europe/Rome')):%d/%m/%Y}"
 
 
-def handlers(scheda_di, foto_di=None, dati_di=None, extra_di=None):
+def handlers(scheda_di, foto_di=None, dati_di=None, extra_di=None, bottoni_di=None):
     """(cmd_player, manda, cb_player) con la scheda del bot: scheda_di(gid) -> testo (se l'immagine non viene),
     chiamata ogni volta (così chi la sostituisce dopo vale anche qui). foto_di(gid) -> file della foto o None;
     dati_di(gid) -> i dati dell'immagine (di default dati_scheda); extra_di(gid) -> testo da mandare sotto
-    l'immagine, o "" (klra: la stagione col sistema)."""
+    l'immagine, o "" (klra: la stagione col sistema). bottoni_di(gid, chat) -> i bottoni sotto l'immagine o None
+    (bot principale, in privato: «👁 Segui» della watchlist, v7.8.0)."""
     foto_di = foto_di or foto
 
     async def cmd_player(update, context):
@@ -618,7 +619,13 @@ def handlers(scheda_di, foto_di=None, dati_di=None, extra_di=None):
         if not img:
             await msg.reply_text(scheda_di(gid), parse_mode="HTML")
             return
-        await msg.reply_photo(img, caption=didascalia(d))
+        km = None
+        if bottoni_di:
+            try:
+                km = bottoni_di(gid, msg.chat)
+            except Exception:
+                km = None
+        await msg.reply_photo(img, caption=didascalia(d), **({"reply_markup": km} if km else {}))
         extra = extra_di(gid) if extra_di else ""
         if extra:
             await msg.reply_text(extra, parse_mode="HTML")

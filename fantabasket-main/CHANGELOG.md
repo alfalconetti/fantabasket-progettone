@@ -1949,3 +1949,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **`/partita` di nuovo veloce** (Luca, 13/11; loucabot v106): la media da Basketball-Reference di chi non gioca (v7.6.0) faceva una sottoquery per giocatore su `bref_stats` confrontando i nomi in minuscolo, senza indice: 2,3 secondi su 2,5 del calcolo della giornata (anche nel live, `/giornata`, `/risultati`). Ora una sola lettura delle righe della stagione e poi l'abbinamento
 - `deploy.sh`: lo script di commit fuori dal repo si lancia con `bash` anche senza il permesso di esecuzione (prima, senza, `deploy.sh` faceva commit e push da solo, subito)
+
+## v7.8.0 (2026-11-14)
+
+- **Watchlist** (Luca, 13–14/11): ogni GM segue dei giocatori, in privato, senza limite e senza che gli altri lo sappiano. `/watch`, `/unwatch`, `/watchlist` (grafica di `/giocatori`), `/watch_soglia`; «👁 Segui» sotto `/player` in privato. Se il giocatore non gioca in NBA da più di una stagione `/watch` lo dice. Avvisi subito: asta aperta, movimenti, injury report solo le cose serie (Out, Doubtful, sospeso, e l'uscita), grande prestazione (default media +15 o 50 fantapunti, ognuno la sua soglia). Alle 9:30 il report della notte in immagine. `handlers/watchlist.py`, `shared/watchlist.py`, `shared/watchlist.typ`
+- **`/giocatori`** (loucabot v107, anche qui): `-` davanti nega un filtro, `|` (o «oppure») separa gruppi alternativi, filtro `watch` in privato

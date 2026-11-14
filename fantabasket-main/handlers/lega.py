@@ -16,7 +16,9 @@ from shared import confronto as CF
 from shared import elenco_giocatori as EG
 from shared.status_squadra import cmd_status
 
-cmd_player, manda, cb_player = G.handlers(G.scheda)
+from handlers import watchlist as WL
+# v7.8.0: in privato, per i GM, «👁 Segui» sotto l'immagine (la watchlist)
+cmd_player, manda, cb_player = G.handlers(G.scheda, bottoni_di=WL.bottoni_player)
 
 PIEDE = "/calendario N [SQUADRA] per un'altra giornata o squadra · tutte le partite e la classifica su loucabot"
 
