@@ -537,3 +537,7 @@ Il calcolo dei fantapunti.
 
 - `/giocatori`: filtro `rookie` (i firmati col contratto rookie), `-rookie`
 - `/player`: il draft dei rookie (firmati e diritti) sotto il contratto, nell'immagine e nel testo
+
+## v111 (2026-11-14, progettone v7.9.3)
+
+- Alla convalida il live non si cancella: diventa il tabellone convalidato, con la convalida nella didascalia (`live.pubblica_definitivo`)

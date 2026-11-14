@@ -1968,3 +1968,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **`/giocatori rookie`** (Luca, 14/11; loucabot v110, anche qui in privato): i firmati col contratto rookie; `-rookie` gli altri (chi ha solo i diritti no: c'è `diritti`)
 - **`/player`, il draft dei rookie**: per chi ha il contratto rookie o i diritti, sotto il contratto anno, giro e numero della pick, chi l'ha scelto e di chi era la pick se di un'altra squadra (quando la pick è nel bot), e per i firmati l'anno della scala («II anno su IV»); anche nella scheda in testo
+
+## v7.9.3 (2026-11-14)
+
+- **Live alla convalida** (Luca, 14/11; loucabot v111): il messaggio del live sul canale non si cancella più; diventa il tabellone della giornata convalidata (lo stesso di `/giornata`) con «✅ Giornata N · convalidata da … il …» nella didascalia. A ogni nuova convalida si rifà. Il messaggio dei risultati definitivi resta com'era

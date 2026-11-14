@@ -969,7 +969,8 @@ ok(not PL.finita(stp, datetime(2026, 10, 15, 11, 6, tzinfo=ROMA)) and PL.finita(
    "prova del live: finisce dopo le 11:05 dell'ultimo giorno")
 db.q("TRUNCATE ipa_quintetto")
 
-# ── convalida (Luca, 23/10): risultati definitivi sul canale, il live si cancella e non si aggiorna più ──
+# ── convalida (Luca, 23/10): risultati definitivi sul canale; il live non si aggiorna più e (v7.9.3, Luca 14/11) non si
+# cancella: diventa il tabellone della giornata convalidata, con la convalida nella didascalia ──
 class BotC(BotL):
     async def delete_message(s, chat_id, message_id): s.mandati.append({"cancellato": message_id, "chat_id": chat_id})
 BC = BotC()
@@ -977,7 +978,10 @@ LV._salva(S, N, chat_id=-1, message_id=555, chiuso=None, definitivo_id=None)
 es = asyncio.run(LV.pubblica_definitivo(BC, S, N, "Admin"))
 dfn = [x for x in BC.mandati if x.get("chat_id") == -1 and "risultati definitivi" in x.get("text", "")]
 ok(len(dfn) == 1 and "Giornata 7 · risultati definitivi" in dfn[0]["text"] and "Convalidati da Admin" in dfn[0]["text"]
-   and {"cancellato": 555, "chat_id": -1} in BC.mandati and "live cancellato" in es, "convalida: risultati definitivi sul canale e live cancellato " + es)
+   and not any("cancellato" in x for x in BC.mandati) and "live segnato come convalidato" in es
+   and any(x.get("modifica") and x.get("id") == 555 and x.get("foto") is not None
+           and f"Giornata {N} · convalidata</b> da Admin" in x["text"] for x in BC.mandati),
+   "convalida: risultati definitivi sul canale, il live resta e diventa il tabellone convalidato " + es)
 ok("📊 <b>In questa giornata</b>" in dfn[0]["text"] and "🔝 Miglior punteggio" in dfn[0]["text"] and "⭐" in dfn[0]["text"],
    "risultati definitivi: in fondo miglior e peggior punteggio e la prestazione migliore " + dfn[0]["text"][-400:])
 ok(LV.stato(S, N)["chiuso"] is not None and LV.stato(S, N)["definitivo_id"] == dfn[0]["id"], "il live risulta chiuso, col messaggio definitivo")
@@ -987,8 +991,9 @@ ok(not BC.mandati, "live chiuso: il job non lo ripubblica né lo aggiorna")
 ok(N not in [g["numero"] for g in LV.giornate_attive(S, t0 + timedelta(minutes=20))],
    "giornata convalidata: fuori dalle giornate attive, quindi anche /live non la ripubblica (Luca, 26/10)")
 asyncio.run(LV.pubblica_definitivo(BC, S, N, "Admin"))
-ok([x for x in BC.mandati if x.get("modifica") and x.get("id") == dfn[0]["id"]] and not any("cancellato" in x for x in BC.mandati),
-   "nuova convalida (dopo un ricalcolo): si modifica lo stesso messaggio definitivo")
+ok([x for x in BC.mandati if x.get("modifica") and x.get("id") == dfn[0]["id"]] and not any("cancellato" in x for x in BC.mandati)
+   and [x for x in BC.mandati if x.get("modifica") and x.get("id") == 555],
+   "nuova convalida (dopo un ricalcolo): si modificano lo stesso messaggio definitivo e il live")
 ok(not any("cambia un risultato" in x.get("text", "") for x in BC.mandati), "stessi esiti: niente messaggio in più")
 _r1 = db.q("SELECT casa, vince FROM lega_risultati WHERE stagione = %s AND giornata = %s AND convalidato IS NOT NULL LIMIT 1", (S, N), one=True)
 db.q("UPDATE lega_risultati SET vince = %s WHERE stagione = %s AND giornata = %s AND casa = %s",

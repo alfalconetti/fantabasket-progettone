@@ -57,7 +57,8 @@ def migra() -> None:
               prossimo    TIMESTAMPTZ,                   -- dopo un errore di ESPN: non prima di
               errore_log  TIMESTAMPTZ,                   -- ultimo errore scritto sul canale log
               PRIMARY KEY (stagione, giornata))""")
-    # v37 (Luca, 23/10): alla convalida il live si cancella (chiuso: niente più aggiornamenti) e sul
+    # v37 (Luca, 23/10): alla convalida il live si chiude (niente più aggiornamenti; dalla v7.9.3 non si cancella: diventa il
+    # tabellone convalidato) e sul
     # canale esce il messaggio dei risultati definitivi (definitivo_id: a una nuova convalida si modifica)
     db.q("ALTER TABLE lega_live ADD COLUMN IF NOT EXISTS chiuso TIMESTAMPTZ")
     db.q("ALTER TABLE lega_live ADD COLUMN IF NOT EXISTS definitivo_id BIGINT")
@@ -875,7 +876,8 @@ def testo_definitivo(s: str, g: dict, chi: str, quando: datetime, aggiornato: bo
 async def pubblica_definitivo(bot, s: str, n: int, chi: str, quando: datetime | None = None,
                               prima: dict | None = None) -> str:
     """Alla convalida: messaggio dei risultati definitivi sul canale principale (a una nuova convalida
-    si modifica lo stesso) e il messaggio live cancellato; da lì il live non si aggiorna più.
+    si modifica lo stesso) e il messaggio live che diventa il tabellone convalidato (v7.9.3: non si cancella più);
+    da lì il live non si aggiorna più.
     Restituisce una riga di esito."""
     quando = quando or datetime.now(timezone.utc)
     migra()                                              # colonne nuove anche se il bot non è ripartito
@@ -919,13 +921,25 @@ async def pubblica_definitivo(bot, s: str, n: int, chi: str, quando: datetime | 
             except Exception as err:
                 logger.warning("Avviso esito cambiato G%s: %s", n, err)
             esito.append(f"{len(cambiati)} esiti cambiati: avviso sul canale")
-    if st.get("message_id") and not st.get("chiuso"):
+    # v7.9.3 (Luca, 14/11): il live non si cancella più; resta sul canale e diventa il tabellone della giornata
+    # convalidata (lo stesso di /giornata), con la convalida nella didascalia. A ogni nuova convalida si rifà.
+    if st.get("message_id") and g:
         try:
-            await bot.delete_message(chat_id=st["chat_id"], message_id=st["message_id"])
-            esito.append("live cancellato")
-        except Exception as err:                         # più vecchio di 48 ore: Telegram non lo cancella
-            logger.info("Live G%s: non cancellato (%s)", n, err)
-            esito.append("live non cancellabile (più di 48 ore): cancellalo a mano")
+            import asyncio
+            from telegram import InputMediaPhoto
+            tab = await asyncio.to_thread(dati_tabellone, s, {**g, "stagione": s}, quando)
+            png = await asyncio.to_thread(immagine, tab)
+            cap = (f"✅ <b>Giornata {n} · convalidata</b> da {e(chi)} il {quando.astimezone(ROMA):%d/%m alle %H:%M}\n"
+                   f"<i>Risultati definitivi. Il dettaglio di ogni sfida: /partita</i>")
+            await bot.edit_message_media(chat_id=st["chat_id"], message_id=st["message_id"],
+                                         media=InputMediaPhoto(png, caption=cap, parse_mode="HTML"), **TEMPI)
+            esito.append("live segnato come convalidato")
+        except Exception as err:
+            if "not modified" in str(err).lower():
+                esito.append("live segnato come convalidato")
+            else:
+                logger.info("Live G%s: non segnato come convalidato (%s)", n, err)
+                esito.append(f"live non aggiornato ({str(err)[:80]})")
     import json
     _salva(s, n, chiuso=quando, esiti=json.dumps(nuovi))
     return ", ".join(esito) or "niente da pubblicare (manca main_channel_id)"
