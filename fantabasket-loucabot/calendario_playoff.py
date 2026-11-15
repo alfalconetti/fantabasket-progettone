@@ -196,6 +196,9 @@ async def cmd_importa_playoff(update, context):
         await msg.reply_text(f"❌ <b>Calendario dei playoff non importato</b>\n\n{html.escape(str(err))[:3500]}", parse_mode="HTML")
         return
     from handlers import _chi, log
+    from registro import segna_sync                        # v7.13.0: anche nel registro, non solo sul canale log
+    segna_sync(update.effective_user, "admin", "calendario dei playoff importato", oggetto=f"stagione {config.stagione()}",
+               dopo=f"{len(gg)} giornate, dal {gg[0]['dal']:%d/%m} al {gg[-1]['al']:%d/%m}")
     await msg.reply_text(controllo(), parse_mode="HTML")
     await log(context.bot, f"🏆 Calendario dei playoff importato da {_chi(update)}: {len(gg)} giornate, "
                            f"dal {gg[0]['dal']:%d/%m} al {gg[-1]['al']:%d/%m}")

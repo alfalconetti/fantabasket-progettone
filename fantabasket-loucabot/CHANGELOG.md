@@ -581,3 +581,13 @@ Il calcolo dei fantapunti.
 
 - Tabellone dei playoff più leggibile su Telegram (mockup approvato): immagine più stretta e scritte più grandi, primo turno a due colonne con la 1ª e la 2ª già nella loro semifinale, gare con giornata e punteggi
 - Riquadro della finale con le due squadre (e il piazzamento nella conference), le gare e poi la campione
+
+## v120 (2026-11-15, progettone v7.13.0)
+
+- `/classifica_home_away`: la classifica in casa e in trasferta, con la struttura di `/classifica_conference` (mockup approvato)
+- Registro: `/importa_playoff`, la Quasi Cup nella nota della convalida, nei playoff le partite cambiate da una convalida rifatta e la giornata già iniziata non toccata
+
+## v121 (2026-11-15, progettone v7.14.0)
+
+- **`/rendimento_team [SQUADRA]`** (mockup approvato): il rendimento di una squadra giornata per giornata, coi punti dell'avversario, casa e trasferta, medie, migliore e peggiore, i nostri playoff e la panchina (linea e riga con media, posizione nella lega, migliore, supplementari)
+- `/classifica_home_away` in due messaggi: in casa, poi in trasferta

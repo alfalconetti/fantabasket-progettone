@@ -3,10 +3,9 @@ Registro delle azioni nel bot principale (v6.0.0): `segna` per i flussi del bot 
 consultarlo (anche dal pannello admin, «📜 Registro»). Il registro è unico per tutti i bot
 (`shared/azioni.py`, tabella registro_azioni): da qui si vedono anche bot aste, loucabot e IPanchinari.
 
-/registro [filtri] (admin: tutto; GM: solo le righe della sua squadra), filtri in qualsiasi ordine:
-  N (giorni, es. 7) · squadra (id, nome o GM) · giocatore (nome) · admin|gm|dev|sistema ·
-  principale|aste|loucabot|ipanchinari · altro testo = azione (es. taglio) · @username o nome di chi
-Il risultato è un file Markdown.
+/registro [filtri] (admin: tutto; GM: solo le righe della sua squadra). v7.13.0: filtri come /giocatori
+(chiavi, «o» con la virgola, «-» per negare, «|» tra gruppi, date): vedi AIUTO e leggi(). Il risultato è un file
+Markdown, coi filtri capiti in cima.
 """
 import io
 import logging
@@ -58,36 +57,199 @@ def segna_sync(user, veste: str, azione: str, **campi) -> dict | None:
 
 
 # ── /registro ──────────────────────────────────────────────────────────────────
+# v7.13.0 (Luca, 15/11): filtri come /giocatori. Chiavi: squadra: giocatore: chi: bot: veste: azione: testo:
+# giorni: dal: al:. Senza chiave, quando non c'è dubbio: un numero sono i giorni, admin/gm/dev/sistema la veste,
+# principale/aste/loucabot/ipanchinari il bot, @utente chi; le altre parole insieme sono una squadra, un giocatore
+# (se è uno solo) o un pezzo di azione; se sono sia una squadra sia un giocatore il bot chiede la chiave. Più
+# valori con la virgola in «o»; filtri diversi in «e»; «|» o «oppure» tra gruppi alternativi; «-» davanti nega.
+# giorni, dal e al valgono per tutti i gruppi. I GM vedono sempre e solo la loro squadra.
+
+AIUTO = ("📜 <b>/registro</b> [filtri] — le azioni di tutti i bot, in un file. Filtri in qualsiasi ordine:\n"
+         "• <code>7</code> o <code>giorni:7</code> · <code>dal:01/11</code> · <code>al:15/11/2026</code>\n"
+         "• <code>squadra:Alfa,Beta</code> · <code>giocatore:\"Jalen Brunson\"</code> · <code>chi:@luca</code> (o solo <code>@luca</code>)\n"
+         "• <code>admin</code> <code>gm</code> <code>dev</code> <code>sistema</code> (o <code>veste:</code>) · "
+         "<code>principale</code> <code>aste</code> <code>loucabot</code> <code>ipanchinari</code> (o <code>bot:</code>)\n"
+         "• <code>azione:taglio</code> · <code>testo:G12</code> (cerca in oggetto, prima → dopo e nota)\n"
+         "• senza chiave: una squadra, un giocatore o un pezzo di azione (se è ambiguo il bot chiede la chiave)\n"
+         "• più valori con la virgola valgono in «o»; <code>-</code> davanti nega (<code>-sistema</code>, <code>-bot:aste</code>); "
+         "<code>|</code> (o <code>oppure</code>) separa gruppi alternativi: <code>squadra:Alfa taglio | squadra:Beta trade</code>\n"
+         "Con spazi nel valore, tra virgolette. I GM vedono solo la loro squadra.")
+
+
+class Errore(ValueError):
+    """Un filtro scritto male: il messaggio va a chi ha scritto il comando."""
+
+
+def _data(chiave: str, v: str):
+    from datetime import date
+    pz = v.replace("-", "/").replace(".", "/").split("/")
+    try:
+        g, m = int(pz[0]), int(pz[1])
+        a = int(pz[2]) if len(pz) > 2 else datetime.now(ROMA).year
+        a = a + 2000 if a < 100 else a
+        return date(a, m, g)
+    except (ValueError, IndexError):
+        raise Errore(f"«{chiave}:{v}»: la data va scritta GG/MM o GG/MM/AAAA.")
+
+
+def _squadra(v: str) -> str:
+    t = tm.get_team_by_query(v)
+    if not t:
+        raise Errore(f"Nessuna squadra trovata con «{v}».")
+    return t["id"]
+
+
+def _giocatore(v: str) -> tuple[int, str]:
+    from utils import normalizza
+    gioc = db.cerca_giocatori(normalizza(v)) or []
+    esatti = [x for x in gioc if normalizza(x["nome_common"]) == normalizza(v)]
+    if len(esatti) == 1:
+        gioc = esatti
+    if not gioc:
+        raise Errore(f"Nessun giocatore trovato con «{v}».")
+    if len(gioc) > 1:
+        raise Errore(f"«{v}»: più giocatori ({', '.join(x['nome_common'] for x in gioc[:6])}"
+                     f"{'…' if len(gioc) > 6 else ''}). Scrivi il nome completo, tra virgolette.")
+    return gioc[0]["id"], gioc[0]["nome_common"]
+
+
+def _valori(chiave: str, v: str) -> tuple[str, list, str]:
+    """(campo, valori, descrizione) di un filtro con la chiave."""
+    vv = [x.strip() for x in v.split(",") if x.strip()]
+    if not vv:
+        raise Errore(f"«{chiave}:»: manca il valore dopo i due punti.")
+    if chiave in ("squadra", "team"):
+        ids = [_squadra(x) for x in vv]
+        return "squadra", ids, "squadra " + " o ".join(_nome(i) for i in ids)
+    if chiave == "giocatore":
+        gg = [_giocatore(x) for x in vv]
+        return "giocatore", [g[0] for g in gg], "giocatore " + " o ".join(g[1] for g in gg)
+    if chiave == "chi":
+        return "chi", [x.lstrip("@") for x in vv], "chi " + " o ".join(vv)
+    if chiave == "bot":
+        bad = [x for x in vv if x.lower() not in BOT_ALIAS]
+        if bad:
+            raise Errore(f"«bot:{bad[0]}»: i bot sono principale, aste, loucabot, ipanchinari.")
+        ids = list(dict.fromkeys(BOT_ALIAS[x.lower()] for x in vv))
+        return "bot", ids, " o ".join(A.NOMI_BOT[i] for i in ids)
+    if chiave == "veste":
+        bad = [x for x in vv if x.lower() not in A.VESTI]
+        if bad:
+            raise Errore(f"«veste:{bad[0]}»: le vesti sono admin, gm, dev, sistema.")
+        return "veste", [x.lower() for x in vv], "veste " + " o ".join(x.lower() for x in vv)
+    if chiave == "azione":
+        return "azione", vv, "azione «" + "» o «".join(vv) + "»"
+    if chiave == "testo":
+        return "testo", vv, "testo «" + "» o «".join(vv) + "»"
+    raise Errore(f"«{chiave}:»: chiave sconosciuta. /registro aiuto per l'elenco.")
+
+
+def _senza_chiave(testo: str) -> tuple[str, list, str]:
+    """Parole senza chiave: squadra, giocatore unico o azione; se sono sia squadra sia giocatore, si chiede."""
+    from utils import normalizza
+    t = tm.get_team_by_query(testo)
+    gioc = db.cerca_giocatori(normalizza(testo)) or []
+    if t and gioc:
+        raise Errore(f"«{testo}» è sia una squadra sia un giocatore: scrivi squadra:{testo} o giocatore:{testo}.")
+    if t:
+        return "squadra", [t["id"]], f"squadra {t['nome']}"
+    if len(gioc) == 1:
+        return "giocatore", [gioc[0]["id"]], f"giocatore {gioc[0]['nome_common']}"
+    return "azione", [testo], f"azione «{testo}»"
+
+
+def leggi(args: list[str]) -> dict:
+    """I filtri: {"gruppi": [{"si", "no", "desc"}], "giorni", "dal", "al", "desc": [globali], "aiuto"}."""
+    import shlex
+    try:
+        parti = shlex.split(" ".join(args))
+    except ValueError:
+        parti = list(args)
+    out = {"gruppi": [], "giorni": None, "dal": None, "al": None, "desc": [], "aiuto": False}
+    blocchi, cur = [], []
+    for p in parti:
+        if p in ("|", "||") or p.lower() == "oppure":
+            blocchi.append(cur); cur = []
+        else:
+            cur.append(p)
+    blocchi.append(cur)
+    if len(blocchi) > 1 and not all(blocchi):
+        raise Errore("Un «|» (oppure) va tra due gruppi di filtri, es. /registro squadra:Alfa | squadra:Beta.")
+    for b in blocchi:
+        g = {"si": [], "no": [], "desc": []}
+        parole = {False: [], True: []}
+        for p in b:
+            neg = p.startswith("-") and len(p) > 1
+            x = p[1:] if neg else p
+            k, sep, v = x.partition(":")
+            k = k.lower()
+            if sep and k in ("giorni", "dal", "al"):
+                if neg:
+                    raise Errore(f"«{p}»: giorni e date non si negano.")
+                if k == "giorni":
+                    if not v.isdigit():
+                        raise Errore(f"«{p}»: serve un numero di giorni.")
+                    out["giorni"] = int(v)
+                else:
+                    out[k] = _data(k, v)
+                continue
+            if sep:
+                campo, vals, d = _valori(k, v)
+            elif x.lower() in ("aiuto", "help", "?"):
+                out["aiuto"] = True
+                continue
+            elif x.isdigit() and int(x) <= 3650 and not neg:
+                out["giorni"] = int(x)
+                continue
+            elif x.lower() in A.VESTI:
+                campo, vals, d = "veste", [x.lower()], f"veste {x.lower()}"
+            elif x.lower() in BOT_ALIAS:
+                campo, vals, d = "bot", [BOT_ALIAS[x.lower()]], A.NOMI_BOT[BOT_ALIAS[x.lower()]]
+            elif x.startswith("@") and len(x) > 1:
+                campo, vals, d = "chi", [x[1:]], f"chi {x}"
+            else:
+                parole[neg].append(x)
+                continue
+            (g["no"] if neg else g["si"]).append((campo, vals))
+            g["desc"].append(("non " if neg else "") + d)
+        for neg, pp in parole.items():
+            if pp:
+                campo, vals, d = _senza_chiave(" ".join(pp))
+                (g["no"] if neg else g["si"]).append((campo, vals))
+                g["desc"].append(("non " if neg else "") + d)
+        out["gruppi"].append(g)
+    if out["giorni"]:
+        out["desc"].append(f"ultimi {out['giorni']} giorni")
+    if out["dal"]:
+        out["desc"].append(f"dal {out['dal']:%d/%m/%Y}")
+    if out["al"]:
+        out["desc"].append(f"al {out['al']:%d/%m/%Y}")
+    if out["dal"] and out["al"] and out["dal"] > out["al"]:
+        raise Errore("La data «dal» viene dopo quella «al».")
+    return out
+
+
+def descrizione(f: dict) -> list[str]:
+    """I filtri capiti, per la testata del file e la didascalia."""
+    gg = [g for g in f["gruppi"] if g["desc"]]
+    if len(gg) > 1:
+        alt = " oppure ".join("(" + ", ".join(g["desc"]) + ")" for g in gg)
+        return f["desc"] + [alt]
+    return f["desc"] + (gg[0]["desc"] if gg else [])
+
 
 def filtri(args: list[str]) -> tuple[dict, list[str]]:
-    """Dagli argomenti: ({filtri per azioni.cerca}, [descrizione dei filtri])."""
-    f, desc = {}, []
-    resto = []
-    for a in args:
-        al = a.lower()
-        if a.isdigit() and int(a) <= 3650:
-            f["giorni"] = int(a); desc.append(f"ultimi {a} giorni")
-        elif al in A.VESTI:
-            f["veste"] = al; desc.append(f"veste {al}")
-        elif al in BOT_ALIAS:
-            f["bot"] = BOT_ALIAS[al]; desc.append(A.NOMI_BOT[BOT_ALIAS[al]])
-        elif a.startswith("@") and len(a) > 1:
-            f["chi_testo"] = a; desc.append(f"chi {a}")
-        else:
-            resto.append(a)
-    if resto:
-        testo = " ".join(resto)
-        t = tm.get_team_by_query(testo)
-        if t:
-            f["squadra"] = t["id"]; desc.append(f"squadra {t['nome']}")
-        else:
-            from utils import normalizza
-            gioc = db.cerca_giocatori(normalizza(testo)) or []
-            if len(gioc) == 1:
-                f["giocatore_id"] = gioc[0]["id"]; desc.append(f"giocatore {gioc[0]['nome_common']}")
-            else:
-                f["azione_"] = testo; desc.append(f"azione «{testo}»")
-    return f, desc
+    """Compatibilità (prima della v7.13.0): un gruppo solo → ({filtri per azioni.cerca}, [descrizione])."""
+    f = leggi(args)
+    piatto = {}
+    if f["giorni"]:
+        piatto["giorni"] = f["giorni"]
+    g = f["gruppi"][0] if f["gruppi"] else {"si": []}
+    nomi = {"squadra": "squadra", "giocatore": "giocatore_id", "chi": "chi_testo", "bot": "bot", "veste": "veste", "azione": "azione_"}
+    for campo, vals in g["si"]:
+        if campo in nomi:
+            piatto[nomi[campo]] = ("@" + vals[0]) if campo == "chi" else vals[0]
+    return piatto, descrizione(f)
 
 
 def testo_md(righe: list[dict], desc: list[str], limite: int) -> str:
@@ -109,25 +271,33 @@ def testo_md(righe: list[dict], desc: list[str], limite: int) -> str:
 
 
 async def _manda(bot, chat_id: int, user, args: list[str]) -> str | None:
-    """Manda il file; None se va bene, altrimenti il motivo del rifiuto."""
+    """Manda il file; None se va bene, altrimenti il motivo del rifiuto (o l'aiuto)."""
     admin = settings.is_admin(user.id)
-    f, desc = filtri(args)
+    try:
+        f = leggi(args)
+    except Errore as err:
+        return f"❌ {err}"
+    if f["aiuto"]:
+        return AIUTO
+    fissa = None
     if not admin:
         t = tm.get_team_by_gm(user.id)
         if not t:
             return "⛔ Il registro lo vedono gli admin e i GM (solo per la loro squadra)."
-        if f.get("squadra") and f["squadra"] != t["id"]:
+        altre = {v for g in f["gruppi"] for c, vv in g["si"] if c == "squadra" for v in vv} - {t["id"]}
+        if altre:
             return "⛔ Puoi vedere solo il registro della tua squadra."
-        f["squadra"] = t["id"]
-        desc = [d for d in desc if not d.startswith("squadra")] + [f"squadra {t['nome']}"]
+        fissa = t["id"]
+    desc = descrizione(f) + ([f"squadra {_nome(fissa)} (la tua)"] if fissa else [])
     limite = 500
     import asyncio
-    righe = await asyncio.to_thread(A.cerca, db._q, limite=limite, **f)
+    righe = await asyncio.to_thread(A.cerca_filtri, db._q, f["gruppi"], giorni=f["giorni"], dal=f["dal"], al=f["al"],
+                                    squadra_fissa=fissa, limite=limite)
     testo = testo_md(righe, desc, limite)
     adesso = datetime.now(timezone.utc).astimezone(ROMA)
     await bot.send_document(chat_id=chat_id, document=io.BytesIO(testo.encode("utf-8")),
                             filename=f"registro-{adesso:%Y%m%d-%H%M}.md",
-                            caption=f"📜 Registro delle azioni ({len(righe)} righe)" + (f" — {', '.join(desc)}" if desc else ""))
+                            caption=(f"📜 Registro delle azioni ({len(righe)} righe)" + (f" — {', '.join(desc)}" if desc else ""))[:1000])
     return None
 
 
@@ -136,7 +306,7 @@ async def cmd_registro(update: Update, context: ContextTypes.DEFAULT_TYPE):
     u = update.effective_user
     motivo = await _manda(context.bot, update.effective_chat.id, u, list(context.args or []))
     if motivo:
-        await update.effective_message.reply_text(motivo)
+        await update.effective_message.reply_text(motivo, parse_mode="HTML" if motivo == AIUTO else None)
 
 
 async def cb_registro(update: Update, context: ContextTypes.DEFAULT_TYPE):

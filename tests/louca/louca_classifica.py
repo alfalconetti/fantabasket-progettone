@@ -66,6 +66,21 @@ db.q("""INSERT INTO lega_risultati (stagione, giornata, casa, trasferta, punti_c
 righe, gg = C.calcola(S, full=True)
 ok(gg == 2 and righe[0]["team"] in (a, c) and next(x for x in righe if x["team"] == a)["w"] == 1,
    "solo le giornate convalidate")
+# v7.13.0 (Luca, 15/11): in casa e in trasferta. G1: a batte b in casa, c batte d in casa; G2: b batte c in casa
+righe_db, gg_db = C.calcola(S)
+dh = C.dati_home_away(righe_db, gg_db, S)
+casa_, fuori_ = dh["sezioni"]
+riga = lambda sz, t: next(x for x in sz["righe"] if x["nome"] == config.nome(t))
+ok([x["nome"] for x in dh["sezioni"]] == ["In casa", "In trasferta"] and len(casa_["righe"]) == len(righe_db),
+   "home away: due sezioni con tutte le squadre")
+ok((riga(casa_, a)["w"], riga(casa_, a)["l"], riga(fuori_, a)["w"], riga(fuori_, a)["l"]) == (1, 0, 0, 0)
+   and (riga(casa_, b)["w"], riga(fuori_, b)["w"], riga(fuori_, b)["l"]) == (1, 0, 1)
+   and (riga(fuori_, c)["w"], riga(fuori_, c)["l"]) == (0, 1), "home away: vittorie e sconfitte solo in casa o fuori")
+ok(casa_["righe"][0]["nome"] == config.nome(c) and casa_["righe"][0]["media"] == C._n(120.0),
+   f"home away: a pari vittorie decide la media ({[x['nome'] for x in casa_['righe']]})")
+ok(riga(fuori_, a)["media"] == "—" and riga(casa_, a)["gen"] == next(x["pos"] for x in righe_db if x["team"] == a)
+   and dh["media_lbl"] == "Media della lega" and "media punti, poi differenza" in dh["nota"],
+   "home away: senza partite «—», posizione generale, etichetta e nota")
 try:
     import typst  # noqa: F401
     png, _ = C.immagine(False, S)
@@ -73,6 +88,9 @@ try:
     _conf = C.conference
     C.conference = lambda: {a: "Est", b: "Est", c: "Ovest", d: "Ovest"}
     png3, _ = C.immagine(False, S, per_conference=True)
+    imm4, _ = C.immagini_home_away(S)
+    ok([n for n, _p in imm4] == ["In casa", "In trasferta"] and all(p_[:4] == b"\x89PNG" for _n, p_ in imm4),
+       "/classifica_home_away: due immagini, in casa e in trasferta")
     C.conference = lambda: {}
     try:
         C.immagine(False, S, per_conference=True); senza = False

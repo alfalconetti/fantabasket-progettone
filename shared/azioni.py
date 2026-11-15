@@ -167,3 +167,57 @@ def cerca(q, squadra: str | None = None, giocatore_id: int | None = None, chi_id
     sql = "SELECT * FROM registro_azioni" + (" WHERE " + " AND ".join(dove) if dove else "") + " ORDER BY quando DESC, id DESC LIMIT %s"
     par.append(int(limite))
     return q(sql, tuple(par), many=True) or []
+
+
+# ── v7.13.0 (Luca, 15/11): i filtri di /registro come quelli di /giocatori ─────────────────────────
+CAMPI = {
+    "squadra": "%s = ANY(squadre)",
+    "giocatore": "giocatore_id = %s",
+    "chi": "chi_nome ILIKE %s",
+    "bot": "bot = %s",
+    "veste": "veste = %s",
+    "azione": "azione ILIKE %s",
+    "testo": "(azione || ' ' || COALESCE(oggetto, '') || ' ' || COALESCE(prima, '') || ' ' || COALESCE(dopo, '') || ' ' "
+             "|| COALESCE(nota, '')) ILIKE %s",
+}
+SIMILI = {"chi", "azione", "testo"}                      # cercati come «contiene»
+
+
+def _condizione(campo: str, valori: list) -> tuple[str, list]:
+    """Una condizione: più valori dello stesso filtro in «o»."""
+    sql = CAMPI[campo]
+    par = [f"%{v}%" if campo in SIMILI else v for v in valori]
+    return "(" + " OR ".join([sql] * len(valori)) + ")", par
+
+
+def cerca_filtri(q, gruppi: list[dict], giorni: int | None = None, dal=None, al=None, squadra_fissa: str | None = None,
+                 limite: int = 500) -> list[dict]:
+    """Le righe del registro, dalla più recente. gruppi: in «o» tra loro; ognuno {"si": [(campo, [valori])],
+    "no": [(campo, [valori])]} con le condizioni in «e» (quelle in "no" negate). giorni, dal e al (date, ora
+    italiana, estremi compresi) e squadra_fissa (un GM vede solo la sua squadra) valgono per tutti."""
+    _pronto(q)
+    dove, par = [], []
+    if giorni:
+        dove.append("quando >= NOW() - (%s || ' days')::interval"); par.append(str(int(giorni)))
+    if dal:
+        dove.append("(quando AT TIME ZONE 'Europe/Rome')::date >= %s"); par.append(dal)
+    if al:
+        dove.append("(quando AT TIME ZONE 'Europe/Rome')::date <= %s"); par.append(al)
+    if squadra_fissa:
+        dove.append("%s = ANY(squadre)"); par.append(squadra_fissa)
+    alternative = []
+    for g in gruppi:
+        pezzi, pp = [], []
+        for campo, valori in g.get("si", []):
+            c, cp = _condizione(campo, valori); pezzi.append(c); pp += cp
+        for campo, valori in g.get("no", []):
+            c, cp = _condizione(campo, valori); pezzi.append(f"NOT {c}"); pp += cp
+        if pezzi:
+            alternative.append("(" + " AND ".join(pezzi) + ")"); par += pp
+    if alternative:
+        dove.append("(" + " OR ".join(alternative) + ")")
+    sql = ("SELECT * FROM registro_azioni" + (" WHERE " + " AND ".join(dove) if dove else "")
+           + " ORDER BY quando DESC, id DESC LIMIT %s")
+    par.append(int(limite))
+    return q(sql, tuple(par), many=True) or []
+

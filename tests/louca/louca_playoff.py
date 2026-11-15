@@ -219,6 +219,8 @@ try:
     convalida_p(7, eccezioni={(7, s0["bassa"])}, rifai=True)
     ok(partite(8) == [(s0["alta"], s0["bassa"])] and not [x for x in PO.serie(S) if x["turno"] == 2],
        f"convalida rifatta (2-2): la P5 diventa la gara 5, via le semifinali ({partite(8)})")
+    ok(db.q("SELECT 1 FROM registro_azioni WHERE azione = 'playoff: giornata in calendario (partite cambiate)' AND oggetto = 'P5 (G8)'", one=True),
+       "registro: la P5 rifatta, «partite cambiate»")
     convalida_p(7, rifai=True)
     ok(len(partite(8)) == 4, "rimessa a posto: di nuovo le semifinali nella P5")
     db.q("UPDATE lega_giornate SET prima_partita = NOW() - INTERVAL '1 hour' WHERE stagione = %s AND numero = 8", (S,))
@@ -228,6 +230,8 @@ try:
     e7b = asyncio.run(PO.dopo_convalida(bot, S, 7, prima=prima7))
     ok(len(partite(8)) == 4 and len(bot.msg) == n_msg + 1 and "già iniziata" in bot.msg[-1][1],
        f"P5 già iniziata: non si tocca, avviso agli admin ({e7b})")
+    ok(db.q("SELECT 1 FROM registro_azioni WHERE azione = 'playoff: giornata già iniziata non cambiata'", one=True),
+       "registro: la giornata già iniziata non toccata")
     db.q("UPDATE lega_risultati SET vince = CASE vince WHEN 'casa' THEN 'trasferta' ELSE 'casa' END WHERE stagione = %s AND giornata = 7", (S,))
     PO.aggiorna_serie(S)
     for n in (8, 9, 10):

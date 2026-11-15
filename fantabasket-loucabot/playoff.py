@@ -848,6 +848,11 @@ async def dopo_convalida(bot, s: str, n: int, prima: dict | None = None) -> str:
                 + f", ma la {_nome_p(s, dopo)} è già iniziata: le serie sono ricontate, le partite già in calendario "
                   "restano. Controllate /playoff e decidete voi come sistemare."))
             esiti.append(f"⚠️ {_nome_p(s, dopo)} già iniziata: partite non cambiate, avvisati gli admin")
+            from registro import segna_sync                # v7.13.0: resta traccia anche nel registro
+            segna_sync(None, "sistema", "playoff: giornata già iniziata non cambiata", oggetto=f"{_nome_p(s, dopo)} (G{dopo})",
+                       nota=f"la {_nome_p(s, n)} convalidata di nuovo cambia chi vince "
+                            + ", ".join(f"{config.nome(c)} – {config.nome(prima[c].get('trasferta') or '?')}" for c in cambiati)
+                            + "; avvisati gli admin")
     else:
         finite = aggiorna_serie(s)
         try:
@@ -878,8 +883,11 @@ async def dopo_convalida(bot, s: str, n: int, prima: dict | None = None) -> str:
                     titolo + f"📅 <b>{_nome_p(s, dopo)} (G{dopo})</b>" + (" <i>(partite cambiate)</i>" if gia_p else "")
                     + f" · {gd['dal']:%d/%m}–{gd['al']:%d/%m}\n" + testo_partite(s, cosa["partite"])))
             from registro import segna_sync
-            segna_sync(None, "sistema", "playoff: giornata in calendario", oggetto=f"{_nome_p(s, dopo)} (G{dopo})",
-                       nota=f"{len(cosa['partite'])} partite" + (f", {TURNI[cosa['turno']].lower()}" if cosa["nuovo_turno"] else ""))
+            segna_sync(None, "sistema", "playoff: giornata in calendario" + (" (partite cambiate)" if gia_p else ""),
+                       oggetto=f"{_nome_p(s, dopo)} (G{dopo})",
+                       dopo="; ".join(f"{config.nome(c)} – {config.nome(t)}" for c, t in cosa["partite"]),
+                       nota=(f"dopo la convalida della {_nome_p(s, n)}" + (" rifatta" if gia_p else "")
+                             + (f"; si apre il turno: {TURNI[cosa['turno']].lower()}" if cosa["nuovo_turno"] else "")))
     for x in finite:
         perde = x["bassa"] if x["vincente"] == x["alta"] else x["alta"]
         esiti.append(f"{config.nome(x['vincente'])} batte {config.nome(perde)} "

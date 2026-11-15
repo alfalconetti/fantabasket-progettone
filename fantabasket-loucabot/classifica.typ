@@ -87,7 +87,7 @@
   // in fondo alla colonna Media, la media della conference
   ..if media != none { colonne.enumerate().map(((i, c)) =>
       if c.at(0) == "Media" { table.cell(fill: c_sub.lighten(70%))[#text(weight: "bold")[#media]] }
-      else if i == 2 { table.cell(fill: c_sub.lighten(70%))[#text(style: "italic")[Media della conference]] }
+      else if i == 2 { table.cell(fill: c_sub.lighten(70%))[#text(style: "italic")[#dati.at("media_lbl", default: "Media della conference")]] }
       else { table.cell(fill: c_sub.lighten(70%))[] }) } else { () },
 )
 
@@ -103,6 +103,6 @@
 #block(width: 100%, fill: c_head)[
   #pad(x: 12pt, y: 5pt)[
     #set par(justify: false)
-    #text(7pt, fill: white)[#text(fill: rgb("#7EE2A0"), weight: "bold")[verde] il migliore e #text(fill: rgb("#FF8A80"), weight: "bold")[rosso] il peggiore di ogni colonna · Punti col bonus casa · a parità di vittorie: #if dati.at("cup", default: false) [prima la vincitrice della Quasi NBA Cup (🏆), poi ]scontri diretti (solo V/S), poi media punti, poi differenza#if "sezioni" in dati [ · ordine della classifica generale (Gen.), filtrato per conference]#if full [ · Record +/− subiti: volte in cui l'avversario ha fatto contro di te il suo massimo/minimo della stagione · roster di adesso, quintetto = il migliore possibile per fantapunti (uno per ruolo)]]
+    #text(7pt, fill: white)[#text(fill: rgb("#7EE2A0"), weight: "bold")[verde] il migliore e #text(fill: rgb("#FF8A80"), weight: "bold")[rosso] il peggiore di ogni colonna · Punti col bonus casa · #if dati.at("nota", default: "") != "" [#dati.nota] else [a parità di vittorie: #if dati.at("cup", default: false) [prima la vincitrice della Quasi NBA Cup (🏆), poi ]scontri diretti (solo V/S), poi media punti, poi differenza#if "sezioni" in dati [ · ordine della classifica generale (Gen.), filtrato per conference]]#if full [ · Record +/− subiti: volte in cui l'avversario ha fatto contro di te il suo massimo/minimo della stagione · roster di adesso, quintetto = il migliore possibile per fantapunti (uno per ruolo)]]
   ]
 ]

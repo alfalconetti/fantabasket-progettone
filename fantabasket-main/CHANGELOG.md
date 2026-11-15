@@ -2009,3 +2009,12 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.12.0 (2026-11-15)
 
 - Tabellone dei playoff (loucabot v119): più leggibile su Telegram, la finale con le due squadre, le gare e la campione
+
+## v7.13.0 (2026-11-15)
+
+- **`/registro` coi filtri come `/giocatori`**: chiavi (`squadra:`, `giocatore:`, `chi:`, `bot:`, `veste:`, `azione:`, `testo:`, `giorni:`, `dal:`, `al:`), più valori in «o» con la virgola, `-` per negare, `|` o `oppure` tra gruppi, `/registro aiuto`; i filtri capiti in cima al file; i GM sempre solo la loro squadra
+- Loucabot v120: `/classifica_home_away`; nel registro anche `/importa_playoff`, la Quasi Cup nella convalida e i casi delle giornate P rifatte
+
+## v7.14.0 (2026-11-15)
+
+- Loucabot v121: **`/rendimento_team`** (il rendimento di una squadra, panchina compresa); `/classifica_home_away` in due messaggi

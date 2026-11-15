@@ -37,6 +37,8 @@ def liste_comandi() -> dict:
         BotCommand("classifica", "La classifica (immagine)"),
         BotCommand("classifica_full", "La classifica con tutte le statistiche"),
         BotCommand("classifica_conference", "La classifica divisa per conference"),
+        BotCommand("classifica_home_away", "La classifica in casa e in trasferta (due immagini)"),
+        BotCommand("rendimento_team", "Il rendimento di una squadra giornata per giornata, panchina compresa"),
         BotCommand("quasi_cup", "La Quasi NBA Cup: qualificazione e tabellone (immagine)"),
         BotCommand("playoff", "Il tabellone dei playoff (prima dei playoff: se finisse oggi)"),
     ]

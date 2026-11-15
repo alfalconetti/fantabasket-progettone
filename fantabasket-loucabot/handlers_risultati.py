@@ -545,8 +545,19 @@ async def cb_risultati(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
         R.convalida(s, n, update.effective_user.id)
         from registro import segna_sync
+        _nota_cup = None                                 # v7.13.0: la Quasi Cup della settimana nella nota
+        try:
+            _c = lc.get("cup")
+            _c = __import__("json").loads(_c) if isinstance(_c, str) else _c
+            if _c:
+                _nota_cup = "Quasi Cup: " + "; ".join(
+                    f"Q{r['turno']} {config.nome(r['casa'])} {testo_punti(r['punti_casa'])} – {testo_punti(r['punti_trasferta'])} "
+                    f"{config.nome(r['trasferta'])}, vince {config.nome(r['casa'] if r['vince'] == 'casa' else r['trasferta'])}"
+                    for r in _c)
+        except Exception as err:
+            logger.info("Nota della Quasi Cup nel registro G%s: %s", n, err)
         segna_sync(update.effective_user, "admin", "giornata convalidata", oggetto=f"giornata {n}",
-                   prima=f"versione {lc['versione']} da convalidare", dopo="convalidata: risultati salvati")
+                   prima=f"versione {lc['versione']} da convalidare", dopo="convalidata: risultati salvati", nota=_nota_cup)
         await q.answer("Convalidata")
         import foglio
         esito = await foglio.aggiorna(s)

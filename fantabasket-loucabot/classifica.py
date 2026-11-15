@@ -52,9 +52,9 @@ def partite_squadra(ris: list[dict]) -> dict[str, list[dict]]:
         pc, pt = float(r["punti_casa"]), float(r["punti_trasferta"])
         supp = r["supp_casa"] is not None
         out.setdefault(r["casa"], []).append({"giornata": r["giornata"], "avv": r["trasferta"], "fatti": pc, "subiti": pt,
-                                              "vinta": r["vince"] == "casa", "supp": supp})
+                                              "vinta": r["vince"] == "casa", "supp": supp, "casa": True})
         out.setdefault(r["trasferta"], []).append({"giornata": r["giornata"], "avv": r["casa"], "fatti": pt, "subiti": pc,
-                                                   "vinta": r["vince"] == "trasferta", "supp": supp})
+                                                   "vinta": r["vince"] == "trasferta", "supp": supp, "casa": False})
     return out
 
 
@@ -336,6 +336,44 @@ def dati_conference(righe: list[dict], giornate: int, conf: dict[str, str]) -> d
     return {**base_, "sezioni": sezioni}
 
 
+def dati_home_away(righe: list[dict], giornate: int, stagione: str | None = None) -> dict:
+    """/classifica_home_away (v7.13.0, Luca 15/11; mockup approvato): la struttura di /classifica_conference con
+    due sezioni, in casa e in trasferta, tutte le squadre con le sole partite in casa (o fuori). A parità di
+    vittorie media punti, poi differenza (gli scontri diretti qui non hanno senso). Gen.: la classifica generale."""
+    base_ = dati_typst(righe, giornate, False)
+    gen = {r["team"]: r["pos"] for r in righe}
+    per = partite_squadra(risultati(stagione or config.stagione()))
+    sezioni = []
+    for nome, casa in (("In casa", True), ("In trasferta", False)):
+        rr = []
+        for t in gen:
+            p = [x for x in per.get(t, []) if x["casa"] == casa]
+            w = sum(1 for x in p if x["vinta"])
+            pf, ps = sum(x["fatti"] for x in p), sum(x["subiti"] for x in p)
+            rr.append({"team": t, "w": w, "l": len(p) - w, "pf": pf, "ps": ps, "media": pf / len(p) if p else None,
+                       "diff": pf - ps, "striscia": _striscia(p)})
+        rr.sort(key=lambda r: (-r["w"], -(r["media"] or 0), -r["diff"], gen[r["team"]]))
+        medie = [r["media"] for r in rr if r["media"] is not None]
+        col = {}
+        for k in ("pf", "ps", "media"):
+            vv = [r[k] for r in rr if r[k] is not None]
+            if len(set(vv)) > 1:
+                alto, basso = max(vv), min(vv)
+                for r in rr:
+                    if r[k] == alto:
+                        col.setdefault(r["team"], {})[k] = "worst" if k == "ps" else "best"
+                    elif r[k] == basso:
+                        col.setdefault(r["team"], {})[k] = "best" if k == "ps" else "worst"
+        sezioni.append({"nome": nome, "media": _n(sum(medie) / len(medie)) if medie else "—", "righe": [
+            {"pos": i + 1, "nome": config.nome(r["team"]), "logo": _logo(r["team"]), "w": r["w"], "l": r["l"],
+             "pf": _n(r["pf"]), "ps": _n(r["ps"]), "media": _n(r["media"]) if r["media"] is not None else "—",
+             "striscia": r["striscia"], "col": col.get(r["team"], {}), "cup": False, "gen": gen[r["team"]]}
+            for i, r in enumerate(rr)]})
+    return {**base_, "titolo": "Classifica in casa e in trasferta", "sezioni": sezioni, "media_lbl": "Media della lega",
+            "nota": ("in ogni tabella solo le partite in casa (o fuori): a parità di vittorie media punti, poi differenza · "
+                     "Striscia: solo quelle partite · Gen.: posizione nella classifica generale")}
+
+
 TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "classifica.typ")
 
 
@@ -355,6 +393,21 @@ def immagine(full: bool = False, stagione: str | None = None, per_conference: bo
     png = typst.compile(TEMPLATE, root="/", format="png", ppi=180,
                         sys_inputs={"dati": json.dumps(dati, ensure_ascii=False), "full": "1" if full else ""})
     return png, giornate
+
+
+def immagini_home_away(stagione: str | None = None) -> tuple[list[tuple[str, bytes]], int]:
+    """/classifica_home_away (Luca, 15/11): due immagini, una per sezione, in due messaggi. [(nome, png)], giornate."""
+    righe, giornate = calcola(stagione, False)
+    if not giornate:
+        return [], 0
+    import typst
+    d = dati_home_away(righe, giornate, stagione)
+    out = []
+    for sez in d["sezioni"]:
+        dd = {**d, "titolo": f"Classifica {sez['nome'].lower()}", "sezioni": [sez]}
+        out.append((sez["nome"], typst.compile(TEMPLATE, root="/", format="png", ppi=180,
+                                               sys_inputs={"dati": json.dumps(dd, ensure_ascii=False), "full": ""})))
+    return out, giornate
 
 
 # ── comandi ────────────────────────────────────────────────────────────────────
@@ -385,6 +438,24 @@ async def cmd_classifica_conference(update, context):
     await cmd_classifica(update, context, per_conference=True)
 
 
+async def cmd_classifica_home_away(update, context):
+    import asyncio
+    import io
+    msg = update.effective_message
+    try:
+        imm, giornate = await asyncio.to_thread(immagini_home_away)
+    except Exception as err:
+        logger.exception("Classifica home away")
+        await msg.reply_text(f"⚠️ Classifica non disponibile: {err}")
+        return
+    if not imm:
+        await msg.reply_text("Nessuna giornata convalidata: la classifica parte dalla prima convalida.")
+        return
+    for nome, png in imm:                                # due messaggi: in casa, poi in trasferta
+        await msg.reply_photo(photo=io.BytesIO(png), caption=f"🏠 Classifica {nome.lower()} dopo {giornate} giornate"
+                              if nome == "In casa" else f"✈️ Classifica {nome.lower()} dopo {giornate} giornate")
+
+
 async def cmd_classifica_full(update, context):
     await cmd_classifica(update, context, full=True)
 
@@ -392,4 +463,5 @@ async def cmd_classifica_full(update, context):
 def get_handlers() -> list:
     from telegram.ext import CommandHandler
     return [CommandHandler("classifica", cmd_classifica), CommandHandler("classifica_full", cmd_classifica_full),
-            CommandHandler("classifica_conference", cmd_classifica_conference)]
+            CommandHandler("classifica_conference", cmd_classifica_conference),
+            CommandHandler("classifica_home_away", cmd_classifica_home_away)]

@@ -89,6 +89,33 @@ t = registro(900, ["admin", "cap"])
 ok("cap penalizzato" in t and "trade deadline" not in t and "veste admin" in t, "filtri: veste e azione")
 f, d = RG.filtri(["30", "loucabot", "@luca", "Gamma"])
 ok(f == {"giorni": 30, "bot": "louca", "chi_testo": "@luca", "squadra": "team03"}, f"filtri: giorni, bot, chi, squadra {f}")
+# v7.13.0 (Luca, 15/11): filtri come /giocatori
+from datetime import date as _date
+A.registra(db._q, "louca", (900, "Luca"), "admin", "giornata convalidata", oggetto="giornata 12", nota="Quasi Cup: Q1 …")
+A.registra(db._q, "main", (101, "GM Alfa"), "gm", "taglio", squadre=["team01"], oggetto="Caio", prima="3M", dopo="tagliato")
+t = registro(900, ["bot:aste,loucabot"])
+ok("offerta" in t and "giornata convalidata" in t and "taglio" not in t, "bot: con due valori in «o»")
+t = registro(900, ["-sistema", "-bot:aste"])
+ok("offerta" not in t and "taglio" in t and "| sistema |" not in t, "negazione: -sistema, -bot:aste")
+t = registro(900, ["squadra:Alfa", "taglio", "|", "aste"])
+ok("taglio" in t and "offerta" in t and "TRADE-1" not in t and "oppure" in t.split("\n")[2], "gruppi con |: (Alfa e taglio) oppure aste, scritti in cima")
+t = registro(900, ['testo:"Quasi', 'Cup"'])          # come arriva da Telegram, tra virgolette
+ok("giornata convalidata" in t and "taglio" not in t, "testo: cerca anche nella nota")
+t = registro(900, ["chi:GM", "oppure", "azione:trade"])
+ok("taglio" in t and "offerta" in t and "TRADE-1" in t and "giornata convalidata" not in t, "chi: e azione: con «oppure»")
+oggi = __import__("datetime").datetime.now().strftime("%d/%m/%Y")
+ok("taglio" in registro(900, [f"dal:{oggi}", f"al:{oggi}"]) and "taglio" not in registro(900, ["al:01/01/2020"]), "dal: e al:")
+ok("❌" in registro(900, ["dal:31/02"]) and "GG/MM" in registro(900, ["dal:31/02"]), "data sbagliata: errore")
+ok("❌" in registro(900, ["boh:1"]) and "chiave sconosciuta" in registro(900, ["boh:1"]), "chiave sconosciuta: errore")
+ok("❌" in registro(900, ["|", "aste"]), "| senza un gruppo prima: errore")
+ok("/registro" in registro(900, ["aiuto"]) and "oppure" in registro(900, ["aiuto"]), "aiuto")
+t = registro(101, ["taglio", "|", "aste"])
+ok("taglio" in t and "offerta" not in t and "TRADE-1" not in t and "(la tua)" in t, "GM: anche coi gruppi solo la sua squadra")
+ok("solo il registro della tua squadra" in registro(101, ["squadra:Alfa,Beta"]), "GM: un'altra squadra tra i valori no")
+_vecchio = db.cerca_giocatori
+db.cerca_giocatori = lambda n: [{"id": 7, "nome_common": "Gamma Ray"}] if "gamma" in n else []
+ok("❌" in registro(900, ["Gamma"]) and "squadra:Gamma" in registro(900, ["Gamma"]), "squadra e giocatore insieme: chiede la chiave")
+db.cerca_giocatori = _vecchio
 # pannello admin
 q = types.SimpleNamespace(from_user=types.SimpleNamespace(id=101), message=types.SimpleNamespace(chat_id=101), data="reg:7",
                           answer=lambda *a, **k: asyncio.sleep(0))

@@ -363,7 +363,7 @@ Gli admin possono dare una penalità alla squadra (panchina in ritardo, formazio
 
 ## Il registro della tua squadra
 
-**`/registro`** ti manda un file con tutto quello che è stato fatto sulla tua squadra, in tutti i bot (questo, aste, loucabot, IPanchinari): chi, quando, cosa, com'era prima e com'è dopo. Ci sono le tue operazioni e quelle degli admin sulla tua squadra (una trade compare per tutte le squadre coinvolte). Puoi restringere: `/registro 7` (ultimi 7 giorni), `/registro taglio`, `/registro LeBron`, `/registro aste`. Le azioni prima di questa funzione non ci sono.
+**`/registro`** ti manda un file con tutto quello che è stato fatto sulla tua squadra, in tutti i bot (questo, aste, loucabot, IPanchinari): chi, quando, cosa, com'era prima e com'è dopo. Ci sono le tue operazioni e quelle degli admin sulla tua squadra (una trade compare per tutte le squadre coinvolte). Puoi restringere: `/registro 7` (ultimi 7 giorni), `/registro taglio`, `/registro LeBron`, `/registro aste`; dalla v7.13.0 anche coi filtri come `/giocatori` (`dal:01/11`, `-sistema`, `bot:aste,loucabot`, `taglio | trade`): `/registro aiuto` per l'elenco. Le azioni prima di questa funzione non ci sono.
 
 ## In breve
 
