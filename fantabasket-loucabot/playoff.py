@@ -294,7 +294,7 @@ def _gare(s: str, x: dict) -> tuple[list[dict], bool, str]:
             nota = f"gara {i} · P{p['giornata'] - u} · {p['dal']:%d/%m}–{p['al']:%d/%m}"
     if x["vincente"]:
         a, b = x["vinte_alta"], x["vinte_bassa"]
-        nota = f"passa {config.nome(x['vincente'])} {max(a, b)}-{min(a, b)}"
+        nota = (f"{'vince' if x['turno'] == 4 else 'passa'} {config.nome(x['vincente'])} {max(a, b)}-{min(a, b)}")
     elif not nota:
         nota = f"al meglio delle {x['al_meglio']}"
     return gare, live, nota
@@ -305,6 +305,15 @@ def _serie_tab(s: str, x: dict) -> dict:
     return {"tipo": "serie", "a": _squadra(x["alta"], x["seed_alta"]), "b": _squadra(x["bassa"], x["seed_bassa"]),
             "va": x["vinte_alta"], "vb": x["vinte_bassa"], "nota": nota, "gare": gare, "live": live,
             "fine": bool(x["vincente"])}
+
+
+def _finale_tab(s: str, x: dict) -> dict:
+    """La finale: sotto ogni nome il piazzamento nella sua conference («1ª Ovest»)."""
+    d = _serie_tab(s, x)
+    conf = C.conference()
+    for k, t, sd in (("a", x["alta"], x["seed_alta"]), ("b", x["bassa"], x["seed_bassa"])):
+        d[k]["conf"] = (f"{sd}ª " if sd else "") + (conf.get(t) or "")
+    return d
 
 
 def dati_tabellone(s: str) -> dict:
@@ -330,10 +339,10 @@ def dati_tabellone(s: str) -> dict:
                 nota = ("da P1" + (f" (G{u + 1}) · {p1['dal']:%d/%m}" if p1 else "") + f" · in casa {get(a)['nome']}")
                 r1.append({"tipo": "serie", "a": get(a), "b": get(b), "va": 0, "vb": 0, "nota": nota, "gare": [], "fine": False})
         r2 = []
-        for slot, k, chi in (("1", 1, "vincente 4 – 5"), ("2", 2, "vincente 3 – 6")):
+        for slot, k, chi, tit in (("1", 1, "vincente 4 – 5", "semifinale 1"), ("2", 2, "vincente 3 – 6", "semifinale 2")):
             x = per.get((2, c, slot))
-            r2.append(_serie_tab(s, x) if x else
-                      {"tipo": "attesa", "a": f"{k} · {get(k)['nome']}", "b": chi, "nota": "semifinale di conference"})
+            r2.append({**_serie_tab(s, x), "titolo": tit} if x else
+                      {"tipo": "attesa", "a": get(k), "b": chi, "titolo": tit, "nota": "aspetta dal primo turno"})
         x = per.get((3, c, "cf"))
         r3 = (_serie_tab(s, x) if x else
               {"tipo": "attesa", "a": "vincente semifinale 1", "b": "vincente semifinale 2", "nota": "finale di conference"})
@@ -369,7 +378,7 @@ def dati_tabellone(s: str) -> dict:
     return {"anno": f"{a}-{(a + 1) % 100:02d}", "fase": fase, "adesso": adesso,
             "finale_nota": f"al meglio delle {m[3]}", "ovest": blocchi[0], "est": blocchi[1],
             "conf_sopra": (confs + ["", ""])[0], "conf_sotto": (confs + ["", ""])[1],   # i nomi di divisions.json
-            "finale": _serie_tab(s, fx) if fx else None,
+            "finale": _finale_tab(s, fx) if fx else None,
             "campione": _squadra(campione, None) if campione else None,
             "regole_nota": (f"{nota_meglio} · in casa in gara 1, 3, 5 e 7 la meglio classificata · bonus casa "
                             f"{regole.bonus_casa(playoff=True):g} · ogni partita è una giornata P (P1 = G{u + 1}) · un turno "

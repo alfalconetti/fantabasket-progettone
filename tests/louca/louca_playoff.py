@@ -165,6 +165,7 @@ try:
         ok(png[:4] == b"\x89PNG" and png0[:4] == b"\x89PNG", "immagini del tabellone (proiezione e primo turno)")
         if _os.environ.get("PO_PNG"):
             open(_os.environ["PO_PNG"], "wb").write(png)
+            open(_os.environ["PO_PNG"].replace(".png", "_proiezione.png"), "wb").write(png0)
     except ImportError:
         pass
 
@@ -252,6 +253,9 @@ try:
     ok(st["campione"] == f["alta"] and db.giornata(S, 18) is None and any("vince i playoff" in m[1] and m[0] == -1 for m in bot.msg),
        f"finale 4-0: campione, sul canale, nessuna P15 ({ecamp})")
     d_c = PO.dati_tabellone(S)
+    if _os.environ.get("PO_PNG"):
+        open(_os.environ["PO_PNG"].replace(".png", "_campione.png"), "wb").write(PO.immagine(d_c))
+    ok(d_f["finale"]["a"]["conf"].endswith("Ovest") or d_f["finale"]["a"]["conf"].endswith("Est"), "in finale sotto il nome il piazzamento nella conference")
     ok(d_c["adesso"] == "Campione" and d_c["campione"]["nome"] == config.nome(f["alta"]) and "campione" in bot.mod[-1][2],
        "tabellone: campione, anche sul canale")
     ok(asyncio.run(PO.dopo_convalida(bot, S, 3)) == "", "convalida di regular season: niente playoff")

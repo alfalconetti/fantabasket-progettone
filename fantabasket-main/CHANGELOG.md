@@ -2005,3 +2005,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.11.1 (2026-11-15)
 
 - Tabellone dei playoff (loucabot v118): nel riquadro della finale i nomi veri delle conference
+
+## v7.12.0 (2026-11-15)
+
+- Tabellone dei playoff (loucabot v119): più leggibile su Telegram, la finale con le due squadre, le gare e la campione

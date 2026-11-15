@@ -1,7 +1,7 @@
 {
  "anno": "2026-27",
- "fase": "Primo turno · gara 4 in corso (P4 = G42) · aggiornato alle 01:42",
- "adesso": "Primo turno",
+ "fase": "Finale · gara 4 in corso (P14 = G52)",
+ "adesso": "Finale",
  "ovest": {
   "nome": "Conference Ovest",
   "t1": {
@@ -123,13 +123,20 @@
   "r2": [
    {
     "tipo": "attesa",
-    "a": "1 · Los Tizi",
+    "a": {
+     "nome": "Los Tizi",
+     "sigla": "LO",
+     "colore": "#7A1F2B",
+     "logo": "",
+     "seed": "1"
+    },
     "b": "vincente 4 – 5",
-    "nota": "semifinale · da P6"
+    "nota": "aspetta dal primo turno",
+    "titolo": "semifinale 1"
    },
    {
     "tipo": "serie",
-    "titolo": "2 – 3",
+    "titolo": "semifinale 2",
     "a": {
      "nome": "Caio Ballers",
      "sigla": "CA",
@@ -277,13 +284,20 @@
   "r2": [
    {
     "tipo": "attesa",
-    "a": "1 · Delta Force",
+    "a": {
+     "nome": "Delta Force",
+     "sigla": "DE",
+     "colore": "#880E4F",
+     "logo": "",
+     "seed": "1"
+    },
     "b": "vincente 4 – 5",
-    "nota": "semifinale · da P6"
+    "nota": "aspetta dal primo turno",
+    "titolo": "semifinale 1"
    },
    {
     "tipo": "serie",
-    "titolo": "2 – 3",
+    "titolo": "semifinale 2",
     "a": {
      "nome": "Omega",
      "sigla": "OM",
@@ -310,8 +324,64 @@
    "nota": "finale di conference"
   }
  },
- "finale_nota": "al meglio delle 7 · da P16",
+ "finale_nota": "al meglio delle 7",
  "regole_nota": "Primo turno, semifinali e finali di conference al meglio delle 5, finale al meglio delle 7 · in casa in gara 1, 3, 5 e 7 la meglio classificata · bonus casa 5 · ogni partita è una giornata P (P1 = G39) · un turno inizia quando tutte le serie del turno prima sono finite · bordo rosso: partita in corso",
+ "finale": {
+  "a": {
+   "nome": "Los Tizi",
+   "sigla": "LO",
+   "colore": "#7A1F2B",
+   "logo": "",
+   "seed": "1",
+   "conf": "1ª Ovest"
+  },
+  "b": {
+   "nome": "Pluto Dunkers",
+   "sigla": "PL",
+   "colore": "#0D47A1",
+   "logo": "",
+   "seed": "2",
+   "conf": "2ª Est"
+  },
+  "va": 2,
+  "vb": 1,
+  "gare": [
+   {
+    "n": 1,
+    "p": "P11",
+    "casa": "in casa Los Tizi",
+    "pa": "512,50",
+    "pb": "498,00",
+    "v": "a"
+   },
+   {
+    "n": 2,
+    "p": "P12",
+    "casa": "in casa Los Tizi",
+    "pa": "488,25",
+    "pb": "501,00",
+    "v": "b"
+   },
+   {
+    "n": 3,
+    "p": "P13",
+    "casa": "in casa Pluto Dunkers",
+    "pa": "530,00",
+    "pb": "501,50",
+    "v": "a"
+   },
+   {
+    "n": 4,
+    "p": "P14",
+    "casa": "in corso",
+    "pa": "301,50",
+    "pb": "288,00",
+    "v": ""
+   }
+  ],
+  "fine": false,
+  "nota": "gara 4 · P14 · 15/04–16/04"
+ },
  "conf_sopra": "Ovest",
  "conf_sotto": "Est"
 }

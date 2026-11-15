@@ -576,3 +576,8 @@ Il calcolo dei fantapunti.
 ## v118 (2026-11-15, progettone v7.11.1)
 
 - Tabellone dei playoff: nel riquadro della finale i nomi veri delle conference (da `divisions.json`) al posto di «Ovest» ed «Est» scritti nel template
+
+## v119 (2026-11-15, progettone v7.12.0)
+
+- Tabellone dei playoff più leggibile su Telegram (mockup approvato): immagine più stretta e scritte più grandi, primo turno a due colonne con la 1ª e la 2ª già nella loro semifinale, gare con giornata e punteggi
+- Riquadro della finale con le due squadre (e il piazzamento nella conference), le gare e poi la campione
