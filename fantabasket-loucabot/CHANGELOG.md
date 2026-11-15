@@ -561,3 +561,18 @@ Il calcolo dei fantapunti.
 
 - `/confronto` (viola, solo linee) e `/confronto_carriera` (blu) nelle grafiche nuove di `/rendimento` e `/rendimento_carriera`
 - `/rendimento` e `/confronto`: fascia gialla e media dei nostri playoff; play-in e playoff NBA in grigio
+
+## v116 (2026-11-15, progettone v7.10.0)
+
+- **Playoff, passo 1** (`playoff.py`): avviso di fine regular season, passaggio dopo il cambio di fase (congelamento, seed, bozza agli admin), `/set_seed`, conferma, blocco alle 15 (P1 in calendario con le gare 1), `/playoff`; classifica senza le giornate P
+
+## v117 (2026-11-15, progettone v7.11.0)
+
+- **Playoff, passo 2**: alla convalida di ogni giornata P le serie si ricontano e la giornata dopo entra in calendario con le gare delle serie aperte; turno nuovo quando tutte le serie sono finite (semifinali di conference, finali di conference, finale in casa della meglio classificata in classifica generale); campione sul canale; convalide rifatte gestite; promemoria se la convalida tarda
+- `/playoff` e il tabellone sul canale con le serie, le vittorie e ogni gara; aggiornato a ogni convalida
+- Live delle giornate P: «P3 · Giornata 41» e la serie sopra ogni partita
+- Niente report del tanking nelle giornate P; `/set_seed` chiuso dopo il blocco
+
+## v118 (2026-11-15, progettone v7.11.1)
+
+- Tabellone dei playoff: nel riquadro della finale i nomi veri delle conference (da `divisions.json`) al posto di «Ovest» ed «Est» scritti nel template

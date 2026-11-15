@@ -163,7 +163,9 @@ docker compose logs -f bot-main bot-aste-beta     # Ctrl+C per uscire
 - bot principale: `/menu` risponde e `/roster` mostra le squadre;
 - bot aste: `/aste` mostra le aste in corso (le aste chiuse o in pareggio vengono
   riprese da sole pochi secondi dopo l'avvio);
-- canale log: arriva il messaggio di avvio con la versione.
+- canale log: arriva il messaggio di avvio con la versione;
+- loucabot: `/classifica` e `/quasi_cup` rispondono (risultati, Quasi Cup e calendario dei playoff sono nel database
+  principale, quindi nel dump: non serve altro).
 
 ---
 

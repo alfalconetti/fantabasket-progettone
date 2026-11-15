@@ -1,8 +1,8 @@
-// /playoff (v7.9.5): il tabellone dei playoff, MOCKUP APPROVATO da Luca il 14/11 (a piramide, sul giallo), non ancora
-// collegato ai dati veri. Dati di esempio in docs/playoff_esempio.json; per vederlo:
+// /playoff: il tabellone dei playoff (mockup approvato da Luca il 14/11: a piramide, sul giallo; collegato ai dati
+// nella v7.10.0, playoff.dati_tabellone). Dati di esempio in docs/playoff_esempio.json; per vederlo:
 //   typst compile --input dati="$(cat docs/playoff_esempio.json)" playoff.typ playoff.png
-// Ovest sopra che scende verso la finale (primo turno con la 1ª e la 2ª che aspettano accanto al 4–5 e al 3–6,
-// semifinali, finale di conference), finale al centro, Est sotto che sale; frecce tra i turni; in ogni serie le gare.
+// la prima conference di divisions.json sopra che scende verso la finale (primo turno con la 1ª e la 2ª che aspettano accanto al 4–5 e al 3–6,
+// semifinali, finale di conference), finale al centro, l'altra sotto che sale; frecce tra i turni; in ogni serie le gare.
 #let d = json(bytes(sys.inputs.at("dati")))
 #let scuro = rgb("#2A1A00")
 #let marrone = rgb("#6B4A00")
@@ -103,12 +103,12 @@
   block(width: 100%, radius: 8pt, fill: scuro, inset: (x: 14pt, y: 10pt))[
     #grid(columns: (auto, 1fr, auto), column-gutter: 14pt, align: horizon,
       text(30pt)[🏆],
-      align(center)[#text(15pt, weight: "bold", fill: giallo1, tracking: 1.5pt)[FINALE] \ #v(2pt) #text(7pt, fill: white.transparentize(25%))[al meglio delle 7 · da P#d.finale_da]
+      align(center)[#text(15pt, weight: "bold", fill: giallo1, tracking: 1.5pt)[FINALE] \ #v(2pt) #text(7pt, fill: white.transparentize(25%))[#d.finale_nota]
         #v(8pt)
         #grid(columns: (1fr, auto, 1fr), column-gutter: 8pt, align: horizon,
-          box(width: 100%, radius: 5pt, stroke: (paint: white.transparentize(50%), thickness: .8pt, dash: "dashed"), inset: 7pt, text(7.5pt, fill: white.transparentize(30%))[campione Ovest]),
+          box(width: 100%, radius: 5pt, stroke: (paint: white.transparentize(50%), thickness: .8pt, dash: "dashed"), inset: 7pt, text(7.5pt, fill: white.transparentize(30%))[campione #d.at("conf_sopra", default: "")]),
           text(9pt, weight: "bold", fill: giallo1)[vs],
-          box(width: 100%, radius: 5pt, stroke: (paint: white.transparentize(50%), thickness: .8pt, dash: "dashed"), inset: 7pt, text(7.5pt, fill: white.transparentize(30%))[campione Est]))],
+          box(width: 100%, radius: 5pt, stroke: (paint: white.transparentize(50%), thickness: .8pt, dash: "dashed"), inset: 7pt, text(7.5pt, fill: white.transparentize(30%))[campione #d.at("conf_sotto", default: "")]))],
       text(30pt)[🏆])
   ])
 #block(width: 100%, inset: (x: 14pt, top: 14pt, bottom: 10pt))[
@@ -120,5 +120,5 @@
 ]
 
 #block(width: 100%, fill: crema, inset: (x: 16pt, y: 8pt), stroke: (top: .8pt + bordo))[
-  #text(6.8pt, fill: grigio)[Primo turno, semifinali e finali di conference al meglio delle 5, finale al meglio delle 7 · in casa in gara 1 (e gara 5 e 7) la meglio classificata, poi si alterna · bonus casa 5 · ogni partita è una giornata P (P1 = G39) · un turno inizia quando tutte le serie del turno prima sono finite · bordo rosso: partita in corso · i dettagli con /partita P3]
+  #text(6.8pt, fill: grigio)[#d.regole_nota]
 ]

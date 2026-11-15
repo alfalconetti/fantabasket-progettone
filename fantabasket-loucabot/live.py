@@ -600,11 +600,18 @@ def dati_immagine(c: dict, ora: datetime) -> dict:
         out.append({"k": k, "casa": lati[0], "tras": lati[1], "avanti": avanti, "nota": nota})
     nb = notte_banda(g, ora)
     banda = banda_nba(nb)
-    return {"n": g["numero"], "date": f"{g['dal']:%d/%m} – {g['al']:%d/%m}", "media_nba": media_nba(g),
-            "nba": banda, "nba_colonne": colonne_banda(len(banda)), "nba_notte": f"{nb:%d/%m}" if nb else "",
-            "notte": f"del {max(iniziate):%d/%m}" if iniziate else "",
-            "ora": f"{ora.astimezone(ROMA):%H:%M}", "partite": out, "soglia": 10 - MAX_DA_GIOCARE,
-            "bonus": f"{c['bonus']:g}"}
+    d = {"n": g["numero"], "date": f"{g['dal']:%d/%m} – {g['al']:%d/%m}", "media_nba": media_nba(g),
+         "nba": banda, "nba_colonne": colonne_banda(len(banda)), "nba_notte": f"{nb:%d/%m}" if nb else "",
+         "notte": f"del {max(iniziate):%d/%m}" if iniziate else "",
+         "ora": f"{ora.astimezone(ROMA):%H:%M}", "partite": out, "soglia": 10 - MAX_DA_GIOCARE,
+         "bonus": f"{c['bonus']:g}"}
+    if g.get("tipo") == "playoff":                     # v7.11.0: «P3 · Giornata 41», sopra ogni partita la serie
+        try:
+            import playoff as PO
+            PO.titoli_live(g, d, c["risultati"])
+        except Exception as err:
+            logger.info("Titoli dei playoff nel live G%s: %s", g["numero"], err)
+    return d
 
 
 def dati_tabellone(s: str, g: dict, ora: datetime | None = None, turno: int | None = None) -> dict | None:

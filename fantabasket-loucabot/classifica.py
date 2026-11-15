@@ -38,8 +38,11 @@ ULTIME = 10
 
 
 def risultati(stagione: str) -> list[dict]:
-    return db.q("""SELECT * FROM lega_risultati WHERE stagione = %s AND convalidato IS NOT NULL
-                   ORDER BY giornata, casa""", (stagione,), many=True) or []
+    """I risultati convalidati della regular season (v7.10.0: le giornate P dei playoff non contano in classifica)."""
+    return db.q("""SELECT * FROM lega_risultati r WHERE r.stagione = %s AND r.convalidato IS NOT NULL
+                     AND NOT EXISTS (SELECT 1 FROM lega_giornate g WHERE g.stagione = r.stagione AND g.numero = r.giornata
+                                     AND g.tipo = 'playoff')
+                   ORDER BY r.giornata, r.casa""", (stagione,), many=True) or []
 
 
 def partite_squadra(ris: list[dict]) -> dict[str, list[dict]]:

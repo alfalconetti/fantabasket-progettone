@@ -162,3 +162,11 @@ async def log(bot, testo: str):
 def chi(update) -> str:
     u = update.effective_user
     return e(u.full_name or str(u.id)) if u else "?"
+
+
+def in_gioco(s: str, g: dict | None) -> list[dict]:
+    """Le squadre che giocano la giornata g (v7.10.0): tutte in regular season; in una giornata P dei playoff solo
+    quelle con una partita (le prime due al primo turno e le eliminate non mandano niente: shared/playoff_base)."""
+    from shared import playoff_base
+    ids = playoff_base.in_gioco(db.q, s, g) if g else None
+    return config.squadre() if ids is None else [t for t in config.squadre() if t["id"] in ids]

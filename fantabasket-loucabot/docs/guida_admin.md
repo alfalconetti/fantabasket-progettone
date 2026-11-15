@@ -49,6 +49,29 @@ Il bot controlla giorni consecutivi, numerazione da P1 senza buchi, niente sovra
 
 **Codici delle giornate**: G regular season, P playoff, Q Quasi NBA Cup. P e G sono sinonimi (P1 = G39 quest'anno); un numero senza lettera vale G in regular season e P nella fase playoff. Valgono in tutti i comandi con la giornata (`/partita`, `/giornata`, `/risultati`, `/live`, `/ricalcola`, `/calcola`, `/storico_calcolo`, `/congela`, …).
 
+### Il passaggio ai playoff (v7.10.0)
+
+1. Alla convalida dell'**ultima giornata di regular season** (la G col numero più alto) il bot scrive qui che la regular season è finita e che serve il cambio di fase.
+2. **Cambio di fase → «🏆 Playoff»** nel bot principale: si può solo con l'ultima giornata convalidata e il calendario dei playoff importato (se manca qualcosa il bot lo dice e non cambia fase).
+3. Entro un minuto loucabot **congela tutta la regular season tranne l'ultima giornata**, calcola i **seed** (6 per conference, nell'ordine della classifica: vittorie, vincitrice della Quasi Cup, scontri diretti, media, differenza) e manda qui la **bozza**: il tabellone, le posizioni con i record, le prime escluse, gli spareggi decisi (⚖️) e il bottone di conferma.
+4. **`/set_seed SQUADRA N`**: la squadra al seed N della sua conference, scambiata con chi c'era (anche con una squadra fuori dalle prime 6, che esce). Le scelte a mano (✋) restano anche dopo i ricalcoli. Il bot rimanda la bozza.
+5. **✅ Conferma** (basta un admin): il tabellone esce sul canale principale, «soggetto a cambiamenti fino alle 15» in caso di correzioni.
+6. **Alle 15 del giorno dopo l'ultima notte di regular season** (`orari.blocco_playoff`): l'ultima giornata si congela, i seed si ricalcolano (le scelte a mano restano), il tabellone sul canale diventa definitivo (aggiornato se è cambiato qualcosa), e la **P1 entra in calendario** con le gare 1 del primo turno (4–5 e 3–6, in casa la meglio classificata). Se alle 15 la bozza non è ancora confermata, arriva un promemoria e il blocco si fa subito dopo la conferma.
+
+Le serie hanno la durata delle impostazioni del bot principale, sezione «🏆 Playoff» (5, 5, 5, 7).
+
+### Durante i playoff (v7.11.0)
+
+- **Una giornata P alla volta.** Alla **convalida** di ogni giornata P il bot riconta le serie dai risultati convalidati e mette in calendario la **giornata dopo**, con le gare delle serie ancora aperte (in casa la meglio classificata in gara 1, 3, 5 e 7). Qui arriva l'elenco delle partite. Le squadre che hanno finito la serie aspettano: nella giornata non giocano e IPanchinari non chiede loro la formazione.
+- **Turno nuovo** quando **tutte** le serie del turno sono finite, anche prima del previsto: semifinali di conference (1ª contro la vincente del 4–5, 2ª contro la vincente del 3–6), poi finali di conference, poi la finale (in casa la meglio classificata nella classifica generale della regular season). Qui: «🏁 Si apre il turno».
+- **Convalidate in tempo**: la giornata dopo entra in calendario solo con la convalida. Se alle 12 del giorno in cui parte la giornata dopo quella di prima non è ancora convalidata, arriva un promemoria.
+- **Convalida rifatta** (per esempio dopo il controllo delle 20): le serie si ricontano da capo. Se la giornata dopo non è ancora iniziata e le partite cambiano, il bot la rifà e lo dice («partite cambiate»). Se è già iniziata non la tocca: se è cambiato un vincitore arriva un ⚠️ con le partite che servirebbero, e si decide a mano.
+- Il tabellone sul canale si aggiorna a ogni convalida (stesso messaggio). Alla fine della finale il bot scrive la **campione** sul canale e qui.
+- Bonus casa 5, calcolo, live e convalida come in regular season. Nel live il titolo è «P3 · Giornata 41» e sopra ogni partita la serie («GARA 2 · OVEST 4–5»). Nei playoff niente report del tanking.
+- `/set_seed` non funziona più dopo il blocco del tabellone.
+
+**`/playoff`** manda il tabellone in qualsiasi momento: prima dei playoff è «se finisse oggi». I risultati delle giornate P non contano in classifica.
+
 ## Il calcolo della giornata
 
 **Alla scadenza**, appena IPanchinari congela quintetti e panchine, nel tab **«Calcolo GN»** del foglio di controllo esce l'elenco degli schierati, per trasparenza verso i GM: per ogni partita, per ogni squadra, i 5 del quintetto e la panchina in ordine, col ruolo e la squadra NBA (panchina non mandata, posti vuoti e doppioni sono segnati). Niente punteggi né formule. Se un admin corregge una formazione o una panchina, il tab si riscrive entro 5 minuti (riga sul canale log). Il calcolo della mattina riscrive lo stesso tab per intero.
@@ -190,6 +213,7 @@ Il bot scarica da ESPN le foto **piano piano, solo di notte negli Stati Uniti** 
 |---|---|
 | `/importa_calendario` | importa il CSV (didascalia del file, o in risposta al file) |
 | `/importa_playoff` | importa le date dei playoff (CSV, come sopra); `/calendario_playoff` il riepilogo |
+| `/set_seed SQUADRA N` | playoff: la squadra al seed N della sua conference, prima del blocco del tabellone |
 | `/calendario_check` | scadenze e squadre a media, confronto col CSV |
 | `/nba_sync` | riscarica le partite NBA della stagione |
 | `/calendario_foglio` | ricarica il foglio Google Calendario (A:E) |

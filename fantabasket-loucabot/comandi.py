@@ -38,12 +38,14 @@ def liste_comandi() -> dict:
         BotCommand("classifica_full", "La classifica con tutte le statistiche"),
         BotCommand("classifica_conference", "La classifica divisa per conference"),
         BotCommand("quasi_cup", "La Quasi NBA Cup: qualificazione e tabellone (immagine)"),
+        BotCommand("playoff", "Il tabellone dei playoff (prima dei playoff: se finisse oggi)"),
     ]
     gm = gruppi + [
         BotCommand("guida",      "Guida per i GM"),
     ]
     admin = gm + [
         BotCommand("importa_playoff",    "Importa le date dei playoff (CSV allegato)"),
+        BotCommand("set_seed",           "Playoff: SQUADRA N, la squadra al seed N (prima del blocco)"),
         BotCommand("calendario_playoff", "Le giornate dei playoff: date, prima partita, squadre a media"),
         BotCommand("fantapunti",         "Fantapunti della giornata, giocatori a roster [N]"),
         BotCommand("set_valid_status",   "Status di un giocatore per il calcolo: GIOCATORE N"),

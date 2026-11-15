@@ -48,6 +48,11 @@ DEFAULT = {
     "cup_inizio_mese": 10,
     "cup_fine_giorno": 27,
     "cup_fine_mese": 11,
+    # Playoff (v7.10.0): al meglio di quante partite le serie di ogni turno (regolamento: 5, 5, 5, 7)
+    "playoff_serie_1": 5,
+    "playoff_serie_2": 5,
+    "playoff_serie_3": 5,
+    "playoff_serie_4": 7,
 }
 
 _cache: dict = {"mtime": None, "dati": {}}
@@ -241,6 +246,7 @@ ORARI = {
     "tanking_injury": "21:00",          # per il tanking conta l'injury report fino alle 21 del primo giorno (tradizione, Luca 31/10)
     "controllo_tabellini": "10:00",     # non più usato dalla v60 (era il controllo delle 10)
     "primo_controllo": "11:05",         # primo controllo dell'ultima notte, anche a giornata convalidata (Luca, 30/10)
+    "blocco_playoff": "15:00",          # il tabellone dei playoff si blocca alle 15 del giorno dopo l'ultima notte di RS (Luca, 15/11)
     "controllo_notte": "20:00",         # controllo finale della notte prima, poi congelata (come Yahoo; Luca, 30/10)
     "foglio_parziale": "10:00",         # tab «Calcolo GN» provvisorio nei giorni in mezzo alla giornata (l'ultimo: calcolo delle 7:45)     # tabellini corretti da ESPN? (il live si aggiorna 5 minuti dopo)
     "partita_nuova": "16:00",           # /partita senza argomenti passa alla giornata nuova dalle 16 del suo primo giorno

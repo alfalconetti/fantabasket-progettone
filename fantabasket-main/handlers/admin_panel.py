@@ -623,6 +623,7 @@ FASI_INDICAZIONI = {
     ],
     "playoff": [
         "Nelle partite di playoff il bonus casa è di 5 punti",
+        "Il tabellone arriva prima agli admin da confermare, poi sul canale: può cambiare fino alle 15 del giorno dopo l'ultima notte di regular season, se ci sono correzioni; poi la P1 entra in calendario (/playoff in loucabot)",
         "Cambi ruolo ancora disponibili con /cambio_ruolo (stesso contatore della stagione)",
     ],
     "offseason-break": [
@@ -739,6 +740,20 @@ async def cb_fase_set(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     _, nuova_fase, tipo = query.data.split(":")
     fase_vecchia = settings.fase()
+
+    # v7.10.0 (Luca, 15/11): ai playoff solo con la regular season finita e il calendario dei playoff importato
+    if nuova_fase == "playoff":
+        from shared import playoff_base
+        try:
+            mancano = playoff_base.problemi_passaggio()
+        except Exception as e:
+            logger.exception("Controllo del passaggio ai playoff")
+            mancano = [f"controllo non riuscito: {e}"]
+        if mancano:
+            await query.edit_message_text(
+                "⛔ <b>Non si può ancora passare ai playoff</b>:\n• " + "\n• ".join(html.escape(x) for x in mancano)
+                + "\n\nQuando è tutto pronto, di nuovo /set_fase.", parse_mode="HTML")
+            return
 
     # v3.11: i passaggi che cambiano i contratti (nuova stagione, scadenza degli x0)
     # mostrano prima cosa succederà e chiedono conferma, anche nell'avanzamento normale

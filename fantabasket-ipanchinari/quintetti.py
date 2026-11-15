@@ -32,7 +32,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 import abbina
 import config
 import db
-from comune import (FAVORE, ROMA, adesso, stati, aperta, chi, e, giornata_in_corso, log, ora, ora_promemoria, partite_squadre_nba,
+from comune import (FAVORE, ROMA, adesso, stati, aperta, chi, e, giornata_in_corso, in_gioco, log, ora, ora_promemoria, partite_squadre_nba,
                     prossima_giornata, testo_partite)
 
 logger = logging.getLogger(__name__)
@@ -527,7 +527,7 @@ def testo_stato(g: dict) -> str:
     nessuna_conferma, senza_panca = [], []
     chiusa = db.stato_giornata(s, g["numero"])["chiusa"]
     ctrl = db.controlli(s, g["numero"]) if chiusa else {}
-    for t in config.squadre():
+    for t in in_gioco(s, g):
         c = conf.get(t["id"])
         stato_q = "✅" if c and c["stato"] == "confermato" else "✏️" if c else "—"
         p = panche.get(t["id"])
@@ -560,7 +560,7 @@ def md_stato(g: dict) -> str:
              f"estratto il {adesso().astimezone(ROMA):%d/%m/%Y %H:%M}", "",
              "| Squadra | Quintetto | Panchina | " + ("Formazione | " if chiusa else "") + "Problemi |",
              "|---|---|---|" + ("---|" if chiusa else "") + "---|"]
-    for t in config.squadre():
+    for t in in_gioco(s, g):
         c = conf.get(t["id"])
         p = panche.get(t["id"])
         stato_q = "✅ confermato" if c and c["stato"] == "confermato" else "✏️ modificato" if c else "— da controllare"
@@ -583,7 +583,7 @@ def testo_quintetti(n: int | None = None) -> str:
     titolo = (f"🏀 <b>Formazioni della giornata {n}</b> (congelate alla scadenza)" if n
               else "🏀 <b>Quintetti attuali</b>")
     righe = [titolo, ""]
-    for t in config.squadre():
+    for t in (in_gioco(s, db.giornata(s, n)) if n else config.squadre()):
         q = db.formazione(s, n, t["id"]) if n else db.quintetto(t["id"])
         rosa = {x["id"] for x in db.roster(t["id"], s)}
         nomi = db.nomi_giocatori([g for g in q.values() if g])
@@ -616,7 +616,7 @@ def testo_controlli(g: dict, con_formazioni: bool = True) -> tuple[str, K]:
     """Le formazioni congelate di una giornata chiusa, da controllare su Yahoo: ☑️ / ⬜ e chi."""
     s, n = config.stagione(), g["numero"]
     ctrl, conf = db.controlli(s, n), db.conferme(s, n)
-    squadre = config.squadre()
+    squadre = in_gioco(s, g)
     righe = [f"🔍 <b>Controllo formazioni G{n}</b> su Yahoo · {len([t for t in squadre if t['id'] in ctrl])}/{len(squadre)} fatte", ""]
     for t in squadre:
         c, cf = ctrl.get(t["id"]), conf.get(t["id"])
@@ -727,7 +727,7 @@ def promemoria(t: dict, g: dict) -> tuple[str, K]:
 
 async def manda_promemoria(bot, g: dict) -> int:
     inviati = 0
-    for t in config.squadre():
+    for t in in_gioco(config.stagione(), g):
         testo, tasti = promemoria(t, g)
         for uid in config.gm_ids(t["id"]):
             try:
@@ -744,7 +744,7 @@ def ceduti_alla_scadenza(s: str, g: dict, panche: dict) -> tuple[list, list]:
     from shared import rosa
     scad = g.get("prima_partita")
     out_p, out_q = [], []
-    for t in config.squadre():
+    for t in in_gioco(s, g):
         p = panche.get(t["id"])
         righe = (p["righe"] if p and isinstance(p["righe"], list) else []) if p else []
         ids_p = [r.get("giocatore_id") for r in righe if r.get("giocatore_id")]
@@ -772,11 +772,11 @@ async def job_giornate(context: ContextTypes.DEFAULT_TYPE):
         if st["chiusa"]:
             continue
         if ora_ >= scad:
-            db.congela_quintetti(s, g["numero"], [t["id"] for t in config.squadre()])
+            db.congela_quintetti(s, g["numero"], [t["id"] for t in in_gioco(s, g)])
             db.congela_ruoli_panchine(s, g["numero"])                 # i ruoli dei panchinari per la FADD
             db.segna_stato(s, g["numero"], "chiusa")
             panche = db.panchine(s, g["numero"])
-            mancanti = [t["nome"] for t in config.squadre() if t["id"] not in panche]
+            mancanti = [t["nome"] for t in in_gioco(s, g) if t["id"] not in panche]
             try:
                 ced_p, ced_q = ceduti_alla_scadenza(s, g, panche)
             except Exception as err:

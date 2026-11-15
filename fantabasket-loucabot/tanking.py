@@ -220,7 +220,7 @@ async def job_tanking(context):
     import live
     s = config.stagione()
     g = giornata_di_oggi(s)
-    if not g or not config.gruppo_admin():
+    if not g or not config.gruppo_admin() or g.get("tipo") == "playoff":    # v7.11.0: nei playoff niente tanking
         return
     try:
         t = testo(s, g)
@@ -236,7 +236,7 @@ async def manda_fine(bot, s: str, g: dict) -> None:
     """Secondo giro a fine giornata (dopo il calcolo delle 7:45): i titolari Out alle 21 che non hanno giocato."""
     import live
     from handlers import log
-    if not config.gruppo_admin():
+    if not config.gruppo_admin() or g.get("tipo") == "playoff":
         return
     try:
         t = testo(s, g, fine=True)
@@ -398,6 +398,9 @@ async def manda_consuntivo(bot, s: str, n: int) -> None:
     import asyncio
     import live
     from handlers import log
+    g = db.giornata(s, n)
+    if g and g.get("tipo") == "playoff":                  # v7.11.0: nei playoff niente tanking
+        return
     try:
         righe = await asyncio.to_thread(consuntivo, s, n)
         salva(s, n, righe)

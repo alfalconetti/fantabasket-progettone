@@ -178,3 +178,7 @@ Primo rilascio: panchine e quintetti.
 ## v38 (2026-11-10, progettone v7.4.5)
 
 - `disable_web_page_preview` (deprecato in python-telegram-bot) sostituito da `link_preview_options` nei messaggi al canale log
+
+## v39 (2026-11-15, progettone v7.10.0)
+
+- **Playoff**: nelle giornate P solo le squadre che giocano (quelle con una partita in `lega_partite`): promemoria, `/stato`, report, formazioni e congelamento dei quintetti (`comune.in_gioco`, `shared/playoff_base.py`)

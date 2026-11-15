@@ -1993,3 +1993,15 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **`/confronto` e `/confronto_carriera` nelle grafiche nuove** (Luca, 15/11; loucabot v115; anche qui in privato): `/confronto` come `/rendimento` sul viola, **solo linee** (pallini e linea sottile per le partite, ultime 5 spesse, media della stagione tratteggiata), riquadri coi due valori; `/confronto_carriera` come `/rendimento_carriera` sul blu, con la stagione migliore di ognuno in oro
 - **I nostri playoff nei grafici**: in `/rendimento` e `/confronto` una fascia gialla sulle giornate dei nostri playoff (dalle date importate con `/importa_playoff`) e la media in quelle giornate nei riquadri; play-in e playoff NBA restano solo segnati, in grigio
+
+## v7.10.0 (2026-11-15)
+
+- **Playoff, passo 1** (Luca, 15/11; loucabot v116, IPanchinari v39): alla convalida dell'ultima giornata di regular season l'avviso agli admin; `/set_fase` verso i playoff solo con la regular season finita e il calendario dei playoff importato; poi loucabot congela la regular season (tranne l'ultima giornata), calcola i seed (6 per conference) e manda la bozza del tabellone agli admin; `/set_seed SQUADRA N`; conferma di un admin → canale («soggetto a cambiamenti fino alle 15»); alle 15 del giorno dopo l'ultima notte il blocco: ultima giornata congelata, seed definitivi, primo turno e P1 in calendario. **`/playoff`** (loucabot): il tabellone a piramide, prima dei playoff «se finisse oggi». I risultati delle giornate P non contano in classifica. In `/settings` la durata delle serie (5, 5, 5, 7). IPanchinari chiede la formazione delle giornate P solo a chi gioca
+
+## v7.11.0 (2026-11-15)
+
+- **Playoff, passo 2** (loucabot v117): a ogni giornata P convalidata le serie si aggiornano e la giornata dopo entra in calendario con le sole serie aperte; i turni partono quando tutte le serie del turno prima sono finite; finale in casa della meglio classificata in classifica generale; la campione sul canale. Il tabellone dei playoff con le serie e le gare, aggiornato sul canale a ogni convalida
+
+## v7.11.1 (2026-11-15)
+
+- Tabellone dei playoff (loucabot v118): nel riquadro della finale i nomi veri delle conference

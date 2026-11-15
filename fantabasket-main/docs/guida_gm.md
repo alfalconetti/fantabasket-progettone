@@ -384,6 +384,7 @@ Gli admin possono dare una penalità alla squadra (panchina in ritardo, formazio
 | prendere un free agent per 10 giorni | `/firma_10day` |
 | dichiarare o cambiare ruoli | `/dichiarazione_ruoli`, `/cambio_ruolo` |
 | la Quasi NBA Cup: qualificazione e tabellone | `/quasi_cup` |
+| il tabellone dei playoff (prima: se finisse oggi) | in loucabot |
 | seguire dei giocatori, avvisi e report della notte | `/watch`, `/unwatch`, `/watchlist`, `/watch_soglia` |
 | vedere chi ha fatto cosa sulla mia squadra | `/registro` |
 | uscire da un'operazione bloccata | `/annulla` |

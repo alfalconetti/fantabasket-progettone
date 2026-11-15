@@ -310,5 +310,8 @@
    "nota": "finale di conference"
   }
  },
- "finale_da": "16"
+ "finale_nota": "al meglio delle 7 · da P16",
+ "regole_nota": "Primo turno, semifinali e finali di conference al meglio delle 5, finale al meglio delle 7 · in casa in gara 1, 3, 5 e 7 la meglio classificata · bonus casa 5 · ogni partita è una giornata P (P1 = G39) · un turno inizia quando tutte le serie del turno prima sono finite · bordo rosso: partita in corso",
+ "conf_sopra": "Ovest",
+ "conf_sotto": "Est"
 }

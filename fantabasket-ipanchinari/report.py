@@ -57,7 +57,8 @@ def report(g: dict) -> str:
     partite = partite_squadre_nba(g)
     media = set(g.get("media") or [])
     conf, panche, acc = db.conferme(s, n), db.panchine(s, n), _accoppiamenti(s, n)
-    squadre = config.squadre()
+    from comune import in_gioco                   # v7.10.0: nelle giornate P solo chi gioca
+    squadre = in_gioco(s, g)
     dati, tutti = {}, set()
     for t in squadre:
         q = db.formazione(s, n, t["id"]) if chiusa else db.quintetto(t["id"])

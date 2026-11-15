@@ -71,6 +71,12 @@ GRUPPI = [
         ("scarto_minimo", "Scarto per vincere senza supplementari", "num", 0, 50, "punti"),
         ("giocatori_panchina", "Giocatori in panchina (= supplementari)", "int", 1, 10, ""),
     ]),
+    ("playoff", "🏆 Playoff", [
+        ("playoff_serie_1", "Primo turno: al meglio di", "int", 1, 9, " partite"),
+        ("playoff_serie_2", "Semifinali di conference: al meglio di", "int", 1, 9, " partite"),
+        ("playoff_serie_3", "Finali di conference: al meglio di", "int", 1, 9, " partite"),
+        ("playoff_serie_4", "Finale: al meglio di", "int", 1, 9, " partite"),
+    ]),
     ("cup", "🏅 Quasi NBA Cup", [
         ("cup_inizio_giorno", "Qualificazione: dal giorno", "int", 1, 31, ""),
         ("cup_inizio_mese", "Qualificazione: dal mese", "int", 1, 12, ""),
@@ -105,6 +111,7 @@ TABELLE = {"rookie_scale": "Rookie scale", "tabella_minimo_contratto": "Minimi d
 NOTE = {"fp": "Dopo un cambio dei pesi: /dev_ricalcola_fp su loucabot per ricalcolare la stagione "
               "(le giornate convalidate restano come sono).",
         "partita": "Valgono per i calcoli da adesso: le giornate convalidate restano come sono.",
+        "playoff": "Da decidere prima dei playoff (regolamento): una serie in corso resta com'è stata creata.",
         "cup": "Nell'anno in cui inizia la stagione; conta anche la giornata a cavallo della fine. Semifinali e finale "
                "sono le due giornate dopo. Una data impossibile (31/11) vale come il default (30/10 – 27/11)."}
 

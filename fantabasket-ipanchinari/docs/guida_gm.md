@@ -92,3 +92,7 @@ Se qualcosa non va, scrivi a un admin: può mettere panchina e quintetto al post
 - **Basketball-Reference**: le statistiche della stagione di ogni giocatore (medie a partita), aggiornate ogni giorno alle 12. Da lì la **fantamedia** del roster, della lista dei free agent e del foglio Roster.
 - **Yahoo**: la lega dove si schierano i quintetti (per il regolamento fa fede Yahoo) e le **posizioni eleggibili** dei giocatori, che decidono i ruoli.
 - Tutto il resto (contratti, trade, aste, panchine, risultati, classifica) è della lega e sta nel database dei bot.
+
+## Playoff
+
+Nelle giornate dei playoff (P) mandano quintetto e panchina solo le squadre che giocano quella giornata: le prime due di ogni conference al primo turno e le eliminate non ricevono promemoria e non compaiono nello stato (v39).

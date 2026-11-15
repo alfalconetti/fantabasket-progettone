@@ -556,6 +556,15 @@ async def cb_risultati(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as err:
             logger.warning("Risultati definitivi sul canale G%s: %s", n, err)
             esito += f"; ⚠️ risultati definitivi non pubblicati sul canale ({str(err)[:120]})"
+        try:                                             # v7.10.0: fine della regular season → avviso agli admin
+            import playoff as _po
+            _ep = await _po.fine_regular_season(context.bot, s, n)
+            _ep = "; ".join(x for x in (_ep, await _po.dopo_convalida(context.bot, s, n, prima=live_esiti_prima)) if x)
+            if _ep:
+                esito += "; " + _ep
+        except Exception as err:
+            logger.warning("Playoff alla convalida G%s: %s", n, err)
+            esito += f"; ⚠️ playoff non aggiornati ({str(err)[:120]})"
         try:                                             # v7.9.0: Quasi Cup, il messaggio del turno diventa definitivo
             import cup as _cup
             _ec = await _cup.dopo_convalida(context.bot, s, n)
