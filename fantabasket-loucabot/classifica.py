@@ -339,7 +339,8 @@ def dati_conference(righe: list[dict], giornate: int, conf: dict[str, str]) -> d
 def dati_home_away(righe: list[dict], giornate: int, stagione: str | None = None) -> dict:
     """/classifica_home_away (v7.13.0, Luca 15/11; mockup approvato): la struttura di /classifica_conference con
     due sezioni, in casa e in trasferta, tutte le squadre con le sole partite in casa (o fuori). A parità di
-    vittorie media punti, poi differenza (gli scontri diretti qui non hanno senso). Gen.: la classifica generale."""
+    vittorie media punti, poi differenza (gli scontri diretti qui non hanno senso). Gen.: la classifica generale.
+    v7.14.1 (Luca, 15/11): in ordine di % di vittorie, con la colonna «% V» (le partite in casa non sono le stesse per tutti)."""
     base_ = dati_typst(righe, giornate, False)
     gen = {r["team"]: r["pos"] for r in righe}
     per = partite_squadra(risultati(stagione or config.stagione()))
@@ -352,7 +353,10 @@ def dati_home_away(righe: list[dict], giornate: int, stagione: str | None = None
             pf, ps = sum(x["fatti"] for x in p), sum(x["subiti"] for x in p)
             rr.append({"team": t, "w": w, "l": len(p) - w, "pf": pf, "ps": ps, "media": pf / len(p) if p else None,
                        "diff": pf - ps, "striscia": _striscia(p)})
-        rr.sort(key=lambda r: (-r["w"], -(r["media"] or 0), -r["diff"], gen[r["team"]]))
+        for r in rr:                                     # Luca, 15/11: per % di vittorie (le partite in casa non sono uguali per tutti)
+            g_ = r["w"] + r["l"]
+            r["pct"] = r["w"] / g_ if g_ else None
+        rr.sort(key=lambda r: (r["pct"] is None, -(r["pct"] or 0), -(r["media"] or 0), -r["diff"], gen[r["team"]]))
         medie = [r["media"] for r in rr if r["media"] is not None]
         col = {}
         for k in ("pf", "ps", "media"):
@@ -366,11 +370,12 @@ def dati_home_away(righe: list[dict], giornate: int, stagione: str | None = None
                         col.setdefault(r["team"], {})[k] = "best" if k == "ps" else "worst"
         sezioni.append({"nome": nome, "media": _n(sum(medie) / len(medie)) if medie else "—", "righe": [
             {"pos": i + 1, "nome": config.nome(r["team"]), "logo": _logo(r["team"]), "w": r["w"], "l": r["l"],
+             "pct": f"{r['pct'] * 100:.1f}%".replace(".", ",") if r["pct"] is not None else "—",
              "pf": _n(r["pf"]), "ps": _n(r["ps"]), "media": _n(r["media"]) if r["media"] is not None else "—",
              "striscia": r["striscia"], "col": col.get(r["team"], {}), "cup": False, "gen": gen[r["team"]]}
             for i, r in enumerate(rr)]})
-    return {**base_, "titolo": "Classifica in casa e in trasferta", "sezioni": sezioni, "media_lbl": "Media della lega",
-            "nota": ("in ogni tabella solo le partite in casa (o fuori): a parità di vittorie media punti, poi differenza · "
+    return {**base_, "titolo": "Classifica in casa e in trasferta", "sezioni": sezioni, "media_lbl": "Media della lega", "pct": True,
+            "nota": ("in ogni tabella solo le partite in casa (o fuori), in ordine di % di vittorie; a parità media punti, poi differenza · "
                      "Striscia: solo quelle partite · Gen.: posizione nella classifica generale")}
 
 

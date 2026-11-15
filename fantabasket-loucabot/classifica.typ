@@ -69,7 +69,9 @@
 } else {
   (
     ("#", r => [#r.pos]), ("", r => logo(r.logo)), ("Squadra", r => [#text(weight: "bold")[#r.nome]#if r.at("cup", default: false) [ #box(baseline: 1.5pt, text(9pt)[🏆])]]),
-    ("V", r => text(weight: "bold")[#r.w]), ("S", r => [#r.l]), ("PF", r => col(r, "pf", [#r.pf])), ("PS", r => col(r, "ps", [#r.ps])),
+    ("V", r => text(weight: "bold")[#r.w]), ("S", r => [#r.l]),
+  ) + if dati.at("pct", default: false) { (("% V", r => text(weight: "bold")[#r.pct]),) } else { () } + (
+    ("PF", r => col(r, "pf", [#r.pf])), ("PS", r => col(r, "ps", [#r.ps])),
     ("Media", r => col(r, "media", [#r.media])), ("Striscia", r => striscia(r.striscia)),
   ) + if "sezioni" in dati { (("Gen.", r => text(fill: rgb("#5A6478"))[#r.gen]),) } else { () }
 }

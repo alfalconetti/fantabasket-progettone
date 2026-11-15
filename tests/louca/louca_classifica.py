@@ -77,7 +77,10 @@ ok((riga(casa_, a)["w"], riga(casa_, a)["l"], riga(fuori_, a)["w"], riga(fuori_,
    and (riga(casa_, b)["w"], riga(fuori_, b)["w"], riga(fuori_, b)["l"]) == (1, 0, 1)
    and (riga(fuori_, c)["w"], riga(fuori_, c)["l"]) == (0, 1), "home away: vittorie e sconfitte solo in casa o fuori")
 ok(casa_["righe"][0]["nome"] == config.nome(c) and casa_["righe"][0]["media"] == C._n(120.0),
-   f"home away: a pari vittorie decide la media ({[x['nome'] for x in casa_['righe']]})")
+   f"home away: a pari % di vittorie decide la media ({[x['nome'] for x in casa_['righe']]})")
+ok(dh["pct"] and riga(casa_, a)["pct"] == "100,0%" and riga(fuori_, b)["pct"] == "0,0%" and riga(fuori_, a)["pct"] == "—"
+   and [x["nome"] for x in fuori_["righe"]][-1] == config.nome(a),
+   "home away: colonna % V, in ordine di percentuale (chi non ha giocato fuori in fondo)")
 ok(riga(fuori_, a)["media"] == "—" and riga(casa_, a)["gen"] == next(x["pos"] for x in righe_db if x["team"] == a)
    and dh["media_lbl"] == "Media della lega" and "media punti, poi differenza" in dh["nota"],
    "home away: senza partite «—», posizione generale, etichetta e nota")

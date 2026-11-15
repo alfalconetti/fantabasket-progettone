@@ -2018,3 +2018,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.14.0 (2026-11-15)
 
 - Loucabot v121: **`/rendimento_team`** (il rendimento di una squadra, panchina compresa); `/classifica_home_away` in due messaggi
+
+## v7.14.1 (2026-11-15)
+
+- Loucabot v122: `/classifica_home_away` in ordine di percentuale di vittorie, con la colonna «% V»

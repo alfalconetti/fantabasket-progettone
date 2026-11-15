@@ -591,3 +591,7 @@ Il calcolo dei fantapunti.
 
 - **`/rendimento_team [SQUADRA]`** (mockup approvato): il rendimento di una squadra giornata per giornata, coi punti dell'avversario, casa e trasferta, medie, migliore e peggiore, i nostri playoff e la panchina (linea e riga con media, posizione nella lega, migliore, supplementari)
 - `/classifica_home_away` in due messaggi: in casa, poi in trasferta
+
+## v122 (2026-11-15, progettone v7.14.1)
+
+- `/classifica_home_away` in ordine di percentuale di vittorie, con la colonna «% V»
