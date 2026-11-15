@@ -556,3 +556,8 @@ Il calcolo dei fantapunti.
 
 - `/giocatori`: i FA con la regola della lista FA (ultime due stagioni, fino allo switch)
 - `/calendario_playoff`: testo corretto (i nostri playoff sono nella parte finale della regular season NBA)
+
+## v115 (2026-11-15, progettone v7.9.7)
+
+- `/confronto` (viola, solo linee) e `/confronto_carriera` (blu) nelle grafiche nuove di `/rendimento` e `/rendimento_carriera`
+- `/rendimento` e `/confronto`: fascia gialla e media dei nostri playoff; play-in e playoff NBA in grigio

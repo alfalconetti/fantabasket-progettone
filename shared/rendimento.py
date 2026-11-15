@@ -133,6 +133,21 @@ def _asse(valori: list[float]) -> tuple[int, int, int]:
     return lo, hi, passo
 
 
+def nostri_playoff(stagione: str | None = None) -> dict | None:
+    """Le date dei nostri playoff (v7.9.7, Luca 15/11): dalle giornate P in calendario (lega_giornate, tipo playoff) o,
+    prima del passaggio ai playoff, da quelle importate (lega_giornate_playoff). {dal, al, n} o None."""
+    s = stagione or L.stagione()
+    for sql in ("SELECT MIN(dal) AS dal, MAX(al) AS al, COUNT(*) AS n FROM lega_giornate WHERE stagione = %s AND tipo = 'playoff'",
+                "SELECT MIN(dal) AS dal, MAX(al) AS al, COUNT(*) AS n FROM lega_giornate_playoff WHERE stagione = %s"):
+        try:
+            r = L.q(sql, (s,), one=True)
+        except Exception:                                # tabella non ancora creata
+            r = None
+        if r and r.get("n"):
+            return {"dal": r["dal"], "al": r["al"], "n": int(r["n"])}
+    return None
+
+
 def dati_stagione(gid: int, stagione: str | None = None) -> dict | None:
     stagione = stagione or L.stagione()
     g = L.q("SELECT nome_common, espn_id FROM giocatori WHERE id = %s", (gid,), one=True)
@@ -196,6 +211,17 @@ def dati_stagione(gid: int, stagione: str | None = None) -> dict | None:
                  "s": ("▲ sopra la media" if u5 >= media else "▼ sotto la media") if ult else ""},
                 {"t": "Migliore", "v": _t(out[bi]["fp"]) if bi is not None else "—", "s": quando(bi) if bi is not None else ""},
                 {"t": "Peggiore", "v": _t(out[wi]["fp"]) if wi is not None else "—", "s": quando(wi) if wi is not None else ""}]
+    # v7.9.7 (Luca, 15/11): i nostri playoff, fascia gialla e riquadro al posto del peggiore se ci ha giocato
+    npo = nostri_playoff(stagione)
+    fanta = None
+    if npo:
+        dentro = [i for i, p in enumerate(out) if npo["dal"].isoformat() <= p["giorno"] <= npo["al"].isoformat()]
+        if dentro:
+            fanta = {"da": dentro[0], "a": dentro[-1], "n": npo["n"]}
+            v = [out[i]["fp"] for i in dentro if out[i]["fp"] is not None]
+            if v:
+                riquadri[3] = {"t": "Nei nostri playoff", "v": _t(sum(v) / len(v)),
+                               "s": f"P1–P{npo['n']} · {len(v)} {'partita' if len(v) == 1 else 'partite'}"}
     mesi, prima = [], None
     for i, p in enumerate(out):
         m = p["giorno"][5:7]
@@ -206,7 +232,7 @@ def dati_stagione(gid: int, stagione: str | None = None) -> dict | None:
             "riquadri": riquadri, "mesi": mesi, "media_val": ottavi(media), "giocate": len(giocate),
             "y_barre": max(40, int(-(-(max(vals, default=0) + 6) // 10) * 10)),
             "titolo": f"Stagione {a}-{(a + 1) % 100:02d}", "media_big": _t(media) if reg or vals else "—",
-            "media_sotto": " · ".join(sotto), "partite": out, "squadre": squadre, "fasce": fasce,
+            "media_sotto": " · ".join(sotto), "partite": out, "squadre": squadre, "fasce": fasce, "fanta": fanta,
             "y_min": lo, "y_max": hi, "y_passo": passo_y, "post": i_post,
             "migliore": ({"i": bi, "fp": out[bi]["fp"], "t": f"{_t(out[bi]['fp'])} vs {out[bi]['avv']}"} if bi is not None
                          else {"i": 0, "fp": 0, "t": ""})}

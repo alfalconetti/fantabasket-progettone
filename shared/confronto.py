@@ -28,8 +28,6 @@ from shared import rendimento as R
 from shared.numeri import ottavi, testo as tp
 
 TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "confronto.typ")
-COLORE_A = "#1D4ED8"
-COLORE_B = "#E07A10"
 SEPARATORE = re.compile(r"\s+(?:vs\.?|v\.?|contro)\s+|\s*,\s*|\s+-\s+", re.IGNORECASE)
 
 
@@ -84,108 +82,138 @@ def _cifra(x: float | None) -> str:
     return R._t(x) if x is not None else "—"
 
 
-def _riga(nome: str, a, b, testo_a: str, testo_b: str, piu_alto: bool = True) -> dict:
-    """Una riga della tabella: chi è meglio in grassetto (a pari merito nessuno)."""
-    meglio = ""
-    if a is not None and b is not None and a != b:
-        meglio = "a" if (a > b) == piu_alto else "b"
-    return {"voce": nome, "a": testo_a, "b": testo_b, "meglio": meglio}
+def _num(v: str):
+    """«29,63» → 29.63; «—» → None (per scegliere il migliore nei riquadri)."""
+    try:
+        return float(str(v).replace(".", "").replace(",", "."))
+    except ValueError:
+        return None
 
 
-def _lato_stagione(d: dict) -> dict:
+def _meglio(a, b, piu_alto: bool = True) -> str:
+    if a is None or b is None or a == b:
+        return "a" if b is None and a is not None else ("b" if a is None and b is not None else "")
+    return "a" if (a > b) == piu_alto else "b"
+
+
+def _partite(n: int) -> str:
+    return f"{n} partita" if n == 1 else f"{n} partite"
+
+
+def _quando(d: dict, i: int | None) -> str:
+    if i is None:
+        return "—"
+    p = d["partite"][i]
+    return f"vs {p['avv']} {date.fromisoformat(p['giorno']):%d/%m}"
+
+
+def _lato_stagione(d: dict, npo: dict | None) -> dict:
     p = d["partite"]
-    contano = [x for x in p if x["fp"] is not None]
-    reg = [x["fp"] for x in contano if x["media_player"]]                # regular season e play-in, come /player
-    return {"reg": reg, "post": [x["fp"] for x in contano if not x["media_player"]], "ult5": [x["fp"] for x in contano][-5:],
-            "best": max(contano, key=lambda x: x["fp"]) if contano else None}
+    giocate = [i for i, x in enumerate(p) if x["fp"] is not None]
+    reg = [p[i]["fp"] for i in giocate if p[i]["media_player"]]          # regular season e play-in, come /player
+    post = [p[i]["fp"] for i in giocate if not p[i]["media_player"]]
+    nostri = [p[i]["fp"] for i in giocate
+              if npo and npo["dal"].isoformat() <= p[i]["giorno"] <= npo["al"].isoformat()]
+    ult = [p[i]["fp"] for i in giocate[-5:]]
+    media = _media(reg) if reg else _media([p[i]["fp"] for i in giocate])
+    bi = max(giocate, key=lambda i: p[i]["fp"], default=None)
+    wi = min(giocate, key=lambda i: p[i]["fp"], default=None)
+    return {"reg": reg, "post": post, "nostri": nostri, "media": media, "u5": _media(ult),
+            "best": p[bi]["fp"] if bi is not None else None, "bi": bi, "worst": p[wi]["fp"] if wi is not None else None, "wi": wi}
 
 
 def dati_stagione(gid_a: int, gid_b: int, stagione: str | None = None) -> dict | None:
-    """Il JSON per confronto.typ, modo «stagione». None se uno dei due non ha partite."""
+    """Il JSON per confronto.typ, modo «stagione» (v7.9.7, Luca 15/11: solo linee, come /rendimento sul viola). None
+    se uno dei due non ha partite."""
     da, db_ = R.dati_stagione(gid_a, stagione), R.dati_stagione(gid_b, stagione)
     if not da or not db_:
         return None
     giorni = sorted({x["giorno"] for x in da["partite"] + db_["partite"]})
     g0, g1 = date.fromisoformat(giorni[0]), date.fromisoformat(giorni[-1])
     tot = max((g1 - g0).days, 1)
+    xf = lambda g: round(((g if isinstance(g, date) else date.fromisoformat(g)) - g0).days / tot, 4)
 
     def punti(d):
-        out = []
-        for x in d["partite"]:
-            out.append({"x": round((date.fromisoformat(x["giorno"]) - g0).days / tot, 4), "fp": x["fp"], "tipo": x["tipo"],
-                        "prog": x["prog"], "mobile": x["mobile"]})
-        return out
-    # etichette delle date: 8 circa, sulle date vere
-    passo = max(1, round(len(giorni) / 8))
-    date_lbl = [{"x": round((date.fromisoformat(g) - g0).days / tot, 4), "t": f"{date.fromisoformat(g):%d/%m}"}
-                for i, g in enumerate(giorni) if i % passo == 0]
+        return [{"x": xf(x["giorno"]), "fp": x["fp"], "post": x["tipo"] == "post", "mobile": x["mobile"]} for x in d["partite"]]
+    mesi, prima = [], None
+    for g in giorni:
+        if g[5:7] != prima:
+            mesi.append({"x": xf(date.fromisoformat(g).replace(day=1)) if g != giorni[0] else 0.0, "lbl": R.MESI[int(g[5:7])]})
+            prima = g[5:7]
     vals = [x["fp"] for x in da["partite"] + db_["partite"] if x["fp"] is not None]
     lo, hi, passo_y = R._asse(vals)
-    a, b = _lato_stagione(da), _lato_stagione(db_)
-    ma, mb = _media(a["reg"]), _media(b["reg"])
-    pa, pb = _media(a["post"]), _media(b["post"])
-    u5a, u5b = _media(a["ult5"]), _media(b["ult5"])
+    npo = R.nostri_playoff(stagione)
+    a, b = _lato_stagione(da, npo), _lato_stagione(db_, npo)
+    fanta = None
+    if npo and npo["al"] >= g0 and npo["dal"] <= g1:
+        fanta = {"x0": max(xf(npo["dal"]), 0.0), "x1": min(xf(npo["al"]), 1.0), "lbl": f"P1–P{npo['n']}"}
     minuti = lambda gid: L.q("""SELECT AVG(t.minuti)::float AS m FROM nba_tabellini t JOIN nba_partite p ON p.espn_id = t.partita
                                 JOIN giocatori g ON g.espn_id = t.atleta
                                 WHERE g.id = %s AND p.stagione = %s AND p.tipo = ANY(%s) AND t.giocato
                                   AND NOT (t.fp = 0 AND t.minuti = 0)""", (gid, stagione or L.stagione(), list(G.TIPI)), one=True)
     mia, mib = (minuti(gid_a) or {}).get("m"), (minuti(gid_b) or {}).get("m")
-    best = lambda x: f"{R._t(x['fp'])}" if x else "—"
-    righe = [
-        _riga("Fantamedia", ma, mb, _cifra(ma), _cifra(mb)),
-        _riga("Partite", len(a["reg"]), len(b["reg"]), str(len(a["reg"])), str(len(b["reg"]))),
-        _riga("Ultime 5", u5a, u5b, _cifra(u5a), _cifra(u5b)),
-        _riga("Minuti a partita", mia, mib, f"{mia:.1f}".replace(".", ",") if mia else "—", f"{mib:.1f}".replace(".", ",") if mib else "—"),
-        _riga("Migliore partita", a["best"]["fp"] if a["best"] else None, b["best"]["fp"] if b["best"] else None, best(a["best"]), best(b["best"])),
-    ]
+    freccia = lambda x: ("▲" if x["u5"] >= x["media"] else "▼") if x["u5"] is not None and x["media"] is not None else "–"
+    riq = [{"t": "Fantamedia", "a": _cifra(a["media"]), "b": _cifra(b["media"]), "m": _meglio(a["media"], b["media"]),
+            "s": f"{_partite(len(a['reg']))} · {_partite(len(b['reg']))}"},
+           {"t": "Ultime 5", "a": _cifra(a["u5"]), "b": _cifra(b["u5"]), "m": _meglio(a["u5"], b["u5"]),
+            "s": f"{freccia(a)} · {freccia(b)} rispetto alla sua media"}]
+    tab = [{"t": "Partite", "a": str(len(a["reg"])), "b": str(len(b["reg"])), "m": _meglio(len(a["reg"]), len(b["reg"]))}]
+    peggiore = {"t": "Peggiore", "a": _cifra(a["worst"]), "b": _cifra(b["worst"]), "m": _meglio(a["worst"], b["worst"]),
+                "s": f"{_quando(da, a['wi'])} · {_quando(db_, b['wi'])}"}
+    if npo and (a["nostri"] or b["nostri"]):
+        na, nb = _media(a["nostri"]), _media(b["nostri"])
+        riq.append({"t": "Nei nostri playoff", "a": _cifra(na), "b": _cifra(nb), "m": _meglio(na, nb),
+                    "s": f"P1–P{npo['n']} · {_partite(len(a['nostri']))} · {_partite(len(b['nostri']))}"})
+        tab.append({k: peggiore[k] for k in ("t", "a", "b", "m")})
+    else:
+        riq.append(peggiore)
+    riq.insert(2, {"t": "Migliore", "a": _cifra(a["best"]), "b": _cifra(b["best"]), "m": _meglio(a["best"], b["best"]),
+                   "s": f"{_quando(da, a['bi'])} · {_quando(db_, b['bi'])}"})
     if a["post"] or b["post"]:
-        righe.insert(3, _riga("Playoff", pa, pb, f"{_cifra(pa)} ({len(a['post'])})", f"{_cifra(pb)} ({len(b['post'])})"))
-    i_post = [x for x in punti(da) + punti(db_) if x["tipo"] == "post"]
-    return {"modo": "stagione", "titolo": da["titolo"], "colore_a": COLORE_A, "colore_b": COLORE_B,
-            "a": {k: da[k] for k in ("nome", "iniziali", "foto", "sotto")} | {"media": _cifra(ma), "punti": punti(da)},
-            "b": {k: db_[k] for k in ("nome", "iniziali", "foto", "sotto")} | {"media": _cifra(mb), "punti": punti(db_)},
-            "date": date_lbl, "y_min": lo, "y_max": hi, "y_passo": passo_y,
-            "post_x": min((x["x"] for x in i_post), default=None), "righe": righe,
-            "nota": "Fantapunti di ogni partita (◆ play-in e playoff), sulle date · linea piena: media delle ultime 5 · tratteggiata: "
-                    "media dall'inizio della stagione · fantamedia e partite: regular season e play-in, come /player"}
-
-
-def _lato_carriera(d: dict) -> dict:
-    st = d["stagioni"]
-    g = sum(x["g"] for x in st)
-    media = sum(x["fm"] * x["g"] for x in st) / g if g else None
-    best = max(st, key=lambda x: x["fm"]) if st else None
-    return {"media": media, "g": g, "n": len(st), "best": best}
+        pa, pb = _media(a["post"]), _media(b["post"])
+        tab.append({"t": "Play-in e playoff NBA", "a": f"{_cifra(pa)} ({len(a['post'])})", "b": f"{_cifra(pb)} ({len(b['post'])})",
+                    "m": _meglio(pa, pb)})
+    tab.append({"t": "Minuti a partita", "a": f"{mia:.1f}".replace(".", ",") if mia else "—",
+                "b": f"{mib:.1f}".replace(".", ",") if mib else "—", "m": _meglio(mia, mib)})
+    i_post = [x["x"] for x in punti(da) + punti(db_) if x["post"]]
+    tieni = ("nome", "iniziali", "foto", "sotto")
+    return {"modo": "stagione", "titolo": da["titolo"],
+            "a": {k: da[k] for k in tieni}, "b": {k: db_[k] for k in tieni}, "punti_a": punti(da), "punti_b": punti(db_),
+            "riquadri": riq, "tabella": tab, "mesi": mesi, "y_min": lo, "y_max": hi, "y_passo": passo_y,
+            "media_a": a["media"] or 0, "media_b": b["media"] or 0, "media_a_t": _cifra(a["media"]), "media_b_t": _cifra(b["media"]),
+            "fanta": fanta, "post_x": min(i_post, default=None)}
 
 
 def dati_carriera(a: tuple[int | None, str], b: tuple[int | None, str]) -> dict | None:
+    """Il JSON per confronto.typ, modo «carriera» (v7.9.7: come /rendimento_carriera, sul blu)."""
     da, db_ = R.dati_carriera(a[0], a[1]), R.dati_carriera(b[0], b[1])
     if not da or not db_:
         return None
-    n = max(len(da["stagioni"]), len(db_["stagioni"]))
-    anni = []
-    for i in range(n):
-        xa = da["stagioni"][i] if i < len(da["stagioni"]) else None
-        xb = db_["stagioni"][i] if i < len(db_["stagioni"]) else None
-        anni.append({"k": f"{i + 1}ª",
-                     "a": {"fm": xa["fm"], "t": xa["fm_t"], "lbl": xa["lbl"], "g": xa["g"], "in_corso": xa["in_corso"]} if xa else None,
-                     "b": {"fm": xb["fm"], "t": xb["fm_t"], "lbl": xb["lbl"], "g": xb["g"], "in_corso": xb["in_corso"]} if xb else None})
-    la, lb = _lato_carriera(da), _lato_carriera(db_)
-    _, hi, passo = R._asse([x["fm"] for x in da["stagioni"] + db_["stagioni"]])
-    best = lambda x: f"{x['best']['fm_t']} ({x['best']['lbl']})" if x["best"] else "—"
-    righe = [
-        _riga("Fantamedia in carriera", la["media"], lb["media"], _cifra(la["media"]), _cifra(lb["media"])),
-        _riga("Stagioni", la["n"], lb["n"], str(la["n"]), str(lb["n"])),
-        _riga("Partite", la["g"], lb["g"], f"{la['g']:,}".replace(",", "."), f"{lb['g']:,}".replace(",", ".")),
-        _riga("Stagione migliore", la["best"]["fm"] if la["best"] else None, lb["best"]["fm"] if lb["best"] else None, best(la), best(lb)),
-    ]
+    sa, sb = da["stagioni"], db_["stagioni"]
+    ia = max(range(len(sa)), key=lambda i: sa[i]["fm"])
+    ib = max(range(len(sb)), key=lambda i: sb[i]["fm"])
+    stag = []
+    for i in range(max(len(sa), len(sb))):
+        xa = sa[i] if i < len(sa) else None
+        xb = sb[i] if i < len(sb) else None
+        stag.append({"n": f"{i + 1}ª", "a": xa["fm"] if xa else None, "b": xb["fm"] if xb else None,
+                     "pa": i == ia, "pb": i == ib, "ca": bool(xa and xa["in_corso"]), "cb": bool(xb and xb["in_corso"]),
+                     "sa": xa["lbl"] if xa else "", "sb": xb["lbl"] if xb else ""})
+    riq = []
+    for ra, rb in zip(da["riquadri"], db_["riquadri"]):
+        t = "Fantamedia in carriera" if ra["t"] == "Fantamedia" else ra["t"]
+        riq.append({"t": t, "a": ra["v"], "b": rb["v"], "m": _meglio(_num(ra["v"]), _num(rb["v"])),
+                    "s": f"{ra['s']} · {rb['s']}" if ra["t"] != "Fantamedia" else "pesata sulle partite"})
+    ga, gb = sum(x["g"] for x in sa), sum(x["g"] for x in sb)
+    mp = lambda st: (sum(_num(x["min"]) * x["g"] for x in st) / max(sum(x["g"] for x in st), 1)) if st else None
+    ma_, mb_ = mp(sa), mp(sb)
+    tab = [{"t": "Partite", "a": f"{ga:,}".replace(",", "."), "b": f"{gb:,}".replace(",", "."), "m": _meglio(ga, gb)},
+           {"t": "Minuti a partita", "a": f"{ma_:.1f}".replace(".", ","), "b": f"{mb_:.1f}".replace(".", ","), "m": _meglio(ma_, mb_)}]
+    _, hi, passo = R._asse([x["fm"] for x in sa + sb])
     tieni = ("nome", "iniziali", "foto", "sotto")
-    return {"modo": "carriera", "titolo": "Carriere a confronto", "colore_a": COLORE_A, "colore_b": COLORE_B,
-            "a": {k: da[k] for k in tieni} | {"media": _cifra(la["media"])},
-            "b": {k: db_[k] for k in tieni} | {"media": _cifra(lb["media"])},
-            "anni": anni, "y_max": hi, "y_passo": passo, "righe": righe,
-            "nota": "Fantamedia di ogni stagione, allineate per stagione di carriera (1ª, 2ª…), sotto le stagioni vere · "
-                    "Basketball-Reference (regular season, dal 1979-80), la stagione in corso dai tabellini ESPN, come /player"}
+    return {"modo": "carriera", "titolo": "Carriere a confronto", "a": {k: da[k] for k in tieni}, "b": {k: db_[k] for k in tieni},
+            "riquadri": riq, "tabella": tab, "stagioni": stag, "y_max": hi, "y_passo": passo,
+            "media_a": da["media_val"], "media_b": db_["media_val"], "media_a_t": da["media_big"], "media_b_t": db_["media_big"]}
 
 
 def immagine(d: dict) -> bytes:

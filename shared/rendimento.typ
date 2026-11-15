@@ -2,7 +2,7 @@
 // /giocatori, quattro riquadri nella testata, una barra per partita dall'asse 0. /rendimento_carriera ha il suo
 // template, rendimento_carriera.typ, col disegno di prima.
 // Stagione: barre del colore della squadra del fantabasket (grigio: libero), la migliore in oro, play-in e playoff
-// col bordo dorato, chi non ha giocato una tacca grigia; linea spessa = media delle ultime 5, tratteggiata = media
+// col bordo grigio (v7.9.7: sono solo per conoscenza; i nostri playoff sono la fascia gialla), chi non ha giocato una tacca grigia; linea spessa = media delle ultime 5, tratteggiata = media
 // della stagione; sull'asse i mesi, sotto una striscia per squadra del fantabasket. Dati in sys.inputs.dati (JSON).
 #let d = json(bytes(sys.inputs.at("dati")))
 #let viola = rgb("#5F01D1")
@@ -63,13 +63,20 @@
   let col(sq) = rgb(d.squadre.at(sq).colore)
   pad(x: 36pt, top: 16pt, bottom: 2pt, box(width: W, height: H + 40pt, {
     griglia(hi, passo, ys)
-    // play-in e playoff: da dove cominciano
+    // v7.9.7 (Luca, 15/11): i nostri playoff, fascia gialla sotto le barre
+    let fp_ = d.at("fanta", default: none)
+    if fp_ != none {
+      let f0 = xc(fp_.da) - slot / 2
+      let f1 = xc(fp_.a) + slot / 2
+      place(dx: f0, dy: 0pt, rect(width: f1 - f0, height: H, fill: rgb("#FFF3C4").transparentize(15%)))
+      place(dx: f0 + 3pt, dy: 2pt, box(width: calc.max(f1 - f0 - 4pt, 120pt), text(6.5pt, weight: "bold", fill: oro_scuro, tracking: 0.5pt)[🏆 I NOSTRI PLAYOFF · P1–P#fp_.n]))
+    }
+    // play-in e playoff NBA: solo segnati, per conoscenza (v7.9.7: in grigio)
     if d.post != none {
       let x0 = xc(d.post) - slot / 2
-      place(dx: x0, dy: 0pt, line(length: H, angle: 90deg, stroke: (paint: oro, thickness: 0.8pt, dash: "dotted")))
-      // l'etichetta a destra della linea, o a sinistra se non c'è spazio
-      if W - x0 > 92pt { place(dx: x0 + 3pt, dy: 2pt, text(6.5pt, weight: "bold", fill: oro_scuro, tracking: 0.5pt)[PLAY-IN E PLAYOFF]) }
-      else { place(dx: x0 - 93pt, dy: 2pt, box(width: 90pt, align(right, text(6.5pt, weight: "bold", fill: oro_scuro, tracking: 0.5pt)[PLAY-IN E PLAYOFF →]))) }
+      place(dx: x0, dy: 0pt, line(length: H, angle: 90deg, stroke: (paint: grigio, thickness: 0.7pt, dash: "dotted")))
+      if W - x0 > 100pt { place(dx: x0 + 3pt, dy: 2pt, text(6pt, weight: "bold", fill: grigio, tracking: 0.4pt)[PLAY-IN E PLAYOFF NBA]) }
+      else { place(dx: x0 - 103pt, dy: 2pt, box(width: 100pt, align(right, text(6pt, weight: "bold", fill: grigio, tracking: 0.4pt)[PLAY-IN E PLAYOFF NBA →]))) }
     }
     linea_media(d.media_val, ys)
     let bw = calc.min(slot * 0.64, 14pt)
@@ -82,7 +89,7 @@
         let migliore = i == d.migliore.i and d.migliore.t != ""
         place(dx: xc(i) - bw / 2, dy: H - h, rect(width: bw, height: h, radius: (top: 1.5pt),
           fill: if migliore { oro } else { col(p.sq).transparentize(15%) },
-          stroke: if p.tipo == "post" and not migliore { 1pt + oro } else { none }))
+          stroke: if p.tipo == "post" and not migliore { 1pt + grigio } else { none }))
       }
     }
     // media delle ultime 5
@@ -114,7 +121,7 @@
     }
   }))
   pad(x: 16pt, top: 6pt, bottom: 12pt, text(7pt, fill: grigio)[
-    ▮ fantapunti, col colore della squadra del fantabasket (grigio libero, oro la migliore, bordo dorato playoff, tacca grigia non ha giocato)
+    ▮ fantapunti, col colore della squadra del fantabasket (grigio libero, oro la migliore, bordo grigio play-in e playoff NBA, tacca grigia non ha giocato)#if d.at("fanta", default: none) != none [ · fascia gialla: le giornate dei nostri playoff]
     #h(4pt) #box(width: 14pt, height: 2pt, fill: viola_scuro, baseline: -2pt) media delle ultime 5
     #h(4pt) #box(width: 14pt, height: 0pt, stroke: (top: (paint: viola_medio, thickness: 0.8pt, dash: "dashed")), baseline: -2pt) media della stagione])
 }

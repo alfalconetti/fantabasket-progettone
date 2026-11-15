@@ -1988,3 +1988,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - **`/giocatori`, i FA con la regola della lista FA** (Luca, 15/11; loucabot v114): nella stagione in corso ci sono i FA che hanno giocato quest'anno o, fino allo switch del 70% dei firmati, la stagione prima; nessuno che non gioca da più di una stagione (`shared/lista_fa.py`)
 - Calendario dei playoff: corretto il testo del riepilogo, i nostri playoff si giocano nella parte finale della regular season NBA, non durante i playoff NBA
 - MIGRATION: classifica casa/trasferta, controllo delle funzioni per fase, scenari di fine regular season
+
+## v7.9.7 (2026-11-15)
+
+- **`/confronto` e `/confronto_carriera` nelle grafiche nuove** (Luca, 15/11; loucabot v115; anche qui in privato): `/confronto` come `/rendimento` sul viola, **solo linee** (pallini e linea sottile per le partite, ultime 5 spesse, media della stagione tratteggiata), riquadri coi due valori; `/confronto_carriera` come `/rendimento_carriera` sul blu, con la stagione migliore di ognuno in oro
+- **I nostri playoff nei grafici**: in `/rendimento` e `/confronto` una fascia gialla sulle giornate dei nostri playoff (dalle date importate con `/importa_playoff`) e la media in quelle giornate nei riquadri; play-in e playoff NBA restano solo segnati, in grigio

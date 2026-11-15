@@ -179,15 +179,43 @@ for i in range(0, 10, 2):
     db.q("INSERT INTO nba_tabellini (partita, atleta, nome, squadra, giocato, minuti, fp) VALUES (%s, 'rd2', 'Rend Due', 'RDB', TRUE, 25, %s)",
          (f"rd_p{i}", 10 + i))
 dcs = CF.dati_stagione(gid, gid2)
-ok(dcs and len(dcs["a"]["punti"]) == 10 and len(dcs["b"]["punti"]) == 5 and dcs["a"]["punti"][0]["x"] == 0 and dcs["a"]["punti"][-1]["x"] == 1
-   and dcs["b"]["punti"][1]["x"] == dcs["a"]["punti"][2]["x"], "stagione: punti sulle date, allineati tra i due")
-rr = {r["voce"]: r for r in dcs["righe"]}
-ok(rr["Fantamedia"]["a"] == "29,63" and rr["Fantamedia"]["meglio"] == "a" and rr["Partite"]["b"] == "4" and rr["Playoff"]["a"] == "39,00 (2)"
-   and rr["Migliore partita"]["a"] == "45,00", f"tabella: come /player, il migliore segnato {dcs['righe']}")
-ok(dcs["post_x"] is not None, "play-in e playoff in fondo")
+ok(dcs and len(dcs["punti_a"]) == 10 and len(dcs["punti_b"]) == 5 and dcs["punti_a"][0]["x"] == 0 and dcs["punti_a"][-1]["x"] == 1
+   and dcs["punti_b"][1]["x"] == dcs["punti_a"][2]["x"], "stagione: punti sulle date, allineati tra i due")
+rq = {r["t"]: r for r in dcs["riquadri"]}
+tb = {r["t"]: r for r in dcs["tabella"]}
+ok(rq["Fantamedia"]["a"] == "29,63" and rq["Fantamedia"]["m"] == "a" and tb["Partite"]["b"] == "4"
+   and tb["Play-in e playoff NBA"]["a"] == "39,00 (2)" and rq["Migliore"]["a"] == "45,00" and "Peggiore" in rq,
+   f"v7.9.7: riquadri a due valori e tabella col resto, il migliore segnato {dcs['riquadri']} {dcs['tabella']}")
+ok(dcs["post_x"] is not None and dcs["fanta"] is None, "play-in e playoff NBA in fondo; senza calendario dei playoff niente fascia")
+# i nostri playoff: fascia e riquadro, dal calendario dei playoff importato (v7.9.7, Luca 15/11)
+db.q("""CREATE TABLE IF NOT EXISTS lega_giornate_playoff (stagione TEXT NOT NULL, numero_p INT NOT NULL, giorni DATE[] NOT NULL,
+        dal DATE NOT NULL, al DATE NOT NULL, media_file TEXT[] NOT NULL DEFAULT '{}', importato TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (stagione, numero_p))""")
+db.q("DELETE FROM lega_giornate_playoff WHERE stagione = %s", (S,))
+from datetime import date as _date
+_gg = [_date.fromisoformat(x) for x in sorted({p["giorno"] for p in R.dati_stagione(gid)["partite"]})]
+db.q("INSERT INTO lega_giornate_playoff (stagione, numero_p, giorni, dal, al) VALUES (%s, 1, %s, %s, %s)",
+     (S, [_gg[3]], _gg[3], _gg[3]))
+db.q("INSERT INTO lega_giornate_playoff (stagione, numero_p, giorni, dal, al) VALUES (%s, 2, %s, %s, %s)",
+     (S, [_gg[5]], _gg[5], _gg[5]))
+dcf = CF.dati_stagione(gid, gid2)
+rq2 = {r["t"]: r for r in dcf["riquadri"]}
+ok(dcf["fanta"] and dcf["fanta"]["lbl"] == "P1–P2" and 0 < dcf["fanta"]["x0"] < dcf["fanta"]["x1"] < 1 and "Nei nostri playoff" in rq2
+   and "Peggiore" not in rq2 and "Peggiore" in {r["t"] for r in dcf["tabella"]}, "nostri playoff: fascia, riquadro, il peggiore in tabella")
+drf = R.dati_stagione(gid)
+ok(drf["fanta"] and drf["fanta"]["n"] == 2 and drf["riquadri"][3]["t"] == "Nei nostri playoff", "/rendimento: fascia e riquadro dei nostri playoff")
+_png_r = R.immagine(drf) if hasattr(R, "immagine") else None
+pngf = CF.immagine(dcf)
+if _os.environ.get("REND_PNG"):
+    open(_os.environ["REND_PNG"] + "_confronto_nostri.png", "wb").write(pngf)
+    if _png_r:
+        open(_os.environ["REND_PNG"] + "_stagione_nostri.png", "wb").write(_png_r)
+ok(pngf[:4] == b"\x89PNG", "immagine coi nostri playoff")
+db.q("DELETE FROM lega_giornate_playoff WHERE stagione = %s", (S,))
 dcc = CF.dati_carriera((gid, "Rend Uno"), (None, "Vecchio Storico"))
-ok(len(dcc["anni"]) == 21 and dcc["anni"][0]["k"] == "1ª" and [x["a"]["lbl"] for x in dcc["anni"][:4]] == ["11-12", "23-24", "24-25", dc["stagioni"][-1]["lbl"]]
-   and dcc["anni"][0]["b"]["lbl"] == "02-03" and dcc["anni"][4]["a"] is None, "carriera: allineate per stagione di carriera, chi ne ha meno lascia vuoto")
+ok(len(dcc["stagioni"]) == 21 and dcc["stagioni"][0]["n"] == "1ª" and [x["sa"] for x in dcc["stagioni"][:4]] == ["11-12", "23-24", "24-25", dc["stagioni"][-1]["lbl"]]
+   and dcc["stagioni"][0]["sb"] == "02-03" and dcc["stagioni"][4]["a"] is None and sum(x["pb"] for x in dcc["stagioni"]) == 1,
+   "carriera: allineate per stagione di carriera, chi ne ha meno lascia vuoto, una migliore per uno")
 png = CF.immagine(dcs); png2 = CF.immagine(dcc)
 if _os.environ.get("REND_PNG"):
     open(_os.environ["REND_PNG"] + "_confronto.png", "wb").write(png); open(_os.environ["REND_PNG"] + "_confronto_carriera.png", "wb").write(png2)
