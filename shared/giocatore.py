@@ -475,22 +475,33 @@ def dati_scheda(gid: int, foto_di=None) -> dict | None:
         anni = int(c["anni_originali"]) - (int(s) - int(c["stagione_firma"]))
         fine = int(c["stagione_firma"]) + int(c["anni_originali"]) - 1
         stagione_txt = lambda y: f"{y}-{str(y + 1)[-2:]}"
+        # v7.16.0 (Luca, 16/11; mockup approvato): importo e anni nella bolla come nel roster, il resto accanto
+        bolla_imp, bolla_anni = f"{c['importo']}M", ""
         if c["tipo"] == "10day":
             contratto = f"{c['importo']}M · 10-day" + (f", firmato il {c['firmato_at']:%d/%m}" if c.get("firmato_at") else "")
+            bolla_anni, sotto = "10d", "10-day" + (f", firmato il {c['firmato_at']:%d/%m}" if c.get("firmato_at") else "")
         elif anni <= 0:
             rfa = _q1("SELECT 1 AS x FROM rfa_dichiarati WHERE contratto_id = %s AND stato = 'attiva'", (c["id"],))
             contratto = f"{c['importo']}M, contratto finito (x0)" + (" · dichiarato RFA" if rfa else " · a fine stagione può essere dichiarato RFA")
+            bolla_anni = "×0"
+            sotto = "contratto finito" + (" · dichiarato RFA" if rfa else " · a fine stagione può essere dichiarato RFA")
         else:
             contratto = (f"{c['importo']}M × {anni} {'anno' if anni == 1 else 'anni'} rimasti (fino al {stagione_txt(fine)}; "
                          f"firmato nel {stagione_txt(int(c['stagione_firma']))} per {c['anni_originali']})")
+            bolla_anni = f"×{anni}"
+            sotto = (f"{anni} {'anno rimasto' if anni == 1 else 'anni rimasti'} · fino al {stagione_txt(fine)} · "
+                     f"firmato nel {stagione_txt(int(c['stagione_firma']))} per {c['anni_originali']}")
         if c["tipo"] == "rookie":
             contratto += " · rookie"
+            sotto += " · rookie"
         if c.get("importo_dpe") is not None:
             contratto += f" · 🏥 DPE quest'anno (pesa {c['importo_dpe']}M)"
+            sotto += f" · 🏥 DPE quest'anno (pesa {c['importo_dpe']}M)"
         nota = (NOTA_FIRMA if c["tipo"] != "10day" and str(c["stagione_firma"]) == ANNO_BOT
                 and datetime.now().year <= NOTA_FIRMA_FINO_AL else "")
         d["fanta"] = {"tipo": "firmato", "squadra": L.nome(c["team_id"]), "colore": colore_squadra(L.squadra(c["team_id"]) or {"id": c["team_id"]}),
-                      "contratto": contratto, "ruolo": ruolo, "ruolo_txt": ruolo_txt, "nota": nota,
+                      "contratto": contratto, "importo": bolla_imp, "anni": bolla_anni, "contratto_sotto": sotto,
+                      "ruolo": ruolo, "ruolo_txt": ruolo_txt, "nota": nota,
                       "draft": draft(gid, s, True) if c["tipo"] == "rookie" else ""}
     else:
         dr = _q1("""SELECT team_id, round, anno_draft FROM rookie WHERE giocatore_id = %s AND NOT firmato

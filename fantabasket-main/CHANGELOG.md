@@ -2022,3 +2022,13 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.14.1 (2026-11-15)
 
 - Loucabot v122: `/classifica_home_away` in ordine di percentuale di vittorie, con la colonna «% V»
+
+## v7.15.1 (2026-11-15)
+
+(Sostituisce la v7.15.0: il foglio dei playoff rifatto come il vecchio foglio; contiene tutto quello della v7.15.0.)
+
+- Loucabot v123: nei fogli Google i tab «Calcolo P3» nei playoff e il foglio a parte «Playoff 26-27» come il vecchio foglio dei playoff, formattato (`gas/calcolo.gs`, `gas/calendario.gs`, gas-router: serve `clasp push` e Nuova versione); il calcolo della percentuale di partite giocate notte per notte, per il report di fine regular season (`/classifica_full` non cambia)
+
+## v7.16.0 (2026-11-16)
+
+- Loucabot v124 e bot principale (`/player`, `/rendimento`, `/confronto` in privato): il contratto in evidenza come nel roster in `/player`, `/rendimento` e `/confronto`, più date sull'asse di `/rendimento` e `/confronto`, il quarto e il minuto dei giocatori in campo in `/partita`. Contiene anche la v7.15.1 (playoff nei fogli Google: dopo l'installazione serve `clasp push` e Nuova versione)

@@ -140,6 +140,14 @@ def dati_stagione(gid_a: int, gid_b: int, stagione: str | None = None) -> dict |
         if g[5:7] != prima:
             mesi.append({"x": xf(date.fromisoformat(g).replace(day=1)) if g != giorni[0] else 0.0, "lbl": R.MESI[int(g[5:7])]})
             prima = g[5:7]
+    # v7.16.0 (Luca, 16/11): oltre ai mesi, il 10 e il 20 di ogni mese
+    date_x, m0 = [], g0.replace(day=1)
+    while m0 <= g1:
+        for gg in (10, 20):
+            dd = m0.replace(day=gg)
+            if g0 < dd <= g1:
+                date_x.append({"x": xf(dd), "lbl": f"{gg}/{dd.month}"})
+        m0 = (m0.replace(day=28) + __import__("datetime").timedelta(days=4)).replace(day=1)
     vals = [x["fp"] for x in da["partite"] + db_["partite"] if x["fp"] is not None]
     lo, hi, passo_y = R._asse(vals)
     npo = R.nostri_playoff(stagione)
@@ -176,10 +184,10 @@ def dati_stagione(gid_a: int, gid_b: int, stagione: str | None = None) -> dict |
     tab.append({"t": "Minuti a partita", "a": f"{mia:.1f}".replace(".", ",") if mia else "—",
                 "b": f"{mib:.1f}".replace(".", ",") if mib else "—", "m": _meglio(mia, mib)})
     i_post = [x["x"] for x in punti(da) + punti(db_) if x["post"]]
-    tieni = ("nome", "iniziali", "foto", "sotto")
+    tieni = ("nome", "iniziali", "foto", "sotto", "contratto")
     return {"modo": "stagione", "titolo": da["titolo"],
             "a": {k: da[k] for k in tieni}, "b": {k: db_[k] for k in tieni}, "punti_a": punti(da), "punti_b": punti(db_),
-            "riquadri": riq, "tabella": tab, "mesi": mesi, "y_min": lo, "y_max": hi, "y_passo": passo_y,
+            "riquadri": riq, "tabella": tab, "mesi": mesi, "date": date_x, "y_min": lo, "y_max": hi, "y_passo": passo_y,
             "media_a": a["media"] or 0, "media_b": b["media"] or 0, "media_a_t": _cifra(a["media"]), "media_b_t": _cifra(b["media"]),
             "fanta": fanta, "post_x": min(i_post, default=None)}
 

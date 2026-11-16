@@ -154,9 +154,11 @@ def _cella(x: dict | None, a: str | None, sq: str | None, d, partite_giorno: dic
     if p["stato"] == "STATUS_SCHEDULED":                          # con l'orario di Roma (Luca, 11/11)
         ora = p["inizio"].astimezone(__import__("zoneinfo").ZoneInfo("Europe/Rome")).strftime("%H:%M") if p.get("inizio") else ""
         return {"t": vs, "k": "prossima", "o": ora}
+    import live                                                   # v7.16.0 (Luca, 16/11): quarto e minuto sotto
+    q = live.stato_nba(p)[1] if p.get("stato") else ""
     if r and r.get("giocato"):                                    # in corso, tabellino parziale
-        return {"t": tp(r["fp"]), "k": "live"}
-    return {"t": vs, "k": "live"}
+        return {"t": tp(r["fp"]), "k": "live", "q": q}
+    return {"t": vs, "k": "live", "q": q}
 
 
 def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None, turno: int | None = None) -> dict:

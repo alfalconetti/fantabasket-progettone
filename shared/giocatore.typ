@@ -60,7 +60,16 @@
       #grid(columns: (1fr, auto), align: (left + horizon, right + horizon),
         stack(spacing: 4pt,
           text(11pt, weight: "bold", fill: cf)[#f.squadra],
-          text(8pt)[#f.contratto],
+          // v7.16.0 (Luca, 16/11; mockup approvato): il contratto in evidenza, come nel roster (importo e anni in una
+          // bolla del colore della squadra), il resto accanto; diritti e free agent restano in testo
+          if f.at("importo", default: "") != "" {
+            grid(columns: (auto, 1fr), column-gutter: 7pt, align: horizon,
+              box(fill: cf.lighten(72%), stroke: 0.8pt + cf.lighten(30%), radius: 5pt, inset: (x: 8pt, y: 4pt),
+                grid(columns: (auto, auto), column-gutter: 8pt, align: horizon,
+                  text(14pt, weight: "bold", fill: rgb("#1a1a1a"))[#f.importo],
+                  text(12pt, fill: rgb("#1a1a1a"))[#f.anni])),
+              text(7.5pt, fill: grigio)[#f.contratto_sotto])
+          } else { text(8pt)[#f.contratto] },
           // il draft dei rookie, firmati e diritti (v7.9.2, Luca 14/11)
           ..(if f.at("draft", default: "") != "" { (box(fill: lilla, radius: 3pt, inset: (x: 5pt, y: 2.5pt),
             text(7.5pt, fill: viola_scuro)[#f.draft]),) } else { () })),

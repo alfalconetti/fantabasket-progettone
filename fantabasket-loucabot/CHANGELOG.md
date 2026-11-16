@@ -595,3 +595,12 @@ Il calcolo dei fantapunti.
 ## v122 (2026-11-15, progettone v7.14.1)
 
 - `/classifica_home_away` in ordine di percentuale di vittorie, con la colonna «% V»
+
+## v123 (2026-11-15, progettone v7.15.1)
+
+- **Playoff nei fogli Google**: i tab del foglio di controllo del calcolo si chiamano «Calcolo P3» nelle giornate P; i playoff vanno nel foglio a parte «Playoff 26-27», come il vecchio foglio dei playoff (teste di serie, tabellone, giornate per turno con la serie), con la formattazione sui colori del tabellone, il Calendario resta della regular season. Serve `clasp push` e Nuova versione (gas)
+- Per il report di fine regular season (ancora da fare): la percentuale di partite giocate notte per notte (roster: mentre il giocatore era in squadra; quintetto: i titolari schierati davvero), fuori chi non ha mai giocato. `/classifica_full` non cambia
+
+## v124 (2026-11-16, progettone v7.16.0)
+
+- Grafiche (mockup approvati): in `/player` il contratto in evidenza come nel roster (bolla con importo e anni); in `/rendimento` e `/confronto` l'etichetta della squadra del fantabasket col contratto sotto il nome e più date sull'asse (una partita ogni cinque; il 10 e il 20 di ogni mese); in `/partita`, per chi sta giocando, il quarto e il minuto della partita NBA sotto i punti

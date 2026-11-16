@@ -274,13 +274,24 @@ def testo(c: dict, versione: int = 1) -> str:
         righe += [f"• {e(z['nome'])} ({e(config.nome(z['team']))})" + (f": {e(z['nota'])}" if z.get("nota") else "") for z in zeri]
         righe.append(f"<i>Si correggono con /set_valid_status GIOCATORE {g['numero']} (lo status vale per tutta la giornata), "
                      "poi 🔄 Ricalcola.</i>")
-    righe += ["", f"Controlla il tab «Calcolo G{g['numero']}» del foglio di calcolo, poi convalida. "
+    righe += ["", f"Controlla il tab «{nome_tab(g, c.get('stagione'))}» del foglio di calcolo, poi convalida. "
                   "Per correggere: /set_valid_status, /quintetto_admin SQUADRA GN, /panchina_admin SQUADRA GN "
                   "(su IPanchinari), poi 🔄 Ricalcola."]
     return "\n".join(righe)
 
 
 # ── foglio "Calcolo GN" ────────────────────────────────────────────────────────
+
+def nome_tab(g: dict | int, s: str | None = None) -> str:
+    """Il nome del tab del foglio di calcolo: «Calcolo G12», nei playoff «Calcolo P3» (v7.15.0, Luca 15/11)."""
+    if isinstance(g, int):
+        g = db.giornata(s or config.stagione(), g) or {"numero": g}
+    if g.get("tipo") == "playoff":
+        from shared import codici_giornata as CG
+        u = CG.ultima_rs(g.get("stagione") or s or config.stagione())
+        if u is not None:
+            return f"Calcolo P{g['numero'] - u}"
+    return f"Calcolo G{g['numero']}"
 
 BLU, NERO, VERDE = "#0000ff", "#000000", "#008000"
 SF_TESTA, SF_PART, SF_PANCA, SF_FADD, SF_TOT, SF_PARAM = "#1f3864", "#d9e1f2", "#f2f2f2", "#fce4d6", "#e2efda", "#fff2cc"
@@ -442,7 +453,7 @@ def griglia(c: dict) -> dict:
         for i in (2, 4, 5, 6, 7, 8):
             tx[i_r][i] = VERDE
     return {"righe": righe, "sfondi": sf, "testi": tx, "pesi": pe, "formati": fo,
-            "congela": {"righe": 0, "colonne": 0}, "nome": f"Calcolo G{g['numero']}",
+            "congela": {"righe": 0, "colonne": 0}, "nome": nome_tab(g, c.get("stagione")),
             "colonne": {"punteggio": iPUN}}
 
 
@@ -475,9 +486,9 @@ async def scrivi_foglio(c: dict, manda=None) -> str:
         r = await foglio.manda_gas("calcolo", payload_foglio(griglia(c)), manda)
     except Exception as err:
         logger.warning("Foglio di calcolo: %s", err)
-        return f"⚠️ tab Calcolo G{c['giornata']['numero']} non scritto ({type(err).__name__}: {str(err)[:150]})"
+        return f"⚠️ tab {nome_tab(c['giornata'], c.get('stagione'))} non scritto ({type(err).__name__}: {str(err)[:150]})"
     if r.get("error"):
-        return f"⚠️ tab Calcolo G{c['giornata']['numero']} non scritto: {str(r['error'])[:200]}"
+        return f"⚠️ tab {nome_tab(c['giornata'], c.get('stagione'))} non scritto: {str(r['error'])[:200]}"
     esito = f"tab «{r.get('tab')}» scritto ({r.get('righe')} righe)"
     if r.get("errori"):
         esito = f"⚠️ {esito}, ma {r['errori']} formule danno #ERROR! (sintassi provata: {r.get('sintassi')})"

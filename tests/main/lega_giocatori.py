@@ -248,6 +248,9 @@ ok(dd == f"Draft {S} · 1° giro, pick 5", f"draft dei diritti, senza la pick ne
 ok(GG.draft(gid["Elenco Centro Firmato"], S, True) == "", "chi non è nella tabella rookie: niente")
 _dj = GG.dati_scheda(gid["Elenco Jokić Accento"])
 _da = GG.dati_scheda(gid["Elenco Ala Diritti"])
+ok(_dj["fanta"]["importo"] == "4M" and _dj["fanta"]["anni"] == "×1" and "fino al" in _dj["fanta"]["contratto_sotto"]
+   and "rookie" in _dj["fanta"]["contratto_sotto"] and "importo" not in _da["fanta"],
+   f"v7.16.0: in /player la bolla del contratto (importo e anni) e il resto accanto; i diritti in testo ({_dj['fanta']})")
 ok(_dj["fanta"]["draft"] == dr and _da["fanta"]["draft"] == dd and dr in GG.scheda(gid["Elenco Jokić Accento"])
    and GG.immagine_scheda(_dj)[:4] == b"\x89PNG", "/player: il draft nell'immagine e nel testo")
 if _os.environ.get("PLAYER_PNG"):

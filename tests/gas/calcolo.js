@@ -31,6 +31,7 @@ op.length = 0; for (const k in scritte) delete scritte[k]; errorePerVirgole = tr
 r = handleCalcolo({ nome: "Calcolo G1", righe });
 console.log(r.ok && r.sintassi === "punto e virgola" && r.errori === 0 && scritte["2:3"] === '=IF(B2>1;"sì, va";"no")' && scritte["3:3"] === "=SUM(B2;B3)"
   ? "✅" : "❌ FAIL", "foglio in italiano: #ERROR! con le virgole → riscritte col ;, virgole tra virgolette intatte", JSON.stringify(scritte), JSON.stringify(r));
+console.log(handleCalcolo({ nome: "Calcolo P3", righe }).ok && fogli["Calcolo P3"] ? "✅" : "❌ FAIL", "v7.15.0: tab «Calcolo P3» dei playoff accettato");
 console.log(handleCalcolo({ nome: "Roster", righe }).error ? "✅" : "❌ FAIL", "nome di tab non Calcolo GN: rifiutato (non si tocca il Roster)");
 console.log(handleCalcolo({ nome: "Calcolo G2", righe: [["a"], ["b", "c"]] }).error ? "✅" : "❌ FAIL", "righe di lunghezza diversa: rifiutate");
 global.CONFIG = { CALCOLO_SPREADSHEET_ID: "xyz" }; errorePerVirgole = false;

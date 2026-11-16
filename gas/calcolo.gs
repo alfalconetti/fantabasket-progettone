@@ -67,7 +67,7 @@ function _errori_(range) {
 function handleCalcolo(payload) {
   const nome = payload.nome || "";
   const righe = payload.righe || [];
-  if (!/^Calcolo G\d+$/.test(nome)) return respond({ error: "Nome del tab non valido: " + nome });
+  if (!/^Calcolo [GP]\d+$/.test(nome)) return respond({ error: "Nome del tab non valido: " + nome });
   if (!righe.length) return respond({ error: "Griglia vuota" });
   const nc = righe[0].length;
   for (let i = 0; i < righe.length; i++) {

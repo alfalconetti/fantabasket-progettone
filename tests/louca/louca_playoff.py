@@ -263,6 +263,45 @@ try:
     ok(d_c["adesso"] == "Campione" and d_c["campione"]["nome"] == config.nome(f["alta"]) and "campione" in bot.mod[-1][2],
        "tabellone: campione, anche sul canale")
     ok(asyncio.run(PO.dopo_convalida(bot, S, 3)) == "", "convalida di regular season: niente playoff")
+    # v7.15.0 (Luca, 15/11): i tab del foglio di calcolo si chiamano P nei playoff; i playoff in un foglio a parte
+    import risultati as R_, foglio as F_
+    ok(R_.nome_tab(db.giornata(S, 5), S) == "Calcolo P2" and R_.nome_tab(db.giornata(S, 3), S) == "Calcolo G3" and R_.nome_tab(7, S) == "Calcolo P4",
+       "tab del foglio di calcolo: «Calcolo P2» nei playoff, «Calcolo G3» in regular season")
+    gp = F_.griglia_playoff(S)
+    if _os.environ.get("PO_CSV"):
+        import csv as _csv
+        _csv.writer(open(_os.environ["PO_CSV"], "w", newline="")).writerows(gp)
+    ok(all(len(r) == 23 for r in gp) and gp[1][1] == f"PLAYOFF QUASI FRIENDS {S}/{int(S) + 1}" and gp[3][7] == "OVEST" and gp[3][16] == "EST"
+       and gp[4][2] == "Teste di Serie" and gp[6][7] == "Primo Turno" and gp[6][13] == "FINALS" and gp[6][21] == "Primo Turno",
+       "foglio dei playoff: titolo, conference, intestazioni del tabellone, colonne A–W come il vecchio foglio")
+    sd_ = PO.seed(S)
+    ok([gp[10 + i][2] for i in range(6)] == [config.nome(t) for t in sd_["Ovest"]] and gp[10][1] == 1 and gp[15][5] == config.nome(sd_["Est"][5]),
+       "foglio dei playoff: le teste di serie delle due conference")
+    s36 = next(x for x in PO.serie(S) if x["turno"] == 1 and x["conference"] == "Ovest" and x["slot"] == "3-6")
+    ok(gp[8][7] == config.nome(s36["alta"]) and gp[8][8] == s36["vinte_alta"] and gp[9][7] == config.nome(s36["bassa"]),
+       "foglio dei playoff: primo turno nel tabellone con le vittorie")
+    ok(gp[12][13] and gp[12][16] and {gp[12][14], gp[12][15]} == {4, 0}, "foglio dei playoff: le finals al centro")
+    i_pt = next(i for i, r in enumerate(gp) if r[2] == "PRIMO TURNO")
+    ok(gp[i_pt][6] == "SERIE" and gp[i_pt + 3][0] == "DATA" and "/" in gp[i_pt + 4][0] and gp[i_pt + 3][3] != "" and "-" in gp[i_pt + 3][6],
+       "foglio dei playoff: le giornate (DATA, giorni, partite coi punti e la serie)")
+    ok(any(r[2] == "FINALS" for r in gp) and F_.nome_foglio_playoff(S) == f"Playoff {int(S) % 100:02d}-{(int(S) + 1) % 100:02d}",
+       "foglio dei playoff: «Playoff 26-27»")
+    gp2, stili_ = F_.dati_playoff(S)
+    ok(gp2 == gp and any(x["range"] == "B2:W2" and x.get("unisci") and x.get("dimensione") == 18 for x in stili_)
+       and any(x["range"] == "N13:Q13" for x in stili_) and any(x.get("formato") == "0.00" for x in stili_)
+       and any(x.get("unisci") and x["range"].startswith("N14") for x in stili_),
+       "foglio dei playoff: la formattazione (titolo, finals, punteggi, campione)")
+    if _os.environ.get("PO_CSV"):
+        import json as _json
+        open(_os.environ["PO_CSV"] + ".stili.json", "w").write(_json.dumps(stili_))
+    mandati_f = []
+    async def manda_f(payload):
+        mandati_f.append(payload); return {"ok": True, "righe": len(payload["righe"])}
+    ef = asyncio.run(F_.aggiorna_playoff(S, manda_f))
+    ok(mandati_f and mandati_f[0]["stili"] and mandati_f[0]["larghezze"][3] == 170, "foglio dei playoff: stili e larghezze al gas")
+    ok(mandati_f and mandati_f[0]["foglio"] == F_.nome_foglio_playoff(S) and mandati_f[0]["action"] == "calendario" and "ricaricato" in ef,
+       "foglio dei playoff: stessa azione del Calendario, col suo foglio")
+    ok(F_.griglia_playoff("1998") == [], "senza giornate P: niente foglio dei playoff")
     try:
         import typst  # noqa: F401
         png = PO.immagine(d_f)

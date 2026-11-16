@@ -93,8 +93,11 @@ def _info_squadra(team_id: str | None) -> dict:
     return {"nome": t.get("nome", team_id), "colore": colore_squadra(t), "logo": L.logo(team_id)}
 
 
-def _testata(gid: int | None, nome: str) -> dict:
-    """Foto, iniziali e la riga sotto il nome (squadra NBA, età, squadra del fantabasket e contratto)."""
+def _testata(gid: int | None, nome: str, etichetta: bool = False) -> dict:
+    """Foto, iniziali e la riga sotto il nome (squadra NBA, età, squadra del fantabasket e contratto). Con etichetta
+    (v7.16.0, Luca 16/11, mockup approvato: /rendimento e /confronto della stagione) la squadra del fantabasket e il
+    contratto non stanno nella riga ma in «contratto» {squadra, colore, importo, anni, testo}, per l'etichetta in
+    evidenza come nel roster; /rendimento_carriera e /confronto_carriera restano com'erano."""
     if gid is None:
         return {"nome": nome, "iniziali": _iniziali(nome), "foto": "", "sotto": "dati storici di Basketball-Reference · non è nel bot"}
     g = L.q("SELECT nome_common, espn_id, data_nascita FROM giocatori WHERE id = %s", (gid,), one=True) or {}
@@ -107,9 +110,31 @@ def _testata(gid: int | None, nome: str) -> dict:
         pezzi.append(f"{G.eta(g['data_nascita'])} anni")
     c = L.q("SELECT team_id, importo, anni_originali, stagione_firma FROM contratti WHERE giocatore_id = %s AND attivo LIMIT 1",
             (gid,), one=True)
+    out = {"nome": g.get("nome_common") or nome, "iniziali": _iniziali(g.get("nome_common") or nome),
+           "foto": L.foto(g.get("espn_id")) or ""}
+    if etichetta:
+        out["sotto"] = " · ".join(pezzi)
+        out["contratto"] = etichetta_contratto(gid)
+        return out
     pezzi.append(f"{L.nome(c['team_id'])}, {tp(c['importo'])} × {c['anni_originali']}" if c else "free agent")
-    return {"nome": g.get("nome_common") or nome, "iniziali": _iniziali(g.get("nome_common") or nome),
-            "foto": L.foto(g.get("espn_id")) or "", "sotto": " · ".join(pezzi)}
+    return {**out, "sotto": " · ".join(pezzi)}
+
+
+def etichetta_contratto(gid: int) -> dict:
+    """{squadra, colore, importo, anni, testo} per l'etichetta: la bolla come nel roster («25M», «×3»; 10-day «10d»,
+    contratto finito «×0»); per i free agent «svincolato» e per chi ha solo i diritti rookie «diritti»."""
+    c = L.q("""SELECT team_id, importo, anni_originali, stagione_firma, tipo FROM contratti
+               WHERE giocatore_id = %s AND attivo LIMIT 1""", (gid,), one=True)
+    if c:
+        anni = int(c["anni_originali"]) - (int(L.stagione()) - int(c["stagione_firma"]))
+        return {"squadra": L.nome(c["team_id"]), "colore": colore_squadra(L.squadra(c["team_id"]) or {"id": c["team_id"]}),
+                "importo": f"{c['importo']}M", "anni": "10d" if c["tipo"] == "10day" else f"×{max(anni, 0)}", "testo": ""}
+    d = L.q("""SELECT team_id FROM rookie WHERE giocatore_id = %s AND NOT firmato AND NOT diritti_scaduti
+               ORDER BY id DESC LIMIT 1""", (gid,), one=True)
+    if d:
+        return {"squadra": L.nome(d["team_id"]), "colore": colore_squadra(L.squadra(d["team_id"]) or {"id": d["team_id"]}),
+                "importo": "", "anni": "", "testo": "diritti rookie"}
+    return {"squadra": "Free agent", "colore": "#1B8A4B", "importo": "", "anni": "", "testo": "svincolato"}
 
 
 # ── /rendimento: la stagione ──────────────────────────────────────────────────
@@ -228,8 +253,11 @@ def dati_stagione(gid: int, stagione: str | None = None) -> dict | None:
         if m != prima:
             mesi.append({"i": i, "lbl": MESI[int(m)]})
             prima = m
-    return {"modo": "stagione", **_testata(gid, g["nome_common"]),
-            "riquadri": riquadri, "mesi": mesi, "media_val": ottavi(media), "giocate": len(giocate),
+    # v7.16.0 (Luca, 16/11): più riferimenti sull'asse: la data di una partita ogni 5, non attaccata all'inizio di un mese
+    date_x = [{"i": i, "lbl": f"{p['giorno'][8:10]}/{p['giorno'][5:7]}"} for i, p in enumerate(out)
+              if i % 5 == 2 and all(abs(i - m["i"]) > 1 for m in mesi)]
+    return {"modo": "stagione", **_testata(gid, g["nome_common"], etichetta=True),
+            "riquadri": riquadri, "mesi": mesi, "date": date_x, "media_val": ottavi(media), "giocate": len(giocate),
             "y_barre": max(40, int(-(-(max(vals, default=0) + 6) // 10) * 10)),
             "titolo": f"Stagione {a}-{(a + 1) % 100:02d}", "media_big": _t(media) if reg or vals else "—",
             "media_sotto": " · ".join(sotto), "partite": out, "squadre": squadre, "fasce": fasce, "fanta": fanta,

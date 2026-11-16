@@ -17,6 +17,7 @@ subiti» = il suo minimo (Luca, 16/10). Roster di adesso (contratti attivi senza
 = il migliore possibile per fantapunti dal roster di adesso, uno per ruolo (PG SG SF PF C, ruoli
 della stagione), non quello schierato (Luca, 16/10); fantapunti = media della stagione di ognuno
 (come nel calcolo), partite giocate = sue partite che contano / partite della sua squadra NBA.
+giocate_notte_per_notte (v7.15.0, Luca 15/11) è solo per il report di fine regular season: /classifica_full resta così.
 
 /classifica_conference: la generale filtrata per conference (gli ex aequo si risolvono sulla
 generale, non tra le squadre della conference); conference da config/divisions.json, chiave
@@ -215,6 +216,114 @@ def roster_stats(stagione: str, st: dict[str, dict]) -> None:
         s["fp_q"] = media((medie.get(r["espn_id"]) or {}).get("media") for r in qs)
         s["gioc_roster"] = media(perc(r["espn_id"]) for r in rs)
         s["gioc_q"] = media(perc(r["espn_id"]) for r in qs)
+
+
+
+def giocate_notte_per_notte(stagione: str) -> dict[str, dict]:
+    """v7.15.0 (Luca, 15/11): % di partite giocate notte per notte, per il report di fine regular season (non per
+    /classifica_full, che resta sul roster di adesso).
+    Roster: per ogni partita NBA della stagione (regular season e play-in, finite) in cui il giocatore era nella
+    squadra del fantabasket (movimenti_giocatori, all'ora della palla a due) e la sua squadra NBA giocava, se è sceso
+    in campo; % = scese in campo / partite possibili, sommate su tutta la squadra. Quintetto: i titolari schierati
+    davvero (ipa_formazioni) in ogni giornata convalidata di regular season, sulle partite della loro squadra NBA
+    in quella giornata. Fuori chi non ha mai giocato in tutta la stagione. → {team: {gioc_roster, gioc_q}} (%, o None)."""
+    from bisect import bisect_right
+    partite = db.q("""SELECT espn_id, inizio, data_et, casa, trasferta FROM nba_partite
+                      WHERE stagione = %s AND tipo = ANY(%s) AND stato = 'STATUS_FINAL' ORDER BY inizio""",
+                   (stagione, [2, 5]), many=True) or []
+    if not partite:
+        return {}
+    ids = [p["espn_id"] for p in partite]
+    tab = db.q("""SELECT atleta, partita, squadra, (giocato AND NOT (fp = 0 AND minuti = 0)) AS sceso
+                  FROM nba_tabellini WHERE partita = ANY(%s)""", (ids,), many=True) or []
+    giorno = {p["espn_id"]: p["data_et"] for p in partite}
+    scesi: dict[str, set] = {}
+    punti_sq: dict[str, list] = {}                       # atleta → [(giorno, squadra NBA)] noti
+    for t in tab:
+        if t["sceso"]:
+            scesi.setdefault(t["atleta"], set()).add(t["partita"])
+        punti_sq.setdefault(t["atleta"], []).append((giorno[t["partita"]], t["squadra"]))
+    atleti = sorted(scesi)                               # chi non ha mai giocato è fuori
+    if not atleti:
+        return {}
+    for m in db.q("SELECT atleta, giorno, da, a FROM nba_movimenti WHERE atleta = ANY(%s)", (atleti,), many=True) or []:
+        if m["da"]:
+            punti_sq.setdefault(m["atleta"], []).append((m["giorno"] - __import__("datetime").timedelta(days=1), m["da"]))
+        if m["a"]:
+            punti_sq.setdefault(m["atleta"], []).append((m["giorno"], m["a"]))
+    for a in punti_sq:
+        punti_sq[a].sort()
+
+    def squadra_nba(a: str, d) -> str | None:
+        pp = punti_sq.get(a) or []
+        if not pp:
+            return None
+        i = bisect_right([x[0] for x in pp], d) - 1
+        return pp[i][1] if i >= 0 else pp[0][1]
+
+    per_sq: dict[str, list] = {}
+    for p in partite:
+        per_sq.setdefault(p["casa"], []).append(p)
+        per_sq.setdefault(p["trasferta"], []).append(p)
+    gid = {r["espn_id"]: r["id"] for r in db.q("SELECT id, espn_id FROM giocatori WHERE espn_id = ANY(%s)", (atleti,), many=True) or []}
+    mov: dict[int, list] = {}
+    if gid:
+        for m in db.q("""SELECT giocatore_id, team_id_a, timestamp FROM movimenti_giocatori WHERE giocatore_id = ANY(%s)
+                         ORDER BY timestamp, id""", (list(gid.values()),), many=True) or []:
+            mov.setdefault(m["giocatore_id"], []).append(m)
+
+    def fanta_al(g: int, quando) -> str | None:
+        team = None
+        for m in mov.get(g, []):
+            if m["timestamp"] <= quando:
+                team = m["team_id_a"]
+            else:
+                break
+        return team
+
+    poss: dict[str, int] = {}
+    fatte: dict[str, int] = {}
+    for a in atleti:
+        g = gid.get(a)
+        if g is None or not mov.get(g):
+            continue
+        squadre_a = {x[1] for x in punti_sq.get(a, [])}
+        for sq in squadre_a:
+            for p in per_sq.get(sq, []):
+                if squadra_nba(a, p["data_et"]) != sq:
+                    continue
+                t = fanta_al(g, p["inizio"])
+                if not t:
+                    continue
+                poss[t] = poss.get(t, 0) + 1
+                if p["espn_id"] in scesi[a]:
+                    fatte[t] = fatte.get(t, 0) + 1
+    # quintetto: i titolari schierati in ogni giornata convalidata di regular season
+    q_poss: dict[str, int] = {}
+    q_fatte: dict[str, int] = {}
+    try:
+        righe = db.q("""SELECT f.team_id, g2.espn_id, gg.dal, gg.al FROM ipa_formazioni f
+                        JOIN lega_giornate gg ON gg.stagione = f.stagione AND gg.numero = f.giornata AND gg.tipo = 'regular'
+                        JOIN lega_calcoli c ON c.stagione = f.stagione AND c.giornata = f.giornata AND c.stato = 'convalidata'
+                        JOIN giocatori g2 ON g2.id = f.giocatore_id
+                        WHERE f.stagione = %s AND g2.espn_id IS NOT NULL""", (stagione,), many=True) or []
+    except Exception:
+        righe = []
+    for r in righe:
+        a = r["espn_id"]
+        if a not in scesi:
+            continue
+        for sq in {x[1] for x in punti_sq.get(a, [])}:
+            for p in per_sq.get(sq, []):
+                if r["dal"] <= p["data_et"] <= r["al"] and squadra_nba(a, p["data_et"]) == sq:
+                    q_poss[r["team_id"]] = q_poss.get(r["team_id"], 0) + 1
+                    if p["espn_id"] in scesi[a]:
+                        q_fatte[r["team_id"]] = q_fatte.get(r["team_id"], 0) + 1
+    out = {}
+    for t in set(poss) | set(q_poss):
+        out[t] = {"gioc_roster": 100 * fatte.get(t, 0) / poss[t] if poss.get(t) else None,
+                  "gioc_q": 100 * q_fatte.get(t, 0) / q_poss[t] if q_poss.get(t) else None}
+    return out
 
 
 RUOLI = ("PG", "SG", "SF", "PF", "C")

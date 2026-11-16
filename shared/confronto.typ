@@ -31,7 +31,13 @@
   if g.foto != "" { place(top + left, dx: -15pt, dy: -2.5pt, image(g.foto, height: 55pt, width: 75pt)) }
   else { align(center + horizon, text(15pt, weight: "bold", fill: scuro)[#g.iniziali]) })
 #let lato(g, c, dx) = {
-  let nome = stack(spacing: 4pt, text(14pt, weight: "bold", fill: white)[#g.nome], text(7.5pt, fill: white.transparentize(25%))[#g.sotto])
+  // v7.16.0 (Luca, 16/11; mockup approvato): sotto il nome la squadra del fantabasket col contratto in evidenza
+  let k = g.at("contratto", default: none)
+  let chip = if k == none { none } else { box(fill: white, radius: 5pt, inset: (x: 7pt, y: 4pt), stroke: (left: 4pt + rgb(k.colore)),
+      [#text(10pt, weight: "bold", fill: rgb(k.colore))[#k.squadra] #h(6pt)
+       #if k.importo != "" { box(fill: rgb(k.colore).lighten(72%), stroke: 0.8pt + rgb(k.colore).lighten(30%), radius: 4pt, inset: (x: 6pt, y: 2.5pt), text(13pt, weight: "bold", fill: rgb("#1a1a1a"))[#k.importo #h(5pt) #text(11pt, weight: "regular")[#k.anni]]) } else { text(10pt, fill: rgb("#6B6480"))[#k.testo] }]) }
+  let nome = stack(spacing: 5pt, text(14pt, weight: "bold", fill: white)[#g.nome], text(7.5pt, fill: white.transparentize(25%))[#g.sotto],
+    ..(if chip != none { (chip,) } else { () }))
   if dx { grid(columns: (1fr, auto), column-gutter: 8pt, align: horizon, align(right, nome), tondo(g, c)) }
   else { grid(columns: (auto, 1fr), column-gutter: 8pt, align: horizon, tondo(g, c), nome) }
 }
@@ -70,7 +76,7 @@
   let hi = d.y_max
   let ys(v) = H - (v - lo) / (hi - lo) * H
   let xs(f) = 6pt + f * (W - 12pt)
-  pad(x: 36pt, top: 16pt, bottom: 2pt, box(width: W, height: H + 22pt, {
+  pad(x: 36pt, top: 16pt, bottom: 2pt, box(width: W, height: H + 26pt, {
     if d.fanta != none {
       let f0 = xs(d.fanta.x0) - 4pt
       let f1 = xs(d.fanta.x1) + 4pt
@@ -101,6 +107,12 @@
       for k in range(1, m.len()) {
         place(line(start: (xs(m.at(k - 1).x), ys(m.at(k - 1).mobile)), end: (xs(m.at(k).x), ys(m.at(k).mobile)), stroke: (paint: cs, thickness: 2.4pt, cap: "round")))
       }
+    }
+    // v7.16.0 (Luca, 16/11): oltre ai mesi, il 10 e il 20 di ogni mese, piccoli
+    for t in d.at("date", default: ()) {
+      let x = xs(t.x)
+      place(dx: x, dy: H, line(length: 3pt, angle: 90deg, stroke: 0.5pt + grigio.lighten(30%)))
+      place(dx: x - 12pt, dy: H + 13pt, box(width: 24pt, align(center, text(6pt, fill: grigio)[#t.lbl])))
     }
     for m in d.mesi {
       let x = xs(m.x)

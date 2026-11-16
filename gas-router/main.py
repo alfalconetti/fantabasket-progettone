@@ -51,6 +51,10 @@ class GASPayload(BaseModel):
     pesi:    Optional[list[Any]] = None
     formati: Optional[list[Any]] = None
     congela: Optional[dict] = None
+    # v7.15.0: foglio dei playoff (/gas/calendario con un altro foglio)
+    foglio:  Optional[str] = None
+    stili:   Optional[list[Any]] = None
+    larghezze: Optional[dict] = None
 
 
 def _get_gas_scelte_url(): return _read_secret("GAS_SCELTE_URL_FILE")
@@ -101,6 +105,9 @@ async def calendario(payload: GASPayload, authorization: str = Header(...)):
         "token":   _get_gas_token(),
         "action":  "calendario",
         "righe":   payload.righe or [],
+        "foglio":  payload.foglio,
+        "stili":   payload.stili,
+        "larghezze": payload.larghezze,
     }
     return await _forward(_get_gas_roster_url(), gas_payload, timeout=170.0)
 

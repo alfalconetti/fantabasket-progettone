@@ -31,7 +31,11 @@
       else { align(center + horizon, text(17pt, weight: "bold", fill: viola_scuro)[#d.iniziali]) }),
     stack(spacing: 4pt,
       text(16pt, weight: "bold", fill: white)[#d.nome],
-      text(8.5pt, fill: white.transparentize(20%))[#d.sotto · #d.titolo]))
+      text(8.5pt, fill: white.transparentize(20%))[#if d.sotto != "" [#d.sotto · ]#d.titolo],
+      // v7.16.0 (Luca, 16/11; mockup approvato): la squadra del fantabasket col contratto in evidenza, come nel roster
+      ..(if d.at("contratto", default: none) != none { let k = d.contratto; (box(fill: white, radius: 5pt, inset: (x: 7pt, y: 4pt), stroke: (left: 4pt + rgb(k.colore)),
+        [#text(10pt, weight: "bold", fill: rgb(k.colore))[#k.squadra] #h(6pt)
+         #if k.importo != "" { box(fill: rgb(k.colore).lighten(72%), stroke: 0.8pt + rgb(k.colore).lighten(30%), radius: 4pt, inset: (x: 6pt, y: 2.5pt), text(13pt, weight: "bold", fill: rgb("#1a1a1a"))[#k.importo #h(5pt) #text(11pt, weight: "regular")[#k.anni]]) } else { text(10pt, fill: rgb("#6B6480"))[#k.testo] }]),) } else { () })))
   #v(10pt)
   #let riquadro(r) = box(fill: white.transparentize(88%), radius: 6pt, inset: (x: 10pt, y: 6pt), width: 100%,
     stack(spacing: 3pt, text(6.5pt, weight: "bold", fill: white.transparentize(30%), tracking: 0.6pt)[#upper(r.t)],
@@ -61,7 +65,7 @@
   let slot = W / n
   let xc(i) = slot * (i + 0.5)
   let col(sq) = rgb(d.squadre.at(sq).colore)
-  pad(x: 36pt, top: 16pt, bottom: 2pt, box(width: W, height: H + 40pt, {
+  pad(x: 36pt, top: 16pt, bottom: 2pt, box(width: W, height: H + 47pt, {
     griglia(hi, passo, ys)
     // v7.9.7 (Luca, 15/11): i nostri playoff, fascia gialla sotto le barre
     let fp_ = d.at("fanta", default: none)
@@ -103,7 +107,12 @@
       place(dx: calc.min(calc.max(xc(b) - 30pt, 0pt), W - 60pt), dy: ys(P.at(b).fp) - 12pt,
         box(width: 60pt, align(center, text(7pt, weight: "bold", fill: oro_scuro)[#fmt(P.at(b).fp)])))
     }
-    // asse x: i mesi
+    // asse x: i mesi; v7.16.0 (Luca, 16/11): e la data di una partita ogni 5, piccola
+    for t in d.at("date", default: ()) {
+      let x = xc(t.i)
+      place(dx: x, dy: H, line(length: 3pt, angle: 90deg, stroke: 0.5pt + grigio.lighten(30%)))
+      place(dx: x - 12pt, dy: H + 13pt, box(width: 24pt, align(center, text(6pt, fill: grigio)[#t.lbl])))
+    }
     for m in d.mesi {
       let x = xc(m.i) - slot / 2
       place(dx: x, dy: H, line(length: 4pt, angle: 90deg, stroke: 0.6pt + grigio))
@@ -114,9 +123,9 @@
       let x0 = xc(f.da) - slot / 2
       let x1 = xc(f.a) + slot / 2
       let c = col(f.sq)
-      place(dx: x0, dy: H + 18pt, rect(width: calc.max(x1 - x0 - 2pt, 2pt), height: 4pt, radius: 2pt, fill: c))
+      place(dx: x0, dy: H + 25pt, rect(width: calc.max(x1 - x0 - 2pt, 2pt), height: 4pt, radius: 2pt, fill: c))
       if x1 - x0 >= 40pt {
-        place(dx: x0, dy: H + 25pt, box(width: x1 - x0, clip: true, text(7.5pt)[#text(weight: "bold", fill: c)[#d.squadre.at(f.sq).nome] #text(fill: grigio)[· #f.media su #f.g]]))
+        place(dx: x0, dy: H + 32pt, box(width: x1 - x0, clip: true, text(7.5pt)[#text(weight: "bold", fill: c)[#d.squadre.at(f.sq).nome] #text(fill: grigio)[· #f.media su #f.g]]))
       }
     }
   }))

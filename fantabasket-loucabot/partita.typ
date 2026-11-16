@@ -102,7 +102,10 @@
 // ── una squadra ──
 #let cella(c) = {
   if c.k == "fp" { text(weight: "bold")[#c.t] }
-  else if c.k == "live" { text(weight: "bold", fill: rosso)[#c.t] }
+  else if c.k == "live" {            // v7.16.0 (Luca, 16/11; mockup approvato): sotto, il quarto e il minuto della partita NBA
+    let q = c.at("q", default: "")
+    if q != "" { [#text(weight: "bold", fill: rosso)[#c.t] \ #text(fill: rosso.lighten(25%), size: 6.5pt)[#q]] } else { text(weight: "bold", fill: rosso)[#c.t] }
+  }
   else if c.k == "dnp" { text(fill: grigio)[DNP] }
   else if c.k == "prossima" {        // con l'orario di Roma sotto (Luca, 11/11)
     let o = c.at("o", default: "")

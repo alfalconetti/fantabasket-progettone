@@ -105,7 +105,7 @@ def griglia(s: str, n: int, sch: dict | None = None) -> dict:
                        else "anche titolare: in panchina questa posizione vale 0, gli altri non scalano" if gid and gid in titolari else ""],
                       sfondo=R.SF_PANCA, colore=R.BLU)
         nuova()
-    return {"nome": f"Calcolo G{n}", "righe": righe, "sfondi": sf, "testi": tx, "pesi": pe, "formati": fo,
+    return {"nome": R.nome_tab(g or n, s), "righe": righe, "sfondi": sf, "testi": tx, "pesi": pe, "formati": fo,
             "congela": {"righe": 0, "colonne": 0}}
 
 

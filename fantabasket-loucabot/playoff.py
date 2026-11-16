@@ -607,7 +607,9 @@ async def blocca(bot, s: str) -> str:
     from registro import segna_sync
     segna_sync(None, "sistema", "playoff: tabellone bloccato", oggetto=f"stagione {s}",
                nota=f"P1 = G{u + 1}, {len(serie)} serie" + (f"; cambi: {'; '.join(cambi)}" if cambi else ""))
-    return esito + f"; primo turno in calendario (P1 = G{u + 1})"
+    import foglio                                        # v7.15.0: il foglio Playoff con la P1
+    ef = await foglio.aggiorna_playoff(s)
+    return esito + f"; primo turno in calendario (P1 = G{u + 1})" + (f"; {ef}" if ef else "")
 
 
 async def job_passaggio(context) -> None:
@@ -896,6 +898,10 @@ async def dopo_convalida(bot, s: str, n: int, prima: dict | None = None) -> str:
         esiti.append(await _pubblica_canale(bot, s, aggiornato=True))
     except Exception as err:
         logger.warning("Playoff: tabellone sul canale dopo la G%s: %s", n, err)
+    import foglio                                        # v7.15.0: il foglio Playoff, a parte dal Calendario
+    ef = await foglio.aggiorna_playoff(s)
+    if ef:
+        esiti.append(ef)
     return "playoff: " + "; ".join(esiti)
 
 

@@ -65,6 +65,11 @@ ok(list(_rq) == ["Fantamedia", "Ultime 5", "Migliore", "Peggiore"] and _rq["Fant
 ok(d["mesi"] and d["mesi"][0]["i"] == 0 and all(m["lbl"] in R.MESI for m in d["mesi"]), f"i mesi sull'asse {d['mesi']}")
 ok(d["media_val"] == 29.625 and d["y_barre"] >= 50 and d["giocate"] == sum(1 for p in d["partite"] if p["fp"] is not None),
    "media della stagione, asse delle barre, partite giocate")
+# v7.16.0 (Luca, 16/11): l'etichetta del contratto in testata (non più nella riga), le date sull'asse
+ok(d["contratto"]["importo"].endswith("M") and d["contratto"]["anni"].startswith("×") and d["contratto"]["squadra"]
+   and ", " not in d["sotto"].split(" · ")[-1] or "×" not in d["sotto"], f"etichetta del contratto e riga senza contratto ({d['contratto']}, {d['sotto']})")
+ok(all(x["i"] % 5 == 2 and all(abs(x["i"] - m["i"]) > 1 for m in d["mesi"]) for x in d["date"])
+   and all(len(x["lbl"]) == 5 and x["lbl"][2] == "/" for x in d["date"]), f"una data ogni 5 partite, non attaccata ai mesi ({d['date']})")
 png = R.immagine(d)
 if _os.environ.get("REND_PNG"): open(_os.environ["REND_PNG"] + "_stagione.json", "w").write(__import__("json").dumps(d, default=str, ensure_ascii=False))
 if _os.environ.get("REND_PNG"): open(_os.environ["REND_PNG"] + "_stagione.png", "wb").write(png)
@@ -179,6 +184,9 @@ for i in range(0, 10, 2):
     db.q("INSERT INTO nba_tabellini (partita, atleta, nome, squadra, giocato, minuti, fp) VALUES (%s, 'rd2', 'Rend Due', 'RDB', TRUE, 25, %s)",
          (f"rd_p{i}", 10 + i))
 dcs = CF.dati_stagione(gid, gid2)
+ok(dcs["a"]["contratto"]["importo"] and dcs["b"]["contratto"]["testo"] in ("svincolato", "diritti rookie", "")
+   and all(0 < x["x"] <= 1 and x["lbl"].split("/")[0] in ("10", "20") for x in dcs["date"]),
+   f"/confronto: etichette del contratto e il 10 e il 20 di ogni mese ({dcs['a']['contratto']}, {dcs['b']['contratto']}, {dcs['date']})")
 ok(dcs and len(dcs["punti_a"]) == 10 and len(dcs["punti_b"]) == 5 and dcs["punti_a"][0]["x"] == 0 and dcs["punti_a"][-1]["x"] == 1
    and dcs["punti_b"][1]["x"] == dcs["punti_a"][2]["x"], "stagione: punti sulle date, allineati tra i due")
 rq = {r["t"]: r for r in dcs["riquadri"]}
