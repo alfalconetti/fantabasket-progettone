@@ -65,6 +65,35 @@ async def _riscarica(g: dict) -> dict:
     return CG.cambi(prima, CG.righe(ids))
 
 
+def testo_correzioni(stagione: str | None = None, n: int | None = None, ids: list[str] | None = None,
+                     titolo: str = "Correzioni a mano") -> str:
+    """Le correzioni a mano dei tabellini (della giornata n o delle partite ids), per la proposta agli admin, il
+    ricalcolo e il controllo delle 20 (v7.17.0): valore dell'admin, valore di ESPN quando si è corretto e, se è
+    cambiato, quello che ESPN dà adesso (se coincide con la correzione, la si può togliere)."""
+    if ids is None:
+        g = db.giornata(stagione, n)
+        if not g:
+            return ""
+        ids = [p["espn_id"] for p in db.partite_nba(g["dal"], g["al"])]
+    corr = db.correzioni(ids)
+    if not corr:
+        return ""
+    righe = db.q("""SELECT t.partita, t.atleta, t.nome, p.data_et FROM nba_tabellini t JOIN nba_partite p ON p.espn_id = t.partita
+                    WHERE t.partita = ANY(%s)""", (list({k[0] for k in corr}),), many=True) or []
+    info = {(r["partita"], r["atleta"]): r for r in righe}
+    out = []
+    for k, c in sorted(corr.items(), key=lambda x: (info.get(x[0]) or {}).get("nome", "")):
+        r = info.get(k)
+        if r:
+            ult = c.get("espn_ultimo")
+            nota = ""
+            if ult is not None and c.get("espn") is not None and float(ult) != float(c["espn"]):
+                nota = (f", ESPN ora {testo_punti(ult)}" + (": uguale alla correzione, si può togliere" if float(ult) == float(c["fp"]) else ""))
+            out.append(f"• {e(r['nome'])} ({r['data_et']:%d/%m}) <b>{testo_punti(c['fp'])}</b>"
+                       + (f" (ESPN {testo_punti(c['espn'])}{nota})" if c.get("espn") is not None else "") + (f", {e(c['chi'])}" if c.get("chi") else ""))
+    return (f"\n\n✏️ <b>{titolo}</b> (valgono al posto di ESPN):\n" + "\n".join(out)) if out else ""
+
+
 async def esegui(bot, stagione: str, n: int, chi: str = "job delle 7:45", user=None) -> str:
     """Calcola (o ricalcola) la giornata n, scrive il tab, manda la proposta. Restituisce l'esito."""
     from handlers import log
@@ -76,7 +105,7 @@ async def esegui(bot, stagione: str, n: int, chi: str = "job delle 7:45", user=N
     foglio = await R.scrivi_foglio(c)
     # giornata già convalidata (ricalcolo): cosa cambia rispetto ai risultati convalidati (Luca, 26/10)
     testo = (R.testo(c, versione) + _cup.testo_admin(c["cup"]) + R.testo_differenze(R.differenze(stagione, n, c["risultati"]))
-             + f"\n\n<i>{e(foglio)}</i>")
+             + testo_correzioni(stagione, n) + f"\n\n<i>{e(foglio)}</i>")
     gruppo = config.gruppo_admin()
     if gruppo:
         if vecchio and vecchio["messaggio"]:
@@ -162,6 +191,7 @@ async def controllo_notte(bot, d, chi: str = "controllo delle 20", user=None) ->
     nota_err = (f"\n⚠️ {len(errori)} partite non scaricate ({e('; '.join(errori))[:150]}): /controllo_notte {d:%d/%m} per riprovare"
                 if errori else "")
     gn = f" (G{g['numero']})" if g else ""
+    corr_txt = testo_correzioni(ids=ids, titolo=f"Corrette a mano nella notte del {d:%d/%m}")   # v7.17.0
     if contano:
         CG.migra()
         cid = db.q("""INSERT INTO lega_controlli_notte (data_et, giornata, prima, dopo, chi) VALUES (%s, %s, %s, %s, %s) RETURNING id""",
@@ -173,7 +203,8 @@ async def controllo_notte(bot, d, chi: str = "controllo delle 20", user=None) ->
                  f"<b>Verificate che su Yahoo sia uguale:</b>\n"
                  + "\n".join(CG.riga_cambio(a, b) for a, b in sorted(contano.values(), key=lambda x: (x[1] or x[0])["nome"]))
                  + "\n\nI valori nuovi sono già nel database. Se su Yahoo non corrispondono, ❌ rimette quelli di prima."
-                 + (" Poi 🔄 Ricalcola per aggiornare risultati e foglio." if g and _calcolata(s, g["numero"]) else "") + nota_err)
+                 + (" Poi 🔄 Ricalcola per aggiornare risultati e foglio." if g and _calcolata(s, g["numero"]) else "") + nota_err
+                 + corr_txt)
         tasti = [[B("✅ Uguale su Yahoo", callback_data=f"cn:ok:{cid}"), B("❌ Non corrisponde", callback_data=f"cn:no:{cid}")]]
         if g and _calcolata(s, g["numero"]):
             tasti.append([B("🔄 Ricalcola", callback_data=f"rc:re:{g['numero']}")])
@@ -185,7 +216,7 @@ async def controllo_notte(bot, d, chi: str = "controllo delle 20", user=None) ->
         esito = f"{len(contano)} cambi agli admin"
     else:
         await log(bot, f"🔎 Controllo finale, notte del {d:%d/%m}{gn}: nessun tabellino cambiato tra gli schierati"
-                       + (f" ({len(cambi)} cambi di altri)" if cambi else "") + "; notte congelata" + nota_err)
+                       + (f" ({len(cambi)} cambi di altri)" if cambi else "") + "; notte congelata" + nota_err + corr_txt)
         esito = "nessun cambio"
     # le altre notti della giornata: solo informazione personale, sul log, SENZA salvare (Luca, 30/10)
     if g:
@@ -200,7 +231,8 @@ async def controllo_notte(bot, d, chi: str = "controllo delle 20", user=None) ->
                 continue
             letti = {(pid, x["atleta"]): x for pid, tab in (r2.get("letti") or {}).items() for x in tab}
             salvati = {k: v for k, v in CG.righe(list((r2.get("letti") or {}).keys())).items()}
-            diff = {k: v for k, v in CG.cambi(salvati, letti).items() if k[1] in sch}
+            corr = db.correzioni(list((r2.get("letti") or {}).keys()))   # v7.17.0: le correzioni a mano non si segnalano
+            diff = {k: v for k, v in CG.cambi(salvati, letti).items() if k[1] in sch and k not in corr}
             if not diff:
                 await log(bot, f"ℹ️ Notte del {d2:%d/%m}{gn}: ESPN la dà uguale")
                 continue
@@ -345,6 +377,7 @@ async def cb_controllo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     if riga:
                         cur.execute(f"INSERT INTO nba_tabellini ({', '.join(_COLONNE_TAB)}) VALUES "
                                     f"({', '.join('%(' + k + ')s' for k in _COLONNE_TAB)})", riga)
+                db.applica_correzioni(cur, list({k.split("|", 1)[0] for k in righe}))
     if azione == "ag":
         scrivi(dopo)
         db.q("UPDATE lega_controlli_notte SET stato = 'aggiornato' WHERE id = %s", (c["id"],))

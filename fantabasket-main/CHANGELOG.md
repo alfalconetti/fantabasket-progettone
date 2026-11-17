@@ -2032,3 +2032,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.16.0 (2026-11-16)
 
 - Loucabot v124 e bot principale (`/player`, `/rendimento`, `/confronto` in privato): il contratto in evidenza come nel roster in `/player`, `/rendimento` e `/confronto`, più date sull'asse di `/rendimento` e `/confronto`, il quarto e il minuto dei giocatori in campo in `/partita`. Contiene anche la v7.15.1 (playoff nei fogli Google: dopo l'installazione serve `clasp push` e Nuova versione)
+
+## v7.17.0 (2026-11-17)
+
+- Loucabot v125: le correzioni a mano dei tabellini restano anche quando il bot riscarica da ESPN; `/correggi_tabellino … annulla`

@@ -413,6 +413,9 @@ def ricalcola_fp(stagione: str) -> dict:
     n_tab = db.q(f"""WITH x AS (UPDATE nba_tabellini t SET fp = ROUND(({expr})::numeric, 2) FROM nba_partite p
                                 WHERE p.espn_id = t.partita AND p.stagione = %s RETURNING 1)
                      SELECT COUNT(*) AS n FROM x""", (stagione,), one=True)["n"]
+    with db.get_conn() as conn:                          # v7.17.0: le correzioni a mano restano
+        with conn.cursor() as cur:
+            db.applica_correzioni(cur)
     n_bref = 0
     if db.q("SELECT to_regclass('bref_stats') AS t", one=True)["t"]:
         regole.allinea_bref(db.q)

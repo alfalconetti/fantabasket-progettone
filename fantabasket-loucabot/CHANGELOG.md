@@ -604,3 +604,7 @@ Il calcolo dei fantapunti.
 ## v124 (2026-11-16, progettone v7.16.0)
 
 - Grafiche (mockup approvati): in `/player` il contratto in evidenza come nel roster (bolla con importo e anni); in `/rendimento` e `/confronto` l'etichetta della squadra del fantabasket col contratto sotto il nome e più date sull'asse (una partita ogni cinque; il 10 e il 20 di ogni mese); in `/partita`, per chi sta giocando, il quarto e il minuto della partita NBA sotto i punti
+
+## v125 (2026-11-17, progettone v7.17.0)
+
+- `/correggi_tabellino`: la correzione è permanente, resta anche quando il bot riscarica i tabellini da ESPN (ricalcolo, 7:45, controllo delle 20) senza congelare la notte; elenco delle correzioni a mano nella proposta di calcolo e nel controllo delle 20, col valore che ESPN dà adesso; `annulla` per tornare a ESPN

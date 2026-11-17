@@ -104,7 +104,17 @@ def migra():
             tov INT NOT NULL DEFAULT 0, pf INT NOT NULL DEFAULT 0,
             fp        NUMERIC(6,2) NOT NULL DEFAULT 0,          -- fantapunti (regolamento)
             PRIMARY KEY (partita, atleta))""")
+    q("ALTER TABLE tabellini_corretti ADD COLUMN IF NOT EXISTS espn_ultimo NUMERIC(6,2)")   # l'ultimo valore scaricato da ESPN
     q("CREATE INDEX IF NOT EXISTS idx_nba_tabellini_atleta ON nba_tabellini (atleta)")
+    # v7.17.0 (Luca, 17/11): le correzioni a mano (/correggi_tabellino) restano anche quando il bot riscarica da ESPN
+    q("""CREATE TABLE IF NOT EXISTS tabellini_corretti (
+            partita   TEXT NOT NULL,
+            atleta    TEXT NOT NULL,
+            fp        NUMERIC(6,2) NOT NULL,                    -- il valore dell'admin
+            espn      NUMERIC(6,2),                             -- quello di ESPN quando si è corretto
+            chi       TEXT,
+            quando    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (partita, atleta))""")
     q("""CREATE TABLE IF NOT EXISTS nba_infortuni (
             giorno    DATE NOT NULL,                            -- giorno della costa est dello snapshot
             atleta    TEXT NOT NULL,
@@ -293,8 +303,26 @@ def salva_tabellino(partita: str, righe: list[dict], finale: bool = True) -> Non
             for r in righe:
                 cur.execute(f"INSERT INTO nba_tabellini ({', '.join(_COLONNE_TAB)}) VALUES "
                             f"({', '.join('%(' + c + ')s' for c in _COLONNE_TAB)})", r)
+            applica_correzioni(cur, [partita])
             cur.execute("UPDATE nba_partite SET tabellino = %s WHERE espn_id = %s",
                         (datetime.now(timezone.utc) if finale else None, partita))
+
+
+def applica_correzioni(cur, partite: list[str] | None = None) -> None:
+    """Rimette sui tabellini le correzioni a mano (v7.17.0): dopo ogni scrittura da ESPN vince il valore dell'admin.
+    Prima si segna in espn_ultimo il valore appena arrivato da ESPN, per dire agli admin se ESPN ha cambiato."""
+    cur.execute("""UPDATE tabellini_corretti c SET espn_ultimo = t.fp FROM nba_tabellini t
+                   WHERE c.partita = t.partita AND c.atleta = t.atleta AND (%s::text[] IS NULL OR t.partita = ANY(%s))""",
+                (partite, partite))
+    cur.execute("""UPDATE nba_tabellini t SET fp = c.fp FROM tabellini_corretti c
+                   WHERE c.partita = t.partita AND c.atleta = t.atleta AND (%s::text[] IS NULL OR t.partita = ANY(%s))""",
+                (partite, partite))
+
+
+def correzioni(partite: list[str] | None = None) -> dict:
+    """{(partita, atleta): riga} delle correzioni a mano."""
+    return {(r["partita"], r["atleta"]): dict(r) for r in
+            q("SELECT * FROM tabellini_corretti WHERE (%s::text[] IS NULL OR partita = ANY(%s))", (partite, partite), many=True) or []}
 
 
 def partite_senza_tabellino(fino=None, stagione: str | None = None, dal=None) -> list[str]:

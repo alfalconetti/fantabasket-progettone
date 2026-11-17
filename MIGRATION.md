@@ -2,7 +2,7 @@
 
 > Progetto hobbistico: i bot che gestiscono una lega fantasy NBA tra amici (vedi `README.md`). Questo file è il quaderno di lavoro: stato, regole, decisioni e cose da fare.
 
-**Stato: v7.16.0 · bot aste v84 · loucabot v124 · IPanchinari v39 · klra v6** (15/11/2026)
+**Stato: v7.17.0 · bot aste v84 · loucabot v125 · IPanchinari v39 · klra v6** (15/11/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`, `fantabasket-klra/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 
@@ -179,6 +179,7 @@ README e CHANGELOG in `fantabasket-klra/`. Il frontend è quello di loucabot (st
 - **Separazione assoluta** (Luca, 04/11): database PostgreSQL `klra` con utente suo; sul database ufficiale solo SELECT sulle tabelle elencate in `setup_db.sql` e transazioni in sola lettura. `deploy.sh` esegue `setup_db.sql` prima di avviarlo.
 - **Sistemi**: Ufficiale, Fantamedie e Fantapanchine predefiniti; quelli dei GM si copiano da qualsiasi sistema e li modifica solo chi li ha creati. Conference alternative salvate da chiunque, anche estratte a caso.
 - `/klra_verifica`: con l'Ufficiale klra deve dare esattamente i risultati convalidati di loucabot.
+- **Da fare: il sistema «Fanta sui 36 minuti»** (Luca, 16/11): un sistema di klra in cui i fantapunti di ogni partita si riportano a 36 minuti (fantapunti ÷ minuti giocati × 36), stesse formazioni e stesso calendario, per vedere come andrebbe la lega se contasse il rendimento al minuto e non il minutaggio. Da decidere con Luca: un minimo di minuti per contare (chi gioca 2 minuti e fa 6 fantapunti varrebbe 108), come trattare DNP e media (il valore per 36 della media o la media dei valori per 36), se riportare anche i supplementari.
 
 ## 9. Fonti esterne
 

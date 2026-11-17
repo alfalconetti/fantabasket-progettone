@@ -1421,8 +1421,34 @@ _t, _m = _cmd(CG.cmd_correggi, _nome12.split() + [f"G{N}", "33", f"{_d12:%d/%m}"
 ok(float(db.q("""SELECT t.fp FROM nba_tabellini t JOIN nba_partite p ON p.espn_id = t.partita
                  WHERE t.atleta = 'r1' AND p.data_et = %s""", (_d12,), one=True)["fp"]) == 33.0
    and any(c == -1 and "Correzione G" in x and "→ <b>33,00</b>" in x for c, x in _m) and any(c == -3 for c, x in _m)
-   and "/ricalcola" in _t[0] and "/congela" in _t[0],
-   f"/correggi_tabellino: corretto, sul canale principale e sul log; giornata aperta: avviso che ESPN può rimetterlo {_t}")
+   and "/ricalcola" in _t[0] and "resta anche quando il bot riscarica" in _t[0] and "annulla" in _t[0],
+   f"/correggi_tabellino: corretto, sul canale principale e sul log; resta anche se il bot riscarica {_t}")
+# v7.17.0 (Luca, 17/11): la correzione resta quando ESPN riscarica (salva_tabellino, controllo delle 20, nuovi pesi)
+_pid12 = db.q("""SELECT t.partita FROM nba_tabellini t JOIN nba_partite p ON p.espn_id = t.partita
+                 WHERE t.atleta = 'r1' AND p.data_et = %s""", (_d12,), one=True)["partita"]
+_fp12 = lambda: float(db.q("SELECT fp FROM nba_tabellini WHERE partita = %s AND atleta = 'r1'", (_pid12,), one=True)["fp"])
+_riga12 = dict(db.q("SELECT * FROM nba_tabellini WHERE partita = %s AND atleta = 'r1'", (_pid12,), one=True))
+from db import _COLONNE_TAB as _CT
+_tutte12 = [dict(r) for r in db.q("SELECT * FROM nba_tabellini WHERE partita = %s", (_pid12,), many=True)]
+db.salva_tabellino(_pid12, [{k: (r[k] if r["atleta"] != "r1" or k != "fp" else 12.0) for k in _CT} for r in _tutte12])
+ok(_fp12() == 33.0, "ESPN riscarica il tabellino (con un altro valore): la correzione a mano resta")
+ok(db.correzioni([_pid12])[(_pid12, "r1")]["espn"] is not None, "la correzione ricorda il valore di ESPN di quando si è corretto")
+_tc = HR.testo_correzioni(S, N)
+ok("Correzioni a mano" in _tc and "33,00" in _tc and "(ESPN 30,00, ESPN ora 12,00)" in _tc,
+   f"nella proposta agli admin le correzioni a mano della giornata, con quello che ESPN dà adesso {_tc!r}")
+_tc2 = HR.testo_correzioni(ids=[_pid12], titolo="Corrette a mano nella notte")
+ok("Corrette a mano nella notte" in _tc2 and "33,00" in _tc2, "nel controllo delle 20: le correzioni di quella notte")
+db.salva_tabellino(_pid12, [{k: (r[k] if r["atleta"] != "r1" or k != "fp" else 33.0) for k in _CT} for r in _tutte12])
+ok("si può togliere" in HR.testo_correzioni(S, N), "ESPN ora dà lo stesso valore: lo dice (la correzione si può togliere)")
+_t, _m = _cmd(CG.cmd_correggi, _nome12.split() + [f"G{N}", "33", f"{_d12:%d/%m}"])
+ok(_fp12() == 33.0 and len(db.correzioni([_pid12])) == 1, "correggere di nuovo: una correzione sola")
+ok(CG.leggi_correzione(["Powell", "G1", "annulla"]) == ("Powell", 1, None, None), "«annulla» al posto del valore")
+_t, _m = _cmd(CG.cmd_correggi, _nome12.split() + [f"G{N}", "annulla", f"{_d12:%d/%m}"])
+ok(not db.correzioni([_pid12]) and _fp12() == 30.0 and "annullata" in _t[0],
+   f"annulla: torna il valore di ESPN e la correzione sparisce ({_t[0][:120]})")
+_t, _m = _cmd(CG.cmd_correggi, _nome12.split() + [f"G{N}", "annulla", f"{_d12:%d/%m}"])
+ok("non ha correzioni" in _t[0], "annulla senza correzione: lo dice")
+db.q("DELETE FROM tabellini_corretti")
 for _x in _fp_prima:
     db.q("UPDATE nba_tabellini SET fp = %s WHERE partita = %s AND atleta = %s", (_x["fp"], _x["partita"], _x["atleta"]))
 # una giornata congelata non si riscarica, nemmeno con /ricalcola o alle 7:45 (v58: il filtro è in scarica_tabellini)

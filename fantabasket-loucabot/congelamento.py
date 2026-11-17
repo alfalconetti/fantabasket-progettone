@@ -299,8 +299,8 @@ async def cmd_congelamento(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text(testo_congelamento(config.stagione()), parse_mode="HTML")
 
 
-def leggi_correzione(args: list[str]) -> tuple[str, int, float, tuple[int, int] | None] | None:
-    """GIOCATORE GN VALORE [DD/MM] → (nome, n, valore, (giorno, mese) o None)."""
+def leggi_correzione(args: list[str]) -> tuple[str, int, float | None, tuple[int, int] | None] | None:
+    """GIOCATORE GN VALORE [DD/MM] → (nome, n, valore, (giorno, mese) o None); VALORE «annulla» → None (v7.17.0)."""
     a = list(args)
     data = None
     if a and re.fullmatch(r"\d{1,2}/\d{1,2}", a[-1]):
@@ -308,10 +308,13 @@ def leggi_correzione(args: list[str]) -> tuple[str, int, float, tuple[int, int] 
         data = (int(d), int(m))
     if len(a) < 3:
         return None
-    try:
-        valore = float(a[-1].replace(",", "."))
-    except ValueError:
-        return None
+    if a[-1].lower() in ("annulla", "togli", "espn"):
+        valore = None
+    else:
+        try:
+            valore = float(a[-1].replace(",", "."))
+        except ValueError:
+            return None
     n = _numero(a[-2])
     if n is None:
         return None
@@ -324,7 +327,8 @@ async def cmd_correggi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not config.is_admin(update.effective_user.id):
         await msg.reply_text("⛔ Solo admin.")
         return
-    uso = "Uso: /correggi_tabellino GIOCATORE GN VALORE [GG/MM] (es. /correggi_tabellino Norman Powell G1 16)"
+    uso = ("Uso: /correggi_tabellino GIOCATORE GN VALORE [GG/MM] (es. /correggi_tabellino Norman Powell G1 16); "
+           "con «annulla» al posto del valore si torna a quello di ESPN")
     x = leggi_correzione(context.args or [])
     if not x:
         await msg.reply_text(uso)
@@ -353,22 +357,40 @@ async def cmd_correggi(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if len(righe) > 1:
         await msg.reply_text(f"{gioc['nome_common']} ha {len(righe)} partite nella giornata {n}: aggiungi la data, es. "
-                             + " · ".join(f"/correggi_tabellino {gioc['nome_common']} G{n} {tp(valore)} {r['data_et']:%d/%m}"
+                             + " · ".join(f"/correggi_tabellino {gioc['nome_common']} G{n} {tp(valore) if valore is not None else 'annulla'} {r['data_et']:%d/%m}"
                                           for r in righe))
         return
     r = righe[0]
     prima = float(r["fp"])
-    db.q("UPDATE nba_tabellini SET fp = %s WHERE partita = %s AND atleta = %s", (valore, r["partita"], gioc["espn_id"]))
+    gia = db.correzioni([r["partita"]]).get((r["partita"], gioc["espn_id"]))
     from registro import segna_sync
-    segna_sync(update.effective_user, "admin", "tabellino corretto", oggetto=f"giornata {n}, {gioc['nome_common']} ({r['data_et']:%d/%m})",
-               prima=tp(prima), dopo=tp(valore))
-    testo = (f"✏️ <b>Correzione G{n}</b>: {e(gioc['nome_common'])} ({r['data_et']:%d/%m}) {tp(prima)} → <b>{tp(valore)}</b> "
-             f"fantapunti (admin {e(_chi(update))})")
+    oggetto = f"giornata {n}, {gioc['nome_common']} ({r['data_et']:%d/%m})"
+    if valore is None:                                   # v7.17.0: annulla → torna il valore di ESPN
+        if not gia:
+            await msg.reply_text(f"{gioc['nome_common']} ({r['data_et']:%d/%m}) non ha correzioni a mano: vale già ESPN.")
+            return
+        db.q("DELETE FROM tabellini_corretti WHERE partita = %s AND atleta = %s", (r["partita"], gioc["espn_id"]))
+        espn = float(gia["espn"]) if gia.get("espn") is not None else prima
+        db.q("UPDATE nba_tabellini SET fp = %s WHERE partita = %s AND atleta = %s", (espn, r["partita"], gioc["espn_id"]))
+        segna_sync(update.effective_user, "admin", "correzione del tabellino annullata", oggetto=oggetto, prima=tp(prima), dopo=f"{tp(espn)} (ESPN)")
+        testo = (f"↩️ <b>Correzione G{n} annullata</b>: {e(gioc['nome_common'])} ({r['data_et']:%d/%m}) {tp(prima)} → "
+                 f"<b>{tp(espn)}</b> fantapunti, il valore di ESPN (admin {e(_chi(update))})")
+    else:
+        # v7.17.0 (Luca, 17/11): la correzione è salvata a parte e torna su ogni volta che il bot riscarica da ESPN
+        # (/ricalcola, calcolo delle 7:45, controllo delle 20): non serve congelare la notte
+        db.q("""INSERT INTO tabellini_corretti (partita, atleta, fp, espn, chi) VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (partita, atleta) DO UPDATE SET fp = EXCLUDED.fp, chi = EXCLUDED.chi, quando = NOW()""",
+             (r["partita"], gioc["espn_id"], valore, prima if not gia else gia.get("espn"), _chi(update)))
+        db.q("UPDATE nba_tabellini SET fp = %s WHERE partita = %s AND atleta = %s", (valore, r["partita"], gioc["espn_id"]))
+        segna_sync(update.effective_user, "admin", "tabellino corretto", oggetto=oggetto, prima=tp(prima), dopo=tp(valore))
+        testo = (f"✏️ <b>Correzione G{n}</b>: {e(gioc['nome_common'])} ({r['data_et']:%d/%m}) {tp(prima)} → <b>{tp(valore)}</b> "
+                 f"fantapunti (admin {e(_chi(update))})")
     await _annuncia(context.bot, testo)
     await msg.reply_text(testo + f"\n\nOra /ricalcola {n} e la convalida per aggiornare i risultati."
-                         + (f"\n⚠️ La notte del {r['data_et']:%d/%m} è ancora aperta: il controllo delle 20 o /ricalcola "
-                            f"riscaricano da ESPN e possono rimettere il valore di ESPN. Per tenerla: /congela_notte {r['data_et']:%d/%m}"
-                            if not notte_congelata(r["data_et"], s) else ""), parse_mode="HTML")
+                         + ("\nLa correzione resta anche quando il bot riscarica i tabellini da ESPN (ricalcolo, 7:45, controllo "
+                            f"delle 20); per tornare a ESPN: /correggi_tabellino {gioc['nome_common']} G{n} annulla"
+                            + (f" {r['data_et']:%d/%m}" if len(righe) > 1 or data else "") if valore is not None else ""),
+                         parse_mode="HTML")
 
 
 # ── le notti (v58) ─────────────────────────────────────────────────────────────
