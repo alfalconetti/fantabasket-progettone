@@ -104,7 +104,6 @@ def migra():
             tov INT NOT NULL DEFAULT 0, pf INT NOT NULL DEFAULT 0,
             fp        NUMERIC(6,2) NOT NULL DEFAULT 0,          -- fantapunti (regolamento)
             PRIMARY KEY (partita, atleta))""")
-    q("ALTER TABLE tabellini_corretti ADD COLUMN IF NOT EXISTS espn_ultimo NUMERIC(6,2)")   # l'ultimo valore scaricato da ESPN
     q("CREATE INDEX IF NOT EXISTS idx_nba_tabellini_atleta ON nba_tabellini (atleta)")
     # v7.17.0 (Luca, 17/11): le correzioni a mano (/correggi_tabellino) restano anche quando il bot riscarica da ESPN
     q("""CREATE TABLE IF NOT EXISTS tabellini_corretti (
@@ -115,6 +114,7 @@ def migra():
             chi       TEXT,
             quando    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             PRIMARY KEY (partita, atleta))""")
+    q("ALTER TABLE tabellini_corretti ADD COLUMN IF NOT EXISTS espn_ultimo NUMERIC(6,2)")   # l'ultimo valore scaricato da ESPN
     q("""CREATE TABLE IF NOT EXISTS nba_infortuni (
             giorno    DATE NOT NULL,                            -- giorno della costa est dello snapshot
             atleta    TEXT NOT NULL,

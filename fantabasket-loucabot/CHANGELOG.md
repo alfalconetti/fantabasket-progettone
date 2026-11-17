@@ -608,3 +608,7 @@ Il calcolo dei fantapunti.
 ## v125 (2026-11-17, progettone v7.17.0)
 
 - `/correggi_tabellino`: la correzione è permanente, resta anche quando il bot riscarica i tabellini da ESPN (ricalcolo, 7:45, controllo delle 20) senza congelare la notte; elenco delle correzioni a mano nella proposta di calcolo e nel controllo delle 20, col valore che ESPN dà adesso; `annulla` per tornare a ESPN
+
+## v126 (2026-11-17, progettone v7.17.1)
+
+- Fix: all'avvio la migrazione aggiungeva la colonna `espn_ultimo` a `tabellini_corretti` prima di creare la tabella, e su un database senza la tabella il bot non partiva; ora la crea prima (test: la migrazione su un database senza la tabella)

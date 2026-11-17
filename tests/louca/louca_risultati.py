@@ -1449,6 +1449,13 @@ ok(not db.correzioni([_pid12]) and _fp12() == 30.0 and "annullata" in _t[0],
 _t, _m = _cmd(CG.cmd_correggi, _nome12.split() + [f"G{N}", "annulla", f"{_d12:%d/%m}"])
 ok("non ha correzioni" in _t[0], "annulla senza correzione: lo dice")
 db.q("DELETE FROM tabellini_corretti")
+# v7.17.1: la migrazione deve funzionare anche su un database senza la tabella (in 7.17.0 l'ALTER veniva prima della CREATE)
+db.q("DROP TABLE tabellini_corretti")
+try:
+    db.migra(); _mig = None
+except Exception as _e:
+    _mig = _e
+ok(_mig is None and db.q("SELECT to_regclass('tabellini_corretti') AS t", one=True)["t"], f"migra() su un database senza tabellini_corretti ({_mig})")
 for _x in _fp_prima:
     db.q("UPDATE nba_tabellini SET fp = %s WHERE partita = %s AND atleta = %s", (_x["fp"], _x["partita"], _x["atleta"]))
 # una giornata congelata non si riscarica, nemmeno con /ricalcola o alle 7:45 (v58: il filtro è in scarica_tabellini)

@@ -2036,3 +2036,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.17.0 (2026-11-17)
 
 - Loucabot v125: le correzioni a mano dei tabellini restano anche quando il bot riscarica da ESPN; `/correggi_tabellino … annulla`
+
+## v7.17.1 (2026-11-17)
+
+- Loucabot v126: fix dell'avvio (ordine della migrazione di `tabellini_corretti`)
