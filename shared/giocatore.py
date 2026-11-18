@@ -528,9 +528,19 @@ def dati_scheda(gid: int, foto_di=None) -> dict | None:
     prima = {"t": f"Stagione {ap - 1}-{str(ap)[-2:]}", "v": _num(float(bp["fantamedia"])) if bp else "—",
              "s": (f"{bp['g']} partite · bref" if bp and bp.get("g") else "bref") if bp else "nessun dato"}
 
-    d.update(riquadri=[], medie=[], sotto_medie="", ultime=[], nota_stagione="")
+    # v7.18.0 (Luca, 18/11; mockup approvato): sotto i riquadri della stagione lo «storico», stagione passata e
+    # carriera (pesata sulle partite, come /rendimento_carriera)
+    from shared.rendimento import media_carriera
+    try:
+        mc = media_carriera(gid, g.get("nome_bref") or g["nome_common"])
+    except Exception:
+        mc = None
+    carriera = ({"t": "Carriera", "v": _num(mc["media"]),
+                 "s": f"{mc['stagioni']} {'stagione' if mc['stagioni'] == 1 else 'stagioni'} · {mc['g']:,} {'partita' if mc['g'] == 1 else 'partite'}".replace(",", ".")}
+                if mc else {"t": "Carriera", "v": "—", "s": "nessun dato"})
+    d.update(riquadri=[], storico=[prima, carriera], medie=[], sotto_medie="", ultime=[], nota_stagione="")
     if not a:
-        d["riquadri"] = [{"t": "Fantamedia", "v": "—", "s": "non abbinato a ESPN"}, prima]
+        d["riquadri"] = [{"t": "Fantamedia", "v": "—", "s": "non abbinato a ESPN"}]
         return d
     tab = L.q("""SELECT t.*, p.data_et, p.casa, p.trasferta FROM nba_tabellini t JOIN nba_partite p ON p.espn_id = t.partita
                   WHERE t.atleta = %s AND p.stagione = %s AND p.tipo = ANY(%s) ORDER BY p.inizio""",
@@ -541,7 +551,7 @@ def dati_scheda(gid: int, foto_di=None) -> dict | None:
     su_breve = f" su {len(partite)}" if partite else ""          # nel riquadro, corto: «11 partite su 12»
     d["ultime"] = ultime_dati(tab, partite)
     if not contano:
-        d["riquadri"] = [{"t": "Fantamedia", "v": "—", "s": "0 partite" + su_breve}, prima]
+        d["riquadri"] = [{"t": "Fantamedia", "v": "—", "s": "0 partite" + su_breve}]
         d["nota_stagione"] = f"Nessuna partita giocata nel {d['stagione']}" + su + (f" ({len(tab)} a referto senza entrare)" if tab else "")
         return d
     n = len(contano)
@@ -557,19 +567,20 @@ def dati_scheda(gid: int, foto_di=None) -> dict | None:
         r5 = {"t": f"Ultime {ULTIME_MEDIA}", "v": "—", "s": f"servono più di {ULTIME_MEDIA} partite"}
     d["riquadri"] = [{"t": "Fantamedia", "v": _num(media), "s": f"{n} {'partita' if n == 1 else 'partite'}{su_breve}"}, r5,
                      {"t": "Migliore", "v": tp(fp[bi]), "s": quando(contano[bi])},
-                     {"t": "Peggiore", "v": tp(fp[wi]), "s": quando(contano[wi])}, prima]
+                     {"t": "Peggiore", "v": tp(fp[wi]), "s": quando(contano[wi])}]
     tot = {k: sum(int(r[k]) for r in contano) for k in ("minuti", "pts", "oreb", "dreb", "ast", "stl", "blk", "tov",
                                                        "fgm", "fga", "tpm", "tpa", "ftm", "fta")}
     pc = lambda f, t: f"{100 * f / t:.1f}".replace(".", ",") if t else "—"
-    d["medie"] = [{"t": "punti", "v": _media(tot["pts"] / n)}, {"t": "rimbalzi", "v": _media((tot["oreb"] + tot["dreb"]) / n)},
-                  {"t": "assist", "v": _media(tot["ast"] / n)}, {"t": "recuperi", "v": _media(tot["stl"] / n)},
-                  {"t": "stoppate", "v": _media(tot["blk"] / n)}, {"t": "perse", "v": _media(tot["tov"] / n)},
-                  {"t": "triple", "v": _media(tot["tpm"] / n)}, {"t": "% tiro", "v": pc(tot["fgm"], tot["fga"])},
-                  {"t": "% liberi", "v": pc(tot["ftm"], tot["fta"])}]
+    # v7.18.0 (Luca, 18/11): le statistiche in sigle inglesi, come nelle ultime partite
+    d["medie"] = [{"t": "pts", "v": _media(tot["pts"] / n)}, {"t": "reb", "v": _media((tot["oreb"] + tot["dreb"]) / n)},
+                  {"t": "ast", "v": _media(tot["ast"] / n)}, {"t": "stl", "v": _media(tot["stl"] / n)},
+                  {"t": "blk", "v": _media(tot["blk"] / n)}, {"t": "to", "v": _media(tot["tov"] / n)},
+                  {"t": "3pm", "v": _media(tot["tpm"] / n)}, {"t": "FG%", "v": pc(tot["fgm"], tot["fga"])},
+                  {"t": "FT%", "v": pc(tot["ftm"], tot["fta"])}]
     # il dettaglio delle partite per intero (anche «BOS poi NYK», «da quando è a NYK»): nel riquadro non ci sta (Luca, 13/11)
-    d["sotto_medie"] = (f"{n} {'partita' if n == 1 else 'partite'}{su} · {_media(tot['minuti'] / n)} minuti · tiro {_media(tot['fgm'] / n)}/{_media(tot['fga'] / n)} · "
-                        f"da tre {_media(tot['tpm'] / n)}/{_media(tot['tpa'] / n)} ({_pct(tot['tpm'], tot['tpa'])}) · "
-                        f"liberi {_media(tot['ftm'] / n)}/{_media(tot['fta'] / n)}")
+    d["sotto_medie"] = (f"{n} {'partita' if n == 1 else 'partite'}{su} · {_media(tot['minuti'] / n)} min · FG {_media(tot['fgm'] / n)}/{_media(tot['fga'] / n)} · "
+                        f"3P {_media(tot['tpm'] / n)}/{_media(tot['tpa'] / n)} ({_pct(tot['tpm'], tot['tpa'])}) · "
+                        f"FT {_media(tot['ftm'] / n)}/{_media(tot['fta'] / n)}")
     return d
 
 
@@ -606,8 +617,12 @@ def ultime_dati(tab: list[dict], partite: list[dict], quante: int = 5) -> list[d
         if not L.conta(r):
             out.append({"data": f"{r['data_et']:%d/%m}", "avv": f"{dove} {avv}", "riga": "non è entrato", "fp": None, "fpt": ""})
             continue
-        pezzi = [f"{r['pts']} pt", f"{r['oreb'] + r['dreb']} rb", f"{r['ast']} as"]
-        pezzi += [f"{r[k]} {t}" for k, t in (("stl", "rec"), ("blk", "st"), ("tpm", "triple"), ("tov", "perse")) if int(r[k] or 0)]
+        # v7.18.0 (Luca, 18/11; mockup approvato): tutte le 9 categorie in sigle inglesi (quelle a 0 no), FG e FT
+        # con fatti/tentati e percentuale
+        pezzi = [f"{r['pts']} pts", f"{r['oreb'] + r['dreb']} reb", f"{r['ast']} ast"]
+        pezzi += [f"{r[k]} {t}" for k, t in (("stl", "stl"), ("blk", "blk"), ("tpm", "3pm"), ("tov", "to")) if int(r[k] or 0)]
+        pezzi += [f"{t} {r[f]}/{r[a]} {round(100 * int(r[f]) / int(r[a]))}%" for t, f, a in (("FG", "fgm", "fga"), ("FT", "ftm", "fta"))
+                  if int(r[a] or 0)]
         out.append({"data": f"{r['data_et']:%d/%m}", "avv": f"{dove} {avv}", "riga": " · ".join(pezzi) + f" · {r['minuti']}′",
                     "fp": float(r["fp"]), "fpt": tp(float(r["fp"]))})
     return out

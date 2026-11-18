@@ -2,6 +2,7 @@
 // shared/giocatore.py (dati_scheda). Testata con foto ESPN (se no le iniziali), nascita, squadra NBA con lo status
 // abbreviato, prossima partita; i riquadri (la fantamedia accesa, giallo-arancio); il fantabasket (contratto, ruolo,
 // posizioni eleggibili, la nota sui contratti di prima del bot); le 9 categorie a partita; le ultime partite.
+// v7.18.0: lo storico (stagione passata e carriera) sotto i riquadri; statistiche in sigle inglesi.
 #let d = json(bytes(sys.inputs.at("dati")))
 #let viola = rgb("#5F01D1")
 #let viola_scuro = rgb("#39007D")
@@ -39,13 +40,23 @@
       if d.prossima != "" { text(8pt, fill: white.transparentize(15%))[📅 Prossima: #d.prossima] }))
   #v(12pt)
   // il primo riquadro (la fantamedia) acceso: giallo-arancio su viola
-  #let riquadro(r, acceso) = box(fill: if acceso { gradient.linear(rgb("#FFD23F"), rgb("#FF9F1C"), angle: 0deg) } else { white.transparentize(88%) },
+  #let riquadro(r, acceso, chiaro: false) = box(fill: if acceso { gradient.linear(rgb("#FFD23F"), rgb("#FF9F1C"), angle: 0deg) } else if chiaro { white.transparentize(72%) } else { white.transparentize(88%) },
     radius: 6pt, inset: (x: 9pt, y: 6pt), width: 100%,
     stack(spacing: 3pt, text(6.5pt, weight: "bold", fill: if acceso { viola_scuro.transparentize(20%) } else { white.transparentize(30%) }, tracking: 0.6pt)[#upper(r.t)],
       text(15pt, weight: "bold", fill: if acceso { viola_scuro } else { white })[#r.v],
       text(6.5pt, fill: if acceso { viola_scuro.transparentize(25%) } else { white.transparentize(30%) })[#r.s]))
   #grid(columns: (1fr,) * calc.max(d.riquadri.len(), 4), column-gutter: 6pt,
     ..d.riquadri.enumerate().map(((i, r)) => riquadro(r, i == 0)))
+  // v7.18.0 (Luca, 18/11; mockup approvato): lo storico, un rigo con la scritta e sotto stagione passata e carriera,
+  // larghi il doppio e più chiari
+  #if d.at("storico", default: ()).len() > 0 {
+    v(8pt)
+    grid(columns: (auto, 1fr), column-gutter: 6pt, align: horizon,
+      text(6.5pt, weight: "bold", fill: white.transparentize(35%), tracking: 0.8pt)[STORICO],
+      line(length: 100%, stroke: 0.6pt + white.transparentize(65%)))
+    v(6pt)
+    grid(columns: (1fr,) * d.storico.len(), column-gutter: 6pt, ..d.storico.map(r => riquadro(r, false, chiaro: true)))
+  }
 ]
 
 // ── fantabasket ──
@@ -115,14 +126,14 @@
     #v(4pt)
     #let fps = d.ultime.filter(u => u.fp != none).map(u => u.fp)
     #let mx = if fps.len() > 0 { calc.max(..fps, 1) } else { 1 }
-    #table(columns: (36pt, 46pt, 1fr, 120pt), stroke: (x, y) => (bottom: 0.5pt + bordo), inset: (x: 4pt, y: 5pt),
+    #table(columns: (34pt, 42pt, 1fr, 96pt), stroke: (x, y) => (bottom: 0.5pt + bordo), inset: (x: 4pt, y: 5pt),
       align: horizon,
       ..d.ultime.map(u => (
         text(8pt, fill: grigio)[#u.data], text(8pt, weight: "bold")[#u.avv],
         if u.fp == none { text(8pt, style: "italic", fill: grigio)[#u.riga] } else { text(7.5pt)[#u.riga] },
         if u.fp == none { [] } else {
           box(grid(columns: (auto, auto), column-gutter: 4pt, align: horizon,
-            box(width: calc.max(80pt * u.fp / mx, 1pt), height: 7pt, radius: 2pt, fill: if u.fp == mx { oro } else { viola_medio }),
+            box(width: calc.max(58pt * u.fp / mx, 1pt), height: 7pt, radius: 2pt, fill: if u.fp == mx { oro } else { viola_medio }),
             text(8.5pt, weight: "bold")[#u.fpt]))
         })).flatten())
   ]

@@ -110,7 +110,7 @@
   let hi = d.y_max
   let n = d.stagioni.len()
   let bw = (W - 20pt) / n
-  let righe_sotto = calc.max(..d.stagioni.map(s => s.team.len() + s.fanta.len()), 1)
+  let righe_sotto = calc.max(..d.stagioni.map(s => s.team.len() + 2.2 * s.fanta.len()), 1)   // v7.18.0: nome e bolla del contratto
   pad(x: 30pt, top: 18pt, bottom: 4pt, box(width: W, height: H + 40pt + righe_sotto * 9pt, {
     for v in asse_y(0, hi, d.y_passo) {
       place(dx: 0pt, dy: ys(v, lo, hi), line(length: W, stroke: 0.4pt + bordo))
@@ -135,7 +135,13 @@
         text(6.5pt, fill: grigio)[#s.g G#if not fitto [ · #s.min']],
         ..s.team.map(x => text(6.5pt, fill: grigio)[#x]),
         // le squadre del fantabasket della stagione, col loro colore (Luca, 10/11)
-        ..s.fanta.map(f => text(6.3pt, weight: "bold", fill: rgb(f.colore))[#f.nome])))))
+        // v7.18.0 (Luca, 18/11; mockup approvato): sotto ogni squadra il contratto di quella stagione, bolla come nel roster
+        ..s.fanta.map(f => stack(spacing: 2pt,
+          text(6.3pt, weight: "bold", fill: rgb(f.colore))[#f.nome],
+          if f.at("contratto", default: "") != "" {
+            box(fill: rgb(f.colore).lighten(72%), stroke: 0.6pt + rgb(f.colore).lighten(30%), radius: 3pt, inset: (x: 3.5pt, y: 2pt),
+              text(6.5pt, weight: "bold", fill: rgb("#1a1a1a"))[#f.contratto])
+          }))))))
       if s.in_corso { place(dx: x - 6pt, dy: H - h - 25pt, box(width: w + 12pt, align(center, text(6pt, weight: "bold", fill: blu, tracking: 0.5pt)[IN CORSO]))) }
       // un tondo per squadra del fantabasket, dal basso in su (in ordine)
       let dd = calc.min(14pt, w * 0.9)

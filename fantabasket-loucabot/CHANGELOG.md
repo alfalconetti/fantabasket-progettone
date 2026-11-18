@@ -612,3 +612,9 @@ Il calcolo dei fantapunti.
 ## v126 (2026-11-17, progettone v7.17.1)
 
 - Fix: all'avvio la migrazione aggiungeva la colonna `espn_ultimo` a `tabellini_corretti` prima di creare la tabella, e su un database senza la tabella il bot non partiva; ora la crea prima (test: la migrazione su un database senza la tabella)
+
+## v127 (2026-11-18, progettone v7.18.0)
+
+- `/player` (mockup approvato il 18/11): sotto i quattro riquadri della stagione un rigo «STORICO» con la stagione passata e la **fantamedia in carriera** (pesata sulle partite, come `/rendimento_carriera`), più chiari; le 9 categorie in sigle inglesi (pts, reb, ast, stl, blk, to, 3pm, FG%, FT%) e così la riga sotto; nelle ultime partite tutte le 9 categorie (quelle a 0 no), FG e FT con fatti/tentati e percentuale
+- `/rendimento_carriera` (mockup approvato il 18/11): sotto ogni squadra del fantabasket della stagione il **contratto di quella stagione** in una bolla del colore della squadra (importo × anni rimasti quell'anno; dopo una trade lo stesso contratto sotto tutte e due le squadre)
+- Prove: le migrazioni di avvio su un database vuoto (`migrazioni_vuoto`)

@@ -308,7 +308,9 @@ def stagione_in_corso(atleta: str, stagione: str) -> dict | None:
             "fm": sum(float(r["fp"]) for r in contano) / len(contano), "teams": teams, "in_corso": True}
 
 
-def dati_carriera(gid: int | None, nome_bref: str, nome: str | None = None) -> dict | None:
+def stagioni_carriera(gid: int | None, nome_bref: str) -> tuple[list[dict], dict | None]:
+    """Le stagioni della carriera: Basketball-Reference fino alla passata, quella in corso dai tabellini ESPN
+    (se il giocatore è abbinato); (stagioni, stagione in corso o None)."""
     s_ora = L.stagione()
     stagioni = [x for x in stagioni_bref(nome_bref) if x["stagione"] <= int(s_ora)]   # quella in corso: dai tabellini
     atleta = None
@@ -320,6 +322,46 @@ def dati_carriera(gid: int | None, nome_bref: str, nome: str | None = None) -> d
         stagioni.append(corso)
     elif gid is None:
         stagioni += [x for x in stagioni_bref(nome_bref) if x["stagione"] > int(s_ora)]
+    return stagioni, corso
+
+
+def media_carriera(gid: int | None, nome_bref: str) -> dict | None:
+    """La fantamedia in carriera pesata sulle partite, come /rendimento_carriera (v7.18.0, riquadro di /player):
+    {"media", "stagioni", "g"} o None se non c'è nessuna partita."""
+    stagioni, _ = stagioni_carriera(gid, nome_bref)
+    tot_g = sum(x["g"] for x in stagioni)
+    if not tot_g:
+        return None
+    return {"media": sum(x["fm"] * x["g"] for x in stagioni) / tot_g, "stagioni": len(stagioni), "g": tot_g}
+
+
+def contratto_stagione(gid: int, team_id: str, anno_fine: int) -> str:
+    """Il contratto del giocatore con quella squadra nella stagione che finisce in anno_fine (v7.18.0, Luca 18/11:
+    nelle bolle di /rendimento_carriera): «38M ×3» (anni rimasti in quella stagione), «5M 10d», "" se non c'è.
+    Una trade sposta il contratto (contratti.team_id cambia): per la squadra che l'ha ceduto vale il contratto
+    della transazione 'traded' (stesso contratto, passato alla squadra nuova)."""
+    st = anno_fine - 1                                     # anno d'inizio, come contratti.stagione_firma
+    try:
+        c = L.q("""SELECT c.importo, c.tipo, c.anni_originali, c.stagione_firma FROM contratti c
+                   WHERE c.giocatore_id = %s AND CAST(c.stagione_firma AS INT) <= %s
+                     AND (CAST(c.stagione_firma AS INT) + c.anni_originali > %s OR (c.tipo = '10day' AND CAST(c.stagione_firma AS INT) = %s))
+                     AND (c.team_id = %s OR EXISTS (SELECT 1 FROM movimenti_giocatori t WHERE t.tipo = 'traded' AND t.contratto_id = c.id
+                                                     AND t.team_id_da = %s))
+                   ORDER BY (c.team_id = %s) DESC, c.attivo DESC, c.id DESC LIMIT 1""",
+                (gid, st, st, st, team_id, team_id, team_id), one=True)
+    except Exception:                                      # prove senza la tabella del bot principale
+        return ""
+    if not c:
+        return ""
+    if c["tipo"] == "10day":
+        return f"{c['importo']}M 10d"
+    anni = int(c["anni_originali"]) - (st - int(c["stagione_firma"]))
+    return f"{c['importo']}M ×{anni}"
+
+
+def dati_carriera(gid: int | None, nome_bref: str, nome: str | None = None) -> dict | None:
+    s_ora = L.stagione()
+    stagioni, corso = stagioni_carriera(gid, nome_bref)
     if not stagioni:
         return None
     mov = movimenti(gid) if gid is not None else []
@@ -337,7 +379,9 @@ def dati_carriera(gid: int | None, nome_bref: str, nome: str | None = None) -> d
                 if t_id and t_id not in [f["id"] for f in fanta]:
                     info = _info_squadra(t_id)
                     fanta.append({"id": t_id, "nome": info["nome"], "colore": info["colore"], "logo": info["logo"],
-                                  "sigla": "".join(p[0] for p in info["nome"].split()[:3]).upper()})
+                                  "sigla": "".join(p[0] for p in info["nome"].split()[:3]).upper(),
+                                  # v7.18.0 (Luca, 18/11; mockup approvato): il contratto di quella stagione
+                                  "contratto": contratto_stagione(gid, t_id, x["stagione"])})
         out.append({"lbl": etichetta_stagione(x["stagione"]), "fm": round(x["fm"], 3), "fm_t": _t(x["fm"]), "g": x["g"],
                     "min": f"{x['mp']:.1f}".replace(".", ","), "team": _righe_squadre(x["teams"]),
                     "in_corso": bool(x.get("in_corso")), "fanta": fanta})
@@ -347,7 +391,8 @@ def dati_carriera(gid: int | None, nome_bref: str, nome: str | None = None) -> d
     nota = ("Fantamedia di ogni stagione dalle medie di Basketball-Reference (regular season), con le partite giocate"
             + (", i minuti a partita" if len(out) <= 14 else "") + " e le squadre NBA in ordine")
     if gid is not None:
-        nota += " · i tondi e i nomi colorati: le squadre del fantabasket in cui è stato nella stagione (dal 2026-27)"
+        nota += (" · i tondi e i nomi colorati: le squadre del fantabasket in cui è stato nella stagione (dal 2026-27),"
+                 " sotto il contratto di quella stagione (importo × anni rimasti)")
     if corso:
         nota += " · la stagione in corso dai tabellini ESPN, come /player"
     nota += " · dati dal 1979-80"

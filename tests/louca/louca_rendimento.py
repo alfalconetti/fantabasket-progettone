@@ -96,6 +96,19 @@ ok(st[2]["in_corso"] and st[2]["g"] == 6 and st[2]["fm_t"] == "29,63" and [f["id
    "stagione in corso dai tabellini (regular season e play-in, come /player), con tutte le squadre del fantabasket in ordine (libero in mezzo no)")
 tot = 60 + 70 + 6
 ok(dc["media_big"] == R._t((15 * 60 + 20 * 70 + 178 / 6 * 6) / tot) and f"{tot} partite in 3 stagioni" in dc["media_sotto"], "media in carriera pesata sulle partite")
+# v7.18.0 (Luca, 18/11): il contratto di ogni stagione sotto la squadra del fantabasket; la media per /player
+_fz = {f["id"]: f["contratto"] for f in st[2]["fanta"]}
+ok(_fz == {"team01": "", "team02": "7M ×2"}, f"/rendimento_carriera: il contratto della stagione sotto la squadra (chi l'ha tagliato prima della firma no) {_fz}")
+_mc = R.media_carriera(gid, "Rend Uno")
+ok(_mc["g"] == tot and _mc["stagioni"] == 3 and R._t(_mc["media"]) == dc["media_big"], f"media in carriera per /player, uguale a /rendimento_carriera {_mc}")
+_cid = db.q("SELECT id FROM contratti WHERE giocatore_id = %s", (gid,), one=True)["id"]
+db.q("UPDATE contratti SET team_id = 'team03' WHERE id = %s", (_cid,))
+db.q("INSERT INTO transazioni (oggetto, tipo, giocatore_id, team_id_da, team_id_a, stagione, contratto_id, timestamp) VALUES ('giocatore', 'traded', %s, 'team02', 'team03', %s, %s, %s)",
+     (gid, S, _cid, t0 + timedelta(days=8)))
+ok(R.contratto_stagione(gid, "team02", int(S) + 1) == "7M ×2" and R.contratto_stagione(gid, "team03", int(S) + 1) == "7M ×2"
+   and R.contratto_stagione(gid, "team01", int(S) + 1) == "" and R.contratto_stagione(gid, "team03", int(S) + 2) == "7M ×1"
+   and R.contratto_stagione(gid, "team03", int(S) + 3) == "", "scambiato: lo stesso contratto per chi l'ha ceduto e chi l'ha preso, gli anni scendono")
+db.q("DELETE FROM transazioni WHERE giocatore_id = %s AND tipo = 'traded'", (gid,)); db.q("UPDATE contratti SET team_id = 'team02' WHERE id = %s", (_cid,))
 png = R.immagine(dc)
 if _os.environ.get("REND_PNG"): open(_os.environ["REND_PNG"] + "_carriera.png", "wb").write(png)
 ok(png[:4] == b"\x89PNG", "immagine della carriera")

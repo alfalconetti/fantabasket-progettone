@@ -2040,3 +2040,9 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.17.1 (2026-11-17)
 
 - Loucabot v126: fix dell'avvio (ordine della migrazione di `tabellini_corretti`)
+
+## v7.18.0 (2026-11-18)
+
+- Loucabot v127 (anche nel bot principale, codice in `shared/`): `/player` con lo storico (stagione passata e carriera) e le statistiche in sigle inglesi, tutte le 9 categorie nelle ultime partite; `/rendimento_carriera` col contratto di ogni stagione sotto le squadre del fantabasket
+- Nuova prova `migrazioni_vuoto`: le migrazioni di avvio di bot principale, loucabot e IPanchinari su un database vuoto e al riavvio
+- Cartella temporanea `mockup_da_fare/` coi mockup delle odds della lottery (approvato) e del tabellone del draft (bozza), da cancellare quando saranno codice

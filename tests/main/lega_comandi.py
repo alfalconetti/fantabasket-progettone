@@ -61,11 +61,18 @@ ok(d["nome"] == "Lega Uno" and d["nba"] == "LCA" and d["espn"] and d["prossima"]
    f"/player: testata e riquadri {d['riquadri']}")
 ok(d["fanta"]["tipo"] == "firmato" and d["fanta"]["squadra"] == "Alfa" and d["fanta"]["contratto"].startswith("5M × 2 anni rimasti")
    and d["fanta"]["colore"].startswith("#"), f"/player: il fantabasket {d['fanta']}")
-ok([m["t"] for m in d["medie"]] == ["punti", "rimbalzi", "assist", "recuperi", "stoppate", "perse", "triple", "% tiro", "% liberi"]
-   and d["medie"][0]["v"] == "20,0" and d["sotto_medie"].startswith("1 partita su 1 della squadra · 30,0 minuti"),
+ok([m["t"] for m in d["medie"]] == ["pts", "reb", "ast", "stl", "blk", "to", "3pm", "FG%", "FT%"]
+   and d["medie"][0]["v"] == "20,0" and d["sotto_medie"].startswith("1 partita su 1 della squadra · 30,0 min · FG "),
    f"/player: le 9 categorie, sotto le partite per intero {d['sotto_medie']}")
-ok(len(d["ultime"]) == 1 and d["ultime"][0]["fp"] == 31.5 and d["ultime"][0]["avv"] == "vs LCB" and "20 pt" in d["ultime"][0]["riga"],
+ok(len(d["ultime"]) == 1 and d["ultime"][0]["fp"] == 31.5 and d["ultime"][0]["avv"] == "vs LCB" and "20 pts" in d["ultime"][0]["riga"] and "FG" not in d["ultime"][0]["riga"],
    f"/player: le ultime partite {d['ultime']}")
+ok(len(d["riquadri"]) == 4 and [r["t"] for r in d["storico"]][1] == "Carriera" and d["storico"][0]["t"].startswith("Stagione "),
+   f"/player: i quattro riquadri della stagione e lo storico (stagione passata, carriera) {d['storico']}")
+_rr = {"giocato": True, "partita": "x1", "data_et": ora.date(), "squadra": "LCA", "casa": "LCA", "trasferta": "LCB", "minuti": 36, "fp": 71.5,
+       "pts": 38, "oreb": 5, "dreb": 10, "ast": 5, "stl": 0, "blk": 6, "tpm": 4, "tov": 3, "fgm": 13, "fga": 22, "ftm": 8, "fta": 9}
+_ud = LG.G.ultime_dati([_rr], [])
+ok(_ud[0]["riga"] == "38 pts · 15 reb · 5 ast · 6 blk · 4 3pm · 3 to · FG 13/22 59% · FT 8/9 89% · 36′",
+   f"/player: le ultime partite con tutte le 9 categorie in sigle inglesi, quelle a 0 no (v7.18.0) {_ud[0]['riga']}")
 _png = LG.G.immagine_scheda(d)
 if _os.environ.get("PLAYER_PNG"): open(_os.environ["PLAYER_PNG"], "wb").write(_png); open(_os.environ["PLAYER_PNG"] + "2.png", "wb").write(LG.G.immagine_scheda(LG.G.dati_scheda(g2)))
 ok(_png[:4] == b"\x89PNG" and len(_png) > 20000, "/player: l'immagine")
