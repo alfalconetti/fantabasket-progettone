@@ -2046,3 +2046,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - Loucabot v127 (anche nel bot principale, codice in `shared/`): `/player` con lo storico (stagione passata e carriera) e le statistiche in sigle inglesi, tutte le 9 categorie nelle ultime partite; `/rendimento_carriera` col contratto di ogni stagione sotto le squadre del fantabasket
 - Nuova prova `migrazioni_vuoto`: le migrazioni di avvio di bot principale, loucabot e IPanchinari su un database vuoto e al riavvio
 - Cartella temporanea `mockup_da_fare/` coi mockup delle odds della lottery (approvato) e del tabellone del draft (bozza), da cancellare quando saranno codice
+
+## v7.18.1 (2026-11-18)
+
+- 10-day: `/firma_10day` senza nome mandava le regole con «✍️ qui sotto» ma senza il bottone (c'era solo dal /menu), quindi scrivere il nome dopo non faceva niente; ora c'è il bottone ✍️ (segnalato da Riccardo). Anche `/firma_10day_admin` senza nome ha il bottone

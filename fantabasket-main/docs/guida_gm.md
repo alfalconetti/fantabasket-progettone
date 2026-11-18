@@ -291,7 +291,7 @@ In regular season, prima della chiusura della free agency, puoi prendere **un fr
 - Alla scadenza torna free agent: per riprenderlo serve un'asta normale.
 - Non si taglia, non si scambia e non va in DPE.
 
-Come si chiede: menu → ⏱ 10-day → ✍️ e scrivi il nome (oppure `/firma_10day NOME`), poi scegli il giocatore e il ruolo che deve coprire. Il bot ti mostra i tuoi giocatori in quel ruolo con lo status ESPN, poi manda la richiesta agli admin. Quando approvano lo trovi nel roster (in fondo, sotto una riga più spessa, in verde petrolio, con la scadenza nella legenda), nel foglio Roster (sotto, riga 10-DAY) e su IPanchinari, dove lo puoi schierare come gli altri.
+Come si chiede: menu → ⏱ 10-day → ✍️ e scrivi il nome (oppure `/firma_10day NOME`; `/firma_10day` da solo manda le regole con lo stesso bottone ✍️: il nome va scritto **dopo aver toccato ✍️**, non basta scriverlo sotto il messaggio), poi scegli il giocatore e il ruolo che deve coprire. Il bot ti mostra i tuoi giocatori in quel ruolo con lo status ESPN, poi manda la richiesta agli admin. Quando approvano lo trovi nel roster (in fondo, sotto una riga più spessa, in verde petrolio, con la scadenza nella legenda), nel foglio Roster (sotto, riga 10-DAY) e su IPanchinari, dove lo puoi schierare come gli altri.
 
 ---
 

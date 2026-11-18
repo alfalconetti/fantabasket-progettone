@@ -93,6 +93,11 @@ fase("regular-season-fa")
 
 # ── richiesta del GM ──
 cap_prima, slot_prima = C.cap_occupato(db._q, "team01", "2026"), C.giocatori_in_slot(db._q, "team01", "2026")
+r = comando(T.cmd_firma_10day, 101, [])
+ok(r and cbs(r[0][1]) == ["td:nome", "td:x"] and "qui sotto" in r[0][0],
+   "/firma_10day senza nome: le regole col bottone ✍️ per scrivere il nome (v7.18.1, prima mancava)")
+r = comando(T.cmd_firma_10day_admin, 900, [])
+ok(r and cbs(r[0][1]) == ["tdadm:nome", "tda:x"], "/firma_10day_admin senza nome: il bottone ✍️ per scrivere il nome")
 r = comando(T.cmd_firma_10day, 101, ["libero", "lungo"])
 ok(r and f"td:g:{libero}" in cbs(r[0][1]), "/firma_10day NOME: i free agent col nome")
 ok(not T.cerca("Centro Alfa 0") and not T.cerca("Diritti Rookie"), "chi è sotto contratto o ha diritti 2nd non attivati non è un free agent")

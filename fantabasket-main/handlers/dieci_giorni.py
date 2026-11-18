@@ -444,7 +444,11 @@ async def cmd_firma_10day(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     nome = " ".join(context.args or []).strip()
     if not nome:
-        await update.effective_message.reply_text(testo_home(team["id"]), parse_mode="HTML")
+        # v7.18.1 (Riccardo, 18/11): il testo dice «✍️ qui sotto», quindi il bottone ci deve essere anche dal comando
+        # (prima c'era solo dal /menu e scrivere il nome dopo questo messaggio non faceva niente)
+        kb = ([[B("✍️ Scrivi il nome del giocatore", callback_data="td:nome")]] if aperto() else []) + \
+             [[B("✖️ Chiudi", callback_data="td:x")]]
+        await update.effective_message.reply_text(testo_home(team["id"]), parse_mode="HTML", reply_markup=K(kb))
         return
     if not aperto():
         await update.effective_message.reply_text(FUORI_FASE)
@@ -578,9 +582,12 @@ async def cmd_firma_10day_admin(update: Update, context: ContextTypes.DEFAULT_TY
         return
     nome = " ".join(context.args or []).strip()
     if not nome:
+        # v7.18.1: anche qui il bottone per scrivere il nome, come nel pannello
+        kb = ([[B("✍️ Firma un 10-day (scrivi il nome)", callback_data="tdadm:nome")]] if aperto() else []) + \
+             [[B("✖️ Chiudi", callback_data="tda:x")]]
         await update.effective_message.reply_text(
-            "Uso: /firma_10day_admin NOME — poi squadra e ruolo. Firma direttamente, senza richiesta.\n\n"
-            + REGOLE)
+            "Uso: /firma_10day_admin NOME — poi squadra e ruolo. Firma direttamente, senza richiesta. "
+            "Oppure ✍️ qui sotto e scrivi il nome.\n\n" + REGOLE, reply_markup=K(kb))
         return
     if not aperto():
         await update.effective_message.reply_text(FUORI_FASE)
