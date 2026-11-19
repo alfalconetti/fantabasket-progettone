@@ -542,28 +542,14 @@ async def cb_ufficializza(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     admin_nome = update.effective_user.first_name or str(update.effective_user.id)
     try:
-        await _esegui_trade(context, trade_id, trade_ref, approvata_da=admin_nome, user=update.effective_user)
+        await _esegui_trade(context, trade_id, trade_ref, approvata_da=admin_nome, user=update.effective_user, annuncia=True)
     except TradeNonEseguibile as e:
         await query.edit_message_text(
             f"❌ <b>Trade non ufficializzata</b>: {e}.\nNessuna modifica è stata salvata.",
             parse_mode="HTML")
         return
 
-    main_channel = settings.load_globals().get("main_channel_id")
-    if main_channel:
-        ora = format_dt(datetime.now(ROME))
-        try:
-            await context.bot.send_message(
-                chat_id=main_channel,
-                text=(
-                    f"{_formatta_annuncio_canale(trade_id)}\n\n"
-                    f"<i>Approvata da {admin_nome} alle {ora}\n"
-                    f"ID: <code>{trade_ref}</code></i>"
-                ),
-                parse_mode="HTML",
-            )
-        except Exception as e:
-            logger.warning("Annuncio canale fallito: %s", e)
+    # l'annuncio sul canale principale lo manda _esegui_trade (v7.18.2), prima di RFA e ruoli
 
     await query.edit_message_text(
         f"✅ <b>{trade_ref}</b> ufficializzata.",

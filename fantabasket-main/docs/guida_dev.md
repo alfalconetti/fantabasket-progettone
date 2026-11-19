@@ -351,7 +351,7 @@ ORDER BY t.timestamp, t.id;
 | `trade_crea.py` | `/build_trade` e `/import_trade`: squadre, asset, destinazioni a 3+ squadre, riepilogo, nota, invio, salva bozza |
 | `trade_modifica.py` | `/edit_trade` e "Modifica" dal riepilogo |
 | `trade_voto.py` | proposta ai GM, voti, rifiuto con nota, approvazione degli admin |
-| `trade_esegui.py` | `_scrivi_trade` (l'unico punto che sposta gli asset; `inverti=True` per annullare), `_esegui_trade`, `/annulla_trade_admin` |
+| `trade_esegui.py` | `_scrivi_trade` (l'unico punto che sposta gli asset; `inverti=True` per annullare), `_esegui_trade` (con `annuncia=True` manda l'annuncio sul canale, `annuncia_trade`, subito dopo la scrittura e prima di notifiche, RFA e ruoli: v7.18.2), `/annulla_trade_admin` |
 | `trade_liste.py` | `/my_trades` (= `/mie_trade`), `/bozze_trade` |
 | `trade_parser.py` | parser del testo delle trade |
 | `tagli.py` | `/taglia`: anteprima, spalmature, limiti |

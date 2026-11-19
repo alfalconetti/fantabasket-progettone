@@ -41,7 +41,8 @@ mv = db.medie_assenti(["mb1"], S, vecchia)
 ok(mv["mb1"]["media"] == 25.0 and "fonte" not in mv["mb1"], "giornata prima di MEDIA_BREF_DAL: i tabellini ESPN, come alla convalida")
 ok(db.medie_assenti([], S, nuova) == {}, "nessun giocatore")
 # ricalcolo giorni dopo: le rilevazioni di bref arrivate dopo l'inizio non cambiano niente
-db.q(f"INSERT INTO bref_stats (timestamp, stagione, nome_bref, team, g, pts{z}) VALUES (NOW(), %s, 'Media Bref Uno', 'MBA', 20, 100, 0,0,0,0,0,0,0,0,0,0,0)", (B1,))
+# v7.18.2: una data fissa dopo l'inizio, non NOW(): il 19/11/2026 NOW() veniva prima del 20/11 della giornata finta
+db.q(f"INSERT INTO bref_stats (timestamp, stagione, nome_bref, team, g, pts{z}) VALUES (%s, %s, 'Media Bref Uno', 'MBA', 20, 100, 0,0,0,0,0,0,0,0,0,0,0)", (PRIMA + timedelta(days=3), B1))
 ok(db.medie_assenti(["mb1"], S, nuova)["mb1"]["media"] == 31.5, "ricalcolo dopo: la stessa rilevazione (quella prima della prima partita)")
 # senza prima_partita salvata: la prima partita NBA dei giorni della giornata, mai «adesso»
 db.q("INSERT INTO nba_partite (espn_id, stagione, tipo, data_et, inizio, casa, trasferta, stato) VALUES ('mb_p9', %s, 2, %s, %s, 'MBB', 'MBC', 'STATUS_FINAL')",

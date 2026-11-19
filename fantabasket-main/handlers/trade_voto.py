@@ -334,12 +334,9 @@ async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     n_trade  = db.get_trade_count_approvate(stagione)
     trade_ref = f"TRADE-{stagione}-{n_trade + 1:03d}"
 
-    from datetime import datetime
-    ora = format_dt(datetime.now(ROME))
-
     # Approvazione + esecuzione atomiche: se fallisce, la trade resta com'era
     try:
-        await _esegui_trade(context, trade_id, trade_ref, approvata_da=admin_nome, user=admin_user)
+        await _esegui_trade(context, trade_id, trade_ref, approvata_da=admin_nome, user=admin_user, annuncia=True)
     except TradeNonEseguibile as e:
         t_ora = db.get_trade(trade_id)
         if (t_ora or {}).get("stato") != "in_approvazione":     # due Approva quasi insieme: l'altro è arrivato prima
@@ -350,22 +347,7 @@ async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML", reply_markup=query.message.reply_markup)   # Approva/Rifiuta restano
         return
 
-    # Annuncio sul canale principale
-    main_channel = settings.load_globals().get("main_channel_id")
-    if main_channel:
-        testo_annuncio = (
-            f"{_formatta_annuncio_canale(trade_id)}\n\n"
-            f"<i>Approvata da {admin_nome} alle {ora}\n"
-            f"ID: <code>{trade_ref}</code></i>"
-        )
-        try:
-            await context.bot.send_message(
-                chat_id=main_channel,
-                text=testo_annuncio,
-                parse_mode="HTML",
-            )
-        except Exception as e:
-            logger.warning("Annuncio trade canale fallito: %s", e)
+    # l'annuncio sul canale principale lo manda _esegui_trade (v7.18.2), prima di RFA e ruoli
 
     await query.edit_message_text(
         f"✅ Trade <b>{trade_ref}</b> approvata ed eseguita.\n"

@@ -113,10 +113,33 @@ def _scrivi_trade(trade_id: int, trade_ref: str, approvata_da: str | None, inver
                             (trade_ref, approvata_da, trade_id))
 
 
-async def _esegui_trade(context, trade_id: int, trade_ref: str, approvata_da: str | None = None, user=None):
+async def annuncia_trade(bot, trade_id: int, trade_ref: str, admin_nome: str):
+    """L'annuncio della trade sul canale principale (prima in trade_voto e admin_panel, uguale nei due)."""
+    from datetime import datetime
+    from handlers.trade_comune import _formatta_annuncio_canale
+    main_channel = settings.load_globals().get("main_channel_id")
+    if not main_channel:
+        return
+    ora = format_dt(datetime.now(ROME))
+    try:
+        await bot.send_message(
+            chat_id=main_channel,
+            text=(f"{_formatta_annuncio_canale(trade_id)}\n\n"
+                  f"<i>Approvata da {admin_nome} alle {ora}\n"
+                  f"ID: <code>{trade_ref}</code></i>"),
+            parse_mode="HTML")
+    except Exception as e:
+        logger.warning("Annuncio trade canale fallito: %s", e)
+
+
+async def _esegui_trade(context, trade_id: int, trade_ref: str, approvata_da: str | None = None, user=None,
+                        annuncia: bool = False):
     """Approva ed esegue la trade in un'unica transazione DB (vedi _scrivi_trade),
-    poi notifiche, sync e dichiarazioni di ruolo. Solleva TradeNonEseguibile se
-    non è eseguibile: in quel caso il DB non è stato toccato."""
+    poi annuncio sul canale (con annuncia=True), notifiche, sync e dichiarazioni di ruolo.
+    Solleva TradeNonEseguibile se non è eseguibile: in quel caso il DB non è stato toccato.
+    v7.18.2 (Luca, 19/11): l'annuncio sul canale lo mandavano i chiamanti dopo questa funzione, quindi
+    il messaggio dei ruoli da dichiarare (e quelli RFA) arrivava prima della trade: ora parte subito
+    dopo la scrittura, prima di tutto il resto."""
     trade    = db.get_trade(trade_id)
     items    = db.get_items_trade(trade_id)
     fase_corrente = settings.fase()
@@ -130,6 +153,9 @@ async def _esegui_trade(context, trade_id: int, trade_ref: str, approvata_da: st
     from handlers.trade_comune import segna_trade
     await segna_trade(context.bot, user, "admin", "trade approvata ed eseguita", trade_id,
                       prima="in approvazione", dopo=trade_ref)
+
+    if annuncia:
+        await annuncia_trade(context.bot, trade_id, trade_ref, approvata_da or trade.get("approvata_da") or "admin")
 
     # Notifica tutti i GM coinvolti
     squadre = [s["team_id"] for s in db.get_squadre_trade(trade_id)]

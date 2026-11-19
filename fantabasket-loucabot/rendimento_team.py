@@ -102,7 +102,11 @@ def dati(team: str, s: str | None = None) -> dict | None:
     righe, _ = C.calcola(s)
     pos = next((r["pos"] for r in righe if r["team"] == team), None)
     rango_media = sorted(((float(r["media"]) for r in righe if r.get("media") is not None)), reverse=True)
-    pos_media = 1 + sum(1 for m in rango_media if m > media + 1e-9)
+    # v7.18.2 (Luca, 19/11: «25ª della lega» con 24 squadre): la classifica arrotonda la media agli ottavi
+    # (classifica.ottavi), quindi la si confronta con la media della squadra presa dalla stessa classifica,
+    # non con quella esatta calcolata qui (100,08 contro il suo 100,125: tutte e 24 «più alte»)
+    mia = next((float(r["media"]) for r in righe if r["team"] == team and r.get("media") is not None), media)
+    pos_media = 1 + sum(1 for m in rango_media if m > mia + 1e-9)
     ult = gg[-5:]
     m5 = sum(x["fatti"] for x in ult) / len(ult)
     best = max(range(len(gg)), key=lambda i: gg[i]["fatti"])

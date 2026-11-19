@@ -191,7 +191,11 @@ class BotT:
         inviati.append((chat_id, text)); return __import__("types").SimpleNamespace(message_id=len(inviati))
     async def edit_message_text(self, **k): inviati.append(("modifica", k.get("text")))
 t4 = trade_di(v1, "team01", "team04")
-asyncio.run(TE._esegui_trade(__import__("types").SimpleNamespace(bot=BotT()), t4, "TRADE-2027-004", "adm"))
+asyncio.run(TE._esegui_trade(__import__("types").SimpleNamespace(bot=BotT()), t4, "TRADE-2027-004", "adm", annuncia=True))
+_i_ann = next((i for i, (c, x) in enumerate(inviati) if "ID: <code>TRADE-2027-004</code>" in x and "Approvata da adm" in x), None)
+_i_rfa = next((i for i, (c, x) in enumerate(inviati) if c == -3 and "la dichiarazione decade" in x), None)
+ok(_i_ann is not None and _i_rfa is not None and _i_ann < _i_rfa,
+   f"l'annuncio della trade sul canale arriva prima dei messaggi RFA e ruoli (v7.18.2) {_i_ann} {_i_rfa}")
 gm = lambda team: set(__import__("teams").get_team_by_id(team)["gm_ids"])
 ok(any(c in gm("team01") and "era il tuo RFA dichiarato" in x and "/dichiara_rfa" in x for c, x in inviati)
    and any(c in gm("team04") and "senza dichiarazione RFA" in x for c, x in inviati),

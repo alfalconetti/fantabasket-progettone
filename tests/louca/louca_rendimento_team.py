@@ -59,6 +59,11 @@ try:
     ok("1 supplementare (vinto 0)" in x["panchina"] and "1 giornata senza panchina" in x["panchina"] and "della lega" in x["panchina"],
        f"riga della panchina: {x['panchina']}")
     ok(x["fanta"] == {"da": 6, "a": 7}, "fascia gialla sulle giornate dei nostri playoff")
+    import re as _re
+    _sq = sorted({t for n in cal for c, tr, _x, _y in cal[n] for t in (c, tr)})
+    _pos = {t: int(_re.match(r"(\d+)ª", RT.dati(t, S)["riquadri"][0]["s"]).group(1)) for t in _sq}
+    ok(max(_pos.values()) <= len(_sq) and min(_pos.values()) == 1,
+       f"posizione per media dentro la lega anche con la media della classifica agli ottavi (v7.18.2: usciva 25ª su 24) {_pos}")
     n_prima = len(chiamate)
     RT.dati(b, S)
     ok(len(chiamate) == n_prima, "panchine in memoria: un'altra squadra non ricalcola")

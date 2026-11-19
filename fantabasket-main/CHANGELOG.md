@@ -2050,3 +2050,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.18.1 (2026-11-18)
 
 - 10-day: `/firma_10day` senza nome mandava le regole con «✍️ qui sotto» ma senza il bottone (c'era solo dal /menu), quindi scrivere il nome dopo non faceva niente; ora c'è il bottone ✍️ (segnalato da Riccardo). Anche `/firma_10day_admin` senza nome ha il bottone
+
+## v7.18.2 (2026-11-19)
+
+- Trade: l'annuncio sul canale ora arriva **prima** dei messaggi dei ruoli da dichiarare e di quelli RFA (prima lo mandavano trade_voto e admin_panel dopo l'esecuzione; ora `trade_esegui.annuncia_trade`, dentro `_esegui_trade`) (Luca, 19/11)
+- Loucabot v128: `/rendimento_team` non dice più «25ª della lega» con 24 squadre

@@ -618,3 +618,8 @@ Il calcolo dei fantapunti.
 - `/player` (mockup approvato il 18/11): sotto i quattro riquadri della stagione un rigo «STORICO» con la stagione passata e la **fantamedia in carriera** (pesata sulle partite, come `/rendimento_carriera`), più chiari; le 9 categorie in sigle inglesi (pts, reb, ast, stl, blk, to, 3pm, FG%, FT%) e così la riga sotto; nelle ultime partite tutte le 9 categorie (quelle a 0 no), FG e FT con fatti/tentati e percentuale
 - `/rendimento_carriera` (mockup approvato il 18/11): sotto ogni squadra del fantabasket della stagione il **contratto di quella stagione** in una bolla del colore della squadra (importo × anni rimasti quell'anno; dopo una trade lo stesso contratto sotto tutte e due le squadre)
 - Prove: le migrazioni di avvio su un database vuoto (`migrazioni_vuoto`)
+
+## v128 (2026-11-19, progettone v7.18.2)
+
+- `/rendimento_team`: la posizione per media («Nª della lega») poteva uscire 25ª su 24 (segnalato da Luca): la classifica arrotonda la media agli ottavi e la si confrontava con la media esatta della squadra; ora con quella della classifica
+- Prove: `louca_media_bref` non dipende più dalla data di oggi (una rilevazione a `NOW()` cadeva prima della giornata finta del 20/11)
