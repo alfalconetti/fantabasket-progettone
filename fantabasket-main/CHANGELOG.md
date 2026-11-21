@@ -2126,3 +2126,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.22.1 (2026-11-22)
 
 - `/pick GIRO ANNO` senza squadra = il dettaglio della pick della tua squadra, come se l'avessi scritta (Luca, 22/11: «analogo ad avere come squadra la propria»); chi non è GM vede il draft di tutta la lega, solo quel giro
+
+## v7.22.2 (2026-11-22)
+
+- `/pick` riguarda sempre una squadra, `/pick_lega` sempre la lega (Luca, 22/11): `/pick 2027` e `/pick 1` senza squadra sono **le tue** pick (prima `/pick 2027` era tutto il draft); **tutto un draft** ora è **`/pick_lega 2027`** (e `/pick_lega 2027 1` un giro); `/pick_lega` senza anno com'era
+- **`/pick aiuto`** (anche `/pick_lega aiuto`): tutti i modi di usare `/pick` e `/pick_lega`, con una squadra vera negli esempi (Luca, 22/11)

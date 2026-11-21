@@ -3,11 +3,11 @@
 - /pick, /pick SQUADRA (o GM): immagine con le pick che la squadra ha IN MANO (sue e prese da altre), per draft e
   giro, coi colori della sua palette (/palette), più la colonna delle sue pick cedute (a chi, protezioni);
   /pick SQUADRA ANNO lo stesso per un draft, /pick SQUADRA GIRO solo quel giro, di tutti gli anni.
-- /pick ANNO: immagine con tutte le pick di quel draft (stile /pick_lega: a chi spettava, chi ce l'ha, protezioni,
-  in mano 1°·2°); /pick ANNO GIRO solo quel giro.
+- /pick_lega ANNO (v7.22.2; prima /pick ANNO): immagine con tutte le pick di quel draft (stile /pick_lega: a chi
+  spettava, chi ce l'ha, protezioni, in mano 1°·2°); /pick_lega ANNO GIRO solo quel giro. /pick_lega senza anno com'era.
+- Senza squadra vale sempre la tua (v7.22.2): /pick ANNO, /pick GIRO, /pick GIRO ANNO.
 - /pick SQUADRA GIRO ANNO (tutti e tre): il dettaglio di una pick con la storia, come prima; qui SQUADRA è la squadra a
-  cui spettava la pick in origine. /pick GIRO ANNO è lo stesso con la squadra di chi scrive (v7.22.1); chi non è GM
-  vede il draft di tutta la lega, solo quel giro.
+  cui spettava la pick in origine.
 Disegni in pick_squadra.typ e pick_anno.typ.
 
 Prima (v7.3.0, Luca 09/11), /pick [SQUADRA] [1|2] [ANNO]: di chi è una pick e la sua storia.
@@ -164,25 +164,45 @@ def scheda(p: dict) -> str:
     return "\n".join(righe)
 
 
-USO = ("Uso: /pick [SQUADRA] — le pick che la squadra ha in mano (senza squadra la tua) · /pick SQUADRA ANNO · "
-       "/pick SQUADRA GIRO · /pick ANNO — tutte le pick di un draft · /pick SQUADRA GIRO ANNO — la storia di una pick "
-       "(SQUADRA: a chi spettava)")
+USO = ("Uso: /pick [SQUADRA] [ANNO] [GIRO] — le pick che la squadra ha in mano (senza squadra la tua, se sei un GM); "
+       "con giro e anno la storia di una pick (SQUADRA: a chi spettava). Tutta la lega: /pick_lega [ANNO] [GIRO]. "
+       "Tutti i modi: /pick aiuto")
+
+
+def aiuto() -> str:
+    """/pick aiuto (v7.22.2, Luca 22/11): tutti i modi di usare /pick e /pick_lega, con squadre vere negli esempi."""
+    from shared import esempi as ES
+    a = ES.squadra()
+    return ("🎯 <b>/pick</b> — le pick, squadra per squadra\n"
+            "• <code>/pick</code> — le pick che hai in mano (tue e prese da altri), di tutti gli anni, e quelle che hai ceduto\n"
+            "• <code>/pick 2028</code> — solo quel draft · <code>/pick 1</code> — solo il 1° giro\n"
+            f"• <code>/pick {e(a)}</code> — le stesse di un'altra squadra (nome, GM o alias), anche con anno o giro\n"
+            "• <code>/pick 1 2028</code> — la storia della tua 1ª 2028: chi ce l'ha, protezioni, ogni trade\n"
+            f"• <code>/pick {e(a)} 1 2028</code> — la storia di quella pick: qui la squadra è quella <b>a cui spettava</b>\n"
+            "Anno anche «28», giro anche «2°» o «r2», in qualsiasi ordine.\n\n"
+            "🏀 <b>/pick_lega</b> — tutta la lega\n"
+            "• <code>/pick_lega</code> — tutte le pick di tutti i draft\n"
+            "• <code>/pick_lega 2028</code> — tutto quel draft: di chi erano e chi ce l'ha · <code>/pick_lega 2028 1</code> solo il 1° giro")
 
 
 async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """v7.22.0 (Luca, 22/11): vedi la docstring del modulo."""
     msg = update.effective_message
+    if [x.lower() for x in context.args or []] in (["aiuto"], ["help"], ["?"]):
+        await msg.reply_text(aiuto(), parse_mode="HTML")
+        return
     testo, giro, anno = leggi(list(context.args or []))
     if testo:
         team = tm.get_team_by_query(testo)
         if not team:
             await msg.reply_text(f"❌ Squadra «{testo}» non trovata.\n{USO}")
             return
-    else:
-        team = None
-        if giro and anno:                                 # v7.22.1 (Luca, 22/11): giro e anno senza squadra = la tua
-            team = tm.get_team_by_gm(update.effective_user.id)
-    if team and giro and anno:                            # tutto: il dettaglio con la storia
+    else:                                                 # v7.22.2 (Luca, 22/11): senza squadra vale sempre la tua
+        team = tm.get_team_by_gm(update.effective_user.id)
+        if not team:
+            await msg.reply_text(USO)
+            return
+    if giro and anno:                                     # tutto: il dettaglio con la storia
         p = trova(team["id"], giro, anno)
         if not p:
             anni = db._q("SELECT MIN(anno) AS a, MAX(anno) AS b FROM pick", one=True) or {}
@@ -191,20 +211,6 @@ async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         await msg.reply_text(scheda(p), parse_mode="HTML")
         return
-    if anno and not team:                                 # un draft, tutta la lega
-        d = await asyncio.to_thread(dati_anno, anno, giro)
-        if not d["righe"]:
-            await msg.reply_text(f"❌ Nessuna pick del draft {anno}.")
-            return
-        png = await asyncio.to_thread(immagine, TEMPLATE_ANNO, d)
-        await msg.reply_photo(png, caption=f"🎯 Le pick del draft {anno}" + (f", {giro}° giro" if giro else "")
-                                           + " · la storia di una pick con /pick SQUADRA GIRO ANNO")
-        return
-    if not team:
-        team = tm.get_team_by_gm(update.effective_user.id)
-        if not team:
-            await msg.reply_text(USO)
-            return
     d = await asyncio.to_thread(dati_squadra, team, anno, giro)
     if not d["righe"]:
         await msg.reply_text(f"❌ Nessuna pick" + (f" del draft {anno}" if anno else "") + " nel database.")
@@ -401,6 +407,19 @@ def immagine_lega(d: dict) -> bytes:
 
 async def cmd_pick_lega(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.effective_message
+    if [x.lower() for x in context.args or []] in (["aiuto"], ["help"], ["?"]):
+        await msg.reply_text(aiuto(), parse_mode="HTML")
+        return
+    _, giro, anno = leggi(list(context.args or []))
+    if anno:                                              # v7.22.2 (Luca, 22/11): /pick_lega ANNO [GIRO] = tutto un draft
+        d = await asyncio.to_thread(dati_anno, anno, giro)
+        if not d["righe"]:
+            await msg.reply_text(f"❌ Nessuna pick del draft {anno}.")
+            return
+        png = await asyncio.to_thread(immagine, TEMPLATE_ANNO, d)
+        await msg.reply_photo(png, caption=f"🎯 Le pick del draft {anno}" + (f", {giro}° giro" if giro else "")
+                                           + " · la storia di una pick con /pick SQUADRA GIRO ANNO")
+        return
     d = await asyncio.to_thread(dati_lega)
     if not d["anni"]:
         await msg.reply_text("Nessuna pick nel database.")

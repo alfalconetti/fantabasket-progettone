@@ -65,21 +65,29 @@ async def main():
     m = M()
     upd = lambda uid: types.SimpleNamespace(effective_user=types.SimpleNamespace(id=uid), effective_message=m)
     for uid, args in ((gm, []), (999999, ["team01", "2", pross]), (999999, ["team01", "2", "2040"]), (999999, ["Nessunaaaa"]),
-                      (999999, []), (999999, ["team01"]), (999999, ["team01", pross]), (999999, ["team01", "1"]), (999999, [pross]),
-                      (999999, [pross, "2"]), (999999, ["2040"]), (gm, ["2", pross])):
+                      (999999, []), (999999, ["team01"]), (999999, ["team01", pross]), (999999, ["team01", "1"]), (gm, [pross]),
+                      (gm, ["2"]), (999999, [pross]), (gm, ["2", pross])):
         await PK.cmd_pick(upd(uid), types.SimpleNamespace(args=args))
+    for args in ([pross], [pross, "2"], ["2040"]):
+        await PK.cmd_pick_lega(upd(999999), types.SimpleNamespace(args=args))
+    await PK.cmd_pick(upd(999999), types.SimpleNamespace(args=["aiuto"]))
+    await PK.cmd_pick_lega(upd(999999), types.SimpleNamespace(args=["Aiuto"]))
 asyncio.run(main())
 ok(out[0][0] == "foto" and "Le pick di" in out[0][1], "/pick senza argomenti: l'immagine delle pick della tua squadra")
 ok(isinstance(out[1], str) and f"Pick {pross} · 2° giro" in out[1], "/pick team01 2 ANNO: il dettaglio con la storia")
 ok("Nessuna pick 2040" in out[2] and "Le pick vanno dal" in out[2], "anno senza pick: lo dice, con gli anni che ci sono")
 ok("non trovata" in out[3], "squadra che non c'è")
 ok(out[4].startswith("Uso:"), "senza squadra e non GM: l'uso")
-ok(all(o[0] == "foto" for o in out[5:8]), "/pick SQUADRA, /pick SQUADRA ANNO, /pick SQUADRA GIRO: immagini")
-ok(out[8][0] == "foto" and f"draft {pross}" in out[8][1] and out[9][0] == "foto" and "2° giro" in out[9][1],
-   "/pick ANNO e, per chi non è GM, /pick ANNO GIRO: immagini del draft")
-ok("Nessuna pick del draft 2040" in out[10], "/pick ANNO senza pick: lo dice")
+ok(all(o[0] == "foto" and "Le pick di" in o[1] for o in out[5:10]),
+   "/pick SQUADRA, SQUADRA ANNO, SQUADRA GIRO e, da GM, /pick ANNO e /pick GIRO: le pick della squadra (v7.22.2: senza squadra la tua)")
+ok(out[10].startswith("Uso:"), "/pick ANNO da chi non è GM: l'uso (tutta la lega è /pick_lega)")
 ok(isinstance(out[11], str) and f"Pick {pross} · 2° giro" in out[11] and "Alfa" in out[11],
-   "v7.22.1: /pick GIRO ANNO da GM = il dettaglio della sua pick (come la squadra fosse la sua)")
+   "/pick GIRO ANNO da GM = il dettaglio della sua pick")
+ok(out[12][0] == "foto" and f"draft {pross}" in out[12][1] and out[13][0] == "foto" and "2° giro" in out[13][1],
+   "v7.22.2: /pick_lega ANNO e /pick_lega ANNO GIRO: tutto un draft")
+ok("Nessuna pick del draft 2040" in out[14], "/pick_lega ANNO senza pick: lo dice")
+ok(out[15].startswith("🎯 <b>/pick</b>") and "/pick_lega 2028" in out[15] and out[16].startswith("🎯 <b>/pick</b>"),
+   "/pick aiuto e /pick_lega aiuto: tutti i modi, con una squadra vera negli esempi")
 _ds = PK.dati_squadra(tm.get_team_by_id("team03"))
 _r = next(r for r in _ds["righe"] if r["anno"] == pross)
 ok(_r["giri"][0] and _r["giri"][0][0]["orig"] == "team01" and not _r["giri"][0][0]["propria"] and _r["giri"][0][0]["prot"] == "top 3",

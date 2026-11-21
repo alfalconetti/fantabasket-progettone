@@ -58,8 +58,8 @@ def liste_comandi() -> dict:
         # v7.21.0 (Luca, 21/11): le viste del bot principale (vista.py); nei gruppi risponde loucabot
         BotCommand("roster",  "Roster di una squadra [SQUADRA] [DD-MM-YY]"),
         BotCommand("assets",  "Asset completi di una squadra [SQUADRA] [DD-MM-YY]"),
-        BotCommand("pick", "Le pick in mano a una squadra [SQUADRA] [ANNO] [1|2]; ANNO: tutto un draft; con tutto la storia"),
-        BotCommand("pick_lega", "Tutte le pick della lega in un'immagine"),
+        BotCommand("pick", "Le pick in mano a una squadra [SQUADRA] [ANNO] [1|2]; con giro e anno la storia (aiuto)"),
+        BotCommand("pick_lega", "Tutte le pick della lega in un'immagine [ANNO] [1|2]: con l'anno tutto un draft"),
         BotCommand("team_diff", "Variazioni di roster [SQUADRA] [da] [a]"),
         BotCommand("carriera", "Carriera di un giocatore: fantabasket e NBA [nome]"),
         BotCommand("trova_trade", "Una trade ufficiale: per numero o per giocatore"),
