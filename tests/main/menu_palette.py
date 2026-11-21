@@ -210,7 +210,10 @@ _adm = [v for t, ch, v in _bm.v if t == "BotCommandScopeChat" and ch == _gl.get(
 _grp = [v for t, ch, v in _bm.v if t == "BotCommandScopeAllGroupChats"]
 _amm = [v for t, ch, v in _bm.v if t == "BotCommandScopeAllChatAdministrators"]
 ok(_amm and _grp and _amm[0] == _grp[0], "admin di un gruppo Telegram: stesso menu dei gruppi (prima non vedevano niente)")
-ok(_grp == ["cancellato"] and _amm == ["cancellato"], "v7.21.1: nei gruppi menu cancellato (le viste sono di loucabot), non una lista vuota")
+_def = [v for t, ch, v in _bm.v if t == "BotCommandScopeDefault"]
+_priv = [v for t, ch, v in _bm.v if t == "BotCommandScopeAllPrivateChats"]
+ok(_grp == ["cancellato"] and _amm == ["cancellato"] and _def == ["cancellato"] and _priv and "roster" in _priv[0],
+   "v7.22.4: nei gruppi nessun menu: cancellati gruppi e Default (su cui Telegram ricade); in privato il menu dei GM")
 ok(_adm and "registro" not in _adm[0] and "edit_team" not in _adm[0] and len(_adm[0]) > 5,
    "gruppo admin: fuori dal menu i comandi che lì non funzionano")
 CM.SOLO_PRIVATO = set()

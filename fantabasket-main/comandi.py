@@ -216,14 +216,16 @@ async def registra_comandi(bot) -> None:
     try:
         # anche per chi è amministratore di un gruppo Telegram: stessi comandi degli altri (Luca, 30/10: diventato
         # admin del gruppo della lega non vedeva più /roster e gli altri); il gruppo admin ha il suo menu qui sotto.
-        # v7.21.1: con la lista vuota (dalla v7.21.0 nei gruppi le viste sono di loucabot) si cancella il menu: così
-        # i suggerimenti vecchi spariscono di sicuro
-        for scope in (BotCommandScopeAllGroupChats(), BotCommandScopeAllChatAdministrators()):
-            if c["group"]:
+        # v7.22.4: senza menu dei gruppi (dalla v7.21.0 nei gruppi le viste sono di loucabot) Telegram ricade sul menu
+        # Default: quindi via anche quello (in privato vale AllPrivateChats, qui sotto), se no nei gruppi si vedevano
+        # tutti i comandi del bot principale (Luca, 22/11)
+        if c["group"]:
+            for scope in (BotCommandScopeAllGroupChats(), BotCommandScopeAllChatAdministrators()):
                 await bot.set_my_commands(c["group"], scope=scope)
-            else:
+            await bot.set_my_commands(c["base"], scope=BotCommandScopeDefault())
+        else:
+            for scope in (BotCommandScopeAllGroupChats(), BotCommandScopeAllChatAdministrators(), BotCommandScopeDefault()):
                 await bot.delete_my_commands(scope=scope)
-        await bot.set_my_commands(c["base"],  scope=BotCommandScopeDefault())
         await bot.set_my_commands(c["gm"],    scope=BotCommandScopeAllPrivateChats())
         if admin_group_id:
             await bot.set_my_commands([x for x in c["admin"] if x.command not in SOLO_PRIVATO | VISTE],

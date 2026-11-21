@@ -101,6 +101,8 @@ async def main():
     ok(db.get_pick(pick('team02',2028,2))["proprietario_att"]=="team03","pick spostata")
     ok(db._qval("SELECT team_id FROM rookie WHERE giocatore_id=%s",(rk,))=="team01","diritti spostati")
     ok({c for c,_ in sent}>={101,102,103,-1},"tutti avvisati + canale")
+    _can=[t for c,t in sent if c==-1]
+    ok(_can and "Diritti di" in _can[-1] and "FP" not in _can[-1], f"v7.22.3: sul canale i diritti senza FP {_can[-1:]}")
     ref=db.get_trade(nuovo)["trade_ref"]
     # secondo Approva (doppio tocco o un altro admin): dice che è già fatta, senza ripetere la bozza
     q=await go(T.cb_admin_trade,f"trade_admin:ok:{nuovo}",900)

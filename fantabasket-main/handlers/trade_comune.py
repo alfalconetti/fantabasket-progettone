@@ -267,7 +267,7 @@ def _formatta_annuncio_canale(trade_id: int) -> str:
             by   = orig["nome"] if orig else item.get("pick_orig", "?")
             return f"{rnd} round pick {anno} by {by}"
         elif item["tipo"] == "diritti":
-            return f"Diritti di {item['nome_common']} ({db.fp_testo([item.get('giocatore_id')]).get(item.get('giocatore_id'), 'FP —')})"
+            return f"Diritti di {item['nome_common']}"   # v7.22.3 (Luca, 22/11): sul canale niente FP sui diritti
         return "?"
 
     # Ordine dentro ogni sezione: giocatori, pick, diritti in fondo

@@ -2131,3 +2131,12 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - `/pick` riguarda sempre una squadra, `/pick_lega` sempre la lega (Luca, 22/11): `/pick 2027` e `/pick 1` senza squadra sono **le tue** pick (prima `/pick 2027` era tutto il draft); **tutto un draft** ora è **`/pick_lega 2027`** (e `/pick_lega 2027 1` un giro); `/pick_lega` senza anno com'era
 - **`/pick aiuto`** (anche `/pick_lega aiuto`): tutti i modi di usare `/pick` e `/pick_lega`, con una squadra vera negli esempi (Luca, 22/11)
+
+## v7.22.3 (2026-11-22)
+
+- Annuncio delle trade sul canale: i diritti senza la FP accanto («Diritti di Nome»), Luca 22/11; nel riepilogo della trade per i GM resta
+- MIGRATION: da fare l'event sourcing delle pick (`/pick` e `/pick_lega` con una data)
+
+## v7.22.4 (2026-11-22)
+
+- Nei gruppi niente più suggerimenti dei comandi del bot principale (Luca, 22/11): cancellando il menu dei gruppi Telegram ricadeva sul menu Default, cioè su tutti i comandi; ora si cancella anche quello (in privato vale il menu dei GM, come prima). Il bug era della v7.21.1
