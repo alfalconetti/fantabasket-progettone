@@ -8,7 +8,7 @@ Per ogni partita NBA di regular season **giocata** (le DNP non contano) dentro u
 - **quintetto** se è nella formazione di quella giornata di quella squadra (`ipa_formazioni`), **panchina** se è
   nella sua panchina (`ipa_panchine`), se no **tribuna** (in squadra ma né quintetto né panchina).
 
-Risposta: il riepilogo in testo (media totale e per situazione) e la tabella a doppia entrata squadra ×
+Risposta (v7.20.2: solo immagine): i riquadri (media totale e per situazione) e la tabella a doppia entrata squadra ×
 quintetto/panchina/tribuna come immagine (`situazione.typ`), con i totali di riga e di colonna e la casella migliore
 in oro; l'immagine sempre, anche con una squadra sola (v7.20.1, Luca 21/11: «con immagine a prescindere»).
 Periodo: shared.periodo (stagione, da una data, tra due date, ultime N giocate).
@@ -38,19 +38,21 @@ def partite(gid: int, periodo: PER.Periodo, stagione: str | None = None) -> list
     g = L.q("SELECT espn_id FROM giocatori WHERE id = %s", (gid,), one=True) or {}
     if not g.get("espn_id"):
         return []
-    filtri, par = "", [stagione, g["espn_id"]]
+    # v7.20.2 (Luca, 21/11): col periodo anche a cavallo di due stagioni (ogni partita con la sua stagione e le sue giornate)
+    col_periodo = bool(periodo.dal or periodo.al or periodo.ultime)
+    filtri, par = ("", [g["espn_id"]]) if col_periodo else (" AND p.stagione = %s", [g["espn_id"], stagione])
     if periodo.dal:
         filtri += " AND p.data_et >= %s"
         par.append(periodo.dal)
     if periodo.al:
         filtri += " AND p.data_et <= %s"
         par.append(periodo.al)
-    righe = L.q(f"""SELECT t.*, p.data_et AS data, p.inizio, gg.numero AS giornata,
+    righe = L.q(f"""SELECT t.*, p.data_et AS data, p.inizio, p.stagione, gg.numero AS giornata,
                            (SELECT m.team_id_a FROM movimenti_giocatori m
                             WHERE m.giocatore_id = %s AND m.timestamp <= p.inizio
                             ORDER BY m.timestamp DESC, m.id DESC LIMIT 1) AS team
                     FROM nba_tabellini t
-                    JOIN nba_partite p ON p.espn_id = t.partita AND p.stagione = %s AND p.tipo = 2
+                    JOIN nba_partite p ON p.espn_id = t.partita AND p.tipo = 2
                     JOIN lega_giornate gg ON gg.stagione = p.stagione AND gg.tipo = 'regular'
                                          AND p.data_et BETWEEN gg.dal AND gg.al
                     WHERE t.atleta = %s AND t.giocato{filtri}
@@ -60,7 +62,7 @@ def partite(gid: int, periodo: PER.Periodo, stagione: str | None = None) -> list
     tab = {"form": _tabella("ipa_formazioni"), "panche": _tabella("ipa_panchine")}
     for r in righe:
         r["fp"] = NU.fp(r)
-        r["dove"] = _dove(gid, stagione, r["giornata"], r["team"], tab)
+        r["dove"] = _dove(gid, r["stagione"], r["giornata"], r["team"], tab)
     return righe
 
 
@@ -123,7 +125,12 @@ def dati(gid: int, periodo: PER.Periodo, stagione: str | None = None) -> dict | 
     if not gare:
         return None
     nome = (L.q("SELECT nome_common FROM giocatori WHERE id = %s", (gid,), one=True) or {}).get("nome_common", "?")
-    st_txt = f"{stagione}-{(int(stagione) + 1) % 100:02d}"
+    stagioni = PER.stagioni_txt([r["stagione"] for r in gare])
+    if periodo.dal or periodo.al or periodo.ultime:      # v7.20.2: il periodo com'è davvero nei dati
+        from shared.rendimento import primo_dato
+        quando_txt = f"{stagioni} · {PER.descrizione_vera(periodo, len(gare), primo_dato())}"
+    else:
+        quando_txt = stagioni
     per_dove = {k: [r["fp"] for r in gare if r["dove"] == k] for k in ("quintetto", "panchina", "tribuna", FA)}
     squadre = list(dict.fromkeys(r["team"] or FA for r in gare))
     squadre.sort(key=lambda t: (t == FA, min(r["data"] for r in gare if (r["team"] or FA) == t)))
@@ -147,7 +154,7 @@ def dati(gid: int, periodo: PER.Periodo, stagione: str | None = None) -> dict | 
         c = _cella(per_dove[k])
         riquadri.append({"t": titolo, "v": c["media"] if c else "—",
                          "s": f"{c['g']} {'partita' if c['g'] == 1 else 'partite'}" if c else "nessuna"})
-    return {"nome": nome, "gid": gid, "periodo": f"{periodo.descrizione(st_txt)} · {tot['g']} partite giocate",
+    return {"nome": nome, "gid": gid, "periodo": f"{quando_txt} · {tot['g']} partite giocate",
             "riquadri": riquadri, "colonne": [l for _k, l in COLONNE], "righe": righe,
             "totali": [_cella(per_dove[k]) for k, _l in COLONNE], "totale": tot, "per_dove": per_dove,
             "nota": ("Per ogni partita NBA: dov'era nella giornata del fantabasket di quella partita (squadra dall'ultimo "
@@ -186,8 +193,7 @@ async def rispondi(msg, gid: int, periodo: PER.Periodo) -> None:
     if not d:
         await msg.reply_text("Nessuna partita giocata in questo periodo dentro una giornata di regular season.")
         return
-    await msg.reply_text(testo(d), parse_mode="HTML")
-    await msg.reply_photo(await asyncio.to_thread(immagine, d))
+    await msg.reply_photo(await asyncio.to_thread(immagine, d))     # v7.20.2 (Luca, 21/11): solo l'immagine, niente testo
 
 
 async def cmd_rendimento_situazione(update, context):

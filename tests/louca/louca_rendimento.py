@@ -74,6 +74,48 @@ png = R.immagine(d)
 if _os.environ.get("REND_PNG"): open(_os.environ["REND_PNG"] + "_stagione.json", "w").write(__import__("json").dumps(d, default=str, ensure_ascii=False))
 if _os.environ.get("REND_PNG"): open(_os.environ["REND_PNG"] + "_stagione.png", "wb").write(png)
 ok(png[:4] == b"\x89PNG", "immagine della stagione")
+# v7.20.2 (Luca, 21/11): il periodo, come /rendimento_situazione
+from shared import periodo as PER
+from datetime import date as _date_cls
+dp = R.dati_stagione(gid, None, PER.Periodo(dal=(t0 + timedelta(days=4)).date()))
+ok([x["fp"] for x in dp["partite"]][:3] == [35, None, 40] and len(dp["partite"]) == 6, "da una data: solo le partite da lì")
+ok(dp["riquadri"][0]["t"] == "Nel periodo" and f"{PER.stagione_txt(S)}: 29,63" in dp["riquadri"][0]["s"] and "dal " in dp["titolo"]
+   and dp["media_lbl"] == "media del periodo", f"riquadro «Nel periodo» con la media della stagione, periodo nel titolo {dp['riquadri'][0]} {dp['titolo']}")
+du = R.dati_stagione(gid, None, PER.Periodo(ultime=6))
+ok(du["giocate"] == 6 and du["partite"][0]["fp"] == 25 and "ultime 6" in du["titolo"], f"ultime 6 giocate: dalla sesta giocata dalla fine, DNP in mezzo come tacche {[x['fp'] for x in du['partite']]}")
+ok(R.dati_stagione(gid, None, PER.Periodo(dal=_date_cls(2001, 1, 1), al=_date_cls(2001, 2, 1))) is None, "periodo senza partite: None")
+ok(R.dati_stagione(gid)["riquadri"][0]["t"] == "Fantamedia" and "media_lbl" in R.dati_stagione(gid), "senza periodo com'era")
+ok(R.immagine(dp)[:4] == b"\x89PNG", "immagine col periodo")
+# v7.20.2 (Luca, 21/11): a cavallo di due stagioni, titoli veri, media della stagione principale
+_P = str(int(S) - 1)
+for _i in range(3):                                      # tre partite della stagione prima (una di playoff NBA)
+    _pid = f"rd_old{_i}"
+    _t = datetime(int(_P) + 1, 4, 1 + _i, 23, 0, tzinfo=timezone.utc)
+    db.q("INSERT INTO nba_partite (espn_id, stagione, tipo, data_et, inizio, casa, trasferta, stato) VALUES (%s, %s, %s, %s, %s, 'RDA', 'RDB', 'STATUS_FINAL')",
+         (_pid, _P, 3 if _i == 2 else 2, _t.date(), _t))
+    db.q("INSERT INTO nba_tabellini (partita, atleta, nome, squadra, giocato, minuti, fp) VALUES (%s, 'rd1', 'Rend Uno', 'RDA', TRUE, 30, %s)", (_pid, 10 + _i))
+dx = R.dati_stagione(gid, None, PER.Periodo(ultime=10))
+ok(dx["stagioni"] == [_P, S] and dx["stagioni_sep"] == [{"i": 2, "lbl": PER.stagione_txt(S)}] and dx["titolo"].startswith("Stagioni ")
+   and dx["post_inizi"][0] == 1, f"ultime 10: a cavallo, linea dove inizia la stagione nuova, playoff NBA di ognuna {dx['stagioni_sep']} {dx['post_inizi']} {dx['titolo']}")
+ok(f"{PER.stagione_txt(S)}: 29,63" in dx["riquadri"][0]["s"], f"media della stagione con più partite nel periodo {dx['riquadri'][0]}")
+dt = R.dati_stagione(gid, None, PER.Periodo(ultime=50))
+ok("tutte le 11 partite giocate nei dati del bot" in dt["titolo"], f"ultime 50 con 11 giocate: lo dice {dt['titolo']}")
+_primo = R.primo_dato()
+dd = R.dati_stagione(gid, None, PER.Periodo(dal=_date_cls(2000, 1, 1)))
+ok(f"dal {_primo:%d/%m/%Y} (primi dati del bot) a oggi" in dd["titolo"], f"data prima dei dati del bot: lo dice {dd['titolo']}")
+d2 = R.dati_stagione(gid, None, PER.Periodo(dal=_date_cls(int(_P) + 1, 4, 1), al=_date_cls(int(_P) + 1, 4, 3)))
+ok(d2["titolo"] == f"Stagione {PER.stagione_txt(_P)} · dal 01/04/{int(_P) + 1} al 03/04/{int(_P) + 1}"
+   and f"{PER.stagione_txt(_P)}: " in d2["riquadri"][0]["s"], f"solo la stagione prima {d2['titolo']} {d2['riquadri'][0]}")
+_fut = PER.descrizione_vera(PER.Periodo(dal=_date_cls(2030, 1, 1), al=_date_cls(2031, 1, 1)), 0, None, oggi=_date_cls(2030, 6, 1))
+ok(_fut == "dal 01/01/2030 a oggi", f"«al» nel futuro: a oggi ({_fut})")
+try:
+    PER.leggi(["Rend", "Uno", "32-13-26"]); ok(False, "data sbagliata accettata")
+except PER.Errore as er:
+    ok("Non capisco la data «32-13-26»" in str(er), "data scritta male: lo dice invece di cercarla nel nome")
+ok(R.immagine(dx)[:4] == b"\x89PNG", "immagine a cavallo")
+db.q("DELETE FROM nba_tabellini WHERE partita LIKE 'rd_old%%'"); db.q("DELETE FROM nba_partite WHERE espn_id LIKE 'rd_old%%'")
+
+
 
 # carriera: Basketball-Reference, più istantanee, una stagione con due squadre (riga del totale), la stagione in corso dai tabellini
 def bref(stagione, nome, team, g, fm_pts, ts):
@@ -250,6 +292,24 @@ for f, args in ((CF.cmd_confronto, ["Rend", "Uno", "vs", "Rend", "Due"]), (CF.cm
 ok(out[0][0] == "foto" and out[1][0] == "foto", "/confronto e /confronto_carriera (con uno storico) mandano l'immagine")
 ok("può essere" in out[2][1] and "Rend Due" in out[2][1] and "stesso giocatore" in out[3][1], "nome ambiguo: li elenca; lo stesso due volte")
 ok("/confronto_carriera" in out[4][1] and out[5][1].startswith("Uso:") and "nemmeno tra quelli" in out[6][1], "storico in /confronto, un nome solo, nome che non c'è")
+out.clear()
+_d1 = (t0 + timedelta(days=4)).strftime("%d-%m-%y")
+for f, args in ((R.cmd_rendimento, ["Rend", "Uno", _d1]), (R.cmd_rendimento, ["Rend", "Uno", "3"]),
+                (CF.cmd_confronto, ["Rend", "Uno", "vs", "Rend", "Due", "6"]), (CF.cmd_confronto, ["Rend", "Uno", "vs", "Rend", "Due", "4"])):
+    asyncio.run(f(u, types.SimpleNamespace(args=args, user_data={})))
+ok(out[0][0] == "foto" and "maggiore di 5" in out[1][1] and out[2][0] == "foto" and "maggiore di 5" in out[3][1],
+   f"v7.20.2: /rendimento NOME DATA e /confronto A vs B N col periodo; N ≤ 5 rifiutato {[o[:2] for o in out]}")
+# v7.20.2: /confronto a cavallo di due stagioni: l'estate tagliata con la banda off-season
+_tv = datetime(int(S), 4, 2, 23, 0, tzinfo=timezone.utc)
+db.q("INSERT INTO nba_partite (espn_id, stagione, tipo, data_et, inizio, casa, trasferta, stato) VALUES ('rd_oldc', %s, 2, %s, %s, 'RDA', 'RDB', 'STATUS_FINAL')",
+     (str(int(S) - 1), _tv.date(), _tv))
+db.q("INSERT INTO nba_tabellini (partita, atleta, nome, squadra, giocato, minuti, fp) VALUES ('rd_oldc', 'rd1', 'Rend Uno', 'RDA', TRUE, 30, 22)")
+dco = CF.dati_stagione(gid, gid2, None, PER.Periodo(dal=_date_cls(int(S), 1, 1)))
+_xa = [p_["x"] for p_ in dco["punti_a"]]
+ok(len(dco["offseason"]) == 1 and dco["offseason"][0]["lbl"] == PER.stagione_txt(S) and _xa[0] < dco["offseason"][0]["x0"] < dco["offseason"][0]["x1"] <= _xa[1]
+   and dco["titolo"].startswith("Stagioni "), f"/confronto a cavallo: banda off-season tra le due stagioni {dco['offseason']} {_xa[:2]} {dco['titolo']}")
+ok(CF.immagine(dco)[:4] == b"\x89PNG", "immagine del confronto a cavallo")
+db.q("DELETE FROM nba_tabellini WHERE partita = 'rd_oldc'"); db.q("DELETE FROM nba_partite WHERE espn_id = 'rd_oldc'")
 ok({next(iter(h.commands)) for h in LR.get_handlers() if hasattr(h, "commands")} == {"rendimento", "rendimento_carriera", "confronto", "confronto_carriera", "rendimento_situazione"},
    "loucabot: anche /confronto, /confronto_carriera e /rendimento_situazione (v7.20.0)")
 pulisci()

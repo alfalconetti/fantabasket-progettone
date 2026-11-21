@@ -8,6 +8,7 @@
 `leggi(args)` separa il nome dal periodo: (nome, periodo) o solleva Errore col testo per l'utente.
 Pensato per riusarlo in /rendimento e /confronto (MIGRATION, «/rendimento con un periodo»).
 """
+import re
 from dataclasses import dataclass
 from datetime import date
 
@@ -49,9 +50,47 @@ def leggi(args: list[str]) -> tuple[str, Periodo]:
         if len(date_) == 2 and date_[0] > date_[1]:
             date_.reverse()
         return " ".join(parole), Periodo(dal=date_[0], al=date_[1] if len(date_) == 2 else None)
+    if len(parole) > 1 and _SEMBRA_DATA.fullmatch(parole[-1]):       # v7.20.2: una data scritta male non è un nome
+        raise Errore(f"Non capisco la data «{parole[-1]}»: scrivila come 01-11-26 (giorno-mese-anno).")
     if len(parole) > 1 and parole[-1].isdigit():
         n = int(parole[-1])
         if n < MIN_ULTIME:
             raise Errore(f"Con un numero: le ultime N partite giocate, con N maggiore di 5 (le ultime 5 sono già in /player).")
         return " ".join(parole[:-1]), Periodo(ultime=n)
     return " ".join(parole), Periodo()
+
+
+_SEMBRA_DATA = re.compile(r"\d{1,4}[-/.]\d{1,2}(?:[-/.]\d{1,4})?")
+
+
+def stagione_txt(s) -> str:
+    return f"{s}-{(int(s) + 1) % 100:02d}"
+
+
+def stagioni_txt(stagioni: list) -> str:
+    """«stagione 2026-27», «stagioni 2025-26 e 2026-27», «stagioni 2024-25 – 2026-27»."""
+    ss = sorted(set(stagioni))
+    if len(ss) == 1:
+        return f"stagione {stagione_txt(ss[0])}"
+    if len(ss) == 2:
+        return f"stagioni {stagione_txt(ss[0])} e {stagione_txt(ss[1])}"
+    return f"stagioni {stagione_txt(ss[0])} – {stagione_txt(ss[-1])}"
+
+
+def descrizione_vera(periodo: "Periodo", giocate: int, primo: date | None, oggi: date | None = None) -> str:
+    """Il periodo come è davvero nei dati (v7.20.2, Luca 21/11: «i titoli corrispondano alla verità»): una data prima
+    dei primi tabellini del bot diventa quella dei primi dati; un «al» nel futuro diventa «a oggi»; le ultime N con
+    meno di N partite giocate in tutto diventano «tutte le K partite giocate nei dati del bot»."""
+    oggi = oggi or date.today()
+    if periodo.ultime:
+        if giocate < periodo.ultime:
+            return f"tutte le {giocate} partite giocate nei dati del bot"
+        return f"ultime {periodo.ultime} partite giocate"
+    if periodo.dal and primo and periodo.dal < primo:
+        dal = f"dal {primo:%d/%m/%Y} (primi dati del bot)"
+    elif periodo.dal:
+        dal = f"dal {periodo.dal:%d/%m/%Y}"
+    else:
+        dal = ""
+    al = f"al {periodo.al:%d/%m/%Y}" if periodo.al and periodo.al < oggi else "a oggi"
+    return f"{dal} {al}".strip()

@@ -174,12 +174,60 @@ def nostri_playoff(stagione: str | None = None) -> dict | None:
     return None
 
 
-def dati_stagione(gid: int, stagione: str | None = None) -> dict | None:
+def partite_tutte(atleta: str) -> list[dict]:
+    """Tutte le partite del giocatore nei tabellini del bot, di ogni stagione (v7.20.2: periodi a cavallo di due
+    stagioni), senza preseason, dalla più vecchia; ognuna con la sua `stagione`."""
+    return L.q("""SELECT t.*, p.tipo, p.inizio, p.data_et, p.casa, p.trasferta, p.stagione FROM nba_tabellini t
+                  JOIN nba_partite p ON p.espn_id = t.partita
+                  WHERE t.atleta = %s AND p.tipo = ANY(%s) ORDER BY p.inizio""",
+               (atleta, list(TIPI_TUTTE)), many=True) or []
+
+
+def primo_dato():
+    """Il giorno della prima partita (regular season, playoff, play-in) di cui il bot ha i tabellini, o None."""
+    r = L.q("""SELECT MIN(p.data_et) AS d FROM nba_partite p WHERE p.tipo = ANY(%s)
+               AND EXISTS (SELECT 1 FROM nba_tabellini t WHERE t.partita = p.espn_id)""", (list(TIPI_TUTTE),), one=True)
+    return r["d"] if r else None
+
+
+def nel_periodo(tab: list[dict], periodo) -> list[dict]:
+    """Le partite (dalla più vecchia) dentro il periodo di shared.periodo (v7.20.2, Luca 21/11): da una data, tra due
+    date, o dalla N-esima ultima partita giocata in poi (le DNP in mezzo restano, come tacche)."""
+    if not periodo:
+        return tab
+    if periodo.ultime:
+        giocate = [i for i, r in enumerate(tab) if L.conta(r)]
+        return tab[giocate[-periodo.ultime]:] if len(giocate) >= periodo.ultime else tab[giocate[0]:] if giocate else []
+    return [r for r in tab if (not periodo.dal or r["data_et"] >= periodo.dal) and (not periodo.al or r["data_et"] <= periodo.al)]
+
+
+def _partite_txt(n: int) -> str:
+    return f"{n} {'partita' if n == 1 else 'partite'}"
+
+
+def stagione_principale(tab: list[dict]) -> str:
+    """La stagione con più partite giocate tra quelle `tab` (a parità la più recente)."""
+    conta = {}
+    for r in tab:
+        if L.conta(r):
+            conta[r["stagione"]] = conta.get(r["stagione"], 0) + 1
+    return max(conta or {r["stagione"]: 0 for r in tab}, key=lambda st: (conta.get(st, 0), st))
+
+
+def dati_stagione(gid: int, stagione: str | None = None, periodo=None) -> dict | None:
+    """Il JSON per rendimento.typ, la stagione partita per partita. Con `periodo` (shared.periodo.Periodo, v7.20.2) solo
+    le partite del periodo, anche a cavallo di due stagioni (una linea dove inizia la nuova), con accanto la fantamedia
+    della stagione principale (quella con più partite nel periodo, a parità la più recente)."""
+    from shared import periodo as PER
     stagione = stagione or L.stagione()
     g = L.q("SELECT nome_common, espn_id FROM giocatori WHERE id = %s", (gid,), one=True)
     if not g or not g.get("espn_id"):
         return None
-    tab = partite(g["espn_id"], stagione)
+    col_periodo = bool(periodo and (periodo.dal or periodo.al or periodo.ultime))
+    if col_periodo:
+        tab = nel_periodo(partite_tutte(g["espn_id"]), periodo)
+    else:
+        tab = [{**r, "stagione": stagione} for r in partite(g["espn_id"], stagione)]
     if not tab:
         return None
     mov = movimenti(gid)
@@ -195,7 +243,7 @@ def dati_stagione(gid: int, stagione: str | None = None) -> dict | None:
         out.append({"fp": fp, "sq": sq or "_libero", "tipo": "rs" if r["tipo"] == 2 else "post", "media_player": r["tipo"] in G.TIPI,
                     "prog": round(sum(contano) / len(contano), 3) if fp is not None else None,
                     "mobile": round(sum(contano[-5:]) / 5, 3) if fp is not None and len(contano) >= 5 else None,
-                    "data": r["data_et"], "avv": avv})
+                    "data": r["data_et"], "avv": avv, "stagione": r["stagione"]})
     n = len(out)
     passo = max(1, round(n / 8))
     for i, p in enumerate(out):
@@ -217,42 +265,63 @@ def dati_stagione(gid: int, stagione: str | None = None) -> dict | None:
     vals = [p["fp"] for p in out if p["fp"] is not None]
     lo, hi, passo_y = _asse(vals)
     bi = max((i for i, p in enumerate(out) if p["fp"] is not None), key=lambda i: out[i]["fp"], default=None)
-    i_post = next((i for i, p in enumerate(out) if p["tipo"] == "post"), None)
+    # v7.20.2: stagioni nel grafico, e per ognuna dove iniziano play-in e playoff NBA
+    stagioni = list(dict.fromkeys(p["stagione"] for p in out))
+    sep = [{"i": i, "lbl": PER.stagione_txt(p["stagione"])} for i, p in enumerate(out) if i and p["stagione"] != out[i - 1]["stagione"]]
+    post_inizi = [i for i, p in enumerate(out) if p["tipo"] == "post" and (i == 0 or out[i - 1]["tipo"] != "post"
+                                                                          or out[i - 1]["stagione"] != p["stagione"])]
+    i_post = post_inizi[0] if post_inizi else None
     media = sum(reg) / len(reg) if reg else (sum(vals) / len(vals) if vals else 0.0)
     sotto = [f"{len(reg)} partite su {sum(1 for r in tab if r['tipo'] in G.TIPI)}"]
     if post or any(r["tipo"] == 3 for r in tab):
         sotto.append(f"playoff {_t(sum(post) / len(post)) if post else '—'} ({len(post)})")
     if bi is not None:
         sotto.append(f"migliore {_t(out[bi]['fp'])}")
-    a = int(stagione)
     # v7.6.2 (Luca, 11/11): i riquadri della testata, i mesi sull'asse, la media della stagione tratteggiata
     giocate = [i for i, p in enumerate(out) if p["fp"] is not None]
     ult = [out[i]["fp"] for i in giocate[-5:]]
     u5 = sum(ult) / len(ult) if ult else 0.0
     wi = min(giocate, key=lambda i: out[i]["fp"], default=None)
-    quando = lambda i: f"vs {out[i]['avv']} · {date.fromisoformat(out[i]['giorno']):%d/%m}"
+    quando = lambda i: f"vs {out[i]['avv']} · {date.fromisoformat(out[i]['giorno']):%d/%m}" + (
+        f"/{out[i]['giorno'][2:4]}" if len(stagioni) > 1 else "")
     sotto_fm = sotto[0] + (f" · {sotto[1]}" if len(sotto) > 2 else "")
     riquadri = [{"t": "Fantamedia", "v": _t(media) if reg or vals else "—", "s": sotto_fm},
                 {"t": "Ultime 5", "v": _t(u5) if ult else "—",
                  "s": ("▲ sopra la media" if u5 >= media else "▼ sotto la media") if ult else ""},
                 {"t": "Migliore", "v": _t(out[bi]["fp"]) if bi is not None else "—", "s": quando(bi) if bi is not None else ""},
                 {"t": "Peggiore", "v": _t(out[wi]["fp"]) if wi is not None else "—", "s": quando(wi) if wi is not None else ""}]
+    titolo = PER.stagioni_txt(stagioni).capitalize()
+    media_lbl = "media della stagione"
+    if col_periodo:                                       # v7.20.2: col periodo, titolo che dice il vero
+        princ = stagione_principale(tab)
+        rs = [NU.fp(r) for r in partite(g["espn_id"], princ) if r["tipo"] in G.TIPI and L.conta(r)]
+        n_p = len(reg) if reg else len(vals)
+        riquadri[0] = {"t": "Nel periodo", "v": _t(media) if reg or vals else "—",
+                       "s": f"{_partite_txt(n_p)} · {PER.stagione_txt(princ)}: {_t(sum(rs) / len(rs)) if rs else '—'}"}
+        titolo += " · " + PER.descrizione_vera(periodo, len(giocate), primo_dato())
+        media_lbl = "media del periodo"
     # v7.9.7 (Luca, 15/11): i nostri playoff, fascia gialla e riquadro al posto del peggiore se ci ha giocato
-    npo = nostri_playoff(stagione)
-    fanta = None
-    if npo:
+    # (v7.20.2: una fascia per ogni stagione del periodo)
+    fanta_tutte, dentro_tutti, nn = [], [], []
+    for st_ in stagioni:
+        npo = nostri_playoff(st_)
+        if not npo:
+            continue
         dentro = [i for i, p in enumerate(out) if npo["dal"].isoformat() <= p["giorno"] <= npo["al"].isoformat()]
         if dentro:
-            fanta = {"da": dentro[0], "a": dentro[-1], "n": npo["n"]}
-            v = [out[i]["fp"] for i in dentro if out[i]["fp"] is not None]
-            if v:
-                riquadri[3] = {"t": "Nei nostri playoff", "v": _t(sum(v) / len(v)),
-                               "s": f"P1–P{npo['n']} · {len(v)} {'partita' if len(v) == 1 else 'partite'}"}
+            fanta_tutte.append({"da": dentro[0], "a": dentro[-1], "n": npo["n"]})
+            dentro_tutti += dentro
+            nn.append(npo["n"])
+    fanta = fanta_tutte[0] if fanta_tutte else None
+    v = [out[i]["fp"] for i in dentro_tutti if out[i]["fp"] is not None]
+    if v:
+        riquadri[3] = {"t": "Nei nostri playoff", "v": _t(sum(v) / len(v)),
+                       "s": (f"P1–P{nn[0]} · " if len(nn) == 1 else "") + _partite_txt(len(v))}
     mesi, prima = [], None
     for i, p in enumerate(out):
-        m = p["giorno"][5:7]
+        m = p["giorno"][:7]
         if m != prima:
-            mesi.append({"i": i, "lbl": MESI[int(m)]})
+            mesi.append({"i": i, "lbl": MESI[int(m[5:7])]})
             prima = m
     # v7.16.0 (Luca, 16/11): più riferimenti sull'asse: la data di una partita ogni 5, non attaccata all'inizio di un mese
     date_x = [{"i": i, "lbl": f"{p['giorno'][8:10]}/{p['giorno'][5:7]}"} for i, p in enumerate(out)
@@ -260,8 +329,9 @@ def dati_stagione(gid: int, stagione: str | None = None) -> dict | None:
     return {"modo": "stagione", **_testata(gid, g["nome_common"], etichetta=True),
             "riquadri": riquadri, "mesi": mesi, "date": date_x, "media_val": ottavi(media), "giocate": len(giocate),
             "y_barre": max(40, int(-(-(max(vals, default=0) + 6) // 10) * 10)),
-            "titolo": f"Stagione {a}-{(a + 1) % 100:02d}", "media_big": _t(media) if reg or vals else "—",
+            "titolo": titolo, "media_lbl": media_lbl, "media_big": _t(media) if reg or vals else "—",
             "media_sotto": " · ".join(sotto), "partite": out, "squadre": squadre, "fasce": fasce, "fanta": fanta,
+            "fanta_tutte": fanta_tutte, "stagioni": stagioni, "stagioni_sep": sep, "post_inizi": post_inizi,
             "y_min": lo, "y_max": hi, "y_passo": passo_y, "post": i_post,
             "migliore": ({"i": bi, "fp": out[bi]["fp"], "t": f"{_t(out[bi]['fp'])} vs {out[bi]['avv']}"} if bi is not None
                          else {"i": 0, "fp": 0, "t": ""})}
@@ -465,15 +535,17 @@ async def _manda(msg, d: dict | None, vuoto: str) -> None:
     await msg.reply_photo(png)
 
 
-async def _rendimento(msg, gid: int) -> None:
+async def _rendimento(msg, gid: int, periodo=None) -> None:
     import asyncio
-    d = await asyncio.to_thread(dati_stagione, gid)
+    d = await asyncio.to_thread(dati_stagione, gid, None, periodo)
+    con_periodo = bool(periodo and (periodo.dal or periodo.al or periodo.ultime))
+    dove = "in questo periodo" if con_periodo else "in questa stagione"
     if d and d["giocate"] < MIN_PARTITE:
         n = d["giocate"]
-        await msg.reply_text(f"Troppo pochi dati: {d['nome']} ha giocato {n} {'partita' if n == 1 else 'partite'} in questa "
-                             f"stagione, per il grafico ne servono almeno {MIN_PARTITE}. Intanto c'è /player.")
+        await msg.reply_text(f"Troppo pochi dati: {d['nome']} ha giocato {n} {'partita' if n == 1 else 'partite'} {dove}, "
+                             f"per il grafico ne servono almeno {MIN_PARTITE}. Intanto c'è /player.")
         return
-    await _manda(msg, d, "Nessuna partita in questa stagione nei tabellini ESPN.")
+    await _manda(msg, d, f"Nessuna partita {dove} nei tabellini ESPN.")
 
 
 async def _carriera(msg, gid: int | None, nome_bref: str | None) -> None:
@@ -485,22 +557,34 @@ async def _carriera(msg, gid: int | None, nome_bref: str | None) -> None:
     await _manda(msg, d, "Nessuna stagione di questo giocatore nei dati di Basketball-Reference.")
 
 
+USO = ("Uso: /rendimento NOME [periodo] (es. /rendimento Wembanyama): la stagione partita per partita.\n"
+       "Periodo (facoltativo): una data (da lì a oggi), due date (l'intervallo) o un numero più grande di 5 (le ultime N "
+       "partite giocate), es. /rendimento Wembanyama 01-11-26 o /rendimento Wembanyama 10.\n"
+       "Per tutta la carriera: /rendimento_carriera NOME")
+
+
 async def cmd_rendimento(update, context):
+    from shared import periodo as PER
     msg = update.effective_message
-    testo = " ".join(context.args or [])
+    try:
+        testo, periodo = PER.leggi(context.args or [])    # v7.20.2 (Luca, 21/11): il periodo come /rendimento_situazione
+    except PER.Errore as er:
+        await msg.reply_text(f"❌ {er}")
+        return
     if not testo:
-        await msg.reply_text("Uso: /rendimento NOME (es. /rendimento Wembanyama): la stagione partita per partita.\n"
-                             "Per tutta la carriera: /rendimento_carriera NOME")
+        await msg.reply_text(USO)
         return
     trovati = G.cerca(testo)
     if not trovati:
         await msg.reply_text(f"Nessun giocatore si chiama «{testo}». Per i giocatori di altre epoche: /rendimento_carriera NOME")
         return
     if len(trovati) > 1 and L.norm(trovati[0]["nome_common"]) != L.norm(testo):
+        if getattr(context, "user_data", None) is not None:
+            context.user_data["rendimento_periodo"] = periodo   # per il bottone «Quale?»
         await msg.reply_text("Quale?", reply_markup=K([[B(x["nome_common"] + (" ✅" if x["a_roster"] else ""), callback_data=f"rs:{x['id']}")]
                                                        for x in trovati]))
         return
-    await _rendimento(msg, trovati[0]["id"])
+    await _rendimento(msg, trovati[0]["id"], periodo)
 
 
 def _gid_da_bref(nome_bref: str) -> int | None:
@@ -545,7 +629,8 @@ async def cb_rendimento(update, context):
     tipo, _, val = q.data.partition(":")
     await q.edit_message_text("📈 ⬇️")
     if tipo == "rs":
-        await _rendimento(q.message, int(val))
+        ud = getattr(context, "user_data", None)
+        await _rendimento(q.message, int(val), ud.pop("rendimento_periodo", None) if ud is not None else None)
     elif tipo == "rc":
         await _carriera(q.message, int(val), None)
     else:

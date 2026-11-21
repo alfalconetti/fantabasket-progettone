@@ -89,25 +89,36 @@
   let ys(v) = H - (v - lo) / (hi - lo) * H
   let xs(f) = 6pt + f * (W - 12pt)
   pad(x: 36pt, top: 16pt, bottom: 2pt, box(width: W, height: H + 26pt, {
-    if d.fanta != none {
-      let f0 = xs(d.fanta.x0) - 4pt
-      let f1 = xs(d.fanta.x1) + 4pt
+    // v7.20.2: una fascia per ogni stagione del periodo
+    for fa in d.at("fanta_tutte", default: if d.fanta != none { (d.fanta,) } else { () }) {
+      let f0 = xs(fa.x0) - 4pt
+      let f1 = xs(fa.x1) + 4pt
       place(dx: f0, dy: 0pt, rect(width: f1 - f0, height: H, fill: rgb("#FFF3C4").transparentize(15%)))
-      place(dx: f0 + 3pt, dy: 2pt, box(width: calc.max(f1 - f0, 130pt), text(6.5pt, weight: "bold", fill: oro_scuro, tracking: .5pt)[🏆 I NOSTRI PLAYOFF · #d.fanta.lbl]))
+      place(dx: f0 + 3pt, dy: 2pt, box(width: calc.max(f1 - f0, 130pt), text(6.5pt, weight: "bold", fill: oro_scuro, tracking: .5pt)[🏆 I NOSTRI PLAYOFF · #fa.lbl]))
     }
     griglia(lo, hi, d.y_passo, ys)
-    if d.post_x != none {
-      let x0 = xs(d.post_x) - 4pt
+    for px in d.at("post_inizi", default: if d.post_x != none { (d.post_x,) } else { () }) {
+      let x0 = xs(px) - 4pt
       place(dx: x0, dy: 0pt, line(length: H, angle: 90deg, stroke: (paint: grigio, thickness: 0.7pt, dash: "dotted")))
       if W - x0 > 100pt { place(dx: x0 + 3pt, dy: H - 12pt, text(6pt, weight: "bold", fill: grigio, tracking: .4pt)[PLAY-IN E PLAYOFF NBA]) }
       else { place(dx: x0 - 103pt, dy: H - 12pt, box(width: 100pt, align(right, text(6pt, weight: "bold", fill: grigio, tracking: .4pt)[PLAY-IN E PLAYOFF NBA →]))) }
     }
     medie(ys)
+    // v7.20.2 (Luca, 21/11): a cavallo di due stagioni l'estate è tagliata: una banda grigia «off-season»
+    for o in d.at("offseason", default: ()) {
+      let o0 = xs(o.x0) + 3pt
+      let o1 = xs(o.x1) - 3pt
+      place(dx: o0, dy: 0pt, rect(width: o1 - o0, height: H + 22pt, fill: rgb("#E5E1EC")))
+      place(dx: o0, dy: H / 2 - 10pt, box(width: o1 - o0, align(center, stack(spacing: 3pt,
+        text(5.5pt, weight: "bold", fill: grigio, tracking: .3pt)[OFF-SEASON],
+        text(7pt, weight: "bold", fill: rgb("#39007D"))[#o.lbl →]))))
+    }
     let n = d.punti_a.len() + d.punti_b.len()
     let r = if n > 120 { 1.6pt } else if n > 70 { 1.9pt } else { 2.2pt }
     for (pp, c) in ((d.punti_a, ca), (d.punti_b, cb)) {
       let g = pp.filter(p => p.fp != none)
       for k in range(1, g.len()) {
+        if g.at(k).at("st", default: "") != g.at(k - 1).at("st", default: "") { continue }   // non attraverso l'off-season
         place(line(start: (xs(g.at(k - 1).x), ys(g.at(k - 1).fp)), end: (xs(g.at(k).x), ys(g.at(k).fp)), stroke: (paint: c.transparentize(55%), thickness: 0.8pt)))
       }
       for p in g {
@@ -117,6 +128,7 @@
     for (pp, cs) in ((d.punti_a, ca_s), (d.punti_b, cb_s)) {
       let m = pp.filter(p => p.mobile != none)
       for k in range(1, m.len()) {
+        if m.at(k).at("st", default: "") != m.at(k - 1).at("st", default: "") { continue }
         place(line(start: (xs(m.at(k - 1).x), ys(m.at(k - 1).mobile)), end: (xs(m.at(k).x), ys(m.at(k).mobile)), stroke: (paint: cs, thickness: 2.4pt, cap: "round")))
       }
     }
@@ -136,7 +148,7 @@
     #box(width: 7pt, height: 7pt, fill: ca, baseline: -1pt) #d.a.nome #h(3pt) #box(width: 7pt, height: 7pt, fill: cb, baseline: -1pt) #d.b.nome
     · pallini e linea sottile: i fantapunti di ogni partita, sulle date (contorno grigio: play-in e playoff NBA)
     · #box(width: 12pt, height: 2pt, fill: ca_s, baseline: -2pt) #box(width: 12pt, height: 2pt, fill: cb_s, baseline: -2pt) media delle ultime 5
-    · - - - media della stagione (regular season e play-in, come /player)#if d.fanta != none [ · fascia gialla: le giornate dei nostri playoff]])
+    · - - - #d.at("media_lbl", default: "media della stagione (regular season e play-in, come /player)")#if d.fanta != none [ · fascia gialla: le giornate dei nostri playoff]])
 } else {
   let S = d.stagioni
   let n = S.len()

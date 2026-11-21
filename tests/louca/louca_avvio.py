@@ -104,4 +104,33 @@ asyncio.run(app.job_queue.messi[0][2](None))
 ok(fatti == ["a"] and avvio.ultimo("calcolo") > datetime(2026, 11, 20, tzinfo=ROME), "il job rifatto segna l'ora in job_eseguiti")
 ok(avvio.testo_recuperati(nomi) == "🔁 Saltati mentre il bot era giù, li rifaccio ora: calcolo, controllo finale della notte.",
    "il messaggio nel canale di log")
+# ── v7.20.2: Telegram che cade col bot acceso ──
+risposte = {"ok": False}
+avvio.CONTROLLO = lambda: risposte["ok"]
+avvio.GIU.update(dal=None, senza_rete=False)
+prima = avvio.ultimo("calcolo")
+asyncio.run(avvio.segnato("calcolo", job_a)(None))
+ok(avvio.ultimo("calcolo") == prima and avvio.GIU["dal"] is not None, "job finito con Telegram giù: non si segna, e si sa da quando")
+inviati = []
+
+
+class _Bot:
+    async def send_message(self, **k):
+        inviati.append(k)
+
+
+ctx = types.SimpleNamespace(application=types.SimpleNamespace(job_queue=JQ()), bot=_Bot())
+ok(asyncio.run(avvio.job_sentinella(ctx, REC, datetime(2026, 11, 20, 21, 0, tzinfo=ROME))) == "", "sentinella: ancora giù, niente")
+risposte["ok"] = True
+avvio.GIU["dal"] = datetime(2026, 11, 20, 9, 40, tzinfo=ROME)
+avvio.segna("calcolo", datetime(2026, 11, 19, 10, 2, tzinfo=ROME))
+avvio.segna("controllo_notte", datetime(2026, 11, 20, 20, 1, tzinfo=ROME))
+t = asyncio.run(avvio.job_sentinella(ctx, REC, datetime(2026, 11, 20, 21, 0, tzinfo=ROME)))
+ok([n for n, _w, _c in ctx.application.job_queue.messi] == ["recupero_calcolo"] and avvio.GIU["dal"] is None
+   and "dalle 09:40 alle 21:00" in t and "calcolo" in t and ("Telegram" in t or "Rete" in t),
+   f"Telegram tornato: rifà il calcolo non segnato e lo dice {t!r}")
+ok(asyncio.run(avvio.job_sentinella(ctx, REC)) == "", "poi, tutto normale: niente")
+asyncio.run(avvio.segnato("calcolo", job_a)(None))
+ok(avvio.ultimo("calcolo") > datetime(2026, 11, 20, 21, 0, tzinfo=ROME), "con Telegram ok il job si segna")
+avvio.CONTROLLO = None
 db.q("DELETE FROM job_eseguiti")

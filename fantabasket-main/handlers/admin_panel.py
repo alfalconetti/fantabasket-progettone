@@ -49,6 +49,7 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
         ("✂️ Taglia giocatore", "adm:taglia",  True),
         ("🏀 Attiva diritti",   "adm:rookie",  True),
         ("🏁 Decadimento",      "adm:dec",     True),
+        ("✍️ Firme registrate", "annf:l",      True),    # v7.20.2: annullare o correggere /registra_firma
         ("🏥 DPE",              "adm:dpe",     fase in FASI_DPE),
         ("🎽 Ruoli squadre",    "rladm:list",  True),   # dichiarazione per conto dei GM, anche fuori fase
         ("⏳ Ruoli in sospeso", "rpadm:list",  fase in settings.FASI_RUOLI_RS),
@@ -188,6 +189,7 @@ async def cb_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             for t in tutti
         ]
         righe = [bottoni[i:i+2] for i in range(0, len(bottoni), 2)]
+        righe.append([InlineKeyboardButton("↩️ Annulla un taglio", callback_data="annt:l")])   # v7.20.2
         righe.append([InlineKeyboardButton("← Menu", callback_data="adm:home")])
         await query.edit_message_text(
             "✂️ <b>Taglio admin</b> — seleziona squadra:",
@@ -1182,8 +1184,8 @@ async def _esegui_registra_firma(update_or_query, context, giocatore, team_id, t
                     (giocatore["id"], team_id, importo, anni, stagione))
                 contratto_id = cur.fetchone()[0]
                 cur.execute(
-                    "INSERT INTO transazioni (tipo, giocatore_id, team_id_da, team_id_a, stagione, contratto_id) "
-                    "VALUES ('signed', %s, NULL, %s, %s, %s)",
+                    "INSERT INTO transazioni (tipo, giocatore_id, team_id_da, team_id_a, stagione, contratto_id, note) "
+                    "VALUES ('signed', %s, NULL, %s, %s, %s, 'firma registrata')",   # v7.20.2: per ✍️ Firme registrate
                     (giocatore["id"], team_id, stagione, contratto_id))
     except Exception as e:
         testo = f"❌ Errore DB: {e}"

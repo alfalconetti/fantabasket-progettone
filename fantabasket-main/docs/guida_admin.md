@@ -132,6 +132,10 @@ Il controllo automatico guarda cap, roster, Stepien Rule e, in regular season, i
 
 Il bot rifiuta gli anni sbagliati (da 20M almeno 2 anni, da 35M obbligatori 3) e ti avvisa se la squadra finisce oltre il tetto o oltre 15 giocatori. In regular season apre anche la dichiarazione del ruolo al GM.
 
+**Firma registrata sbagliata** (v7.20.2): pannello → **✍️ Firme registrate** (quelle degli ultimi 90 giorni) → la firma. **↩️ Annulla la firma** toglie contratto e movimento (il giocatore torna free agent, la firma sparisce dalla sua carriera), chiude la dichiarazione di ruolo aperta dalla firma, aggiorna il foglio e avvisa il GM. Per **correggere importo o anni**: `/correggi_firma ID IMPORTO ANNI` (l'ID è nella scheda della firma, il comando è già scritto lì), con gli stessi controlli di `/registra_firma` (anni minimi, Cam Thomas). Non si può più se dopo il giocatore ha avuto altri movimenti (tagliato, scambiato) o se è stato dichiarato RFA. Nel registro delle azioni restano la firma e la correzione.
+
+**Taglio sbagliato** (v7.20.2): pannello → **✂️ Taglia giocatore** → **↩️ Annulla un taglio** (quelli degli ultimi 90 giorni) → il taglio → conferma. Il contratto torna attivo, le rate della spalmatura spariscono (o, se era gratuito, il taglio gratuito torna disponibile), il taglio sparisce dai movimenti; messaggio sul canale, avviso al GM, foglio aggiornato. Non si può se dopo il giocatore ha avuto altri movimenti (per esempio firmato da un'altra squadra). Il bot ti avvisa se la squadra finisce oltre il tetto o oltre 15 giocatori.
+
 **Rookie:** pannello → **🏀 Attiva diritti** → squadra → giocatore. Il contratto è quello della rookie scale, in qualsiasi fase.
 
 I diritti delle seconde al secondo anno scadono 10 giorni prima della trade deadline, che si imposta ogni stagione con `/trade_deadline 05/02/2027` (senza data ti mostra quella attuale e quando scadono i diritti). La data deve cadere nella stagione in corso:

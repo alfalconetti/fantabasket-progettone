@@ -377,6 +377,7 @@ ORDER BY t.timestamp, t.id;
 | `team_diff.py` | `/team_diff` |
 | `palette.py`, `myteam.py` | colori e dati squadra (colori effettivi e testo leggibile: `roster.colori_effettivi`, `roster.input_colori`) |
 | `nav.py` | navigazione dei menu: ✖️ Chiudi (`nav:x`), 🏠 Menu, ←, `mostra()` (da un bottone modifica il messaggio invece di mandarne uno nuovo) |
+| `annulla_azioni.py` | v7.20.2: annulla taglio (`annt:l`/`annt:t:<id>`/`annt:ok:<id>`, dal pannello ✂️ Taglia giocatore), firme registrate (`annf:…`, pannello ✍️ Firme registrate), `/correggi_firma ID IMPORTO ANNI`; in `database.py` `tagli_recenti`, `annulla_taglio`, `firme_registrate` (nota «firma registrata» sul movimento dalla v7.20.2, prima dalla riga del registro), `annulla_firma`, `correggi_firma`, `perche_no_*` (niente se il giocatore ha movimenti dopo: `_dopo`). Si cancellano movimento e rate (DELETE su `transazioni`, ammesso in `letture_transazioni`), non si aggiungono movimenti contrari. Prova `annulla_azioni` |
 | `admin_panel.py` | `/admin_menu`, fasi, DPE e tagli admin, `/registra_firma`, `/list`, `/set_cap_penalizzato`, `/riassegna` (callback `riass:ok`/`riass:no`, `conferma_riassegna`), situazione cap |
 | `accesso.py` | richieste di accesso (v6.26.0): `richiedi` (dalla guardia di `shared/solo_lega`, tabella `richieste_accesso`, una ogni 24 ore, al dev), `riass:menu` (voce del menu admin), `riass:utente`, `riass:sq`, `riass:ignora` |
 | `trova_trade.py` | `/trova_trade` (v6.12.0): `per_numero` / `per_giocatore` (solo `stato` approvata o annullata, con `trade_ref`), `dati` (asset dal movimento della trade: contratto di allora da `transazioni.contratto_id`; `_cap_roster` a un istante: roster a una data, DPE a una data, spalmature con la transazione fino ad allora; `_percorso` da `trade`, `trade_voti` e `registro_azioni`), `trova_trade.typ` (in verde) col Typst della libreria (`typst_compila`, v6.24.0), emoji dal font Noto Color Emoji (`fonts-noto-color-emoji` nel Dockerfile, come loucabot); trade a due solo «riceve»; FP di giocatori e diritti (v7.1.0) da `db.fantamedie` nella stagione `_stagione_al(data della trade)` + 1 di bref |
@@ -573,7 +574,7 @@ Gli errori dei job vanno a `log_job_error`: canale log e privato del dev. `/job_
 |---|---|
 | pannello e squadre | `/admin_menu`, `/list` |
 | fasi e date | `/set_fase`, `/trade_deadline` |
-| trade e firme | `/annulla_trade_admin`, `/registra_firma` |
+| trade e firme | `/annulla_trade_admin`, `/registra_firma`, `/correggi_firma` |
 | spalmature | `/ritiro_fa`, `/report_spalmature` |
 | cap e config | `/set_cap_penalizzato`, `/settings` |
 | posizioni e ruoli | `/import_posizioni_eleggibili`, `/set_posizioni_eleggibili`, `/data_erminio`, `/deadline_ruoli` |

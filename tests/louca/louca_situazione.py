@@ -106,7 +106,7 @@ try:
     SIT.L.stagione = lambda: S
     asyncio.run(SIT.rispondi(_M(), x, PER.Periodo(dal=(t0 + timedelta(days=6)).date())))
     SIT.L.stagione = SIT_stag
-    ok([k for k, _v in _inv] == ["testo", "foto"], "/rendimento_situazione: testo e immagine anche con una squadra sola")
+    ok([k for k, _v in _inv] == ["foto"], "/rendimento_situazione: solo l'immagine, anche con una squadra sola (v7.20.2)")
     ok(SIT.dati(x, PER.Periodo(dal=date(1999, 6, 1)), S) is None, "nessuna partita nel periodo: None")
     # v7.20.1: /player, giornata e dov'era in ogni partita (anche la DNP)
     pp = SIT.per_partita(x, ["sit0", "sit2", "sit3", "sit4", "sit7", "nessuna"], S)

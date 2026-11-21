@@ -346,6 +346,9 @@ def main():
         app.add_handler(h)
     for h in tagli_handlers():
         app.add_handler(h)
+    from handlers.annulla_azioni import get_handlers as annulla_handlers   # v7.20.2: annulla taglio, firme registrate
+    for h in annulla_handlers():
+        app.add_handler(h)
     for h in rookie_handlers():
         app.add_handler(h)
     for h in roster_handlers():

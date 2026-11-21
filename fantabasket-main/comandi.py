@@ -112,6 +112,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("set_fase",            "Cambia fase della stagione"),
         BotCommand("annulla_trade_admin", "Annulla una trade approvata"),
         BotCommand("registra_firma",      "Registra firma manuale [team] [giocatore] [importo] [anni]"),
+        BotCommand("correggi_firma",      "Correggi una firma registrata: ID IMPORTO ANNI"),
         BotCommand("firma_10day_admin",   "Firma un 10-day per una squadra [nome]"),
         BotCommand("ritiro_fa",           "Free agent ritirato: toglie le spalmature dei tagli passati"),
         BotCommand("report_spalmature",   "Free agent con spalmature attive (possibili ritirati)"),

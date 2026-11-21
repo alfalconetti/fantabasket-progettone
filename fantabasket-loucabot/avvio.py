@@ -10,6 +10,11 @@
    un job non ha nessuna riga si segna solo l'ora di adesso: dopo un deploy non si rifà tutto.
    Non si recuperano: foglio parziale (a metà giornata, poi superato), snapshot degli infortunati a ore fisse
    (si rifanno da soli), i job ogni minuto (live, foto, formazioni: ripartono da soli).
+3. Telegram che cade col bot acceso (v7.20.2, Luca 21/11): i job continuano a girare e i download da ESPN si fanno
+   lo stesso (il live scarica prima di pubblicare), ma un job a orario fisso che finisce mentre Telegram non risponde
+   non si segna come fatto (`segnato` lo controlla con getMe). `job_sentinella`, ogni 5 minuti, se ne accorge;
+   quando Telegram torna rifà i job non segnati (come all'avvio) e lo scrive sul canale di log, con dalle–alle e se
+   era la rete del server o Telegram.
 """
 import asyncio
 import logging
@@ -72,10 +77,36 @@ def ultimo(nome: str) -> datetime | None:
     return r["ultimo"] if r else None
 
 
+# v7.20.2: Telegram col bot acceso. CONTROLLO: funzione senza argomenti → Telegram risponde? (la imposta bot.py col
+# token; None nelle prove = sempre sì). GIU: da quando non risponde e se intanto mancava anche la rete del server.
+CONTROLLO = None
+GIU = {"dal": None, "senza_rete": False}
+RECUPERABILI: dict = {}    # quelli di bot.py (lo stesso dict)
+
+
+async def telegram_ok() -> bool:
+    if CONTROLLO is None:
+        return True
+    return bool(await asyncio.to_thread(CONTROLLO))
+
+
+def segna_giu(adesso: datetime | None = None, rete=None) -> None:
+    if GIU["dal"] is None:
+        from shared import attesa_telegram
+        GIU["dal"] = adesso or datetime.now(ROME)
+        GIU["senza_rete"] = not (rete or attesa_telegram.rete_ok)()
+        logger.warning("Telegram non risponde (rete del server %s)", "giù" if GIU["senza_rete"] else "ok")
+
+
 def segnato(nome: str, job):
-    """Il job che, finito, segna l'ora in job_eseguiti (anche se il job ha già gestito i suoi errori)."""
+    """Il job che, finito, segna l'ora in job_eseguiti (anche se il job ha già gestito i suoi errori), solo se
+    Telegram risponde (v7.20.2): se no resta da rifare quando torna (job_sentinella)."""
     async def eseguito(context):
         await job(context)
+        if GIU["dal"] is not None or not await telegram_ok():
+            segna_giu()
+            logger.warning("Job %s finito con Telegram giù: si rifà quando torna", nome)
+            return
         try:
             segna(nome)
         except Exception as e:
@@ -118,6 +149,38 @@ def recupera(app, recuperabili: dict, adesso: datetime | None = None) -> list[st
 NOMI = {"sync_nba": "sincronizzazione del mattino", "primo_controllo": "primo controllo della notte",
         "calcolo": "calcolo", "controllo_tanking": "controllo tanking", "top_notte": "top della notte",
         "controllo_notte": "controllo finale della notte"}
+
+
+def testo_tornato(dal: datetime, al: datetime, senza_rete: bool, nomi: list[str]) -> str:
+    from shared import attesa_telegram
+    chi = "🌐 Rete del server giù" if senza_rete else "📡 Telegram non rispondeva"
+    t = (f"{chi} dalle {dal.astimezone(ROME):%H:%M} alle {al.astimezone(ROME):%H:%M} "
+         f"({attesa_telegram.durata((al - dal).total_seconds())}), col bot acceso: i download da ESPN sono andati avanti.")
+    if nomi:
+        t += "\n🔁 Job saltati, li rifaccio ora: " + ", ".join(NOMI.get(n, n) for n in nomi) + "."
+    return t
+
+
+async def job_sentinella(context, recuperabili: dict | None = None, adesso: datetime | None = None) -> str:
+    """Ogni 5 minuti (v7.20.2): Telegram risponde? Al ritorno rifà i job a orario fisso non segnati e lo dice."""
+    if not await telegram_ok():
+        segna_giu(adesso)
+        return ""
+    if GIU["dal"] is None:
+        return ""
+    dal, senza_rete = GIU["dal"], GIU["senza_rete"]
+    GIU.update(dal=None, senza_rete=False)
+    if recuperabili is None:
+        recuperabili = RECUPERABILI
+    nomi = recupera(context.application, recuperabili, adesso)
+    testo = testo_tornato(dal, adesso or datetime.now(ROME), senza_rete, nomi)
+    import config
+    if config.canale_log():
+        try:
+            await context.bot.send_message(chat_id=config.canale_log(), text=testo)
+        except Exception as e:
+            logger.warning("Avviso di Telegram tornato: %s", e)
+    return testo
 
 
 def testo_recuperati(nomi: list[str]) -> str:

@@ -13,8 +13,8 @@ Legenda: ✅ c'è · 🟡 in parte · ❌ manca · ❔ da verificare nel codice 
 |---|---|---|---|---|
 | Trade approvata | ✅ `/annulla_trade_admin` (`_scrivi_trade(inverti=True)`) | — (si annulla e si rifà) | asset, cap, foglio, registro, canale | — |
 | Bozza di trade | ✅ `/annulla_trade` | ✅ `/edit_trade` | — | — |
-| Taglio | ❌ | ❌ | contratto, spalmature (`impatto_taglio`), tagli gratuiti usati, foglio, canale | **annulla taglio** (rimette contratto, toglie spalmature, ridà il taglio gratuito) — priorità alta |
-| Firma registrata a mano (`/registra_firma`) | ❌ | ❌ | contratto, cap, slot, foglio | **annulla firma** e **correggi importo/anni** — priorità alta |
+| Taglio | ✅ pannello → ✂️ Taglia giocatore → ↩️ Annulla un taglio (v7.20.2) | — (si annulla e si rifà) | contratto, spalmature (`impatto_taglio`), tagli gratuiti usati, foglio, canale | — (non se dopo ci sono altri movimenti del giocatore) |
+| Firma registrata a mano (`/registra_firma`) | ✅ pannello → ✍️ Firme registrate (v7.20.2) | ✅ `/correggi_firma ID IMPORTO ANNI` (v7.20.2) | contratto, cap, slot, foglio, dichiarazione di ruolo | — (non se dopo ci sono altri movimenti o è dichiarato RFA) |
 | Firma da asta (bot aste) | ❔ | ❔ | contratto, cap, slot, foglio | da verificare con `riapri_asta` dopo la firma |
 | Offerta in asta | ✅ `/annulla_offerta` (l'ultima) | — | asta, scadenza | — |
 | Asta | ✅ `/annulla_asta`, `/riapri_asta` | ✅ `/estendi_asta` | — | — |
@@ -64,7 +64,7 @@ Legenda: ✅ c'è · 🟡 in parte · ❌ manca · ❔ da verificare nel codice 
 
 ## Ordine proposto per i comandi mancanti
 
-1. Annulla taglio e annulla/correggi firma registrata (gli errori più facili da fare e più pesanti sul cap).
+1. ~~Annulla taglio e annulla/correggi firma registrata~~ fatti nella v7.20.2: i movimenti sbagliati si cancellano (non si aggiungono movimenti contrari), così carriera, roster alla data e `/team_diff` non mostrano cose mai avvenute; nel registro delle azioni resta tutto.
 2. Annulla decadimento.
 3. Annulla DPE, attivazione diritti, cambio ruolo.
 4. Verificare i ❔ (firma da asta, rinnovo rookie, convalida, penalità) e completare la tabella.

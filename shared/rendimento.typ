@@ -80,19 +80,28 @@
   pad(x: 36pt, top: 16pt, bottom: 2pt, box(width: W, height: H + 47pt, {
     griglia(hi, passo, ys)
     // v7.9.7 (Luca, 15/11): i nostri playoff, fascia gialla sotto le barre
-    let fp_ = d.at("fanta", default: none)
-    if fp_ != none {
+    // v7.20.2: una fascia per ogni stagione del periodo
+    for fp_ in d.at("fanta_tutte", default: if d.at("fanta", default: none) != none { (d.fanta,) } else { () }) {
       let f0 = xc(fp_.da) - slot / 2
       let f1 = xc(fp_.a) + slot / 2
       place(dx: f0, dy: 0pt, rect(width: f1 - f0, height: H, fill: rgb("#FFF3C4").transparentize(15%)))
       place(dx: f0 + 3pt, dy: 2pt, box(width: calc.max(f1 - f0 - 4pt, 120pt), text(6.5pt, weight: "bold", fill: oro_scuro, tracking: 0.5pt)[🏆 I NOSTRI PLAYOFF · P1–P#fp_.n]))
     }
     // play-in e playoff NBA: solo segnati, per conoscenza (v7.9.7: in grigio)
-    if d.post != none {
-      let x0 = xc(d.post) - slot / 2
+    for ip in d.at("post_inizi", default: if d.post != none { (d.post,) } else { () }) {
+      let x0 = xc(ip) - slot / 2
       place(dx: x0, dy: 0pt, line(length: H, angle: 90deg, stroke: (paint: grigio, thickness: 0.7pt, dash: "dotted")))
-      if W - x0 > 100pt { place(dx: x0 + 3pt, dy: 2pt, text(6pt, weight: "bold", fill: grigio, tracking: 0.4pt)[PLAY-IN E PLAYOFF NBA]) }
+      // v7.20.2: fino alla linea della stagione dopo, se c'è (la scritta non la attraversa: se non sta, solo la linea)
+      let fine = d.at("stagioni_sep", default: ()).map(sp => xc(sp.i) - slot / 2).filter(x => x > x0).fold(W, calc.min)
+      if fine < W and fine - x0 <= 100pt { }
+      else if fine - x0 > 100pt { place(dx: x0 + 3pt, dy: 2pt, text(6pt, weight: "bold", fill: grigio, tracking: 0.4pt)[PLAY-IN E PLAYOFF NBA]) }
       else { place(dx: x0 - 103pt, dy: 2pt, box(width: 100pt, align(right, text(6pt, weight: "bold", fill: grigio, tracking: 0.4pt)[PLAY-IN E PLAYOFF NBA →]))) }
+    }
+    // v7.20.2 (Luca, 21/11): periodo a cavallo di due stagioni, una linea dove inizia la nuova
+    for sp in d.at("stagioni_sep", default: ()) {
+      let x0 = xc(sp.i) - slot / 2
+      place(dx: x0, dy: -14pt, line(length: H + 14pt, angle: 90deg, stroke: 1.2pt + viola_scuro))
+      place(dx: x0 + 3pt, dy: -15pt, text(7pt, weight: "bold", fill: viola_scuro, tracking: 0.4pt)[#sp.lbl])
     }
     linea_media(d.media_val, ys)
     let bw = calc.min(slot * 0.64, 14pt)
@@ -144,5 +153,5 @@
   pad(x: 16pt, top: 6pt, bottom: 12pt, text(7pt, fill: grigio)[
     ▮ fantapunti, col colore della squadra del fantabasket (grigio libero, oro la migliore, bordo grigio play-in e playoff NBA, tacca grigia non ha giocato)#if d.at("fanta", default: none) != none [ · fascia gialla: le giornate dei nostri playoff]
     #h(4pt) #box(width: 14pt, height: 2pt, fill: viola_scuro, baseline: -2pt) media delle ultime 5
-    #h(4pt) #box(width: 14pt, height: 0pt, stroke: (top: (paint: viola_medio, thickness: 0.8pt, dash: "dashed")), baseline: -2pt) media della stagione])
+    #h(4pt) #box(width: 14pt, height: 0pt, stroke: (top: (paint: viola_medio, thickness: 0.8pt, dash: "dashed")), baseline: -2pt) #d.at("media_lbl", default: "media della stagione")])
 }

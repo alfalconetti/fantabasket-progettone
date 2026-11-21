@@ -2088,3 +2088,14 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - Loucabot v131: `/rendimento_situazione` manda sempre anche l'immagine, pure con una squadra sola
 - klra v8: copia quasi speculare di loucabot (Luca, 21/11): `/rendimento`, `/rendimento_carriera`, `/confronto`, `/confronto_carriera`, `/rendimento_situazione`, `/rendimento_team`, `/classifica_home_away`, `/quasi_cup`, `/top_storica` e `/playoff` col sistema, tutto NON UFFICIALE; niente live. `setup_db.sql`: klra legge anche `lega_giornate_playoff`
 - Codice comune: `shared/non_ufficiale.py`, il gancio con cui klra fa usare il suo sistema a rendimento, confronto, situazione, Cup e immagini (fuori da klra non cambia niente)
+
+## v7.20.2 (2026-11-21)
+
+- **Annullare un taglio** (Luca, 20-21/11; priorità del censimento delle azioni annullabili): pannello admin → ✂️ Taglia giocatore → ↩️ Annulla un taglio. Il contratto torna attivo, via le rate (o il taglio gratuito torna disponibile) e il movimento del taglio; canale, avviso al GM, foglio, registro. Non se dopo il giocatore ha avuto altri movimenti
+- **Firme registrate**: pannello admin → ✍️ Firme registrate: ↩️ annullare una firma di `/registra_firma` (contratto e movimento via, dichiarazione di ruolo chiusa) o correggerne importo e anni con `/correggi_firma ID IMPORTO ANNI`
+- Loucabot v132: `/rendimento` e `/confronto` col periodo (data, due date, ultime N giocate; mockup approvato); `/rendimento_situazione` solo immagine; i job a orario fisso finiti mentre Telegram non risponde (col bot acceso) si rifanno al ritorno, con un messaggio sul canale di log
+- klra: il bottone «Quale?» di `/rendimento` tiene il periodo
+
+## v7.20.3 (2026-11-21)
+
+- Loucabot v133: periodo di `/rendimento`, `/confronto` e `/rendimento_situazione` anche **a cavallo di due stagioni** (dal prossimo anno, quando il bot avrà i dati della stagione prima): linea della stagione nuova in `/rendimento`, banda grigia «off-season» in `/confronto`; media della stagione principale nel primo riquadro; titoli che dicono il periodo vero (primi dati del bot, tutte le K partite); data scritta male segnalata

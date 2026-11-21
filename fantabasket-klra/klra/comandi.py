@@ -576,7 +576,7 @@ async def cb_rendimento(update, context):
         tipo, _, val = q.data.partition(":")
         await q.edit_message_text("📈 ⬇️")
         if tipo == "rs":
-            await R._rendimento(msg, int(val))
+            await R._rendimento(msg, int(val), context.user_data.pop("rendimento_periodo", None))
         elif tipo == "rc":
             await R._carriera(msg, int(val), None)
         else:

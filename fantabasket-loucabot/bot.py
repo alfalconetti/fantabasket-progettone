@@ -114,6 +114,11 @@ def main():
         "controllo_notte": (regole.orario("controllo_notte"), handlers_risultati.job_controllo_finale)})
     for _nome, (_ora, _job) in RECUPERABILI.items():
         app.job_queue.run_daily(avvio.segnato(_nome, _job), time=_ora.replace(tzinfo=ROME), name=_nome)
+    # v7.20.2: Telegram che cade col bot acceso: i job a orario fisso finiti senza Telegram si rifanno al ritorno
+    _tk = _token()
+    avvio.CONTROLLO = lambda: attesa_telegram.risponde(_tk)
+    avvio.RECUPERABILI = RECUPERABILI
+    app.job_queue.run_repeating(avvio.job_sentinella, interval=timedelta(minutes=5), first=300)
     app.job_queue.run_daily(formazioni_foglio.job_parziale, time=regole.orario("foglio_parziale").replace(tzinfo=ROME))   # foglio provvisorio a metà giornata
     # snapshot degli infortunati ogni 4 ore (anche di notte) e 30 minuti prima della prima partita
     # del giorno: per il calcolo conta quello subito prima delle partite, il più recente è lo

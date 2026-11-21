@@ -45,3 +45,7 @@
 - **Quasi Cup col sistema**: qualificazione dalla classifica del sistema, semifinali e finale coi punteggi del sistema nella giornata del turno (un pari va alla squadra in casa); il live della Cup non si vede
 - **`/playoff` col sistema**: il tabellone dai seed della classifica di regular season del sistema, senza serie (le serie vere non si rifanno: le eliminate non schierano più)
 - `setup_db.sql`: in più `lega_giornate_playoff` (date dei turni per `/playoff`)
+
+## v9 (2026-11-21, progettone v7.20.2)
+
+- `/rendimento` e `/confronto` col periodo come loucabot v132 (anche dal bottone «Quale?»)

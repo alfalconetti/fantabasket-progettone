@@ -640,3 +640,15 @@ Il calcolo dei fantapunti.
 - `/rendimento_situazione`: l'immagine arriva sempre, anche se nel periodo è stato in una squadra sola (Luca, 21/11)
 - `/player`: nelle ultime partite la giornata («G5») sotto la data e dov'era il giocatore in quella giornata accanto all'avversario, in una pastiglia colorata: QUINTETTO, PANCA, TRIBUNA, FREE AG. (Luca, 21/11, mockup approvato)
 - Per klra (nessun cambiamento qui): fantapunti di rendimento, confronto e situazione e medie storiche passano da `shared/non_ufficiale.py`; le immagini di rendimento, carriera, confronto, situazione, squadre, Cup, casa/trasferta e playoff leggono striscia e filigrana NON UFFICIALE se ci sono
+
+## v132 (2026-11-21, progettone v7.20.2)
+
+- **`/rendimento NOME [periodo]`** e **`/confronto A vs B [periodo]`** (Luca, 21/11, mockup approvato): come `/rendimento_situazione`, una data, due date o le ultime N partite giocate (N > 5). Primo riquadro «Nel periodo» con accanto la media della stagione intera, il periodo nel titolo, la riga tratteggiata è la media del periodo
+- `/rendimento_situazione`: solo l'immagine, niente testo (Luca, 21/11)
+- **Telegram che cade col bot acceso** (Luca, 21/11): i download da ESPN vanno avanti; un job a orario fisso (calcolo, controlli, sincronizzazione…) che finisce mentre Telegram non risponde non si segna come fatto; ogni 5 minuti il bot controlla e, quando Telegram torna, lo rifà e scrive sul canale di log dalle–alle e se era la rete del server o Telegram (`avvio.job_sentinella`)
+
+## v133 (2026-11-21, progettone v7.20.3)
+
+- Periodo **a cavallo di due stagioni** in `/rendimento`, `/confronto` e `/rendimento_situazione` (Luca, 21/11, mockup approvato): in `/rendimento` una linea viola dove inizia la stagione nuova, in `/confronto` l'estate tagliata da una banda grigia «off-season»; le ultime N si completano con la stagione prima (mai preseason); fasce dei nostri playoff e inizio di play-in e playoff NBA per ogni stagione
+- Primo riquadro col periodo: accanto la fantamedia della **stagione principale** (più partite nel periodo, a parità la più recente)
+- **Titoli veri**: «dal … (primi dati del bot)» se la data è prima dei dati, «a oggi» se la fine è nel futuro, «tutte le K partite giocate nei dati del bot» se sono meno di N; una data scritta male ha la sua risposta invece di finire nel nome

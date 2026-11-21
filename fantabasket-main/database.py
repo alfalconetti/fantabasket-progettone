@@ -1749,3 +1749,133 @@ def minimo_cam_thomas(giocatore_id: int, team_id: str) -> int | None:
 # v7.3.0: /player, /status e /calendario anche qui (codice in shared/, con loucabot): le letture usano _q.
 from shared import lettura as _lettura  # noqa: E402
 _lettura.usa(lambda sql, params=None, one=False, many=False: _q(sql, params if params is not None else (), one=one, many=many))
+
+
+# ── Annullare un taglio, annullare o correggere una firma registrata (v7.20.2, Luca 21/11) ─────────────────
+# Si cancellano i movimenti sbagliati invece di aggiungerne di contrari: carriera, roster alla data e /team_diff
+# non mostrano un taglio e una rifirma mai avvenuti. L'errore e la correzione restano in registro_azioni.
+
+def _dopo(cur, giocatore_id: int, tid: int) -> bool:
+    """C'è un movimento del giocatore dopo il movimento `tid` (firmato da altri, scambiato, ritagliato…)."""
+    cur.execute("""SELECT 1 FROM movimenti_giocatori m, movimenti_giocatori t WHERE t.id = %s AND m.giocatore_id = %s
+                   AND m.id <> t.id AND (m.timestamp > t.timestamp OR (m.timestamp = t.timestamp AND m.id > t.id))""",
+                (tid, giocatore_id))
+    return cur.fetchone() is not None
+
+
+def tagli_recenti(giorni: int = 90, limite: int = 12) -> list[dict]:
+    """I tagli degli ultimi `giorni`, dal più recente, con contratto, rate e se si possono ancora annullare."""
+    righe = _q("""SELECT t.id, t.timestamp, t.giocatore_id, t.team_id_da, t.stagione, t.contratto_id, t.gratuito, t.note,
+                         g.nome_common, c.importo, c.anni_originali, c.stagione_firma, c.attivo
+                  FROM movimenti_giocatori t JOIN giocatori g ON g.id = t.giocatore_id
+                  LEFT JOIN contratti c ON c.id = t.contratto_id
+                  WHERE t.tipo = 'cut' AND t.timestamp > NOW() - make_interval(days => %s)
+                  ORDER BY t.timestamp DESC, t.id DESC LIMIT %s""", (giorni, limite), many=True) or []
+    for r in righe:
+        r["rate"] = _q("SELECT stagione, importo FROM impatto_taglio WHERE transazione_id = %s ORDER BY stagione",
+                       (r["id"],), many=True) or []
+    return righe
+
+
+def taglio(tid: int) -> dict | None:
+    return next((r for r in tagli_recenti(36500, 100000) if r["id"] == tid), None)
+
+
+def perche_no_annulla_taglio(t: dict) -> str | None:
+    """Perché il taglio `t` (riga di tagli_recenti) non si può annullare, o None."""
+    if not t.get("contratto_id") or t.get("attivo") is None:
+        return "il taglio non ha il contratto collegato"
+    if t["attivo"]:
+        return "il contratto è già attivo"
+    if _q("SELECT 1 FROM contratti WHERE giocatore_id = %s AND attivo", (t["giocatore_id"],), one=True):
+        return "il giocatore ha già un altro contratto"
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            if _dopo(cur, t["giocatore_id"], t["id"]):
+                return "dopo il taglio il giocatore ha avuto altri movimenti"
+    return None
+
+
+def annulla_taglio(tid: int) -> None:
+    """Contratto di nuovo attivo, via le rate e il movimento del taglio (il taglio gratuito torna disponibile: si contano
+    dai movimenti). Una transazione sola; ValueError se non si può."""
+    t = taglio(tid)
+    if not t:
+        raise ValueError("taglio non trovato")
+    perche = perche_no_annulla_taglio(t)
+    if perche:
+        raise ValueError(perche)
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            if _dopo(cur, t["giocatore_id"], tid):
+                raise ValueError("dopo il taglio il giocatore ha avuto altri movimenti")
+            cur.execute("UPDATE contratti SET attivo = TRUE WHERE id = %s AND attivo = FALSE RETURNING id", (t["contratto_id"],))
+            if not cur.fetchone():
+                raise ValueError("il contratto è già attivo")
+            cur.execute("DELETE FROM impatto_taglio WHERE transazione_id = %s", (tid,))
+            cur.execute("DELETE FROM transazioni WHERE id = %s AND tipo = 'cut'", (tid,))
+
+
+def firme_registrate(giorni: int = 90, limite: int = 12) -> list[dict]:
+    """Le firme registrate a mano (/registra_firma) degli ultimi `giorni`, dal più recente: dalla v7.20.2 hanno la nota
+    «firma registrata», prima si riconoscono dalla riga del registro delle azioni."""
+    return _q("""SELECT t.id, t.timestamp, t.giocatore_id, t.team_id_a, t.stagione, t.contratto_id, g.nome_common,
+                        c.importo, c.anni_originali, c.stagione_firma, c.attivo, c.team_id AS team_contratto
+                 FROM movimenti_giocatori t JOIN giocatori g ON g.id = t.giocatore_id
+                 JOIN contratti c ON c.id = t.contratto_id
+                 WHERE t.tipo = 'signed' AND t.timestamp > NOW() - make_interval(days => %s)
+                   AND (t.note = 'firma registrata' OR EXISTS (
+                        SELECT 1 FROM registro_azioni r WHERE r.azione = 'firma registrata' AND r.giocatore_id = t.giocatore_id
+                          AND r.quando BETWEEN t.timestamp - INTERVAL '1 minute' AND t.timestamp + INTERVAL '10 minutes'))
+                 ORDER BY t.timestamp DESC, t.id DESC LIMIT %s""", (giorni, limite), many=True) or []
+
+
+def firma_registrata(tid: int) -> dict | None:
+    return next((r for r in firme_registrate(36500, 100000) if r["id"] == tid), None)
+
+
+def perche_no_firma(f: dict) -> str | None:
+    """Perché la firma `f` (riga di firme_registrate) non si può più annullare o correggere, o None."""
+    if not f["attivo"] or f["team_contratto"] != f["team_id_a"]:
+        return "il contratto non è più attivo con quella squadra"
+    if _q("SELECT 1 FROM rfa_dichiarati WHERE contratto_id = %s", (f["contratto_id"],), one=True):
+        return "il giocatore è stato dichiarato RFA"
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            if _dopo(cur, f["giocatore_id"], f["id"]):
+                return "dopo la firma il giocatore ha avuto altri movimenti"
+    return None
+
+
+def annulla_firma(tid: int) -> None:
+    """Via contratto e movimento della firma; le dichiarazioni di ruolo aperte dalla firma si chiudono (annullata) e il
+    ruolo dichiarato dopo la firma si toglie. Una transazione sola; ValueError se non si può."""
+    f = firma_registrata(tid)
+    if not f:
+        raise ValueError("firma non trovata")
+    perche = perche_no_firma(f)
+    if perche:
+        raise ValueError(perche)
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            if _dopo(cur, f["giocatore_id"], tid):
+                raise ValueError("dopo la firma il giocatore ha avuto altri movimenti")
+            cur.execute("DELETE FROM transazioni WHERE id = %s AND tipo = 'signed'", (tid,))
+            cur.execute("UPDATE ruoli_pendenti SET stato = 'annullata', chiuso = NOW() WHERE giocatore_id = %s AND team_id = %s "
+                        "AND origine = 'firma' AND creato >= %s - INTERVAL '1 minute' AND stato IN ('aperta', 'dichiarata', 'assegnata', 'estratta')",
+                        (f["giocatore_id"], f["team_id_a"], f["timestamp"]))
+            cur.execute("DELETE FROM cambi_ruolo WHERE giocatore_id = %s AND team_id = %s AND timestamp >= %s",
+                        (f["giocatore_id"], f["team_id_a"], f["timestamp"]))
+            cur.execute("DELETE FROM contratti WHERE id = %s AND attivo", (f["contratto_id"],))
+
+
+def correggi_firma(tid: int, importo: int, anni: int) -> dict:
+    """Nuovi importo e anni del contratto della firma registrata `tid`; ritorna la firma prima della correzione."""
+    f = firma_registrata(tid)
+    if not f:
+        raise ValueError("firma non trovata")
+    perche = perche_no_firma(f)
+    if perche:
+        raise ValueError(perche)
+    _q("UPDATE contratti SET importo = %s, anni_originali = %s WHERE id = %s", (importo, anni, f["contratto_id"]))
+    return f
