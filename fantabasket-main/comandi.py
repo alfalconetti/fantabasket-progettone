@@ -50,9 +50,17 @@ ORDINE_GM = [
 ]
 
 
+# v7.21.0 (Luca, 21/11): le viste che fa anche loucabot (fantabasket-loucabot/vista.py, stesso codice): qui solo in
+# privato, nei gruppi (gruppo admin compreso) risponde loucabot
+VISTE = {"roster", "assets", "pdf_roster", "pdf_assets", "pick", "pick_lega", "carriera", "team_diff", "trova_trade",
+         "penalita"}
+
+
 def liste_comandi(fase: str) -> dict:
     """Le liste per scope, già filtrate sulla fase."""
-    cmd_group = [
+    # v7.21.0 (Luca, 21/11): nei gruppi le viste (roster, assets, pick…) le dà loucabot: qui niente menu dei gruppi
+    cmd_group = []
+    cmd_viste = [
         BotCommand("roster",  "Roster squadra [team_id] [DD-MM-YY]"),
         BotCommand("assets",  "Asset completi squadra [team_id] [DD-MM-YY]"),
         BotCommand("team_diff", "Variazioni roster [team_id] [da] [a]"),
@@ -79,7 +87,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("watchlist",  "I giocatori che segui [filtri di /giocatori]"),
         BotCommand("watch_soglia", "La soglia della grande prestazione: +20, 45, default"),
     ]
-    cmd_base = cmd_group + cmd_lega + [
+    cmd_base = cmd_viste + cmd_lega + [
         BotCommand("menu",           "Menu principale"),
         BotCommand("penalita",       "Penalità della tua squadra, o di SQUADRA"),
         BotCommand("registro",       "Registro delle azioni sulla tua squadra (.md)"),
@@ -212,7 +220,7 @@ async def registra_comandi(bot) -> None:
         await bot.set_my_commands(c["base"],  scope=BotCommandScopeDefault())
         await bot.set_my_commands(c["gm"],    scope=BotCommandScopeAllPrivateChats())
         if admin_group_id:
-            await bot.set_my_commands([x for x in c["admin"] if x.command not in SOLO_PRIVATO],
+            await bot.set_my_commands([x for x in c["admin"] if x.command not in SOLO_PRIVATO | VISTE],
                                       scope=BotCommandScopeChat(chat_id=admin_group_id))
         for aid in admin_ids:
             if dev_id and int(aid) == int(dev_id):

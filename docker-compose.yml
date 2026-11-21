@@ -84,6 +84,7 @@ services:
     environment:
       BOT_TOKEN_FILE: /run/secrets/bot_token_loucabot
       GLOBALS_PATH: /config/globals.json
+      SETTINGS_PATH: /config/settings.json            # v7.21.0: per le viste del bot principale (vista.py)
       TEAMS_PATH: /config/teams.json
       DATABASE_URL: postgresql://fantabasket@postgres/fantabasket
       PG_PASSWORD_FILE: /run/secrets/pg_password
@@ -98,6 +99,7 @@ services:
       - ./config:/config:ro
       - ./config/foto:/foto                           # unica cartella di config/ in scrittura (non in git)
       - ./shared:/app/shared:ro
+      - ./fantabasket-main:/main:ro                   # v7.21.0: roster, assets, pick… del bot principale (vista.py)
 
 
   # IPanchinari (v5.0.0): panchine (messaggi dei GM, soprannomi) e quintetti. Prima di avviarlo:

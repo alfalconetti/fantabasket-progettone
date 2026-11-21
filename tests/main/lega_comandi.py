@@ -115,7 +115,7 @@ li = comandi.liste_comandi(settings.fase())
 gruppo = {c.command for c in li["group"]}
 _lc = {"player", "status", "calendario", "rendimento", "rendimento_carriera", "confronto", "confronto_carriera"}
 ok(not gruppo & _lc and _lc <= {c.command for c in li["gm"]}
-   and "pick" in gruppo, "menu: nei gruppi no, in privato sì (/pick sì anche nei gruppi)")
+   and not gruppo and "pick" in {c.command for c in li["gm"]}, "menu: nei gruppi no, in privato sì (v7.21.0: anche /pick, nei gruppi è di loucabot)")
 app = types.SimpleNamespace(handlers={0: LG.get_handlers()})
 ok(_lc <= comandi.trova_solo_privato(app), "fuori dal menu del gruppo admin")
 

@@ -23,7 +23,8 @@ ok(m["admin"][:len(m["gm"])] == m["gm"] and "admin_menu" in m["admin"][len(m["gm
    "bot principale, admin: prima i comandi dei GM, poi quelli admin (v7.20.0, Luca: non in cima)")
 ok(m["dev"][:len(m["admin"])] == m["admin"] and len(set(m["dev"])) == len(m["dev"]), "dev: quelli admin e poi i suoi, nessun doppione")
 lo = liste("fantabasket-loucabot", "liste_comandi()")
-ok(lo.get("gm", [])[:3] == ["guida", "calendario", "giornata"] and lo["gm"][-2:] == ["pdf_giornata", "pdf_partite"],
+ok(lo.get("gm", [])[:3] == ["guida", "calendario", "giornata"] and lo["gm"][-4:] == ["pdf_giornata", "pdf_partite", "pdf_roster", "pdf_assets"]
+   and lo["gm"].index("roster") == lo["gm"].index("giocatori") + 1,
    f"loucabot: guida, la giornata, … i PDF in fondo {lo.get('gm', lo)[:3]}")
 ip = liste("fantabasket-ipanchinari", "liste_comandi()")
 ok(ip.get("gm", [])[:2] == ["build_panchina", "panchina"], f"IPanchinari: build_panchina per primo {ip.get('gm', ip)[:2]}")

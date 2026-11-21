@@ -28,7 +28,9 @@ ZONE = {
     "tests/ipa": ["fantabasket-ipanchinari", ".", "tests"],
 }
 # file che girano in un'altra cartella rispetto alla loro zona
-ZONE_FILE = {"scripts/prova_generale/foto_aste.py": ["fantabasket-aste-beta", "."]}
+ZONE_FILE = {"scripts/prova_generale/foto_aste.py": ["fantabasket-aste-beta", "."],
+             # v7.21.0: le viste del main in loucabot (il pacchetto handlers del main, codice montato in /main)
+             "fantabasket-loucabot/vista.py": ["fantabasket-main", "fantabasket-loucabot", "."]}
 
 _cache = {}
 

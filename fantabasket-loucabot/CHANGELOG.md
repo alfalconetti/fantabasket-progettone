@@ -660,3 +660,7 @@ Il calcolo dei fantapunti.
 ## v135 (2026-11-21, progettone v7.20.5)
 
 - Esempi negli «Uso:» di `/notte`, `/partita`, `/pdf_partite`, `/set_seed`, `/rendimento_team` con squadre vere a caso; nelle guide segnaposti (Luca, 21/11)
+
+## v136 (2026-11-21, progettone v7.21.0)
+
+- **Le viste del bot principale** (Luca, 21/11): `/roster`, `/assets`, `/pdf_roster`, `/pdf_assets`, `/pick`, `/pick_lega`, `/carriera`, `/team_diff`, `/trova_trade`, `/penalita` (solo da vedere: assegnare e revocare resta nel principale). Stesso codice (`vista.py`, il codice del principale montato nel container), nel menu dei gruppi e dei GM dopo `/player` e `/giocatori`, i PDF in fondo. Nei gruppi rispondono qui, il principale li tiene in privato

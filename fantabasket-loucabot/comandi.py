@@ -18,9 +18,11 @@ ORDINE_GM = [
     "calendario", "giornata", "live", "risultati", "live_results", "partita", "notte",          # la giornata
     "classifica", "classifica_conference", "classifica_full", "classifica_home_away", "rendimento_team",
     "playoff", "quasi_cup", "calendario_full",                                                 # classifiche
-    "player", "giocatori", "top", "top_storica", "status", "rendimento", "rendimento_carriera", "rendimento_situazione",
+    "player", "giocatori",
+    "roster", "assets", "pick", "pick_lega", "team_diff", "carriera", "trova_trade", "penalita",  # squadre (v7.21.0, dal main)
+    "top", "top_storica", "status", "rendimento", "rendimento_carriera", "rendimento_situazione",
     "confronto", "confronto_carriera",                                                         # giocatori
-    "pdf_giornata", "pdf_partite",                                                             # PDF in fondo
+    "pdf_giornata", "pdf_partite", "pdf_roster", "pdf_assets",                                 # PDF in fondo
 ]
 
 
@@ -53,6 +55,17 @@ def liste_comandi() -> dict:
         BotCommand("rendimento_team", "Il rendimento di una squadra giornata per giornata, panchina compresa"),
         BotCommand("quasi_cup", "La Quasi NBA Cup: qualificazione e tabellone (immagine)"),
         BotCommand("playoff", "Il tabellone dei playoff (prima dei playoff: se finisse oggi)"),
+        # v7.21.0 (Luca, 21/11): le viste del bot principale (vista.py); nei gruppi risponde loucabot
+        BotCommand("roster",  "Roster di una squadra [SQUADRA] [DD-MM-YY]"),
+        BotCommand("assets",  "Asset completi di una squadra [SQUADRA] [DD-MM-YY]"),
+        BotCommand("pick", "Di chi è una pick e la sua storia [SQUADRA] [1|2] [ANNO]"),
+        BotCommand("pick_lega", "Tutte le pick della lega in un'immagine"),
+        BotCommand("team_diff", "Variazioni di roster [SQUADRA] [da] [a]"),
+        BotCommand("carriera", "Carriera di un giocatore: fantabasket e NBA [nome]"),
+        BotCommand("trova_trade", "Una trade ufficiale: per numero o per giocatore"),
+        BotCommand("penalita", "Le penalità della tua squadra, o di SQUADRA"),
+        BotCommand("pdf_roster", "I roster di tutte le squadre in un PDF [DATA]"),
+        BotCommand("pdf_assets", "Gli asset di tutte le squadre in un PDF [DATA]"),
     ]
     gm = gruppi + [
         BotCommand("guida",      "Guida per i GM"),

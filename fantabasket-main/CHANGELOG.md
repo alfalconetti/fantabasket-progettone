@@ -2107,3 +2107,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.20.5 (2026-11-21)
 
 - **Esempi con le squadre vere** (Luca, 21/11): negli «Uso:» e negli aiuti dei bot (`/registro aiuto`, `/giocatori aiuto`, `/notte`, `/partita`, `/pdf_partite`, `/set_seed`, `/rendimento_team`, `/partita` di klra) squadre vere della lega a caso a ogni risposta (`shared/esempi.py`); nelle guide segnaposti (SQUADRA, SQUADRA1, SQUADRA2), così i nomi veri non stanno nel repo. Alfa, Beta, Gamma e Delta restano solo nelle prove (lo controlla la prova `esempi_squadre`)
+
+## v7.21.0 (2026-11-21)
+
+- **Loucabot fa tutte le viste** (Luca, 21/11: «loucabot ha tutta la parte di visualizzazione mentre il main resta il bot per agire»): `/roster`, `/assets`, `/pdf_roster`, `/pdf_assets`, `/pick`, `/pick_lega`, `/carriera`, `/team_diff`, `/trova_trade` e `/penalita` (da vedere) anche su loucabot, con lo stesso codice del bot principale (montato in sola lettura in loucabot, `fantabasket-loucabot/vista.py`). Nel bot principale restano, **solo in privato**: nei gruppi (gruppo admin compreso) risponde loucabot; il menu dei gruppi del bot principale è vuoto, quello di loucabot li ha
+- `docker-compose.yml`: loucabot monta `./fantabasket-main` in `/main` (sola lettura) e legge `settings.json`

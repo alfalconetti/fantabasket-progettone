@@ -314,6 +314,16 @@ async def _ping_healthcheck(context) -> None:
         logger.warning("Healthcheck ping fallito: %s", e)
 
 
+def _solo_privato_viste(handlers: list) -> list:
+    """v7.21.0 (Luca, 21/11): le viste (comandi.VISTE) anche in loucabot; qui solo in privato, nei gruppi risponde loucabot."""
+    from telegram.ext import CommandHandler as _CH, filters as _f
+    from comandi import VISTE
+    for h in handlers:
+        if isinstance(h, _CH) and set(h.commands) & VISTE:
+            h.filters = h.filters & _f.ChatType.PRIVATE
+    return handlers
+
+
 def main():
     db.init_db()
     db.migrate_db()
@@ -351,17 +361,17 @@ def main():
         app.add_handler(h)
     for h in rookie_handlers():
         app.add_handler(h)
-    for h in roster_handlers():
+    for h in _solo_privato_viste(roster_handlers()):
         app.add_handler(h)
     for h in myteam_handlers():
         app.add_handler(h)
-    for h in team_diff_handlers():
+    for h in _solo_privato_viste(team_diff_handlers()):
         app.add_handler(h)
-    for h in carriera_handlers():
+    for h in _solo_privato_viste(carriera_handlers()):
         app.add_handler(h)
-    for h in trova_trade_handlers():
+    for h in _solo_privato_viste(trova_trade_handlers()):
         app.add_handler(h)
-    for h in pick_handlers():
+    for h in _solo_privato_viste(pick_handlers()):
         app.add_handler(h)
     from handlers.watchlist import get_handlers as watch_handlers     # v7.8.0: la watchlist, solo in privato
     for h in watch_handlers():
@@ -386,7 +396,7 @@ def main():
         app.add_handler(h)
     for h in cambi_ruolo_handlers():
         app.add_handler(h)
-    for h in penalita_handlers():
+    for h in _solo_privato_viste(penalita_handlers()):
         app.add_handler(h)
     for h in report_ruoli_handlers():
         app.add_handler(h)

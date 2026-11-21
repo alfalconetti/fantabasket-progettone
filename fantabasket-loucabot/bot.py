@@ -97,6 +97,9 @@ def main():
     for h in (get_handlers() + handlers_risultati.get_handlers() + prova_live.get_handlers() + player.get_handlers() + status.get_handlers() + rendimento.get_handlers()
               + classifica.get_handlers() + partita.get_handlers() + congelamento.get_handlers() + cup.get_handlers() + calendario_playoff.get_handlers() + playoff.get_handlers() + rendimento_team.get_handlers()) + dev_comune.get_handlers(_is_dev, lambda: db.q("SELECT version() AS v", one=True)["v"]):
         app.add_handler(h)
+    import vista                                         # v7.21.0: roster, assets, pick… del bot principale
+    for h in vista.get_handlers():
+        app.add_handler(h)
     app.add_error_handler(dev_comune.error_handler("loucabot", config.canale_log, config.dev_id))
     # v58: niente più controllo delle 10 sulle giornate; alle 20 il controllo finale della notte prima (poi congelata)
     import top

@@ -73,7 +73,8 @@ ok({"adm:home", "nav:x"} <= set(cb(IM.home()[1])), "/settings: ← Menu admin e 
 
 # ── /team_diff nei gruppi ──
 from comandi import liste_comandi
-ok("team_diff" in [c.command for c in liste_comandi("regular-season-fa")["group"]], "/team_diff nel menu comandi dei gruppi")
+ok("team_diff" not in [c.command for c in liste_comandi("regular-season-fa")["group"]]
+   and "team_diff" in [c.command for c in liste_comandi("regular-season-fa")["gm"]], "/team_diff nel menu privato; nei gruppi è di loucabot (v7.21.0)")
 
 # ── /my_team ──
 from handlers import myteam as MT

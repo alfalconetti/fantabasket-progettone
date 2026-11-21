@@ -5,7 +5,9 @@ calendario NBA) e il **calcolo dei fantapunti** dai tabellini di ESPN. Poi class
 dei playoff dalla classifica e risultati automatici, usando i quintetti e le panchine di IPanchinari (`ipa_formazioni`, `ipa_panchine`).
 
 Fa parte del progettone: stesso PostgreSQL e stessa `config/` del bot principale e del bot aste (in sola lettura),
-moduli condivisi in `../shared/`. Legge le tabelle degli altri bot, scrive solo le sue
+moduli condivisi in `../shared/`. Dalla v136 fa anche le **viste del bot principale** (roster, assets, pick, carriera,
+team_diff, trova_trade, penalità, PDF): il codice del principale è montato in sola lettura nel container, cartella `main` (`vista.py`); nei
+gruppi rispondono qui, il principale li tiene in privato. Legge le tabelle degli altri bot, scrive solo le sue
 (`lega_giornate`, `lega_partite`, `lega_calendario_csv`, `lega_risultati`, `nba_partite`, `nba_tabellini`, `nba_infortuni`, `nba_atleti`), più id e nome ESPN nell'anagrafica
 (`giocatori.espn_id`, `nome_espn`).
 
