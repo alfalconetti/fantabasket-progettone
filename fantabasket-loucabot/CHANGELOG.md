@@ -664,3 +664,7 @@ Il calcolo dei fantapunti.
 ## v136 (2026-11-21, progettone v7.21.0)
 
 - **Le viste del bot principale** (Luca, 21/11): `/roster`, `/assets`, `/pdf_roster`, `/pdf_assets`, `/pick`, `/pick_lega`, `/carriera`, `/team_diff`, `/trova_trade`, `/penalita` (solo da vedere: assegnare e revocare resta nel principale). Stesso codice (`vista.py`, il codice del principale montato nel container), nel menu dei gruppi e dei GM dopo `/player` e `/giocatori`, i PDF in fondo. Nei gruppi rispondono qui, il principale li tiene in privato
+
+## v137 (2026-11-22, progettone v7.22.0)
+
+- `/pick` nuovo del principale (pick in mano a una squadra coi colori della sua palette, `/pick ANNO` tutto un draft, il dettaglio con squadra, giro e anno): qui la descrizione nel menu e la guida

@@ -48,11 +48,13 @@ def comando(nome, args, gruppo=True):
 
 
 for nome, args, tipo in (("roster", ["Alfa"], "foto"), ("assets", ["Alfa"], "foto"), ("roster", [], "foto"),
-                         ("pick_lega", [], "foto"), ("carriera", ["Vista", "Uno"], "foto"), ("team_diff", ["Alfa"], "testo"),
+                         ("carriera", ["Vista", "Uno"], "foto"), ("team_diff", ["Alfa"], "testo"),
                          ("penalita", ["Alfa"], "testo"), ("penalita", [], "testo")):
     out = comando(nome, args)
     ok(any(k == tipo for k, _ in out) and not any("❌" in (t or "") or "non trovat" in (t or "") for k, t in out if k == "testo"),
        f"/{nome} {' '.join(args)} nel gruppo, da loucabot: {[(k, (t or '')[:60]) for k, t in out][:3]}")
+out = comando("pick_lega", [])
+ok(out and (out[0][0] == "foto" or "Nessuna pick" in out[0][1]), f"/pick_lega: immagine (o nessuna pick nel database) {out[:1]}")
 out = comando("pick", ["Alfa", "1", str(int(S) + 1)])
 ok(out and out[0][0] in ("testo", "foto"), f"/pick: risponde {out[:1]}")
 out = comando("trova_trade", ["Vista", "Uno"])

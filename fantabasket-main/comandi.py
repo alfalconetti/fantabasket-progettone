@@ -51,7 +51,8 @@ ORDINE_GM = [
 
 
 # v7.21.0 (Luca, 21/11): le viste che fa anche loucabot (fantabasket-loucabot/vista.py, stesso codice): qui solo in
-# privato, nei gruppi (gruppo admin compreso) risponde loucabot
+# privato, nei gruppi (gruppo admin compreso) risponde loucabot. È il codice legacy: le viste nuove (draft, rinnovi…)
+# si scrivono in shared/, non qui
 VISTE = {"roster", "assets", "pdf_roster", "pdf_assets", "pick", "pick_lega", "carriera", "team_diff", "trova_trade",
          "penalita"}
 
@@ -66,7 +67,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("team_diff", "Variazioni roster [team_id] [da] [a]"),
         BotCommand("carriera", "Carriera di un giocatore: fantabasket e NBA [nome]"),
         BotCommand("trova_trade", "Una trade ufficiale: per numero o per giocatore"),
-        BotCommand("pick", "Di chi è una pick e la sua storia [SQUADRA] [1|2] [ANNO]"),
+        BotCommand("pick", "Le pick in mano a una squadra [SQUADRA] [ANNO] [1|2]; ANNO: tutto un draft; con tutto la storia"),
         BotCommand("pick_lega", "Tutte le pick della lega in un'immagine"),
         BotCommand("pdf_roster", "I roster di tutte le squadre in un PDF [DATA]"),
         BotCommand("pdf_assets", "Gli asset di tutte le squadre in un PDF [DATA]"),
@@ -213,10 +214,15 @@ async def registra_comandi(bot) -> None:
     admin_group_id = g.get("admin_group_id")
     c = liste_comandi(settings.fase())
     try:
-        await bot.set_my_commands(c["group"], scope=BotCommandScopeAllGroupChats())
         # anche per chi è amministratore di un gruppo Telegram: stessi comandi degli altri (Luca, 30/10: diventato
-        # admin del gruppo della lega non vedeva più /roster e gli altri); il gruppo admin ha il suo menu qui sotto
-        await bot.set_my_commands(c["group"], scope=BotCommandScopeAllChatAdministrators())
+        # admin del gruppo della lega non vedeva più /roster e gli altri); il gruppo admin ha il suo menu qui sotto.
+        # v7.21.1: con la lista vuota (dalla v7.21.0 nei gruppi le viste sono di loucabot) si cancella il menu: così
+        # i suggerimenti vecchi spariscono di sicuro
+        for scope in (BotCommandScopeAllGroupChats(), BotCommandScopeAllChatAdministrators()):
+            if c["group"]:
+                await bot.set_my_commands(c["group"], scope=scope)
+            else:
+                await bot.delete_my_commands(scope=scope)
         await bot.set_my_commands(c["base"],  scope=BotCommandScopeDefault())
         await bot.set_my_commands(c["gm"],    scope=BotCommandScopeAllPrivateChats())
         if admin_group_id:

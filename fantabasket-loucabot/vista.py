@@ -7,6 +7,9 @@ Il codice è quello del bot principale, montato in sola lettura in /main (docker
 stesse immagini, stessi argomenti, una modifica vale per tutti e due. Nei gruppi risponde solo loucabot; il main
 li tiene in privato (VISTE in fantabasket-main/comandi.py).
 
+È il modo di gestire il codice legacy (Luca, 21/11): le viste già scritte nel principale, riusate così come sono,
+senza refactor. Le viste nuove (draft, rinnovi…) vanno scritte direttamente in shared/, come /player e /rendimento.
+
 Come si caricano: /main in fondo a sys.path (database, settings, teams, utils, typst_compila… non esistono in
 loucabot); il pacchetto handlers del main si raggiunge dal modulo handlers.py di loucabot, a cui si dà come
 __path__ la cartella handlers del main (così funzionano anche i loro «from handlers import carriera» interni).

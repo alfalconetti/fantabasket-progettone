@@ -202,6 +202,7 @@ CM.SOLO_PRIVATO = {"registro", "edit_team"}
 class _BotM:
     def __init__(s): s.v = []
     async def set_my_commands(s, cmds, scope=None): s.v.append((type(scope).__name__, getattr(scope, "chat_id", None), [c.command for c in cmds]))
+    async def delete_my_commands(s, scope=None): s.v.append((type(scope).__name__, getattr(scope, "chat_id", None), "cancellato"))
 _bm = _BotM()
 asyncio.run(CM.registra_comandi(_bm))
 _gl = json.load(open(os.environ["GLOBALS_PATH"]))
@@ -209,6 +210,7 @@ _adm = [v for t, ch, v in _bm.v if t == "BotCommandScopeChat" and ch == _gl.get(
 _grp = [v for t, ch, v in _bm.v if t == "BotCommandScopeAllGroupChats"]
 _amm = [v for t, ch, v in _bm.v if t == "BotCommandScopeAllChatAdministrators"]
 ok(_amm and _grp and _amm[0] == _grp[0], "admin di un gruppo Telegram: stesso menu dei gruppi (prima non vedevano niente)")
+ok(_grp == ["cancellato"] and _amm == ["cancellato"], "v7.21.1: nei gruppi menu cancellato (le viste sono di loucabot), non una lista vuota")
 ok(_adm and "registro" not in _adm[0] and "edit_team" not in _adm[0] and len(_adm[0]) > 5,
    "gruppo admin: fuori dal menu i comandi che lì non funzionano")
 CM.SOLO_PRIVATO = set()

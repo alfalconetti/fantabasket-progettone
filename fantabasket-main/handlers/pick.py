@@ -1,5 +1,16 @@
 """
-/pick [SQUADRA] [1|2] [ANNO] (v7.3.0, Luca 09/11): di chi è una pick e la sua storia.
+/pick (v7.22.0, Luca 22/11, mockup approvati):
+- /pick, /pick SQUADRA (o GM): immagine con le pick che la squadra ha IN MANO (sue e prese da altre), per draft e
+  giro, coi colori della sua palette (/palette), più la colonna delle sue pick cedute (a chi, protezioni);
+  /pick SQUADRA ANNO lo stesso per un draft, /pick SQUADRA GIRO solo quel giro, di tutti gli anni.
+- /pick ANNO: immagine con tutte le pick di quel draft (stile /pick_lega: a chi spettava, chi ce l'ha, protezioni,
+  in mano 1°·2°); /pick ANNO GIRO solo quel giro.
+- /pick SQUADRA GIRO ANNO (tutti e tre): il dettaglio di una pick con la storia, come prima; qui SQUADRA è la squadra a
+  cui spettava la pick in origine. /pick GIRO ANNO è lo stesso con la squadra di chi scrive (v7.22.1); chi non è GM
+  vede il draft di tutta la lega, solo quel giro.
+Disegni in pick_squadra.typ e pick_anno.typ.
+
+Prima (v7.3.0, Luca 09/11), /pick [SQUADRA] [1|2] [ANNO]: di chi è una pick e la sua storia.
 
 Argomenti in qualsiasi ordine: 1 o 2 (anche «1°», «r2», «2nd») è il giro, un anno (2028, «28») è l'anno del
 draft, il resto è la squadra a cui apparteneva in origine (id, nome, GM o alias, la ricerca di sempre).
@@ -41,6 +52,22 @@ def _nome(team_id: str | None) -> str:
     if not team_id:
         return "—"
     return (tm.get_team_by_id(team_id) or {}).get("nome", team_id)
+
+
+def leggi(args: list[str]) -> tuple[str | None, int | None, str | None]:
+    """(testo della squadra o None, giro o None, anno o None), senza default (v7.22.0)."""
+    giro, anno, resto = None, None, []
+    for a in args:
+        x = a.strip().lower()
+        m_giro = re.fullmatch(r"(?:r|round\s*)?([12])(?:°|st|nd|o)?", x)
+        m_anno = re.fullmatch(r"(?:20)?(\d{2})", x)
+        if m_giro and giro is None:
+            giro = int(m_giro.group(1))
+        elif m_anno and anno is None and len(x) in (2, 4):
+            anno = "20" + m_anno.group(1)
+        else:
+            resto.append(a)
+    return (" ".join(resto) or None), giro, anno
 
 
 def leggi_argomenti(args: list[str], stagione: str) -> tuple[str | None, int, str, str | None]:
@@ -106,13 +133,20 @@ def _protezioni(p) -> str:
     return prot(p)
 
 
+def _scelto(p: dict) -> dict | None:
+    """Il giocatore scelto con una pick già usata (dal registro dei rookie), o None."""
+    if not p.get("numero_scelta"):
+        return None
+    return db._q("""SELECT g.nome_common FROM rookie r JOIN giocatori g ON g.id = r.giocatore_id
+                    WHERE r.anno_draft::text = %s AND r.round = %s AND r.pick_numero = %s LIMIT 1""",
+                 (str(p["anno"]), p["round"], p.get("numero_scelta")), one=True)
+
+
 def scheda(p: dict) -> str:
     giro = "1° giro" if p["round"] == 1 else "2° giro"
     righe = [f"🎯 <b>Pick {e(p['anno'])} · {giro}</b> di <b>{e(_nome(p['proprietario_orig']))}</b>"]
     if p["scattata"]:
-        scelto = db._q("""SELECT g.nome_common FROM rookie r JOIN giocatori g ON g.id = r.giocatore_id
-                          WHERE r.anno_draft::text = %s AND r.round = %s AND r.pick_numero = %s LIMIT 1""",
-                       (str(p["anno"]), p["round"], p.get("numero_scelta")), one=True) if p.get("numero_scelta") else None
+        scelto = _scelto(p)
         righe.append("✅ Già usata" + (f": scelta <b>#{p['numero_scelta']}</b>" if p.get("numero_scelta") else "")
                      + (f", {e(scelto['nome_common'])}" if scelto else "")
                      + f" · l'ha usata <b>{e(_nome(p['proprietario_att']))}</b>")
@@ -130,27 +164,163 @@ def scheda(p: dict) -> str:
     return "\n".join(righe)
 
 
+USO = ("Uso: /pick [SQUADRA] — le pick che la squadra ha in mano (senza squadra la tua) · /pick SQUADRA ANNO · "
+       "/pick SQUADRA GIRO · /pick ANNO — tutte le pick di un draft · /pick SQUADRA GIRO ANNO — la storia di una pick "
+       "(SQUADRA: a chi spettava)")
+
+
 async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """v7.22.0 (Luca, 22/11): vedi la docstring del modulo."""
     msg = update.effective_message
-    s = settings.stagione_corrente()
-    testo, giro, anno, _ = leggi_argomenti(list(context.args or []), s)
+    testo, giro, anno = leggi(list(context.args or []))
     if testo:
         team = tm.get_team_by_query(testo)
         if not team:
-            await msg.reply_text(f"❌ Squadra «{testo}» non trovata.\nUso: /pick [SQUADRA] [1|2] [ANNO], es. /pick Tibur 2 2028")
+            await msg.reply_text(f"❌ Squadra «{testo}» non trovata.\n{USO}")
             return
     else:
+        team = None
+        if giro and anno:                                 # v7.22.1 (Luca, 22/11): giro e anno senza squadra = la tua
+            team = tm.get_team_by_gm(update.effective_user.id)
+    if team and giro and anno:                            # tutto: il dettaglio con la storia
+        p = trova(team["id"], giro, anno)
+        if not p:
+            anni = db._q("SELECT MIN(anno) AS a, MAX(anno) AS b FROM pick", one=True) or {}
+            await msg.reply_text(f"❌ Nessuna pick {anno} del {giro}° giro di {team.get('nome', team['id'])}."
+                                 + (f" Le pick vanno dal {anni['a']} al {anni['b']}." if anni.get("a") else ""))
+            return
+        await msg.reply_text(scheda(p), parse_mode="HTML")
+        return
+    if anno and not team:                                 # un draft, tutta la lega
+        d = await asyncio.to_thread(dati_anno, anno, giro)
+        if not d["righe"]:
+            await msg.reply_text(f"❌ Nessuna pick del draft {anno}.")
+            return
+        png = await asyncio.to_thread(immagine, TEMPLATE_ANNO, d)
+        await msg.reply_photo(png, caption=f"🎯 Le pick del draft {anno}" + (f", {giro}° giro" if giro else "")
+                                           + " · la storia di una pick con /pick SQUADRA GIRO ANNO")
+        return
+    if not team:
         team = tm.get_team_by_gm(update.effective_user.id)
         if not team:
-            await msg.reply_text("Uso: /pick SQUADRA [1|2] [ANNO], es. /pick Tibur 2 2028 (senza squadra vale la tua, se sei un GM).")
+            await msg.reply_text(USO)
             return
-    p = trova(team["id"], giro, anno)
-    if not p:
-        anni = db._q("SELECT MIN(anno) AS a, MAX(anno) AS b FROM pick", one=True) or {}
-        await msg.reply_text(f"❌ Nessuna pick {anno} del {giro}° giro di {team.get('nome', team['id'])}."
-                             + (f" Le pick vanno dal {anni['a']} al {anni['b']}." if anni.get("a") else ""))
+    d = await asyncio.to_thread(dati_squadra, team, anno, giro)
+    if not d["righe"]:
+        await msg.reply_text(f"❌ Nessuna pick" + (f" del draft {anno}" if anno else "") + " nel database.")
         return
-    await msg.reply_text(scheda(p), parse_mode="HTML")
+    png = await asyncio.to_thread(immagine, TEMPLATE_SQUADRA, d)
+    await msg.reply_photo(png, caption=f"🎯 Le pick di {team.get('nome', team['id'])} · la storia di una pick con "
+                                       "/pick SQUADRA GIRO ANNO (la squadra a cui spettava)")
+
+
+# ── /pick SQUADRA, /pick ANNO: le immagini (v7.22.0) ───────────────────────────
+
+TEMPLATE_SQUADRA = os.path.join(os.path.dirname(__file__), "..", "pick_squadra.typ")
+TEMPLATE_ANNO = os.path.join(os.path.dirname(__file__), "..", "pick_anno.typ")
+
+
+def _anni(anno: str | None) -> list[str]:
+    """[anno], o i draft ancora da fare (quelli già fatti non servono più; se non ce ne sono, tutti)."""
+    if anno:
+        return [str(anno)]
+    anni = [r["anno"] for r in db._q("SELECT DISTINCT anno FROM pick ORDER BY anno", many=True) or []]
+    s = settings.stagione_corrente()
+    return [a for a in anni if int(a) > int(s)] or anni
+
+
+def _usata(p: dict) -> str:
+    if not p["scattata"]:
+        return ""
+    sc = _scelto(p)
+    return f"#{p.get('numero_scelta') or '?'}" + (f" · {sc['nome_common']}" if sc else "")
+
+
+def _ora(ora: datetime | None = None) -> str:
+    ora = (ora or datetime.now(ROME)).astimezone(ROME)
+    return f"{ora:%d/%m/%Y} alle {ora:%H:%M}"
+
+
+def info_squadre(pick: list[dict]) -> dict:
+    """{team_id: nome, sigla, colore, logo}, anche per una squadra che non c'è più in teams.json (dalle pick)."""
+    from handlers.carriera import sq_fanta
+    squadre = tm.get_all_teams()
+    sg = sigle(squadre)
+    info = {}
+    for t in squadre:
+        f = sq_fanta(t["id"]) or {}
+        info[t["id"]] = {"nome": t.get("nome", t["id"]), "sigla": sg[t["id"]], "colore": f.get("colore") or "#1A237E",
+                         "logo": f.get("logo") or ""}
+    for p in pick:
+        for k in ("proprietario_att", "proprietario_orig"):
+            info.setdefault(p[k], {"nome": p[k], "sigla": p[k][:3].upper(), "colore": "#9AA3B5", "logo": ""})
+    return info
+
+
+def palette(team: dict) -> dict:
+    """I colori della squadra (/palette), come nel roster, e i testi leggibili sopra."""
+    from handlers.roster import _text_on, _text_on_muted, colori_effettivi
+    c = colori_effettivi(team)
+    return {**c, "t_header": _text_on(c["header"]), "t_header_m": _text_on_muted(c["header"]), "t_dark": _text_on(c["dark"]),
+            "t_riga1": _text_on(c["riga1"]), "t_riga2": _text_on(c["riga2"]), "t_sezione": _text_on(c["sezione"]),
+            "t_pick": _text_on(c["pick"])}
+
+
+def dati_squadra(team: dict, anno: str | None = None, giro: int | None = None, ora: datetime | None = None) -> dict:
+    """Per pick_squadra.typ: le pick che `team` ha in mano, draft per draft (e giro), e le sue cedute."""
+    T = team["id"]
+    anni = _anni(anno)
+    giri = [giro] if giro else [1, 2]
+    pick = db._q("SELECT * FROM pick WHERE anno = ANY(%s) AND round = ANY(%s) ORDER BY anno, round, proprietario_orig",
+                 (anni, giri), many=True) or []
+    chip = lambda p: {"orig": p["proprietario_orig"], "propria": p["proprietario_orig"] == T,
+                      "prot": _protezioni(p.get("protezioni")) or "", "usata": _usata(p)}
+    righe = []
+    for a in anni:
+        mie = [p for p in pick if p["anno"] == a and p["proprietario_att"] == T]
+        mie.sort(key=lambda p: (p["proprietario_orig"] != T, _nome(p["proprietario_orig"]).lower()))
+        cedute = [p for p in pick if p["anno"] == a and p["proprietario_orig"] == T and p["proprietario_att"] != T]
+        righe.append({"anno": a, "giri": [[chip(p) for p in mie if p["round"] == g] for g in giri],
+                      "cedute": [{"giro": p["round"], "a": p["proprietario_att"], "prot": _protezioni(p.get("protezioni")) or "",
+                                  "usata": _usata(p)} for p in cedute]})
+    if not pick:
+        righe = []
+    in_mano = lambda g: sum(1 for p in pick if p["proprietario_att"] == T and p["round"] == g and not p["scattata"])
+    titolo = (f"draft {anni[0]}" if len(anni) == 1 else f"draft {anni[0]}–{anni[-1]}") + (f" · {giro}° giro" if giro else "")
+    mano = " · in mano: " + ", ".join(f"{in_mano(g)} di {g}° giro" for g in giri)
+    info = info_squadre(pick + [{"proprietario_att": T, "proprietario_orig": T}])
+    if info[T]["nome"] == T and team.get("nome"):
+        info[T]["nome"] = team["nome"]
+    return {"team": T, "squadre": info,
+            "colori": palette(team), "giri": giri, "righe": righe, "titolo": titolo + mano, "aggiornato": _ora(ora)}
+
+
+def dati_anno(anno: str, giro: int | None = None, ora: datetime | None = None) -> dict:
+    """Per pick_anno.typ: tutte le pick di un draft, una riga per squadra a cui spettavano."""
+    giri = [giro] if giro else [1, 2]
+    pick = db._q("SELECT * FROM pick WHERE anno = %s AND round = ANY(%s)", (str(anno), giri), many=True) or []
+    per = {(p["proprietario_orig"], p["round"]): p for p in pick}
+    origini = {p["proprietario_orig"] for p in pick}
+    info = info_squadre(pick)
+    righe = []
+    for t in sorted(origini, key=lambda x: info[x]["nome"].lower()):
+        celle = []
+        for g in giri:
+            p = per.get((t, g))
+            celle.append({"k": "nessuna"} if not p else
+                         {"k": "usata" if p["scattata"] else "propria" if p["proprietario_att"] == t else "altra",
+                          "a": p["proprietario_att"], "prot": _protezioni(p.get("protezioni")) or "", "usata": _usata(p)})
+        mano = {g: sum(1 for p in pick if p["proprietario_att"] == t and p["round"] == g and not p["scattata"]) for g in giri}
+        righe.append({"team": t, "celle": celle, "mano": [mano[g] for g in giri]})
+    return {"anno": str(anno), "giri": giri, "squadre": info, "righe": righe, "aggiornato": _ora(ora)}
+
+
+def immagine(template: str, d: dict) -> bytes:
+    import typst
+    from typst_compila import FONT
+    png = typst.compile(template, root="/", format="png", ppi=180, font_paths=[f for f in FONT if os.path.isdir(f)],
+                        sys_inputs={"dati": json.dumps(d, ensure_ascii=False, default=str)})
+    return png[0] if isinstance(png, list) else png
 
 
 # ── /pick_lega ──────────────────────────────────────────────────────────────────

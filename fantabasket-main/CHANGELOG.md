@@ -2112,3 +2112,17 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **Loucabot fa tutte le viste** (Luca, 21/11: «loucabot ha tutta la parte di visualizzazione mentre il main resta il bot per agire»): `/roster`, `/assets`, `/pdf_roster`, `/pdf_assets`, `/pick`, `/pick_lega`, `/carriera`, `/team_diff`, `/trova_trade` e `/penalita` (da vedere) anche su loucabot, con lo stesso codice del bot principale (montato in sola lettura in loucabot, `fantabasket-loucabot/vista.py`). Nel bot principale restano, **solo in privato**: nei gruppi (gruppo admin compreso) risponde loucabot; il menu dei gruppi del bot principale è vuoto, quello di loucabot li ha
 - `docker-compose.yml`: loucabot monta `./fantabasket-main` in `/main` (sola lettura) e legge `settings.json`
+
+## v7.21.1 (2026-11-21)
+
+- Menu dei gruppi del bot principale: quando è vuoto (dalla v7.21.0 le viste nei gruppi sono di loucabot) si cancella invece di mandare una lista vuota, così i suggerimenti vecchi spariscono di sicuro (sull'app Telegram può servire riaprire la chat o riavviare l'app)
+- Solo note: `vista.py` è il modo di gestire il codice legacy del principale, senza refactor; le viste nuove (draft, rinnovi…) si scrivono in `shared/`
+
+## v7.22.0 (2026-11-22)
+
+- **`/pick` rifatto** (Luca, 22/11, mockup approvati): `/pick` e `/pick SQUADRA` (o GM) = immagine con le pick che la squadra ha **in mano**, coi colori della sua palette, per draft e giro (di chi era, protezioni, usata col numero e il giocatore) e la colonna delle sue pick cedute; `/pick SQUADRA ANNO` un draft, `/pick SQUADRA GIRO` un giro di tutti gli anni; `/pick ANNO` = immagine con tutte le pick di quel draft (chi ce l'ha, protezioni, in mano), `/pick ANNO GIRO` un giro; con squadra, giro e anno il dettaglio con la storia, come prima (lì la squadra è quella a cui spettava). Anche su loucabot (stesso codice)
+- Menu `/` di loucabot e del principale: la descrizione nuova di `/pick`; MIGRATION: il calendario delle priorità (la regular season finisce a inizio febbraio)
+
+## v7.22.1 (2026-11-22)
+
+- `/pick GIRO ANNO` senza squadra = il dettaglio della pick della tua squadra, come se l'avessi scritta (Luca, 22/11: «analogo ad avere come squadra la propria»); chi non è GM vede il draft di tutta la lega, solo quel giro

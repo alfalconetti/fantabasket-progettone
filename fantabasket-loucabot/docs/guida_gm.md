@@ -68,7 +68,7 @@ Dalla v104 (Luca, 13/11) la scheda è un'**immagine** sul viola di Yahoo, come `
 
 ## Le squadre: `/roster`, `/assets`, `/pick` e gli altri
 
-Dalla v136 (Luca, 21/11) loucabot ha anche le viste del bot principale, con lo stesso codice e le stesse immagini: **`/roster [SQUADRA] [DD-MM-YY]`**, **`/assets [SQUADRA] [DD-MM-YY]`**, **`/pdf_roster [DATA]`** e **`/pdf_assets [DATA]`** (tutte le squadre in un PDF), **`/pick [SQUADRA] [1|2] [ANNO]`** e **`/pick_lega`**, **`/team_diff [SQUADRA] [da] [a]`**, **`/carriera GIOCATORE`**, **`/trova_trade NUMERO o GIOCATORE`** e **`/penalita [SQUADRA]`** (solo da vedere). Senza squadra vale la tua. Nei gruppi della lega rispondono qui; il bot principale li ha solo in privato ed è quello per agire sulla squadra (trade, tagli, ruoli, palette…). Cosa c'è in ogni immagine: la guida del bot principale (`/guida` lì).
+Dalla v136 (Luca, 21/11) loucabot ha anche le viste del bot principale, con lo stesso codice e le stesse immagini: **`/roster [SQUADRA] [DD-MM-YY]`**, **`/assets [SQUADRA] [DD-MM-YY]`**, **`/pdf_roster [DATA]`** e **`/pdf_assets [DATA]`** (tutte le squadre in un PDF), **`/pick [SQUADRA] [ANNO] [GIRO]`** (le pick in mano a una squadra; `/pick ANNO` tutto un draft; con squadra, giro e anno la storia di una pick) e **`/pick_lega`**, **`/team_diff [SQUADRA] [da] [a]`**, **`/carriera GIOCATORE`**, **`/trova_trade NUMERO o GIOCATORE`** e **`/penalita [SQUADRA]`** (solo da vedere). Senza squadra vale la tua. Nei gruppi della lega rispondono qui; il bot principale li ha solo in privato ed è quello per agire sulla squadra (trade, tagli, ruoli, palette…). Cosa c'è in ogni immagine: la guida del bot principale (`/guida` lì).
 
 ## Il rendimento: `/rendimento` e `/rendimento_carriera`
 

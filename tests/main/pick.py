@@ -52,26 +52,55 @@ db._q("INSERT INTO rookie (giocatore_id, team_id, anno_draft, round, pick_numero
 sc3 = PK.scheda(db._q("SELECT * FROM pick WHERE id = %s", (p3,), one=True))
 ok("Già usata" in sc3 and "#7" in sc3 and "Scelto Uno" in sc3, "pick già usata: numero e giocatore scelto\n" + sc3)
 
-# il comando
+# il comando (v7.22.0, Luca 22/11): squadra, giro e anno → il dettaglio; il resto sono le immagini
 out = []
 class M:
     async def reply_text(s, t, **k): out.append(t)
+    async def reply_photo(s, p, **k): out.append(("foto", k.get("caption"), p))
 import teams as tm
 gm = next((x for x in (tm.get_team_by_id("team01") or {}).get("gm_ids", [])), 101)
+ok(PK.leggi(["Alfa", "2029"]) == ("Alfa", None, "2029") and PK.leggi([]) == (None, None, None) and PK.leggi(["2", "28"]) == (None, 2, "2028"),
+   "argomenti senza default")
 async def main():
     m = M()
     upd = lambda uid: types.SimpleNamespace(effective_user=types.SimpleNamespace(id=uid), effective_message=m)
-    await PK.cmd_pick(upd(gm), types.SimpleNamespace(args=[]))
-    await PK.cmd_pick(upd(999999), types.SimpleNamespace(args=["team01", "2"]))
-    await PK.cmd_pick(upd(999999), types.SimpleNamespace(args=["team01", "2040"]))
-    await PK.cmd_pick(upd(999999), types.SimpleNamespace(args=["Nessunaaaa"]))
-    await PK.cmd_pick(upd(999999), types.SimpleNamespace(args=[]))
+    for uid, args in ((gm, []), (999999, ["team01", "2", pross]), (999999, ["team01", "2", "2040"]), (999999, ["Nessunaaaa"]),
+                      (999999, []), (999999, ["team01"]), (999999, ["team01", pross]), (999999, ["team01", "1"]), (999999, [pross]),
+                      (999999, [pross, "2"]), (999999, ["2040"]), (gm, ["2", pross])):
+        await PK.cmd_pick(upd(uid), types.SimpleNamespace(args=args))
 asyncio.run(main())
-ok(out[0].startswith("🎯") and f"Pick {pross} · 1° giro" in out[0], "/pick senza argomenti: la tua 1° giro del prossimo draft")
-ok(f"Pick {pross} · 2° giro" in out[1], "/pick team01 2")
+ok(out[0][0] == "foto" and "Le pick di" in out[0][1], "/pick senza argomenti: l'immagine delle pick della tua squadra")
+ok(isinstance(out[1], str) and f"Pick {pross} · 2° giro" in out[1], "/pick team01 2 ANNO: il dettaglio con la storia")
 ok("Nessuna pick 2040" in out[2] and "Le pick vanno dal" in out[2], "anno senza pick: lo dice, con gli anni che ci sono")
 ok("non trovata" in out[3], "squadra che non c'è")
 ok(out[4].startswith("Uso:"), "senza squadra e non GM: l'uso")
+ok(all(o[0] == "foto" for o in out[5:8]), "/pick SQUADRA, /pick SQUADRA ANNO, /pick SQUADRA GIRO: immagini")
+ok(out[8][0] == "foto" and f"draft {pross}" in out[8][1] and out[9][0] == "foto" and "2° giro" in out[9][1],
+   "/pick ANNO e, per chi non è GM, /pick ANNO GIRO: immagini del draft")
+ok("Nessuna pick del draft 2040" in out[10], "/pick ANNO senza pick: lo dice")
+ok(isinstance(out[11], str) and f"Pick {pross} · 2° giro" in out[11] and "Alfa" in out[11],
+   "v7.22.1: /pick GIRO ANNO da GM = il dettaglio della sua pick (come la squadra fosse la sua)")
+_ds = PK.dati_squadra(tm.get_team_by_id("team03"))
+_r = next(r for r in _ds["righe"] if r["anno"] == pross)
+ok(_r["giri"][0] and _r["giri"][0][0]["orig"] == "team01" and not _r["giri"][0][0]["propria"] and _r["giri"][0][0]["prot"] == "top 3",
+   f"/pick team03: in mano la 1ª {pross} di team01, protetta top 3 {_r}")
+_ds1 = PK.dati_squadra(tm.get_team_by_id("team01"), pross)
+_r1 = _ds1["righe"][0]
+ok(len(_ds1["righe"]) == 1 and [c["a"] for c in _r1["cedute"]] == ["team03"] and _r1["giri"][1][0]["propria"]
+   and "in mano: 0 di 1° giro, 1 di 2° giro" in _ds1["titolo"], f"/pick team01 ANNO: le cedute, la sua 2ª, il titolo {_ds1['titolo']}")
+ok(PK.dati_squadra(tm.get_team_by_id("team01"), None, 2)["giri"] == [2], "/pick SQUADRA GIRO: solo quel giro")
+_pa = PK.palette(tm.get_team_by_id("team01"))
+ok(all(k in _pa for k in ("header", "riga1", "riga2", "pick", "t_header", "t_pick")), "i colori della palette della squadra")
+_dv = PK.dati_squadra({"id": "team05", "nome": "Squadra Sparita"}, "2026")   # una squadra non più in teams.json
+ok(_dv["righe"][0]["giri"][0][0]["usata"] == "#7 · Scelto Uno", f"pick già usata: numero e giocatore {_dv['righe'][0]}")
+_da = PK.dati_anno("2026")
+ok(any(c["k"] == "usata" and c["usata"] == "#7 · Scelto Uno" for r in _da["righe"] for c in r["celle"]), "/pick 2026: la pick usata")
+for _n, _t, _d in (("squadra", PK.TEMPLATE_SQUADRA, PK.dati_squadra(tm.get_team_by_id("team03"))),
+                   ("anno", PK.TEMPLATE_ANNO, PK.dati_anno(pross)), ("usata", PK.TEMPLATE_SQUADRA, _dv),
+                   ("anno_giro", PK.TEMPLATE_ANNO, PK.dati_anno(pross, 2))):
+    _png = PK.immagine(_t, _d)
+    if _os.environ.get("PICK_PNG"): open(_os.environ["PICK_PNG"].replace(".png", f"_{_n}.png"), "wb").write(_png)
+    ok(_png[:4] == b"\x89PNG", f"immagine {_n}")
 
 # /pick_lega (v7.3.0): tutte le pick in un'immagine, sigle diverse tra loro
 ok(PK.sigle([{"id": "a", "nome": "Montecelio Redskins"}, {"id": "b", "nome": "Monterotondo Moose"}, {"id": "c", "nome": "Tibur", "sigla": "tbr"},
