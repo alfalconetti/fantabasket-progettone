@@ -24,6 +24,7 @@ from telegram import InlineKeyboardButton as B, InlineKeyboardMarkup as K
 
 from shared import giocatore as G
 from shared import lettura as L
+from shared import non_ufficiale as NU
 from shared.numeri import ottavi, testo as tp
 
 TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rendimento.typ")
@@ -185,7 +186,7 @@ def dati_stagione(gid: int, stagione: str | None = None) -> dict | None:
     out, contano, reg, post = [], [], [], []
     for r in tab:
         conta = L.conta(r)
-        fp = float(r["fp"]) if conta else None
+        fp = NU.fp(r) if conta else None                 # v7.20.1: in klra coi fantapunti del sistema
         sq = squadra_al(mov, r["inizio"])
         if fp is not None:
             contano.append(fp)
@@ -268,9 +269,12 @@ def dati_stagione(gid: int, stagione: str | None = None) -> dict | None:
 
 # ── /rendimento_carriera ───────────────────────────────────────────────────────
 
+BREF_STAT = "fgm, fga, fg3m, fg3a, ftm, fta, orb, drb, trb, ast, stl, blk, tov, pf, pts"   # per i pesi di klra
+
+
 def stagioni_bref(nome_bref: str) -> list[dict]:
     """Per ogni stagione di Basketball-Reference: l'ultima istantanea di ogni riga (squadra o totale)."""
-    righe = L.q("""SELECT DISTINCT ON (stagione, team) stagione, team, g, mp, fantamedia, id,
+    righe = L.q(f"""SELECT DISTINCT ON (stagione, team) stagione, team, g, mp, fantamedia, id, {BREF_STAT},
                           MIN(id) OVER (PARTITION BY stagione, team) AS primo
                    FROM bref_stats WHERE nome_bref = %s AND fantamedia IS NOT NULL ORDER BY stagione, team, timestamp DESC, id DESC""",
                 (nome_bref,), many=True) or []
@@ -283,7 +287,7 @@ def stagioni_bref(nome_bref: str) -> list[dict]:
         squadre = sorted([r for r in rr if r not in tot], key=lambda r: r["primo"])
         base = tot[0] if tot else max(rr, key=lambda r: r["g"] or 0)
         out.append({"stagione": int(s), "g": int(base["g"] or 0), "mp": float(base["mp"] or 0),
-                    "fm": float(base["fantamedia"] or 0), "teams": [r["team"] for r in squadre if r["team"]] or [base["team"] or ""]})
+                    "fm": NU.fm_bref(base), "teams": [r["team"] for r in squadre if r["team"]] or [base["team"] or ""]})
     return out
 
 
@@ -305,7 +309,7 @@ def stagione_in_corso(atleta: str, stagione: str) -> dict | None:
         if r["squadra"] and r["squadra"] not in teams:
             teams.append(r["squadra"])
     return {"stagione": int(stagione) + 1, "g": len(contano), "mp": sum(int(r["minuti"] or 0) for r in contano) / len(contano),
-            "fm": sum(float(r["fp"]) for r in contano) / len(contano), "teams": teams, "in_corso": True}
+            "fm": sum(NU.fp(r) for r in contano) / len(contano), "teams": teams, "in_corso": True}
 
 
 def stagioni_carriera(gid: int | None, nome_bref: str) -> tuple[list[dict], dict | None]:
@@ -396,6 +400,8 @@ def dati_carriera(gid: int | None, nome_bref: str, nome: str | None = None) -> d
     if corso:
         nota += " · la stagione in corso dai tabellini ESPN, come /player"
     nota += " · dati dal 1979-80"
+    if NU.nota_bref():                                    # v7.20.1, klra: i bonus del sistema non si calcolano dalle medie
+        nota += " · " + NU.nota_bref()
     test = _testata(gid, nome or nome_bref)
     # i quattro riquadri (Luca, 11/11); senza la stagione in corso lo dice
     mi = max(range(len(out)), key=lambda i: out[i]["fm"])
@@ -444,7 +450,7 @@ def immagine(d: dict) -> bytes:
     import typst
     fonts = [f for f in ("/usr/share/fonts",) if os.path.isdir(f)]
     png = typst.compile(TEMPLATE_CARRIERA if d.get("modo") == "carriera" else TEMPLATE, root="/", format="png", ppi=170, font_paths=fonts,
-                        sys_inputs={"dati": json.dumps(d, ensure_ascii=False, default=str)})
+                        sys_inputs={"dati": json.dumps(NU.marca(d), ensure_ascii=False, default=str)})
     return png[0] if isinstance(png, list) else png
 
 

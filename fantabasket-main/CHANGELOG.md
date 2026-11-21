@@ -2076,3 +2076,15 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.19.2 (2026-11-21)
 
 - IPanchinari v41: squadre «solo bot» (`/solo_bot`), per i GM che non usano più Yahoo fa fede il quintetto nel bot e in `/controlli` risultano già a posto
+
+## v7.20.0 (2026-11-21)
+
+- Loucabot v130: `/rendimento_situazione` (media per quintetto, panchina, tribuna e free agent, e per squadra); `shared/periodo.py` per il periodo dei comandi di statistiche (data, due date, ultime N)
+- Menu «/» degli admin del bot principale: prima i comandi dei GM e poi quelli admin, come negli altri bot (Luca, 21/11: non in cima)
+
+## v7.20.1 (2026-11-21)
+
+- `/player` (anche qui): nelle ultime partite, sotto la data la giornata del fantabasket («G5») e accanto all'avversario dov'era il giocatore in quella giornata: QUINTETTO, PANCA, TRIBUNA o FREE AG. (Luca, 21/11, mockup approvato)
+- Loucabot v131: `/rendimento_situazione` manda sempre anche l'immagine, pure con una squadra sola
+- klra v8: copia quasi speculare di loucabot (Luca, 21/11): `/rendimento`, `/rendimento_carriera`, `/confronto`, `/confronto_carriera`, `/rendimento_situazione`, `/rendimento_team`, `/classifica_home_away`, `/quasi_cup`, `/top_storica` e `/playoff` col sistema, tutto NON UFFICIALE; niente live. `setup_db.sql`: klra legge anche `lega_giornate_playoff`
+- Codice comune: `shared/non_ufficiale.py`, il gancio con cui klra fa usare il suo sistema a rendimento, confronto, situazione, Cup e immagini (fuori da klra non cambia niente)

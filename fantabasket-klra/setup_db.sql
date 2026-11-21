@@ -47,5 +47,7 @@ SELECT format('GRANT SELECT ON %I TO %I', c.relname, :'ruolo')
                      'nba_partite', 'nba_tabellini', 'nba_atleti', 'nba_infortuni',
                      'lega_giornate', 'lega_partite', 'lega_risultati', 'lega_status_validi', 'lega_live', 'bref_stats',
                      -- /player (v2): contratti e anagrafica del bot principale, movimenti NBA
-                     'dpe', 'rookie', 'ruoli_pendenti', 'rfa_dichiarati', 'nba_movimenti') \gexec
+                     'dpe', 'rookie', 'ruoli_pendenti', 'rfa_dichiarati', 'nba_movimenti',
+                     -- v8 (v7.20.1): /playoff col sistema (le date dei turni)
+                     'lega_giornate_playoff') \gexec
 SELECT format('ALTER ROLE %I IN DATABASE %I SET default_transaction_read_only = on', :'ruolo', current_database()) \gexec

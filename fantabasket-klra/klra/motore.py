@@ -45,6 +45,16 @@ STRISCIA = "🧪 KLRA · NON UFFICIALE · sistema {} · i risultati veri sono qu
 _TABELLA = """(SELECT * FROM json_to_recordset(%s::json) AS x(stagione text, giornata int, casa text, trasferta text,
   punti_casa numeric, punti_trasferta numeric, supp_casa numeric, supp_trasferta numeric, vince text, convalidato timestamptz))"""
 _orig: dict = {}
+# v8 (v7.20.1): il sistema del contesto (per la Quasi Cup del sistema, calcolata alla prima lettura di lega_cup)
+_SIST: contextvars.ContextVar = contextvars.ContextVar("klra_sist", default=None)
+_TABELLA_CUP = """(SELECT * FROM json_to_recordset(%s::json) AS x(stagione text, turno int, giornata int, casa text, trasferta text,
+  punti_casa numeric, punti_trasferta numeric, supp_casa numeric, supp_trasferta numeric, vince text, convalidato timestamptz))"""
+# il live della Cup è quello vero: in klra niente live (Luca 21/11: «le robe del live lascia proprio stare»)
+_CUP_LIVE_VUOTA = """(SELECT NULL::text AS stagione, NULL::int AS turno, NULL::bigint AS chat_id, NULL::bigint AS message_id,
+  NULL::jsonb AS risultati, NULL::timestamptz AS aggiornato, NULL::timestamptz AS chiuso WHERE FALSE)"""
+# dai pesi del sistema (tabellini ESPN) alle colonne delle medie di Basketball-Reference
+PESI_BREF = {"pts": "pts", "ast": "ast", "oreb": "orb", "dreb": "drb", "tpm": "fg3m", "fga": "fga", "fgm": "fgm",
+             "fta": "fta", "ftm": "ftm", "stl": "stl", "blk": "blk", "tov": "tov", "pf": "pf", "minuti": "mp"}
 
 
 # ── fantapunti di una partita ──────────────────────────────────────────────────
@@ -243,7 +253,90 @@ def _q(sql, params=None, one=False, many=False):
     partite = _PARTITE.get()
     if partite is not None and "lega_partite" in sql:
         sql, params = _sostituisci(sql, params, partite, "lega_partite", _TABELLA_PARTITE)
+    st = _SIST.get()
+    if st is not None and "lega_cup" in sql:
+        import re
+        sql = re.sub(r"\blega_cup_live\b", _CUP_LIVE_VUOTA, sql)
+        if re.search(r"\blega_cup\b", sql):
+            if st["cup"] is None:
+                st["cup"] = "[]"                          # mentre si calcola: le letture vedono i turni già fatti
+                st["cup"] = righe_cup(st)
+            sql, params = _sostituisci(sql, params, st["cup"], "lega_cup", _TABELLA_CUP)
     return _orig["q"](sql, params, one=one, many=many)
+
+
+def righe_cup(st: dict) -> str:
+    """La Quasi Cup col sistema, nella forma di lega_cup (JSON per _sostituisci): qualificazione dalla classifica del
+    sistema (lega_risultati è già quella), semifinali e finale coi punteggi di squadra del sistema nella giornata G del
+    turno, bonus casa e regole di partita del sistema. Solo turni con la giornata convalidata (le semifinali anche con
+    la qualificazione chiusa). Un pari del sistema (pareggio o pari finale) va alla squadra in casa, la meglio classificata."""
+    from shared import quasi_cup as QC
+    sist, s = st["sist"], st["stagione"]
+    P = _ATTIVO.get()
+    info = QC.giornate(s)
+    conv = giornate_convalidate(s)
+    fatte: list[dict] = []
+    for t, k in ((1, "q1"), (2, "q2")):
+        g = info[k]
+        if not g or g["numero"] not in conv or (t == 1 and not QC.qualificazione_chiusa(s, info)):
+            break
+        st["cup"] = json.dumps(fatte, default=str)
+        ris = risultati_giornata(sist, s, g["numero"], conv[g["numero"]])
+        squadre = {}
+        for r in ris["risultati"]:
+            squadre[r["casa"]], squadre[r["trasferta"]] = r["sc"], r["st"]
+        senza = P["partita"]["chi_conta"] != "titolari"
+        turno = []
+        for casa, tr in QC.abbinamenti(s, t, info):
+            if casa not in squadre or tr not in squadre:
+                continue
+            a, b = squadre[casa], squadre[tr]
+            es = esito(a["totale"], b["totale"], [] if senza else a["panchina"], [] if senza else b["panchina"], P,
+                       float(ris.get("bonus_casa") or 0))
+            vince = es["vince"] if es["vince"] in ("casa", "trasferta") else "casa"
+            ps = es["punti_supplementari"]
+            turno.append({"stagione": s, "turno": t, "giornata": g["numero"], "casa": casa, "trasferta": tr,
+                          "punti_casa": centesimi(es["regolamentari"][0]), "punti_trasferta": centesimi(es["regolamentari"][1]),
+                          "supp_casa": centesimi(ps[0]) if ps else None, "supp_trasferta": centesimi(ps[1]) if ps else None,
+                          "vince": vince, "convalidato": str(conv[g["numero"]])})
+        if not turno:
+            break
+        fatte += turno
+    return json.dumps(fatte, default=str)
+
+
+def fp_sistema(P: dict):
+    """Per shared.non_ufficiale: i fantapunti di una riga di nba_tabellini col sistema (W NBA: esiti in cache)."""
+    esiti: dict = {}
+
+    def f(r: dict) -> float:
+        es = None
+        if P["giocatore"]["vittoria_nba"] and r.get("partita"):
+            p = r["partita"]
+            if p not in esiti:
+                esiti[p] = _esiti_nba({p}).get(p)
+            es = {p: esiti[p]} if esiti[p] else {}
+        return fp_riga(r, P, es)
+    return f
+
+
+def fm_bref_sistema(P: dict):
+    """Per shared.non_ufficiale: la fantamedia di una stagione di Basketball-Reference coi pesi del sistema (le medie a
+    partita × i pesi; i bonus per partita e il tetto non si possono calcolare dalle medie)."""
+    def f(r: dict) -> float:
+        return round(sum(float(p) * float(r.get(PESI_BREF[k]) or 0) for k, p in P["pesi"].items() if p and k in PESI_BREF), 2)
+    return f
+
+
+def nota_bref(P: dict) -> str:
+    """Solo se il sistema ha bonus per partita o un tetto: le medie storiche li lasciano fuori."""
+    g = P["giocatore"]
+    bonus = [KR.BONUS_GIOCATORE[k][0].lower() for k in KR.BONUS_GIOCATORE if g.get(k)]
+    tetto = g.get("tetto") is not None
+    if not bonus and not tetto:
+        return ""
+    cosa = " e ".join(([f"i suoi bonus per partita ({', '.join(bonus)})"] if bonus else []) + (["il tetto"] if tetto else []))
+    return f"qui solo i pesi del sistema: {cosa} non si calcola{'no' if bonus else ''} dalle medie di Basketball-Reference"
 
 
 class in_conference:
@@ -361,10 +454,18 @@ class contesto:
         installa()
         # prima di sostituire: legge la lega vera (in un comando, calcolata prima in un thread e passata qui)
         righe = self.righe if self.righe is not None else righe_lega(self.sist, self.stagione)
-        self._t = (_ATTIVO.set(KR.completa(parametri(self.sist))), _RIS.set(righe), _NOME.set(nome_contesto(self.sist)))
+        P = KR.completa(parametri(self.sist))
+        self._t = (_ATTIVO.set(P), _RIS.set(righe), _NOME.set(nome_contesto(self.sist)),
+                   _SIST.set({"sist": self.sist, "stagione": self.stagione, "cup": None}))
+        from shared import non_ufficiale as NU            # v8: anche i comandi in comune (rendimento, confronto…)
+        self._nu = NU.sistema(STRISCIA.format(nome_contesto(self.sist)), fp=fp_sistema(P), fm_bref=fm_bref_sistema(P),
+                              nota_bref=nota_bref(P), chiave=firma_cache(P))
+        self._nu.__enter__()
         return self
 
     def __exit__(self, *a):
+        self._nu.__exit__(*a)
+        _SIST.reset(self._t[3])
         _NOME.reset(self._t[2])
         _RIS.reset(self._t[1])
         _ATTIVO.reset(self._t[0])
@@ -395,6 +496,12 @@ def installa() -> None:
     player.scheda = _scheda_player
     player.extra = _extra_player
     db.q = _q
+    import playoff as PO                                   # v8: /playoff col sistema (vedi _playoff_dati)
+    _orig.update(po_stato=PO.stato, po_serie=PO.serie, po_seed=PO.seed_salvati, po_dati=PO.dati_tabellone)
+    PO.stato = lambda s: None if _ATTIVO.get() else _orig["po_stato"](s)
+    PO.serie = lambda s: [] if _ATTIVO.get() else _orig["po_serie"](s)
+    PO.seed_salvati = _seed_salvati
+    PO.dati_tabellone = _playoff_dati
     CL.ordina = _ordina
     CL.dati_typst = _non_ufficiale(CL.dati_typst)
     CL.dati_conference = _non_ufficiale(CL.dati_conference)
@@ -405,6 +512,29 @@ def installa() -> None:
     calcolo._fadd_possibile = _fadd
     live.calcolo = _live_calcolo
     partita._stato_calcolo = _stato_calcolo
+
+
+def _seed_salvati(s):
+    if _ATTIVO.get():
+        import playoff as PO
+        return {c: {} for c in PO.conferenze()}
+    return _orig["po_seed"](s)
+
+
+def _playoff_dati(s):
+    """/playoff col sistema: il tabellone dai seed della classifica di regular season del sistema (6 per conference),
+    senza serie. Le serie vere non si possono rifare: chi è eliminato non schiera più, quindi un tabellone diverso non ha
+    partite da calcolare (Luca 21/11: «Ma sì fai playoff»)."""
+    d = _orig["po_dati"](s)
+    if not _ATTIVO.get():
+        return d
+    from shared import non_ufficiale as NU
+    _, giocate = CL.calcola(s)
+    d["fase"] = f"Seed dalla classifica del sistema · {giocate} giornate di regular season convalidate"
+    d["adesso"] = "Col sistema"
+    d["regole_nota"] = ("Solo i seed e il primo turno: le serie vere non si rifanno col sistema (le eliminate non "
+                        "schierano più) · " + d.get("regole_nota", ""))
+    return NU.marca(d)
 
 
 # ── partita ─────────────────────────────────────────────────────────────────────

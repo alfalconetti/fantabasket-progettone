@@ -250,6 +250,6 @@ for f, args in ((CF.cmd_confronto, ["Rend", "Uno", "vs", "Rend", "Due"]), (CF.cm
 ok(out[0][0] == "foto" and out[1][0] == "foto", "/confronto e /confronto_carriera (con uno storico) mandano l'immagine")
 ok("può essere" in out[2][1] and "Rend Due" in out[2][1] and "stesso giocatore" in out[3][1], "nome ambiguo: li elenca; lo stesso due volte")
 ok("/confronto_carriera" in out[4][1] and out[5][1].startswith("Uso:") and "nemmeno tra quelli" in out[6][1], "storico in /confronto, un nome solo, nome che non c'è")
-ok({next(iter(h.commands)) for h in LR.get_handlers() if hasattr(h, "commands")} == {"rendimento", "rendimento_carriera", "confronto", "confronto_carriera"},
-   "loucabot: anche /confronto e /confronto_carriera")
+ok({next(iter(h.commands)) for h in LR.get_handlers() if hasattr(h, "commands")} == {"rendimento", "rendimento_carriera", "confronto", "confronto_carriera", "rendimento_situazione"},
+   "loucabot: anche /confronto, /confronto_carriera e /rendimento_situazione (v7.20.0)")
 pulisci()

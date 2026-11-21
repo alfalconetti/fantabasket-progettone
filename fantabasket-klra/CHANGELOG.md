@@ -37,3 +37,11 @@
 ## v7 (2026-11-21, progettone v7.19.0)
 
 - Se Telegram non risponde all'avvio klra aspetta invece di andare in crash
+
+## v8 (2026-11-21, progettone v7.20.1)
+
+- **Copia quasi speculare di loucabot** (Luca, 21/11): `/rendimento`, `/rendimento_carriera`, `/confronto`, `/confronto_carriera`, `/rendimento_situazione`, `/rendimento_team`, `/classifica_home_away`, `/quasi_cup`, `/top_storica`, `/playoff`, coi bottoni «Quale?»; tutto NON UFFICIALE (testi, didascalie, striscia e filigrana). Niente `/giocatori`, `/status` né live
+- Fantapunti delle partite coi pesi e i bonus del sistema; medie storiche di Basketball-Reference (carriera, `/top_storica`) solo coi pesi, con una nota se il sistema ha bonus per partita o un tetto, che dalle medie non si calcolano
+- **Quasi Cup col sistema**: qualificazione dalla classifica del sistema, semifinali e finale coi punteggi del sistema nella giornata del turno (un pari va alla squadra in casa); il live della Cup non si vede
+- **`/playoff` col sistema**: il tabellone dai seed della classifica di regular season del sistema, senza serie (le serie vere non si rifanno: le eliminate non schierano più)
+- `setup_db.sql`: in più `lega_giornate_playoff` (date dei turni per `/playoff`)

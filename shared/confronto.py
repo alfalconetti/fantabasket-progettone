@@ -226,9 +226,10 @@ def dati_carriera(a: tuple[int | None, str], b: tuple[int | None, str]) -> dict 
 
 def immagine(d: dict) -> bytes:
     import typst
+    from shared import non_ufficiale as NU
     fonts = [f for f in ("/usr/share/fonts",) if os.path.isdir(f)]
     png = typst.compile(TEMPLATE, root="/", format="png", ppi=170, font_paths=fonts,
-                        sys_inputs={"dati": json.dumps(d, ensure_ascii=False, default=str)})
+                        sys_inputs={"dati": json.dumps(NU.marca(d), ensure_ascii=False, default=str)})
     return png[0] if isinstance(png, list) else png
 
 

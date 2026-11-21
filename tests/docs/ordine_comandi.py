@@ -19,8 +19,8 @@ def liste(cartella, chiamata):
 m = liste("fantabasket-main", "liste_comandi('regular-season-fa')")
 ok(m.get("gm", [])[:7] == ["menu", "guida", "roster", "assets", "my_team", "penalita", "registro"]
    and m["gm"][-2:] == ["palette", "annulla"], f"bot principale, GM: menu e guida, poi la squadra … palette e annulla in fondo {m.get('gm', m)[:7]}")
-ok(m["admin"][:2] == ["admin_menu", "guida_admin"] and m["admin"][-len(m["gm"]):] == m["gm"],
-   "bot principale, admin: pannello e guida admin in cima, poi i comandi admin, poi quelli dei GM")
+ok(m["admin"][:len(m["gm"])] == m["gm"] and "admin_menu" in m["admin"][len(m["gm"]):],
+   "bot principale, admin: prima i comandi dei GM, poi quelli admin (v7.20.0, Luca: non in cima)")
 ok(m["dev"][:len(m["admin"])] == m["admin"] and len(set(m["dev"])) == len(m["dev"]), "dev: quelli admin e poi i suoi, nessun doppione")
 lo = liste("fantabasket-loucabot", "liste_comandi()")
 ok(lo.get("gm", [])[:3] == ["guida", "calendario", "giornata"] and lo["gm"][-2:] == ["pdf_giornata", "pdf_partite"],

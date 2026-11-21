@@ -18,7 +18,7 @@ ORDINE_GM = [
     "calendario", "giornata", "live", "risultati", "live_results", "partita", "notte",          # la giornata
     "classifica", "classifica_conference", "classifica_full", "classifica_home_away", "rendimento_team",
     "playoff", "quasi_cup", "calendario_full",                                                 # classifiche
-    "player", "giocatori", "top", "top_storica", "status", "rendimento", "rendimento_carriera",
+    "player", "giocatori", "top", "top_storica", "status", "rendimento", "rendimento_carriera", "rendimento_situazione",
     "confronto", "confronto_carriera",                                                         # giocatori
     "pdf_giornata", "pdf_partite",                                                             # PDF in fondo
 ]
@@ -41,6 +41,7 @@ def liste_comandi() -> dict:
         BotCommand("giocatori",  "Cerca tra i giocatori: ruolo, squadra, FA, top per media… [filtri] (aiuto)"),
         BotCommand("status",     "Injury status dei giocatori di una squadra [SQUADRA]"),
         BotCommand("rendimento", "La stagione di un giocatore partita per partita [nome]"),
+        BotCommand("rendimento_situazione", "Media in quintetto, panchina, tribuna e da free agent [nome] [periodo]"),
         BotCommand("rendimento_carriera", "La fantamedia stagione per stagione, anche dei giocatori storici [nome]"),
         BotCommand("confronto", "Due giocatori a confronto nella stagione: A vs B"),
         BotCommand("confronto_carriera", "Due carriere a confronto, anche storiche: A vs B"),

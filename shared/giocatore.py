@@ -16,12 +16,15 @@ passa la sua scheda (klra in loucabot la sostituisce per aggiungere il sistema).
 """
 from datetime import datetime
 import html
+import logging
 import os
 
 from telegram import InlineKeyboardButton as B, InlineKeyboardMarkup as K
 
 from shared import lettura as L
 from shared.numeri import ottavi, testo as tp
+
+logger = logging.getLogger(__name__)
 
 def scadenza_diritti(r: dict, stagione: str) -> str:
     """Quando scadono i diritti di una 2nd non firmata (regolamento, come il bot principale:
@@ -550,6 +553,14 @@ def dati_scheda(gid: int, foto_di=None) -> dict | None:
     su = _piano(testo_su(partite))
     su_breve = f" su {len(partite)}" if partite else ""          # nel riquadro, corto: «11 partite su 12»
     d["ultime"] = ultime_dati(tab, partite)
+    # v7.20.1 (Luca, 21/11, mockup approvato): la giornata del fantabasket e dov'era (quintetto, panca, tribuna, FA)
+    try:
+        from shared import situazione as SIT
+        sit = SIT.per_partita(gid, [u["partita"] for u in d["ultime"] if u.get("partita")])
+        for u in d["ultime"]:
+            u.update(sit.get(u.get("partita"), {}))
+    except Exception as e:
+        logger.warning("/player, situazione delle ultime partite: %s", e)
     if not contano:
         d["riquadri"] = [{"t": "Fantamedia", "v": "—", "s": "0 partite" + su_breve}]
         d["nota_stagione"] = f"Nessuna partita giocata nel {d['stagione']}" + su + (f" ({len(tab)} a referto senza entrare)" if tab else "")
@@ -606,7 +617,8 @@ def ultime_dati(tab: list[dict], partite: list[dict], quante: int = 5) -> list[d
             if len(x) == 1:
                 p = x[0]
                 dove, avv = ("vs", p["trasferta"]) if p["squadra"] == p["casa"] else ("@", p["casa"])
-                out.append({"data": f"{p['data_et']:%d/%m}", "avv": f"{dove} {avv}", "riga": "saltata", "fp": None, "fpt": ""})
+                out.append({"data": f"{p['data_et']:%d/%m}", "avv": f"{dove} {avv}", "riga": "saltata", "fp": None, "fpt": "",
+                            "partita": p["espn_id"]})
             else:
                 out.append({"data": f"{x[0]['data_et']:%d/%m}", "avv": "",
                             "riga": f"{len(x)} partite saltate, fino al {x[-1]['data_et']:%d/%m}", "fp": None, "fpt": ""})
@@ -615,7 +627,8 @@ def ultime_dati(tab: list[dict], partite: list[dict], quante: int = 5) -> list[d
         avv = r["trasferta"] if r["squadra"] == r["casa"] else r["casa"]
         dove = "vs" if r["squadra"] == r["casa"] else "@"
         if not L.conta(r):
-            out.append({"data": f"{r['data_et']:%d/%m}", "avv": f"{dove} {avv}", "riga": "non è entrato", "fp": None, "fpt": ""})
+            out.append({"data": f"{r['data_et']:%d/%m}", "avv": f"{dove} {avv}", "riga": "non è entrato", "fp": None, "fpt": "",
+                        "partita": r["partita"]})
             continue
         # v7.18.0 (Luca, 18/11; mockup approvato): tutte le 9 categorie in sigle inglesi (quelle a 0 no), FG e FT
         # con fatti/tentati e percentuale
@@ -624,7 +637,7 @@ def ultime_dati(tab: list[dict], partite: list[dict], quante: int = 5) -> list[d
         pezzi += [f"{t} {r[f]}/{r[a]} {round(100 * int(r[f]) / int(r[a]))}%" for t, f, a in (("FG", "fgm", "fga"), ("FT", "ftm", "fta"))
                   if int(r[a] or 0)]
         out.append({"data": f"{r['data_et']:%d/%m}", "avv": f"{dove} {avv}", "riga": " · ".join(pezzi) + f" · {r['minuti']}′",
-                    "fp": float(r["fp"]), "fpt": tp(float(r["fp"]))})
+                    "fp": float(r["fp"]), "fpt": tp(float(r["fp"])), "partita": r["partita"]})
     return out
 
 

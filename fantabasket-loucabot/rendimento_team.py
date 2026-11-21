@@ -41,7 +41,8 @@ def _risultati(s: str) -> list[dict]:
 def panchine(s: str, n: int) -> dict[str, float | None]:
     """{team: fantapunti della panchina} nella giornata n (None: panchina non mandata)."""
     v = db.q("SELECT versione FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (s, n), one=True)
-    chiave = (s, n, v["versione"] if v else 0)
+    from shared import non_ufficiale as NU
+    chiave = (s, n, v["versione"] if v else 0, NU.chiave())          # v7.20.1: in klra una cache per sistema
     if chiave in _cache:
         return _cache[chiave]
     import risultati as R
@@ -156,9 +157,10 @@ def dati(team: str, s: str | None = None) -> dict | None:
 
 def immagine(d: dict) -> bytes:
     import typst
+    from shared import non_ufficiale as NU
     fonts = [x for x in ("/usr/share/fonts",) if os.path.isdir(x)]
     return typst.compile(TEMPLATE, root="/", format="png", ppi=150, font_paths=fonts,
-                         sys_inputs={"dati": json.dumps(d, ensure_ascii=False, default=str)})
+                         sys_inputs={"dati": json.dumps(NU.marca(d), ensure_ascii=False, default=str)})
 
 
 async def cmd_rendimento_team(update, context):

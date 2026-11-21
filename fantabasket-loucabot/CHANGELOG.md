@@ -630,3 +630,13 @@ Il calcolo dei fantapunti.
 - I job a orario fisso (sincronizzazione, primo controllo, calcolo, tanking, top della notte, controllo finale) segnano quando hanno girato (`job_eseguiti`); se il bot era giù alla loro ora, alla ripartenza si rifanno e il canale di log lo dice
 - Ordine dei comandi per i GM: guida, la giornata, classifiche, giocatori, PDF in fondo
 - Prove: `louca_avvio`; `louca_risultati` non dipende più dalla data di oggi (roster ESPN «recenti»)
+
+## v130 (2026-11-21, progettone v7.20.0)
+
+- **`/rendimento_situazione NOME [periodo]`** (Luca, 21/11, mockup approvato): la fantamedia divisa per quintetto, panchina, tribuna e free agent (come la query fatta a mano per Hezonja), in testo, e se è stato in più squadre una tabella squadra × situazione con totali e la casella migliore in oro. Periodo: niente (stagione), una data, due date, o le ultime N partite giocate (N > 5). Solo partite giocate di regular season
+
+## v131 (2026-11-21, progettone v7.20.1)
+
+- `/rendimento_situazione`: l'immagine arriva sempre, anche se nel periodo è stato in una squadra sola (Luca, 21/11)
+- `/player`: nelle ultime partite la giornata («G5») sotto la data e dov'era il giocatore in quella giornata accanto all'avversario, in una pastiglia colorata: QUINTETTO, PANCA, TRIBUNA, FREE AG. (Luca, 21/11, mockup approvato)
+- Per klra (nessun cambiamento qui): fantapunti di rendimento, confronto e situazione e medie storiche passano da `shared/non_ufficiale.py`; le immagini di rendimento, carriera, confronto, situazione, squadre, Cup, casa/trasferta e playoff leggono striscia e filigrana NON UFFICIALE se ci sono

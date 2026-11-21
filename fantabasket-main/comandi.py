@@ -152,9 +152,10 @@ def liste_comandi(fase: str) -> dict:
 
 
     # v7.19.0 (Luca, 21/11): un ordine sensato invece di quello in cui sono stati aggiunti
-    from shared.ordine_comandi import ordina, admin_in_cima
+    # v7.20.0 (Luca, 21/11): per gli admin i comandi GM prima e poi quelli admin, come negli altri bot
+    from shared.ordine_comandi import ordina
     gm_ord = ordina(cmd_gm, ORDINE_GM)
-    cmd_admin = admin_in_cima(gm_ord, cmd_admin)
+    cmd_admin = gm_ord + [b for b in cmd_admin if b.command not in {x.command for x in cmd_gm}]
     cmd_dev = cmd_admin + [b for b in cmd_dev if b.command not in {x.command for x in cmd_admin}]
     cmd_base, cmd_gm = ordina(cmd_base, ORDINE_GM), gm_ord
     fasi = _fasi_comando()

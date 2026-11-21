@@ -491,6 +491,102 @@ ok(m.foto and m.testi and "Col sistema Stoppate" in m.testi[-1][0],
    f"/player in klra (v7.7.0): l'immagine di loucabot, e sotto in testo la stagione col sistema {m.foto[-1][1] if m.foto else None!r}")
 ok(_PL.extra(gid[4]) == "", "fuori dal contesto di un sistema: niente testo in più")
 
+# ── v8 (v7.20.1): copia quasi speculare di loucabot: i comandi in comune col sistema, sempre NON UFFICIALE ──
+from shared import rendimento as _RE, non_ufficiale as _NU, quasi_cup as _QC
+_muro = SI.per_nome("Muro")
+_Pm = KR.completa(SI.parametri(_muro))
+_ds_f = _RE.dati_stagione(gid[4], S)
+with M.contesto(hk):
+    _ds_h = _RE.dati_stagione(gid[4], S)
+    _tab4 = [r for r in _RE.partite("k4", S) if r["giocato"]]
+    _att = [M.fp_riga(r, KR.completa(SI.parametri(hk)), {}) for r in _tab4]
+ok(not _NU.attivo() and _NU.fp({"fp": 7}) == 7.0, "fuori da klra: shared/non_ufficiale spento, i fantapunti della lega")
+_fp_h = [x["fp"] for x in _ds_h["partite"] if x["fp"] is not None]
+ok(sorted(_fp_h) == sorted(_att) and sorted(_fp_h) != sorted(x["fp"] for x in _ds_f["partite"] if x["fp"] is not None),
+   f"/rendimento col sistema Hockey: fantapunti rifatti (tripla doppia +5) {_fp_h[:3]}")
+with M.contesto(_muro):
+    _b1 = _RE.stagioni_bref("Klra 1") if hasattr(_RE, "stagioni_bref") else None
+    _nota_m = _NU.nota_bref()
+    _fm1 = _NU.fm_bref({"pts": 20, "ast": 5, "orb": 0, "drb": 2, "mp": 30})
+ok(abs(_fm1 - (20 * _Pm["pesi"]["pts"] + 5 * _Pm["pesi"]["ast"] + 2 * _Pm["pesi"]["dreb"] + 30 * _Pm["pesi"]["minuti"])) < 0.01,
+   f"medie di Basketball-Reference coi pesi del sistema Muro ({_fm1})")
+ok(_nota_m == "" if not any(_Pm["giocatore"][k] for k in KR.BONUS_GIOCATORE) and _Pm["giocatore"]["tetto"] is None else bool(_nota_m),
+   f"nota sulle medie storiche solo se il sistema ha bonus o tetto: {_nota_m!r}")
+with M.contesto(hk):
+    _nota_h = _NU.nota_bref()
+ok("tripla doppia" in _nota_h and "non si calcolano" in _nota_h, f"Hockey (tripla doppia +5): la nota lo dice {_nota_h!r}")
+ok(M.nota_bref({"giocatore": {**{k: 0 for k in KR.BONUS_GIOCATORE}, "tetto": 60}}).endswith("il tetto non si calcola dalle medie di Basketball-Reference"),
+   "solo il tetto: «il tetto non si calcola»")
+
+# Quasi Cup col sistema: qualificazione sulla G1, semifinali nella G2 (calendario della Cup finto)
+_g = {g["numero"]: g for g in db.q("SELECT * FROM lega_giornate WHERE stagione = %s", (S,), many=True)}
+_QCg, _QCq = _QC.giornate, _QC.qualificazione_chiusa
+_QC.giornate = lambda s: {"qual": [_g[1]], "q1": _g[2], "q2": None}
+_QC.qualificazione_chiusa = lambda s, info=None: True
+try:
+    with M.contesto(par):
+        _sf = _QC.risultati_cup(S, 1)
+        _lv = _QC.live(S, 1)
+        _cl1 = [x["team"] for x in _QC.classifica(S)]
+    _r2 = {r["casa"]: r for r in M.risultati_giornata(par, S, 2)["risultati"]}
+    _sq2 = {}
+    for r in _r2.values():
+        _sq2[r["casa"]], _sq2[r["trasferta"]] = r["sc"], r["st"]
+    _Pp = KR.completa(SI.parametri(par))
+    _e = [M.esito(_sq2[x["casa"]]["totale"], _sq2[x["trasferta"]]["totale"], _sq2[x["casa"]]["panchina"], _sq2[x["trasferta"]]["panchina"], _Pp,
+                  float(M.risultati_giornata(par, S, 2)["bonus_casa"])) for x in _sf]
+    ok(len(_sf) == 2 and {(x["casa"], x["trasferta"]) for x in _sf} == {(_cl1[0], _cl1[3]), (_cl1[1], _cl1[2])},
+       f"Cup col sistema: semifinali 1ª-4ª e 2ª-3ª della qualificazione del sistema {[(x['casa'], x['trasferta']) for x in _sf]}")
+    ok(all(float(x["punti_casa"]) == M.centesimi(e["regolamentari"][0]) and x["vince"] in ("casa", "trasferta") for x, e in zip(_sf, _e)),
+       "Cup: punti del sistema nella G del turno (bonus casa, regole di partita), un pari va a chi è in casa")
+    ok(_lv is None, "Cup col sistema: niente live (quello vero non si vede)")
+    m = Msg(); asyncio.run(CM.cmd_quasi_cup(upd(900, m), ctx(["Pareggi"])))
+    ok(m.foto and m.foto[-1][1].startswith("🧪 <b>NON UFFICIALE</b> · sistema <b>Pareggi</b>"), "/quasi_cup NOME: immagine, NON UFFICIALE " + str(m.testi[-1:]))
+finally:
+    _QC.giornate, _QC.qualificazione_chiusa = _QCg, _QCq
+db._pool, _k = pool_lega, db._pool
+ok(_QC.risultati_cup(S, 1) == [], "fuori dal contesto: lega_cup quella vera (vuota)")
+db._pool = _k
+
+# i comandi: tutti rispondono NON UFFICIALE, nessun errore (permessi del ruolo klra compresi)
+db._pool, _k = pool_lega, db._pool                         # nomi senza numeri (un numero in fondo è il periodo)
+for _i, _n in ((1, "Klra Uno"), (2, "Klra Due"), (3, "Klra Tre"), (4, "Klra Quattro")):
+    db.q("UPDATE giocatori SET nome_common = %s, nome_bref = %s, nome_norm = lower(%s) WHERE id = %s", (_n, _n, _n, gid[_i]))
+    db.q("UPDATE bref_stats SET nome_bref = %s WHERE nome_bref = %s", (_n, f"Klra {_i}"))
+db._pool = _k
+for _cmd, _args, _img in ((CM.cmd_rendimento, ["Klra", "Quattro"], False), (CM.cmd_rendimento_carriera, ["Klra", "Tre"], True),
+                          (CM.cmd_confronto, ["Klra", "Quattro,", "Klra", "Due"], True), (CM.cmd_confronto_carriera, ["Klra", "Uno,", "Klra", "Tre"], True),
+                          (CM.cmd_rendimento_situazione, ["Klra", "Quattro"], True), (CM.cmd_rendimento_team, ["Alfa", "Hockey"], False),
+                          (CM.cmd_classifica_home_away, ["Hockey"], True), (CM.cmd_top_storica, [S], False), (CM.cmd_playoff, ["Hockey"], True)):
+    m = Msg()
+    asyncio.run(_cmd(upd(900, m), ctx(list(_args))))
+    _tt = [t for t, _ in m.testi if not t.startswith("⏳")] + [c or "" for _, c in m.foto]
+    _err = [t for t in _tt if "non riuscito" in t or "❌" in t or "Uso:" in t or "può essere" in t]
+    ok(_tt and not _err and all(t.startswith("🧪") for t in _tt) and (m.foto or not _img),
+       f"/{_cmd.__name__[4:]}: NON UFFICIALE, nessun errore {(_err or _tt)[:2]!r}"[:400])
+    if OUT and m.foto:
+        _f = m.foto[-1][0]
+        open(os.path.join(OUT, f"klra_{_cmd.__name__[4:]}.png"), "wb").write(_f.getvalue() if hasattr(_f, "getvalue") else _f)
+m = Msg(); q = Q(900, f"rs:{gid[4]}", m)
+asyncio.run(CM.cb_rendimento(types.SimpleNamespace(callback_query=q), ctx()))
+_tt = [t for t, _ in m.testi] + [c or "" for _, c in m.foto]
+ok(_tt and all(t.startswith("🧪") for t in _tt) and q.testo == "📈 ⬇️", f"bottone «Quale?» di /rendimento: col sistema attivo, NON UFFICIALE {_tt[:1]}")
+m = Msg(); q = Q(900, f"sit:{gid[4]}", m)
+asyncio.run(CM.cb_rendimento_situazione(types.SimpleNamespace(callback_query=q), ctx()))
+ok(m.foto and all(t.startswith("🧪") for t, _ in m.testi), "bottone di /rendimento_situazione: NON UFFICIALE")
+with M.contesto(hk):
+    import playoff as _PO
+    _dp = _PO.dati_tabellone(S)
+ok(_dp["filigrana"] == "NON UFFICIALE" and "classifica del sistema" in _dp["fase"], "/playoff col sistema: seed dalla classifica del sistema, filigrana")
+db._pool, _k = pool_lega, db._pool
+ok("filigrana" not in _PO.dati_tabellone(S), "/playoff fuori da klra: com'era")
+db._pool = _k
+ok({c for c, _ in CM.PUBBLICI} >= {"rendimento", "rendimento_carriera", "confronto", "confronto_carriera", "rendimento_situazione",
+                                   "rendimento_team", "classifica_home_away", "quasi_cup", "top_storica", "playoff"},
+   "i comandi nuovi nel menu di klra")
+_h = {c for h in CM.handlers() for c in getattr(h, "commands", ())}
+ok(not _h & {"giocatori", "status", "live"}, "niente /giocatori, /status, /live")
+
 # verifica: dati cambiati dopo la convalida (un tabellino corretto) → motore uguale, differenza nei dati
 db._pool = pool_lega
 db.q("UPDATE nba_tabellini SET fp = fp + 10, pts = pts + 20 WHERE atleta = 'k2' AND partita = 'b10'")

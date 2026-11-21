@@ -518,7 +518,8 @@ def immagini_home_away(stagione: str | None = None) -> tuple[list[tuple[str, byt
     d = dati_home_away(righe, giornate, stagione)
     out = []
     for sez in d["sezioni"]:
-        dd = {**d, "titolo": f"Classifica {sez['nome'].lower()}", "sezioni": [sez]}
+        from shared import non_ufficiale as NU
+        dd = NU.marca({**d, "titolo": f"Classifica {sez['nome'].lower()}", "sezioni": [sez]})   # v7.20.1: klra
         out.append((sez["nome"], typst.compile(TEMPLATE, root="/", format="png", ppi=180,
                                                sys_inputs={"dati": json.dumps(dd, ensure_ascii=False), "full": ""})))
     return out, giornate

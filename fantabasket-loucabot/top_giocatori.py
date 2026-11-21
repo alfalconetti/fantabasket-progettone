@@ -133,7 +133,9 @@ def leggi_storica(args: list[str], s_ora: str) -> tuple[str | None, int, int, st
 
 def classifica_storica(s: str) -> list[dict]:
     """Per ogni giocatore della stagione (bref: anno di fine = s + 1) l'ultima istantanea di ogni riga; totale e squadre."""
-    righe = db.q("""SELECT DISTINCT ON (nome_bref, team) nome_bref, team, g, mp, fantamedia,
+    from shared import non_ufficiale as NU
+    from shared.rendimento import BREF_STAT
+    righe = db.q(f"""SELECT DISTINCT ON (nome_bref, team) nome_bref, team, g, mp, fantamedia, {BREF_STAT},
                            MIN(id) OVER (PARTITION BY nome_bref, team) AS primo
                     FROM bref_stats WHERE stagione = %s AND fantamedia IS NOT NULL ORDER BY nome_bref, team, timestamp DESC, id DESC""",
                  (str(int(s) + 1),), many=True) or []
@@ -145,7 +147,7 @@ def classifica_storica(s: str) -> list[dict]:
         tot = [r for r in rr if (r["team"] or "").upper() == "TOT" or (r["team"] or "").upper().endswith("TM")]
         base = tot[0] if tot else max(rr, key=lambda r: r["g"] or 0)
         squadre = [r["team"] for r in sorted([r for r in rr if r not in tot], key=lambda r: r["primo"]) if r["team"]]
-        out.append({"nome": nome, "media": float(base["fantamedia"] or 0), "partite": int(base["g"] or 0),
+        out.append({"nome": nome, "media": NU.fm_bref(base), "partite": int(base["g"] or 0),   # v7.20.1: klra, pesi del sistema
                     "minuti": float(base["mp"] or 0), "squadra": "·".join(squadre) or (base["team"] or "—")})
     massimo = max((x["partite"] for x in out), default=0)
     minimo = math.ceil(MINIMO * massimo)
@@ -162,7 +164,11 @@ def testo_storica(s: str, da: int, a: int) -> tuple[str, int]:
     scelti = tutti[da - 1:a]
     righe = [f"🏛️ Top {da}–{min(a, da - 1 + len(scelti))} per fantamedia · stagione {anno}",
              f"Medie di Basketball-Reference, regular season · almeno il {int(MINIMO * 100)}% delle partite "
-             f"({len(tutti)} giocatori in classifica)", ""]
+             f"({len(tutti)} giocatori in classifica)"]
+    from shared import non_ufficiale as NU
+    if NU.nota_bref():
+        righe.append(NU.nota_bref())
+    righe.append("")
     for i, x in enumerate(scelti, da):
         righe.append(f"{i}. {x['nome']} {tp(x['media'])} · {x['partite']} G · " + f"{x['minuti']:.1f}".replace(".", ",") + f"′ · {x['squadra']}")
     if not scelti:

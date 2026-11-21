@@ -50,6 +50,11 @@ a vittorie o a punti).
 | `/calendario`, `/calendario_full`, `/classifica_full`, `/classifica_conference` | quelli di loucabot, uguali, coi risultati del sistema (v2: dentro `motore.contesto` ogni lettura di `lega_risultati` del codice di loucabot diventa una tabella coi risultati del sistema, e l'ordine della classifica è quello del sistema); risposte che cominciano con NON UFFICIALE |
 | `/pdf_giornata [N] [NOME]`, `/pdf_partite [SQUADRA] [NOME]` | come loucabot, col sistema, con striscia e filigrana |
 | `/conference` | conference alternative (v2, Luca 06/11): lista, scheda (squadre e posti nel calendario), Usa queste, Classifica per conference, Confronta; «➕ Nuove conference»: si scelgono le squadre della prima conference coi bottoni, «🔀 Squadre a caso» le estrae (poi si possono cambiare), «🎲 Accoppia e salva» estrae a caso il posto di ognuna nel calendario vero (tabella `klra_conference`, `mappa` salvata), poi il nome. Le modifica solo chi le ha create (nuovo accoppiamento); attive per utente (`klra_scelte.conference_id`) e valgono in tutti i comandi insieme al sistema |
+| `/rendimento`, `/rendimento_carriera`, `/confronto`, `/confronto_carriera`, `/rendimento_situazione` | quelli di loucabot (v8, Luca 21/11: «copia quasi speculare»), coi fantapunti del sistema (pesi e bonus) partita per partita; le stagioni da Basketball-Reference (carriera) solo coi pesi del sistema, con la nota se il sistema ha bonus per partita o un tetto, che dalle medie non si calcolano |
+| `/rendimento_team`, `/classifica_home_away` | quelli di loucabot coi risultati e i fantapunti del sistema |
+| `/quasi_cup` | la Cup col sistema: qualificazione dalla classifica del sistema, semifinali e finale coi punteggi di squadra del sistema nella giornata del turno, bonus casa e regole di partita del sistema (un pari va a chi è in casa); niente live |
+| `/top_storica ANNO` | come loucabot, la fantamedia di ogni stagione coi pesi del sistema (con la nota sui bonus) |
+| `/playoff` | il tabellone dai seed della classifica di regular season del sistema (6 per conference), senza serie: quelle vere non si rifanno col sistema perché le eliminate non schierano più |
 | `/klra_verifica` (dev) | il motore: l'Ufficiale di klra contro il ricalcolo di oggi di loucabot (deve essere identico); a parte le partite in cui il ricalcolo di oggi è diverso dalla convalida (dati cambiati dopo) |
 
 **Tutto è segnato NON UFFICIALE** (Luca, 04/11): striscia rossa in cima e filigrana in diagonale su ogni immagine (campi `striscia` e `filigrana`, letti anche da `partita.typ` e `live.typ` di loucabot), etichetta rossa al posto dello stato, didascalie e testi che iniziano con «🧪 NON UFFICIALE», avviso in `/start` e `/sistemi`.
@@ -60,7 +65,9 @@ a vittorie o a punti).
 
 `/confronta` e il 🔄 di `/risultati` partono dall'**Ufficiale ricalcolato coi dati di oggi**, non dai risultati convalidati: così le differenze vengono solo dalle regole del sistema. La cache dei risultati è per firma dei parametri più `VERSIONE_MOTORE` (si alza quando cambia il modo di calcolare: all'avvio la cache vecchia si cancella).
 
-`/player NOME [SISTEMA]` è quello di loucabot con in fondo la stagione col sistema (fantamedia e ultime 5 partite coi fantapunti e i bonus del sistema, accanto quelli della lega); `/live`, `/live_results` e `/notte` non ci sono: klra lavora solo sulle giornate convalidate (per il live c'è loucabot).
+**Comandi in comune** (v8): rendimento, confronto, situazione, Cup e le loro immagini stanno in `shared/`; dentro `motore.contesto` klra imposta `shared/non_ufficiale.py` (fantapunti di una partita col sistema, fantamedia di una stagione di Basketball-Reference coi pesi, nota, chiave di cache, striscia e filigrana), le letture di `lega_cup` diventano la Cup del sistema (`motore.righe_cup`, calcolata alla prima lettura) e `lega_cup_live` una tabella vuota; `/playoff` vede stato, seed salvati e serie vuoti (`motore._playoff_dati`).
+
+`/player NOME [SISTEMA]` è quello di loucabot con in fondo la stagione col sistema (fantamedia e ultime 5 partite coi fantapunti e i bonus del sistema, accanto quelli della lega); `/live`, `/live_results`, `/notte`, `/giocatori` e `/status` non ci sono: klra lavora solo sulle giornate convalidate (per il live c'è loucabot).
 
 Senza NOME vale il tuo sistema attivo; N di default è l'ultima giornata convalidata. Editor (`klra/editor.py`, solo in
 privato): cinque sezioni, un bottone per voce col valore; le voci a scelta cambiano a ogni tocco, quelle numeriche

@@ -126,10 +126,18 @@
     #v(4pt)
     #let fps = d.ultime.filter(u => u.fp != none).map(u => u.fp)
     #let mx = if fps.len() > 0 { calc.max(..fps, 1) } else { 1 }
-    #table(columns: (34pt, 42pt, 1fr, 96pt), stroke: (x, y) => (bottom: 0.5pt + bordo), inset: (x: 4pt, y: 5pt),
+    #table(columns: (34pt, 50pt, 1fr, 96pt), stroke: (x, y) => (bottom: 0.5pt + bordo), inset: (x: 4pt, y: 5pt),
       align: horizon,
       ..d.ultime.map(u => (
-        text(8pt, fill: grigio)[#u.data], text(8pt, weight: "bold")[#u.avv],
+        // v7.20.1 (Luca, 21/11, mockup approvato): sotto la data la giornata del fantabasket, sotto l'avversario dov'era
+        stack(spacing: 2.5pt, text(8pt, fill: grigio)[#u.data],
+          if u.at("giornata", default: none) != none { text(6.3pt, weight: "bold", fill: grigio)[G#u.giornata] }),
+        stack(spacing: 2.5pt, text(8pt, weight: "bold")[#u.avv],
+          if u.at("dove", default: none) != none {
+            let col = (quintetto: rgb("#16A34A"), panca: rgb("#D97706"), tribuna: rgb("#6B7280"), fa: rgb("#0EA5E9")).at(u.dove)
+            let lab = (quintetto: "QUINTETTO", panca: "PANCA", tribuna: "TRIBUNA", fa: "FREE AG.").at(u.dove)
+            box(fill: col, radius: 2pt, inset: (x: 2.5pt, y: 1.5pt), text(5pt, weight: "bold", fill: white, tracking: 0.2pt)[#lab])
+          }),
         if u.fp == none { text(8pt, style: "italic", fill: grigio)[#u.riga] } else { text(7.5pt)[#u.riga] },
         if u.fp == none { [] } else {
           box(grid(columns: (auto, auto), column-gutter: 4pt, align: horizon,

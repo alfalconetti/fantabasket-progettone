@@ -70,6 +70,16 @@ PUBBLICI = [("sistemi", "I sistemi di punteggio: scegli, copia, modifica"),
             ("usa", "Scegli il tuo sistema: /usa NOME"),
             ("conference", "Conference alternative: scegli, crea, confronta"),
             ("player", "Un giocatore, con la fantamedia del tuo sistema [NOME SISTEMA]"),
+            ("rendimento", "Il rendimento di un giocatore in stagione col sistema GIOCATORE"),
+            ("rendimento_carriera", "La carriera di un giocatore coi pesi del sistema GIOCATORE"),
+            ("confronto", "Due giocatori a confronto col sistema G1, G2"),
+            ("confronto_carriera", "Due carriere a confronto coi pesi del sistema G1, G2"),
+            ("rendimento_situazione", "Medie per squadra e situazione col sistema GIOCATORE [periodo]"),
+            ("rendimento_team", "Le squadre: titolari, panchina, medie col sistema [NOME]"),
+            ("classifica_home_away", "Classifiche casa e trasferta col sistema [NOME]"),
+            ("quasi_cup", "La Quasi NBA Cup col sistema [NOME]"),
+            ("top_storica", "Le migliori stagioni di sempre coi pesi del sistema"),
+            ("playoff", "Il tabellone dai seed della classifica del sistema [NOME]"),
             ("start", "Cos'è klra")]
 DEV = [("klra_verifica", "L'Ufficiale di klra contro i risultati convalidati della lega")]
 
@@ -489,6 +499,101 @@ async def cb_player(update, context):
     with M.contesto(s, righe=righe):
         await q.edit_message_text("🏀 ⬇️")                     # /player è un'immagine (v7.7.0): arriva sotto
         await player.manda(_NonUfficiale(q.message, s), gid)
+
+
+# v8 (v7.20.1, Luca 21/11: «copia quasi speculare di loucabot»): rendimento, confronto, situazione, squadre, Cup, storiche
+# e playoff col sistema. I fantapunti delle partite coi pesi e i bonus del sistema; le medie storiche (Basketball-Reference)
+# solo coi pesi, con la nota se il sistema ha bonus o tetto (shared/non_ufficiale.py e motore.contesto). Niente live.
+
+async def cmd_rendimento(update, context):
+    from shared import rendimento as R
+    await _di_loucabot(update, context, R.cmd_rendimento)
+
+
+async def cmd_rendimento_carriera(update, context):
+    from shared import rendimento as R
+    await _di_loucabot(update, context, R.cmd_rendimento_carriera)
+
+
+async def cmd_confronto(update, context):
+    from shared import confronto as CF
+    await _di_loucabot(update, context, CF.cmd_confronto)
+
+
+async def cmd_confronto_carriera(update, context):
+    from shared import confronto as CF
+    await _di_loucabot(update, context, CF.cmd_confronto_carriera)
+
+
+async def cmd_rendimento_situazione(update, context):
+    from shared import situazione as SIT
+    await _di_loucabot(update, context, SIT.cmd_rendimento_situazione)
+
+
+@con_conference
+async def cmd_rendimento_team(update, context):
+    import rendimento_team as RT
+    await _di_loucabot(update, context, RT.cmd_rendimento_team)
+
+
+@con_conference
+async def cmd_classifica_home_away(update, context):
+    import classifica as CL
+    await _di_loucabot(update, context, CL.cmd_classifica_home_away)
+
+
+async def cmd_quasi_cup(update, context):
+    from shared import quasi_cup as QC
+    await _di_loucabot(update, context, QC.cmd_quasi_cup)
+
+
+async def cmd_top_storica(update, context):
+    import top_giocatori as TG_
+    await _di_loucabot(update, context, TG_.cmd_top_storica)
+
+
+@con_conference
+async def cmd_playoff(update, context):
+    import playoff as PO
+    await _di_loucabot(update, context, PO.cmd_playoff)
+
+
+async def _cb_col_sistema(update, fai) -> None:
+    """Un bottone «Quale?» dei comandi in comune, col sistema attivo di chi lo preme: fai(messaggio NON UFFICIALE)."""
+    q = update.callback_query
+    await q.answer()
+    s = SI.attivo(q.from_user.id)
+    righe = await asyncio.to_thread(M.righe_lega, s, config.stagione())
+    with M.contesto(s, righe=righe):
+        await fai(q, _NonUfficiale(q.message, s))
+
+
+async def cb_rendimento(update, context):
+    """rs:<id> / rc:<id> / rcb:<nome bref>: /rendimento e /rendimento_carriera."""
+    from shared import rendimento as R
+
+    async def fai(q, msg):
+        tipo, _, val = q.data.partition(":")
+        await q.edit_message_text("📈 ⬇️")
+        if tipo == "rs":
+            await R._rendimento(msg, int(val))
+        elif tipo == "rc":
+            await R._carriera(msg, int(val), None)
+        else:
+            await R._carriera(msg, R._gid_da_bref(val), val)
+    await _cb_col_sistema(update, fai)
+
+
+async def cb_rendimento_situazione(update, context):
+    """sit:<id>: /rendimento_situazione (il periodo scritto nel comando resta in user_data)."""
+    from shared import periodo as PER
+    from shared import situazione as SIT
+
+    async def fai(q, msg):
+        periodo = context.user_data.pop("situazione_periodo", None) or PER.Periodo()
+        await q.edit_message_text("📊 ⬇️")
+        await SIT.rispondi(msg, int(q.data.split(":")[1]), periodo)
+    await _cb_col_sistema(update, fai)
 
 
 @con_conference
@@ -950,5 +1055,17 @@ def handlers() -> list:
             CommandHandler("pdf_giornata", cmd_pdf_giornata), CommandHandler("pdf_partite", cmd_pdf_partite),
             CommandHandler("conference", cmd_conference), CommandHandler("player", cmd_player),
             CallbackQueryHandler(cb_player, pattern=r"^pl:\d+$"),
+            # v8: come loucabot (block=False: immagini e medie di stagioni intere)
+            CommandHandler("rendimento", cmd_rendimento, block=False),
+            CommandHandler("rendimento_carriera", cmd_rendimento_carriera, block=False),
+            CommandHandler("confronto", cmd_confronto, block=False),
+            CommandHandler("confronto_carriera", cmd_confronto_carriera, block=False),
+            CommandHandler("rendimento_situazione", cmd_rendimento_situazione, block=False),
+            CommandHandler("rendimento_team", cmd_rendimento_team, block=False),
+            CommandHandler("classifica_home_away", cmd_classifica_home_away, block=False),
+            CommandHandler("quasi_cup", cmd_quasi_cup, block=False), CommandHandler("top_storica", cmd_top_storica, block=False),
+            CommandHandler("playoff", cmd_playoff, block=False),
+            CallbackQueryHandler(cb_rendimento, pattern=r"^(rs|rc):\d+$|^rcb:.+$"),
+            CallbackQueryHandler(cb_rendimento_situazione, pattern=r"^sit:\d+$"),
             CallbackQueryHandler(cb, pattern=r"^ks:"), CallbackQueryHandler(cb_conference, pattern=r"^kc:"),
             MessageHandler(filters.ChatType.PRIVATE & filters.TEXT & ~filters.COMMAND, testo_libero)]
