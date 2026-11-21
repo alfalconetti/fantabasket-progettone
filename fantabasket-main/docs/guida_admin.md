@@ -158,6 +158,8 @@ Le richieste dei GM arrivano nel gruppo. Per farne uno direttamente: pannello �
 | ✂️ Cam Thomas exception | chiuso | restano |
 | Altro | chiuso | restano |
 
+**Causa sbagliata? Si corregge** (v7.19.0). Pannello → **🏁 Decadimento** → **✏️ Correggi la causa di un decadimento** → il decadimento (ultimi 6 mesi) → la causa giusta → conferma, che dice gli effetti. Tra Altro e Cam Thomas cambia solo la causa (con Cam Thomas vale il minimo per rifirmarlo); passando a Ritiro o Altra lega si tolgono anche le spalmature delle altre squadre. Da Ritiro o Altra lega si può passare solo all'altra delle due: le spalmature tolte agli altri non si rimettono da sole (serve il dev). Resta la riga nel registro e sul canale esce un messaggio di correzione.
+
 **Cam Thomas exception.** Prima di approvare controllate che il giocatore sia stato tagliato in NBA e sia senza squadra da almeno un mese, con il mercato NBA aperto.
 
 Se la stessa squadra lo rifirma entro un anno deve dargli almeno il contratto di prima. Questo lo controllano i bot da soli, sia `/registra_firma` sia il bot aste.

@@ -67,6 +67,18 @@ docker compose up -d --build              # riavvio completo con rebuild
 - **Healthcheck**: il bot main pinga l'URL in `secrets/bot_main.env` ogni 5 minuti; se smette
   arriva la notifica.
 - **Backup subito**: `/backup` dal bot main.
+- **Un bot non risponde, gli altri sì** (17/11 IPanchinari, 19/11 loucabot): di solito è Telegram che non risponde a
+  quel bot per un po'. Dalla v7.19.0 il bot non va più in crash in giro continuo: all'avvio aspetta che Telegram
+  risponda (una riga di log per tentativo, attese fino a 2 minuti) e quando riparte lo dice nel canale di log.
+  loucabot intanto scarica partite, tabellini e infortunati, e alla ripartenza rifà i job a orario fisso saltati
+  (sincronizzazione, primo controllo, calcolo, tanking, top della notte, controllo finale), con un messaggio nel
+  canale di log, dicendo se mancava la rete del server (🌐) o se era Telegram (📡). Per controllare tutti i bot:
+  `python3 scripts/controllo_bot.py` (prima la rete del server, poi getMe, getMyCommands e stato dei container, una
+  riga per bot); con cron ogni 10 minuti avvisa nel canale di log con la diagnosi (🌐 rete tua, 📡 Telegram,
+  🐳 container), una volta, e quando torna; un blackout della rete si segna lo stesso e al ritorno arriva un
+  messaggio con inizio, fine e durata (istruzioni in testa allo script).
+- **Deploy che cambia Apps Script**: dalla v7.19.0 `deploy.sh` lo dice prima di procedere e alla fine scrive i due
+  passi (`clasp push` e Nuova versione).
 
 ---
 

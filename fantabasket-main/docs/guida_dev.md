@@ -44,6 +44,10 @@ fantabasket-progettone/
 - **globals.json** è condiviso. Lo scrive solo questo bot (fase, stagione, mercato, deadline); il bot aste lo monta in sola lettura.
 - **teams.json** è condiviso. Lo scrive solo questo bot (`/my_team`, `/palette`, `/set_cap_penalizzato`, `/riassegna`: `admin_panel.riassegna`, scrittura su file temporaneo e `os.replace`).
 - **aste.db** (SQLite) è del bot aste. Questo bot lo legge solo per il backup (`/data_aste/aste.db`, in sola lettura).
+- **Avvio, v7.19.0**: tutti i bot chiamano `shared.attesa_telegram.attendi(token, nome)` subito prima di `run_polling`: se Telegram non risponde a `getMe` aspettano invece di andare in crash (Docker li riavviava in giro continuo) e il messaggio di avvio nel canale di log dice quanto (`nota_avvio`). Sul server, `scripts/controllo_bot.py` controlla prima la rete del server (`rete_ok`: ESPN, Google) e poi tutti i bot (getMe, getMyCommands, container), e avvisa nel canale di log col primo bot che risponde con la diagnosi (`diagnosi`: `_rete`, `_telegram`, un bot; stato in `~/.fantabasket_controllo.json`, segnato anche se l'avviso non parte). v7.19.1: anche `attendi` guarda la rete a ogni tentativo (`rete_ok`, `ULTIMA_SENZA_RETE`) e `nota_avvio` dice di chi era il problema.
+- **Ordine dei comandi, v7.19.0** (approvato da Luca il 21/11): `comandi.ORDINE_GM` e `shared.ordine_comandi` (`ordina`: prima quelli dell'elenco, poi gli altri come erano; `admin_in_cima`: per gli admin `admin_menu` e `guida_admin`, poi i comandi admin, poi quelli dei GM). Negli altri bot solo l'ordine dei comandi GM; admin e dev dopo, come prima. Prova: `tests/docs/ordine_comandi.py`.
+- **Azioni annullabili, v7.19.0**: il censimento è in `docs/AZIONI_ANNULLABILI.md` (da aggiornare a ogni azione o comando di correzione nuovo). Primo pezzo: `decadimento.cb_dec_correggi` (`decor:`), `applica_correzione`, `causa_da_nota`, `cambio_causa`, `database.correggi_causa_decadimento`.
+- **Roster e asset con la data, v7.19.0**: `roster._quando(as_of)` → input Typst `quando` e `quando_passato` (pillola gialla per una data passata) in `roster.typ` e `assets.typ`.
 
 ---
 

@@ -16,7 +16,7 @@ sent=[]
 class Bot:
     async def send_message(self,**k): sent.append(k.get("text",""))
 class Q:
-    def __init__(s,d,uid=101): s.data=d; s.from_user=types.SimpleNamespace(id=uid); s.t=None
+    def __init__(s,d,uid=101): s.data=d; s.from_user=types.SimpleNamespace(id=uid, username="adm", first_name="Adm"); s.t=None
     async def answer(s,*a,**k): pass
     async def edit_message_text(s,t,**k): s.t=t
 import handlers.tagli as T
@@ -85,3 +85,37 @@ async def cam_thomas():
     await A.cmd_registra_firma(u, types.SimpleNamespace(args=["team03","12","1","Cam","Thomas"],bot=Bot()))
     ok(db.get_contratto_attivo(ct) is not None, "/registra_firma a 12M accettato")
 asyncio.run(cam_thomas())
+
+
+# ── v7.19.0: correggere la causa di un decadimento (Luca, 20/11: Altro invece di Cam Thomas)
+async def correzione():
+    import handlers.decadimento as D
+    db._q("DELETE FROM registro_azioni WHERE azione = 'causa del decadimento corretta'")
+    ok(D.causa_da_nota("Decadimento: ✂ Cam Thomas exception") == "cam_thomas" and D.causa_da_nota("Decadimento: 📝 Altro") == "altro"
+       and D.causa_da_nota("Decadimento: 🌍 Firma in altra lega") == "altra_lega", "la causa dalla nota, anche scritta a mano senza la variante dell'emoji")
+    ok(D.cambio_causa("ritiro", "cam_thomas") and D.cambio_causa("altro", "altro") and not D.cambio_causa("altro", "ritiro")
+       and not D.cambio_causa("ritiro", "altra_lega"), "da ritiro o altra lega non si torna a una causa che lascia le spalmature")
+    y = db._qval("SELECT id FROM giocatori WHERE nome_common = 'Cam'")
+    tid = db._qval("SELECT id FROM transazioni WHERE tipo = 'decadimento' AND giocatore_id = %s", (y,))
+    q = Q("decor:l", uid=900)
+    await D.cb_dec_correggi(types.SimpleNamespace(callback_query=q), types.SimpleNamespace(bot=Bot()))
+    ok("Correggi la causa" in q.t, "pannello: l'elenco dei decadimenti recenti")
+    q = Q(f"decor:m:{tid}:cam_thomas", uid=900)
+    await D.cb_dec_correggi(types.SimpleNamespace(callback_query=q), types.SimpleNamespace(bot=Bot()))
+    ok("contratto di prima" in q.t, "conferma: dice che varrà il minimo della Cam Thomas")
+    sent.clear()
+    q = Q(f"decor:ok:{tid}:cam_thomas", uid=900)
+    await D.cb_dec_correggi(types.SimpleNamespace(callback_query=q), types.SimpleNamespace(bot=Bot()))
+    ok("Causa corretta" in q.t and db.minimo_cam_thomas(y, "team02") == 5
+       and db._qval("SELECT count(*) FROM impatto_taglio WHERE giocatore_id=%s", (y,)) == 1
+       and any("Correzione" in s and "Cam Thomas" in s for s in sent),
+       "Altro → Cam Thomas: vale il minimo per rifirmarlo, le spalmature restano, messaggio sul canale")
+    esito = await D.applica_correzione(Bot(), tid, "ritiro", "adm", user=q.from_user)
+    ok("Causa corretta" in esito and db._qval("SELECT count(*) FROM impatto_taglio WHERE giocatore_id=%s", (y,)) == 0,
+       "Cam Thomas → Ritiro: tolte anche le spalmature di team01")
+    esito = await D.applica_correzione(Bot(), tid, "altro", "adm")
+    ok(esito.startswith("❌") and "Ritiro" in db._qval("SELECT note FROM transazioni WHERE id = %s", (tid,)),
+       "Ritiro → Altro: rifiutato, la causa resta")
+    _n = db._qval("SELECT count(*) FROM registro_azioni WHERE azione = 'causa del decadimento corretta' AND giocatore_id = %s", (y,))
+    ok(_n == 2, f"due righe nel registro ({_n})")
+asyncio.run(correzione())

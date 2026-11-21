@@ -14,6 +14,14 @@ ROMA = ZoneInfo("Europe/Rome")
 GIORNI = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"]
 # Da ripetere ovunque si parla di aggiornare il quintetto nel bot: fa fede Yahoo.
 FAVORE = "non è obbligatorio, per il regolamento fa fede Yahoo: tenerlo aggiornato qui è un favore agli admin"
+# v41 (Luca, 21/11): per le squadre «solo bot» (GM che hanno scelto di non usare più Yahoo) fa fede il bot
+SOLO_BOT = "per la tua squadra fa fede il quintetto qui nel bot (hai scelto di usare solo i bot): tienilo sempre aggiornato"
+
+
+def favore(team_id: str | None) -> str:
+    """FAVORE, o SOLO_BOT se la squadra usa solo i bot."""
+    import db
+    return SOLO_BOT if team_id and team_id in db.solo_bot_attivi() else FAVORE
 
 
 def adesso() -> datetime:

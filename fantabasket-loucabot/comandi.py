@@ -13,6 +13,17 @@ import config
 logger = logging.getLogger(__name__)
 
 
+ORDINE_GM = [
+    "guida",
+    "calendario", "giornata", "live", "risultati", "live_results", "partita", "notte",          # la giornata
+    "classifica", "classifica_conference", "classifica_full", "classifica_home_away", "rendimento_team",
+    "playoff", "quasi_cup", "calendario_full",                                                 # classifiche
+    "player", "giocatori", "top", "top_storica", "status", "rendimento", "rendimento_carriera",
+    "confronto", "confronto_carriera",                                                         # giocatori
+    "pdf_giornata", "pdf_partite",                                                             # PDF in fondo
+]
+
+
 def liste_comandi() -> dict:
     gruppi = [
         BotCommand("calendario", "La giornata tua o di una squadra [N] [SQUADRA]"),
@@ -90,7 +101,12 @@ def liste_comandi() -> dict:
         BotCommand("dev_live_frequenza", "Frequenza del live [MINUTI MINUTI_TARDI HH:MM]"),
         BotCommand("reboot",      "Riavvia il bot"),
     ]
-    return {"gruppi": gruppi, "gm": gm, "admin": admin, "dev": dev}
+    # v7.19.0 (Luca, 21/11): un ordine sensato per i GM; per admin e dev i loro comandi dopo, come prima
+    from shared.ordine_comandi import ordina
+    gm_ord = ordina(gm, ORDINE_GM)
+    admin = gm_ord + [b for b in admin if b.command not in {x.command for x in gm}]
+    dev = admin + [b for b in dev if b.command not in {x.command for x in admin}]
+    return {"gruppi": ordina(gruppi, ORDINE_GM), "gm": gm_ord, "admin": admin, "dev": dev}
 
 
 def comandi_pubblici() -> set[str]:

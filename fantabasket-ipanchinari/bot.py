@@ -5,6 +5,7 @@ giornata all'altra e si confermano dal promemoria. Stesso PostgreSQL e stessa co
 progettone; scrive solo le sue tabelle (ipa_*).
 """
 import logging
+from shared import attesa_telegram          # v7.19.0: avvio senza crash se Telegram non risponde
 import os
 from datetime import timedelta
 
@@ -40,7 +41,7 @@ async def post_init(app):
     await registra_comandi(app.bot)
     if config.canale_log():
         try:
-            await app.bot.send_message(chat_id=config.canale_log(), text=f"🪑 IPanchinari {BOT_VERSION} avviato")
+            await app.bot.send_message(chat_id=config.canale_log(), text=f"🪑 IPanchinari {BOT_VERSION} avviato" + attesa_telegram.nota_avvio())
         except Exception as e:
             logger.warning("Avviso di avvio: %s", e)
 
@@ -71,6 +72,7 @@ def main():
     app.job_queue.run_repeating(cessioni.job_cessioni, interval=timedelta(minutes=5), first=90)
     app.job_queue.run_repeating(infortuni.job_injury, interval=timedelta(minutes=2), first=100)   # avvisi dell'injury report ai GM
     logger.info("IPanchinari %s avviato.", BOT_VERSION)
+    attesa_telegram.attendi(_token(), "IPanchinari")       # v7.19.0: niente crash se Telegram non risponde
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 

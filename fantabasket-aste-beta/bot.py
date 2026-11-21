@@ -1,4 +1,5 @@
 import logging
+from shared import attesa_telegram          # v7.19.0: avvio senza crash se Telegram non risponde
 import os
 import signal
 import traceback
@@ -117,7 +118,7 @@ async def recupera_stati_pendenti(context: ContextTypes.DEFAULT_TYPE):
 
     try:
         ora = utils.format_dt(datetime.now(timezone.utc).isoformat())
-        await _send_log(context.bot, f"🔄 Bot riavviato ({BOT_VERSION}) — {ora}")
+        await _send_log(context.bot, f"🔄 Bot riavviato ({BOT_VERSION}) — {ora}" + attesa_telegram.nota_avvio())
 
         now = datetime.now(timezone.utc)
 
@@ -279,6 +280,7 @@ def main():
 
     app.post_init = _register_commands
     logger.info("Bot avviato.")
+    attesa_telegram.attendi(TOKEN, "bot aste")              # v7.19.0: niente crash se Telegram non risponde
     app.run_polling(drop_pending_updates=True)
 
 

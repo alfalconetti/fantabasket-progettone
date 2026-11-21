@@ -15,7 +15,7 @@ from telegram.ext import ContextTypes
 
 import config
 import db
-from comune import FAVORE, e, giornata_in_corso, log, ora, prossima_giornata
+from comune import FAVORE, favore, e, giornata_in_corso, log, ora, prossima_giornata
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ def trova(team_id: str, stagione: str, g: dict | None, in_corso: dict | None) ->
     out = []
     for ruolo, gid in db.quintetto(team_id).items():
         if gid not in rosa:
-            out.append((gid, "quintetto", f"nel quintetto del bot ({ruolo}): se vuoi aggiornalo con /quintetto ({FAVORE})"))
+            out.append((gid, "quintetto", f"nel quintetto del bot ({ruolo}): se vuoi aggiornalo con /quintetto ({favore(team_id)})"))
     if g:
         p = db.panchina(stagione, g["numero"], team_id)
         for r in (p["righe"] if p else []):

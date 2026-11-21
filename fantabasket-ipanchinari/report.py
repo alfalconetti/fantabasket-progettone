@@ -105,6 +105,10 @@ def report(g: dict) -> str:
              f"{', '.join(sorted(media)) or 'nessuna'}  ",
              f"Report del {adesso().astimezone(ROMA):%d/%m/%Y %H:%M} (ora italiana). Su Yahoo fa fede il quintetto vero: "
              "qui quello che sa il bot.", ""]
+    _solo = db.solo_bot_in(g["dal"], g["al"])                      # v41: per loro fa fede il bot
+    if _solo:
+        righe[-1:-1] = [f"Squadre «solo bot» (fa fede il quintetto nel bot, non Yahoo): "
+                        f"{', '.join(config.nome(t) for t in _solo)}  "]
     senza_p = [t["nome"] for t in squadre if not dati[t["id"]][1]]
     senza_c = [t["nome"] for t in squadre if t["id"] not in conf]
     riep = ["## Riepilogo", "",

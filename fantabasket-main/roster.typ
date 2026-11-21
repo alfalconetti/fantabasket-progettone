@@ -24,6 +24,13 @@
 #let giocatori_raw = sys.inputs.at("giocatori")
 #let fine_10day    = sys.inputs.at("fine_10day", default: "")
 #let salary_detail = sys.inputs.at("salary_detail")
+// v7.19.0 (Luca, 18/11): a quando si riferisce l'immagine, sempre; a una data passata in ambra
+#let quando        = sys.inputs.at("quando", default: "")
+#let quando_passato = sys.inputs.at("quando_passato", default: "") != ""
+#let pill_quando = if quando != "" {
+  box(fill: if quando_passato { rgb("#F2B705") } else { white.transparentize(82%) }, radius: 8pt, inset: (x: 6pt, y: 2.5pt),
+    text(6.5pt, weight: "bold", fill: if quando_passato { rgb("#1a1a1a") } else { _ton_hdr })[#quando])
+}
 #let fm_label      = sys.inputs.at("fm_label", default: "FP")
 #let fm_nota       = sys.inputs.at("fm_nota", default: "")   // "* FP 26-27": chi ha i fantapunti dell'altra stagione
 
@@ -85,7 +92,8 @@
     stemma(42pt),
     stack(spacing: 4pt,
       text(14pt, weight: "bold", fill: _ton_hdr)[#team_nome],
-      text(8pt, fill: _ton_hdr_m)[#team_gm]),
+      text(8pt, fill: _ton_hdr_m)[#team_gm],
+      ..if pill_quando != none { (v(3pt), pill_quando) } else { () }),
     align(right, stack(spacing: 3pt,
       text(6.5pt, weight: "bold", fill: _ton_hdr_m, tracking: 0.6pt)[SALARY CAP],
       text(13pt, weight: "bold", fill: _ton_hdr)[#salary_cap M],

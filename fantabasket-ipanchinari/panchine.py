@@ -32,7 +32,7 @@ import config
 import db
 from shared import regole
 import comune
-from comune import FAVORE, ROMA, adesso, aperta, chi, e, log, ora, prossima_giornata, stati, testo_panchine_bloccate
+from comune import FAVORE, favore, ROMA, adesso, aperta, chi, e, log, ora, prossima_giornata, stati, testo_panchine_bloccate
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ def avvisi(b: dict, roster: list[dict]) -> list[str]:
     nomi = _nomi(roster)
     tit = {gid: ruolo for ruolo, gid in db.quintetto(b["team_id"]).items()}
     return [f"{nomi.get(g, g)} risulta nel tuo quintetto ({tit[g]}): se vuoi aggiornalo con /quintetto "
-            f"({FAVORE}), altrimenti se ne occupa un admin"
+            f"({favore(b['team_id'])}), altrimenti se ne occupa un admin"
             for g in dict.fromkeys(r.get("scelto") for r in b["dati"]["righe"]) if g in tit]
 
 

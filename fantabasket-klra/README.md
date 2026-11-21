@@ -66,6 +66,10 @@ Senza NOME vale il tuo sistema attivo; N di default è l'ultima giornata convali
 privato): cinque sezioni, un bottone per voce col valore; le voci a scelta cambiano a ogni tocco, quelle numeriche
 chiedono il valore (multipli di 0,25, con limiti); la bozza resta se si chiude a metà.
 
+## Avvio senza Telegram (v7.19.0)
+
+Prima di `run_polling` `shared.attesa_telegram.attendi`: se Telegram non risponde a `getMe` klra aspetta invece di andare in crash in giro continuo, e il messaggio di avvio nel canale log dice quanto.
+
 ## Avvio (una volta)
 
 1. Token da BotFather in `secrets/bot_token_klra.txt`.

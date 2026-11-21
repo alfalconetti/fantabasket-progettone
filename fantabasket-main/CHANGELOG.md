@@ -2055,3 +2055,24 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - Trade: l'annuncio sul canale ora arriva **prima** dei messaggi dei ruoli da dichiarare e di quelli RFA (prima lo mandavano trade_voto e admin_panel dopo l'esecuzione; ora `trade_esegui.annuncia_trade`, dentro `_esegui_trade`) (Luca, 19/11)
 - Loucabot v128: `/rendimento_team` non dice più «25ª della lega» con 24 squadre
+
+## v7.19.0 (2026-11-21)
+
+- **Avvio senza crash se Telegram non risponde** (dopo il 17/11 e il 19/11): tutti i bot aspettano Telegram all'avvio invece di andare in crash in giro continuo, e il messaggio di avvio nel canale log dice quanto hanno aspettato (`shared.attesa_telegram`). Loucabot intanto scarica partite, tabellini e infortunati e alla ripartenza rifà i job a orario fisso saltati
+- `scripts/controllo_bot.py`, sul server: controlla tutti i bot (getMe, getMyCommands, container) e avvisa nel canale log, una volta, e quando tornano (con cron ogni 10 minuti)
+- **Causa di un decadimento correggibile** dal pannello admin (🏁 Decadimento → ✏️), con gli effetti (Cam Thomas, spalmature per ritiro/altra lega), riga nel registro e messaggio sul canale (Luca, 20/11)
+- **Censimento delle azioni annullabili**: `docs/AZIONI_ANNULLABILI.md` (cosa si può annullare o correggere oggi, cosa manca, in che ordine farlo)
+- `/roster` e `/assets` (e i PDF) dicono sempre a quando si riferiscono: «al GG/MM/AAAA · HH:MM», o «com'era al GG/MM/AAAA» in giallo a una data passata (mockup approvato il 21/11)
+- **Ordine dei comandi** nel menu «/» (approvato il 21/11): per i GM menu e guida, la squadra, trade e mercato, ruoli e rinnovi, giocatori, lega, watchlist, palette e annulla in fondo; per gli admin prima pannello e guida admin e i comandi admin. Anche loucabot, IPanchinari e bot aste
+- `deploy.sh`: se lo zip cambia file di Apps Script lo dice prima di procedere e alla fine scrive i passi (`clasp push`, Nuova versione)
+- Loucabot v129, IPanchinari v40 (`/controlli` diviso solo se serve), bot aste v85, klra v7
+- Prove: `louca_avvio`, `controllo_bot`, `ordine_comandi`; due prove che dipendevano dalla data di oggi rese fisse
+
+## v7.19.1 (2026-11-21)
+
+- **Rete di casa o Telegram, sempre chiaro** (Luca, 21/11): `scripts/controllo_bot.py` guarda prima se la rete del server funziona (ESPN, Google) e scrive la diagnosi: 🌐 rete del server giù (problema tuo, non di Telegram), 📡 Telegram non risponde a nessun bot (rete ok: problema di Telegram), 📡 Telegram non risponde a un bot (gli altri sì), 🐳 container in riavvio con Telegram ok (problema del bot). Se l'avviso non può partire (rete giù) resta segnato e al ritorno arriva un messaggio con inizio, fine e durata
+- All'avvio i bot fanno la stessa distinzione: il messaggio di ripartenza dice se mancava la rete del server, se era Telegram, o prima l'una e poi l'altro
+
+## v7.19.2 (2026-11-21)
+
+- IPanchinari v41: squadre «solo bot» (`/solo_bot`), per i GM che non usano più Yahoo fa fede il quintetto nel bot e in `/controlli` risultano già a posto

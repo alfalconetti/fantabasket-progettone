@@ -24,6 +24,13 @@
 #let _ton_dir      = rgb(sys.inputs.at("text_on_dir"))
 #let salary_cap    = sys.inputs.at("salary_cap")
 #let salary_detail = sys.inputs.at("salary_detail")
+// v7.19.0 (Luca, 18/11): a quando si riferisce l'immagine, sempre; a una data passata in ambra
+#let quando        = sys.inputs.at("quando", default: "")
+#let quando_passato = sys.inputs.at("quando_passato", default: "") != ""
+#let pill_quando = if quando != "" {
+  box(fill: if quando_passato { rgb("#F2B705") } else { white.transparentize(82%) }, radius: 8pt, inset: (x: 6pt, y: 2.5pt),
+    text(6.5pt, weight: "bold", fill: if quando_passato { rgb("#1a1a1a") } else { _ton_hdr })[#quando])
+}
 #let eta_media     = sys.inputs.at("eta_media")
 #let logo_path     = sys.inputs.at("logo_path")
 #let giocatori_raw = sys.inputs.at("giocatori")
@@ -114,7 +121,8 @@
     stemma(46pt),
     stack(spacing: 4pt,
       text(15pt, weight: "bold", fill: _ton_hdr)[#team_nome],
-      text(8pt, fill: _ton_hdr_m)[#team_gm · età media #eta_media]),
+      text(8pt, fill: _ton_hdr_m)[#team_gm · età media #eta_media],
+      ..if pill_quando != none { (v(3pt), pill_quando) } else { () }),
     align(right, stack(spacing: 3pt,
       text(6.5pt, weight: "bold", fill: _ton_hdr_m, tracking: 0.6pt)[SALARY CAP],
       text(14pt, weight: "bold", fill: _ton_hdr)[#salary_cap M],

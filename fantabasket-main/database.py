@@ -1371,6 +1371,40 @@ def registra_decadimento(giocatore_id: int, team_id: str, stagione: str,
     return altre
 
 
+def decadimenti_recenti(giorni: int = 180, limite: int = 12) -> list[dict]:
+    """I decadimenti degli ultimi `giorni`, dal più recente (v7.19.0: per correggerne la causa)."""
+    return _q("""SELECT t.id, t.timestamp, t.giocatore_id, t.team_id_da, t.stagione, t.note, g.nome_common
+                 FROM movimenti_giocatori t JOIN giocatori g ON g.id = t.giocatore_id
+                 WHERE t.tipo = 'decadimento' AND t.timestamp > NOW() - make_interval(days => %s)
+                 ORDER BY t.timestamp DESC LIMIT %s""", (giorni, limite), many=True) or []
+
+
+def decadimento(tid: int) -> dict | None:
+    return _q("""SELECT t.id, t.timestamp, t.giocatore_id, t.team_id_da, t.stagione, t.note, g.nome_common
+                 FROM movimenti_giocatori t JOIN giocatori g ON g.id = t.giocatore_id
+                 WHERE t.id = %s AND t.tipo = 'decadimento'""", (tid,), one=True)
+
+
+def correggi_causa_decadimento(tid: int, nota: str, togli_altre: bool) -> list[str]:
+    """Nuova nota del decadimento `tid`; con `togli_altre` (la causa diventa ritiro o altra lega) anche le
+    spalmature degli altri che l'avevano tagliato, come registra_decadimento(tutte_le_squadre=True).
+    Ritorna le altre squadre a cui sono state tolte. Una transazione sola."""
+    altre = []
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT giocatore_id, team_id_da, stagione FROM movimenti_giocatori WHERE id = %s AND tipo = 'decadimento'",
+                        (tid,))
+            r = cur.fetchone()
+            if not r:
+                raise ValueError("decadimento non trovato")
+            if togli_altre:
+                cur.execute("DELETE FROM impatto_taglio WHERE giocatore_id = %s AND team_id <> %s "
+                            "AND stagione >= %s RETURNING team_id", (r[0], r[1], r[2]))
+                altre = sorted({x[0] for x in cur.fetchall()})
+            cur.execute("UPDATE transazioni SET note = %s WHERE id = %s", (nota, tid))
+    return altre
+
+
 def cancella_spalmate_ritirato(giocatore_id: int, stagione: str) -> list[dict]:
     """Giocatore ritirato o andato in un'altra lega mentre era free agent: le spalmature
     dei tagli passati smettono di pesare (dalla stagione corrente). Restituisce

@@ -623,3 +623,10 @@ Il calcolo dei fantapunti.
 
 - `/rendimento_team`: la posizione per media («Nª della lega») poteva uscire 25ª su 24 (segnalato da Luca): la classifica arrotonda la media agli ottavi e la si confrontava con la media esatta della squadra; ora con quella della classifica
 - Prove: `louca_media_bref` non dipende più dalla data di oggi (una rilevazione a `NOW()` cadeva prima della giornata finta del 20/11)
+
+## v129 (2026-11-21, progettone v7.19.0)
+
+- Se Telegram non risponde all'avvio (come il 19/11) il bot aspetta invece di andare in crash, e intanto scarica partite NBA, tabellini e infortunati (al massimo ogni 5 minuti; `avvio.scarica_senza_telegram`)
+- I job a orario fisso (sincronizzazione, primo controllo, calcolo, tanking, top della notte, controllo finale) segnano quando hanno girato (`job_eseguiti`); se il bot era giù alla loro ora, alla ripartenza si rifanno e il canale di log lo dice
+- Ordine dei comandi per i GM: guida, la giornata, classifiche, giocatori, PDF in fondo
+- Prove: `louca_avvio`; `louca_risultati` non dipende più dalla data di oggi (roster ESPN «recenti»)

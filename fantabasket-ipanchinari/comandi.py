@@ -27,6 +27,7 @@ def liste_comandi() -> dict:
         BotCommand("stato",            "Conferme e panchine della giornata [N]"),
         BotCommand("quintetti",        "Tutti i quintetti, una riga per squadra [N: giornata]"),
         BotCommand("controlli",        "Formazioni della giornata chiusa da controllare su Yahoo [N]"),
+        BotCommand("solo_bot",         "Squadre che usano solo i bot (fa fede il quintetto qui) [SQUADRA]"),
         BotCommand("report_formazioni", "Quintetti e panchine di tutte le squadre, coi problemi (.md) [N]"),
         BotCommand("quintetto_admin",  "Quintetto di una squadra: coi bottoni, o SQUADRA e sotto i 5"),
         BotCommand("quintetti_import", "Quintetti di tutte le squadre (testo o file)"),
@@ -45,7 +46,12 @@ def liste_comandi() -> dict:
         BotCommand("dev_pg",      "Connessione a PostgreSQL"),
         BotCommand("reboot",      "Riavvia il bot"),
     ]
-    return {"gm": gm, "admin": admin, "dev": dev}
+    # v7.19.0 (Luca, 21/11): un ordine sensato per i GM; per admin e dev i loro comandi dopo, come prima
+    from shared.ordine_comandi import ordina
+    gm_ord = ordina(gm, ["build_panchina", "panchina", "edit", "quintetto", "soprannomi", "toggle_injures", "guida"])
+    admin = gm_ord + [b for b in admin if b.command not in {x.command for x in gm}]
+    dev = admin + [b for b in dev if b.command not in {x.command for x in admin}]
+    return {"gm": gm_ord, "admin": admin, "dev": dev}
 
 
 # solo in chat privata (filters.ChatType.PRIVATE o controllo nel comando): fuori dai menu dei gruppi (Luca, 30/10)

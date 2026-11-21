@@ -193,6 +193,10 @@ for _gen, _nome in ((RO._genera_roster_png, "roster"), (RO._genera_assets_png, "
             if _fmt == "png" and _q is None and _nome == "roster" and os.environ.get("ROSTER_PNG"): open(os.environ["ROSTER_PNG"], "wb").write(_b)
             os.unlink(_p)
             ok(_b[:4] == (b"\x89PNG" if _fmt == "png" else b"%PDF"), f"{_nome} {_fmt.upper()} {'a una data' if _q else 'di oggi'} col Typst della libreria")
+# v7.19.0 (Luca, 18/11): roster e asset dicono sempre a quando si riferiscono
+import re as _re
+ok(_re.fullmatch(r"al \d\d/\d\d/\d{4} · \d\d:\d\d", RO._quando()) and RO._quando(datetime(2026, 12, 1, 23, 59, tzinfo=timezone.utc)) == "com'era al 01/12/2026",
+   f"roster e asset: «al GG/MM/AAAA · HH:MM» oggi, «com'era al GG/MM/AAAA» a una data ({RO._quando()})")
 _pc = asyncio.run(C.genera_png(p))
 ok(open(_pc, "rb").read()[:4] == b"\x89PNG", "carriera col Typst della libreria"); os.unlink(_pc)
 # /assets a una data (v6.21.0): diritti col nome, niente STEPIEN nel passato

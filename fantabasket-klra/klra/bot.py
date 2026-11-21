@@ -3,6 +3,7 @@ klra — loucabot coi sistemi di punteggio alternativi (Luca, 04/11/2026). Solo 
 (klra/basi.py, setup_db.sql), tabelle sue nel database klra. Comandi in klra/comandi.py.
 """
 import logging
+from shared import attesa_telegram          # v7.19.0: avvio senza crash se Telegram non risponde
 import os
 import re
 from zoneinfo import ZoneInfo
@@ -71,7 +72,7 @@ async def post_init(app):
     await comandi.registra(app.bot)
     if canale_log():
         try:
-            await app.bot.send_message(chat_id=canale_log(), text=f"🧪 klra {versione()} avviato")
+            await app.bot.send_message(chat_id=canale_log(), text=f"🧪 klra {versione()} avviato" + attesa_telegram.nota_avvio())
         except Exception as e:
             logger.warning("Avviso di avvio: %s", e)
 
@@ -92,6 +93,7 @@ def main():
         app.add_handler(h)
     app.job_queue.run_repeating(job_precalcola, interval=3600, first=60)
     logger.info("klra %s avviato", versione())
+    attesa_telegram.attendi(_token(), "klra")              # v7.19.0: niente crash se Telegram non risponde
     app.run_polling(drop_pending_updates=True)
 
 

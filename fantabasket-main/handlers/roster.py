@@ -498,6 +498,7 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None, formato: str
         "--input", f"fm_label={fm_label}",
         "--input", f"fm_nota={fm_nota}",
         "--input", f"fine_10day={'' if as_of else _fine_10day(team_id)}",
+        "--input", f"quando={_quando(as_of)}", "--input", f"quando_passato={'1' if as_of else ''}",
         "--root", "/", "--ppi", str(ppi),
         os.path.abspath(TYPST_TEMPLATE),
         tmp.name,
@@ -513,6 +514,16 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None, formato: str
 
     return tmp.name
 
+
+
+def _quando(as_of=None) -> str:
+    """A quando si riferisce l'immagine (v7.19.0, Luca 18/11: «va sempre scritto di quando è»): oggi data e ora di
+    adesso, a una data passata (event sourcing) il giorno chiesto, non quello in cui è stata generata."""
+    if as_of:
+        return f"com'era al {as_of.strftime('%d/%m/%Y')}"
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    return "al " + datetime.now(ZoneInfo("Europe/Rome")).strftime("%d/%m/%Y · %H:%M")
 
 
 def _togli(path: str) -> None:
@@ -728,6 +739,7 @@ async def _genera_assets_png(team: dict, stagione: str, as_of=None, formato: str
         "--input", f"logo_path={logo}",
         "--input", f"giocatori={giocatori_str}",
         "--input", f"fine_10day={'' if as_of else _fine_10day(team_id)}",
+        "--input", f"quando={_quando(as_of)}", "--input", f"quando_passato={'1' if as_of else ''}",
         "--input", f"picks={picks_str}",
         "--input", f"diritti={diritti_str}",
         "--input", f"fm_label={fm_label}",

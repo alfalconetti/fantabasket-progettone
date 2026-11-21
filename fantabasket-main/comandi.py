@@ -36,6 +36,20 @@ def _fasi_comando() -> dict:
     }
 
 
+ORDINE_GM = [
+    "menu", "guida",
+    "roster", "assets", "my_team", "penalita", "registro",                                  # la tua squadra
+    "build_trade", "bozze_trade", "my_trades", "edit_trade", "import_trade", "annulla_trade", "trova_trade",
+    "taglia", "firma_10day", "dpe", "decadimento", "attiva_diritti",                         # trade e mercato
+    "dichiarazione_ruoli", "cambio_ruolo", "rinnovo_rookie", "dichiara_rfa",                 # ruoli e rinnovi (per fase)
+    "player", "giocatori", "status", "rendimento", "rendimento_carriera", "confronto", "confronto_carriera",
+    "carriera", "calendario", "quasi_cup",                                                    # giocatori
+    "pick", "pick_lega", "team_diff", "pdf_roster", "pdf_assets",                             # lega
+    "watch", "unwatch", "watchlist", "watch_soglia",                                          # watchlist
+    "palette", "annulla",
+]
+
+
 def liste_comandi(fase: str) -> dict:
     """Le liste per scope, già filtrate sulla fase."""
     cmd_group = [
@@ -137,6 +151,12 @@ def liste_comandi(fase: str) -> dict:
     ]
 
 
+    # v7.19.0 (Luca, 21/11): un ordine sensato invece di quello in cui sono stati aggiunti
+    from shared.ordine_comandi import ordina, admin_in_cima
+    gm_ord = ordina(cmd_gm, ORDINE_GM)
+    cmd_admin = admin_in_cima(gm_ord, cmd_admin)
+    cmd_dev = cmd_admin + [b for b in cmd_dev if b.command not in {x.command for x in cmd_admin}]
+    cmd_base, cmd_gm = ordina(cmd_base, ORDINE_GM), gm_ord
     fasi = _fasi_comando()
     def _filtra(cmds):
         return [c for c in cmds if c.command not in fasi or fase in fasi[c.command]]

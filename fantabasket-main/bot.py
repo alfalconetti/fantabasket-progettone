@@ -2,6 +2,7 @@
 Fantabasket Main Bot — entry point
 """
 import logging
+from shared import attesa_telegram          # v7.19.0: avvio senza crash se Telegram non risponde
 import os
 import signal
 import traceback
@@ -135,7 +136,7 @@ async def post_init(application):
             ora = datetime.now(ROME).strftime("%d/%m/%Y %H:%M")
             await application.bot.send_message(
                 chat_id=log_channel_id,
-                text=f"🟢 <b>Fantabasket Main Bot {BOT_VERSION} avviato</b> — {ora}",
+                text=f"🟢 <b>Fantabasket Main Bot {BOT_VERSION} avviato</b> — {ora}" + attesa_telegram.nota_avvio(),
                 parse_mode="HTML",
             )
         except Exception as e:
@@ -481,6 +482,7 @@ def main():
     app.add_handler(TypeHandler(Update, _guest_handler), group=99)
 
     logger.info("Fantabasket Main Bot %s avviato.", BOT_VERSION)
+    attesa_telegram.attendi(token, "bot principale")      # v7.19.0: niente crash se Telegram non risponde
     app.run_polling(
         drop_pending_updates=True,
         allowed_updates=["message", "callback_query", "edited_message",

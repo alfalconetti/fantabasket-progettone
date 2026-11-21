@@ -101,6 +101,15 @@ def migra():
             da           BIGINT,
             quando       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             PRIMARY KEY (stagione, giornata, team_id))""")
+    # v41 (Luca, 21/11): squadre «solo bot», i GM che non usano più Yahoo: per loro fa fede il quintetto nel bot.
+    # Un periodo per riga (dal, al), così spegnere non cambia le giornate passate
+    q("""CREATE TABLE IF NOT EXISTS ipa_solo_bot (
+            id           SERIAL PRIMARY KEY,
+            team_id      TEXT NOT NULL,
+            dal          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            al           TIMESTAMPTZ,
+            da_nome      TEXT,
+            tolto_da     TEXT)""")
     # v18: formazioni controllate dagli admin su Yahoo dopo la scadenza (chi, quando)
     q("""CREATE TABLE IF NOT EXISTS ipa_controlli (
             stagione     TEXT NOT NULL,
@@ -248,8 +257,47 @@ def togli_controllo(stagione: str, giornata_: int, team_id: str) -> None:
 
 
 def controlli(stagione: str, giornata_: int) -> dict[str, dict]:
+    """Le formazioni controllate della giornata. v41: le squadre «solo bot» in quella giornata risultano
+    controllate da sole ({"solo_bot": True}): per loro fa fede il bot, non c'è niente da guardare su Yahoo."""
     righe = q("SELECT * FROM ipa_controlli WHERE stagione = %s AND giornata = %s", (stagione, giornata_), many=True) or []
+    out = {r["team_id"]: r for r in righe}
+    g = giornata(stagione, giornata_)
+    for t, r in (solo_bot_in(g["dal"], g["al"]) if g else {}).items():
+        out[t] = {"team_id": t, "da": None, "da_nome": "🤖 fa fede il bot", "quando": r["dal"], "solo_bot": True}
+    return out
+
+
+def solo_bot_attivi() -> dict[str, dict]:
+    """Le squadre «solo bot» adesso: {team_id: riga}."""
+    righe = q("SELECT * FROM ipa_solo_bot WHERE al IS NULL ORDER BY dal", many=True) or []
     return {r["team_id"]: r for r in righe}
+
+
+def solo_bot_in(dal, al=None) -> dict[str, dict]:
+    """Le squadre «solo bot» in una giornata (dal–al): quelle il cui periodo la tocca. Accesa durante una
+    giornata vale già per quella; spenta durante una giornata vale ancora per quella (non cambia il passato).
+    Senza date, quelle di adesso."""
+    if dal is None:
+        return solo_bot_attivi()
+    al = al or dal
+    righe = q("""SELECT * FROM ipa_solo_bot WHERE dal::date <= %s AND (al IS NULL OR al::date >= %s)
+                 ORDER BY dal""", (al, dal), many=True) or []
+    return {r["team_id"]: r for r in righe}
+
+
+def attiva_solo_bot(team_id: str, da_nome: str) -> bool:
+    """False se lo era già."""
+    if team_id in solo_bot_attivi():
+        return False
+    q("INSERT INTO ipa_solo_bot (team_id, da_nome) VALUES (%s, %s)", (team_id, da_nome))
+    return True
+
+
+def disattiva_solo_bot(team_id: str, da_nome: str) -> bool:
+    """False se non lo era."""
+    r = q("UPDATE ipa_solo_bot SET al = NOW(), tolto_da = %s WHERE team_id = %s AND al IS NULL RETURNING id",
+          (da_nome, team_id), one=True)
+    return bool(r)
 
 
 def congela_quintetti(stagione: str, giornata_: int, team_ids: list[str]) -> None:

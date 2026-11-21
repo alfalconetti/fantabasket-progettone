@@ -86,6 +86,10 @@ Solo per `dev_id`, nel menu `/` del dev.
 
 **Errori non gestiti** (`dev_comune.error_handler`): log del container, poi canale log e dev col tipo di errore, chi e quale bottone o comando. "Message is not modified" (un bottone premuto due volte, stesso testo) non si segnala; gli errori di rete vanno solo sul canale log, per accorgersi se il bot non raggiunge Telegram.
 
+**Avvio senza Telegram (v7.19.0, v40).** Prima di `run_polling` `shared.attesa_telegram.attendi`: se Telegram non risponde a `getMe` (come il 17/11) il bot aspetta invece di andare in crash, e il messaggio di avvio nel canale log dice quanto. **`/controlli` (v40):** `testo_controlli` ritorna anche gli «altri messaggi»: se tutto supera `LIMITE_CONTROLLI` (3900) le formazioni vanno in messaggi a parte (`_manda_altri`); nel callback si rimandano solo se il messaggio non le aveva già sotto (marcatore `SOTTO`) o con 🔄. **Ordine dei comandi (v40):** `build_panchina` per primo (`shared.ordine_comandi`).
+
+**Squadre «solo bot» (v41, Luca 21/11).** Tabella `ipa_solo_bot` (un periodo per riga: `dal`, `al`, chi l'ha acceso e spento). `db.controlli(s, n)` aggiunge le squadre il cui periodo tocca la giornata (`solo_bot_in(dal, al)`) come controllate con `solo_bot: True`: così `/controlli`, `/stato`, l'editor admin e il conto delle fatte le vedono già a posto senza righe in `ipa_controlli`; i tocchi su di loro non cambiano niente. Testi per il GM: `comune.favore(team_id)` (FAVORE o SOLO_BOT) nei promemoria, `/quintetto`, avvisi di panchina e cessioni. Comando `quintetti.cmd_solo_bot`.
+
 ## 5. Prove
 
 `tests/run.sh ipa_panchine` (mai sul server). Crea le tabelle di loucabot col suo `db.py`, giocatori e contratti di prova (puliti alla fine), Telegram finto. Copre messaggio coi soprannomi, canale senza nomi veri, alias, panchina di 5 obbligatoria, `/soprannomi` e cancellazione, soprannomi che seguono il giocatore, avvisi di cessione, aggiornamento, controlli, quintetti (admin, import, bottoni, conferma), promemoria, riepilogo, chiusura, scadenza durante la conferma.

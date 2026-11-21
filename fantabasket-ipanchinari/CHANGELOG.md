@@ -182,3 +182,13 @@ Primo rilascio: panchine e quintetti.
 ## v39 (2026-11-15, progettone v7.10.0)
 
 - **Playoff**: nelle giornate P solo le squadre che giocano (quelle con una partita in `lega_partite`): promemoria, `/stato`, report, formazioni e congelamento dei quintetti (`comune.in_gioco`, `shared/playoff_base.py`)
+
+## v40 (2026-11-21, progettone v7.19.0)
+
+- `/controlli`: le formazioni restano sotto ogni squadra se tutto sta in un messaggio; se no il messaggio coi bottoni ha la lista da spuntare e le formazioni arrivano nei messaggi sotto, e un aggiornamento che non ci sta più le manda in un messaggio nuovo (Luca, 21/11: «va diviso solo se serve»; prima si toglievano e si rimandava a /quintetti)
+- Se Telegram non risponde all'avvio il bot aspetta invece di andare in crash (come il 17/11)
+- Ordine dei comandi per i GM: `/build_panchina` per primo
+
+## v41 (2026-11-21, progettone v7.19.2)
+
+- **Squadre «solo bot»** (Luca, 21/11): per i GM che hanno scelto di non usare più Yahoo fa fede il quintetto nel bot. `/solo_bot SQUADRA` (admin) la accende e la spegne (revertibile, registro e canale log), `/solo_bot` l'elenco. In `/controlli` risultano già a posto (🤖, niente bottone), in `/stato` e nel report sono segnate, e i messaggi al GM (promemoria, `/quintetto`, avvisi di panchina e cessioni) gli dicono che per lui fa fede il bot. Spegnerla non cambia le giornate già cominciate

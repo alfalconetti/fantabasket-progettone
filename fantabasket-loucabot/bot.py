@@ -27,6 +27,9 @@ try:
     dev_comune.installa_log()                     # per /dev_log
 except ImportError:
     pass
+from shared import attesa_telegram
+import avvio
+RECUPERABILI: dict = {}          # v7.19.0: {nome: (orario, job)} dei job a orario fisso recuperabili (avvio.py)
 ROME = ZoneInfo("Europe/Rome")
 ORE_SNAPSHOT = [dtime(h, 30, tzinfo=ROME) for h in (0, 4, 12, 16, 20)]      # ogni 4 ore, con le 8:30 di job_sync
 
@@ -46,15 +49,22 @@ async def post_init(app):
     await registra_comandi(app.bot)
     if config.canale_log():
         try:
-            await app.bot.send_message(chat_id=config.canale_log(), text=f"📅 loucabot {BOT_VERSION} avviato")
+            await app.bot.send_message(chat_id=config.canale_log(), text=f"📅 loucabot {BOT_VERSION} avviato" + attesa_telegram.nota_avvio())
         except Exception as e:
             logger.warning("Avviso di avvio: %s", e)
+    try:                                              # v7.19.0: i job a orario fisso saltati mentre era giù
+        nomi = avvio.recupera(app, RECUPERABILI)
+        if nomi and config.canale_log():
+            await app.bot.send_message(chat_id=config.canale_log(), text=avvio.testo_recuperati(nomi))
+    except Exception as e:
+        logger.warning("Recupero dei job saltati: %s", e)
 
 
 def main():
     db.init_db()
     import live
     live.migra()
+    avvio.migra()
     import calendario_playoff                       # v7.9.5: le date delle giornate P
     calendario_playoff.migra()
     import playoff as _po
@@ -88,17 +98,22 @@ def main():
               + classifica.get_handlers() + partita.get_handlers() + congelamento.get_handlers() + cup.get_handlers() + calendario_playoff.get_handlers() + playoff.get_handlers() + rendimento_team.get_handlers()) + dev_comune.get_handlers(_is_dev, lambda: db.q("SELECT version() AS v", one=True)["v"]):
         app.add_handler(h)
     app.add_error_handler(dev_comune.error_handler("loucabot", config.canale_log, config.dev_id))
-    app.job_queue.run_daily(job_sync, time=regole.orario("sync_nba").replace(tzinfo=ROME))        # partite, tabellini, infortunati
-    app.job_queue.run_daily(handlers_risultati.job_calcolo, time=regole.orario("calcolo").replace(tzinfo=ROME))     # calcolo definitivo
     # v58: niente più controllo delle 10 sulle giornate; alle 20 il controllo finale della notte prima (poi congelata)
     import top
     import tanking
-    app.job_queue.run_daily(tanking.job_tanking, time=regole.orario("controllo_tanking").replace(tzinfo=ROME))  # controllo tanking
-    app.job_queue.run_daily(top.job_top_notte, time=regole.orario("top_notte").replace(tzinfo=ROME))        # top 20 della notte
-    app.job_queue.run_daily(handlers_risultati.job_controllo_finale, time=regole.orario("controllo_notte").replace(tzinfo=ROME))
     # v60: primo controllo dell'ultima notte alle 11:05; un minuto dopo per le giornate senza live (convalidate)
     _pc = (datetime.combine(date(2000, 1, 1), regole.orario("primo_controllo")) + timedelta(minutes=1)).time()
-    app.job_queue.run_daily(handlers_risultati.job_primo_controllo, time=_pc.replace(tzinfo=ROME))
+    # v7.19.0: i job a orario fisso segnano quando hanno girato (avvio.segnato); se il bot era giù alla loro ora,
+    # all'avvio si rifanno (avvio.recupera, in post_init)
+    RECUPERABILI.update({
+        "sync_nba": (regole.orario("sync_nba"), job_sync),                                    # partite, tabellini, infortunati
+        "primo_controllo": (_pc, handlers_risultati.job_primo_controllo),
+        "calcolo": (regole.orario("calcolo"), handlers_risultati.job_calcolo),                 # calcolo definitivo
+        "controllo_tanking": (regole.orario("controllo_tanking"), tanking.job_tanking),
+        "top_notte": (regole.orario("top_notte"), top.job_top_notte),                          # top 20 della notte
+        "controllo_notte": (regole.orario("controllo_notte"), handlers_risultati.job_controllo_finale)})
+    for _nome, (_ora, _job) in RECUPERABILI.items():
+        app.job_queue.run_daily(avvio.segnato(_nome, _job), time=_ora.replace(tzinfo=ROME), name=_nome)
     app.job_queue.run_daily(formazioni_foglio.job_parziale, time=regole.orario("foglio_parziale").replace(tzinfo=ROME))   # foglio provvisorio a metà giornata
     # snapshot degli infortunati ogni 4 ore (anche di notte) e 30 minuti prima della prima partita
     # del giorno: per il calcolo conta quello subito prima delle partite, il più recente è lo
@@ -120,6 +135,9 @@ def main():
     # formazioni congelate sul foglio di controllo (e le correzioni degli admin), fino al calcolo
     app.job_queue.run_repeating(formazioni_foglio.job_formazioni, interval=timedelta(minutes=5), first=90)
     logger.info("loucabot %s avviato.", BOT_VERSION)
+    # v7.19.0: se Telegram non risponde a questo bot, si aspetta qui (niente crash in giro continuo) e intanto
+    # si scaricano partite e tabellini, che non hanno bisogno di Telegram (avvio.scarica_senza_telegram)
+    attesa_telegram.attendi(_token(), "loucabot", mentre=avvio.scarica_senza_telegram)
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 

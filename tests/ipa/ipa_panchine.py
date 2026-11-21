@@ -548,6 +548,47 @@ ok(c2 and c2["da_nome"] == "Luca" and "☑️ <b>Beta</b>" in uq.callback_query.
    "tocco: Beta controllata da Luca")
 uq = upd(900, cb=f"ck:{NC}:team02"); asyncio.run(Q.cb_controlli(uq, CTX))
 ok("team02" not in db.controlli(S, NC), "secondo tocco: tolto")
+ok("    PG " in t or "· PG " in t or " PG " in t, "/controlli: se ci sta, le formazioni sono sotto ogni squadra nello stesso messaggio")
+# v7.19.0 (Luca, 21/11): diviso solo se serve; con un aggiornamento che non ci sta più, messaggio nuovo
+_lim = Q.LIMITE_CONTROLLI
+Q.LIMITE_CONTROLLI = 300
+_n0 = len(BOT.mandati)
+m = Msg(); asyncio.run(Q.cmd_controlli(upd(900, m), CTX))
+t, k = m.risposte[-1]
+_altri = BOT.mandati[_n0:]
+ok(Q.SOTTO in t and f"ck:{NC}:team02" in bottoni(k["reply_markup"]) and _altri and all(len(x["text"]) <= 300 for x in _altri)
+   and "Formazioni G" in _altri[0]["text"], f"/controlli troppo lungo: la lista coi bottoni e le formazioni in {len(_altri)} messaggi")
+_n0 = len(BOT.mandati)
+uq = upd(900, cb=f"ck:{NC}:team02"); uq.callback_query.message = types.SimpleNamespace(text=Q.SOTTO, chat_id=900)
+asyncio.run(Q.cb_controlli(uq, CTX))
+ok(not [x for x in BOT.mandati[_n0:] if "Formazioni G" in x["text"]], "tocco su un messaggio che ha già le formazioni sotto: nessun messaggio nuovo")
+uq = upd(900, cb=f"ck:{NC}:team02"); uq.callback_query.message = types.SimpleNamespace(text="⬜ Beta\n    PG …", chat_id=900)
+asyncio.run(Q.cb_controlli(uq, CTX))
+ok([x for x in BOT.mandati[_n0:] if "Formazioni G" in x["text"]] and Q.SOTTO in uq.callback_query.testi[-1][0], "aggiornamento che non ci sta più: le formazioni in un messaggio nuovo")
+Q.LIMITE_CONTROLLI = _lim
+
+# ── v41 (Luca, 21/11): squadre «solo bot», per loro fa fede il quintetto nel bot ──
+db.q("DELETE FROM ipa_solo_bot")
+m = Msg(); CTX.args = ["team03"]; asyncio.run(Q.cmd_solo_bot(upd(900, m), CTX))
+ok("è «solo bot»" in m.risposte[-1][0] and "team03" in db.solo_bot_attivi(), "/solo_bot SQUADRA: accesa")
+gC = db.giornata(S, NC)
+t, k, _x = Q.testo_controlli(gC)
+ok("🤖" in t and "solo bot" in t and f"ck:{NC}:team03" not in bottoni(k), "/controlli: la squadra «solo bot» è già a posto, senza bottone")
+ok(db.controlli(S, NC)["team03"].get("solo_bot"), "risulta controllata da sola")
+uq = upd(900, cb=f"ck:{NC}:team03"); asyncio.run(Q.cb_controlli(uq, CTX))
+ok("fa fede il bot" in (uq.callback_query.risposte[-1] or ""), "un tocco vecchio sulla squadra «solo bot» non cambia niente")
+ok(comune.favore("team03") == comune.SOLO_BOT and comune.favore("team02") == comune.FAVORE, "il testo per il GM: fa fede il bot / fa fede Yahoo")
+_tp, _kp = Q.promemoria({"id": "team03", "nome": "Gamma"}, gC)
+ok(comune.SOLO_BOT in _tp, "promemoria al GM «solo bot»: gli dice che per lui fa fede il bot")
+m = Msg(); CTX.args = []; asyncio.run(Q.cmd_solo_bot(upd(900, m), CTX))
+ok("🤖" in m.risposte[-1][0] and "dal" in m.risposte[-1][0], "/solo_bot senza squadra: l'elenco")
+m = Msg(); CTX.args = ["team03"]; asyncio.run(Q.cmd_solo_bot(upd(900, m), CTX))
+ok("non è più «solo bot»" in m.risposte[-1][0] and "team03" not in db.solo_bot_attivi(), "/solo_bot di nuovo: spenta (revertibile)")
+ok(db.controlli(S, NC).get("team03", {}).get("solo_bot"), "spenta oggi: la giornata già cominciata resta com'era")
+m = Msg(); CTX.args = ["team03"]; asyncio.run(Q.cmd_solo_bot(upd(101, m), CTX))
+ok("Solo admin" in m.risposte[-1][0], "/solo_bot: solo admin")
+CTX.args = []
+db.q("DELETE FROM ipa_solo_bot")
 m = Msg("/quintetto_admin Alfa G2\nJalen Brunson\nBooker\nBridges\nGrant Williams\nMark Williams"); asyncio.run(Q.cmd_quintetto_admin(upd(900, m), CTX))
 ok("team01" in db.controlli(S, 2) and "controllata" in m.risposte[-1][0], "correzione della formazione G2: controllata da sola")
 m = Msg(); u = upd(900, m); CTX.args = ["2"]; asyncio.run(Q.cmd_stato(u, CTX)); CTX.args = []

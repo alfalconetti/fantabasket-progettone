@@ -36,6 +36,30 @@ MOTIVI = {
 # rifirma entro un anno deve dargli almeno il contratto precedente: il bot aste lo
 # controlla leggendo questa transazione (nota "Cam Thomas").
 NOTA_CAM_THOMAS = "Cam Thomas"
+TOGLIE_ALTRE = ("ritiro", "altra_lega")        # tolgono anche le spalmature di chi l'aveva tagliato prima
+
+
+def causa_da_nota(nota: str | None) -> str:
+    """La chiave di MOTIVI dalla nota della transazione (anche scritta a mano, con o senza emoji)."""
+    n = (nota or "").lower()
+    if "cam thomas" in n:
+        return "cam_thomas"
+    if "ritiro" in n:
+        return "ritiro"
+    if "altra lega" in n:
+        return "altra_lega"
+    return "altro"
+
+
+def cambio_causa(vecchia: str, nuova: str) -> str | None:
+    """Perché un cambio di causa non si può fare (None se si può). Da ritiro o altra lega a una causa che lascia
+    le spalmature no: quelle tolte alle altre squadre non si rimettono in automatico."""
+    if vecchia == nuova:
+        return "è già questa la causa"
+    if vecchia in TOGLIE_ALTRE and nuova not in TOGLIE_ALTRE:
+        return ("con ritiro o altra lega sono già state tolte le spalmature delle altre squadre che l'avevano tagliato, "
+                "e non si rimettono da sole: chiedi al dev")
+    return None
 
 
 # ── Flusso GM ──────────────────────────────────────────────────────────────────
@@ -296,6 +320,7 @@ async def admin_lista_team(query) -> None:
     tutti = tm.get_all_teams()
     bottoni = [InlineKeyboardButton(t["nome"], callback_data=f"decadm:t:{t['id']}") for t in tutti]
     righe = [bottoni[i:i + 2] for i in range(0, len(bottoni), 2)]
+    righe.append([InlineKeyboardButton("✏️ Correggi la causa di un decadimento", callback_data="decor:l")])
     righe.append([InlineKeyboardButton("← Menu admin", callback_data="adm:home")])
     await query.edit_message_text("🏁 <b>Decadimento (admin)</b> — scegli la squadra:",
                                   parse_mode="HTML", reply_markup=InlineKeyboardMarkup(righe))
@@ -355,6 +380,108 @@ async def cb_dec_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                       reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("← Menu admin", callback_data="adm:home")]]))
         await _ai_gm(context.bot, team_id, f"🛠 Un admin ha registrato il decadimento del contratto di <b>{nome}</b> "
                                           f"({MOTIVI.get(motivo, motivo)}).")
+
+
+# ── Correggere la causa (v7.19.0, Luca 20/11: «ho sbagliato a inserire la causa») ──────────────────────────
+# decor:l → decor:t:<transazione> → decor:m:<transazione>:<causa> → decor:ok:<transazione>:<causa>
+
+def _riga_dec(d: dict) -> str:
+    team = (tm.get_team_by_id(d["team_id_da"]) or {}).get("nome", d["team_id_da"])
+    return f"{d['nome_common']} · {team} · {MOTIVI[causa_da_nota(d['note'])]} · {format_dt(d['timestamp'])[:5]}"
+
+
+async def applica_correzione(bot, tid: int, nuova: str, admin_tag: str, user=None) -> str:
+    """Cambia la causa del decadimento `tid`. Ritorna il testo dell'esito (errore con ❌)."""
+    d = db.decadimento(tid)
+    if not d:
+        return "❌ Decadimento non trovato."
+    vecchia = causa_da_nota(d["note"])
+    perche = cambio_causa(vecchia, nuova)
+    if perche:
+        return f"❌ Non si può: {perche}."
+    altre = db.correggi_causa_decadimento(tid, f"Decadimento: {MOTIVI[nuova]}",
+                                          togli_altre=nuova in TOGLIE_ALTRE and vecchia not in TOGLIE_ALTRE)
+    team = tm.get_team_by_id(d["team_id_da"]) or {"nome": d["team_id_da"]}
+    nomi_altre = ", ".join((tm.get_team_by_id(t) or {}).get("nome", t) for t in altre)
+    from handlers.registro import segna
+    await segna(bot, user, "admin", "causa del decadimento corretta", squadre=[d["team_id_da"]] + list(altre),
+                giocatore_id=d["giocatore_id"], oggetto=d["nome_common"], prima=MOTIVI[vecchia], dopo=MOTIVI[nuova],
+                nota=(f"tolte le spalmature di {nomi_altre}" if altre else None))
+    testo = (f"📋 <b>{team['nome']}</b> — Correzione\n\nIl motivo del decadimento di <b>{d['nome_common']}</b> "
+             f"è {MOTIVI[nuova]} (non {MOTIVI[vecchia]})."
+             + (f"\nTolte anche le spalmature dei tagli passati: {nomi_altre}." if altre else "")
+             + (f"\nSe {team['nome']} lo rifirma entro un anno deve dargli almeno il contratto di prima." if nuova == "cam_thomas" else "")
+             + f"\n\n<i>Corretto da {admin_tag} — {format_dt(datetime.now(ROME))}</i>")
+    ch = settings.load_globals().get("main_channel_id")
+    if ch:
+        try:
+            await bot.send_message(chat_id=ch, text=testo, parse_mode="HTML")
+        except Exception as e:
+            logger.warning("Annuncio correzione decadimento: %s", e)
+    if altre:
+        try:
+            import gas_client
+            gas_client.sync_teams(altre)
+        except Exception as e:
+            logger.warning("GAS sync correzione decadimento: %s", e)
+    return f"✅ Causa corretta: <b>{d['nome_common']}</b> ({team['nome']}) → {MOTIVI[nuova]}."
+
+
+async def cb_dec_correggi(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    if not _is_admin(query.from_user.id):
+        await query.answer("⛔ Solo admin.", show_alert=True)
+        return
+    await query.answer()
+    parti = query.data.split(":")
+    azione = parti[1]
+    if azione == "l":
+        recenti = db.decadimenti_recenti()
+        kb = [[InlineKeyboardButton(_riga_dec(d)[:60], callback_data=f"decor:t:{d['id']}")] for d in recenti]
+        kb.append([InlineKeyboardButton("← Decadimento", callback_data="adm:dec")])
+        await query.edit_message_text("✏️ <b>Correggi la causa di un decadimento</b> (ultimi 6 mesi) — quale?"
+                                      if recenti else "Nessun decadimento negli ultimi 6 mesi.",
+                                      parse_mode="HTML", reply_markup=InlineKeyboardMarkup(kb))
+        return
+    tid = int(parti[2])
+    d = db.decadimento(tid)
+    if not d:
+        await query.edit_message_text("❌ Decadimento non trovato.")
+        return
+    vecchia = causa_da_nota(d["note"])
+    if azione == "t":
+        kb = [[InlineKeyboardButton(label, callback_data=f"decor:m:{tid}:{k}")]
+              for k, label in MOTIVI.items() if not cambio_causa(vecchia, k)]
+        kb.append([InlineKeyboardButton("← Indietro", callback_data="decor:l")])
+        nota = ("\n\n<i>Da ritiro o altra lega si passa solo all'altra delle due: le spalmature tolte alle altre squadre "
+                "non si rimettono da sole.</i>" if vecchia in TOGLIE_ALTRE else "")
+        await query.edit_message_text(f"✏️ <b>{_riga_dec(d)}</b>\n\nCausa di adesso: {MOTIVI[vecchia]}. Quella giusta?" + nota,
+                                      parse_mode="HTML", reply_markup=InlineKeyboardMarkup(kb))
+        return
+    nuova = parti[3]
+    if nuova not in MOTIVI:
+        return
+    if azione == "m":
+        effetti = []
+        if nuova in TOGLIE_ALTRE and vecchia not in TOGLIE_ALTRE:
+            effetti.append("si tolgono anche le spalmature delle altre squadre che l'avevano tagliato in passato")
+        if nuova == "cam_thomas":
+            effetti.append("se la squadra lo rifirma entro un anno deve dargli almeno il contratto di prima")
+        if vecchia == "cam_thomas":
+            effetti.append("non vale più il minimo della Cam Thomas per rifirmarlo")
+        await query.edit_message_text(
+            f"✏️ <b>{d['nome_common']}</b>: da {MOTIVI[vecchia]} a {MOTIVI[nuova]}?\n\n"
+            + ("Effetti: " + "; ".join(effetti) + "." if effetti else "Cambia solo la causa scritta.")
+            + "\nNel registro resta la riga della correzione, sul canale un messaggio.",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("✅ Conferma", callback_data=f"decor:ok:{tid}:{nuova}"),
+                InlineKeyboardButton("← Indietro", callback_data=f"decor:t:{tid}")]]))
+        return
+    if azione == "ok":
+        esito = await applica_correzione(context.bot, tid, nuova, _admin_tag(query.from_user), user=query.from_user)
+        await query.edit_message_text(esito, parse_mode="HTML",
+                                      reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("← Menu admin", callback_data="adm:home")]]))
 
 
 # ── Helper ─────────────────────────────────────────────────────────────────────
@@ -446,4 +573,5 @@ def get_handlers() -> list:
         CallbackQueryHandler(cb_dec_approva, pattern=r"^dec_approva:.+:\d+:\w+$"),
         CallbackQueryHandler(cb_dec_rifiuta, pattern=r"^dec_rifiuta:.+:\d+$"),
         CallbackQueryHandler(cb_dec_admin,   pattern=r"^decadm:(?:t:[\w-]+|g:[\w-]+:\d+|(?:m|ok):[\w-]+:\d+:\w+)$"),
+        CallbackQueryHandler(cb_dec_correggi, pattern=r"^decor:(?:l|t:\d+|(?:m|ok):\d+:\w+)$"),
     ]

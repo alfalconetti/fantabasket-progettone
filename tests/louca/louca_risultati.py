@@ -547,7 +547,12 @@ db.q("UPDATE nba_partite SET stato = 'STATUS_FINAL' WHERE espn_id = 'g4'")
 gN = db.giornata(S, N)
 ok(calcolo.punteggio_giocatori(S, gN, ["r30"])["r30"]["come"] == "media", "r30: ultimo tabellino coi NOP, che non giocano: media")
 db.salva_atleti([{"atleta": "r30", "nome": "r30", "squadra": "NYK"}])
+# v7.19.0: «oggi» fisso a fine giornata: i roster ESPN di adesso valgono solo per giornate finite da meno di una
+# settimana, e con le date fisse della prova dal 21/11/2026 non lo era più
+_oggi_vero = calcolo.oggi_et
+calcolo.oggi_et = lambda: gN["al"]
 p30 = calcolo.punteggio_giocatori(S, gN, ["r30"])["r30"]
+calcolo.oggi_et = _oggi_vero
 ok(p30["squadra"] == "NYK" and p30["come"] == "zero", "passato ai Knicks (roster ESPN), che giocano: non prende la media")
 db.salva_atleti([{"atleta": f"x{i}", "nome": "x", "squadra": sq} for i, sq in enumerate(sorted(__import__("nba").NBA))])
 ok(calcolo.punteggio_giocatori(S, gN, ["r30"])["r30"]["squadra"] == "NOP", "non più in nessun roster: vale l'ultimo tabellino")

@@ -40,6 +40,8 @@ Il bot lavora su **due database**.
 | `main_channel_id` | annuncio delle firme |
 | `admin_group_id` | conferme e avvisi |
 
+**Avvio senza Telegram (v7.19.0, v85).** Prima di `run_polling` `shared.attesa_telegram.attendi`: se Telegram non risponde a `getMe` il bot aspetta invece di andare in crash, e il messaggio «Bot riavviato» nel canale log dice quanto. **Ordine dei comandi (v85):** per i GM `offri` per primo col mercato aperto, poi `nuova_fa`, `lista_fa`, `offerta`, `watch`, `watched`, `me`, `team`… (`shared.ordine_comandi`).
+
 **Versione.** È l'ultima voce `## vNN` del suo `CHANGELOG.md`.
 
 ---

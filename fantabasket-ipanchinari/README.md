@@ -86,6 +86,7 @@ giornata per il calcolo) e al gruppo admin va l'elenco delle panchine mancanti.
 | `/start`, `/guida` | tutti | come si usa, la guida (file) |
 | `/stato [N]` | admin | conferme e panchine di una giornata |
 | `/controlli [N]` | admin | formazioni della giornata chiusa da segnare controllate su Yahoo |
+| `/solo_bot [SQUADRA]` | admin | squadre che usano solo i bot: per loro fa fede il quintetto nel bot, in `/controlli` già a posto (v41); senza squadra l'elenco |
 | `/quintetti [N]` | admin | tutti i quintetti, una riga per squadra; con N le formazioni della giornata N |
 | `/quintetto_admin SQUADRA [GN]` | admin | senza righe il quintetto coi bottoni (parte dall'attuale), o sotto i 5 titolari (con o senza ruolo davanti); anche a giornata in corso; con GN corregge la formazione della giornata N |
 | `/quintetti_import` | admin | tutte le squadre: nome esatto o id, poi 5 titolari; squadre separate da una riga vuota (anche file .txt) |

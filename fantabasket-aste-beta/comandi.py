@@ -87,7 +87,14 @@ def liste_comandi(fase: str, mercato_fa: bool, offerte: bool) -> dict:
     ]
     gruppi = [BotCommand("team", "Cap e slot di una squadra [id, nome o GM]"),
               BotCommand("listteams", "Cap e slot di tutte le squadre")]
-    return {"gm": gm, "admin": admin, "dev": dev, "gruppi": gruppi}
+    # v7.19.0 (Luca, 21/11): un ordine sensato per i GM (col mercato aperto /offri per primo); per admin e dev i
+    # loro comandi dopo, come prima
+    from shared.ordine_comandi import ordina
+    gm_ord = ordina(gm, ["offri", "nuova_fa", "lista_fa", "offerta", "watch", "watched",
+                         "me", "team", "autocap", "autoslot", "guida", "annulla"])
+    admin = gm_ord + [b for b in admin if b.command not in {x.command for x in gm}]
+    dev = admin + [b for b in dev if b.command not in {x.command for x in admin}]
+    return {"gm": gm_ord, "admin": admin, "dev": dev, "gruppi": gruppi}
 
 
 def comandi_pubblici() -> set[str]:

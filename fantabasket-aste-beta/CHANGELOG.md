@@ -719,3 +719,8 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 ## v84 (2026-11-10, progettone v7.4.6)
 
 - **Fantamedia della lista FA e delle offerte**: si prende la stagione più recente di Basketball-Reference, non l'ultima riga scaricata (con le stagioni storiche caricate in questi giorni poteva uscire la fantamedia di un anno vecchio)
+
+## v85 (2026-11-21, progettone v7.19.0)
+
+- Se Telegram non risponde all'avvio il bot aspetta invece di andare in crash
+- Ordine dei comandi per i GM: col mercato aperto `/offri` per primo, poi `/nuova_fa`, `/lista_fa`, `/offerta`, la watchlist, poi `/me`, `/team`…

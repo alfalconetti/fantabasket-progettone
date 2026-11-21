@@ -32,7 +32,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 import abbina
 import config
 import db
-from comune import (FAVORE, ROMA, adesso, stati, aperta, chi, e, giornata_in_corso, in_gioco, log, ora, ora_promemoria, partite_squadre_nba,
+from comune import (FAVORE, SOLO_BOT, favore, ROMA, adesso, stati, aperta, chi, e, giornata_in_corso, in_gioco, log, ora, ora_promemoria, partite_squadre_nba,
                     prossima_giornata, testo_partite)
 
 logger = logging.getLogger(__name__)
@@ -113,7 +113,7 @@ def incompatibilita(team_id: str, q: dict[str, int] | None = None, admin: bool =
             if breve:
                 out.append(f"{nome} titolare ({ruolo}) e in panchina G{gg['numero']}")
             elif not admin:
-                out.append(f"{nome} è titolare ({ruolo}) e anche in panchina: se vuoi aggiorna il quintetto ({FAVORE}), "
+                out.append(f"{nome} è titolare ({ruolo}) e anche in panchina: se vuoi aggiorna il quintetto ({favore(team_id)}), "
                            f"altrimenti se ne occupa un admin")
             elif not chiusa:
                 out.append(f"{nome} è titolare ({ruolo}) e anche nella panchina della giornata {gg['numero']}: avvisa "
@@ -176,7 +176,7 @@ def _tastiera(team_id: str, g: dict | None, admin: bool = False) -> K:
                         callback_data=f"q:ok:{team_id}:{g['numero']}")])
     if admin:
         gc = giornata_da_controllare()
-        if gc:
+        if gc and not db.controlli(config.stagione(), gc["numero"]).get(team_id, {}).get("solo_bot"):
             fatto = team_id in db.controlli(config.stagione(), gc["numero"])
             tasti.append([B(f"↩️ Togli controllata G{gc['numero']}" if fatto else f"☑️ Segna controllata G{gc['numero']}",
                             callback_data=f"q:ck:{team_id}:{gc['numero']}")])
@@ -196,7 +196,8 @@ def _testo_editor(team_id: str, g: dict | None, admin: bool = False) -> str:
         st = db.conferme(config.stagione(), g["numero"]).get(team_id)
         t += ["", f"Stato: {'✅ confermato' if st and st['stato'] == 'confermato' else '✏️ modificato' if st else 'non ancora confermato'}"]
     if not admin:
-        t += ["", f"ℹ️ Aggiornare il quintetto qui {FAVORE}."]
+        t += ["", f"ℹ️ Aggiornare il quintetto qui: {favore(team_id)}." if team_id in db.solo_bot_attivi()
+              else f"ℹ️ Aggiornare il quintetto qui {FAVORE}."]
     if admin:
         in_corso = giornata_in_corso()
         if in_corso:
@@ -204,7 +205,8 @@ def _testo_editor(team_id: str, g: dict | None, admin: bool = False) -> str:
         gc = giornata_da_controllare()
         if gc:
             c = db.controlli(config.stagione(), gc["numero"]).get(team_id)
-            t.append(f"Formazione G{gc['numero']}: " + (f"☑️ controllata da {e(c['da_nome'] or '?')} ({ora(c['quando'])})"
+            t.append(f"Formazione G{gc['numero']}: " + ("🤖 fa fede il bot (squadra «solo bot»)" if c and c.get("solo_bot")
+                                                       else f"☑️ controllata da {e(c['da_nome'] or '?')} ({ora(c['quando'])})"
                                                        if c else "⬜ da controllare su Yahoo"))
     return "\n".join(t)
 
@@ -263,6 +265,9 @@ async def cb_quintetto(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await q.answer("Solo admin.", show_alert=True)
             return
         n = int(parti[3])
+        if db.controlli(s, n).get(team_id, {}).get("solo_bot"):
+            await q.answer("Squadra «solo bot»: fa fede il bot, niente da controllare.", show_alert=True)
+            return
         from registro import segna_sync
         if team_id in db.controlli(s, n):
             db.togli_controllo(s, n, team_id)
@@ -527,20 +532,23 @@ def testo_stato(g: dict) -> str:
     nessuna_conferma, senza_panca = [], []
     chiusa = db.stato_giornata(s, g["numero"])["chiusa"]
     ctrl = db.controlli(s, g["numero"]) if chiusa else {}
+    solo = db.solo_bot_in(g["dal"], g["al"])
     for t in in_gioco(s, g):
         c = conf.get(t["id"])
         stato_q = "✅" if c and c["stato"] == "confermato" else "✏️" if c else "—"
         p = panche.get(t["id"])
         inc = incompatibilita(t["id"], breve=True)
         righe.append(f"{stato_q} quintetto · {'🪑' if p else '❌'} panchina"
-                     + ((" · ☑️" if t["id"] in ctrl else " · ⬜") if chiusa else "") + f" · {e(t['nome'])}"
+                     + ((" · 🤖" if ctrl.get(t["id"], {}).get("solo_bot") else " · ☑️" if t["id"] in ctrl else " · ⬜")
+                        if chiusa else "") + f" · {e(t['nome'])}" + (" 🤖" if t["id"] in solo and not chiusa else "")
                      + (f" ⚠️ {e('; '.join(inc))}" if inc else ""))
         if not c:
             nessuna_conferma.append(t["nome"])
         if not p:
             senza_panca.append(t["nome"])
     righe += ["", "✅ confermato · ✏️ modificato · — niente (quintetto da controllare su Yahoo)"
-              + (" · ☑️ formazione controllata da un admin · ⬜ da controllare (/controlli)" if chiusa else "")]
+              + (" · ☑️ formazione controllata da un admin · ⬜ da controllare (/controlli)" if chiusa else "")
+              + (" · 🤖 squadra «solo bot»: fa fede il quintetto nel bot" if solo else "")]
     if nessuna_conferma:
         righe += ["", f"<b>Quintetti da controllare ({len(nessuna_conferma)})</b>: {e(', '.join(nessuna_conferma))}"]
     if senza_panca:
@@ -612,31 +620,101 @@ async def cmd_quintetti(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await manda_lungo(context.bot, update.effective_chat.id, testo_quintetti(n), f"quintetti-G{n}" if n else "quintetti")
 
 
-def testo_controlli(g: dict, con_formazioni: bool = True) -> tuple[str, K]:
-    """Le formazioni congelate di una giornata chiusa, da controllare su Yahoo: ☑️ / ⬜ e chi."""
+LIMITE_CONTROLLI = 3900          # sotto i 4096 di Telegram, con margine per l'HTML
+SOTTO = "<i>Formazioni nei messaggi qui sotto (non ci stavano in uno solo).</i>"
+
+
+def _riga_formazione(s: str, n: int, t: dict) -> str:
+    f = db.formazione(s, n, t["id"])
+    nomi = db.nomi_giocatori([x for x in f.values() if x])
+    return " · ".join(f"{r} {e(nomi.get(f.get(r), '—')) if f.get(r) else '—'}" for r in RUOLI)
+
+
+def testo_controlli(g: dict) -> tuple[str, K, list[str]]:
+    """Le formazioni congelate di una giornata chiusa, da controllare su Yahoo: ☑️ / ⬜ e chi.
+    (testo, bottoni, altri messaggi). v7.19.0 (Luca, 21/11: «va diviso solo se serve»): se tutto sta in un
+    messaggio le formazioni sono sotto ogni squadra, come prima; se no il messaggio coi bottoni ha solo la
+    lista da spuntare e le formazioni vanno in altri messaggi, divisi al limite di Telegram (prima si
+    toglievano e si rimandava a /quintetti)."""
     s, n = config.stagione(), g["numero"]
     ctrl, conf = db.controlli(s, n), db.conferme(s, n)
     squadre = in_gioco(s, g)
-    righe = [f"🔍 <b>Controllo formazioni G{n}</b> su Yahoo · {len([t for t in squadre if t['id'] in ctrl])}/{len(squadre)} fatte", ""]
+    testa = [f"🔍 <b>Controllo formazioni G{n}</b> su Yahoo · {len([t for t in squadre if t['id'] in ctrl])}/{len(squadre)} fatte", ""]
+    righe, formazioni = [], []
     for t in squadre:
         c, cf = ctrl.get(t["id"]), conf.get(t["id"])
         gm = "✅" if cf and cf["stato"] == "confermato" else "✏️" if cf else "—"
-        riga = f"{'☑️' if c else '⬜'} <b>{e(t['nome'])}</b> (GM {gm})"
-        if c:
-            riga += f" <i>{e(c['da_nome'] or '?')} {c['quando'].astimezone(ROMA):%d/%m %H:%M}</i>"
-        if con_formazioni:
-            f = db.formazione(s, n, t["id"])
-            nomi = db.nomi_giocatori([x for x in f.values() if x])
-            riga += "\n    " + " · ".join(f"{r} {e(nomi.get(f.get(r), '—')) if f.get(r) else '—'}" for r in RUOLI)
+        if c and c.get("solo_bot"):                 # v41: niente da controllare su Yahoo
+            riga = f"🤖 <b>{e(t['nome'])}</b> (GM {gm}) <i>solo bot: fa fede il quintetto nel bot</i>"
+        else:
+            riga = f"{'☑️' if c else '⬜'} <b>{e(t['nome'])}</b> (GM {gm})"
+            if c:
+                riga += f" <i>{e(c['da_nome'] or '?')} {c['quando'].astimezone(ROMA):%d/%m %H:%M}</i>"
         righe.append(riga)
-    righe += ["", "Tocca una squadra per segnarla controllata (o toglierlo). Se correggi una formazione con "
-                  f"/quintetto_admin SQUADRA G{n} si segna da sola. GM: ✅ confermato · ✏️ modificato · — niente."]
-    tasti = [B(("☑️ " if t["id"] in ctrl else "⬜ ") + t["nome"], callback_data=f"ck:{n}:{t['id']}") for t in squadre]
-    kb = [tasti[i:i + 2] for i in range(0, len(tasti), 2)] + [[B("🔄 Aggiorna", callback_data=f"ck:{n}:-")]]
-    testo = "\n".join(righe)
-    if con_formazioni and len(testo) > 3900:
-        return testo_controlli(g, con_formazioni=False)[0] + f"\n<i>Formazioni: /quintetti {n}</i>", K(kb)
-    return testo, K(kb)
+        formazioni.append((t, _riga_formazione(s, n, t)))
+    coda = ["", "Tocca una squadra per segnarla controllata (o toglierlo). Se correggi una formazione con "
+                f"/quintetto_admin SQUADRA G{n} si segna da sola. GM: ✅ confermato · ✏️ modificato · — niente."
+                + (" 🤖 squadra «solo bot» (/solo_bot): già a posto, fa fede il bot."
+                   if any(c.get("solo_bot") for c in ctrl.values()) else "")]
+    tasti = [B(("☑️ " if t["id"] in ctrl else "⬜ ") + t["nome"], callback_data=f"ck:{n}:{t['id']}") for t in squadre
+             if not ctrl.get(t["id"], {}).get("solo_bot")]
+    kb = K([tasti[i:i + 2] for i in range(0, len(tasti), 2)] + [[B("🔄 Aggiorna", callback_data=f"ck:{n}:-")]])
+    intero = "\n".join(testa + [r + "\n    " + f for r, (_t, f) in zip(righe, formazioni)] + coda)
+    if len(intero) <= LIMITE_CONTROLLI:
+        return intero, kb, []
+    altri, pezzo = [], f"🏀 <b>Formazioni G{n}</b> (congelate alla scadenza)\n"
+    for t, f in formazioni:
+        blocco = f"\n<b>{e(t['nome'])}</b>\n    {f}"
+        if len(pezzo) + len(blocco) > LIMITE_CONTROLLI:
+            altri.append(pezzo)
+            pezzo = ""
+        pezzo += blocco
+    altri.append(pezzo)
+    return "\n".join(testa + righe + coda + ["", SOTTO]), kb, altri
+
+
+async def _manda_altri(bot, chat_id, altri: list[str]) -> None:
+    for x in altri:
+        await bot.send_message(chat_id=chat_id, text=x, parse_mode="HTML")
+
+
+async def cmd_solo_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/solo_bot [SQUADRA] (admin, v41, Luca 21/11): accende o spegne «solo bot» per una squadra, il GM che ha
+    scelto di non usare più Yahoo: per lui fa fede il quintetto nel bot, in /controlli risulta già a posto e i
+    messaggi glielo dicono. Senza squadra: l'elenco. Spegnere non cambia le giornate già passate."""
+    msg = update.effective_message
+    if not config.is_admin(update.effective_user.id):
+        await msg.reply_text("⛔ Solo admin.")
+        return
+    attivi = db.solo_bot_attivi()
+    if not context.args:
+        elenco = "\n".join(f"🤖 {e(config.nome(t))} — dal {ora(r['dal'])}" + (f" ({e(r['da_nome'])})" if r.get("da_nome") else "")
+                           for t, r in attivi.items()) or "nessuna"
+        await msg.reply_text("🤖 <b>Squadre «solo bot»</b> (per loro fa fede il quintetto nel bot, non Yahoo):\n"
+                             f"{elenco}\n\n/solo_bot SQUADRA la accende o la spegne.", parse_mode="HTML")
+        return
+    from shared.squadre import cerca_squadra
+    team = cerca_squadra(" ".join(context.args), config.squadre())
+    if not team:
+        await msg.reply_text("Squadra non trovata. Uso: /solo_bot SQUADRA (nome o id).")
+        return
+    nome_admin = _nome_admin(update)
+    from registro import segna_sync
+    if team["id"] in attivi:
+        db.disattiva_solo_bot(team["id"], nome_admin)
+        prima, dopo = "🤖 solo bot", "fa fede Yahoo"
+        testo = (f"↩️ <b>{e(team['nome'])}</b> non è più «solo bot»: da adesso fa fede Yahoo, e le prossime formazioni "
+                 "vanno controllate in /controlli. Le giornate passate restano com'erano.")
+    else:
+        db.attiva_solo_bot(team["id"], nome_admin)
+        prima, dopo = "fa fede Yahoo", "🤖 solo bot"
+        testo = (f"🤖 <b>{e(team['nome'])}</b> è «solo bot»: per questa squadra fa fede il quintetto nel bot. In "
+                 "/controlli risulta già a posto, e i messaggi al GM gli dicono di tenere il quintetto aggiornato qui. "
+                 f"Per tornare indietro: /solo_bot {e(team['nome'])}.")
+    segna_sync(update.effective_user, "admin", "squadra solo bot", squadre=team["id"], oggetto="fonte del quintetto",
+               prima=prima, dopo=dopo)
+    await log(context.bot, f"🤖 {e(team['nome'])}: {prima} → {dopo} ({chi(update)})")
+    await msg.reply_text(testo, parse_mode="HTML")
 
 
 async def cmd_controlli(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -650,8 +728,9 @@ async def cmd_controlli(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not g or not db.stato_giornata(s, g["numero"])["chiusa"]:
         await update.effective_message.reply_text("Nessuna giornata chiusa da controllare" + (f" (la {n} non è chiusa)." if n else "."))
         return
-    testo, kb = testo_controlli(g)
+    testo, kb, altri = testo_controlli(g)
     await update.effective_message.reply_text(testo, parse_mode="HTML", reply_markup=kb)
+    await _manda_altri(context.bot, update.effective_chat.id, altri)
 
 
 async def cb_controlli(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -663,6 +742,9 @@ async def cb_controlli(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _, n, team_id = q.data.split(":")
     s, n = config.stagione(), int(n)
     g = db.giornata(s, n)
+    if team_id != "-" and db.controlli(s, n).get(team_id, {}).get("solo_bot"):
+        await q.answer("Squadra «solo bot»: fa fede il bot, niente da controllare.", show_alert=True)
+        return
     if team_id != "-":
         from registro import segna_sync
         if team_id in db.controlli(s, n):
@@ -678,12 +760,17 @@ async def cb_controlli(update: Update, context: ContextTypes.DEFAULT_TYPE):
                        oggetto=f"formazione G{n}", prima="da controllare", dopo="☑️ controllata")
     else:
         await q.answer()
-    testo, kb = testo_controlli(g)
+    testo, kb, altri = testo_controlli(g)
     try:
         await q.edit_message_text(testo, parse_mode="HTML", reply_markup=kb)
     except Exception as err:                       # "message is not modified" su 🔄 senza novità
         logger.info("Controlli: %s", err)
-
+    # v7.19.0: le formazioni in messaggi nuovi solo se servono e non ci sono già (il messaggio aveva tutto
+    # dentro e adesso non ci sta più), o con 🔄 Aggiorna (una formazione corretta nel frattempo)
+    msg = getattr(q, "message", None)
+    gia_sotto = "Formazioni nei messaggi qui sotto" in ((getattr(msg, "text", "") if msg else "") or "")
+    if altri and (not gia_sotto or team_id == "-"):
+        await _manda_altri(context.bot, msg.chat_id if msg else update.effective_chat.id, altri)
 
 async def cmd_stato(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/stato [N]: conferme dei quintetti e panchine di una giornata (la prossima se manca N)."""
@@ -717,7 +804,8 @@ def promemoria(t: dict, g: dict) -> tuple[str, K]:
     inc = incompatibilita(t["id"])
     if inc:
         testo += "\n\n⚠️ " + "\n⚠️ ".join(e(x) for x in inc)
-    testo += (f"\n\nVa bene così o vuoi cambiarlo? Confermarlo o aggiornarlo qui {FAVORE}. "
+    testo += (f"\n\nVa bene così o vuoi cambiarlo? "
+              + (f"Attenzione: {SOLO_BOT}. " if t["id"] in db.solo_bot_attivi() else f"Confermarlo o aggiornarlo qui {FAVORE}. ") +
                "Puoi cambiarlo in qualsiasi momento con /quintetto, anche dopo averlo confermato.\n"
                "La panchina invece sì: mandamela qui, 5 giocatori, uno per riga.")
     tasti = K([[B("✅ Confermo", callback_data=f"q:ok:{t['id']}:{g['numero']}"),
@@ -847,6 +935,7 @@ def get_handlers() -> list:
         CommandHandler("stato", cmd_stato),
         CommandHandler("quintetti", cmd_quintetti),
         CommandHandler("controlli", cmd_controlli),
+        CommandHandler("solo_bot", cmd_solo_bot),
         CallbackQueryHandler(cb_quintetto, pattern=r"^q:"),
         CallbackQueryHandler(cb_controlli, pattern=r"^ck:\d+:[\w-]+$"),
     ]

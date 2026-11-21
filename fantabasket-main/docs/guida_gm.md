@@ -36,6 +36,8 @@ Due cose da sapere:
 
 Con una data (`/roster Alfa 01-12-26`) squadra NBA, età e % G sono quelle di quel giorno.
 
+Sotto il nome della squadra c'è sempre a quando si riferisce l'immagine (v7.19.0): «al 21/11/2026 · 01:01» per quella di adesso, «com'era al 01/12/2026» in giallo per una data passata. Vale anche per `/assets` e per i PDF di tutte le squadre.
+
 **`/pdf_assets`** fa lo stesso con gli asset (`/pdf_assets 01-12-26` a una data). **`/pdf_roster`** ti manda un PDF coi roster di tutte le squadre, una pagina ciascuna, uguali a `/roster`. Con una data (`/pdf_roster 01-12-26`) i roster di quel giorno. Ci mette qualche secondo; se il file fosse troppo grande per Telegram arriva diviso in più parti.
 
 Nei diritti (in `/assets`, nelle trade e nella firma dei diritti) accanto al nome c'è la fantamedia, «FP —» se non ce l'ha (per esempio se gioca in Europa).

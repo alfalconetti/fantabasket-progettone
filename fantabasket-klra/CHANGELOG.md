@@ -33,3 +33,7 @@
 ## v6 (2026-11-14, progettone v7.9.4)
 
 - `motore._ordina` accetta la vincitrice della Quasi NBA Cup che la classifica di loucabot passa dalla v7.9.4: vale solo per l'Ufficiale, non per i sistemi
+
+## v7 (2026-11-21, progettone v7.19.0)
+
+- Se Telegram non risponde all'avvio klra aspetta invece di andare in crash
