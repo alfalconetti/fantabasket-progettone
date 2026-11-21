@@ -2099,3 +2099,11 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.20.3 (2026-11-21)
 
 - Loucabot v133: periodo di `/rendimento`, `/confronto` e `/rendimento_situazione` anche **a cavallo di due stagioni** (dal prossimo anno, quando il bot avrà i dati della stagione prima): linea della stagione nuova in `/rendimento`, banda grigia «off-season» in `/confronto`; media della stagione principale nel primo riquadro; titoli che dicono il periodo vero (primi dati del bot, tutte le K partite); data scritta male segnalata
+
+## v7.20.4 (2026-11-21)
+
+- Loucabot v134: dopo `/correggi_tabellino` il bot dice cosa serve secondo lo stato della giornata (Luca, 21/11): non calcolata → niente, il live la usa già e il calcolo la prende da solo; calcolata → `/ricalcola N` e convalida; convalidata → `/ricalcola N` e riconvalida
+
+## v7.20.5 (2026-11-21)
+
+- **Esempi con le squadre vere** (Luca, 21/11): negli «Uso:» e negli aiuti dei bot (`/registro aiuto`, `/giocatori aiuto`, `/notte`, `/partita`, `/pdf_partite`, `/set_seed`, `/rendimento_team`, `/partita` di klra) squadre vere della lega a caso a ogni risposta (`shared/esempi.py`); nelle guide segnaposti (SQUADRA, SQUADRA1, SQUADRA2), così i nomi veri non stanno nel repo. Alfa, Beta, Gamma e Delta restano solo nelle prove (lo controlla la prova `esempi_squadre`)

@@ -66,14 +66,21 @@ def segna_sync(user, veste: str, azione: str, **campi) -> dict | None:
 
 AIUTO = ("📜 <b>/registro</b> [filtri] — le azioni di tutti i bot, in un file. Filtri in qualsiasi ordine:\n"
          "• <code>7</code> o <code>giorni:7</code> · <code>dal:01/11</code> · <code>al:15/11/2026</code>\n"
-         "• <code>squadra:Alfa,Beta</code> · <code>giocatore:\"Jalen Brunson\"</code> · <code>chi:@luca</code> (o solo <code>@luca</code>)\n"
+         "• <code>squadra:§A§,§B§</code> · <code>giocatore:\"Jalen Brunson\"</code> · <code>chi:@luca</code> (o solo <code>@luca</code>)\n"
          "• <code>admin</code> <code>gm</code> <code>dev</code> <code>sistema</code> (o <code>veste:</code>) · "
          "<code>principale</code> <code>aste</code> <code>loucabot</code> <code>ipanchinari</code> (o <code>bot:</code>)\n"
          "• <code>azione:taglio</code> · <code>testo:G12</code> (cerca in oggetto, prima → dopo e nota)\n"
          "• senza chiave: una squadra, un giocatore o un pezzo di azione (se è ambiguo il bot chiede la chiave)\n"
          "• più valori con la virgola valgono in «o»; <code>-</code> davanti nega (<code>-sistema</code>, <code>-bot:aste</code>); "
-         "<code>|</code> (o <code>oppure</code>) separa gruppi alternativi: <code>squadra:Alfa taglio | squadra:Beta trade</code>\n"
+         "<code>|</code> (o <code>oppure</code>) separa gruppi alternativi: <code>squadra:§A§ taglio | squadra:§B§ trade</code>\n"
          "Con spazi nel valore, tra virgolette. I GM vedono solo la loro squadra.")
+
+
+def aiuto() -> str:
+    """AIUTO con due squadre vere a caso negli esempi (v7.20.4)."""
+    from shared import esempi as ES
+    a, b = ES.due()
+    return AIUTO.replace("§A§", ES.filtro(a)).replace("§B§", ES.filtro(b))
 
 
 class Errore(ValueError):
@@ -174,7 +181,9 @@ def leggi(args: list[str]) -> dict:
             cur.append(p)
     blocchi.append(cur)
     if len(blocchi) > 1 and not all(blocchi):
-        raise Errore("Un «|» (oppure) va tra due gruppi di filtri, es. /registro squadra:Alfa | squadra:Beta.")
+        from shared import esempi as ES
+        a, b = ES.due()
+        raise Errore(f"Un «|» (oppure) va tra due gruppi di filtri, es. /registro squadra:{ES.filtro(a)} | squadra:{ES.filtro(b)}.")
     for b in blocchi:
         g = {"si": [], "no": [], "desc": []}
         parole = {False: [], True: []}
@@ -278,7 +287,7 @@ async def _manda(bot, chat_id: int, user, args: list[str]) -> str | None:
     except Errore as err:
         return f"❌ {err}"
     if f["aiuto"]:
-        return AIUTO
+        return aiuto()
     fissa = None
     if not admin:
         t = tm.get_team_by_gm(user.id)
@@ -306,7 +315,7 @@ async def cmd_registro(update: Update, context: ContextTypes.DEFAULT_TYPE):
     u = update.effective_user
     motivo = await _manda(context.bot, update.effective_chat.id, u, list(context.args or []))
     if motivo:
-        await update.effective_message.reply_text(motivo, parse_mode="HTML" if motivo == AIUTO else None)
+        await update.effective_message.reply_text(motivo, parse_mode="HTML" if motivo.startswith("📜 <b>/registro</b>") else None)
 
 
 async def cb_registro(update: Update, context: ContextTypes.DEFAULT_TYPE):

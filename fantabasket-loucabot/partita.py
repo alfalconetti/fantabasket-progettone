@@ -120,7 +120,7 @@ def leggi_argomenti(args: list[str], squadre: list[dict]) -> tuple[list[dict], i
         return ([t for t in tt if t], n, None) if all(tt) else ([], n, f"Squadra non trovata: «{pezzi[tt.index(None)]}»")
     intera = cerca_squadra(testo, squadre)
     parole = testo.split()
-    # due nomi attaccati («Alfa Beta»): una divisione in cui entrambe le metà sono squadre (nome esatto o inizio)
+    # due nomi attaccati («Squadra A Squadra B»): una divisione in cui entrambe le metà sono squadre (nome esatto o inizio)
     from shared.squadre import campi_ricerca, normalizza, per_parole
     def esatta(q):
         qn = normalizza(q)
@@ -448,13 +448,16 @@ async def cmd_partita(update, context):
         return
     sq, n, err = leggi_argomenti(args, config.squadre())
     if err:
+        from shared import esempi as ES
+        a, b = ES.due()
         await msg.reply_text(f"❌ {err}\nUso: /partita [SQUADRA] [GN] oppure /partita SQUADRA SQUADRA "
-                             "(es. /partita Alfa G3, /partita Alfa - Beta; Quasi NBA Cup: /partita Q1, /partita Q2)")
+                             f"(es. /partita {a} G3, /partita {a} - {b}; Quasi NBA Cup: /partita Q1, /partita Q2)")
         return
     if not sq:
         mia = config.squadra_del_gm(update.effective_user.id)
         if not mia:
-            await msg.reply_text("Uso: /partita SQUADRA [GN] oppure /partita SQUADRA SQUADRA (es. /partita Alfa G3).")
+            from shared import esempi as ES
+            await msg.reply_text(f"Uso: /partita SQUADRA [GN] oppure /partita SQUADRA SQUADRA (es. /partita {ES.squadra()} G3).")
             return
         sq = [mia]
     if len(sq) == 2:

@@ -49,3 +49,7 @@
 ## v9 (2026-11-21, progettone v7.20.2)
 
 - `/rendimento` e `/confronto` col periodo come loucabot v132 (anche dal bottone «Quale?»)
+
+## v10 (2026-11-21, progettone v7.20.5)
+
+- «Uso:» di `/partita` con una squadra vera a caso

@@ -29,7 +29,7 @@ SF Mikal Bridges
 PF Grant Williams
 C Mark Williams
 
-Alfa
+Altra Squadra
 ...
 ```
 

@@ -169,7 +169,8 @@ async def cmd_rendimento_team(update, context):
     args = list(context.args or [])
     team = cerca_squadra(" ".join(args), config.squadre()) if args else config.squadra_del_gm(update.effective_user.id)
     if not team:
-        await msg.reply_text("Uso: /rendimento_team [SQUADRA o GM] — senza squadra la tua. Es: /rendimento_team Alfa")
+        from shared import esempi as ES
+        await msg.reply_text(f"Uso: /rendimento_team [SQUADRA o GM] — senza squadra la tua. Es: /rendimento_team {ES.squadra()}")
         return
     try:
         d = await asyncio.to_thread(dati, team["id"])

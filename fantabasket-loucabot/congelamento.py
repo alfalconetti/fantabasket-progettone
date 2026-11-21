@@ -321,6 +321,18 @@ def leggi_correzione(args: list[str]) -> tuple[str, int, float | None, tuple[int
     return " ".join(a[:-2]), n, valore, data
 
 
+def cosa_fare(s: str, n: int) -> str:
+    """Dopo una correzione del tabellino, cosa serve secondo lo stato della giornata (v7.20.3, Luca 21/11: «non deve
+    dirmi di fare ricalcola se la giornata non è finita»)."""
+    c = db.q("SELECT stato FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (s, n), one=True)
+    if not c:
+        return ("La giornata non è ancora calcolata: il live la usa già e il calcolo dopo l'ultima notte la prende da "
+                "solo, non serve fare altro.")
+    if c["stato"] != "convalidata":
+        return f"La giornata è calcolata ma non convalidata: /ricalcola {n} per aggiornare la proposta, poi la convalida."
+    return f"La giornata è già convalidata: /ricalcola {n} e poi riconvalida per aggiornare i risultati."
+
+
 async def cmd_correggi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/correggi_tabellino GIOCATORE GN VALORE [DD/MM] (admin)."""
     msg = update.effective_message
@@ -386,7 +398,7 @@ async def cmd_correggi(update: Update, context: ContextTypes.DEFAULT_TYPE):
         testo = (f"✏️ <b>Correzione G{n}</b>: {e(gioc['nome_common'])} ({r['data_et']:%d/%m}) {tp(prima)} → <b>{tp(valore)}</b> "
                  f"fantapunti (admin {e(_chi(update))})")
     await _annuncia(context.bot, testo)
-    await msg.reply_text(testo + f"\n\nOra /ricalcola {n} e la convalida per aggiornare i risultati."
+    await msg.reply_text(testo + "\n\n" + cosa_fare(s, n)
                          + ("\nLa correzione resta anche quando il bot riscarica i tabellini da ESPN (ricalcolo, 7:45, controllo "
                             f"delle 20); per tornare a ESPN: /correggi_tabellino {gioc['nome_common']} G{n} annulla"
                             + (f" {r['data_et']:%d/%m}" if len(righe) > 1 or data else "") if valore is not None else ""),

@@ -2,7 +2,7 @@
 
 > Progetto hobbistico: i bot che gestiscono una lega fantasy NBA tra amici (vedi `README.md`). Questo file è il quaderno di lavoro: stato, regole, decisioni e cose da fare.
 
-**Stato: v7.20.3 · bot aste v85 · loucabot v133 · IPanchinari v41 · klra v9** (21/11/2026)
+**Stato: v7.20.5 · bot aste v85 · loucabot v135 · IPanchinari v42 · klra v10** (21/11/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`, `fantabasket-klra/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 
@@ -232,6 +232,8 @@ PostgreSQL 16 locale, database `fbt` (utente `fb`), configurazione finta in `tes
 ---
 
 ## 11. Da fare
+
+- ~~**Esempi con le squadre vere**~~ **fatto nella v7.20.5** (`shared/esempi.py`, prova `esempi_squadre`) (Luca, 21/11): negli «Uso:» dei comandi (`/set_seed Alfa 3`…), nelle guide (`/notte Alfa`, `/partita Alfa - Beta`, `squadra:Alfa,Beta`…), nelle docstring e nei mockup al posto di Alfa e Beta (le squadre finte delle prove) vanno nomi di squadre della lega: nei messaggi del bot squadre vere **a caso** a ogni risposta (Luca: «fare ciclare squadre a caso tra i nomi reali»), nelle guide qualche nome vero diverso da esempio a esempio. Le prove restano con Alfa e Beta.
 
 **Dopo** (ordine deciso con Luca il 13/10: live e classifica, 10-day il prima possibile, poi playoff, draft e rinnovi)
 - **Direzione generale: azioni annullabili o modificabili** (Luca, 20/11): ogni azione degli admin e dei GM dovrebbe potersi **annullare o correggere** dal bot, senza SQL a mano (esempio: decadimento con la causa sbagliata, oggi non si cambia). Da fare un **controllo generale**, come quello dei comandi aperti per fase: per ogni azione che scrive (firme, tagli, decadimenti, 10-day, trade, ruoli, RFA, penalità, correzioni, aste…) se si può annullare, se si può modificare, cosa si porta dietro (spalmature, cap, foglio, registro, annunci) e cosa manca; poi un comando di correzione dove manca, sempre con la riga nel registro (prima → dopo). Già annullabili oggi, per esempio: trade (`/annulla_trade_admin`), correzioni dei tabellini (`annulla`). **Censimento fatto nella v7.19.0: `docs/AZIONI_ANNULLABILI.md`** (cosa c'è, cosa manca, ordine proposto); primo pezzo: la **causa di un decadimento** si corregge dal pannello admin (🏁 Decadimento → ✏️); **v7.20.2: annullare un taglio** (✂️ Taglia giocatore → ↩️) e **annullare o correggere una firma registrata** (✍️ Firme registrate, `/correggi_firma`). Prossimi: annulla decadimento, poi DPE, attivazione diritti, cambio ruolo.

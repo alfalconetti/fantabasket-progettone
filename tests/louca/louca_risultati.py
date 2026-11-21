@@ -1428,6 +1428,13 @@ ok(float(db.q("""SELECT t.fp FROM nba_tabellini t JOIN nba_partite p ON p.espn_i
    and any(c == -1 and "Correzione G" in x and "→ <b>33,00</b>" in x for c, x in _m) and any(c == -3 for c, x in _m)
    and "/ricalcola" in _t[0] and "resta anche quando il bot riscarica" in _t[0] and "annulla" in _t[0],
    f"/correggi_tabellino: corretto, sul canale principale e sul log; resta anche se il bot riscarica {_t}")
+# v7.20.3 (Luca, 21/11): cosa fare dipende dallo stato della giornata
+_st_c = db.q("SELECT stato FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (config.stagione(), N), one=True)
+ok(("già convalidata" in _t[0]) if _st_c and _st_c["stato"] == "convalidata" else ("non convalidata" in _t[0]) if _st_c else ("non serve" in _t[0]),
+   f"/correggi_tabellino: il suggerimento segue lo stato della giornata ({_st_c})")
+ok("non serve fare altro" in CG.cosa_fare(config.stagione(), 999) and "/ricalcola" not in CG.cosa_fare(config.stagione(), 999),
+   "giornata non calcolata: niente /ricalcola")
+
 # v7.17.0 (Luca, 17/11): la correzione resta quando ESPN riscarica (salva_tabellino, controllo delle 20, nuovi pesi)
 _pid12 = db.q("""SELECT t.partita FROM nba_tabellini t JOIN nba_partite p ON p.espn_id = t.partita
                  WHERE t.atleta = 'r1' AND p.data_et = %s""", (_d12,), one=True)["partita"]

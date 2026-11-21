@@ -192,3 +192,7 @@ Primo rilascio: panchine e quintetti.
 ## v41 (2026-11-21, progettone v7.19.2)
 
 - **Squadre «solo bot»** (Luca, 21/11): per i GM che hanno scelto di non usare più Yahoo fa fede il quintetto nel bot. `/solo_bot SQUADRA` (admin) la accende e la spegne (revertibile, registro e canale log), `/solo_bot` l'elenco. In `/controlli` risultano già a posto (🤖, niente bottone), in `/stato` e nel report sono segnate, e i messaggi al GM (promemoria, `/quintetto`, avvisi di panchina e cessioni) gli dicono che per lui fa fede il bot. Spegnerla non cambia le giornate già cominciate
+
+## v42 (2026-11-21, progettone v7.20.5)
+
+- Guida admin: nell'esempio di `/quintetti_import` «Altra Squadra» al posto della squadra finta delle prove

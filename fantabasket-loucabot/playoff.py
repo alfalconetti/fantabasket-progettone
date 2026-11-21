@@ -986,7 +986,8 @@ async def cmd_set_seed(update, context):
         return
     args = list(context.args or [])
     if len(args) < 2 or not args[-1].isdigit():
-        await msg.reply_text("Uso: /set_seed SQUADRA N (es. /set_seed Alfa 3): la squadra al seed N della sua conference, "
+        from shared import esempi as ES
+        await msg.reply_text(f"Uso: /set_seed SQUADRA N (es. /set_seed {ES.squadra()} 3): la squadra al seed N della sua conference, "
                              "scambiata con chi c'è.")
         return
     from partita import leggi_argomenti

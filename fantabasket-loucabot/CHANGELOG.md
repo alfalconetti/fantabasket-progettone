@@ -652,3 +652,11 @@ Il calcolo dei fantapunti.
 - Periodo **a cavallo di due stagioni** in `/rendimento`, `/confronto` e `/rendimento_situazione` (Luca, 21/11, mockup approvato): in `/rendimento` una linea viola dove inizia la stagione nuova, in `/confronto` l'estate tagliata da una banda grigia «off-season»; le ultime N si completano con la stagione prima (mai preseason); fasce dei nostri playoff e inizio di play-in e playoff NBA per ogni stagione
 - Primo riquadro col periodo: accanto la fantamedia della **stagione principale** (più partite nel periodo, a parità la più recente)
 - **Titoli veri**: «dal … (primi dati del bot)» se la data è prima dei dati, «a oggi» se la fine è nel futuro, «tutte le K partite giocate nei dati del bot» se sono meno di N; una data scritta male ha la sua risposta invece di finire nel nome
+
+## v134 (2026-11-21, progettone v7.20.4)
+
+- `/correggi_tabellino`: il suggerimento dopo la correzione segue lo stato della giornata (Luca, 21/11: «non deve dirmi di fare ricalcola se la giornata non è finita»): non ancora calcolata → non serve altro (il live e il calcolo la prendono da soli); calcolata e non convalidata → `/ricalcola N` e convalida; già convalidata → `/ricalcola N` e riconvalida (`congelamento.cosa_fare`)
+
+## v135 (2026-11-21, progettone v7.20.5)
+
+- Esempi negli «Uso:» di `/notte`, `/partita`, `/pdf_partite`, `/set_seed`, `/rendimento_team` con squadre vere a caso; nelle guide segnaposti (Luca, 21/11)

@@ -226,7 +226,7 @@ def _nome(gid: int) -> str:
 
 
 def _situazione(gid: int) -> str:
-    """«FA», «Alfa», «diritti di Beta»: tra parentesi accanto al nome negli avvisi."""
+    """«FA», «Squadra», «diritti di Squadra»: tra parentesi accanto al nome negli avvisi."""
     c = L.q("SELECT team_id FROM contratti WHERE giocatore_id = %s AND attivo LIMIT 1", (gid,), one=True)
     if c:
         return L.nome(c["team_id"])

@@ -63,7 +63,7 @@ ROMANI = {1: "I", 2: "II", 3: "III", 4: "IV"}
 
 def draft(gid: int, stagione: str, firmato: bool) -> str:
     """Il draft di un rookie (v7.9.2, Luca 14/11), per chi ha il contratto rookie (`firmato`) o i diritti:
-    «Draft 2025 · 1° giro, pick 5 · scelto da Alfa con la pick di Beta · scala: II anno su IV». Chi l'ha scelto dalla
+    «Draft 2025 · 1° giro, pick 5 · scelto da Squadra A con la pick di Squadra B · scala: II anno su IV». Chi l'ha scelto dalla
     pick usata (tabella pick: chi l'aveva al draft, e di chi era in origine), se si trova: rookie.team_id cambia con le
     trade dei diritti. Il punto della scala solo per i firmati. "" se nella tabella rookie non c'è."""
     r = L.q(f"""SELECT round, pick_numero, anno_draft, anno_firma FROM rookie WHERE giocatore_id = %s

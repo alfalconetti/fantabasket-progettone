@@ -43,7 +43,7 @@ AIUTO = ("<b>/giocatori</b> [filtri] — cerca tra i giocatori; i filtri si comb
          "• <code>PG SG SF PF C</code> (o <code>G</code>, <code>F</code>) — posizioni eleggibili, anche <code>ruolo:G,C</code>\n"
          "• <code>fa</code> · <code>firmati</code> · <code>diritti</code> · <code>tutti</code> — situazione nel fantabasket\n"
          "• <code>rookie</code> — i firmati col contratto rookie (<code>-rookie</code> gli altri)\n"
-         "Più valori dello stesso filtro valgono in «o» (<code>fa firmati</code>, <code>nba:LAL,BOS</code>, <code>squadra:Alfa,Beta</code>), "
+         "Più valori dello stesso filtro valgono in «o» (<code>fa firmati</code>, <code>nba:LAL,BOS</code>, <code>squadra:§A§,§B§</code>), "
          "filtri diversi in «e».\n"
          "• <code>nba:LAL</code> (anche <code>nba:LAL,BOS</code>, <code>nba:no</code>) — squadra NBA\n"
          "• <code>squadra:NOME</code> — squadra del fantabasket · <code>ruolo_squadra:C</code> — ruolo ufficiale dei firmati\n"
@@ -148,7 +148,7 @@ def leggi(testo: str, oggi: int) -> dict:
 
 
 def _vuoto() -> dict:
-    # dentro lo stesso filtro le condizioni sono in «o» (fa firmati, nba:LAL,BOS, squadra:Alfa,Beta), tra filtri
+    # dentro lo stesso filtro le condizioni sono in «o» (fa firmati, nba:LAL,BOS, squadra:A,B), tra filtri
     # diversi in «e» (v7.5.2, Luca 10/11); un insieme vuoto = nessun filtro
     return {"ruoli": set(), "stato": set(), "nba": set(), "squadra": [], "ruolo_squadra": set(), "regex": None,
             "parole": [], "min_g": None, "costo": None, "anni": None, "infortunati": None, "watch": False, "rookie": False, "neg": []}
@@ -441,7 +441,7 @@ def contratto_breve(x: dict) -> str:
 
 
 def situazione(x: dict) -> str:
-    """La situazione nel fantabasket in una riga, per il file: «Alfa · 30M × 3 anni», «diritti di Beta», «FA»."""
+    """La situazione nel fantabasket in una riga, per il file: «Squadra · 30M × 3 anni», «diritti di Squadra», «FA»."""
     if x["contratto"]:
         return f"{L.nome(x['contratto']['team_id'])} · {contratto_breve(x)}"
     if x["diritti"]:
@@ -538,7 +538,9 @@ def risposta(testo: str, uid: int | None = None, privato: bool = True) -> dict:
     except Errore as err:
         return {"testo": f"⚠️ {e(err)}\n\n/giocatori aiuto per i filtri."}
     if f["aiuto"]:
-        return {"testo": AIUTO}
+        from shared import esempi as ES
+        a, b = ES.due()
+        return {"testo": AIUTO.replace("§A§", ES.filtro(a)).replace("§B§", ES.filtro(b))}
     seguiti = set()
     if usa_watch(f):
         if not privato or not uid:                      # la watchlist è privata: nessuno sa chi segue chi

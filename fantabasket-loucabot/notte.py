@@ -173,8 +173,9 @@ async def cmd_notte(update, context):
             resto.append(a)
     team = cerca_squadra(" ".join(resto), config.squadre()) if resto else config.squadra_del_gm(update.effective_user.id)
     if not team:
+        from shared import esempi as ES
         await msg.reply_text("Uso: /notte [SQUADRA o GM] [DATA] — senza squadra la tua, senza data la notte in corso "
-                             "o appena passata. Es: /notte Alfa 21/10")
+                             f"o appena passata. Es: /notte {ES.squadra()} 21/10")
         return
     d = d or notte_di_default()
     _ = nba

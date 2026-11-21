@@ -169,7 +169,8 @@ async def cmd_pdf_partite(update, context):
     resto = " ".join(a for a in args if a != s).strip()
     sq = cerca_squadra(resto, config.squadre()) if resto else config.squadra_del_gm(update.effective_user.id)
     if not sq:
-        await msg.reply_text(f"Squadra non trovata: «{e(resto)}»." if resto else "Uso: /pdf_partite [SQUADRA] [STAGIONE] (es. /pdf_partite Alfa 2026)")
+        from shared import esempi as ES
+        await msg.reply_text(f"Squadra non trovata: «{e(resto)}»." if resto else f"Uso: /pdf_partite [SQUADRA] [STAGIONE] (es. /pdf_partite {ES.squadra()} 2026)")
         return
     if _IN_CORSO["si"]:
         await msg.reply_text("⏳ Sto già preparando un PDF: riprova tra un minuto.")

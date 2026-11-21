@@ -360,7 +360,8 @@ async def cmd_partita(update, context):
     if not sq:
         mia = config.squadra_del_gm(update.effective_user.id)
         if not mia:
-            await msg.reply_text("Uso: /partita SQUADRA [N] [SISTEMA] (es. /partita Alfa 3 Hockey).")
+            from shared import esempi as ES
+            await msg.reply_text(f"Uso: /partita SQUADRA [N] [SISTEMA] (es. /partita {ES.squadra()} 3 Hockey).")
             return
         sq = [mia]
     conv = M.giornate_convalidate(st)

@@ -34,7 +34,7 @@ Due cose da sapere:
 - importo e anni rimasti in una bolla del colore della squadra (per la DPE l'importo di prima barrato sopra quello ridotto);
 - il tipo di contratto: i rookie hanno il colore del loro anno di scala (dal I al IV), RFA, DPE e 10-day il loro colore, con una barretta colorata davanti al nome. Se il colore non si leggerebbe sullo sfondo della riga, il nome ha un riquadro chiaro dietro.
 
-Con una data (`/roster Alfa 01-12-26`) squadra NBA, età e % G sono quelle di quel giorno.
+Con una data (`/roster SQUADRA 01-12-26`) squadra NBA, età e % G sono quelle di quel giorno.
 
 Sotto il nome della squadra c'è sempre a quando si riferisce l'immagine (v7.19.0): «al 21/11/2026 · 01:01» per quella di adesso, «com'era al 01/12/2026» in giallo per una data passata. Vale anche per `/assets` e per i PDF di tutte le squadre.
 
@@ -51,7 +51,7 @@ Il comando funziona anche in altri modi:
 - `/roster team07` oppure `/roster Rossi` → il roster di un'altra squadra (basta una parte del nome della squadra o del GM)
 - `/roster 15-01-26` → il tuo roster com'era il 15 gennaio 2026
 
-**`/assets`** è il roster più tutto il resto (nella lista dei giocatori età e fantamedia e, come in `/roster`, importo e anni in una bolla; niente foto né squadre NBA; con una data, `/assets Alfa 01-12-26`, roster, pick e diritti di quel giorno, senza il tag STEPIEN): le pick anno per anno (una scheda per anno: piene quelle tue, col solo bordo e «da …» quelle prese da altri) e i diritti sui rookie. Se vedi il tag rosso **STEPIEN** su una tua prima scelta, vuol dire che non puoi cederla senza violare la Stepien Rule.
+**`/assets`** è il roster più tutto il resto (nella lista dei giocatori età e fantamedia e, come in `/roster`, importo e anni in una bolla; niente foto né squadre NBA; con una data, `/assets SQUADRA 01-12-26`, roster, pick e diritti di quel giorno, senza il tag STEPIEN): le pick anno per anno (una scheda per anno: piene quelle tue, col solo bordo e «da …» quelle prese da altri) e i diritti sui rookie. Se vedi il tag rosso **STEPIEN** su una tua prima scelta, vuol dire che non puoi cederla senza violare la Stepien Rule.
 
 **`/carriera GIOCATORE`** manda un'immagine con la carriera del giocatore dal 25 luglio 2026, quando è nato il bot: a sinistra i movimenti nel fantabasket (in rosa all'avvio o il draft, firme, trade, tagli, DPE, 10-day), a destra le squadre NBA vere, con le date al centro e una barra col colore della squadra di ogni periodo. Le trade poi annullate non compaiono. I cambi di squadra NBA vengono dai roster ESPN e da Basketball-Reference: per quelli visti solo lì la data è quella della prima partita con la squadra nuova. Funziona anche nei gruppi.
 
