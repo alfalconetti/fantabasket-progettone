@@ -2140,3 +2140,16 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.22.4 (2026-11-22)
 
 - Nei gruppi niente più suggerimenti dei comandi del bot principale (Luca, 22/11): cancellando il menu dei gruppi Telegram ricadeva sul menu Default, cioè su tutti i comandi; ora si cancella anche quello (in privato vale il menu dei GM, come prima). Il bug era della v7.21.1
+
+## v7.23.0 (2026-11-22)
+
+- Loucabot v138: nel report del **tanking a consuntivo**, per ogni squadra sotto l'80% chi è stato schierato al posto di chi, ruolo per ruolo, dalla scelta più cara (Luca, 22/11: «fammi capire chi è stato messo invece»)
+- IPanchinari v43: **`/solo_bot` senza argomenti = pulsantiera** con le squadre e conferma; **ogni cambio annunciato** sul canale principale (dal bot principale) e al GM in privato (Luca, 22/11: «è giusto che il gruppo sappia cosa controllare»)
+- `shared/annuncio_principale.py`: un messaggio sul canale principale dal bot principale anche da un altro bot; `docker-compose.yml`: IPanchinari ha anche il token del bot principale (`MAIN_BOT_TOKEN_FILE`)
+
+## v7.24.0 (2026-11-22)
+
+- **`/rendimento`: distribuzione dei fantapunti** (Luca, 22/11, mockup approvato): sotto il grafico un box plot (peggiore, 10°, 25°, mediana, 75°, 90° percentile, migliore) delle partite che fanno la media, con il testo e il **decile della lega** (tra i giocatori con almeno 10 partite giocate nello stesso tratto, con da quando ci sono i dati); `shared/rendimento.py`: `quantile`, `medie_lega`, `decile`, `distribuzione`; `/confronto` non la calcola (`dati_stagione(..., distr=False)`)
+- **`/carriera`: «media qui»** accanto a ogni evento che porta il giocatore in una squadra, nel fantabasket (tutte le partite giocate mentre era nel roster, anche in panchina o in tribuna) e nella NBA (le partite con quella squadra); un rinnovo o una DPE non spezzano il periodo; nel riepilogo la media per squadra; nella nota da quando ci sono i tabellini (`partite_media`, `medie_fanta`, `medie_nba`, `medie_squadre`)
+- **`/trova_trade`: medie prima → dopo** per ogni giocatore scambiato: «stagione» (la stagione della trade prima e dopo; in off-season la stagione prima e quella dopo) e «assoluto» (tutto il periodo nella squadra che lo cede contro tutto quello nella squadra che lo riceve), con ▲/▼; senza partite prima solo il dopo (`medie_trade`)
+- In tutte e tre i DNP non fanno media (Luca, 22/11); loucabot v139 e klra v11 hanno lo stesso `/rendimento`

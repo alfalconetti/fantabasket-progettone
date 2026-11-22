@@ -346,8 +346,11 @@ def consuntivo(s: str, n: int) -> list[dict]:
             meglio, form = migliore(rosa_t)
             fatti = float(sq["totale"])
             eff = (fatti / meglio) if meglio > 0 else 1.0
+            # v7.23.0 (Luca, 22/11: «fammi capire chi è stato messo invece»): i titolari veri, ruolo per ruolo
+            messi = {t.get("ruolo"): {"nome": t.get("nome") or t.get("atleta") or "—", "punti": float(t.get("fp") or 0.0),
+                                      "fadd": bool(t.get("fadd"))} for t in sq.get("titolari", []) if t.get("ruolo")}
             out.append({"team": team, "schierati": fatti, "migliore": max(meglio, fatti), "efficienza": min(eff, 1.0),
-                        "formazione": form})
+                        "formazione": form, "messi": messi})
     return out
 
 
@@ -358,6 +361,25 @@ def salva(s: str, n: int, righe: list[dict]) -> None:
                 ON CONFLICT (stagione, giornata, team_id) DO UPDATE SET schierati = EXCLUDED.schierati,
                   migliore = EXCLUDED.migliore, efficienza = EXCLUDED.efficienza""",
              (s, n, x["team"], x["schierati"], x["migliore"], x["efficienza"]))
+
+
+def scelte(x: dict) -> list[str]:
+    """Le righe dei ruoli dove lo schierato non era il migliore, dalla scelta più cara (v7.23.0)."""
+    righe = []
+    for r in RUOLI:
+        m, s = (x.get("formazione") or {}).get(r), (x.get("messi") or {}).get(r)
+        if not m or (s and s["nome"] == m["nome"]):
+            continue
+        perso = m["punti"] - (s["punti"] if s else 0.0)
+        if perso <= 0.005:
+            continue
+        chi = (f"schierato {e(s['nome'])}{' (FADD)' if s['fadd'] else ''} {tp(s['punti'])}" if s else "posto vuoto")
+        righe.append((perso, f"  {r}: {chi} — c'era {e(m['nome'])} {tp(m['punti'])} (−{tp(perso)})"))
+    righe.sort(key=lambda t: -t[0])
+    out = [t for _, t in righe]
+    if out and len(out) < len(RUOLI):
+        out.append("  <i>negli altri ruoli la scelta migliore</i>")
+    return out
 
 
 def testo_consuntivo(s: str, n: int, righe: list[dict]) -> str:
@@ -386,10 +408,11 @@ def testo_consuntivo(s: str, n: int, righe: list[dict]) -> str:
             fondo = " ⬇️" if p and p > n_sq * 2 / 3 else ""
             v = volte.get(x["team"], 1)
             form = ", ".join(f"{r} {e(g['nome'])} {tp(g['punti'])}" for r, g in x["formazione"].items())
+            dett = scelte(x) if x.get("messi") else []     # v7.23.0: chi è stato messo invece, ruolo per ruolo
             out.append(f"• <b>{e(config.nome(x['team']))}</b>{f' ({p}ª{fondo})' if p else ''}: {tp(x['schierati'])} su "
                        f"{tp(x['migliore'])} possibili, <b>{x['efficienza']:.0%}</b> · "
                        f"{'prima volta' if v <= 1 else f'{v}ª volta'} in stagione"
-                       + (f"\n  <i>migliore: {form}</i>" if form else ""))
+                       + ("\n" + "\n".join(dett) if dett else (f"\n  <i>migliore: {form}</i>" if form else "")))
     return "\n".join(out)
 
 

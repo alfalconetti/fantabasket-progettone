@@ -112,12 +112,14 @@ services:
         condition: service_healthy
     environment:
       BOT_TOKEN_FILE: /run/secrets/bot_token_ipanchinari
+      MAIN_BOT_TOKEN_FILE: /run/secrets/bot_token_main   # v7.23.0: annunci sul canale principale dal bot principale
       GLOBALS_PATH: /config/globals.json
       TEAMS_PATH: /config/teams.json
       DATABASE_URL: postgresql://fantabasket@postgres/fantabasket
       PG_PASSWORD_FILE: /run/secrets/pg_password
     secrets:
       - bot_token_ipanchinari
+      - bot_token_main
       - pg_password
     volumes:
       - ./config:/config:ro

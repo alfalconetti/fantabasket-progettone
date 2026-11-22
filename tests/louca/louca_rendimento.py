@@ -57,6 +57,15 @@ ok(abs(p[4]["prog"] - (20 + 30 + 25 + 35) / 4) < 1e-6 and p[4]["mobile"] is None
 ok(d["media_big"] == "29,63" and "playoff 39,00 (2)" in d["media_sotto"], f"in alto la media di regular season e play-in (come /player) {d['media_big']} · {d['media_sotto']}")
 ok(d["migliore"]["fp"] == 45 and "vs RDB" in d["migliore"]["t"], "la migliore, con l'avversario")
 ok(d["y_min"] == 0 and d["y_max"] >= 50, "asse y da 0 a sopra la migliore")
+# v7.24.0 (Luca, 22/11): la distribuzione e il decile nella lega
+ok(R.quantile([1, 2, 3, 4], .5) == 2.5 and R.quantile([10], .9) == 10 and R.decile(30, [10, 20, 25, 40]) == (8, 75)
+   and R.decile(5, [10, 20]) == (1, 0) and R.decile(50, [10, 20]) == (10, 100), "quantili (interpolazione lineare) e decile")
+ok(d["distr"] and "mediana 29,00" in d["distr"]["testo"] and d["distr"]["min"] == 20 and d["distr"]["max"] == 40 and d["distr"]["lo"] == 0,
+   f"/rendimento: distribuzione delle partite della media (regular season e play-in) {d['distr']}")
+_ml = R.medie_lega(S)
+ok(_ml.get("rd1") == (sum([20, 30, 25, 35, 40, 28]) / 6, 6), f"medie della lega: solo partite giocate davvero {_ml.get('rd1')}")
+ok(d["distr"]["lega"] == "" or "decile della lega" in d["distr"]["lega"], "decile solo se ci sono giocatori con almeno 10 partite")
+ok(R.distribuzione([10, 20], 15, "x", stagione=S) is None, "distribuzione: sotto le 5 partite niente")
 # v7.6.2 (Luca, 11/11): i riquadri, i mesi, la media tratteggiata, le barre da 0
 _rq = {r["t"]: r for r in d["riquadri"]}
 ok(list(_rq) == ["Fantamedia", "Ultime 5", "Migliore", "Peggiore"] and _rq["Fantamedia"]["v"] == "29,63"
@@ -100,6 +109,9 @@ ok(dx["stagioni"] == [_P, S] and dx["stagioni_sep"] == [{"i": 2, "lbl": PER.stag
 ok(f"{PER.stagione_txt(S)}: 29,63" in dx["riquadri"][0]["s"], f"media della stagione con più partite nel periodo {dx['riquadri'][0]}")
 dt = R.dati_stagione(gid, None, PER.Periodo(ultime=50))
 ok("tutte le 11 partite giocate nei dati del bot" in dt["titolo"], f"ultime 50 con 11 giocate: lo dice {dt['titolo']}")
+_v10 = sorted(p["fp"] for p in dx["partite"] if p["fp"] is not None and p["media_player"])
+ok(dx["distr"] and dx["distr"]["min"] == _v10[0] and dx["distr"]["max"] == _v10[-1] and len(_v10) >= 5,
+   f"v7.24.0: col periodo la distribuzione è sulle partite del periodo {dx['distr']} {_v10}")
 _primo = R.primo_dato()
 dd = R.dati_stagione(gid, None, PER.Periodo(dal=_date_cls(2000, 1, 1)))
 ok(f"dal {_primo:%d/%m/%Y} (primi dati del bot) a oggi" in dd["titolo"], f"data prima dei dati del bot: lo dice {dd['titolo']}")

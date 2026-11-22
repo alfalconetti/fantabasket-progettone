@@ -214,7 +214,75 @@ def stagione_principale(tab: list[dict]) -> str:
     return max(conta or {r["stagione"]: 0 for r in tab}, key=lambda st: (conta.get(st, 0), st))
 
 
-def dati_stagione(gid: int, stagione: str | None = None, periodo=None) -> dict | None:
+# ── v7.24.0 (Luca, 22/11, mockup approvato): la distribuzione dei fantapunti e il decile nella lega ──
+
+MIN_LEGA = 10            # nel confronto con la lega entra chi ha almeno tante partite giocate (Luca, 22/11)
+
+
+def quantile(v: list[float], q: float) -> float:
+    """Il quantile `q` (0–1) di `v`, con l'interpolazione lineare (come numpy di default)."""
+    s = sorted(v)
+    if not s:
+        return 0.0
+    x = q * (len(s) - 1)
+    i = int(x)
+    return s[i] if i + 1 >= len(s) else s[i] + (s[i + 1] - s[i]) * (x - i)
+
+
+def medie_lega(stagione: str | None = None, dal=None, al=None, tipi=None) -> dict[str, tuple[float, int]]:
+    """La fantamedia di ogni giocatore della lega NBA, dai tabellini del bot: in una stagione o tra due giorni (data
+    ET), solo le partite in cui ha giocato davvero (L.conta). {atleta: (media, partite)}."""
+    tipi = list(tipi or G.TIPI)
+    if stagione:
+        righe = L.q("""SELECT t.* FROM nba_tabellini t JOIN nba_partite p ON p.espn_id = t.partita
+                       WHERE p.stagione = %s AND p.tipo = ANY(%s)""", (stagione, tipi), many=True) or []
+    else:
+        righe = L.q("""SELECT t.* FROM nba_tabellini t JOIN nba_partite p ON p.espn_id = t.partita
+                       WHERE p.data_et BETWEEN %s AND %s AND p.tipo = ANY(%s)""", (dal, al, tipi), many=True) or []
+    fp = {}
+    for r in righe:
+        if L.conta(r):
+            fp.setdefault(r["atleta"], []).append(NU.fp(r))
+    return {a: (sum(v) / len(v), len(v)) for a, v in fp.items()}
+
+
+def decile(media: float, altri: list[float]) -> tuple[int, int]:
+    """(decile 1–10, percentuale dei giocatori con una media più bassa) di `media` tra le medie `altri`."""
+    if not altri:
+        return 0, 0
+    pct = 100 * sum(1 for x in altri if x < media) / len(altri)
+    return min(10, int(pct // 10) + 1), int(pct)
+
+
+def distribuzione(vals: list[float], media: float, atleta: str, stagione: str | None = None, dal=None, al=None,
+                  tipi=None) -> dict | None:
+    """Il box plot dei fantapunti (minimo, 10°, 25°, mediana, 75°, 90° percentile, massimo) e il decile della sua
+    media tra i giocatori della lega con almeno MIN_LEGA partite nello stesso tratto (lui escluso dal conteggio)."""
+    if len(vals) < MIN_PARTITE:
+        return None
+    pc = {k: quantile(vals, q) for k, q in (("d1", .1), ("q1", .25), ("med", .5), ("q3", .75), ("d9", .9))}
+    lo = min(0, int(min(vals) // 10) * 10)
+    scala = max(40, int(-(-(max(vals) + 1) // 10) * 10))
+    testo = (f"mediana {_t(pc['med'])} · metà delle partite tra {_t(pc['q1'])} e {_t(pc['q3'])} · "
+             f"8 su 10 tra {_t(pc['d1'])} e {_t(pc['d9'])}")
+    lega = ""
+    try:
+        tutte = medie_lega(stagione, dal, al, tipi)
+    except Exception:                                    # senza tabellini della lega: niente decile
+        tutte = {}
+    altri = [m for a, (m, n) in tutte.items() if n >= MIN_LEGA and a != atleta]
+    if altri:
+        dec, pct = decile(media, altri)
+        pd = primo_dato()
+        lega = (f"{dec}° decile della lega: media migliore del {pct}% dei giocatori con almeno {MIN_LEGA} partite "
+                f"({len(altri)} giocatori" + (f", dati dal {pd:%d/%m/%Y}" if pd else "") + ")")
+        if len(vals) < MIN_LEGA:
+            lega += f" · lui ne ha solo {len(vals)}: confronto indicativo"
+    return {**{k: round(v, 3) for k, v in pc.items()}, "min": min(vals), "max": max(vals), "lo": lo, "scala": scala,
+            "testo": testo, "lega": lega}
+
+
+def dati_stagione(gid: int, stagione: str | None = None, periodo=None, distr: bool = True) -> dict | None:
     """Il JSON per rendimento.typ, la stagione partita per partita. Con `periodo` (shared.periodo.Periodo, v7.20.2) solo
     le partite del periodo, anche a cavallo di due stagioni (una linea dove inizia la nuova), con accanto la fantamedia
     della stagione principale (quella con più partite nel periodo, a parità la più recente)."""
@@ -326,7 +394,17 @@ def dati_stagione(gid: int, stagione: str | None = None, periodo=None) -> dict |
     # v7.16.0 (Luca, 16/11): più riferimenti sull'asse: la data di una partita ogni 5, non attaccata all'inizio di un mese
     date_x = [{"i": i, "lbl": f"{p['giorno'][8:10]}/{p['giorno'][5:7]}"} for i, p in enumerate(out)
               if i % 5 == 2 and all(abs(i - m["i"]) > 1 for m in mesi)]
-    return {"modo": "stagione", **_testata(gid, g["nome_common"], etichetta=True),
+    # v7.24.0: la distribuzione delle partite che fanno la media grande (regular season e play-in, o tutte se non ce
+    # ne sono), e il decile nella lega nello stesso tratto: la stagione, o i giorni del periodo
+    base = reg or vals
+    if not distr:                                        # /confronto non la disegna: niente giro sulla lega
+        distr = None
+    elif col_periodo:
+        distr = distribuzione(base, media, g["espn_id"], dal=date.fromisoformat(out[0]["giorno"]),
+                              al=date.fromisoformat(out[-1]["giorno"]), tipi=G.TIPI if reg else TIPI_TUTTE)
+    else:
+        distr = distribuzione(base, media, g["espn_id"], stagione=stagione, tipi=G.TIPI if reg else TIPI_TUTTE)
+    return {"modo": "stagione", **_testata(gid, g["nome_common"], etichetta=True), "distr": distr,
             "riquadri": riquadri, "mesi": mesi, "date": date_x, "media_val": ottavi(media), "giocate": len(giocate),
             "y_barre": max(40, int(-(-(max(vals, default=0) + 6) // 10) * 10)),
             "titolo": titolo, "media_lbl": media_lbl, "media_big": _t(media) if reg or vals else "—",

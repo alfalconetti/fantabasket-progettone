@@ -12,6 +12,9 @@ trade ufficiale (con il numero TRADE-AAAA-NNN: approvata, o approvata e poi annu
 - Percorso: solo quello che è successo davvero (Luca, 31/10: non serve che accettino tutti, un GM può mandarla
   direttamente agli admin, ci sono le trade scritte dagli admin): proposta o scritta da un admin, le accettazioni e
   i rifiuti con l'ora (trade_voti), mandata agli admin senza le accettazioni che mancano, approvata, annullata.
+- Medie (v7.24.0, Luca 22/11): per ogni giocatore, «stagione» (la stagione della trade prima e dopo; in off-season
+  la stagione prima e quella dopo) e «assoluto» (tutto il tratto nella squadra che lo cede contro tutto quello nella
+  squadra che lo riceve), dai tabellini del bot, solo le partite giocate davvero.
 Dati in `dati(trade_id)`, disegno in trova_trade.typ (Typst, stile di /carriera ma in verde).
 """
 import asyncio
@@ -143,6 +146,76 @@ def _asset(it: dict, trade_id: int, stagione: int) -> dict:
     return {"tipo": "diritti", "nome": f"Diritti di {it.get('nome_common') or it['giocatore_id']}", "dettaglio": det}
 
 
+# ── v7.24.0 (Luca, 22/11, mockup approvato): le medie prima e dopo la trade ──
+
+def _periodo_in(gid: int, team: str, quando, prima: bool):
+    """Il tratto continuo del giocatore in `team` che finisce (prima=True) o comincia (prima=False) con la trade:
+    (dal, al), al None = ci è ancora. Dalla vista movimenti_giocatori, in ordine."""
+    mov = db._q("""SELECT timestamp, team_id_da, team_id_a FROM movimenti_giocatori WHERE giocatore_id = %s
+                   ORDER BY timestamp, id""", (gid,), many=True) or []
+    if prima:
+        dal = None
+        for m in mov:
+            if m["timestamp"] >= quando:
+                break
+            if m["team_id_a"] == team and m["team_id_da"] != team:
+                dal = m["timestamp"]                     # l'ultimo arrivo in quella squadra prima della trade
+            elif m["team_id_da"] == team and m["team_id_a"] != team:
+                dal = None                               # uscito: il tratto buono riparte dal prossimo arrivo
+        return dal, quando
+    for m in mov:
+        if m["timestamp"] > quando and m["team_id_da"] == team and m["team_id_a"] != team:
+            return quando, m["timestamp"]
+    return quando, None
+
+
+def _riga(etichetta: str, prima: list[float], dopo: list[float], sp: str = "", sd: str = "") -> dict | None:
+    from handlers.carriera import _num
+    if not prima and not dopo:
+        return None
+    mp, md = (sum(prima) / len(prima) if prima else None), (sum(dopo) / len(dopo) if dopo else None)
+    freccia = "su" if mp is not None and md is not None and md > mp else "giu" if mp is not None and md is not None and md < mp else ""
+    return {"etichetta": etichetta, "prima": _num(mp) if mp is not None else "", "np": len(prima),
+            "dopo": _num(md) if md is not None else "—", "nd": len(dopo), "freccia": freccia, "sp": sp, "sd": sd}
+
+
+def _dati_dal() -> str:
+    from handlers.carriera import _c_e
+    if not _c_e("nba_tabellini"):
+        return ""
+    r = db._q("""SELECT MIN(p.data_et) AS d FROM nba_partite p WHERE p.tipo = ANY(%s)
+                 AND EXISTS (SELECT 1 FROM nba_tabellini t WHERE t.partita = p.espn_id)""", ([2, 3, 5],), one=True)
+    return f"{r['d']:%d/%m/%Y}" if r and r.get("d") else ""
+
+
+def medie_trade(gid: int, espn: str | None, da: str, a: str, quando) -> list[dict]:
+    """Due righe: «stagione» (la stagione della trade prima e dopo; in off-season, cioè prima della prima partita
+    della stagione nuova, la stagione prima e quella dopo) e «assoluto» (tutto il tratto nella squadra che lo cede
+    contro tutto quello nella squadra che lo riceve, finora). Partite giocate davvero (i DNP no) dai tabellini del bot."""
+    from handlers.carriera import partite_media
+    from shared.periodo import stagione_txt
+    tutte = partite_media(espn)
+    if not tutte:
+        return []
+    s = _stagione_al(quando)
+    iniziata = db._q("SELECT 1 FROM nba_partite WHERE stagione = %s AND tipo = 2 AND inizio < %s LIMIT 1",
+                     (str(s), quando), one=True)
+    fp = lambda rr: [float(r["fp"] or 0) for r in rr]
+    out = []
+    if iniziata:
+        nella = [r for r in tutte if str(r["stagione"]) == str(s)]
+        out.append(_riga("stagione", fp(r for r in nella if r["inizio"] < quando), fp(r for r in nella if r["inizio"] >= quando)))
+    else:
+        out.append(_riga("stagione", fp(r for r in tutte if str(r["stagione"]) == str(s - 1)),
+                         fp(r for r in tutte if str(r["stagione"]) == str(s)),
+                         f"{stagione_txt(s - 1)}, ", f"{stagione_txt(s)}, "))
+    d0, a0 = _periodo_in(gid, da, quando, True)
+    d1, a1 = _periodo_in(gid, a, quando, False)
+    out.append(_riga("assoluto", fp(r for r in tutte if (d0 is None or r["inizio"] >= d0) and r["inizio"] < a0),
+                     fp(r for r in tutte if r["inizio"] >= d1 and (a1 is None or r["inizio"] < a1))))
+    return [x for x in out if x]
+
+
 def _cap_roster(team_id: str, quando, stagione: int) -> tuple[int, int]:
     """(cap, giocatori in roster) della squadra in quel momento: contratti che pesano dal roster a quella data,
     con le DPE già approvate, più le spalmature della stagione dei tagli fatti fino ad allora."""
@@ -215,6 +288,12 @@ def dati(trade_id: int) -> dict:
             x = fm.get(it["giocatore_id"])
             assets[it["id"]]["fp"] = f"FP {x:.1f}" if x is not None else "FP —"
     fp_stagione = f"{rif}-{str(rif + 1)[-2:]}"
+    # v7.24.0: le medie prima → dopo di ogni giocatore scambiato (i diritti no: non era in un roster)
+    espn = {r["id"]: r["espn_id"] for r in db._q("SELECT id, espn_id FROM giocatori WHERE id = ANY(%s)",
+            ([it["giocatore_id"] for it in items if it["tipo"] == "giocatore"],), many=True) or []}
+    for it in items:
+        if it["tipo"] == "giocatore" and espn.get(it["giocatore_id"]):
+            assets[it["id"]]["medie"] = medie_trade(it["giocatore_id"], espn[it["giocatore_id"]], it["team_id_da"], it["team_id_a"], quando)
     _ordine = {"giocatore": 0, "pick": 1, "diritti": 2}
     colonne = []
     for s in squadre:
@@ -233,7 +312,7 @@ def dati(trade_id: int) -> dict:
         stato_nota = "eseguita e poi annullata"
     return {"numero": t["trade_ref"], "data": quando.astimezone(ROME).strftime("%d/%m/%Y"), "stato": t["stato"],
             "stato_nota": stato_nota, "asset": len(items), "squadre": colonne, "percorso": _percorso(t, squadre),
-            "fp_stagione": fp_stagione}
+            "fp_stagione": fp_stagione, "dati_dal": _dati_dal()}
 
 
 async def immagine(trade_id: int) -> str:

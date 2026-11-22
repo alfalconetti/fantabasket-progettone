@@ -55,8 +55,12 @@
   // stretta: il logo piccolo accanto all'etichetta, sotto nome e dettaglio a tutta larghezza della scheda
   let testa = if lato == "sx" { [#tag(ev.etichetta, c) #h(3pt) #box(baseline: 30%, logo(ev.sq, 17pt))] }
               else { [#box(baseline: 30%, logo(ev.sq, 17pt)) #h(3pt) #tag(ev.etichetta, c)] }
+  // v7.24.0 (Luca, 22/11): la media in quella squadra, accanto all'evento che ce lo porta
+  let media = ev.at("media", default: none)
+  let pill = if media != none { box(fill: lilla, radius: 3pt, inset: (x: 4pt, y: 2pt),
+    text(6.8pt, fill: viola_scuro)[media qui *#media.v*#if media.n > 0 [ · #media.n p.]]) }
   let dentro = align(if lato == "sx" { right } else { left }, stack(spacing: 3pt, testa,
-    text(8.5pt, weight: "bold")[#ev.titolo], text(6.8pt, fill: grigio)[#ev.dettaglio]))
+    text(8.5pt, weight: "bold")[#ev.titolo], text(6.8pt, fill: grigio)[#ev.dettaglio], ..if pill != none { (pill,) } else { () }))
   box(width: 100%, fill: white, stroke: 0.7pt + bordo, radius: 5pt, inset: 5.5pt, dentro)
 }
 // la barra della squadra di quel periodo, attaccata alla colonna centrale
@@ -79,7 +83,9 @@
 // ── in breve ──
 #block(width: 100%, fill: lilla2, inset: (x: 10pt, y: 8pt), stroke: (top: 0.6pt + bordo))[
   #grid(columns: (1fr, 1fr), column-gutter: 12pt,
-    [#text(6.5pt, weight: "bold", fill: viola_scuro, tracking: 0.6pt)[NEL FANTABASKET] \ #v(2pt) #text(7.5pt)[#d.breve.fanta]],
-    [#text(6.5pt, weight: "bold", fill: viola_scuro, tracking: 0.6pt)[NELLA NBA] \ #v(2pt) #text(7.5pt)[#d.breve.nba]])
+    [#text(6.5pt, weight: "bold", fill: viola_scuro, tracking: 0.6pt)[NEL FANTABASKET] \ #v(2pt) #text(7.5pt)[#d.breve.fanta]
+     #if d.breve.at("fanta_medie", default: "") != "" [\ #text(7pt, fill: grigio)[Medie: #d.breve.fanta_medie]]],
+    [#text(6.5pt, weight: "bold", fill: viola_scuro, tracking: 0.6pt)[NELLA NBA] \ #v(2pt) #text(7.5pt)[#d.breve.nba]
+     #if d.breve.at("nba_medie", default: "") != "" [\ #text(7pt, fill: grigio)[Medie: #d.breve.nba_medie]]])
 ]
-#pad(x: 10pt, y: 6pt, text(5.8pt, fill: grigio)[Dal 25/07/2026, quando è nato il bot. NBA: roster ESPN e Basketball-Reference. #h(1fr) #d.aggiornato])
+#pad(x: 10pt, y: 6pt, text(5.8pt, fill: grigio)[Dal 25/07/2026, quando è nato il bot. Media qui: le partite giocate davvero (i DNP no) mentre era in quella squadra, nel fanta anche in panchina o in tribuna#if d.at("dati_dal", default: "") != "" [ (tabellini del bot dal #d.dati_dal)]. NBA: roster ESPN e Basketball-Reference. #h(1fr) #d.aggiornato])

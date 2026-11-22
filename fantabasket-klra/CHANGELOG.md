@@ -53,3 +53,7 @@
 ## v10 (2026-11-21, progettone v7.20.5)
 
 - «Uso:» di `/partita` con una squadra vera a caso
+
+## v11 (2026-11-22, progettone v7.24.0)
+
+- `/rendimento`: la distribuzione dei fantapunti e il decile della lega, coi fantapunti del sistema (da `shared/rendimento.py`)

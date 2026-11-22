@@ -1632,6 +1632,18 @@ ok(config.nome(_sq[0]) in _t and config.nome(_sq[1]) not in _t and "70%" in _t a
 TK.salva(S, 2, _righe)
 ok(db.q("SELECT COUNT(*) AS n FROM lega_tanking", one=True)["n"] == 4, "tanking a consuntivo: riconvalidare la giornata non duplica lo storico")
 ok("Tutte le squadre sopra" in TK.testo_consuntivo(S, 3, _righe[1:]), "tanking a consuntivo: nessuna sotto soglia")
+# v7.23.0 (Luca, 22/11): chi è stato messo invece, ruolo per ruolo, dalla scelta più cara
+_x = {"team": _sq[0], "schierati": 60.0, "migliore": 100.0, "efficienza": 0.60,
+      "formazione": {"PG": _gg(2, ["PG"], 30), "SG": _gg(1, ["SG"], 40), "SF": _gg(4, ["SF"], 20), "PF": _gg(5, ["PF"], 25), "C": _gg(7, ["C"], 35)},
+      "messi": {"PG": {"nome": "Panca", "punti": 5.0, "fadd": False}, "SG": {"nome": "G1", "punti": 40.0, "fadd": False},
+                "SF": {"nome": "G4", "punti": 20.0, "fadd": False}, "PF": {"nome": "Entrato", "punti": 20.0, "fadd": True}}}
+_sc = TK.scelte(_x)
+ok(_sc[0].strip().startswith("C: posto vuoto — c'era G7 35,00 (−35,00)") and _sc[1].strip().startswith("PG: schierato Panca 5,00 — c'era G2 30,00 (−25,00)")
+   and "PF: schierato Entrato (FADD) 20,00 — c'era G5 25,00 (−5,00)" in _sc[2] and "negli altri ruoli" in _sc[-1] and len(_sc) == 4,
+   f"tanking a consuntivo: schierato e migliore dove differiscono, dal più caro, FADD segnato {_sc}")
+_t2 = TK.testo_consuntivo(S, 3, [_x])
+ok("schierato Panca" in _t2 and "migliore:" not in _t2, "nel report le scelte al posto della sola formazione migliore")
+ok("migliore:" in TK.testo_consuntivo(S, 3, _righe), "senza i titolari (storico vecchio) la formazione migliore com'era")
 db.q("DROP TABLE lega_tanking")
 
 # pulizia

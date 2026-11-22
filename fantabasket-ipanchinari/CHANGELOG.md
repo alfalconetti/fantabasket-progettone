@@ -196,3 +196,8 @@ Primo rilascio: panchine e quintetti.
 ## v42 (2026-11-21, progettone v7.20.5)
 
 - Guida admin: nell'esempio di `/quintetti_import` «Altra Squadra» al posto della squadra finta delle prove
+
+## v43 (2026-11-22, progettone v7.23.0)
+
+- `/solo_bot` senza argomenti: pulsantiera con le squadre (🤖 a chi lo è), tocco → conferma → cambio (`sbt:…`; un doppio tocco non fa niente)
+- Ogni cambio di «solo bot» (pulsantiera o `/solo_bot SQUADRA`) si annuncia sul canale principale, scritto dal bot principale (`shared/annuncio_principale.py`), e al GM in privato; l'admin vede se sono partiti

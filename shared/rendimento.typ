@@ -150,6 +150,36 @@
       }
     }
   }))
+  // v7.24.0 (Luca, 22/11): la distribuzione dei fantapunti (min, 10°, 25°, mediana, 75°, 90°, max) e il decile nella lega
+  if d.at("distr", default: none) != none {
+    let ds = d.distr
+    let W2 = 330pt
+    let xs(v) = (v - ds.lo) / (ds.scala - ds.lo) * W2
+    pad(x: 16pt, top: 14pt, block(width: 100%, fill: rgb("#F4F0FA"), radius: 6pt, inset: (x: 10pt, y: 8pt), {
+      text(7pt, weight: "bold", fill: viola_scuro, tracking: 0.6pt)[DISTRIBUZIONE DEI FANTAPUNTI]
+      v(6pt)
+      grid(columns: (W2 + 10pt, 1fr), column-gutter: 10pt, align: horizon,
+        box(width: W2 + 10pt, height: 34pt, {
+          // asse
+          place(dx: 0pt, dy: 24pt, line(length: W2, stroke: 0.5pt + grigio.lighten(40%)))
+          for t in range(int(ds.lo), int(ds.scala) + 1, step: 10) {
+            place(dx: xs(t) - 4pt, dy: 26pt, text(6pt, fill: grigio)[#t])
+          }
+          // baffi 10°–90°
+          place(dx: xs(ds.d1), dy: 10pt, line(length: xs(ds.d9) - xs(ds.d1), stroke: 1pt + viola_medio))
+          place(dx: xs(ds.d1), dy: 6pt, line(length: 8pt, angle: 90deg, stroke: 1pt + viola_medio))
+          place(dx: xs(ds.d9), dy: 6pt, line(length: 8pt, angle: 90deg, stroke: 1pt + viola_medio))
+          // scatola 25°–75°
+          place(dx: xs(ds.q1), dy: 2pt, rect(width: xs(ds.q3) - xs(ds.q1), height: 16pt, fill: viola.lighten(70%), stroke: 1pt + viola, radius: 2pt))
+          // mediana
+          place(dx: xs(ds.med), dy: 1pt, line(length: 18pt, angle: 90deg, stroke: 2pt + viola_scuro))
+          // min e max
+          place(dx: xs(ds.min) - 2pt, dy: 8pt, circle(radius: 2pt, fill: grigio))
+          place(dx: xs(ds.max) - 2pt, dy: 8pt, circle(radius: 2pt, fill: rgb("#C8962E")))
+        }),
+        stack(spacing: 4pt, text(7.5pt)[#ds.testo], if ds.lega != "" { text(7pt, fill: grigio)[#ds.lega] }))
+    }))
+  }
   pad(x: 16pt, top: 6pt, bottom: 12pt, text(7pt, fill: grigio)[
     ▮ fantapunti, col colore della squadra del fantabasket (grigio libero, oro la migliore, bordo grigio play-in e playoff NBA, tacca grigia non ha giocato)#if d.at("fanta", default: none) != none [ · fascia gialla: le giornate dei nostri playoff]
     #h(4pt) #box(width: 14pt, height: 2pt, fill: viola_scuro, baseline: -2pt) media delle ultime 5

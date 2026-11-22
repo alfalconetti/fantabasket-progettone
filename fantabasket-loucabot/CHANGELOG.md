@@ -668,3 +668,12 @@ Il calcolo dei fantapunti.
 ## v137 (2026-11-22, progettone v7.22.0)
 
 - `/pick` nuovo del principale (pick in mano a una squadra coi colori della sua palette, `/pick ANNO` tutto un draft, il dettaglio con squadra, giro e anno): qui la descrizione nel menu e la guida
+
+## v138 (2026-11-22, progettone v7.23.0)
+
+- Tanking a consuntivo: per ogni squadra sotto l'80% le righe dei ruoli dove lo schierato non era il migliore («PG: schierato X 8,50 — c'era Y 32,73 (−24,23)»), dalla scelta più cara, FADD e posto vuoto segnati; senza i titolari (dati vecchi) la formazione migliore come prima (`tanking.scelte`, i titolari in `consuntivo()["messi"]`)
+
+## v139 (2026-11-22, progettone v7.24.0)
+
+- `/rendimento`: sotto il grafico la **distribuzione dei fantapunti** (box plot) e il **decile della lega** (codice in `shared/rendimento.py`)
+- `/carriera` e `/trova_trade` (dal bot principale, vista.py): le medie per squadra e prima → dopo la trade

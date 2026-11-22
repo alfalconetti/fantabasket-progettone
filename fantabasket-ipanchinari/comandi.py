@@ -27,7 +27,7 @@ def liste_comandi() -> dict:
         BotCommand("stato",            "Conferme e panchine della giornata [N]"),
         BotCommand("quintetti",        "Tutti i quintetti, una riga per squadra [N: giornata]"),
         BotCommand("controlli",        "Formazioni della giornata chiusa da controllare su Yahoo [N]"),
-        BotCommand("solo_bot",         "Squadre che usano solo i bot (fa fede il quintetto qui) [SQUADRA]"),
+        BotCommand("solo_bot",         "Squadre che usano solo i bot: pulsantiera, o [SQUADRA] per cambiarla"),
         BotCommand("report_formazioni", "Quintetti e panchine di tutte le squadre, coi problemi (.md) [N]"),
         BotCommand("quintetto_admin",  "Quintetto di una squadra: coi bottoni, o SQUADRA e sotto i 5"),
         BotCommand("quintetti_import", "Quintetti di tutte le squadre (testo o file)"),

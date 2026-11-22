@@ -569,7 +569,19 @@ Q.LIMITE_CONTROLLI = _lim
 
 # ── v41 (Luca, 21/11): squadre «solo bot», per loro fa fede il quintetto nel bot ──
 db.q("DELETE FROM ipa_solo_bot")
+from shared import annuncio_principale as _AP
+_canale_main = []
+_AP_manda = _AP.manda
+async def _manda_finta(testo, invia=None):
+    _canale_main.append(testo); return True
+_AP.manda = _manda_finta
+_n0 = len(BOT.mandati)
 m = Msg(); CTX.args = ["team03"]; asyncio.run(Q.cmd_solo_bot(upd(900, m), CTX))
+_gm3 = config.gm_ids("team03")
+ok(_canale_main and "da adesso è <b>«solo bot»</b>" in _canale_main[-1] and "IPanchinari" in _canale_main[-1]
+   and (not _gm3 or any(x["chat_id"] in _gm3 and "La tua squadra" in x["text"] for x in BOT.mandati[_n0:]))
+   and "Annunciato sul canale" in m.risposte[-1][0],
+   "v42: ogni cambio annunciato sul canale principale (dal bot principale) e al GM in privato")
 ok("è «solo bot»" in m.risposte[-1][0] and "team03" in db.solo_bot_attivi(), "/solo_bot SQUADRA: accesa")
 gC = db.giornata(S, NC)
 t, k, _x = Q.testo_controlli(gC)
@@ -581,13 +593,38 @@ ok(comune.favore("team03") == comune.SOLO_BOT and comune.favore("team02") == com
 _tp, _kp = Q.promemoria({"id": "team03", "nome": "Gamma"}, gC)
 ok(comune.SOLO_BOT in _tp, "promemoria al GM «solo bot»: gli dice che per lui fa fede il bot")
 m = Msg(); CTX.args = []; asyncio.run(Q.cmd_solo_bot(upd(900, m), CTX))
-ok("🤖" in m.risposte[-1][0] and "dal" in m.risposte[-1][0], "/solo_bot senza squadra: l'elenco")
+_kb = m.risposte[-1][1].get("reply_markup")
+ok(_kb and "sbt:t:team03" in bottoni(_kb) and any(b.text.startswith("🤖 ") for r in _kb.inline_keyboard for b in r if b.callback_data == "sbt:t:team03"),
+   "v42: /solo_bot senza squadra: la pulsantiera, 🤖 accanto a chi lo è")
+def _sb(uid, data):
+    u = upd(uid, cb=data); u.callback_query.from_user = types.SimpleNamespace(id=uid, first_name=f"U{uid}", full_name=f"U{uid}")
+    asyncio.run(Q.cb_solo_bot(u, CTX)); return u.callback_query
+_q = _sb(900, "sbt:t:team02")
+ok("Accendere «solo bot»" in _q.testi[-1][0] and "sbt:ok:team02:1" in bottoni(_q.testi[-1][1]["reply_markup"]) and "team02" not in db.solo_bot_attivi(),
+   "tocco su una squadra: chiede conferma, niente cambia")
+_q = _sb(900, "sbt:x")
+ok("sbt:t:team02" in bottoni(_q.testi[-1][1]["reply_markup"]), "✖️ No: torna alla pulsantiera")
+_nc = len(_canale_main)
+_q = _sb(900, "sbt:ok:team02:1")
+ok("team02" in db.solo_bot_attivi() and len(_canale_main) == _nc + 1 and "è «solo bot»" in _q.testi[-1][0], "✅ Sì: accesa e annunciata")
+_q = _sb(900, "sbt:ok:team02:1")
+ok("Nel frattempo" in _q.testi[-1][0] and len(_canale_main) == _nc + 1, "doppio tocco sul Sì: niente da fare, nessun annuncio in più")
+_q = _sb(900, "sbt:ok:team02:0")
+ok("team02" not in db.solo_bot_attivi() and "non è più «solo bot»" in _canale_main[-1], "spenta dalla pulsantiera, annunciato")
+_q = _sb(101, "sbt:t:team02")
+ok("Solo admin" in (_q.risposte[-1] or ""), "pulsantiera: solo admin")
 m = Msg(); CTX.args = ["team03"]; asyncio.run(Q.cmd_solo_bot(upd(900, m), CTX))
 ok("non è più «solo bot»" in m.risposte[-1][0] and "team03" not in db.solo_bot_attivi(), "/solo_bot di nuovo: spenta (revertibile)")
 ok(db.controlli(S, NC).get("team03", {}).get("solo_bot"), "spenta oggi: la giornata già cominciata resta com'era")
 m = Msg(); CTX.args = ["team03"]; asyncio.run(Q.cmd_solo_bot(upd(101, m), CTX))
 ok("Solo admin" in m.risposte[-1][0], "/solo_bot: solo admin")
 CTX.args = []
+_AP.manda = _AP_manda
+_os.environ["MAIN_BOT_TOKEN_FILE"] = "/nonesiste"
+ok(asyncio.run(_AP.manda("prova")) is False, "annuncio dal bot principale senza token: False, niente eccezioni")
+_inv = []
+async def _invia(c, t): _inv.append((c, t))
+ok(asyncio.run(_AP.manda("prova", invia=_invia)) is True and _inv and _inv[0][1] == "prova", "annuncio: sul main_channel_id di globals.json")
 db.q("DELETE FROM ipa_solo_bot")
 m = Msg("/quintetto_admin Alfa G2\nJalen Brunson\nBooker\nBridges\nGrant Williams\nMark Williams"); asyncio.run(Q.cmd_quintetto_admin(upd(900, m), CTX))
 ok("team01" in db.controlli(S, 2) and "controllata" in m.risposte[-1][0], "correzione della formazione G2: controllata da sola")

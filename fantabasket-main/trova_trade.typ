@@ -47,6 +47,11 @@
         text(8.3pt, weight: "bold")[#a.nome],
         if a.at("fp", default: "") != "" { box(fill: azzurro, radius: 3pt, inset: (x: 3.5pt, y: 1.5pt), text(6.8pt, weight: "bold", fill: blu_scuro)[#a.fp]) }),
       if a.dettaglio != "" { text(6.8pt, fill: grigio)[#a.dettaglio] },
+      // v7.24.0 (Luca, 22/11): medie prima → dopo la trade (stagione e assoluto), dai tabellini del bot
+      ..a.at("medie", default: ()).map(m => grid(columns: (34pt, 1fr), column-gutter: 3pt,
+        text(6.5pt, fill: grigio)[#m.etichetta],
+        if m.np == 0 { text(6.8pt)[dopo *#m.dopo* #text(fill: grigio)[(#m.sd#m.nd p.)]] }
+        else { text(6.8pt)[#m.prima #text(fill: grigio)[(#m.sp#m.np p.)] → #if m.nd == 0 [*—* #text(fill: grigio)[(ancora nessuna partita)]] else [*#m.dopo* #text(fill: grigio)[(#m.sd#m.nd p.)]] #if m.freccia == "su" { text(fill: verde)[▲] } else if m.freccia == "giu" { text(fill: rosso)[▼] }] })),
       if not due { text(6.8pt, fill: blu)[#verso #box(baseline: 25%, logo(a.altra, 10pt)) #a.altra.nome] }))
 ]
 
@@ -84,5 +89,5 @@
     ..d.percorso.map(p => (segno.at(p.segno, default: [•]), text(8pt)[#p.testo], text(7pt, fill: grigio)[#p.quando])).flatten())
 ]
 #block(width: 100%, fill: white, inset: (x: 12pt, y: 6pt))[
-  #text(6.5pt, fill: grigio)[FP = fantamedia #d.at("fp_stagione", default: "") (basketball-reference: la stagione della trade, o quella che stava per cominciare se in off-season) · 🏀 giocatore (ruolo, contratto di allora: importo × anni rimasti) · 🎟️ pick (anno, giro, di chi era, protezioni) · 📜 diritti rookie (giro, numero e anno del draft) · Cap e roster al momento della trade, subito prima e subito dopo, spalmature comprese · /trova_trade 014, o il nome di un giocatore per le trade ufficiali che lo riguardano]
+  #text(6.5pt, fill: grigio)[FP = fantamedia #d.at("fp_stagione", default: "") (basketball-reference: la stagione della trade, o quella che stava per cominciare se in off-season) · 🏀 giocatore (ruolo, contratto di allora: importo × anni rimasti) · 🎟️ pick (anno, giro, di chi era, protezioni) · 📜 diritti rookie (giro, numero e anno del draft) · Medie (partite giocate davvero, dai tabellini del bot#if d.at("dati_dal", default: "") != "" [ dal #d.dati_dal]): «stagione» = la stagione della trade prima e dopo, o in off-season la stagione prima e quella dopo; «assoluto» = tutto il periodo nella squadra che lo cede contro tutto quello nella squadra che lo riceve, finora · Cap e roster al momento della trade, subito prima e subito dopo, spalmature comprese · /trova_trade 014, o il nome di un giocatore per le trade ufficiali che lo riguardano]
 ]

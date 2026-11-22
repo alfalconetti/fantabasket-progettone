@@ -15,6 +15,10 @@ giornaliere di Basketball-Reference (`bref_stats`: la data è quella in cui bref
 dopo la prima partita con la squadra nuova). Un cambio di bref già visto da ESPN nei 30 giorni
 prima non si ripete.
 
+Medie (v7.24.0, Luca 22/11): accanto all'evento che lo porta in una squadra, la media delle partite giocate
+davvero (i DNP no) finché ci resta, dai tabellini del bot; nel fantabasket anche quelle in cui era in panchina o in
+tribuna; nella NBA quelle con quella squadra. Nel riepilogo in fondo la media in ogni squadra.
+
 Loghi: quelli delle squadre del fantabasket (config/loghi); NBA da shared/squadre_nba (scaricati da
 loucabot da ESPN in config/foto/nba, v6.13.0; uno a mano in config/loghi/nba vale prima), se no un tondo
 col colore della squadra e la sigla. Foto: quelle di loucabot
@@ -240,10 +244,91 @@ def eventi_nba(espn: str | None, nome_bref: str | None) -> list[dict]:
     return out
 
 
+# ── v7.24.0 (Luca, 22/11, mockup approvato): la media in ogni squadra, accanto all'evento che ce lo porta ──
+
+TIPI_MEDIA = (2, 3, 5)                  # regular season, playoff, play-in (la preseason no)
+
+
+def _num(x: float) -> str:
+    return f"{x:.2f}".replace(".", ",")
+
+
+def partite_media(espn: str | None) -> list[dict]:
+    """Le partite del giocatore nei tabellini del bot che fanno media (giocate davvero: i DNP no), dalla più vecchia."""
+    if not espn or not _c_e("nba_tabellini"):
+        return []
+    from shared.lettura import conta
+    righe = db._q("""SELECT t.fp, t.giocato, t.minuti, t.squadra, p.inizio, p.stagione FROM nba_tabellini t
+                     JOIN nba_partite p ON p.espn_id = t.partita
+                     WHERE t.atleta = %s AND p.tipo = ANY(%s) ORDER BY p.inizio""", (espn, list(TIPI_MEDIA)), many=True) or []
+    return [r for r in righe if conta(r)]
+
+
+def _media(v: list[float]) -> dict:
+    return {"v": _num(sum(v) / len(v)) if v else "—", "n": len(v)}
+
+
+def _periodi(ev: list[dict], chiave: str) -> list[dict]:
+    """I periodi in una squadra: un evento che cambia squadra ne apre uno (un rinnovo o una DPE no), fino al cambio
+    dopo. [{i (l'evento che lo apre), team, dal, al (None = ancora lì)}]; da free agent nessun periodo."""
+    out, prima = [], None
+    for i, x in enumerate(ev):
+        t = x.get(chiave)
+        if t == prima:
+            continue
+        if out and out[-1]["al"] is None:
+            out[-1]["al"] = x["quando"]
+        if t:
+            out.append({"i": i, "team": t, "dal": x["quando"], "al": None})
+        prima = t
+    return out
+
+
+def medie_fanta(ev: list[dict], partite: list[dict]) -> None:
+    """La media in ogni squadra del fantabasket: tutte le partite giocate mentre era nel suo roster (anche in panchina
+    o in tribuna nel fanta), sull'evento che apre il periodo."""
+    for p in _periodi(ev, "team"):
+        v = [float(r["fp"] or 0) for r in partite if r["inizio"] >= p["dal"] and (p["al"] is None or r["inizio"] < p["al"])]
+        ev[p["i"]]["media"] = _media(v)
+
+
+def medie_nba(ev: list[dict], partite: list[dict]) -> None:
+    """La media in ogni squadra NBA: le partite giocate con quella squadra (la squadra del tabellino) nel periodo. Un
+    cambio visto da Basketball-Reference arriva dopo la prima partita con la squadra nuova: una partita con la squadra
+    nuova appena prima del cambio va al periodo che si apre lì (entro 30 giorni)."""
+    per = _periodi(ev, "a")
+    v = {i: [] for i in range(len(per))}
+    for r in partite:
+        sq = sigla_nba(r.get("squadra"))
+        dentro = [i for i, p in enumerate(per) if r["inizio"] >= p["dal"] and (p["al"] is None or r["inizio"] < p["al"])]
+        if dentro and (not sq or per[dentro[0]]["team"] == sq):
+            v[dentro[0]].append(float(r["fp"] or 0))
+            continue
+        dopo = [i for i, p in enumerate(per) if p["team"] == sq and timedelta(0) < p["dal"] - r["inizio"] <= timedelta(days=30)]
+        if dopo:
+            v[dopo[0]].append(float(r["fp"] or 0))
+    for i, p in enumerate(per):
+        ev[p["i"]]["media"] = _media(v[i])
+
+
+def medie_squadre(ev: list[dict], chiave: str) -> str:
+    """Il riepilogo: la media in ogni squadra (tutti i periodi in quella squadra insieme), in ordine di arrivo."""
+    tot = {}
+    for p in _periodi(ev, chiave):
+        m = ev[p["i"]].get("media") or {}
+        nome = ev[p["i"]]["titolo"]
+        t = tot.setdefault(nome, [0.0, 0])
+        if m.get("n"):
+            t[0] += float(m["v"].replace(",", ".")) * m["n"]
+            t[1] += m["n"]
+    return ", ".join(f"{n} ({_num(s / k)} in {k} p.)" if k else f"{n} (—)" for n, (s, k) in tot.items())
+
+
 # ── dati per l'immagine ───────────────────────────────────────────────────────
 
 def _carta(x: dict) -> dict:
-    return {"tipo": x["tipo"], "etichetta": x["etichetta"], "titolo": x["titolo"], "dettaglio": x["dettaglio"], "sq": x["logo_sq"]}
+    return {"tipo": x["tipo"], "etichetta": x["etichetta"], "titolo": x["titolo"], "dettaglio": x["dettaglio"], "sq": x["logo_sq"],
+            "media": x.get("media")}
 
 
 def righe_timeline(fanta: list[dict], nba: list[dict]) -> list[dict]:
@@ -299,6 +384,12 @@ def dati(gid: int, ora: datetime | None = None) -> dict:
     stagione = settings.stagione_corrente()
     fanta = eventi_fanta(gid)
     nba = eventi_nba(g.get("espn_id"), g.get("nome_bref"))
+    partite = partite_media(g.get("espn_id"))             # v7.24.0: la media in ogni squadra
+    medie_fanta(fanta, partite)
+    medie_nba(nba, partite)
+    primo = db._q("""SELECT MIN(p.data_et) AS d FROM nba_partite p WHERE p.tipo = ANY(%s)
+                     AND EXISTS (SELECT 1 FROM nba_tabellini t WHERE t.partita = p.espn_id)""",
+                  (list(TIPI_MEDIA),), one=True) if _c_e("nba_tabellini") else None
     pos = db._q("SELECT posizioni FROM posizioni_attuali WHERE giocatore_id = %s", (gid,), one=True) if _c_e("posizioni_attuali") else None
     eleg = [r for r in ("PG", "SG", "SF", "PF", "C") if r in set(((pos or {}).get("posizioni") or "").split(","))]
     eta = None
@@ -323,7 +414,9 @@ def dati(gid: int, ora: datetime | None = None) -> dict:
         "iniziali": "".join(p[0] for p in g["nome_common"].split()[:2]).upper(),
         "ora": {"fanta": fanta_ora, "nba": nba_ora, "contratto": contratto, "fino": fino},
         "dal": f"{DAL:%d/%m/%Y}", "righe": righe_timeline(fanta, nba),
-        "breve": {"fanta": _breve_fanta(fanta), "nba": _breve_nba(nba)},
+        "breve": {"fanta": _breve_fanta(fanta), "nba": _breve_nba(nba),
+                  "fanta_medie": medie_squadre(fanta, "team"), "nba_medie": medie_squadre(nba, "a")},
+        "dati_dal": f"{primo['d']:%d/%m/%Y}" if primo and primo.get("d") else "",
         "aggiornato": f"{ora.astimezone(ROMA):%d/%m alle %H:%M}",
     }
 

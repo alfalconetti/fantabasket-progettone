@@ -127,7 +127,7 @@ def _lato_stagione(d: dict, npo: dict | None) -> dict:
 def dati_stagione(gid_a: int, gid_b: int, stagione: str | None = None, periodo=None) -> dict | None:
     """Il JSON per confronto.typ, modo «stagione» (v7.9.7, Luca 15/11: solo linee, come /rendimento sul viola). None
     se uno dei due non ha partite."""
-    da, db_ = R.dati_stagione(gid_a, stagione, periodo), R.dati_stagione(gid_b, stagione, periodo)   # v7.20.2: col periodo
+    da, db_ = R.dati_stagione(gid_a, stagione, periodo, distr=False), R.dati_stagione(gid_b, stagione, periodo, distr=False)   # v7.20.2: col periodo
     if not da or not db_:
         return None
     giorni = sorted({x["giorno"] for x in da["partite"] + db_["partite"]})

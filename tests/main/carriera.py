@@ -246,6 +246,50 @@ try:
 except ImportError:
     pass
 
+# v7.24.0 (Luca, 22/11): la media in ogni squadra, accanto all'evento che ce lo porta
+from datetime import timedelta as _td
+_t = lambda m, d: datetime(2026, m, d, 12, tzinfo=timezone.utc)
+_ev = [{"quando": _t(8, 1), "team": "team01", "titolo": "Alfa"}, {"quando": _t(9, 1), "team": "team01", "titolo": "Alfa"},
+       {"quando": _t(11, 1), "team": None, "titolo": "Free agent"}, {"quando": _t(11, 10), "team": "team02", "titolo": "Beta"}]
+_pp = [{"inizio": _t(8, 20), "fp": 20}, {"inizio": _t(10, 5), "fp": 30}, {"inizio": _t(11, 5), "fp": 99}, {"inizio": _t(11, 12), "fp": 41}]
+C.medie_fanta(_ev, _pp)
+ok(_ev[0]["media"] == {"v": "25,00", "n": 2} and "media" not in _ev[1] and "media" not in _ev[2] and _ev[3]["media"] == {"v": "41,00", "n": 1},
+   f"carriera: media per squadra sull'evento che ce lo porta (un rinnovo non spezza, da free agent niente) {[x.get('media') for x in _ev]}")
+ok(C.medie_squadre(_ev, "team") == "Alfa (25,00 in 2 p.), Beta (41,00 in 1 p.)", f"carriera: riepilogo delle medie {C.medie_squadre(_ev, 'team')}")
+_en = [{"quando": _t(7, 25), "a": "PHX", "titolo": "Phoenix"}, {"quando": _t(11, 10), "a": "WAS", "titolo": "Washington"}]
+_pn = [{"inizio": _t(11, 1), "fp": 30, "squadra": "PHX"}, {"inizio": _t(11, 8), "fp": 10, "squadra": "WAS"},
+       {"inizio": _t(11, 12), "fp": 20, "squadra": "WAS"}]
+C.medie_nba(_en, _pn)
+ok(_en[0]["media"] == {"v": "30,00", "n": 1} and _en[1]["media"] == {"v": "15,00", "n": 2},
+   f"carriera NBA: la partita con la squadra nuova prima che bref veda il cambio va alla squadra nuova {[x['media'] for x in _en]}")
+_ef = [{"quando": _t(7, 25), "team": "team01", "titolo": "Alfa"}]
+C.medie_fanta(_ef, [])
+ok(_ef[0]["media"] == {"v": "—", "n": 0}, "carriera: senza partite nei tabellini del bot, media —")
+# partite vere: DNP fuori, preseason fuori
+db._q("DELETE FROM nba_tabellini WHERE partita LIKE 'mt%%'"); db._q("DELETE FROM nba_partite WHERE espn_id LIKE 'mt%%'")
+_m = g("Medie Trade", "mt1")
+tx("iniziale", _m, None, "team01", None, _t(7, 25))
+tx("trade", _m, "team01", "team02", None, _t(11, 10))
+for _i, (_st, _tipo, _gg, _fp, _gioca) in enumerate([("2025", 2, _t(3, 1), 50, True), ("2026", 1, _t(10, 10), 90, True),
+        ("2026", 2, _t(11, 1), 20, True), ("2026", 2, _t(11, 3), 30, True), ("2026", 2, _t(11, 5), 0, False),
+        ("2026", 2, _t(11, 12), 40, True), ("2026", 2, _t(11, 14), 20, True)]):
+    db._q("INSERT INTO nba_partite (espn_id, stagione, tipo, data_et, inizio, casa, trasferta, stato) VALUES (%s, %s, %s, %s, %s, 'CHA', 'BOS', 'STATUS_FINAL')",
+          (f"mt{_i}", _st, _tipo, _gg.date(), _gg))
+    db._q("INSERT INTO nba_tabellini (partita, atleta, nome, squadra, giocato, minuti, fp) VALUES (%s, 'mt1', 'Medie Trade', 'CHA', %s, %s, %s)",
+          (f"mt{_i}", _gioca, 30 if _gioca else 0, _fp))
+ok([float(x["fp"]) for x in C.partite_media("mt1")] == [50, 20, 30, 40, 20], "carriera: le partite che fanno media (niente DNP, niente preseason)")
+import handlers.trova_trade as _TT
+_r = {x["etichetta"]: x for x in _TT.medie_trade(_m, "mt1", "team01", "team02", _t(11, 10))}
+ok((_r["stagione"]["prima"], _r["stagione"]["np"], _r["stagione"]["dopo"], _r["stagione"]["nd"], _r["stagione"]["freccia"]) == ("25,00", 2, "30,00", 2, "su")
+   and (_r["assoluto"]["prima"], _r["assoluto"]["np"]) == ("25,00", 2),
+   f"trova_trade: stagione prima → dopo; assoluto dall'arrivo nella squadra che lo cede (non la stagione prima) {_r}")
+_o = {x["etichetta"]: x for x in _TT.medie_trade(_m, "mt1", "team01", "team02", _t(8, 1))}
+ok((_o["stagione"]["prima"], _o["stagione"]["sp"], _o["stagione"]["dopo"], _o["stagione"]["nd"], _o["stagione"]["sd"]) == ("50,00", "2025-26, ", "27,50", 4, "2026-27, ")
+   and _o["assoluto"]["np"] == 0 and _o["assoluto"]["dopo"] == "27,50",
+   f"trova_trade in off-season: la stagione prima e quella dopo; senza partite prima solo il dopo {_o}")
+ok(_TT.medie_trade(_m, None, "team01", "team02", _t(11, 10)) == [], "trova_trade: senza id ESPN niente medie")
+db._q("DELETE FROM nba_tabellini WHERE partita LIKE 'mt%%'"); db._q("DELETE FROM nba_partite WHERE espn_id LIKE 'mt%%'")
+
 # comando
 out = []
 class M:

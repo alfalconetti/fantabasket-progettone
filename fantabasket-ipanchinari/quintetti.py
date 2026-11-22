@@ -678,43 +678,106 @@ async def _manda_altri(bot, chat_id, altri: list[str]) -> None:
         await bot.send_message(chat_id=chat_id, text=x, parse_mode="HTML")
 
 
-async def cmd_solo_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/solo_bot [SQUADRA] (admin, v41, Luca 21/11): accende o spegne «solo bot» per una squadra, il GM che ha
-    scelto di non usare più Yahoo: per lui fa fede il quintetto nel bot, in /controlli risulta già a posto e i
-    messaggi glielo dicono. Senza squadra: l'elenco. Spegnere non cambia le giornate già passate."""
-    msg = update.effective_message
-    if not config.is_admin(update.effective_user.id):
-        await msg.reply_text("⛔ Solo admin.")
-        return
+def tastiera_solo_bot() -> K:
+    """/solo_bot senza argomenti (v42, Luca 22/11): una pulsantiera con le squadre, due per riga, e il loro stato."""
     attivi = db.solo_bot_attivi()
-    if not context.args:
-        elenco = "\n".join(f"🤖 {e(config.nome(t))} — dal {ora(r['dal'])}" + (f" ({e(r['da_nome'])})" if r.get("da_nome") else "")
-                           for t, r in attivi.items()) or "nessuna"
-        await msg.reply_text("🤖 <b>Squadre «solo bot»</b> (per loro fa fede il quintetto nel bot, non Yahoo):\n"
-                             f"{elenco}\n\n/solo_bot SQUADRA la accende o la spegne.", parse_mode="HTML")
-        return
-    from shared.squadre import cerca_squadra
-    team = cerca_squadra(" ".join(context.args), config.squadre())
-    if not team:
-        await msg.reply_text("Squadra non trovata. Uso: /solo_bot SQUADRA (nome o id).")
-        return
-    nome_admin = _nome_admin(update)
+    sq = sorted(config.squadre(), key=lambda t: t["nome"].lower())
+    bottoni = [B(("🤖 " if t["id"] in attivi else "") + t["nome"], callback_data=f"sbt:t:{t['id']}")
+               for t in sq]
+    return K([bottoni[i:i + 2] for i in range(0, len(bottoni), 2)])
+
+
+TESTO_ELENCO = ("🤖 <b>Squadre «solo bot»</b>: per loro fa fede il quintetto nel bot, non Yahoo. Quelle col 🤖 lo sono "
+                "già: tocca una squadra per accenderlo o spegnerlo (chiedo conferma; lo annuncio sul canale e al GM).")
+
+
+async def cambia_solo_bot(bot, team: dict, user, nome_admin: str) -> str:
+    """Accende o spegne «solo bot» per `team`: registro, log, annuncio sul canale principale (dal bot principale) e al
+    GM in privato (v42, Luca 22/11: «è giusto che il gruppo sappia cosa controllare»). → il testo per l'admin."""
     from registro import segna_sync
-    if team["id"] in attivi:
+    from shared import annuncio_principale as AP
+    if team["id"] in db.solo_bot_attivi():
         db.disattiva_solo_bot(team["id"], nome_admin)
         prima, dopo = "🤖 solo bot", "fa fede Yahoo"
         testo = (f"↩️ <b>{e(team['nome'])}</b> non è più «solo bot»: da adesso fa fede Yahoo, e le prossime formazioni "
                  "vanno controllate in /controlli. Le giornate passate restano com'erano.")
+        canale = f"↩️ <b>{e(team['nome'])}</b> non è più «solo bot»: da adesso per le sue formazioni fa fede Yahoo."
+        al_gm = (f"↩️ La tua squadra <b>{e(team['nome'])}</b> non è più «solo bot»: da adesso per le tue formazioni fa "
+                 "fede <b>Yahoo</b>, tienile aggiornate lì.")
     else:
         db.attiva_solo_bot(team["id"], nome_admin)
         prima, dopo = "fa fede Yahoo", "🤖 solo bot"
         testo = (f"🤖 <b>{e(team['nome'])}</b> è «solo bot»: per questa squadra fa fede il quintetto nel bot. In "
-                 "/controlli risulta già a posto, e i messaggi al GM gli dicono di tenere il quintetto aggiornato qui. "
-                 f"Per tornare indietro: /solo_bot {e(team['nome'])}.")
-    segna_sync(update.effective_user, "admin", "squadra solo bot", squadre=team["id"], oggetto="fonte del quintetto",
-               prima=prima, dopo=dopo)
-    await log(context.bot, f"🤖 {e(team['nome'])}: {prima} → {dopo} ({chi(update)})")
-    await msg.reply_text(testo, parse_mode="HTML")
+                 "/controlli risulta già a posto, e i messaggi al GM gli dicono di tenere il quintetto aggiornato qui.")
+        canale = (f"🤖 <b>{e(team['nome'])}</b> da adesso è <b>«solo bot»</b>: per le sue formazioni fa fede il quintetto "
+                  "in IPanchinari, non Yahoo.")
+        al_gm = (f"🤖 La tua squadra <b>{e(team['nome'])}</b> da adesso è <b>«solo bot»</b>: per le tue formazioni fa fede "
+                 "il quintetto qui in IPanchinari, non Yahoo. Tienilo aggiornato con /quintetto.")
+    segna_sync(user, "admin", "squadra solo bot", squadre=team["id"], oggetto="fonte del quintetto", prima=prima, dopo=dopo)
+    await log(bot, f"🤖 {e(team['nome'])}: {prima} → {dopo} ({e(nome_admin)})")
+    sul_canale = await AP.manda(canale)
+    avvisati = 0
+    for gm in config.gm_ids(team["id"]):
+        try:
+            await bot.send_message(chat_id=gm, text=al_gm, parse_mode="HTML")
+            avvisati += 1
+        except Exception as err:
+            logger.warning("Solo bot, avviso al GM %s: %s", gm, err)
+    return (testo + "\n\n" + ("📣 Annunciato sul canale" if sul_canale else "⚠️ Annuncio sul canale non partito (vedi log)")
+            + (f", avvisato il GM." if avvisati else ", ma il GM non l'ho raggiunto in privato (non ha avviato il bot?)."))
+
+
+async def cmd_solo_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/solo_bot [SQUADRA] (admin, v41, Luca 21/11): accende o spegne «solo bot» per una squadra, il GM che ha
+    scelto di non usare più Yahoo: per lui fa fede il quintetto nel bot, in /controlli risulta già a posto e i
+    messaggi glielo dicono. Senza squadra (v42): la pulsantiera. Spegnere non cambia le giornate già passate.
+    Ogni cambio si annuncia sul canale principale e al GM (v42)."""
+    msg = update.effective_message
+    if not config.is_admin(update.effective_user.id):
+        await msg.reply_text("⛔ Solo admin.")
+        return
+    if not context.args:
+        await msg.reply_text(TESTO_ELENCO, parse_mode="HTML", reply_markup=tastiera_solo_bot())
+        return
+    from shared.squadre import cerca_squadra
+    team = cerca_squadra(" ".join(context.args), config.squadre())
+    if not team:
+        await msg.reply_text("Squadra non trovata. Uso: /solo_bot SQUADRA (nome o id), o /solo_bot per la pulsantiera.")
+        return
+    await msg.reply_text(await cambia_solo_bot(context.bot, team, update.effective_user, _nome_admin(update)), parse_mode="HTML")
+
+
+async def cb_solo_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """sbt:l (l'elenco) · sbt:t:<team> (conferma) · sbt:ok:<team>:<1 accendere|0 spegnere> · sbt:x (annulla)."""
+    q = update.callback_query
+    if not config.is_admin(q.from_user.id):
+        await q.answer("⛔ Solo admin.", show_alert=True)
+        return
+    await q.answer()
+    parti = q.data.split(":")
+    if parti[1] in ("l", "x"):
+        await q.edit_message_text(TESTO_ELENCO, parse_mode="HTML", reply_markup=tastiera_solo_bot())
+        return
+    team = config.squadra(parti[2])
+    if not team:
+        await q.edit_message_text("Squadra non trovata.")
+        return
+    acceso = team["id"] in db.solo_bot_attivi()
+    if parti[1] == "t":
+        verbo = "Spegnere" if acceso else "Accendere"
+        await q.edit_message_text(f"{verbo} «solo bot» per <b>{e(team['nome'])}</b>?\nLo annuncio sul canale e al GM.",
+                                  parse_mode="HTML", reply_markup=K([[
+                                      B("✅ Sì", callback_data=f"sbt:ok:{team['id']}:{0 if acceso else 1}"),
+                                      B("✖️ No", callback_data="sbt:x")]]))
+        return
+    if (parti[3] == "1") == acceso:                       # nel frattempo l'ha già cambiato qualcun altro
+        await q.edit_message_text(f"Nel frattempo {e(team['nome'])} è già {'«solo bot»' if acceso else 'su Yahoo'}: niente da fare.",
+                                  parse_mode="HTML", reply_markup=K([[B("← Elenco", callback_data="sbt:l")]]))
+        return
+    nome = getattr(q.from_user, "first_name", None) or getattr(q.from_user, "full_name", None) or str(q.from_user.id)
+    esito = await cambia_solo_bot(context.bot, team, q.from_user, nome)
+    await q.edit_message_text(esito, parse_mode="HTML",
+                              reply_markup=K([[B("← Elenco", callback_data="sbt:l")]]))
 
 
 async def cmd_controlli(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -936,6 +999,7 @@ def get_handlers() -> list:
         CommandHandler("quintetti", cmd_quintetti),
         CommandHandler("controlli", cmd_controlli),
         CommandHandler("solo_bot", cmd_solo_bot),
+        CallbackQueryHandler(cb_solo_bot, pattern=r"^sbt:(?:l|x|t:[\w-]+|ok:[\w-]+:[01])$"),
         CallbackQueryHandler(cb_quintetto, pattern=r"^q:"),
         CallbackQueryHandler(cb_controlli, pattern=r"^ck:\d+:[\w-]+$"),
     ]
