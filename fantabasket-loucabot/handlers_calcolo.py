@@ -288,18 +288,21 @@ def _ora(t) -> str:
 
 def _cerca_giocatori(testo: str) -> list[dict]:
     """Giocatori dell'anagrafica abbinati a ESPN che corrispondono al nome (prima quelli a roster)."""
-    n = calcolo.norm(testo)
+    from shared import parole_nome as PN               # anche con le parole in un altro ordine (Luca, 31/10)
+    n = calcolo.norm(PN.senza_apici(testo))
     if not n:
         return []
     tutti = db.q("""SELECT g.id, g.nome_common, g.espn_id, EXISTS (SELECT 1 FROM contratti c WHERE c.giocatore_id = g.id AND c.attivo) AS a_roster
                     FROM giocatori g WHERE g.espn_id IS NOT NULL""", many=True) or []
-    from shared import parole_nome as PN               # anche con le parole in un altro ordine (Luca, 31/10)
+    v = PN.verbatim(testo)
+    if v is not None:                                  # v7.25.0: tra apici solo il nome esatto
+        return sorted([g for g in tutti if PN.identico(v, g["nome_common"])], key=lambda g: (not g["a_roster"], g["nome_common"]))
     esatti = [g for g in tutti if calcolo.norm(g["nome_common"]) == n or PN.stesse_parole(testo, g["nome_common"])]
     trovati = esatti or [g for g in tutti if n in calcolo.norm(g["nome_common"]) or PN.contiene_parole(testo, g["nome_common"])]
     if not trovati:
         nomi = {PN.ordinata(g["nome_common"]): g for g in tutti}
         trovati = [nomi[x] for x in difflib.get_close_matches(PN.ordinata(testo), list(nomi), n=5, cutoff=0.75)]
-    return sorted(trovati, key=lambda g: (not g["a_roster"], g["nome_common"]))[:8]
+    return sorted(trovati, key=lambda g: (not g["a_roster"], g["nome_common"]))   # tutti: «Quale?» a pagine (v7.25.0)
 
 
 def _scelte(snap: list[dict]) -> list:
@@ -358,9 +361,9 @@ async def cmd_set_valid_status(update: Update, context: ContextTypes.DEFAULT_TYP
     if not trovati:
         await update.effective_message.reply_text(f"Nessun giocatore abbinato a ESPN si chiama «{e(' '.join(args))}».", parse_mode="HTML")
         return
-    if len(trovati) > 1 and calcolo.norm(trovati[0]["nome_common"]) != calcolo.norm(" ".join(args)):
-        await update.effective_message.reply_text("Quale?", reply_markup=K([[B(g["nome_common"], callback_data=f"sv:g:{g['id']}:{n}")]
-                                                                           for g in trovati]))
+    from shared import parole_nome as PN, pagine as PG
+    if len(trovati) > 1 and calcolo.norm(trovati[0]["nome_common"]) != calcolo.norm(PN.senza_apici(" ".join(args))):
+        await PG.manda(update.effective_message, context, [(g["nome_common"], f"sv:g:{g['id']}:{n}") for g in trovati])
         return
     testo, tasti = schermata_status(trovati[0]["id"], n)
     await update.effective_message.reply_text(testo, parse_mode="HTML", reply_markup=tasti)

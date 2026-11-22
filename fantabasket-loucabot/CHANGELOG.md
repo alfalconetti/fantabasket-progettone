@@ -685,3 +685,7 @@ Il calcolo dei fantapunti.
 ## v141 (2026-11-22, progettone v7.24.2)
 
 - All'avvio i tabellini di prima del bot (prima del 25/07/2026) vanno in `nba_tabellini_prima_del_bot`: i dati partono dalla stagione 2026-27
+
+## v142 (2026-11-22, progettone v7.25.0)
+
+- I «Quale?» a pagine e di chi ha cercato, il nome tra apici, la scelta dei due nomi in `/confronto` e `/confronto_carriera`, il giocatore in `/trova_trade` (vedi il CHANGELOG del bot principale)

@@ -1114,15 +1114,10 @@ async def cmd_registra_firma(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return
         await _esegui_registra_firma(update, context, g, team_id, team, importo, anni)
     else:
-        bottoni = [
-            [InlineKeyboardButton(g["nome_common"], callback_data=f"rfirma:{g['id']}:{team_id}:{importo}:{anni}")]
-            for g in risultati[:5]
-        ]
-        nomi = "\n".join(f"• {g['nome_common']}" for g in risultati[:5])
-        await update.effective_message.reply_text(
-            f"Trovati più giocatori:\n{nomi}\n\nSeleziona:",
-            reply_markup=InlineKeyboardMarkup(bottoni)
-        )
+        from shared import pagine as PG                # v7.25.0: tutti, a pagine (prima i primi 5)
+        await PG.manda(update.effective_message, context,
+                       [(g["nome_common"], f"rfirma:{g['id']}:{team_id}:{importo}:{anni}") for g in risultati],
+                       "Trovati più giocatori, quale?")
 
 
 async def cb_registra_firma_sel(update: Update, context: ContextTypes.DEFAULT_TYPE):

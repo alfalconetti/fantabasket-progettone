@@ -215,6 +215,10 @@ asyncio.run(R.cmd_rendimento_carriera(u, types.SimpleNamespace(args=["Deron", "R
 asyncio.run(R.cmd_rendimento_carriera(u, types.SimpleNamespace(args=["Rendi", "Deron"])))
 asyncio.run(R.cmd_rendimento_carriera(u, types.SimpleNamespace(args=["Rend"])))
 ok(out[_n0][0] == "foto" and out[_n0 + 1][0] == "foto", "un nome che è solo in Basketball-Reference: dritto alla carriera, anche al contrario")
+bref("2011", "Deron Rendi Jr.", "UTA", 70, 30, oggi - timedelta(days=5000))
+ok(R.nomi_bref("'Deron Rendi'") == ["Deron Rendi"] and R.scegli_carriera("'Deron Rendi'")[0][1] == "Deron Rendi"
+   and R.scegli_carriera("’Deron Rendi Jr.’")[0][1] == "Deron Rendi Jr." and R.nomi_bref("'Rendi Deron'") == [],
+   "v7.25.0: /rendimento_carriera tra apici: solo il nome esatto (il padre, non il Jr.; niente altro ordine)")
 _bott = [b.callback_data for r in out[_n0 + 2][2].inline_keyboard for b in r] if out[_n0 + 2][2] else []
 ok(out[_n0 + 2][1] == "Quale?" and "rcb:Rend Uno" in _bott and "rcb:Deron Rendi" in _bott, f"nome a metà: i nomi di Basketball-Reference {_bott}")
 bref("2000", "Michael Jorrdan", "CHI", 80, 60, oggi - timedelta(days=9500)); bref("2016", "Jorrdan Mikey", "MIL", 40, 20, oggi - timedelta(days=3500))
@@ -302,8 +306,30 @@ for f, args in ((CF.cmd_confronto, ["Rend", "Uno", "vs", "Rend", "Due"]), (CF.cm
                 (CF.cmd_confronto_carriera, ["Rend", "Uno", "vs", "Nessunissimo"])):
     asyncio.run(f(u, types.SimpleNamespace(args=args)))
 ok(out[0][0] == "foto" and out[1][0] == "foto", "/confronto e /confronto_carriera (con uno storico) mandano l'immagine")
-ok("può essere" in out[2][1] and "Rend Due" in out[2][1] and "stesso giocatore" in out[3][1], "nome ambiguo: li elenca; lo stesso due volte")
+_cb = [b.callback_data for r_ in out[2][2].inline_keyboard for b in r_] if out[2][2] else []
+ok(out[2][1] == "Quale «Rend» (il primo)?" and _cb and all(c.startswith("cf:0:") for c in _cb) and "stesso giocatore" in out[3][1],
+   f"v7.25.0: nome ambiguo nel confronto: i bottoni per il primo; lo stesso due volte {out[2]}")
 ok("/confronto_carriera" in out[4][1] and out[5][1].startswith("Uso:") and "nemmeno tra quelli" in out[6][1], "storico in /confronto, un nome solo, nome che non c'è")
+# v7.25.0 (Luca, 22/11): tutti e due ambigui, prima il primo poi il secondo sullo stesso messaggio, poi l'immagine
+out.clear()
+_ctx = types.SimpleNamespace(args=["Rend", "vs", "Rend"], user_data={}, bot_data={})
+asyncio.run(CF.cmd_confronto(u, _ctx))
+_st = _ctx.user_data["confronto"]
+_i0 = next(i for i, (e_, v_) in enumerate(_st["voci"][0]) if e_.startswith("Rend Uno"))
+_i1 = next(i for i, (e_, v_) in enumerate(_st["voci"][1]) if e_.startswith("Rend Due"))
+_mod = []
+class _Q:
+    def __init__(s, d): s.data, s.message, s.from_user = d, M(), types.SimpleNamespace(id=101, first_name="Luca")
+    async def answer(s, *a, **k): pass
+    async def edit_message_text(s, t, **k): _mod.append((t, k.get("reply_markup")))
+asyncio.run(CF.cb_confronto(types.SimpleNamespace(callback_query=_Q(f"cf:0:{_i0}")), _ctx))
+_cb1 = [b.callback_data for r_ in _mod[-1][1].inline_keyboard for b in r_] if _mod and _mod[-1][1] else []
+ok(_mod and _mod[-1][0] == "Quale «Rend» (il secondo)?" and _cb1 and all(c.startswith("cf:1:") for c in _cb1),
+   f"confronto: scelto il primo, i bottoni per il secondo sullo stesso messaggio {_mod[-1:]}")
+asyncio.run(CF.cb_confronto(types.SimpleNamespace(callback_query=_Q(f"cf:1:{_i1}")), _ctx))
+ok(out and out[-1][0] == "foto" and _mod[-1][0] == "⚖️ ⬇️", f"confronto: scelto anche il secondo, l'immagine {out[-1:]} {_mod[-1:]}")
+asyncio.run(CF.cb_confronto(types.SimpleNamespace(callback_query=_Q(f"cf:1:{_i1}")), _ctx))
+ok(out[-1][0] == "foto" and len([x for x in out if x[0] == "foto"]) == 1, "confronto: un bottone già usato non rifà l'immagine")
 out.clear()
 _d1 = (t0 + timedelta(days=4)).strftime("%d-%m-%y")
 for f, args in ((R.cmd_rendimento, ["Rend", "Uno", _d1]), (R.cmd_rendimento, ["Rend", "Uno", "3"]),

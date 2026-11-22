@@ -62,17 +62,24 @@ def per_numero(testo: str) -> dict | None:
     return None
 
 
+def trade_di(ids: list[int]) -> list[dict]:
+    """Le trade ufficiali che riguardano questi giocatori, dalla più recente."""
+    return db._q("""SELECT DISTINCT t.* FROM trade t JOIN trade_items i ON i.trade_id = t.id
+                    WHERE t.trade_ref IS NOT NULL AND t.stato = ANY(%s) AND i.giocatore_id = ANY(%s)
+                    ORDER BY t.approvata_at DESC NULLS LAST""", (list(UFFICIALI), ids), many=True) or []
+
+
 def per_giocatore(testo: str) -> tuple[list[dict], list[dict]]:
-    """(giocatori trovati, trade ufficiali che li riguardano, dalla più recente)."""
-    from shared.parole_nome import parole
-    trovati = db.cerca_giocatori(" ".join(parole(testo))) or []
+    """(giocatori trovati, trade ufficiali che li riguardano, dalla più recente). v7.25.0: se il nome è esatto (o tra
+    apici) solo quel giocatore; se no tutti quelli trovati, e chi ha trade lo sceglie col «Quale?»."""
+    from shared.parole_nome import parole, stesse_parole, verbatim
+    trovati = (db.cerca_giocatori(testo) if verbatim(testo) else db.cerca_giocatori(" ".join(parole(testo)))) or []
+    esatti = [g for g in trovati if stesse_parole(testo, g["nome_common"])]
+    if len(esatti) == 1:
+        trovati = esatti
     if not trovati:
         return [], []
-    ids = [g["id"] for g in trovati]
-    trade = db._q("""SELECT DISTINCT t.* FROM trade t JOIN trade_items i ON i.trade_id = t.id
-                     WHERE t.trade_ref IS NOT NULL AND t.stato = ANY(%s) AND i.giocatore_id = ANY(%s)
-                     ORDER BY t.approvata_at DESC NULLS LAST""", (list(UFFICIALI), ids), many=True) or []
-    return trovati, trade
+    return trovati, trade_di([g["id"] for g in trovati])
 
 
 # ── dati per l'immagine ─────────────────────────────────────────────────────────
@@ -395,9 +402,32 @@ async def cmd_trova_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(trade) == 1:
         await _manda(msg, trade[0]["id"])
         return
-    kb = K([[B(f"{x['trade_ref']} · {_ora(x.get('approvata_at')).split(' ')[0]}" + (" (annullata)" if x["stato"] == "annullata" else ""),
-               callback_data=f"ttr:{x['id']}")] for x in trade[:10]])
-    await msg.reply_text(f"{len(trade)} trade ufficiali: quale?", reply_markup=kb)
+    from shared import pagine as PG                    # v7.25.0: a pagine, di chi ha cercato
+    con_trade = {i["giocatore_id"] for i in (db._q("SELECT giocatore_id FROM trade_items WHERE trade_id = ANY(%s)",
+                                                    ([x["id"] for x in trade],), many=True) or [])}
+    scelta = [g for g in gioc if g["id"] in con_trade]
+    if len(scelta) > 1:                                # più giocatori con trade: prima quale giocatore
+        await PG.manda(msg, context, [(g["nome_common"], f"ttg:{g['id']}") for g in scelta], "Quale giocatore?")
+        return
+    await PG.manda(msg, context, _voci_trade(trade), f"{len(trade)} trade ufficiali: quale?")
+
+
+def _voci_trade(trade: list[dict]) -> list[tuple[str, str]]:
+    return [(f"{x['trade_ref']} · {_ora(x.get('approvata_at')).split(' ')[0]}" + (" (annullata)" if x["stato"] == "annullata" else ""),
+             f"ttr:{x['id']}") for x in trade]
+
+
+async def cb_trova_giocatore(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """ttg:<giocatore>: le trade ufficiali di quel giocatore (v7.25.0)."""
+    q = update.callback_query
+    await q.answer()
+    trade = trade_di([int(q.data.split(":")[1])])
+    if len(trade) == 1:
+        await q.edit_message_text("🔁 ⬇️")
+        await _manda(q.message, trade[0]["id"])
+        return
+    from shared import pagine as PG
+    await PG.modifica(q, context, _voci_trade(trade), f"{len(trade)} trade ufficiali: quale?")
 
 
 async def cb_trova_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -415,4 +445,5 @@ async def cb_trova_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def get_handlers() -> list:
-    return [CommandHandler("trova_trade", cmd_trova_trade), CallbackQueryHandler(cb_trova_trade, pattern=r"^ttr:\d+$")]
+    return [CommandHandler("trova_trade", cmd_trova_trade), CallbackQueryHandler(cb_trova_trade, pattern=r"^ttr:\d+$"),
+            CallbackQueryHandler(cb_trova_giocatore, pattern=r"^ttg:\d+$")]

@@ -22,6 +22,7 @@ import os
 from telegram import InlineKeyboardButton as B, InlineKeyboardMarkup as K
 
 from shared import lettura as L
+from shared.parole_nome import senza_apici as PN_senza
 from shared.numeri import ottavi, testo as tp
 
 logger = logging.getLogger(__name__)
@@ -92,21 +93,27 @@ def e(x) -> str:
 
 
 def cerca(testo: str) -> list[dict]:
-    """Giocatori dell'anagrafica col nome indicato (anche senza id ESPN), prima quelli a roster."""
+    """Giocatori dell'anagrafica col nome indicato (anche senza id ESPN), prima quelli a roster. Tra apici solo il
+    nome esatto (v7.25.0)."""
     import difflib
-    n = L.norm(testo)
+    from shared.parole_nome import senza_apici
+    n = L.norm(senza_apici(testo))
     if not n:
         return []
     tutti = L.q("""SELECT g.id, g.nome_common, g.espn_id,
                            EXISTS (SELECT 1 FROM contratti c WHERE c.giocatore_id = g.id AND c.attivo) AS a_roster
                     FROM giocatori g""", many=True) or []
     from shared import parole_nome as PN               # anche con le parole in un altro ordine (Luca, 31/10)
+    ordine = lambda g: (not g["a_roster"], g["espn_id"] is None, g["nome_common"])
+    v = PN.verbatim(testo)
+    if v is not None:                                  # v7.25.0: tra apici, solo quel nome esatto
+        return sorted([g for g in tutti if PN.identico(v, g["nome_common"])], key=ordine)
     esatti = [g for g in tutti if L.norm(g["nome_common"]) == n or PN.stesse_parole(testo, g["nome_common"])]
     trovati = esatti or [g for g in tutti if n in L.norm(g["nome_common"]) or PN.contiene_parole(testo, g["nome_common"])]
     if not trovati:
         nomi = {PN.ordinata(g["nome_common"]): g for g in tutti}
         trovati = [nomi[x] for x in difflib.get_close_matches(PN.ordinata(testo), list(nomi), n=5, cutoff=0.75)]
-    return sorted(trovati, key=lambda g: (not g["a_roster"], g["espn_id"] is None, g["nome_common"]))[:8]
+    return sorted(trovati, key=ordine)                 # tutti: i «Quale?» vanno a pagine (v7.25.0)
 
 
 def _pct(fatti: int, tentati: int) -> str:
@@ -674,9 +681,9 @@ def handlers(scheda_di, foto_di=None, dati_di=None, extra_di=None, bottoni_di=No
         if not trovati:
             await msg.reply_text(f"Nessun giocatore si chiama «{testo}».")
             return
-        if len(trovati) > 1 and L.norm(trovati[0]["nome_common"]) != L.norm(testo):
-            await msg.reply_text("Quale?", reply_markup=K([[B(x["nome_common"] + (" ✅" if x["a_roster"] else ""),
-                                                               callback_data=f"pl:{x['id']}")] for x in trovati]))
+        if len(trovati) > 1 and L.norm(trovati[0]["nome_common"]) != L.norm(PN_senza(testo)):
+            from shared import pagine as PG
+            await PG.manda(msg, context, [(x["nome_common"] + (" ✅" if x["a_roster"] else ""), f"pl:{x['id']}") for x in trovati])
             return
         await manda(msg, trovati[0]["id"])
 

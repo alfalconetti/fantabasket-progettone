@@ -25,6 +25,7 @@ from telegram import InlineKeyboardButton as B, InlineKeyboardMarkup as K
 from shared import giocatore as G
 from shared import lettura as L
 from shared import non_ufficiale as NU
+from shared import pagine as PG
 from shared.numeri import ottavi, testo as tp
 
 TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rendimento.typ")
@@ -585,10 +586,13 @@ def nomi_bref(testo: str) -> list[str]:
     """I nomi di Basketball-Reference (tutti, anche i giocatori storici) che corrispondono al testo."""
     import difflib
     from shared import parole_nome as PN
-    n = L.norm(testo)
+    n = L.norm(PN.senza_apici(testo))
     if not n:
         return []
     tutti = [r["nome_bref"] for r in (L.q("SELECT DISTINCT nome_bref FROM bref_stats", many=True) or [])]
+    v = PN.verbatim(testo)
+    if v is not None:                             # v7.25.0: tra apici solo il nome esatto
+        return sorted(x for x in tutti if PN.identico(v, x))
     esatti = [x for x in tutti if L.norm(x) == n or PN.stesse_parole(testo, x)]
     trovati = esatti or [x for x in tutti if n in L.norm(x) or PN.contiene_parole(testo, x)]
     if not trovati:
@@ -601,7 +605,7 @@ def nomi_bref(testo: str) -> list[str]:
         if simili and voto(simili[0]) >= SOMIGLIANZA and (len(simili) == 1 or voto(simili[0]) - voto(simili[1]) >= STACCO):
             simili = simili[:1]
         return [nomi[x] for x in simili]
-    return sorted(trovati)[:8]
+    return sorted(trovati)                       # tutti: il «Quale?» va a pagine (v7.25.0)
 
 
 def immagine(d: dict) -> bytes:
@@ -666,11 +670,11 @@ async def cmd_rendimento(update, context):
     if not trovati:
         await msg.reply_text(f"Nessun giocatore si chiama «{testo}». Per i giocatori di altre epoche: /rendimento_carriera NOME")
         return
-    if len(trovati) > 1 and L.norm(trovati[0]["nome_common"]) != L.norm(testo):
+    from shared.parole_nome import senza_apici
+    if len(trovati) > 1 and L.norm(trovati[0]["nome_common"]) != L.norm(senza_apici(testo)):
         if getattr(context, "user_data", None) is not None:
             context.user_data["rendimento_periodo"] = periodo   # per il bottone «Quale?»
-        await msg.reply_text("Quale?", reply_markup=K([[B(x["nome_common"] + (" ✅" if x["a_roster"] else ""), callback_data=f"rs:{x['id']}")]
-                                                       for x in trovati]))
+        await PG.manda(msg, context, [(x["nome_common"] + (" ✅" if x["a_roster"] else ""), f"rs:{x['id']}") for x in trovati])
         return
     await _rendimento(msg, trovati[0]["id"], periodo)
 
@@ -691,24 +695,37 @@ async def cmd_rendimento_carriera(update, context):
         await msg.reply_text("Uso: /rendimento_carriera NOME (es. /rendimento_carriera LeBron James): la fantamedia stagione per "
                              "stagione, anche dei giocatori che non sono nel fantabasket (dati dal 1979-80).")
         return
+    x, voci = scegli_carriera(testo)
+    if x:
+        await _carriera(msg, x[0], x[1])
+        return
+    if voci:                                      # v7.25.0: a pagine
+        await PG.manda(msg, context, voci)
+        return
+    await msg.reply_text(f"Nessun giocatore si chiama {'esattamente ' if PN.verbatim(testo) else ''}«{PN.senza_apici(testo)}», "
+                         "nemmeno tra quelli di Basketball-Reference (dal 1979-80).")
+
+
+def scegli_carriera(testo: str) -> tuple[tuple[int | None, str | None] | None, list[tuple[str, str]]]:
+    """Chi cerca /rendimento_carriera (e /confronto_carriera): ((id del bot o None, nome di Basketball-Reference o
+    None), []) se è uno solo, se no (None, voci del «Quale?»: (etichetta, rcb:<nome bref> o rc:<id>)). Prima i
+    giocatori del bot col nome esatto, poi i nomi di Basketball-Reference, poi i simili del bot. Tra apici (v7.25.0)
+    solo il nome esatto, suffissi compresi: 'Tim Hardaway' è il padre, non Tim Hardaway Jr."""
+    from shared import parole_nome as PN
+    v, pulito = PN.verbatim(testo), PN.senza_apici(testo)
     trovati = G.cerca(testo)
-    esatti = [x for x in trovati if L.norm(x["nome_common"]) == L.norm(testo) or PN.stesse_parole(testo, x["nome_common"])]
+    esatti = trovati if v else [x for x in trovati if L.norm(x["nome_common"]) == L.norm(pulito) or PN.stesse_parole(pulito, x["nome_common"])]
     if len(esatti) == 1:
-        await _carriera(msg, esatti[0]["id"], None)
-        return
+        return (esatti[0]["id"], None), []
     nomi = nomi_bref(testo)
-    if len(nomi) == 1 or (nomi and (L.norm(nomi[0]) == L.norm(testo) or PN.stesse_parole(testo, nomi[0]))
+    if len(nomi) == 1 or (not v and nomi and (L.norm(nomi[0]) == L.norm(pulito) or PN.stesse_parole(pulito, nomi[0]))
                           and sum(1 for x in nomi if L.norm(x) == L.norm(nomi[0])) == 1):
-        await _carriera(msg, _gid_da_bref(nomi[0]), nomi[0])
-        return
+        return (_gid_da_bref(nomi[0]), nomi[0]), []
     if nomi:
-        await msg.reply_text("Quale?", reply_markup=K([[B(x, callback_data=f"rcb:{x}"[:64])] for x in nomi]))
-        return
+        return None, [(x, f"rcb:{x}") for x in nomi]
     if trovati:                                   # niente in Basketball-Reference: i nomi simili del bot
-        await msg.reply_text("Quale?", reply_markup=K([[B(x["nome_common"] + (" ✅" if x["a_roster"] else ""), callback_data=f"rc:{x['id']}")]
-                                                       for x in trovati]))
-        return
-    await msg.reply_text(f"Nessun giocatore si chiama «{testo}», nemmeno tra quelli di Basketball-Reference (dal 1979-80).")
+        return None, [(x["nome_common"] + (" ✅" if x["a_roster"] else ""), f"rc:{x['id']}") for x in trovati]
+    return None, []
 
 
 async def cb_rendimento(update, context):

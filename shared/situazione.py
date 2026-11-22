@@ -212,10 +212,11 @@ async def cmd_rendimento_situazione(update, context):
     if not trovati:
         await msg.reply_text(f"Nessun giocatore si chiama «{nome}».")
         return
-    if len(trovati) > 1 and L.norm(trovati[0]["nome_common"]) != L.norm(nome):
+    from shared.parole_nome import senza_apici
+    if len(trovati) > 1 and L.norm(trovati[0]["nome_common"]) != L.norm(senza_apici(nome)):
         context.user_data["situazione_periodo"] = periodo
-        await msg.reply_text("Quale?", reply_markup=K([[B(x["nome_common"] + (" ✅" if x["a_roster"] else ""),
-                                                          callback_data=f"sit:{x['id']}")] for x in trovati]))
+        from shared import pagine as PG                # v7.25.0: a pagine
+        await PG.manda(msg, context, [(x["nome_common"] + (" ✅" if x["a_roster"] else ""), f"sit:{x['id']}") for x in trovati])
         return
     await rispondi(msg, trovati[0]["id"], periodo)
 

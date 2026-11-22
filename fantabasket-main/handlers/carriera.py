@@ -488,8 +488,9 @@ async def cmd_carriera(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if esatto and len(trovati) == 1:
         await _manda(msg, trovati[0]["id"])
         return
-    kb = K([[B(x["nome_common"], callback_data=f"car:{x['id']}")] for x in trovati[:8]])
-    await msg.reply_text("Quale giocatore?" if esatto else "Non trovo il nome esatto: intendevi?", reply_markup=kb)
+    from shared import pagine as PG                    # v7.25.0: a pagine (prima tagliava a 8 senza dirlo)
+    await PG.manda(msg, context, [(x["nome_common"], f"car:{x['id']}") for x in trovati],
+                   "Quale giocatore?" if esatto else "Non trovo il nome esatto: intendevi?")
 
 
 async def cb_carriera(update: Update, context: ContextTypes.DEFAULT_TYPE):

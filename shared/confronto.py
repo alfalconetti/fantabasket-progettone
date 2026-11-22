@@ -14,8 +14,9 @@ così si confrontano anche giocatori di epoche diverse), coi dati di /rendimento
 1979-80, la stagione in corso dai tabellini); barre affiancate, sotto le stagioni vere. Tabella: fantamedia in
 carriera, stagioni, partite, stagione migliore. I nomi si cercano come in /rendimento_carriera (anche gli storici).
 
-I due nomi: «A vs B», «A contro B», «A, B» o «A - B». Un nome che corrisponde a più giocatori: la risposta li elenca e
-chiede il nome completo (niente bottoni: sono due nomi).
+I due nomi: «A vs B», «A contro B», «A, B» o «A - B». Un nome che corrisponde a più giocatori (v7.25.0, Luca 22/11):
+i bottoni «Quale?» (a pagine), prima per il primo nome e poi, sullo stesso messaggio, per il secondo; poi l'immagine.
+Tra apici solo il nome esatto ('Tim Hardaway', non Tim Hardaway Jr.).
 """
 import json
 import os
@@ -39,38 +40,29 @@ def dividi(testo: str) -> tuple[str, str] | None:
 
 # ── chi sono ──────────────────────────────────────────────────────────────────
 
-def trova_lega(testo: str) -> tuple[int | None, list[str]]:
-    """(id del giocatore del bot, nomi tra cui scegliere se è ambiguo)."""
+def trova_lega(testo: str) -> tuple[int | None, list]:
+    """(id del giocatore del bot, voci del «Quale?» (etichetta, id) se è ambiguo). Tra apici solo il nome esatto."""
     from shared import parole_nome as PN
     trovati = G.cerca(testo)
     if not trovati:
         return None, []
-    esatti = [x for x in trovati if L.norm(x["nome_common"]) == L.norm(testo) or PN.stesse_parole(testo, x["nome_common"])]
+    pulito = PN.senza_apici(testo)
+    esatti = trovati if PN.verbatim(testo) else [x for x in trovati if L.norm(x["nome_common"]) == L.norm(pulito)
+                                                  or PN.stesse_parole(pulito, x["nome_common"])]
     if len(esatti) == 1:
         return esatti[0]["id"], []
     if len(trovati) == 1:
         return trovati[0]["id"], []
-    return None, [x["nome_common"] for x in trovati]
+    return None, [(x["nome_common"] + (" ✅" if x["a_roster"] else ""), str(x["id"])) for x in trovati]
 
 
-def trova_carriera(testo: str) -> tuple[tuple[int | None, str] | None, list[str]]:
-    """((id o None, nome di Basketball-Reference), ambigui): come /rendimento_carriera."""
-    from shared import parole_nome as PN
-    trovati = G.cerca(testo)
-    esatti = [x for x in trovati if L.norm(x["nome_common"]) == L.norm(testo) or PN.stesse_parole(testo, x["nome_common"])]
-    if len(esatti) == 1:
-        g = L.q("SELECT nome_bref, nome_common FROM giocatori WHERE id = %s", (esatti[0]["id"],), one=True) or {}
-        return (esatti[0]["id"], g.get("nome_bref") or g.get("nome_common") or testo), []
-    nomi = R.nomi_bref(testo)
-    if len(nomi) == 1 or (nomi and (L.norm(nomi[0]) == L.norm(testo) or PN.stesse_parole(testo, nomi[0]))
-                          and sum(1 for x in nomi if L.norm(x) == L.norm(nomi[0])) == 1):
-        return (R._gid_da_bref(nomi[0]), nomi[0]), []
-    if nomi:
-        return None, nomi
-    if len(trovati) == 1:
-        g = L.q("SELECT nome_bref, nome_common FROM giocatori WHERE id = %s", (trovati[0]["id"],), one=True) or {}
-        return (trovati[0]["id"], g.get("nome_bref") or g.get("nome_common") or testo), []
-    return None, [x["nome_common"] for x in trovati]
+def trova_carriera(testo: str) -> tuple[tuple[int | None, str] | None, list]:
+    """((id o None, nome di Basketball-Reference), voci del «Quale?»): come /rendimento_carriera (`scegli_carriera`)."""
+    x, voci = R.scegli_carriera(testo)
+    if x and not x[1]:
+        g = L.q("SELECT nome_bref, nome_common FROM giocatori WHERE id = %s", (x[0],), one=True) or {}
+        x = (x[0], g.get("nome_bref") or g.get("nome_common") or testo)
+    return x, voci
 
 
 # ── dati per il disegno ───────────────────────────────────────────────────────
@@ -296,63 +288,117 @@ USO_C = ("Uso: /confronto_carriera A vs B (es. /confronto_carriera LeBron James 
          "stagione, allineate per stagione di carriera (dati dal 1979-80).")
 
 
-def _ambiguo(testo: str, nomi: list[str]) -> str:
-    return f"«{testo}» può essere: " + ", ".join(nomi[:8]) + ". Scrivi il nome completo."
+# ── v7.25.0 (Luca, 22/11): un nome ambiguo si sceglie coi bottoni, prima il primo poi il secondo ─────────────────
+
+def _scelta(tipo: str, val: str):
+    """Il valore di un bottone: un id (lega), o (id o None, nome bref) (carriera) da «rcb:<nome>» / «rc:<id>»."""
+    if tipo == "lega":
+        return int(val)
+    if val.startswith("rcb:"):
+        nome = val[4:]
+        return (R._gid_da_bref(nome), nome)
+    gid = int(val.split(":", 1)[1])
+    g = L.q("SELECT nome_bref, nome_common FROM giocatori WHERE id = %s", (gid,), one=True) or {}
+    return (gid, g.get("nome_bref") or g.get("nome_common") or "")
+
+
+async def _avanti(context, st: dict, msg=None, q=None, dove=None) -> None:
+    """Il prossimo nome da scegliere (bottoni sullo stesso messaggio), o l'immagine quando ci sono tutti e due."""
+    import asyncio
+    from shared import pagine as PG
+    for lato in (0, 1):
+        if st["scelti"][lato] is None:
+            voci = [(e, f"cf:{lato}:{i}") for i, (e, _) in enumerate(st["voci"][lato])]
+            testo = f"Quale «{st['testi'][lato]}»" + (" (il primo)?" if lato == 0 else " (il secondo)?")
+            if q:
+                await PG.modifica(q, context, voci, testo)
+            else:
+                await PG.manda(msg, context, voci, testo)
+            return
+    dove = dove or (q.message if q else msg)
+    if q:
+        await q.edit_message_text("⚖️ ⬇️")
+    a, b = st["scelti"]
+    if a == b:
+        await dove.reply_text("È lo stesso giocatore due volte.")
+        return
+    if st["tipo"] == "lega":
+        periodo = st["periodo"]
+        d = await asyncio.to_thread(dati_stagione, a, b, None, periodo)
+        if not d:
+            await dove.reply_text("Uno dei due non ha partite " + ("in questo periodo" if periodo.dal or periodo.al or periodo.ultime
+                                                                   else "in questa stagione") + " nei tabellini ESPN.")
+            return
+    else:
+        d = await asyncio.to_thread(dati_carriera, a, b)
+        if not d:
+            await dove.reply_text("Per uno dei due non ci sono stagioni nei dati di Basketball-Reference.")
+            return
+    await dove.reply_photo(await asyncio.to_thread(immagine, d))
+
+
+async def cb_confronto(update, context, dove=None):
+    """cf:<lato>:<i>. `dove`: dove mandare l'immagine (klra: il messaggio NON UFFICIALE)."""
+    q = update.callback_query
+    _, lato, i = q.data.split(":")
+    st = (getattr(context, "user_data", None) or {}).get("confronto")
+    if not st or st["scelti"][int(lato)] is not None:
+        await q.answer("Ricerca scaduta: rifai il confronto.", show_alert=True)
+        return
+    await q.answer()
+    st["scelti"][int(lato)] = _scelta(st["tipo"], st["voci"][int(lato)][int(i)][1])
+    await _avanti(context, st, q=q, dove=dove)
+
+
+def handlers() -> list:
+    from telegram.ext import CallbackQueryHandler
+    return [CallbackQueryHandler(cb_confronto, pattern=r"^cf:[01]:\d+$")]
 
 
 async def cmd_confronto(update, context):
-    import asyncio
     msg = update.effective_message
     due = dividi(" ".join(context.args or []))
     if not due:
         await msg.reply_text(USO)
         return
     from shared import periodo as PER
+    from shared.parole_nome import senza_apici, verbatim
     try:
         nome_b, periodo = PER.leggi(due[1].split())         # v7.20.2 (Luca, 21/11): il periodo in fondo, come /rendimento
     except PER.Errore as er:
         await msg.reply_text(f"❌ {er}")
         return
     due = (due[0], nome_b)
-    ids = []
-    for testo in due:
-        gid, nomi = trova_lega(testo)
-        if gid is None:
-            await msg.reply_text(_ambiguo(testo, nomi) if nomi else
-                                 f"Nessun giocatore si chiama «{testo}». Per i giocatori di altre epoche: /confronto_carriera A vs B")
+    st = {"tipo": "lega", "testi": [senza_apici(t) for t in due], "scelti": [None, None], "voci": [[], []], "periodo": periodo}
+    for lato, testo in enumerate(due):
+        gid, voci = trova_lega(testo)
+        if gid is None and not voci:
+            await msg.reply_text(f"Nessun giocatore si chiama {'esattamente ' if verbatim(testo) else ''}«{senza_apici(testo)}». "
+                                 "Per i giocatori di altre epoche: /confronto_carriera A vs B")
             return
-        ids.append(gid)
-    if ids[0] == ids[1]:
-        await msg.reply_text("È lo stesso giocatore due volte.")
-        return
-    d = await asyncio.to_thread(dati_stagione, ids[0], ids[1], None, periodo)
-    if not d:
-        await msg.reply_text("Uno dei due non ha partite " + ("in questo periodo" if periodo.dal or periodo.al or periodo.ultime
-                                                              else "in questa stagione") + " nei tabellini ESPN.")
-        return
-    await msg.reply_photo(await asyncio.to_thread(immagine, d))
+        st["scelti"][lato] = gid
+        st["voci"][lato] = voci
+    if getattr(context, "user_data", None) is not None:
+        context.user_data["confronto"] = st
+    await _avanti(context, st, msg=msg)
 
 
 async def cmd_confronto_carriera(update, context):
-    import asyncio
     msg = update.effective_message
     due = dividi(" ".join(context.args or []))
     if not due:
         await msg.reply_text(USO_C)
         return
-    chi = []
-    for testo in due:
-        x, nomi = trova_carriera(testo)
-        if x is None:
-            await msg.reply_text(_ambiguo(testo, nomi) if nomi else
-                                 f"Nessun giocatore si chiama «{testo}», nemmeno tra quelli di Basketball-Reference (dal 1979-80).")
+    from shared.parole_nome import senza_apici, verbatim
+    st = {"tipo": "carriera", "testi": [senza_apici(t) for t in due], "scelti": [None, None], "voci": [[], []]}
+    for lato, testo in enumerate(due):
+        x, voci = trova_carriera(testo)
+        if x is None and not voci:
+            await msg.reply_text(f"Nessun giocatore si chiama {'esattamente ' if verbatim(testo) else ''}«{senza_apici(testo)}», "
+                                 "nemmeno tra quelli di Basketball-Reference (dal 1979-80).")
             return
-        chi.append(x)
-    if chi[0][1] == chi[1][1] and chi[0][0] == chi[1][0]:
-        await msg.reply_text("È lo stesso giocatore due volte.")
-        return
-    d = await asyncio.to_thread(dati_carriera, chi[0], chi[1])
-    if not d:
-        await msg.reply_text("Per uno dei due non ci sono stagioni nei dati di Basketball-Reference.")
-        return
-    await msg.reply_photo(await asyncio.to_thread(immagine, d))
+        st["scelti"][lato] = x
+        st["voci"][lato] = voci
+    if getattr(context, "user_data", None) is not None:
+        context.user_data["confronto"] = st
+    await _avanti(context, st, msg=msg)

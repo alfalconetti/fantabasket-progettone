@@ -2165,3 +2165,16 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.24.3 (2026-11-22)
 
 - `/trova_trade` in off-season: la stagione prima dai tabellini ESPN del bot dalla 2026-27 in poi (Luca, 22/11); Basketball-Reference solo per la 2025-26, quando il bot non c'era (`PRIMA_STAGIONE_BOT`); contiene la v7.24.1-7.24.2
+
+## v7.25.0 (2026-11-22)
+
+- **«Quale?» a pagine** (Luca, 22/11, mockup approvato: «se supera il limite andrebbe messo pagine»): prima le ricerche tagliavano a 8 (o 5) senza dirlo, e dove non c'era tetto Telegram avrebbe rifiutato la tastiera; ora tutti, 8 per pagina, con «◀️ · 1/4 · ▶️» e in cima quanti sono (`shared/pagine.py`). In `/player`, `/rendimento`, `/rendimento_carriera`, `/rendimento_situazione`, `/carriera`, `/set_posizioni`, `/trova_trade`, la firma registrata del pannello admin e la ricerca del calcolo in loucabot
+- **I bottoni sono di chi ha cercato** (Luca, 22/11): in un gruppo un altro che preme un «Quale?» riceve «È la ricerca di NOME: fai la tua»; così il periodo di `/rendimento` e `/rendimento_situazione` non si perde più se il bottone lo preme un altro
+- **Nome tra apici = nome esatto** (Luca, 22/11: «Tim Hardaway in rendimento carriera non lo trovi mai»): `'Tim Hardaway'` (anche ’…’, «…», "…") cerca solo quel nome, suffissi compresi e nello stesso ordine; in tutte le ricerche dei giocatori
+- **`/confronto` e `/confronto_carriera`**: un nome ambiguo non chiede più di riscriverlo: bottoni per il primo, poi sullo stesso messaggio per il secondo, poi l'immagine
+- **`/trova_trade` col nome**: se più giocatori trovati hanno trade, prima il giocatore (`ttg:`), poi la trade; le trade tutte, a pagine (prima le prime 10)
+
+## v7.25.1 (2026-11-22)
+
+- **`/registro`: i nomi ambigui coi bottoni** (Luca, 22/11): un giocatore che corrisponde a più nomi (anche dentro `giocatore:a,b`, uno alla volta) o una parola che è sia una squadra sia un giocatore non fermano più il comando con un errore: si sceglie coi bottoni (a pagine, di chi ha cercato) e poi arriva il registro filtrato, col resto dei filtri (`Scegli`, `leggi(args, scelte)`, `rg:<i>`)
+- `/watch` e `/unwatch`: anche loro a pagine e col nome tra apici (con `cerca` senza più il tetto di 8 avrebbero potuto superare il limite di Telegram)

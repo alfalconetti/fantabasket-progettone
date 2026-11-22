@@ -742,6 +742,10 @@ def movimenti_carriera(gid: int, dal) -> list:
 def cerca_giocatori(nome_norm: str) -> list:
     """Il pezzo di nome dentro nome_norm; se non c'è e le parole sono più d'una, ognuna in qualsiasi ordine
     («clowney noah» trova Noah Clowney; Luca, 31/10)."""
+    from shared.parole_nome import identico, verbatim
+    v = verbatim(nome_norm)
+    if v is not None:                    # v7.25.0: tra apici solo il nome esatto, suffissi compresi (Luca, 22/11)
+        return [g for g in (_q("SELECT * FROM giocatori ORDER BY nome_common", many=True) or []) if identico(v, g["nome_common"])]
     righe = _q("SELECT * FROM giocatori WHERE nome_norm ILIKE %s ORDER BY nome_common", (f"%{nome_norm}%",), many=True)
     parole = [p for p in (nome_norm or "").split() if p]
     if righe or len(parole) < 2:

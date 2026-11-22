@@ -100,6 +100,9 @@ def main():
     import vista                                         # v7.21.0: roster, assets, pick… del bot principale
     for h in vista.get_handlers():
         app.add_handler(h)
+    from shared import pagine as PG                       # v7.25.0: i «Quale?» a pagine e di chi ha cercato
+    for h, gr in PG.handlers():
+        app.add_handler(h, group=gr)
     app.add_error_handler(dev_comune.error_handler("loucabot", config.canale_log, config.dev_id))
     # v58: niente più controllo delle 10 sulle giornate; alle 20 il controllo finale della notte prima (poi congelata)
     import top

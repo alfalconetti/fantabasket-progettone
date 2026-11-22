@@ -430,6 +430,9 @@ class _NonUfficiale:
         return (f"🧪 <b>NON UFFICIALE</b> · sistema <b>{e(nome)}</b>\n" if html_ else
                 f"🧪 NON UFFICIALE · sistema {nome}\n") + t
 
+    def __getattr__(self, nome):                       # v7.25.0: from_user, chat_id… del messaggio vero (i «Quale?»)
+        return getattr(self._m, nome)
+
     async def reply_text(self, t, **k):
         return await self._m.reply_text(self._testo(t, k.get("parse_mode") == "HTML"), **k)
 
@@ -459,7 +462,8 @@ async def _di_loucabot_su(messaggio, utente, context, s, funzione, args):
     msg = _NonUfficiale(messaggio, s)
     u = types.SimpleNamespace(effective_message=msg, message=msg, effective_user=utente,
                               effective_chat=getattr(messaggio, "chat", None), callback_query=None)
-    c = types.SimpleNamespace(args=args, bot=context.bot, user_data=getattr(context, "user_data", {}), bot_data={})
+    c = types.SimpleNamespace(args=args, bot=context.bot, user_data=getattr(context, "user_data", {}),
+                              bot_data=getattr(context, "bot_data", {}))     # v7.25.0: il registro dei «Quale?» a pagine
     w = await _attesa(messaggio)
     try:
         M.installa()
@@ -559,10 +563,11 @@ async def cmd_playoff(update, context):
     await _di_loucabot(update, context, PO.cmd_playoff)
 
 
-async def _cb_col_sistema(update, fai) -> None:
+async def _cb_col_sistema(update, fai, risposta: bool = True) -> None:
     """Un bottone «Quale?» dei comandi in comune, col sistema attivo di chi lo preme: fai(messaggio NON UFFICIALE)."""
     q = update.callback_query
-    await q.answer()
+    if risposta:
+        await q.answer()
     s = SI.attivo(q.from_user.id)
     righe = await asyncio.to_thread(M.righe_lega, s, config.stagione())
     with M.contesto(s, righe=righe):
@@ -583,6 +588,15 @@ async def cb_rendimento(update, context):
         else:
             await R._carriera(msg, R._gid_da_bref(val), val)
     await _cb_col_sistema(update, fai)
+
+
+async def cb_confronto(update, context):
+    """cf:<lato>:<i>: i «Quale?» di /confronto e /confronto_carriera (v7.25.0), col sistema attivo."""
+    from shared import confronto as CF
+
+    async def fai(q, msg):
+        await CF.cb_confronto(update, context, dove=msg)
+    await _cb_col_sistema(update, fai, risposta=False)
 
 
 async def cb_rendimento_situazione(update, context):
@@ -1068,5 +1082,6 @@ def handlers() -> list:
             CommandHandler("playoff", cmd_playoff, block=False),
             CallbackQueryHandler(cb_rendimento, pattern=r"^(rs|rc):\d+$|^rcb:.+$"),
             CallbackQueryHandler(cb_rendimento_situazione, pattern=r"^sit:\d+$"),
+            CallbackQueryHandler(cb_confronto, pattern=r"^cf:[01]:\d+$"),             # v7.25.0
             CallbackQueryHandler(cb, pattern=r"^ks:"), CallbackQueryHandler(cb_conference, pattern=r"^kc:"),
             MessageHandler(filters.ChatType.PRIVATE & filters.TEXT & ~filters.COMMAND, testo_libero)]

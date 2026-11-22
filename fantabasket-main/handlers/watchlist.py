@@ -89,9 +89,10 @@ async def cmd_watch(update, context):
     if not trovati:
         await msg.reply_text(f"Nessun giocatore si chiama «{testo}».")
         return
-    if len(trovati) > 1 and L.norm(trovati[0]["nome_common"]) != L.norm(testo):
-        await msg.reply_text("Quale vuoi seguire?", reply_markup=K([[B(x["nome_common"], callback_data=f"wl:+:{x['id']}")]
-                                                                    for x in trovati]))
+    from shared import pagine as PG                    # v7.25.0: a pagine, di chi ha cercato; tra apici il nome esatto
+    from shared.parole_nome import senza_apici
+    if len(trovati) > 1 and L.norm(trovati[0]["nome_common"]) != L.norm(senza_apici(testo)):
+        await PG.manda(msg, context, [(x["nome_common"], f"wl:+:{x['id']}") for x in trovati], "Quale vuoi seguire?")
         return
     gid = trovati[0]["id"]
     await msg.reply_text(_testo_aggiunto(gid, W.aggiungi(update.effective_user.id, gid)), parse_mode="HTML")
@@ -109,9 +110,10 @@ async def cmd_unwatch(update, context):
     if not trovati:
         await msg.reply_text(f"Nella tua watchlist non c'è nessuno che si chiama «{testo}».")
         return
-    if len(trovati) > 1 and L.norm(trovati[0]["nome_common"]) != L.norm(testo):
-        await msg.reply_text("Quale togli?", reply_markup=K([[B(x["nome_common"], callback_data=f"wl:-:{x['id']}")]
-                                                             for x in trovati]))
+    from shared import pagine as PG
+    from shared.parole_nome import senza_apici
+    if len(trovati) > 1 and L.norm(trovati[0]["nome_common"]) != L.norm(senza_apici(testo)):
+        await PG.manda(msg, context, [(x["nome_common"], f"wl:-:{x['id']}") for x in trovati], "Quale togli?")
         return
     W.togli(uid, trovati[0]["id"])
     await msg.reply_text(f"👁 Non segui più <b>{e(trovati[0]['nome_common'])}</b>.", parse_mode="HTML")

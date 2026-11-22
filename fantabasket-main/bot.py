@@ -345,6 +345,9 @@ def main():
 
     # /annulla globale — group=-1 per intercettare prima di qualsiasi ConversationHandler
     app.add_handler(CommandHandler("annulla", cmd_annulla_globale), group=-1)
+    from shared import pagine as PG                       # v7.25.0: i «Quale?» a pagine e di chi ha cercato
+    for h, gr in PG.handlers():
+        app.add_handler(h, group=gr)
     app.add_handler(CommandHandler("sync_sheets", cmd_sync_sheets))
 
     from handlers.nav import get_handlers as nav_handlers   # ✖️ Chiudi, valido per tutti i menu (v6.1.0)

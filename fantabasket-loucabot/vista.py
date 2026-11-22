@@ -75,4 +75,5 @@ def get_handlers() -> list:
             CommandHandler("carriera", CA.cmd_carriera), CallbackQueryHandler(CA.cb_carriera, pattern=r"^car:\d+$"),
             CommandHandler("team_diff", TD.cmd_team_diff),
             CommandHandler("trova_trade", TT.cmd_trova_trade), CallbackQueryHandler(TT.cb_trova_trade, pattern=r"^ttr:\d+$"),
+            CallbackQueryHandler(TT.cb_trova_giocatore, pattern=r"^ttg:\d+$"),             # v7.25.0
             CommandHandler("penalita", cmd_penalita)]

@@ -23,6 +23,17 @@ Due cose da sapere:
 
 ---
 
+### Cercare un giocatore: «Quale?» e nome tra apici
+
+Dalla v7.25.0 (Luca, 22/11) in tutti i comandi che cercano un giocatore (`/player`, `/rendimento`, `/rendimento_carriera`, `/confronto`, `/confronto_carriera`, `/carriera`, `/trova_trade`…):
+
+- se il nome corrisponde a più giocatori, i bottoni «Quale?» mostrano **tutti** i giocatori trovati, 8 per pagina, prima quelli a roster ✅; con più di 8 sotto c'è «◀️ · 1/4 · ▶️» per girare pagina;
+- i bottoni sono di chi ha cercato: in un gruppo, se li preme un altro, il bot gli dice «È la ricerca di NOME: fai la tua» (col nome Telegram di chi ha cercato) e non fa niente;
+- **nome tra apici** per il nome esatto: `/rendimento_carriera 'Tim Hardaway'` è il padre, non Tim Hardaway Jr. (senza apici vince chi è nel fantabasket). Vanno bene anche gli apici curvi del telefono e le virgolette «» o "";
+- in `/confronto` e `/confronto_carriera`, se uno o tutti e due i nomi non sono esatti, prima scegli il primo, poi sullo stesso messaggio il secondo, poi arriva l'immagine;
+- in `/trova_trade` col nome, se più giocatori trovati hanno trade, prima scegli il giocatore, poi la trade.
+- in `/registro`, se un nome nei filtri è di più giocatori (o è sia una squadra sia un giocatore), lo scegli coi bottoni e poi arriva il registro filtrato, col resto dei filtri.
+
 ## Guardare la squadra
 
 **`/roster`** ti manda un'immagine del tuo roster. In alto il logo, il salary cap (con contratti e impatto dei tagli) e quanti posti sono occupati su 15. Per ogni giocatore vedi:

@@ -314,8 +314,12 @@ def _cerca_giocatori(nome: str) -> tuple[list, bool]:
     """(candidati, esatto). Esatto/senza suffisso su tutti i nomi, altrimenti i 5 più simili."""
     import difflib
     giocatori = db._q("SELECT id, nome_common, nome_bref, nome_yahoo FROM giocatori", many=True) or []
+    from shared.parole_nome import identico, stesse_parole, verbatim
+    v = verbatim(nome)
+    if v is not None:                                  # v7.25.0: tra apici solo il nome esatto, suffissi compresi
+        return sorted([g for g in giocatori if any(identico(v, g[c]) for c in ("nome_common", "nome_bref", "nome_yahoo")
+                                                   if g.get(c))], key=lambda g: g["nome_common"]), True
     k = _senza_suffisso(_chiave(nome))
-    from shared.parole_nome import stesse_parole
     esatti = [g for g in giocatori
               if any(_senza_suffisso(_chiave(g[c])) == k or stesse_parole(nome, g[c])
                      for c in ("nome_common", "nome_bref", "nome_yahoo") if g.get(c))]
@@ -357,10 +361,10 @@ async def cmd_set_posizioni(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text(f"Nessun giocatore trovato per «{nome}».")
         return
     titolo = "Più giocatori con questo nome" if esatto else f"Nessun match esatto per «{nome}». Intendevi"
-    kb = [[InlineKeyboardButton(f"{g['nome_common']} [id {g['id']}]", callback_data=f"spe:{g['id']}:{pos}")]
-          for g in candidati]
-    kb.append([InlineKeyboardButton("❌ Annulla", callback_data="spe:no")])
-    await update.effective_message.reply_text(f"{titolo}:", reply_markup=InlineKeyboardMarkup(kb))
+    from shared import pagine as PG                    # v7.25.0: a pagine, di chi ha cercato
+    await PG.manda(update.effective_message, context,
+                   [(f"{g['nome_common']} [id {g['id']}]", f"spe:{g['id']}:{pos}") for g in candidati] + [("❌ Annulla", "spe:no")],
+                   f"{titolo}:")
 
 
 async def _applica_set_posizioni(rispondi, g: dict, pos: str, bot=None, user=None):

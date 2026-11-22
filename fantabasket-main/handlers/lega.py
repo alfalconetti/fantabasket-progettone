@@ -66,5 +66,6 @@ def get_handlers() -> list:
             CallbackQueryHandler(R.cb_rendimento, pattern=R.PATTERN),
             CommandHandler("confronto", CF.cmd_confronto, filters=privato, block=False),     # v7.4.3
             CommandHandler("confronto_carriera", CF.cmd_confronto_carriera, filters=privato, block=False),
+            CallbackQueryHandler(CF.cb_confronto, pattern=r"^cf:[01]:\d+$"),               # v7.25.0
             CommandHandler("giocatori", EG.cmd_giocatori, filters=privato),                  # v7.5.0
             CommandHandler("quasi_cup", QC.cmd_quasi_cup, filters=privato, block=False)]      # v7.9.0

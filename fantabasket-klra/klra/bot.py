@@ -89,6 +89,9 @@ def main():
     from shared import solo_gruppo_admin
     from klra import comandi
     solo_gruppo_admin.installa(app, comandi.comandi_pubblici(), config.gruppo_admin)
+    from shared import pagine as PG                       # v7.25.0: i «Quale?» a pagine e di chi ha cercato
+    for h, gr in PG.handlers():
+        app.add_handler(h, group=gr)
     for h in comandi.handlers():
         app.add_handler(h)
     app.job_queue.run_repeating(job_precalcola, interval=3600, first=60)

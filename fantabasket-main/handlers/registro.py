@@ -87,6 +87,14 @@ class Errore(ValueError):
     """Un filtro scritto male: il messaggio va a chi ha scritto il comando."""
 
 
+class Scegli(Errore):
+    """v7.25.0 (Luca, 22/11): un nome ambiguo nei filtri si sceglie coi bottoni. `chiave` è il pezzo da scegliere
+    («g:<nome>» un giocatore, «sg:<testo>» squadra o giocatore), `voci` [(etichetta, valore)], `domanda` il testo."""
+    def __init__(self, chiave: str, domanda: str, voci: list):
+        super().__init__(domanda)
+        self.chiave, self.domanda, self.voci = chiave, domanda, voci
+
+
 def _data(chiave: str, v: str):
     from datetime import date
     pz = v.replace("-", "/").replace(".", "/").split("/")
@@ -106,21 +114,23 @@ def _squadra(v: str) -> str:
     return t["id"]
 
 
-def _giocatore(v: str) -> tuple[int, str]:
+def _giocatore(v: str, scelte: dict | None = None) -> tuple[int, str]:
     from utils import normalizza
+    k = "g:" + normalizza(v)
+    if scelte and k in scelte:                         # già scelto coi bottoni
+        return tuple(scelte[k])
     gioc = db.cerca_giocatori(normalizza(v)) or []
     esatti = [x for x in gioc if normalizza(x["nome_common"]) == normalizza(v)]
     if len(esatti) == 1:
         gioc = esatti
     if not gioc:
         raise Errore(f"Nessun giocatore trovato con «{v}».")
-    if len(gioc) > 1:
-        raise Errore(f"«{v}»: più giocatori ({', '.join(x['nome_common'] for x in gioc[:6])}"
-                     f"{'…' if len(gioc) > 6 else ''}). Scrivi il nome completo, tra virgolette.")
+    if len(gioc) > 1:                                  # v7.25.0: si sceglie coi bottoni
+        raise Scegli(k, f"«{v}»: quale giocatore?", [(x["nome_common"], (x["id"], x["nome_common"])) for x in gioc])
     return gioc[0]["id"], gioc[0]["nome_common"]
 
 
-def _valori(chiave: str, v: str) -> tuple[str, list, str]:
+def _valori(chiave: str, v: str, scelte: dict | None = None) -> tuple[str, list, str]:
     """(campo, valori, descrizione) di un filtro con la chiave."""
     vv = [x.strip() for x in v.split(",") if x.strip()]
     if not vv:
@@ -129,7 +139,7 @@ def _valori(chiave: str, v: str) -> tuple[str, list, str]:
         ids = [_squadra(x) for x in vv]
         return "squadra", ids, "squadra " + " o ".join(_nome(i) for i in ids)
     if chiave == "giocatore":
-        gg = [_giocatore(x) for x in vv]
+        gg = [_giocatore(x, scelte) for x in vv]
         return "giocatore", [g[0] for g in gg], "giocatore " + " o ".join(g[1] for g in gg)
     if chiave == "chi":
         return "chi", [x.lstrip("@") for x in vv], "chi " + " o ".join(vv)
@@ -151,13 +161,21 @@ def _valori(chiave: str, v: str) -> tuple[str, list, str]:
     raise Errore(f"«{chiave}:»: chiave sconosciuta. /registro aiuto per l'elenco.")
 
 
-def _senza_chiave(testo: str) -> tuple[str, list, str]:
-    """Parole senza chiave: squadra, giocatore unico o azione; se sono sia squadra sia giocatore, si chiede."""
+def _senza_chiave(testo: str, scelte: dict | None = None) -> tuple[str, list, str]:
+    """Parole senza chiave: squadra, giocatore unico o azione; se sono sia squadra sia giocatore, si chiede (v7.25.0:
+    coi bottoni «squadra / giocatore»; il giocatore, se sono più d'uno, poi coi bottoni)."""
     from utils import normalizza
     t = tm.get_team_by_query(testo)
     gioc = db.cerca_giocatori(normalizza(testo)) or []
+    k = "sg:" + normalizza(testo)
+    if t and gioc and scelte and k in scelte:
+        if scelte[k] == "squadra":
+            return "squadra", [t["id"]], f"squadra {t['nome']}"
+        g = _giocatore(testo, scelte)
+        return "giocatore", [g[0]], f"giocatore {g[1]}"
     if t and gioc:
-        raise Errore(f"«{testo}» è sia una squadra sia un giocatore: scrivi squadra:{testo} o giocatore:{testo}.")
+        raise Scegli(k, f"«{testo}» è sia una squadra sia un giocatore: quale?",
+                     [(f"🏀 squadra {t['nome']}", "squadra"), ("👤 giocatore", "giocatore")])
     if t:
         return "squadra", [t["id"]], f"squadra {t['nome']}"
     if len(gioc) == 1:
@@ -165,7 +183,7 @@ def _senza_chiave(testo: str) -> tuple[str, list, str]:
     return "azione", [testo], f"azione «{testo}»"
 
 
-def leggi(args: list[str]) -> dict:
+def leggi(args: list[str], scelte: dict | None = None) -> dict:
     """I filtri: {"gruppi": [{"si", "no", "desc"}], "giorni", "dal", "al", "desc": [globali], "aiuto"}."""
     import shlex
     try:
@@ -203,7 +221,7 @@ def leggi(args: list[str]) -> dict:
                     out[k] = _data(k, v)
                 continue
             if sep:
-                campo, vals, d = _valori(k, v)
+                campo, vals, d = _valori(k, v, scelte)
             elif x.lower() in ("aiuto", "help", "?"):
                 out["aiuto"] = True
                 continue
@@ -223,7 +241,7 @@ def leggi(args: list[str]) -> dict:
             g["desc"].append(("non " if neg else "") + d)
         for neg, pp in parole.items():
             if pp:
-                campo, vals, d = _senza_chiave(" ".join(pp))
+                campo, vals, d = _senza_chiave(" ".join(pp), scelte)
                 (g["no"] if neg else g["si"]).append((campo, vals))
                 g["desc"].append(("non " if neg else "") + d)
         out["gruppi"].append(g)
@@ -279,11 +297,14 @@ def testo_md(righe: list[dict], desc: list[str], limite: int) -> str:
     return "\n".join(out) + "\n"
 
 
-async def _manda(bot, chat_id: int, user, args: list[str]) -> str | None:
-    """Manda il file; None se va bene, altrimenti il motivo del rifiuto (o l'aiuto)."""
+async def _manda(bot, chat_id: int, user, args: list[str], scelte: dict | None = None) -> "str | Scegli | None":
+    """Manda il file; None se va bene, Scegli se un nome va scelto coi bottoni, altrimenti il motivo del rifiuto (o
+    l'aiuto)."""
     admin = settings.is_admin(user.id)
     try:
-        f = leggi(args)
+        f = leggi(args, scelte)
+    except Scegli as sc:
+        return sc
     except Errore as err:
         return f"❌ {err}"
     if f["aiuto"]:
@@ -310,12 +331,46 @@ async def _manda(bot, chat_id: int, user, args: list[str]) -> str | None:
     return None
 
 
+async def _rispondi(context, motivo, st: dict, msg=None, q=None) -> None:
+    """Dopo _manda: i bottoni se c'è da scegliere (stesso messaggio se viene da un bottone), se no il motivo."""
+    from shared import pagine as PG
+    if isinstance(motivo, Scegli):
+        st.update(chiave=motivo.chiave, valori=[v for _, v in motivo.voci])
+        voci = [(e, f"rg:{i}") for i, (e, _) in enumerate(motivo.voci)]
+        if q:
+            await PG.modifica(q, context, voci, motivo.domanda)
+        else:
+            await PG.manda(msg, context, voci, motivo.domanda)
+        return
+    if q:
+        await q.edit_message_text(motivo or "📜 ⬇️")
+    elif motivo:
+        await msg.reply_text(motivo, parse_mode="HTML" if motivo.startswith("📜 <b>/registro</b>") else None)
+
+
 @solo_privato
 async def cmd_registro(update: Update, context: ContextTypes.DEFAULT_TYPE):
     u = update.effective_user
-    motivo = await _manda(context.bot, update.effective_chat.id, u, list(context.args or []))
-    if motivo:
-        await update.effective_message.reply_text(motivo, parse_mode="HTML" if motivo.startswith("📜 <b>/registro</b>") else None)
+    args = list(context.args or [])
+    st = {"args": args, "scelte": {}}
+    motivo = await _manda(context.bot, update.effective_chat.id, u, args, st["scelte"])
+    if isinstance(motivo, Scegli) and getattr(context, "user_data", None) is not None:
+        context.user_data["registro"] = st
+    await _rispondi(context, motivo, st, msg=update.effective_message)
+
+
+async def cb_scelta(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """rg:<i>: un nome ambiguo dei filtri scelto coi bottoni (v7.25.0); poi si rilegge tutto con la scelta."""
+    q = update.callback_query
+    st = (getattr(context, "user_data", None) or {}).get("registro")
+    i = int(q.data.split(":")[1])
+    if not st or "chiave" not in st or i >= len(st.get("valori", [])):
+        await q.answer("Ricerca scaduta: rifai /registro.", show_alert=True)
+        return
+    await q.answer()
+    st["scelte"][st.pop("chiave")] = st.pop("valori")[i]
+    motivo = await _manda(context.bot, q.message.chat_id, q.from_user, st["args"], st["scelte"])
+    await _rispondi(context, motivo, st, q=q)
 
 
 async def cb_registro(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -329,4 +384,5 @@ async def cb_registro(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def get_handlers() -> list:
-    return [CommandHandler("registro", cmd_registro), CallbackQueryHandler(cb_registro, pattern=r"^reg:7$")]
+    return [CommandHandler("registro", cmd_registro), CallbackQueryHandler(cb_registro, pattern=r"^reg:7$"),
+            CallbackQueryHandler(cb_scelta, pattern=r"^rg:\d+$")]

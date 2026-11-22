@@ -114,7 +114,35 @@ ok("taglio" in t and "offerta" not in t and "TRADE-1" not in t and "(la tua)" in
 ok("solo il registro della tua squadra" in registro(101, ["squadra:Alfa,Beta"]), "GM: un'altra squadra tra i valori no")
 _vecchio = db.cerca_giocatori
 db.cerca_giocatori = lambda n: [{"id": 7, "nome_common": "Gamma Ray"}] if "gamma" in n else []
-ok("❌" in registro(900, ["Gamma"]) and "squadra:Gamma" in registro(900, ["Gamma"]), "squadra e giocatore insieme: chiede la chiave")
+ok(registro(900, ["Gamma"]) == "«Gamma» è sia una squadra sia un giocatore: quale?", "v7.25.0: squadra e giocatore insieme: i bottoni")
+# v7.25.0 (Luca, 22/11): i bottoni, poi il registro filtrato; un giocatore ambiguo dopo «giocatore»
+db.cerca_giocatori = lambda n: ([{"id": 7, "nome_common": "Gamma Ray"}, {"id": 8, "nome_common": "Gamma Ray Jr."}] if "gamma" in n
+                                else [{"id": 7, "nome_common": "Caio Uno"}, {"id": 8, "nome_common": "Caio Due"}] if "caio" in n else [])
+mod = []
+class Qf:
+    def __init__(s, data): s.data, s.from_user, s.message = data, types.SimpleNamespace(id=900, first_name="Luca"), types.SimpleNamespace(chat_id=900)
+    async def answer(s, *a, **k): pass
+    async def edit_message_text(s, t, **k): mod.append((t, k.get("reply_markup")))
+ctx = types.SimpleNamespace(args=["Gamma"], bot=BotF(), user_data={}, bot_data={})
+file_.clear(); risposte.clear()
+upd = types.SimpleNamespace(effective_user=types.SimpleNamespace(id=900), effective_message=M(), effective_chat=types.SimpleNamespace(id=900, type="private"))
+asyncio.run(RG.cmd_registro(upd, ctx))
+asyncio.run(RG.cb_scelta(types.SimpleNamespace(callback_query=Qf("rg:1")), ctx))          # 👤 giocatore
+ok(mod and mod[-1][0] == "«Gamma»: quale giocatore?" and [b.text for r in mod[-1][1].inline_keyboard for b in r] == ["Gamma Ray", "Gamma Ray Jr."],
+   f"registro: scelto «giocatore», poi quale giocatore sullo stesso messaggio {mod[-1:]}")
+asyncio.run(RG.cb_scelta(types.SimpleNamespace(callback_query=Qf("rg:1")), ctx))
+ok(file_ and "giocatore Gamma Ray Jr." in file_[-1]["caption"] and mod[-1][0] == "📜 ⬇️", f"registro: scelto, il file filtrato {file_[-1:]}")
+asyncio.run(RG.cb_scelta(types.SimpleNamespace(callback_query=Qf("rg:0")), ctx))
+ok(len(file_) == 1, "registro: un bottone già usato non rifà il file")
+file_.clear(); mod.clear(); ctx.args = ["giocatore:caio", "squadra:Alfa"]
+asyncio.run(RG.cmd_registro(upd, ctx))
+ok(risposte[-1] == "«caio»: quale giocatore?", "registro: giocatore:NOME ambiguo, i bottoni")
+asyncio.run(RG.cb_scelta(types.SimpleNamespace(callback_query=Qf("rg:0")), ctx))
+ok(file_ and "giocatore Caio Uno" in file_[-1]["caption"] and "squadra Alfa" in file_[-1]["caption"], "registro: il resto dei filtri resta")
+file_.clear(); ctx.args = ["Gamma"]
+asyncio.run(RG.cmd_registro(upd, ctx))
+asyncio.run(RG.cb_scelta(types.SimpleNamespace(callback_query=Qf("rg:0")), ctx))          # 🏀 squadra
+ok(file_ and "squadra Gamma" in file_[-1]["caption"], f"registro: scelto «squadra» {file_[-1:]}")
 db.cerca_giocatori = _vecchio
 # pannello admin
 q = types.SimpleNamespace(from_user=types.SimpleNamespace(id=101), message=types.SimpleNamespace(chat_id=101), data="reg:7",

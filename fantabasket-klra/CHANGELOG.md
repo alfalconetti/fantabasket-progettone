@@ -61,3 +61,7 @@
 ## v12 (2026-11-22, progettone v7.24.1)
 
 - `/rendimento`: nel decile della lega «dati dal» è il primo giorno coi tabellini nel tratto confrontato
+
+## v13 (2026-11-22, progettone v7.25.0)
+
+- I «Quale?» a pagine e di chi ha cercato, il nome tra apici, la scelta dei due nomi nei confronti (`cf:`, col sistema attivo); i comandi di loucabot ricevono il `bot_data` vero
