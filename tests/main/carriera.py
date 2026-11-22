@@ -295,6 +295,10 @@ _fm = float(db._qval("SELECT fantamedia FROM bref_stats WHERE nome_bref = 'Medie
 _o = {x["etichetta"]: x for x in _TT.medie_trade(_m, "mt1", "team01", "team02", _t(8, 1))}
 ok((_o["stagione"]["prima"], _o["stagione"]["np"], _o["stagione"]["bref"], _o["stagione"]["sp"], _o["stagione"]["sd"])
    == (C._num(_fm), 60, True, "2025-26, ", "2026-27, "), f"trova_trade in off-season: la stagione prima da Basketball-Reference {_o['stagione']}")
+db._q("INSERT INTO bref_stats (stagione, nome_bref, g, pts, fga, fgm, ftm, fta, fg3m, orb, drb, ast, stl, blk, tov) VALUES ('2027', 'Medie Trade', 70, 10, 8, 4, 2, 2, 0, 1, 3, 2, 1, 0, 1)")
+_o = {x["etichetta"]: x for x in _TT.medie_trade(_m, "mt1", "team01", "team02", datetime(2027, 8, 1, 12, tzinfo=timezone.utc))}
+ok((_o["stagione"]["prima"], _o["stagione"]["np"], _o["stagione"]["bref"], _o["stagione"]["sp"]) == ("27,50", 4, False, "2026-27, "),
+   f"trova_trade in off-season dalla 2027-28: la stagione prima dai tabellini ESPN, non da bref {_o['stagione']}")
 db._q("DELETE FROM bref_stats WHERE nome_bref = 'Medie Trade'")
 tx("trade", _m, "team02", "team03", None, _t(11, 13))
 _r = {x["etichetta"]: x for x in _TT.medie_trade(_m, "mt1", "team01", "team02", _t(11, 10))}

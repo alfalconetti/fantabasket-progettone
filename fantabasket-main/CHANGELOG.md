@@ -2157,3 +2157,11 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.24.1 (2026-11-22)
 
 - Medie corrette (Luca, 22/11, dalla trade 020): le medie di `/carriera` e `/trova_trade` usano solo i tabellini da quando c'è il bot (i pochi della stagione 2025-26 davano «1 p.»); in off-season la stagione prima viene da Basketball-Reference (come lo storico di `/player`); «nessuna partita lì» se è già andato via dalla squadra, «ancora nessuna partita» se ci è ancora; la riga «assoluto» c'è sempre; nel decile «dati dal» è il primo giorno coi tabellini nella stagione o nei giorni del confronto
+
+## v7.24.2 (2026-11-22)
+
+- **I dati del bot partono dalla stagione 2026-27** (Luca, 22/11: «prima ho solo le medie bref»): all'avvio loucabot sposta i tabellini delle partite prima del 25/07/2026 in `nba_tabellini_prima_del_bot` (`db.archivia_prima_del_bot`, a ogni avvio, niente si perde), così nessun comando li legge più («dati dal 01/01/2026», «2025-26, 1 p.»); contiene la v7.24.1
+
+## v7.24.3 (2026-11-22)
+
+- `/trova_trade` in off-season: la stagione prima dai tabellini ESPN del bot dalla 2026-27 in poi (Luca, 22/11); Basketball-Reference solo per la 2025-26, quando il bot non c'era (`PRIMA_STAGIONE_BOT`); contiene la v7.24.1-7.24.2

@@ -115,6 +115,7 @@ def migra():
             quando    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             PRIMARY KEY (partita, atleta))""")
     q("ALTER TABLE tabellini_corretti ADD COLUMN IF NOT EXISTS espn_ultimo NUMERIC(6,2)")   # l'ultimo valore scaricato da ESPN
+    archivia_prima_del_bot()
     q("""CREATE TABLE IF NOT EXISTS nba_infortuni (
             giorno    DATE NOT NULL,                            -- giorno della costa est dello snapshot
             atleta    TEXT NOT NULL,
@@ -254,6 +255,30 @@ def partita_squadra(stagione: str, numero: int, team_id: str) -> dict | None:
 def salva_calcolo(stagione: str, numero: int, prima_partita, media: list[str]) -> None:
     q("UPDATE lega_giornate SET prima_partita = %s, media = %s, calcolato = NOW() WHERE stagione = %s AND numero = %s",
       (prima_partita, media, stagione, numero))
+
+
+# v7.24.2 (Luca, 22/11): i dati partono dalla stagione 2026-27; prima ci sono solo le medie di Basketball-Reference.
+# I pochi tabellini di prima (qualche serata del 2025-26) vanno in un archivio a ogni avvio, così nessun comando li
+# legge («dati dal 01/01/2026», «2025-26, 1 p.»); niente si perde: si rimettono con un INSERT … SELECT dall'archivio.
+INIZIO_DATI = "2026-07-25"                 # nasce il bot
+
+
+def archivia_prima_del_bot() -> int:
+    """Sposta in nba_tabellini_prima_del_bot i tabellini delle partite prima di INIZIO_DATI. Quante righe."""
+    try:
+        q("CREATE TABLE IF NOT EXISTS nba_tabellini_prima_del_bot (LIKE nba_tabellini INCLUDING DEFAULTS)")
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""WITH via AS (DELETE FROM nba_tabellini t USING nba_partite p
+                                            WHERE p.espn_id = t.partita AND p.data_et < %s RETURNING t.*)
+                               INSERT INTO nba_tabellini_prima_del_bot SELECT * FROM via""", (INIZIO_DATI,))
+                n = cur.rowcount
+    except Exception:                      # mai fermare l'avvio per l'archivio (es. una colonna nuova in nba_tabellini)
+        logger.exception("Archivio dei tabellini di prima del bot non riuscito")
+        return 0
+    if n:
+        logger.info("Archiviati %d tabellini di prima del bot (prima del %s)", n, INIZIO_DATI)
+    return n
 
 
 # ── partite NBA ────────────────────────────────────────────────────────────────

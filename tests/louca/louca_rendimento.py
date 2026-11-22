@@ -325,3 +325,20 @@ db.q("DELETE FROM nba_tabellini WHERE partita = 'rd_oldc'"); db.q("DELETE FROM n
 ok({next(iter(h.commands)) for h in LR.get_handlers() if hasattr(h, "commands")} == {"rendimento", "rendimento_carriera", "confronto", "confronto_carriera", "rendimento_situazione"},
    "loucabot: anche /confronto, /confronto_carriera e /rendimento_situazione (v7.20.0)")
 pulisci()
+
+# v7.24.2 (Luca, 22/11): i tabellini di prima del bot vanno in archivio all'avvio (i dati partono dalla 2026-27)
+db.q("DELETE FROM nba_tabellini WHERE partita IN ('pb1', 'pb2')"); db.q("DELETE FROM nba_partite WHERE espn_id IN ('pb1', 'pb2')")
+db.q("CREATE TABLE IF NOT EXISTS nba_tabellini_prima_del_bot (LIKE nba_tabellini INCLUDING DEFAULTS)")
+db.q("DELETE FROM nba_tabellini_prima_del_bot WHERE partita IN ('pb1', 'pb2')")
+for _pid, _g in (("pb1", date(2026, 1, 1)), ("pb2", date(2026, 10, 25))):
+    db.q("INSERT INTO nba_partite (espn_id, stagione, tipo, data_et, inizio, casa, trasferta, stato) VALUES (%s, %s, 2, %s, %s, 'CHA', 'BOS', 'STATUS_FINAL')",
+         (_pid, "2025" if _g.year == 2026 and _g.month < 7 else "2026", _g, datetime(_g.year, _g.month, _g.day, 23, tzinfo=timezone.utc)))
+    db.q("INSERT INTO nba_tabellini (partita, atleta, nome, squadra, giocato, minuti, fp) VALUES (%s, 'pbx', 'Prima Bot', 'CHA', TRUE, 30, 20)", (_pid,))
+_n = db.archivia_prima_del_bot()
+ok(_n >= 1 and not db.q("SELECT 1 FROM nba_tabellini WHERE partita = 'pb1'", one=True)
+   and db.q("SELECT 1 FROM nba_tabellini_prima_del_bot WHERE partita = 'pb1' AND atleta = 'pbx'", one=True)
+   and db.q("SELECT 1 FROM nba_tabellini WHERE partita = 'pb2'", one=True),
+   "avvio: i tabellini di prima del bot in archivio, quelli della stagione restano")
+ok(db.archivia_prima_del_bot() == 0, "avvio: il secondo giro non sposta niente")
+db.q("DELETE FROM nba_tabellini WHERE partita IN ('pb1', 'pb2')"); db.q("DELETE FROM nba_tabellini_prima_del_bot WHERE partita IN ('pb1', 'pb2')")
+db.q("DELETE FROM nba_partite WHERE espn_id IN ('pb1', 'pb2')")

@@ -681,3 +681,7 @@ Il calcolo dei fantapunti.
 ## v140 (2026-11-22, progettone v7.24.1)
 
 - `/carriera` e `/trova_trade`: medie solo coi tabellini da quando c'è il bot; in off-season la stagione prima da Basketball-Reference; `/rendimento`: nel decile «dati dal» del tratto confrontato
+
+## v141 (2026-11-22, progettone v7.24.2)
+
+- All'avvio i tabellini di prima del bot (prima del 25/07/2026) vanno in `nba_tabellini_prima_del_bot`: i dati partono dalla stagione 2026-27

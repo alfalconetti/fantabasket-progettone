@@ -184,6 +184,9 @@ def _riga(etichetta: str, prima: list[float], dopo: list[float], sp: str = "", s
             "chiuso": chiuso, "bref": bool(bref)}
 
 
+PRIMA_STAGIONE_BOT = 2026        # la 2026-27: la prima che il bot ha seguito tutta coi tabellini ESPN
+
+
 def _bref(gid: int, stagione: int) -> tuple[float, int] | None:
     """(fantamedia, partite) di Basketball-Reference nella stagione `stagione` della lega (bref la numera col secondo
     anno), come lo storico di /player."""
@@ -203,7 +206,8 @@ def _c_e_bref() -> bool:
 
 def medie_trade(gid: int, espn: str | None, da: str, a: str, quando) -> list[dict]:
     """Due righe: «stagione» (la stagione della trade prima e dopo; in off-season, cioè prima della prima partita
-    della stagione nuova, la stagione prima da Basketball-Reference e quella dopo) e «assoluto» (tutto il tratto nella
+    della stagione nuova, la stagione prima e quella dopo; la stagione prima dai tabellini, o da Basketball-Reference
+    se è prima della 2026-27) e «assoluto» (tutto il tratto nella
     squadra che lo cede contro tutto quello nella squadra che lo riceve, finora). Partite giocate davvero (i DNP no)
     dai tabellini del bot, da quando c'è il bot."""
     from handlers.carriera import partite_media
@@ -221,8 +225,12 @@ def medie_trade(gid: int, espn: str | None, da: str, a: str, quando) -> list[dic
         nella = [r for r in tutte if str(r["stagione"]) == str(s)]
         st = _riga("stagione", fp(r for r in nella if r["inizio"] < quando), fp(r for r in nella if r["inizio"] >= quando))
     else:
-        st = _riga("stagione", [], fp(r for r in tutte if str(r["stagione"]) == str(s)),
-                   f"{stagione_txt(s - 1)}, ", f"{stagione_txt(s)}, ", bref=_bref(gid, s - 1))
+        # la stagione prima: dai tabellini ESPN del bot se l'ha seguita tutta (dalla 2026-27), da Basketball-Reference
+        # per la 2025-26, quando il bot non c'era (Luca, 22/11: «dall'anno prossimo quelli dei tabellini ESPN»)
+        prima = fp(r for r in tutte if str(r["stagione"]) == str(s - 1))
+        st = _riga("stagione", prima, fp(r for r in tutte if str(r["stagione"]) == str(s)),
+                   f"{stagione_txt(s - 1)}, ", f"{stagione_txt(s)}, ",
+                   bref=_bref(gid, s - 1) if s - 1 < PRIMA_STAGIONE_BOT else None)
     ass = _riga("assoluto", fp(r for r in tutte if (d0 is None or r["inizio"] >= d0) and r["inizio"] < a0),
                 fp(r for r in tutte if r["inizio"] >= d1 and (a1 is None or r["inizio"] < a1)), chiuso=a1 is not None)
     return [x for x in (st, ass) if x["np"] or x["nd"] or x["etichetta"] == "assoluto"]
