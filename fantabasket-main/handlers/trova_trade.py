@@ -169,51 +169,63 @@ def _periodo_in(gid: int, team: str, quando, prima: bool):
     return quando, None
 
 
-def _riga(etichetta: str, prima: list[float], dopo: list[float], sp: str = "", sd: str = "") -> dict | None:
+def _riga(etichetta: str, prima: list[float], dopo: list[float], sp: str = "", sd: str = "", chiuso: bool = False,
+          bref: tuple[float, int] | None = None) -> dict:
+    """Una riga di medie prima → dopo. `bref` (media, partite) prende il posto delle partite prima (la stagione prima di
+    una trade in off-season: il bot non ha i tabellini). `chiuso`: il periodo dopo è finito (è andato via), quindi
+    «nessuna partita lì» invece di «ancora nessuna partita»."""
     from handlers.carriera import _num
-    if not prima and not dopo:
+    mp = bref[0] if bref else (sum(prima) / len(prima) if prima else None)
+    np_ = bref[1] if bref else len(prima)
+    md = sum(dopo) / len(dopo) if dopo else None
+    freccia = "" if mp is None or md is None else "su" if md > mp else "giu" if md < mp else ""
+    return {"etichetta": etichetta, "prima": _num(mp) if mp is not None else "", "np": np_ if mp is not None else 0,
+            "dopo": _num(md) if md is not None else "—", "nd": len(dopo), "freccia": freccia, "sp": sp, "sd": sd,
+            "chiuso": chiuso, "bref": bool(bref)}
+
+
+def _bref(gid: int, stagione: int) -> tuple[float, int] | None:
+    """(fantamedia, partite) di Basketball-Reference nella stagione `stagione` della lega (bref la numera col secondo
+    anno), come lo storico di /player."""
+    if not _c_e_bref():
         return None
-    mp, md = (sum(prima) / len(prima) if prima else None), (sum(dopo) / len(dopo) if dopo else None)
-    freccia = "su" if mp is not None and md is not None and md > mp else "giu" if mp is not None and md is not None and md < mp else ""
-    return {"etichetta": etichetta, "prima": _num(mp) if mp is not None else "", "np": len(prima),
-            "dopo": _num(md) if md is not None else "—", "nd": len(dopo), "freccia": freccia, "sp": sp, "sd": sd}
+    r = db._q("""SELECT b.g, b.fantamedia FROM giocatori g
+                 JOIN bref_stats b ON lower(b.nome_bref) IN (lower(g.nome_bref), lower(g.nome_common))
+                 WHERE g.id = %s AND b.stagione = %s AND b.fantamedia IS NOT NULL
+                 ORDER BY b.timestamp DESC, b.id DESC LIMIT 1""", (gid, str(stagione + 1)), one=True)
+    return (float(r["fantamedia"]), int(r["g"] or 0)) if r else None
 
 
-def _dati_dal() -> str:
+def _c_e_bref() -> bool:
     from handlers.carriera import _c_e
-    if not _c_e("nba_tabellini"):
-        return ""
-    r = db._q("""SELECT MIN(p.data_et) AS d FROM nba_partite p WHERE p.tipo = ANY(%s)
-                 AND EXISTS (SELECT 1 FROM nba_tabellini t WHERE t.partita = p.espn_id)""", ([2, 3, 5],), one=True)
-    return f"{r['d']:%d/%m/%Y}" if r and r.get("d") else ""
+    return _c_e("bref_stats")
 
 
 def medie_trade(gid: int, espn: str | None, da: str, a: str, quando) -> list[dict]:
     """Due righe: «stagione» (la stagione della trade prima e dopo; in off-season, cioè prima della prima partita
-    della stagione nuova, la stagione prima e quella dopo) e «assoluto» (tutto il tratto nella squadra che lo cede
-    contro tutto quello nella squadra che lo riceve, finora). Partite giocate davvero (i DNP no) dai tabellini del bot."""
+    della stagione nuova, la stagione prima da Basketball-Reference e quella dopo) e «assoluto» (tutto il tratto nella
+    squadra che lo cede contro tutto quello nella squadra che lo riceve, finora). Partite giocate davvero (i DNP no)
+    dai tabellini del bot, da quando c'è il bot."""
     from handlers.carriera import partite_media
     from shared.periodo import stagione_txt
-    tutte = partite_media(espn)
-    if not tutte:
+    if not espn:
         return []
+    tutte = partite_media(espn)
     s = _stagione_al(quando)
     iniziata = db._q("SELECT 1 FROM nba_partite WHERE stagione = %s AND tipo = 2 AND inizio < %s LIMIT 1",
                      (str(s), quando), one=True)
     fp = lambda rr: [float(r["fp"] or 0) for r in rr]
-    out = []
-    if iniziata:
-        nella = [r for r in tutte if str(r["stagione"]) == str(s)]
-        out.append(_riga("stagione", fp(r for r in nella if r["inizio"] < quando), fp(r for r in nella if r["inizio"] >= quando)))
-    else:
-        out.append(_riga("stagione", fp(r for r in tutte if str(r["stagione"]) == str(s - 1)),
-                         fp(r for r in tutte if str(r["stagione"]) == str(s)),
-                         f"{stagione_txt(s - 1)}, ", f"{stagione_txt(s)}, "))
     d0, a0 = _periodo_in(gid, da, quando, True)
     d1, a1 = _periodo_in(gid, a, quando, False)
-    out.append(_riga("assoluto", fp(r for r in tutte if (d0 is None or r["inizio"] >= d0) and r["inizio"] < a0),
-                     fp(r for r in tutte if r["inizio"] >= d1 and (a1 is None or r["inizio"] < a1))))
-    return [x for x in out if x]
+    if iniziata:
+        nella = [r for r in tutte if str(r["stagione"]) == str(s)]
+        st = _riga("stagione", fp(r for r in nella if r["inizio"] < quando), fp(r for r in nella if r["inizio"] >= quando))
+    else:
+        st = _riga("stagione", [], fp(r for r in tutte if str(r["stagione"]) == str(s)),
+                   f"{stagione_txt(s - 1)}, ", f"{stagione_txt(s)}, ", bref=_bref(gid, s - 1))
+    ass = _riga("assoluto", fp(r for r in tutte if (d0 is None or r["inizio"] >= d0) and r["inizio"] < a0),
+                fp(r for r in tutte if r["inizio"] >= d1 and (a1 is None or r["inizio"] < a1)), chiuso=a1 is not None)
+    return [x for x in (st, ass) if x["np"] or x["nd"] or x["etichetta"] == "assoluto"]
 
 
 def _cap_roster(team_id: str, quando, stagione: int) -> tuple[int, int]:
@@ -312,7 +324,7 @@ def dati(trade_id: int) -> dict:
         stato_nota = "eseguita e poi annullata"
     return {"numero": t["trade_ref"], "data": quando.astimezone(ROME).strftime("%d/%m/%Y"), "stato": t["stato"],
             "stato_nota": stato_nota, "asset": len(items), "squadre": colonne, "percorso": _percorso(t, squadre),
-            "fp_stagione": fp_stagione, "dati_dal": _dati_dal()}
+            "fp_stagione": fp_stagione, "dati_dal": __import__("handlers.carriera", fromlist=["x"]).dati_dal()}
 
 
 async def immagine(trade_id: int) -> str:

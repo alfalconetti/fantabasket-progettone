@@ -254,14 +254,26 @@ def _num(x: float) -> str:
 
 
 def partite_media(espn: str | None) -> list[dict]:
-    """Le partite del giocatore nei tabellini del bot che fanno media (giocate davvero: i DNP no), dalla più vecchia."""
+    """Le partite del giocatore nei tabellini del bot che fanno media (giocate davvero: i DNP no), dalla più vecchia.
+    Solo da quando c'è il bot (DAL): i pochi tabellini di prima (una serata della stagione 2025-26) non fanno una
+    media (Luca, 22/11: «1 p.» nella stagione prima non ha senso)."""
     if not espn or not _c_e("nba_tabellini"):
         return []
     from shared.lettura import conta
     righe = db._q("""SELECT t.fp, t.giocato, t.minuti, t.squadra, p.inizio, p.stagione FROM nba_tabellini t
                      JOIN nba_partite p ON p.espn_id = t.partita
-                     WHERE t.atleta = %s AND p.tipo = ANY(%s) ORDER BY p.inizio""", (espn, list(TIPI_MEDIA)), many=True) or []
+                     WHERE t.atleta = %s AND p.tipo = ANY(%s) AND p.data_et >= %s ORDER BY p.inizio""",
+                  (espn, list(TIPI_MEDIA), DAL), many=True) or []
     return [r for r in righe if conta(r)]
+
+
+def dati_dal() -> str:
+    """Il giorno della prima partita (non preseason) coi tabellini del bot, da quando c'è il bot: «dd/mm/aaaa» o ""."""
+    if not _c_e("nba_tabellini"):
+        return ""
+    r = db._q("""SELECT MIN(p.data_et) AS d FROM nba_partite p WHERE p.tipo = ANY(%s) AND p.data_et >= %s
+                 AND EXISTS (SELECT 1 FROM nba_tabellini t WHERE t.partita = p.espn_id)""", (list(TIPI_MEDIA), DAL), one=True)
+    return f"{r['d']:%d/%m/%Y}" if r and r.get("d") else ""
 
 
 def _media(v: list[float]) -> dict:
@@ -387,9 +399,7 @@ def dati(gid: int, ora: datetime | None = None) -> dict:
     partite = partite_media(g.get("espn_id"))             # v7.24.0: la media in ogni squadra
     medie_fanta(fanta, partite)
     medie_nba(nba, partite)
-    primo = db._q("""SELECT MIN(p.data_et) AS d FROM nba_partite p WHERE p.tipo = ANY(%s)
-                     AND EXISTS (SELECT 1 FROM nba_tabellini t WHERE t.partita = p.espn_id)""",
-                  (list(TIPI_MEDIA),), one=True) if _c_e("nba_tabellini") else None
+    primo = dati_dal()
     pos = db._q("SELECT posizioni FROM posizioni_attuali WHERE giocatore_id = %s", (gid,), one=True) if _c_e("posizioni_attuali") else None
     eleg = [r for r in ("PG", "SG", "SF", "PF", "C") if r in set(((pos or {}).get("posizioni") or "").split(","))]
     eta = None
@@ -416,7 +426,7 @@ def dati(gid: int, ora: datetime | None = None) -> dict:
         "dal": f"{DAL:%d/%m/%Y}", "righe": righe_timeline(fanta, nba),
         "breve": {"fanta": _breve_fanta(fanta), "nba": _breve_nba(nba),
                   "fanta_medie": medie_squadre(fanta, "team"), "nba_medie": medie_squadre(nba, "a")},
-        "dati_dal": f"{primo['d']:%d/%m/%Y}" if primo and primo.get("d") else "",
+        "dati_dal": primo,
         "aggiornato": f"{ora.astimezone(ROMA):%d/%m alle %H:%M}",
     }
 

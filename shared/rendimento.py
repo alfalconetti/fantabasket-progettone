@@ -246,6 +246,16 @@ def medie_lega(stagione: str | None = None, dal=None, al=None, tipi=None) -> dic
     return {a: (sum(v) / len(v), len(v)) for a, v in fp.items()}
 
 
+def primo_nel_tratto(stagione: str | None = None, dal=None, al=None, tipi=None):
+    """Il primo giorno coi tabellini del bot nello stesso tratto del confronto con la lega (la stagione o i giorni),
+    non il primo in assoluto: la stagione 2025-26 ha solo qualche serata (Luca, 22/11)."""
+    tipi = list(tipi or G.TIPI)
+    filtro, arg = ("p.stagione = %s", (stagione,)) if stagione else ("p.data_et BETWEEN %s AND %s", (dal, al))
+    r = L.q(f"""SELECT MIN(p.data_et) AS d FROM nba_partite p WHERE {filtro} AND p.tipo = ANY(%s)
+                AND EXISTS (SELECT 1 FROM nba_tabellini t WHERE t.partita = p.espn_id)""", (*arg, tipi), one=True)
+    return r["d"] if r else None
+
+
 def decile(media: float, altri: list[float]) -> tuple[int, int]:
     """(decile 1–10, percentuale dei giocatori con una media più bassa) di `media` tra le medie `altri`."""
     if not altri:
@@ -273,7 +283,7 @@ def distribuzione(vals: list[float], media: float, atleta: str, stagione: str | 
     altri = [m for a, (m, n) in tutte.items() if n >= MIN_LEGA and a != atleta]
     if altri:
         dec, pct = decile(media, altri)
-        pd = primo_dato()
+        pd = primo_nel_tratto(stagione, dal, al, tipi)
         lega = (f"{dec}° decile della lega: media migliore del {pct}% dei giocatori con almeno {MIN_LEGA} partite "
                 f"({len(altri)} giocatori" + (f", dati dal {pd:%d/%m/%Y}" if pd else "") + ")")
         if len(vals) < MIN_LEGA:

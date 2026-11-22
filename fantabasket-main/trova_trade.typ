@@ -50,8 +50,13 @@
       // v7.24.0 (Luca, 22/11): medie prima → dopo la trade (stagione e assoluto), dai tabellini del bot
       ..a.at("medie", default: ()).map(m => grid(columns: (34pt, 1fr), column-gutter: 3pt,
         text(6.5pt, fill: grigio)[#m.etichetta],
-        if m.np == 0 { text(6.8pt)[dopo *#m.dopo* #text(fill: grigio)[(#m.sd#m.nd p.)]] }
-        else { text(6.8pt)[#m.prima #text(fill: grigio)[(#m.sp#m.np p.)] → #if m.nd == 0 [*—* #text(fill: grigio)[(ancora nessuna partita)]] else [*#m.dopo* #text(fill: grigio)[(#m.sd#m.nd p.)]] #if m.freccia == "su" { text(fill: verde)[▲] } else if m.freccia == "giu" { text(fill: rosso)[▼] }] })),
+        {
+          let dopo = if m.nd == 0 [*—* #text(fill: grigio)[(#if m.chiuso [nessuna partita lì] else [ancora nessuna partita])]] else [*#m.dopo* #text(fill: grigio)[(#m.sd#m.nd p.)]]
+          let fr = if m.freccia == "su" { text(fill: verde)[▲] } else if m.freccia == "giu" { text(fill: rosso)[▼] }
+          if m.np == 0 and m.nd == 0 { text(6.8pt, fill: grigio)[nessuna partita né prima né dopo, in queste due squadre] }
+          else if m.np == 0 { text(6.8pt)[dopo #dopo] }
+          else { text(6.8pt)[#m.prima #text(fill: grigio)[(#m.sp#m.np p.#if m.bref [ · bref])] → #dopo #fr] }
+        })),
       if not due { text(6.8pt, fill: blu)[#verso #box(baseline: 25%, logo(a.altra, 10pt)) #a.altra.nome] }))
 ]
 
@@ -89,5 +94,5 @@
     ..d.percorso.map(p => (segno.at(p.segno, default: [•]), text(8pt)[#p.testo], text(7pt, fill: grigio)[#p.quando])).flatten())
 ]
 #block(width: 100%, fill: white, inset: (x: 12pt, y: 6pt))[
-  #text(6.5pt, fill: grigio)[FP = fantamedia #d.at("fp_stagione", default: "") (basketball-reference: la stagione della trade, o quella che stava per cominciare se in off-season) · 🏀 giocatore (ruolo, contratto di allora: importo × anni rimasti) · 🎟️ pick (anno, giro, di chi era, protezioni) · 📜 diritti rookie (giro, numero e anno del draft) · Medie (partite giocate davvero, dai tabellini del bot#if d.at("dati_dal", default: "") != "" [ dal #d.dati_dal]): «stagione» = la stagione della trade prima e dopo, o in off-season la stagione prima e quella dopo; «assoluto» = tutto il periodo nella squadra che lo cede contro tutto quello nella squadra che lo riceve, finora · Cap e roster al momento della trade, subito prima e subito dopo, spalmature comprese · /trova_trade 014, o il nome di un giocatore per le trade ufficiali che lo riguardano]
+  #text(6.5pt, fill: grigio)[FP = fantamedia #d.at("fp_stagione", default: "") (basketball-reference: la stagione della trade, o quella che stava per cominciare se in off-season) · 🏀 giocatore (ruolo, contratto di allora: importo × anni rimasti) · 🎟️ pick (anno, giro, di chi era, protezioni) · 📜 diritti rookie (giro, numero e anno del draft) · Medie (partite giocate davvero, dai tabellini del bot#if d.at("dati_dal", default: "") != "" [ dal #d.dati_dal]): «stagione» = la stagione della trade prima e dopo, o in off-season la stagione prima (Basketball-Reference) e quella dopo; «assoluto» = tutto il periodo nella squadra che lo cede contro tutto quello nella squadra che lo riceve, finora · Cap e roster al momento della trade, subito prima e subito dopo, spalmature comprese · /trova_trade 014, o il nome di un giocatore per le trade ufficiali che lo riguardano]
 ]

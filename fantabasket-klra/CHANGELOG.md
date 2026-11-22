@@ -57,3 +57,7 @@
 ## v11 (2026-11-22, progettone v7.24.0)
 
 - `/rendimento`: la distribuzione dei fantapunti e il decile della lega, coi fantapunti del sistema (da `shared/rendimento.py`)
+
+## v12 (2026-11-22, progettone v7.24.1)
+
+- `/rendimento`: nel decile della lega «dati dal» è il primo giorno coi tabellini nel tratto confrontato

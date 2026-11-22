@@ -2153,3 +2153,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - **`/carriera`: «media qui»** accanto a ogni evento che porta il giocatore in una squadra, nel fantabasket (tutte le partite giocate mentre era nel roster, anche in panchina o in tribuna) e nella NBA (le partite con quella squadra); un rinnovo o una DPE non spezzano il periodo; nel riepilogo la media per squadra; nella nota da quando ci sono i tabellini (`partite_media`, `medie_fanta`, `medie_nba`, `medie_squadre`)
 - **`/trova_trade`: medie prima → dopo** per ogni giocatore scambiato: «stagione» (la stagione della trade prima e dopo; in off-season la stagione prima e quella dopo) e «assoluto» (tutto il periodo nella squadra che lo cede contro tutto quello nella squadra che lo riceve), con ▲/▼; senza partite prima solo il dopo (`medie_trade`)
 - In tutte e tre i DNP non fanno media (Luca, 22/11); loucabot v139 e klra v11 hanno lo stesso `/rendimento`
+
+## v7.24.1 (2026-11-22)
+
+- Medie corrette (Luca, 22/11, dalla trade 020): le medie di `/carriera` e `/trova_trade` usano solo i tabellini da quando c'è il bot (i pochi della stagione 2025-26 davano «1 p.»); in off-season la stagione prima viene da Basketball-Reference (come lo storico di `/player`); «nessuna partita lì» se è già andato via dalla squadra, «ancora nessuna partita» se ci è ancora; la riga «assoluto» c'è sempre; nel decile «dati dal» è il primo giorno coi tabellini nella stagione o nei giorni del confronto

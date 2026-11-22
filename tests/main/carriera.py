@@ -23,6 +23,8 @@ def c(gid, t, imp, anni, att=True, tipo="normale"):
 def tx(tipo, gid, da, a, cid, ts, note=None, trade=None, oggetto="giocatore"):
     db._q("INSERT INTO transazioni (tipo, oggetto, giocatore_id, team_id_da, team_id_a, stagione, contratto_id, timestamp, note, trade_id) "
           "VALUES (%s, %s, %s, %s, %s, '2026', %s, %s, %s, %s)", (tipo, oggetto, gid, da, a, cid, ts, note, trade))
+# v7.24.0: via le partite di prova delle medie lasciate da un giro andato storto (cambierebbero il % G)
+db._q("DELETE FROM nba_tabellini WHERE partita LIKE 'mt%%'"); db._q("DELETE FROM nba_partite WHERE espn_id LIKE 'mt%%'")
 _nt = [0]
 def trade():
     _nt[0] += 1
@@ -277,16 +279,29 @@ for _i, (_st, _tipo, _gg, _fp, _gioca) in enumerate([("2025", 2, _t(3, 1), 50, T
           (f"mt{_i}", _st, _tipo, _gg.date(), _gg))
     db._q("INSERT INTO nba_tabellini (partita, atleta, nome, squadra, giocato, minuti, fp) VALUES (%s, 'mt1', 'Medie Trade', 'CHA', %s, %s, %s)",
           (f"mt{_i}", _gioca, 30 if _gioca else 0, _fp))
-ok([float(x["fp"]) for x in C.partite_media("mt1")] == [50, 20, 30, 40, 20], "carriera: le partite che fanno media (niente DNP, niente preseason)")
+ok([float(x["fp"]) for x in C.partite_media("mt1")] == [20, 30, 40, 20], "carriera: le partite che fanno media (niente DNP, niente preseason, niente prima della nascita del bot)")
+ok(C.dati_dal() >= "", "carriera: dati_dal da quando c'è il bot")
 import handlers.trova_trade as _TT
 _r = {x["etichetta"]: x for x in _TT.medie_trade(_m, "mt1", "team01", "team02", _t(11, 10))}
 ok((_r["stagione"]["prima"], _r["stagione"]["np"], _r["stagione"]["dopo"], _r["stagione"]["nd"], _r["stagione"]["freccia"]) == ("25,00", 2, "30,00", 2, "su")
    and (_r["assoluto"]["prima"], _r["assoluto"]["np"]) == ("25,00", 2),
    f"trova_trade: stagione prima → dopo; assoluto dall'arrivo nella squadra che lo cede (non la stagione prima) {_r}")
 _o = {x["etichetta"]: x for x in _TT.medie_trade(_m, "mt1", "team01", "team02", _t(8, 1))}
-ok((_o["stagione"]["prima"], _o["stagione"]["sp"], _o["stagione"]["dopo"], _o["stagione"]["nd"], _o["stagione"]["sd"]) == ("50,00", "2025-26, ", "27,50", 4, "2026-27, ")
-   and _o["assoluto"]["np"] == 0 and _o["assoluto"]["dopo"] == "27,50",
-   f"trova_trade in off-season: la stagione prima e quella dopo; senza partite prima solo il dopo {_o}")
+ok(_o["stagione"]["np"] == 0 and _o["stagione"]["dopo"] == "27,50" and _o["assoluto"]["np"] == 0 and _o["assoluto"]["dopo"] == "27,50",
+   f"trova_trade in off-season senza bref: la partita del 2025-26 nei tabellini non conta, solo il dopo {_o}")
+db._q("DELETE FROM bref_stats WHERE nome_bref = 'Medie Trade'")
+db._q("INSERT INTO bref_stats (stagione, nome_bref, g, pts, fga, fgm, ftm, fta, fg3m, orb, drb, ast, stl, blk, tov) VALUES ('2026', 'Medie Trade', 60, 10, 8, 4, 2, 2, 0, 1, 3, 2, 1, 0, 1)")
+_fm = float(db._qval("SELECT fantamedia FROM bref_stats WHERE nome_bref = 'Medie Trade'"))
+_o = {x["etichetta"]: x for x in _TT.medie_trade(_m, "mt1", "team01", "team02", _t(8, 1))}
+ok((_o["stagione"]["prima"], _o["stagione"]["np"], _o["stagione"]["bref"], _o["stagione"]["sp"], _o["stagione"]["sd"])
+   == (C._num(_fm), 60, True, "2025-26, ", "2026-27, "), f"trova_trade in off-season: la stagione prima da Basketball-Reference {_o['stagione']}")
+db._q("DELETE FROM bref_stats WHERE nome_bref = 'Medie Trade'")
+tx("trade", _m, "team02", "team03", None, _t(11, 13))
+_r = {x["etichetta"]: x for x in _TT.medie_trade(_m, "mt1", "team01", "team02", _t(11, 10))}
+ok((_r["assoluto"]["dopo"], _r["assoluto"]["nd"], _r["assoluto"]["chiuso"]) == ("40,00", 1, True),
+   f"trova_trade: l'assoluto dopo si ferma quando esce dalla squadra (seconda trade) {_r['assoluto']}")
+_r = {x["etichetta"]: x for x in _TT.medie_trade(_m, "mt1", "team02", "team03", _t(11, 13))}
+ok((_r["assoluto"]["np"], _r["assoluto"]["nd"], _r["assoluto"]["chiuso"]) == (1, 1, False), f"trova_trade: la seconda trade da B a C {_r['assoluto']}")
 ok(_TT.medie_trade(_m, None, "team01", "team02", _t(11, 10)) == [], "trova_trade: senza id ESPN niente medie")
 db._q("DELETE FROM nba_tabellini WHERE partita LIKE 'mt%%'"); db._q("DELETE FROM nba_partite WHERE espn_id LIKE 'mt%%'")
 

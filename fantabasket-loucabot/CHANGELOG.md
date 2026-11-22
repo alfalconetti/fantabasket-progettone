@@ -677,3 +677,7 @@ Il calcolo dei fantapunti.
 
 - `/rendimento`: sotto il grafico la **distribuzione dei fantapunti** (box plot) e il **decile della lega** (codice in `shared/rendimento.py`)
 - `/carriera` e `/trova_trade` (dal bot principale, vista.py): le medie per squadra e prima → dopo la trade
+
+## v140 (2026-11-22, progettone v7.24.1)
+
+- `/carriera` e `/trova_trade`: medie solo coi tabellini da quando c'è il bot; in off-season la stagione prima da Basketball-Reference; `/rendimento`: nel decile «dati dal» del tratto confrontato
