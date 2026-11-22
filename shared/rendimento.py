@@ -429,6 +429,9 @@ def dati_stagione(gid: int, stagione: str | None = None, periodo=None, distr: bo
 # ── /rendimento_carriera ───────────────────────────────────────────────────────
 
 BREF_STAT = "fgm, fga, fg3m, fg3a, ftm, fta, orb, drb, trb, ast, stl, blk, tov, pf, pts"   # per i pesi di klra
+# v7.26.0: le 9 categorie in carriera, coi nomi dei tabellini ESPN ← colonne di Basketball-Reference
+CAT_BREF = {"minuti": "mp", "pts": "pts", "reb": "trb", "ast": "ast", "stl": "stl", "blk": "blk", "tov": "tov",
+            "tpm": "fg3m", "tpa": "fg3a", "fgm": "fgm", "fga": "fga", "ftm": "ftm", "fta": "fta"}
 
 
 def stagioni_bref(nome_bref: str) -> list[dict]:
@@ -445,8 +448,11 @@ def stagioni_bref(nome_bref: str) -> list[dict]:
         tot = [r for r in rr if (r["team"] or "").upper() in ("TOT",) or (r["team"] or "").upper().endswith("TM")]
         squadre = sorted([r for r in rr if r not in tot], key=lambda r: r["primo"])
         base = tot[0] if tot else max(rr, key=lambda r: r["g"] or 0)
-        out.append({"stagione": int(s), "g": int(base["g"] or 0), "mp": float(base["mp"] or 0),
-                    "fm": NU.fm_bref(base), "teams": [r["team"] for r in squadre if r["team"]] or [base["team"] or ""]})
+        g = int(base["g"] or 0)
+        out.append({"stagione": int(s), "g": g, "mp": float(base["mp"] or 0),
+                    "fm": NU.fm_bref(base), "teams": [r["team"] for r in squadre if r["team"]] or [base["team"] or ""],
+                    # v7.26.0: i totali della stagione (medie a partita × partite) per le 9 categorie in carriera
+                    "tot": {k: float(base.get(c) or 0) * g for k, c in CAT_BREF.items()}})
     return out
 
 
@@ -467,8 +473,35 @@ def stagione_in_corso(atleta: str, stagione: str) -> dict | None:
     for r in tab:
         if r["squadra"] and r["squadra"] not in teams:
             teams.append(r["squadra"])
+    tot = {k: float(sum(int(r.get(k) or 0) for r in contano)) for k in CAT_BREF if k != "reb"}
+    tot["reb"] = float(sum(int(r.get("oreb") or 0) + int(r.get("dreb") or 0) for r in contano))
     return {"stagione": int(stagione) + 1, "g": len(contano), "mp": sum(int(r["minuti"] or 0) for r in contano) / len(contano),
-            "fm": sum(NU.fp(r) for r in contano) / len(contano), "teams": teams, "in_corso": True}
+            "fm": sum(NU.fp(r) for r in contano) / len(contano), "teams": teams, "in_corso": True, "tot": tot}
+
+
+def nove_categorie(stagioni: list[dict]) -> tuple[list[dict], str]:
+    """v7.26.0 (Luca, 23/11, mockup approvato): le 9 categorie a partita di tutta la carriera, come in /player: medie
+    pesate sulle partite (i totali di ogni stagione insieme), FG% e FT% come segnati / tentati di tutta la carriera.
+    (riquadri, riga sotto)."""
+    n = sum(x["g"] for x in stagioni)
+    if not n:
+        return [], ""
+    tot = {k: sum(x.get("tot", {}).get(k, 0.0) for x in stagioni) for k in CAT_BREF}
+    m = lambda k: f"{tot[k] / n:.1f}".replace(".", ",")
+    pc = lambda f, t: f"{100 * tot[f] / tot[t]:.1f}".replace(".", ",") if tot[t] else "—"
+    medie = [{"t": "pts", "v": m("pts")}, {"t": "reb", "v": m("reb")}, {"t": "ast", "v": m("ast")}, {"t": "stl", "v": m("stl")},
+             {"t": "blk", "v": m("blk")}, {"t": "to", "v": m("tov")}, {"t": "3pm", "v": m("tpm")},
+             {"t": "FG%", "v": pc("fgm", "fga")}, {"t": "FT%", "v": pc("ftm", "fta")}]
+    corso = next((x for x in stagioni if x.get("in_corso")), None)
+    lbl = lambda y: f"{y - 1}-{y % 100:02d}"
+    fonti = ("da Basketball-Reference" + (f", la {lbl(corso['stagione'])} dai tabellini ESPN" if corso else "")
+             if len(stagioni) > (1 if corso else 0) else "dai tabellini ESPN")
+    ns = len(stagioni)
+    sotto = (f"{n:,}".replace(",", ".") + f" {'partita' if n == 1 else 'partite'} in {ns} {'stagione' if ns == 1 else 'stagioni'} · "
+             f"{m('minuti')} min · FG {m('fgm')}/{m('fga')} · 3P {m('tpm')}/{m('tpa')}"
+             + (f" ({pc('tpm', 'tpa')}%)" if tot["tpa"] else "") + " · "
+             f"FT {m('ftm')}/{m('fta')} · {fonti}")
+    return medie, sotto
 
 
 def stagioni_carriera(gid: int | None, nome_bref: str) -> tuple[list[dict], dict | None]:
@@ -572,7 +605,9 @@ def dati_carriera(gid: int | None, nome_bref: str, nome: str | None = None) -> d
                 {"t": "Migliore", "v": out[mi]["fm_t"], "s": out[mi]["lbl"]},
                 {"t": "In corso", "v": ul["fm_t"], "s": f"{ora_lbl} · {ul['g']} G"} if ul["in_corso"] else
                 {"t": "In corso", "v": "—", "s": f"non gioca nel {ora_lbl} · ultima {ul['lbl']}"}]
+    medie, sotto_medie = nove_categorie(stagioni)          # v7.26.0: le 9 categorie in carriera
     return {"modo": "carriera", **test, "titolo": "Rendimento in carriera", "media_big": _t(media), "riquadri": riquadri,
+            "medie": medie, "sotto_medie": sotto_medie,
             "media_val": ottavi(media),
             "media_sotto": f"fantamedia in carriera · {tot_g:,} partite in {len(out)} {'stagione' if len(out) == 1 else 'stagioni'}".replace(",", "."),
             "stagioni": out, "y_max": hi, "y_passo": passo, "nota": nota}

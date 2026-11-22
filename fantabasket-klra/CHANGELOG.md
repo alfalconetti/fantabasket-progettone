@@ -65,3 +65,7 @@
 ## v13 (2026-11-22, progettone v7.25.0)
 
 - I «Quale?» a pagine e di chi ha cercato, il nome tra apici, la scelta dei due nomi nei confronti (`cf:`, col sistema attivo); i comandi di loucabot ricevono il `bot_data` vero
+
+## v14 (2026-11-23, progettone v7.26.0)
+
+- `/rendimento_carriera`: le 9 categorie a partita di tutta la carriera (non dipendono dal sistema)

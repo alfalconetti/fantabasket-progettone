@@ -689,3 +689,7 @@ Il calcolo dei fantapunti.
 ## v142 (2026-11-22, progettone v7.25.0)
 
 - I «Quale?» a pagine e di chi ha cercato, il nome tra apici, la scelta dei due nomi in `/confronto` e `/confronto_carriera`, il giocatore in `/trova_trade` (vedi il CHANGELOG del bot principale)
+
+## v143 (2026-11-23, progettone v7.26.0)
+
+- `/rendimento_carriera`: le 9 categorie a partita di tutta la carriera sotto il grafico

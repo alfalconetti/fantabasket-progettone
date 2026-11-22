@@ -14,7 +14,7 @@ B1 = str(int(S) + 1)                                    # Basketball-Reference: 
 
 def pulisci():
     db.q("DELETE FROM nba_tabellini WHERE atleta LIKE 'rd%%'"); db.q("DELETE FROM nba_partite WHERE espn_id LIKE 'rd%%'")
-    db.q("DELETE FROM bref_stats WHERE nome_bref LIKE 'Rend %%' OR nome_bref IN ('Vecchio Storico', 'Deron Rendi', 'Michael Jorrdan', 'Jorrdan Mikey')")
+    db.q("DELETE FROM bref_stats WHERE nome_bref LIKE 'Rend %%' OR nome_bref IN ('Vecchio Storico', 'Deron Rendi', 'Deron Rendi Jr.', 'Michael Jorrdan', 'Jorrdan Mikey')")
     db.q("DELETE FROM nba_tabellini WHERE atleta LIKE 'rd%%'")
     for r in db.q("SELECT id FROM giocatori WHERE nome_bref LIKE 'Rend %%'", many=True) or []:
         db.q("DELETE FROM transazioni WHERE giocatore_id = %s", (r["id"],)); db.q("DELETE FROM contratti WHERE giocatore_id = %s", (r["id"],))
@@ -153,6 +153,16 @@ ok(dc["media_big"] == R._t((15 * 60 + 20 * 70 + 178 / 6 * 6) / tot) and f"{tot} 
 # v7.18.0 (Luca, 18/11): il contratto di ogni stagione sotto la squadra del fantabasket; la media per /player
 _fz = {f["id"]: f["contratto"] for f in st[2]["fanta"]}
 ok(_fz == {"team01": "", "team02": "7M ×2"}, f"/rendimento_carriera: il contratto della stagione sotto la squadra (chi l'ha tagliato prima della firma no) {_fz}")
+# v7.26.0 (Luca, 23/11): le 9 categorie in carriera, pesate sulle partite (bref: medie × partite; in corso: tabellini)
+_md = {m["t"]: m["v"] for m in dc["medie"]}
+ok(_md["pts"] == f"{(30 * 60 + 40 * 70) / tot:.1f}".replace(".", ",") and _md["FG%"] == "—" and len(dc["medie"]) == 9
+   and dc["sotto_medie"].startswith(f"{tot} partite in 3 stagioni · 30,") and "dai tabellini ESPN" in dc["sotto_medie"],
+   f"/rendimento_carriera: le 9 categorie in carriera {dc['medie']} {dc['sotto_medie']}")
+_n9, _s9 = R.nove_categorie([{"g": 10, "tot": {"fgm": 50.0, "fga": 100.0, "ftm": 9.0, "fta": 10.0, "tpm": 1.0, "tpa": 4.0, "pts": 200.0}},
+                             {"g": 30, "tot": {"fgm": 30.0, "fga": 100.0, "ftm": 1.0, "fta": 10.0, "pts": 300.0}}])
+_n9 = {m["t"]: m["v"] for m in _n9}
+ok(_n9["FG%"] == "40,0" and _n9["FT%"] == "50,0" and _n9["pts"] == "12,5" and "(25,0%)" in _s9 and "Basketball-Reference" in _s9,
+   f"9 categorie: percentuali come segnati / tentati della carriera, non media delle percentuali {_n9} {_s9}")
 _mc = R.media_carriera(gid, "Rend Uno")
 ok(_mc["g"] == tot and _mc["stagioni"] == 3 and R._t(_mc["media"]) == dc["media_big"], f"media in carriera per /player, uguale a /rendimento_carriera {_mc}")
 _cid = db.q("SELECT id FROM contratti WHERE giocatore_id = %s", (gid,), one=True)["id"]

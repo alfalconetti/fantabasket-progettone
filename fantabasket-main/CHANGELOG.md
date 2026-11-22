@@ -2178,3 +2178,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **`/registro`: i nomi ambigui coi bottoni** (Luca, 22/11): un giocatore che corrisponde a più nomi (anche dentro `giocatore:a,b`, uno alla volta) o una parola che è sia una squadra sia un giocatore non fermano più il comando con un errore: si sceglie coi bottoni (a pagine, di chi ha cercato) e poi arriva il registro filtrato, col resto dei filtri (`Scegli`, `leggi(args, scelte)`, `rg:<i>`)
 - `/watch` e `/unwatch`: anche loro a pagine e col nome tra apici (con `cerca` senza più il tetto di 8 avrebbero potuto superare il limite di Telegram)
+
+## v7.26.0 (2026-11-23)
+
+- **`/rendimento_carriera`: le 9 categorie in carriera** (Luca, 23/11, mockup approvato): sotto il grafico i nove riquadri di `/player` (pts, reb, ast, stl, blk, to, 3pm, FG%, FT%) con le medie a partita di tutta la carriera, pesate sulle partite; FG% e FT% come segnati / tentati della carriera; sotto partite, minuti, tiri e fonti (`nove_categorie`, i totali `tot` di ogni stagione: bref medie × partite, la stagione in corso dai tabellini). Anche in klra

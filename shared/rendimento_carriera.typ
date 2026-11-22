@@ -167,6 +167,15 @@
       }
     }
   }))
+  // v7.26.0 (Luca, 23/11, mockup approvato): le 9 categorie a partita di tutta la carriera, come in /player
+  if d.at("medie", default: ()).len() > 0 {
+    pad(x: 16pt, top: 4pt, bottom: 6pt, stack(spacing: 5pt,
+      text(7pt, weight: "bold", fill: grigio, tracking: 0.7pt)[IN CARRIERA · LE 9 CATEGORIE, A PARTITA],
+      grid(columns: (1fr,) * d.medie.len(), column-gutter: 3.5pt,
+        ..d.medie.map(m => box(fill: lilla, radius: 4pt, inset: (y: 5pt), width: 100%, align(center, stack(spacing: 3pt,
+          text(12pt, weight: "bold")[#m.v], text(6.5pt, fill: grigio)[#m.t]))))),
+      text(7.5pt, fill: grigio)[#d.sotto_medie]))
+  }
   pad(x: 16pt, top: 2pt, bottom: 10pt, text(7pt, fill: grigio)[#d.nota · oro: la stagione migliore ·
     #box(width: 14pt, height: 0pt, stroke: (top: (paint: blu, thickness: 0.8pt, dash: "dashed")), baseline: -2pt) fantamedia in carriera])
 }
