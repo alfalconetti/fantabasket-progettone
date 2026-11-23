@@ -2202,3 +2202,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - **Tabellone del draft nello stile B** (Luca, 23/11: «come mockup vai su quello crema»): `shared/draft.typ`, in attesa del sondaggio
 - **`/draft` = primo giro, `/draft 2` il secondo** (Luca, 23/11), anche con l'anno (`/draft 2027 2`)
 - **`/draft` se finisse oggi** (Luca, 23/11; loucabot): prima che ci sia l'ordine, i due giri dalla classifica di adesso (o finale): nel primo le 12 della lottery in ordine di seed, segnate «🎰 lottery · seed N», poi 13ª–24ª; il secondo in ordine inverso della classifica (`draft_vista.provvisorio`)
+
+## v7.27.3 (2026-11-23)
+
+- **Lottery verificabile da tutti** (Luca, 23/11: «va allegato il codice con delle istruzioni, così come il link»): all'annuncio il bot allega sul canale `lottery.py`, `lottery_verifica.py` e `LEGGIMI.txt` (come controllare l'impronta, rifare l'estrazione, vedere il round dal browser, simulare); nei messaggi il link al round su drand. Lo script ora sta in `shared/lottery_verifica.py` (funziona anche da solo coi due file nella stessa cartella; `strumenti/lottery_verifica.py` lo lancia dal repo)
+- **Firma BLS del round** verificata con `py_ecc` (nuova dipendenza del bot principale: si ricostruisce l'immagine), oltre ai relay concordi e allo SHA-256 della firma; nello script facoltativa

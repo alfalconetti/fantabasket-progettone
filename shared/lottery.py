@@ -13,12 +13,16 @@ La lottery del draft (v7.27.1, Luca 23/11), verificabile da chiunque.
 - **Penalità** (regolamento, Luca 15/11): `scendi` sposta ogni pick penalizzata delle sue posizioni, le altre salgono
   a riempire; due pick sulla stessa posizione: prima quella pescata meglio.
 
-Senza dipendenze (solo la libreria standard): lo usa anche lo script `strumenti/lottery_verifica.py`.
+Senza dipendenze (solo la libreria standard): lo usa anche lo script `lottery_verifica.py`. Con `py_ecc` installato
+verifica anche la firma BLS del round (v7.27.3); senza, valgono i relay concordi e lo SHA-256 della firma.
 """
 import hashlib
 import json
 import urllib.request
 from datetime import datetime, timezone
+import os
+
+CARTELLA = os.path.dirname(os.path.abspath(__file__))  # dove stanno lottery.py e lottery_verifica.py
 
 
 class LotteryError(Exception):
@@ -220,20 +224,58 @@ def round_al(quando: datetime, inf: dict | None = None) -> int:
 
 
 def randomness(rnd: int, servono: int = 2) -> str:
-    """La randomness del round, uguale su almeno `servono` relay; se il round non c'è ancora, LotteryError (si riprova
-    dopo: vale il round dichiarato, mai un altro)."""
+    """La randomness del round, uguale su almeno `servono` relay e uguale allo SHA-256 della firma del round; se il round
+    non c'è ancora, LotteryError (si riprova dopo: vale il round dichiarato, mai un altro). v7.27.3: con py_ecc anche la
+    firma BLS del round, con la chiave pubblica della rete."""
     visti = {}
+    try:
+        chiave = info().get("public_key")
+    except LotteryError:
+        chiave = None
     for base in RELAY:
         try:
             r = _get(f"{base}/{CATENA}/public/{rnd}")
         except Exception:
             continue
         if int(r.get("round", -1)) == rnd and r.get("randomness"):
+            sig = r.get("signature") or ""
+            if sig and hashlib.sha256(bytes.fromhex(sig)).hexdigest() != r["randomness"]:
+                continue                       # la randomness di drand è lo SHA-256 della firma: se no, relay da scartare
+            if sig and chiave and verifica_firma(rnd, sig, chiave) is False:
+                continue                       # firma BLS sbagliata: relay da scartare
             visti.setdefault(r["randomness"], []).append(base)
     for val, chi in visti.items():
         if len(chi) >= servono:
             return val
     raise LotteryError(f"drand: round {rnd} non ancora confermato da {servono} relay ({len(visti)} valori visti)")
+
+
+DST = b"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_"          # quicknet: firme su G1 (bls-unchained-g1-rfc9380)
+
+
+def verifica_firma(rnd: int, firma_hex: str, chiave_hex: str) -> bool | None:
+    """v7.27.3: la firma BLS del round con la chiave pubblica della rete (quicknet: messaggio = SHA-256 del numero del
+    round su 8 byte, firma su G1, chiave su G2). True/False; None se manca la libreria py_ecc (allora valgono i relay
+    concordi e lo SHA-256 della firma)."""
+    try:
+        from py_ecc.bls.hash_to_curve import hash_to_G1
+        from py_ecc.bls.point_compression import decompress_G1, decompress_G2
+        from py_ecc.optimized_bls12_381 import G2, pairing
+    except ImportError:
+        return None
+    try:
+        msg = hashlib.sha256(int(rnd).to_bytes(8, "big")).digest()
+        firma = decompress_G1(int.from_bytes(bytes.fromhex(firma_hex), "big"))
+        k = bytes.fromhex(chiave_hex)
+        chiave = decompress_G2((int.from_bytes(k[:48], "big"), int.from_bytes(k[48:], "big")))
+        return pairing(chiave, hash_to_G1(msg, DST, hashlib.sha256)) == pairing(G2, firma)
+    except Exception:
+        return False
+
+
+def link_round(rnd: int) -> str:
+    """Il round su drand, da aprire nel browser (v7.27.3)."""
+    return f"{RELAY[0]}/{CATENA}/public/{rnd}"
 
 
 def ora_round(rnd: int, inf: dict) -> datetime:

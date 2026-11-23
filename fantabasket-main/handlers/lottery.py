@@ -11,7 +11,7 @@ algoritmo di Henry, seme da drand); la classifica finale la salva loucabot (shar
      bot agli admin).
 2. **Lottery nella fase draft** (Luca, 23/11): al passaggio alla fase draft il bot ricorda agli admin di fissare il
    momento (`/lottery_quando GG/MM HH:MM`). Sul canale: data e ora, round drand, seed (dall'ultima), impronta del
-   codice, come rifarla (`strumenti/lottery_verifica.py`).
+   codice, il link al round, e allegati lottery.py, lottery_verifica.py e LEGGIMI.txt con le istruzioni (v7.27.3).
 3. **All'ora** (`job_lottery`, ogni 20 secondi): randomness del round confermata da due relay (se non c'è ancora si
    aspetta: vale il round dichiarato), estrazione, poi **una pick al minuto dalla 12ª alla 1ª** sul canale, già con
    le discese; se una pick svelata dopo ne sposta una già uscita il messaggio lo dice. Alla fine l'ordine dei due giri
@@ -176,11 +176,74 @@ def testo_annuncio(anno: str, r: dict) -> str:
             "nessuno lo conosce prima, chiunque lo può leggere dopo.\n\n"
             "<b>Seed</b> (dall'ultima in classifica):\n" +
             "\n".join(f"{i}. {html.escape(_nome(t))}" for i, t in enumerate(seed, 1)) +
-            f"\n\nOdds: la matrice del regolamento. Impronta del codice dell'estrazione (SHA-256 di shared/lottery.py): "
+            f"\n\nOdds: la matrice del regolamento. Impronta del codice dell'estrazione (SHA-256 di lottery.py): "
             f"<code>{r['impronta']}</code>\n"
-            "Per rifarla: <code>python3 strumenti/lottery_verifica.py estrai --round "
-            f"{r['round']} --squadre \"{html.escape(nomi)}\"</code>\n"
+            f"Il round su drand, da aprire nel browser dopo l'ora: {LT.link_round(r['round'])}\n"
+            "Per rifarla: i file allegati qui sotto (lottery.py, lottery_verifica.py, LEGGIMI.txt con le istruzioni), "
+            f"poi <code>python3 lottery_verifica.py estrai --round {r['round']} --squadre \"{html.escape(nomi)}\"</code>\n"
             "Le pick si svelano qui una al minuto, dalla 12ª alla 1ª, con le discese per le penalità.")
+
+
+def leggimi(anno: str, r: dict) -> str:
+    """Le istruzioni allegate all'annuncio (v7.27.3, Luca 23/11: «va allegato il codice con delle istruzioni»)."""
+    seed = r["seed"] if isinstance(r["seed"], list) else json.loads(r["seed"])
+    nomi = ",".join(_nome(t) for t in seed)
+    q = r["quando"].astimezone(ROMA)
+    return f"""LOTTERY DEL DRAFT {anno} · COME VERIFICARLA
+
+Estrazione: {q:%d/%m/%Y} alle {q:%H:%M} (ora di Roma).
+Seme: il round {r['round']} di drand, rete quicknet (League of Entropy). Esce a quell'ora: prima non lo conosce nessuno.
+Impronta del codice (SHA-256 di lottery.py): {r['impronta']}
+
+COSA SERVE
+- Python 3.9 o più recente (python.org, o già installato su Mac e Linux). Nient'altro: solo la libreria standard.
+- I due file allegati, lottery.py e lottery_verifica.py, nella stessa cartella.
+- Facoltativo: «pip install py_ecc» per verificare anche la firma crittografica del round.
+
+1. CONTROLLARE CHE IL CODICE SIA QUELLO ANNUNCIATO
+   Da terminale, nella cartella dei file:
+       sha256sum lottery.py            (Linux)
+       shasum -a 256 lottery.py        (Mac)
+       certutil -hashfile lottery.py SHA256   (Windows)
+   Il risultato deve essere: {r['impronta']}
+
+2. RIFARE L'ESTRAZIONE (dopo l'ora)
+       python3 lottery_verifica.py estrai --round {r['round']} --squadre "{nomi}"
+   Le squadre sono in ordine di seed: la prima è l'ultima in classifica. Esce l'ordine delle pick 1-12 prima delle discese
+   per le penalità: deve essere quello pubblicato sul canale.
+
+3. CONTROLLARE IL NUMERO CASUALE SENZA LO SCRIPT
+   Aprire nel browser (dopo l'ora): {LT.link_round(r['round'])}
+   Il campo «randomness» deve essere quello scritto dal bot sul canale.
+
+4. VEDERE CHE IL SORTEGGIO RISPETTA LE ODDS
+       python3 lottery_verifica.py matrice          (la matrice del regolamento e i suoi controlli)
+       python3 lottery_verifica.py simula 200000    (200.000 estrazioni: le frequenze sono quelle della matrice)
+
+COME FUNZIONA
+La matrice delle odds (righe: seed, colonne: pick) è scomposta in permutazioni pesate (Birkhoff-von Neumann, dal
+Lottery.py di Henry): un solo numero tra 0 e 1, ricavato dalla randomness del round con SHA-256, sceglie una
+permutazione. Ogni estrazione è un ordine valido e, su tante estrazioni, ogni seed esce a ogni pick con la
+probabilità della matrice. Le discese per le penalità si applicano dopo, come da regolamento.
+"""
+
+
+async def allega_codice(bot, chat, anno: str, r: dict) -> None:
+    """Sul canale: lottery.py, lottery_verifica.py e LEGGIMI.txt (un gruppo di documenti)."""
+    import io
+    import os
+    from telegram import InputMediaDocument
+    cartella = LT.CARTELLA
+    file = [("lottery.py", open(os.path.join(cartella, "lottery.py"), "rb").read()),
+            ("lottery_verifica.py", open(os.path.join(cartella, "lottery_verifica.py"), "rb").read()),
+            ("LEGGIMI.txt", leggimi(anno, r).encode())]
+    media = [InputMediaDocument(io.BytesIO(b), filename=n) for n, b in file]
+    media[-1] = InputMediaDocument(io.BytesIO(file[-1][1]), filename="LEGGIMI.txt",
+                                   caption=f"🎰 Lottery {anno}: il codice e come verificarla")
+    try:
+        await bot.send_media_group(chat_id=chat, media=media)
+    except Exception as e:
+        logger.warning("Lottery: allegati non mandati: %s", e)
 
 
 def leggi_quando(args: list[str]) -> datetime:
@@ -230,7 +293,8 @@ async def cmd_lottery_quando(update: Update, context: ContextTypes.DEFAULT_TYPE)
     r = stato(anno)
     ch = settings.load_globals().get("main_channel_id")
     if ch:
-        await context.bot.send_message(chat_id=ch, text=testo_annuncio(anno, r), parse_mode="HTML")
+        await context.bot.send_message(chat_id=ch, text=testo_annuncio(anno, r), parse_mode="HTML", disable_web_page_preview=True)
+        await allega_codice(context.bot, ch, anno, r)
     from handlers.registro import segna
     await segna(context.bot, update.effective_user, "admin", "lottery fissata", oggetto=f"draft {anno}",
                 dopo=f"{q:%d/%m %H:%M}, round {rnd}")
@@ -325,9 +389,14 @@ async def passo(bot, ora: datetime | None = None) -> str | None:
         db._q("UPDATE lottery SET stato = 'estratta', randomness = %s, estratto = %s, passo = 0, ultimo = %s WHERE anno = %s",
               (val, json.dumps(estratto), ora - PAUSA, anno))
         if ch:
-            await bot.send_message(chat_id=ch, parse_mode="HTML", text=(
-                f"🎰 <b>Lottery del draft {anno}</b>: round drand {r['round']}, randomness <code>{val}</code>. "
-                "Si parte dalla 12ª."))
+            try:
+                import py_ecc  # noqa: F401
+                firma = "firma del round verificata, "
+            except ImportError:
+                firma = ""
+            await bot.send_message(chat_id=ch, parse_mode="HTML", disable_web_page_preview=True, text=(
+                f"🎰 <b>Lottery del draft {anno}</b>: round drand {r['round']} ({firma}confermato da più relay), randomness "
+                f"<code>{val}</code>\nControllo da browser: {LT.link_round(r['round'])}\nSi parte dalla 12ª."))
         return "estratta"
     if r["stato"] == "estratta":
         if ora < r["ultimo"] + PAUSA:

@@ -36,6 +36,19 @@ ok(LT.scendi(list("ABCDE"), {"D": 5}) == list("ABCED"), "non oltre l'ultima")
 ok(LT.round_al(datetime.fromtimestamp(1000 + 30, tz=timezone.utc), {"genesis_time": 1000, "period": 3}) == 11
    and LT.round_al(datetime.fromtimestamp(1000 + 31, tz=timezone.utc), {"genesis_time": 1000, "period": 3}) == 12, "round drand dall'ora")
 
+# firma BLS (v7.27.3): con chiavi di prova
+try:
+    from py_ecc.optimized_bls12_381 import G2, multiply
+    from py_ecc.bls.hash_to_curve import hash_to_G1
+    from py_ecc.bls.point_compression import compress_G1, compress_G2
+    _H = hash_to_G1(hashlib.sha256((77).to_bytes(8, "big")).digest(), LT.DST, hashlib.sha256)
+    _sig = compress_G1(multiply(_H, 4242)).to_bytes(48, "big").hex()
+    _a, _b = compress_G2(multiply(G2, 4242))
+    _pk = (_a.to_bytes(48, "big") + _b.to_bytes(48, "big")).hex()
+    ok(LT.verifica_firma(77, _sig, _pk) is True and LT.verifica_firma(78, _sig, _pk) is False, "firma BLS: giusta sul suo round, sbagliata su un altro")
+except ImportError:
+    ok(LT.verifica_firma(77, "00", "00") is None, "senza py_ecc la firma non si verifica (None)")
+
 # ── sanzioni ──
 ok(LO.effetti(7, True, True) == {"giu1": 2, "giu2": 2, "cap": 0} and LO.effetti(7, True, False) == {"giu1": 2, "giu2": 0, "cap": 0}
    and LO.effetti(8, False, True) == {"giu1": 0, "giu2": 2, "cap": 2} and LO.effetti(6, False, False) == {"giu1": 0, "giu2": 0, "cap": 2}
@@ -65,6 +78,8 @@ class Bot:
         inviati.append((chat_id, text, k.get("reply_markup"))); return types.SimpleNamespace(message_id=len(inviati), chat_id=chat_id)
     async def send_photo(self, chat_id, photo, **k):
         inviati.append((chat_id, "FOTO", None))
+    async def send_media_group(self, chat_id, media, **k):
+        inviati.append((chat_id, "ALLEGATI", [m.media.filename for m in media]))
 bot = Bot()
 run = asyncio.run
 run(LO.passaggio_break(bot))
@@ -115,8 +130,23 @@ quando = (datetime.now(timezone.utc) + timedelta(hours=2)).astimezone(LO.ROMA)
 run(LO.cmd_lottery_quando(upd(900), types.SimpleNamespace(bot=bot, args=[f"{quando:%d/%m/%Y}", f"{quando:%H:%M}"])))
 r = LO.stato("2027")
 ok(r and r["seed"][0] == "team24" and risposte[-1].startswith("✅"), f"lottery fissata {risposte[-1:]}")
-ok(any(c == -1 and "Lottery del draft 2027" in tx and r["impronta"] in tx and "lottery_verifica.py estrai --round" in tx for c, tx, _ in inviati),
-   "annuncio: round, seed, impronta, come rifarla")
+ok(any(c == -1 and "Lottery del draft 2027" in tx and r["impronta"] in tx and "lottery_verifica.py estrai --round" in tx
+       and LT.link_round(r["round"]) in tx for c, tx, _ in inviati), "annuncio: round, seed, impronta, link al round, come rifarla")
+ok(any(c == -1 and tx == "ALLEGATI" and kb == ["lottery.py", "lottery_verifica.py", "LEGGIMI.txt"] for c, tx, kb in inviati),
+   "v7.27.3: allegati il codice e le istruzioni")
+_lg = LO.leggimi("2027", r)
+ok(r["impronta"] in _lg and f"--round {r['round']}" in _lg and "sha256sum lottery.py" in _lg and LT.link_round(r["round"]) in _lg,
+   "LEGGIMI: impronta, comando, link, come controllare il codice")
+# lo script da solo, coi due file in una cartella qualsiasi
+import subprocess, shutil
+_dir = tempfile.mkdtemp()
+_sh = LT.CARTELLA
+for _f in ("lottery.py", "lottery_verifica.py"):
+    shutil.copy(os.path.join(_sh, _f), _dir)
+_out = subprocess.run([_sys.executable, "lottery_verifica.py", "estrai", "--randomness", "5e" * 32, "--squadre", ",".join(LV.seed_lottery("2026"))],
+                      cwd=_dir, capture_output=True, text=True, env={"PATH": os.environ.get("PATH", "")}).stdout
+ok(r["impronta"] in _out and "1. " + LT.estrai(LV.seed_lottery("2026"), "5e" * 32)[0] in _out,
+   f"lo script allegato funziona da solo, con la stessa impronta {_out[:80]}")
 ok(run(LO.passo(bot, quando - timedelta(minutes=1))) is None, "prima dell'ora non succede niente")
 LT.randomness = lambda rnd: (_ for _ in ()).throw(LT.LotteryError("non ancora"))
 ok(run(LO.passo(bot, quando + timedelta(seconds=5))) == "attesa", "round non ancora uscito: si aspetta")
