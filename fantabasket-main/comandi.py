@@ -35,7 +35,7 @@ def _fasi_comando() -> dict:
         "dichiara_rfa":        {"offseason-rinnovi", "offseason-draft"},
         # v7.27.0: il draft
         "scelgo":              {"offseason-draft"},
-        **{c: {"offseason-draft"} for c in ("lottery_quando", "lottery", "draft_ordine", "draft_avvia", "draft_pausa", "draft_riprendi", "draft_scegli",
+        **{c: {"offseason-draft"} for c in ("lottery_quando", "lottery_stato", "draft_ordine", "draft_avvia", "draft_pausa", "draft_riprendi", "draft_scegli",
                                             "draft_nome", "draft_da", "draft_correggi", "draft_controllo")},
     }
 
@@ -75,7 +75,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("pick_lega", "Tutte le pick della lega in un'immagine [ANNO] [1|2]: con l'anno tutto un draft"),
         BotCommand("pdf_roster", "I roster di tutte le squadre in un PDF [DATA]"),
         BotCommand("pdf_assets", "Gli asset di tutte le squadre in un PDF [DATA]"),
-        BotCommand("draft", "Il tabellone del draft, un'immagine per giro [ANNO]"),
+        BotCommand("draft", "Il tabellone del draft: il primo giro, con 2 il secondo [ANNO] [1|2]"),
     ]
     # v7.3.0: in comune con loucabot, solo in privato (nei gruppi sono di loucabot: lì non si suggeriscono)
     cmd_lega = [
@@ -147,7 +147,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("set_nascita",                 "Data di nascita [nome] [GG-MM-AAAA], anche più righe"),
         BotCommand("nascite_mancanti",            "Giocatori sotto contratto senza data di nascita"),
         BotCommand("lottery_quando", "Lottery: fissa l'estrazione [GG/MM] [HH:MM]"),
-        BotCommand("lottery",        "Lottery: a che punto è"),
+        BotCommand("lottery_stato",  "Lottery: a che punto è l'estrazione"),
         BotCommand("draft_ordine",   "Draft: correggi l'ordine di un giro, 24 righe [GIRO]"),
         BotCommand("draft_avvia",    "Draft: fallo partire"),
         BotCommand("draft_scegli",   "Draft: scegli per la squadra che tocca [nome]"),

@@ -266,7 +266,7 @@ Dalla v7.27.0 (Luca, 23/11) il draft si fa col bot, nella fase draft, a turno: p
 - Quando tocca a te il bot ti scrive in privato: rispondi con `/scelgo NOME COGNOME` (il nome del giocatore che scegli). Gli admin lo **approvano** (o lo correggono: il nome serve per l'anagrafica, va scritto giusto) e aggiungono da dove viene; poi esce l'annuncio sul canale («Con la prima scelta al draft 2027 SQUADRA seleziona …, da …»). Non c'è un tempo per scegliere e non si passa.
 - Sceglie chi ha la pick **in quel momento**: le pick si scambiano fino alla scelta.
 - Le **1st** si firmano subito, alla rookie scale della posizione; le **2nd** diventano diritti (`/attiva_diritti`).
-- Sul canale c'è l'ordine delle scelte, che si aggiorna a ogni pick («5 | SQUADRA (via SQUADRA1) - …», «(-1)» per una pick scesa per le penalità); a fine giro l'immagine del tabellone. `/draft` lo mostra quando vuoi (`/draft ANNO` quelli vecchi).
+- Sul canale c'è l'ordine delle scelte, che si aggiorna a ogni pick («5 | SQUADRA (via SQUADRA1) - …», «(-1)» per una pick scesa per le penalità); a fine giro l'immagine del tabellone. `/draft` lo mostra quando vuoi: il primo giro, `/draft 2` il secondo (`/draft ANNO [2]` quelli vecchi).
 - **Protezioni**: solo sulle 1st, e le mette solo chi cede la propria pick la prima volta («protetta 1-4»: nel builder delle trade il bottone 🛡 Protezioni nel riepilogo, nel testo `1st round pick 2028 by SQUADRA protetta 1-4`). Al draft conta la posizione dopo le penalità: se cade nella protezione la pick resta a chi la cedeva (anche se è passata di mano più volte) e la protezione finisce lì.
 
 ## Cambio di stagione: contratti finiti, rookie e RFA

@@ -85,6 +85,22 @@ d = LV.dati_odds("2026")
 ok(d and d["lottery"][0]["squadra"] == "Squadra X" and d["lottery"][0]["odds"][0] == 14.0 and d["fisse"][0]["pick"] == "13ª"
    and d["fisse"][-1]["squadra"] == "Squadra A", "dati delle odds")
 ok(LV.immagine_odds(d)[:4] == b"\x89PNG", "immagine delle odds")
+_oggi = [{**r, "posto": r["posto"]} for r in LV.classifica("2026")]
+d2 = LV.dati_odds("2026", _oggi, "se finisse oggi · 20 giornate")
+ok(d2["quando"] == "se finisse oggi · 20 giornate" and "in corso" in d2["sotto"] and LV.immagine_odds(d2)[:4] == b"\x89PNG",
+   "odds «se finisse oggi» (/lottery di loucabot)")
+from shared import draft_vista as DV
+_pv = DV.provvisorio("2026", _oggi, "20 giornate")
+ok(_pv[0]["pick"][0]["lotto"] == "lottery · seed 1" and _pv[0]["pick"][0]["squadra"] == "Squadra X" and _pv[0]["pick"][12]["lotto"] == ""
+   and _pv[0]["pick"][12]["scala"].startswith("scala ") and _pv[1]["pick"][0]["n"] == 25 and "soggette alla lottery" in _pv[0]["sotto"],
+   "/draft se finisse oggi: le 12 della lottery in ordine di seed, poi 13ª–24ª, secondo giro")
+ok(DV.immagine(_pv[0])[:4] == b"\x89PNG", "immagine del draft provvisorio")
+open("/tmp/draft_provvisorio.png", "wb").write(DV.immagine(_pv[0]))
+_fin = []
+async def _foto(p, **k): _fin.append("FOTO")
+_m = types.SimpleNamespace(reply_photo=_foto, reply_text=lambda *a, **k: None)
+asyncio.run(DV.cmd_draft(types.SimpleNamespace(effective_message=_m), types.SimpleNamespace(args=[]), oggi=lambda: ("2026", _oggi, "20 giornate")))
+ok(_fin == ["FOTO"], "/draft senza draft: il primo giro se finisse oggi")
 
 # ── la lottery nella fase draft ──
 fase("offseason-draft", "2027")

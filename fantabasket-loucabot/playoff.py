@@ -1009,6 +1009,51 @@ async def cmd_playoff(update, context):
     await msg.reply_photo(png, caption=f"🏆 Playoff {d['anno']} · {d['fase']}", **TEMPI)
 
 
+def righe_lottery(s: str) -> tuple[list[dict], str]:
+    """La classifica per le odds: quella finale se c'è, se no quella di adesso coi seed di adesso («se finisse oggi»)."""
+    from shared import lottery_vista as LV
+    fin = LV.classifica(s)
+    if fin:
+        return fin, "classifica finale"
+    righe, giocate = C.calcola(s)
+    ai = {t for tt in seed(s).values() for t in tt}
+    return ([{"team": r["team"], "posto": i, "playoff": r["team"] in ai, "w": int(r.get("w") or 0), "l": int(r.get("l") or 0)}
+             for i, r in enumerate(righe, 1)], f"se finisse oggi · {giocate} giornate")
+
+
+def righe_draft() -> tuple[str, list[dict], str]:
+    """Per /draft prima che il draft ci sia (v7.27.2): la classifica finale della stagione (o della passata, in
+    offseason), se no quella di adesso «se finisse oggi»."""
+    from shared import lottery_vista as LV
+    s = config.stagione()
+    if LV.classifica(s):
+        return s, LV.classifica(s), "classifica finale"
+    prima = str(int(s) - 1)
+    if str(config.globali().get("fase", "")).startswith("offseason") and LV.classifica(prima):
+        return prima, LV.classifica(prima), "classifica finale"
+    righe, quando = righe_lottery(s)
+    return s, righe, quando
+
+
+async def cmd_draft(update, context):
+    from shared import draft_vista as DV
+    await DV.cmd_draft(update, context, oggi=righe_draft)
+
+
+async def cmd_lottery(update, context):
+    """/lottery (v7.27.2, Luca 23/11): le odds della lottery, come /playoff: se finisse oggi o con la classifica finale."""
+    from shared import lottery_vista as LV
+    msg = update.effective_message
+    s = config.stagione()
+    righe, quando = await asyncio.to_thread(righe_lottery, s)
+    d = await asyncio.to_thread(LV.dati_odds, s, righe, quando)
+    if not d:
+        await msg.reply_text("Le odds servono di tutte e 24 le squadre in classifica.")
+        return
+    png = await asyncio.to_thread(LV.immagine_odds, d)
+    await msg.reply_photo(png, caption=f"🎰 Draft {d['anno']} · le odds della lottery ({quando})", **TEMPI)
+
+
 async def cmd_set_seed(update, context):
     msg = update.effective_message
     if not config.is_admin(update.effective_user.id):
@@ -1062,5 +1107,7 @@ async def cb_playoff(update, context):
 
 def get_handlers() -> list:
     from telegram.ext import CallbackQueryHandler, CommandHandler
-    return [CommandHandler("playoff", cmd_playoff, block=False), CommandHandler("set_seed", cmd_set_seed),
+    return [CommandHandler("playoff", cmd_playoff, block=False), CommandHandler("lottery", cmd_lottery, block=False),
+            CommandHandler("draft", cmd_draft, block=False),
+            CommandHandler("set_seed", cmd_set_seed),
             CallbackQueryHandler(cb_playoff, pattern=r"^po:ok:\d+$")]

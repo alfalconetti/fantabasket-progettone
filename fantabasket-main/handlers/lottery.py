@@ -375,8 +375,8 @@ async def promemoria(bot) -> str:
     return "\n🎰 Promemoria della lottery agli admin"
 
 
-async def cmd_lottery(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/lottery: a che punto è (admin)."""
+async def cmd_lottery_stato(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/lottery_stato: a che punto è (admin). /lottery è di loucabot: le odds."""
     if not settings.is_admin(update.effective_user.id):
         return
     anno = str(settings.stagione_corrente())
@@ -390,5 +390,5 @@ async def cmd_lottery(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def get_handlers() -> list:
-    return [CommandHandler("lottery_quando", cmd_lottery_quando), CommandHandler("lottery", cmd_lottery),
+    return [CommandHandler("lottery_quando", cmd_lottery_quando), CommandHandler("lottery_stato", cmd_lottery_stato),
             CallbackQueryHandler(cb_sanzioni, pattern=r"^lsz:ok:\d+$")]

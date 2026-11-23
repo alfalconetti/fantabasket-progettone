@@ -82,9 +82,9 @@ Dalla v136 (Luca, 21/11) loucabot ha anche le viste del bot principale, con lo s
 
 ## Il draft: `/draft`
 
-A fine regular season (v7.27.1), al blocco del tabellone dei playoff, loucabot salva la classifica finale (per la lottery e il draft del bot principale) e pubblica sul canale le **odds della lottery**.
+A fine regular season (v7.27.1), al blocco del tabellone dei playoff, loucabot salva la classifica finale (per la lottery e il draft del bot principale) e pubblica sul canale le **odds della lottery**. `/lottery` le mostra quando vuoi: prima della fine della regular season **se finisse oggi** (classifica e seed di adesso), poi con la classifica finale.
 
-Dalla v7.27.0 `/draft` manda il tabellone del draft, un'immagine per giro (senza anno quello in corso o l'ultimo; `/draft ANNO` quelli vecchi). Il draft si fa col bot principale.
+Dalla v7.27.0 `/draft` manda il tabellone del draft: il primo giro, `/draft 2` il secondo (v7.27.2); senza anno quello in corso o l'ultimo, `/draft ANNO [2]` quelli vecchi. Prima che ci sia l'ordine (v7.27.2) mostra il draft **se finisse oggi**: nel primo giro le 12 fuori dai playoff in ordine di seed, segnate «🎰 lottery · seed N» (la posizione la decide l'estrazione), poi la 13ª–24ª; il secondo giro in ordine inverso della classifica. Il draft si fa col bot principale.
 
 ## Il rendimento: `/rendimento` e `/rendimento_carriera`
 

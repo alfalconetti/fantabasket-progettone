@@ -31,18 +31,19 @@ def classifica(stagione: str) -> list[dict]:
         return []
 
 
-def seed_lottery(stagione: str) -> list[str]:
-    """Le 12 fuori dai playoff, dall'ultima (seed 1) in su."""
-    return [r["team"] for r in reversed(classifica(stagione)) if not r["playoff"]]
+def seed_lottery(stagione: str, righe: list[dict] | None = None) -> list[str]:
+    """Le 12 fuori dai playoff, dall'ultima (seed 1) in su. `righe`: una classifica al posto di quella finale (per
+    «se finisse oggi»)."""
+    return [r["team"] for r in reversed(righe if righe is not None else classifica(stagione)) if not r["playoff"]]
 
 
-def fisse(stagione: str) -> list[str]:
+def fisse(stagione: str, righe: list[dict] | None = None) -> list[str]:
     """Dalla 13ª alla 24ª: le squadre dei playoff, dalla peggiore."""
-    return [r["team"] for r in reversed(classifica(stagione)) if r["playoff"]]
+    return [r["team"] for r in reversed(righe if righe is not None else classifica(stagione)) if r["playoff"]]
 
 
-def secondo_giro(stagione: str) -> list[str]:
-    return [r["team"] for r in reversed(classifica(stagione))]
+def secondo_giro(stagione: str, righe: list[dict] | None = None) -> list[str]:
+    return [r["team"] for r in reversed(righe if righe is not None else classifica(stagione))]
 
 
 def chi_ha(anno: int | str, giro: int) -> dict[str, str]:
@@ -51,28 +52,33 @@ def chi_ha(anno: int | str, giro: int) -> dict[str, str]:
     return {r["proprietario_orig"]: r["proprietario_att"] for r in rr}
 
 
-def dati_odds(stagione: str) -> dict | None:
-    """L'immagine delle odds (lottery_odds.typ, mockup approvato il 18/11). Il draft è quello dell'anno dopo."""
-    cl = {r["team"]: r for r in classifica(stagione)}
+def dati_odds(stagione: str, righe: list[dict] | None = None, quando: str = "classifica finale") -> dict | None:
+    """L'immagine delle odds (lottery_odds.typ, mockup approvato il 18/11). Il draft è quello dell'anno dopo.
+    v7.27.2 (Luca, 23/11: «un /lottery tipo playoff per vedere se finisse oggi»): con `righe` (la classifica di
+    adesso: team, posto, playoff, w, l) e `quando` («se finisse oggi · G25»)."""
+    righe = righe if righe is not None else classifica(stagione)
+    cl = {r["team"]: r for r in righe}
     if len(cl) != 24:
         return None
     anno = int(stagione) + 1
     ha = chi_ha(anno, 1)
     sq = lambda t: L.squadra(t) or {"nome": t}
     lot = []
-    for i, t in enumerate(seed_lottery(stagione)):
+    for i, t in enumerate(seed_lottery(stagione, righe)):
         di = ha.get(t, t)
         lot.append({"seed": i + 1, "squadra": sq(t)["nome"], "colore": L.colore(sq(t)), "wl": f"{cl[t]['w']}-{cl[t]['l']}",
                     "odds": [round(p * 100, 2) for p in LT.ODDS[i]],
                     "di": sq(di)["nome"] if di != t else "", "di_colore": L.colore(sq(di))})
     fx = []
-    for k, t in enumerate(fisse(stagione)):
+    for k, t in enumerate(fisse(stagione, righe)):
         di = ha.get(t, t)
         fx.append({"pick": f"{13 + k}ª", "squadra": sq(t)["nome"], "colore": L.colore(sq(t)), "wl": f"{cl[t]['w']}-{cl[t]['l']}",
                    "di": sq(di)["nome"] if di != t else "", "di_colore": L.colore(sq(di)), "nota": ""})
     s2 = str(int(stagione) + 1)[-2:]
-    return {"anno": str(anno), "sotto": f"Fine regular season {stagione}-{s2} · estrazione verificabile con drand, nella fase draft",
-            "quando": "classifica finale", "lottery": lot, "fisse": fx,
+    oggi = quando != "classifica finale"
+    return {"anno": str(anno), "sotto": (f"Regular season {stagione}-{s2} in corso · se finisse oggi" if oggi else f"Fine regular season {stagione}-{s2}")
+            + " · estrazione verificabile con drand, nella fase draft",
+            "quando": quando, "lottery": lot, "fisse": fx,
             "note": "Le percentuali sono la matrice delle odds del regolamento (righe: seed, colonne: pick; seed 1 = l'ultima in "
                     "classifica). Dalla 13ª alla 24ª le squadre dei playoff, in ordine inverso della classifica. Le discese per "
                     "le penalità si applicano all'estrazione: queste posizioni possono ancora cambiare. «Pick in mano a»: la "

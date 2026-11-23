@@ -702,3 +702,8 @@ Il calcolo dei fantapunti.
 ## v145 (2026-11-23, progettone v7.27.1)
 
 - Al blocco del tabellone dei playoff: classifica finale salvata (`lega_classifica_finale`, per lottery e draft del bot principale) e le odds della lottery sul canale
+
+## v146 (2026-11-23, progettone v7.27.2)
+
+- `/lottery`: le odds della lottery, come `/playoff` (se finisse oggi, poi con la classifica finale)
+- `/draft` prima dell'ordine: se finisse oggi, le 12 soggette alla lottery

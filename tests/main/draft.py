@@ -17,6 +17,7 @@ ok = lambda c, m: print(("✅" if c else "❌ FAIL"), m)
 import handlers.draft as D
 from shared import draft_vista as DV
 
+db._q("DELETE FROM messaggi_fissi WHERE chiave LIKE 'draft-%%'")      # l'ordine sul canale: nuovo a ogni prova
 db._q("DELETE FROM registro_azioni")
 db._q("TRUNCATE giocatori, contratti, pick, rookie, trade, trade_items, trade_squadre, trade_voti, transazioni, draft, draft_scelte RESTART IDENTITY CASCADE")
 for i in range(1, 25):
@@ -145,7 +146,11 @@ ok(d1["pick"][1]["prot"] == "protetta 1-4" and d1["pick"][2]["via"] == "Squadra 
 ok(DV.immagine(d1)[:4] == b"\x89PNG" and DV.immagine(DV.dati("2027", 2))[:4] == b"\x89PNG", "l'immagine di tutti e due i giri")
 risposte.clear()
 run(DV.cmd_draft(upd(1001), ctx()))
-ok(risposte == ["FOTO", "FOTO"], "/draft: i due giri")
+ok(risposte == ["FOTO"], "/draft: il primo giro")
+risposte.clear()
+run(DV.cmd_draft(upd(1001), ctx("2027", "2")))
+ok(risposte == ["FOTO"] and DV.leggi_args(["2"]) == (None, 2) and DV.leggi_args(["2027"]) == ("2027", 1) and DV.leggi_args([]) == (None, 1),
+   "/draft 2 il secondo giro, /draft ANNO [GIRO]")
 run(DV.cmd_draft(upd(1001), ctx("2019")))
 ok("Nessun draft 2019" in risposte[-1], "/draft di un anno che non c'è")
 # controllo di cap e slot (con 2 1st in mano A sfora gli slot pieni)

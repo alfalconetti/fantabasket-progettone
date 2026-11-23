@@ -17,7 +17,7 @@ ORDINE_GM = [
     "guida",
     "calendario", "giornata", "live", "risultati", "live_results", "partita", "notte",          # la giornata
     "classifica", "classifica_conference", "classifica_full", "classifica_home_away", "rendimento_team",
-    "playoff", "quasi_cup", "calendario_full",                                                 # classifiche
+    "playoff", "lottery", "quasi_cup", "calendario_full",                                                 # classifiche
     "player", "giocatori",
     "roster", "assets", "pick", "pick_lega", "draft", "team_diff", "carriera", "trova_trade", "penalita",  # squadre (v7.21.0, dal main)
     "top", "top_storica", "status", "rendimento", "rendimento_carriera", "rendimento_situazione",
@@ -55,12 +55,13 @@ def liste_comandi() -> dict:
         BotCommand("rendimento_team", "Il rendimento di una squadra giornata per giornata, panchina compresa"),
         BotCommand("quasi_cup", "La Quasi NBA Cup: qualificazione e tabellone (immagine)"),
         BotCommand("playoff", "Il tabellone dei playoff (prima dei playoff: se finisse oggi)"),
+        BotCommand("lottery", "Le odds della lottery del draft (prima della fine: se finisse oggi)"),
         # v7.21.0 (Luca, 21/11): le viste del bot principale (vista.py); nei gruppi risponde loucabot
         BotCommand("roster",  "Roster di una squadra [SQUADRA] [DD-MM-YY]"),
         BotCommand("assets",  "Asset completi di una squadra [SQUADRA] [DD-MM-YY]"),
         BotCommand("pick", "Le pick in mano a una squadra [SQUADRA] [ANNO] [1|2]; con giro e anno la storia (aiuto)"),
         BotCommand("pick_lega", "Tutte le pick della lega in un'immagine [ANNO] [1|2]: con l'anno tutto un draft"),
-        BotCommand("draft", "Il tabellone del draft, un'immagine per giro [ANNO]"),
+        BotCommand("draft", "Il tabellone del draft: il primo giro, con 2 il secondo [ANNO] [1|2]"),
         BotCommand("team_diff", "Variazioni di roster [SQUADRA] [da] [a]"),
         BotCommand("carriera", "Carriera di un giocatore: fantabasket e NBA [nome]"),
         BotCommand("trova_trade", "Una trade ufficiale: per numero o per giocatore"),

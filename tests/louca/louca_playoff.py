@@ -151,6 +151,14 @@ try:
     _ai = {t for tt in PO.seed(S).values() for t in tt}
     ok(len(_cf) == len(config.squadre()) and [r["posto"] for r in _cf] == list(range(1, len(_cf) + 1))
        and {r["team"] for r in _cf if r["playoff"]} == _ai, f"classifica finale salvata per la lottery {_cf}")
+    # v7.27.2 (Luca, 23/11): /lottery come /playoff: classifica finale, se no «se finisse oggi»
+    _rl, _q = PO.righe_lottery(S)
+    ok(_q == "classifica finale" and len(_rl) == len(_cf), "/lottery: con la classifica finale")
+    db.q("DELETE FROM lega_classifica_finale WHERE stagione = %s", (S,))
+    _rl, _q = PO.righe_lottery(S)
+    ok(_q.startswith("se finisse oggi") and [r["posto"] for r in _rl] == list(range(1, len(_rl) + 1))
+       and {r["team"] for r in _rl if r["playoff"]} == _ai, f"/lottery: se finisse oggi ({_q})")
+    PO.salva_classifica_finale(S)
     ok(CG.numero("P1", S) == 4 and PB.in_gioco(db.q, S, g4) == {x for p in pp for x in (p["casa"], p["trasferta"])}
        and PB.in_gioco(db.q, S, db.giornata(S, 3)) is None, "P1 = G4; nella P1 giocano solo le 8 squadre del primo turno")
     prima = [(r["team"], r["w"]) for r in C.calcola(S)[0]]

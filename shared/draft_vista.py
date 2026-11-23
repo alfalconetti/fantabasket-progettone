@@ -9,8 +9,8 @@ Le righe sono in `draft_scelte` (anno, giro, numero 1–48, pick, penalità, sta
 - Ordine in testo (Luca, 23/11): «ORDINE SCELTE AL DRAFT 2026», PRIMO GIRO / SECONDO GIRO, righe «1 | Andrea -
   Cam Boozer», «5 | Geva (via Henry) - …», «13 | Calamo (-1) - …», «19 | Enzo (via Alan, -1)», «2 | Leo (protetta
   1-4) - …».
-- Tabellone: un'immagine per giro (draft.typ, stile «tracker» chiaro a righe, due colonne da 12; in prova finché la
-  lega non sceglie lo stile nel sondaggio del 23/11).
+- Tabellone: un'immagine per giro (draft.typ, stile B «manifesto» color crema, due colonne da 12: Luca, 23/11, in
+  attesa del sondaggio della lega).
 """
 import json
 import os
@@ -132,6 +132,43 @@ def dati(anno: str, giro: int) -> dict | None:
                     "diventano diritti"}
 
 
+def provvisorio(stagione: str, righe: list[dict], quando: str) -> list[dict]:
+    """v7.27.2 (Luca, 23/11: «anche /draft andrebbe fatto se finisse oggi indicando che le 12 sono soggette a
+    lottery»): i due giri dalla classifica `righe` (team, posto, playoff), prima della lottery. Primo giro: le 12 fuori
+    dai playoff in ordine di seed (dall'ultima), segnate «lottery · seed N» (la posizione la decide l'estrazione), poi
+    13ª–24ª; secondo giro: inverso della classifica. Chi sceglie: chi ha la pick adesso. Le discese per le penalità si
+    applicano alla lottery: qui non ci sono."""
+    from shared import lottery_vista as LV
+    anno = str(int(stagione) + 1)
+    out = []
+    for giro in (1, 2):
+        ordine = (LV.seed_lottery(stagione, righe) + LV.fisse(stagione, righe)) if giro == 1 else LV.secondo_giro(stagione, righe)
+        prot = {r["proprietario_orig"]: r for r in (L.q("SELECT proprietario_orig, proprietario_att, protezioni FROM pick "
+                                                         "WHERE anno = %s AND round = %s", (anno, giro), many=True) or [])}
+        pick = []
+        for i, orig in enumerate(ordine, 1):
+            pr = prot.get(orig) or {}
+            chi = pr.get("proprietario_att") or orig
+            t = L.squadra(chi) or {"nome": chi}
+            n = i + (24 if giro == 2 else 0)
+            lot = giro == 1 and i <= 12
+            sc = scala(n, giro)
+            pick.append({"n": n, "squadra": t.get("nome", chi), "gm": gm(chi), "colore": L.colore(t), "logo": L.logo(chi),
+                         "sigla": "".join(w[0] for w in t.get("nome", chi).split()[:2]).upper(),
+                         "via": (L.squadra(orig) or {}).get("nome", orig) if orig != chi else "",
+                         "prot": P.testo(pr.get("protezioni")) if pr.get("protezioni") else "", "sanz": "", "stato": "dopo",
+                         "gioc": "", "lotto": f"lottery · seed {i}" if lot else "",
+                         "scala": "diritti" if giro == 2 else ("scala da lottery" if lot else f"scala {sc}")})
+        out.append({"anno": anno, "giro": "Primo giro" if giro == 1 else "Secondo giro",
+                    "sotto": f"Se finisse oggi ({quando})" + (" · le prime 12 sono soggette alla lottery: il numero è il seed"
+                                                              if giro == 1 else " · in ordine inverso della classifica"),
+                    "ora": None, "pick": pick,
+                    "note": "Prima della lottery: nel primo giro le 12 fuori dai playoff in ordine di seed (dall'ultima), la "
+                            "posizione la decide l'estrazione; dalla 13ª le squadre dei playoff in ordine inverso della classifica. "
+                            "Le discese per le penalità e le protezioni si applicano all'estrazione. «via»: la pick è stata scambiata."})
+    return out
+
+
 def immagine(d: dict) -> bytes:
     import typst
     tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "draft.typ")
@@ -144,20 +181,45 @@ def anni() -> list[str]:
     return [r["anno"] for r in (L.q("SELECT DISTINCT anno FROM draft_scelte ORDER BY anno DESC", many=True) or [])]
 
 
-async def cmd_draft(update, context):
-    """/draft [ANNO]: i tabelloni dei due giri (senza anno l'ultimo, quello in corso)."""
+def leggi_args(args: list[str]) -> tuple[str | None, int]:
+    """/draft [ANNO] [1|2] (v7.27.2, Luca 23/11): senza giro il primo; l'anno è un numero di 4 cifre."""
+    anno, giro = None, 1
+    for a in args or []:
+        if a.isdigit() and len(a) == 4:
+            anno = a
+        elif a in ("1", "2"):
+            giro = int(a)
+    return anno, giro
+
+
+async def cmd_draft(update, context, oggi=None):
+    """/draft [ANNO] [1|2]: il tabellone di un giro (senza giro il primo, senza anno l'ultimo draft, quello in corso).
+    v7.27.2: `oggi` (loucabot) dà (stagione, classifica, quando) per il draft che non c'è ancora: «se finisse oggi»,
+    le 12 soggette alla lottery."""
     import asyncio
     msg = update.effective_message
     try:
         tutti = anni()
     except Exception:
         tutti = []
-    anno = (context.args or [None])[0] or (tutti[0] if tutti else None)
+    chiesto, giro = leggi_args(context.args or [])
+    if oggi and (not chiesto or chiesto not in tutti):
+        try:
+            st, righe, quando = await asyncio.to_thread(oggi)
+        except Exception:
+            st, righe, quando = None, [], ""
+        prossimo = str(int(st) + 1) if st else None
+        if righe and len(righe) == 24 and prossimo not in tutti and (not chiesto or chiesto == prossimo):
+            d = (await asyncio.to_thread(provvisorio, st, righe, quando))[giro - 1]
+            await msg.reply_photo(await asyncio.to_thread(immagine, d))
+            return
+    anno = chiesto or (tutti[0] if tutti else None)
     if not anno or anno not in tutti:
         await msg.reply_text("Nessun draft " + (f"{anno} " if anno else "") + "nel bot." +
                              (f" Draft che ci sono: {', '.join(tutti)}." if tutti else ""))
         return
-    for giro in (1, 2):
-        d = await asyncio.to_thread(dati, anno, giro)
-        if d:
-            await msg.reply_photo(await asyncio.to_thread(immagine, d))
+    d = await asyncio.to_thread(dati, anno, giro)
+    if not d:
+        await msg.reply_text(f"Del draft {anno} non c'è ancora il {'primo' if giro == 1 else 'secondo'} giro.")
+        return
+    await msg.reply_photo(await asyncio.to_thread(immagine, d))
