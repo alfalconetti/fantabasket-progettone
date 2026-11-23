@@ -19,7 +19,25 @@ Gli admin sono quelli di `admin_ids` in `globals.json`, gli stessi degli altri b
 
 ## Il calendario
 
-**A inizio stagione:**
+### Il sorteggio con drand (v7.28.0)
+
+Dalla stagione 2027-28 gli abbinamenti li sorteggia il bot, verificabile da tutti come la lottery del draft.
+
+1. **`/calendario_quando GG/MM HH:MM`** fissa il sorteggio (almeno 10 minuti avanti, ora di Roma). Sul canale principale l'annuncio: il round drand che esce a quell'ora, le due conference (da `divisions.json`, 12 squadre ciascuna, in ordine alfabetico), l'impronta del codice, il link al round e il comando per rifarlo; allegati `calendario_sorteggio.py`, `lottery.py` e `LEGGIMI.txt`. Si può rifissare finché il sorteggio non è fatto; dopo no. Senza argomenti dice a che punto è. La stagione è quella corrente se non ha ancora il calendario, se no la successiva.
+2. **All'ora** il bot prende il numero del round (gli stessi controlli della lottery, firma compresa) e sorteggia le 38 giornate: andata nella conference (G1–G11), contro l'altra conference (G12–G23), ritorno a campi invertiti (G24–G34), ultime 4 tra tutti (G35–G38); 19 in casa e 19 fuori a testa, **mai più di 2 partite di fila in casa o fuori**. Sul canale casa e fuori di ogni squadra giornata per giornata e il CSV con tutte le partite; al gruppo admin il promemoria delle date.
+3. **`/importa_date`** come didascalia del CSV (o in risposta al file): le date delle 38 giornate, una riga per giornata, `giornata,giorno1,giorno2,…` con da 1 a 4 giorni NBA consecutivi; la giornata come `G12` o `12`; in fondo, se vuoi, le squadre NBA a media (sigle separate da spazi); intestazione facoltativa, anche col `;`. Il bot unisce date e sorteggio e importa il calendario come con `/importa_calendario` (stessi controlli, stesso foglio). Esempio:
+
+```
+giornata,giorno1,giorno2,giorno3
+G1,20/10/2027,21/10/2027,22/10/2027
+G2,23/10,24/10,OKC NOP
+```
+
+Poi, come sempre, `/nba_sync` e `/calendario_check`.
+
+### Il calendario da CSV
+
+**A inizio stagione** (fino al 2026-27, o per correggere a mano):
 
 1. Manda il CSV del calendario come file, con didascalia `/importa_calendario`. Va bene anche rispondere con `/importa_calendario` al messaggio che contiene il file. Un nuovo import sostituisce il calendario di regular season della stagione, senza doppioni.
 2. `/nba_sync`: scarica da ESPN tutte le partite NBA della stagione (qualche minuto).
@@ -211,6 +229,8 @@ Il bot scarica da ESPN le foto **piano piano, solo di notte negli Stati Uniti** 
 
 | Comando | Cosa fa |
 |---|---|
+| `/calendario_quando` | fissa il sorteggio del calendario con drand (GG/MM HH:MM); senza argomenti lo stato |
+| `/importa_date` | le date delle 38 giornate dopo il sorteggio (CSV, come sopra) |
 | `/importa_calendario` | importa il CSV (didascalia del file, o in risposta al file) |
 | `/importa_playoff` | importa le date dei playoff (CSV, come sopra); `/calendario_playoff` il riepilogo |
 | `/set_seed SQUADRA N` | playoff: la squadra al seed N della sua conference, prima del blocco del tabellone |

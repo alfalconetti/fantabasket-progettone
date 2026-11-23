@@ -126,7 +126,7 @@ Ci sono anche nel bot principale, in privato.
 - **Yahoo**: la lega dove si schierano i quintetti (per il regolamento fa fede Yahoo) e le **posizioni eleggibili** dei giocatori, che decidono i ruoli.
 - Tutto il resto (contratti, trade, aste, panchine, risultati, classifica) è della lega e sta nel database dei bot.
 
-Il calendario della lega lo importano gli admin. Le partite NBA il bot le scarica da ESPN e le ricontrolla ogni mattina: se l'NBA sposta una partita, la scadenza o le squadre che prendono la media in una giornata possono cambiare, e il bot si aggiorna da solo (gli admin ricevono un avviso).
+Il calendario della lega, dalla stagione 2027-28, lo **sorteggia il bot** con un numero di drand, come la lottery del draft (v7.28.0): prima esce sul canale l'annuncio col round, le conference e il codice allegato con le istruzioni (`LEGGIMI.txt`), così chiunque può rifare il sorteggio sul proprio computer e ottenere lo stesso calendario. Regole: andata nella conference, poi contro l'altra conference, ritorno a campi invertiti, ultime 4 tra tutti; 19 partite in casa e 19 fuori, mai più di 2 di fila in casa o fuori. Le date le importano gli admin. Le partite NBA il bot le scarica da ESPN e le ricontrolla ogni mattina: se l'NBA sposta una partita, la scadenza o le squadre che prendono la media in una giornata possono cambiare, e il bot si aggiorna da solo (gli admin ricevono un avviso).
 
 Se le squadre che prendono la media scritte nel calendario pubblicato e quelle del bot non coincidono, vale il bot: le calcola dalle partite NBA vere.
 

@@ -707,3 +707,8 @@ Il calcolo dei fantapunti.
 
 - `/lottery`: le odds della lottery, come `/playoff` (se finisse oggi, poi con la classifica finale)
 - `/draft` prima dell'ordine: se finisse oggi, le 12 soggette alla lottery
+
+## v147 (2026-11-23, progettone v7.28.0)
+
+- **Sorteggio del calendario con drand** (Luca, 15/11 e 23/11), come la lottery: `/calendario_quando GG/MM HH:MM` lo annuncia sul canale (round, conference, impronta, link, codice e `LEGGIMI.txt` allegati); all'ora il bot sorteggia le 38 giornate con la struttura di Henry e **mai più di 2 partite di fila in casa o fuori** (prima arrivava a 13-16), le pubblica col CSV; `/importa_date` unisce le date al sorteggio e importa il calendario
+- `py_ecc` per la firma BLS del round (si ricostruisce l'immagine)

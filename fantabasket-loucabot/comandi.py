@@ -73,6 +73,8 @@ def liste_comandi() -> dict:
         BotCommand("guida",      "Guida per i GM"),
     ]
     admin = gm + [
+        BotCommand("calendario_quando",  "Sorteggio del calendario con drand: GG/MM HH:MM (senza, lo stato)"),
+        BotCommand("importa_date",       "Le date delle 38 giornate dopo il sorteggio (CSV allegato)"),
         BotCommand("importa_playoff",    "Importa le date dei playoff (CSV allegato)"),
         BotCommand("set_seed",           "Playoff: SQUADRA N, la squadra al seed N (prima del blocco)"),
         BotCommand("calendario_playoff", "Le giornate dei playoff: date, prima partita, squadre a media"),

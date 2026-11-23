@@ -2207,3 +2207,7 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 - **Lottery verificabile da tutti** (Luca, 23/11: «va allegato il codice con delle istruzioni, così come il link»): all'annuncio il bot allega sul canale `lottery.py`, `lottery_verifica.py` e `LEGGIMI.txt` (come controllare l'impronta, rifare l'estrazione, vedere il round dal browser, simulare); nei messaggi il link al round su drand. Lo script ora sta in `shared/lottery_verifica.py` (funziona anche da solo coi due file nella stessa cartella; `strumenti/lottery_verifica.py` lo lancia dal repo)
 - **Firma BLS del round** verificata con `py_ecc` (nuova dipendenza del bot principale: si ricostruisce l'immagine), oltre ai relay concordi e allo SHA-256 della firma; nello script facoltativa
+
+## v7.28.0 (2026-11-23)
+
+- **Sorteggio del calendario con drand** (loucabot v147; Luca, 15/11 e 23/11): `shared/calendario_sorteggio.py` con uno schema a posti di 38 giornate (struttura di Henry: andata, interconference, ritorno, ultime 4; 19 in casa e 19 fuori; mai più di 2 di fila nello stesso campo, trovato con `strumenti/calendario_schema.py`) e i controlli del suo script; il caso sceglie solo chi va in quale posto, dal round drand annunciato. Verificabile come la lottery: codice e istruzioni allegati all'annuncio
