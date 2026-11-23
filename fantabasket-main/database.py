@@ -353,6 +353,36 @@ def _migra_stagioni() -> None:
             creato        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             chiuso        TIMESTAMPTZ)""")
     _q("ALTER TABLE rfa_dichiarati ADD COLUMN IF NOT EXISTS nota TEXT")
+    # v7.27.0 (Luca, 23/11): la protezione che chi cede la 1st per la prima volta mette nella trade
+    _q("ALTER TABLE trade_items ADD COLUMN IF NOT EXISTS protezione JSONB")
+    # v7.27.0 (Luca, 23/11): il draft a turni. Una riga per scelta (48: due giri da 24), con la pick (di chi era),
+    # le posizioni perse per le penalità; chi sceglie si decide al momento (la pick si scambia fino alla scelta)
+    try:                                   # v7.27.1: classifica finale, sanzioni, lottery (handlers/lottery.py)
+        from handlers.lottery import migra as _migra_lottery
+        _migra_lottery()
+    except Exception as e:
+        logger.warning("Migrazione della lottery: %s", e)
+    _q("""CREATE TABLE IF NOT EXISTS draft (
+            anno        TEXT PRIMARY KEY,
+            stato       TEXT NOT NULL DEFAULT 'pronto' CHECK (stato IN ('pronto', 'in_corso', 'pausa', 'finito')),
+            avviato_at  TIMESTAMPTZ,
+            finito_at   TIMESTAMPTZ)""")
+    _q("""CREATE TABLE IF NOT EXISTS draft_scelte (
+            id              SERIAL PRIMARY KEY,
+            anno            TEXT NOT NULL,
+            giro            INT NOT NULL CHECK (giro IN (1, 2)),
+            numero          INT NOT NULL,
+            pick_id         INT NOT NULL REFERENCES pick(id),
+            penalita        INT NOT NULL DEFAULT 0,
+            stato           TEXT NOT NULL DEFAULT 'attesa' CHECK (stato IN ('attesa', 'proposta', 'approvata', 'fatta')),
+            squadra         TEXT,
+            via             TEXT,
+            protetta        TEXT,
+            nome_proposto   TEXT,
+            proposto_da     BIGINT,
+            giocatore_id    INT REFERENCES giocatori(id),
+            fatta_at        TIMESTAMPTZ,
+            UNIQUE (anno, numero))""")
     # messaggi sul canale che il bot aggiorna invece di riscrivere (v3.13.3: riepilogo RFA)
     _q("""CREATE TABLE IF NOT EXISTS messaggi_fissi (
             chiave      TEXT PRIMARY KEY,
@@ -911,7 +941,7 @@ def get_items_trade(trade_id: int) -> list:
                   c.tipo AS giocatore_tipo_contratto,
                   r.anno_firma AS giocatore_anno_firma,
                   p.anno AS pick_anno, p.round AS pick_round,
-                  p.proprietario_orig AS pick_orig
+                  p.proprietario_orig AS pick_orig, p.protezioni AS protezioni
            FROM trade_items ti
            LEFT JOIN giocatori g ON g.id = ti.giocatore_id
            LEFT JOIN contratti c ON c.giocatore_id = ti.giocatore_id AND c.attivo = TRUE
@@ -1883,3 +1913,29 @@ def correggi_firma(tid: int, importo: int, anni: int) -> dict:
         raise ValueError(perche)
     _q("UPDATE contratti SET importo = %s, anni_originali = %s WHERE id = %s", (importo, anni, f["contratto_id"]))
     return f
+
+
+# ── v7.27.0 (Luca, 23/11): protezioni delle pick ──────────────────────────────
+
+def pick_scambiata_prima(pick_id: int) -> bool:
+    """La pick è già passata di mano in una trade approvata (e non annullata)?"""
+    return bool(_q("""SELECT 1 FROM trade_items ti JOIN trade t ON t.id = ti.trade_id
+                       WHERE ti.pick_id = %s AND t.stato = 'approvata' LIMIT 1""", (pick_id,), one=True))
+
+
+def picks_proteggibili(trade_id: int) -> list[dict]:
+    """Le pick della bozza a cui chi cede può mettere una protezione (shared/protezioni.proteggibile)."""
+    from shared import protezioni as P
+    out = []
+    for i in get_items_trade(trade_id):
+        if i["tipo"] != "pick" or not i.get("pick_id"):
+            continue
+        p = _q("SELECT * FROM pick WHERE id = %s", (i["pick_id"],), one=True)
+        if p and P.proteggibile(p, i["team_id_da"], pick_scambiata_prima(p["id"])):
+            out.append({**i, "pick": p})
+    return out
+
+
+def set_protezione_item(item_id: int, prot: dict | None) -> None:
+    import json as _json
+    _q("UPDATE trade_items SET protezione = %s WHERE id = %s", (_json.dumps(prot) if prot else None, item_id))

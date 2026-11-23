@@ -151,6 +151,20 @@ I diritti delle seconde al secondo anno scadono 10 giorni prima della trade dead
 
 ---
 
+## Il draft
+
+Dalla v7.27.0 (Luca, 23/11). Nel pannello, nella fase draft, il sottomenu **🏀 Draft** (avvia, pausa e ripresa, ricontatta il GM, ordine, controllo di cap e slot); il resto si scrive coi comandi:
+
+- **Sanzioni** (v7.27.1): al passaggio a **offseason-break** il bot conta le penalità della stagione e manda il riepilogo con ✅ **Conferma e pubblica**. L'effetto si decide al momento della lottery, da chi ha le proprie pick: propria 1st e 2nd → tutte e due −1 ogni 3 penalità; solo la 1st → la 1st; solo la 2nd → la 2nd e cap −1M ogni 4; nessuna → cap −1M ogni 3 (il cap lo applicate voi con `/set_cap_penalizzato`, il bot lo ricorda a fine lottery).
+- **Lottery** (v7.27.1): al passaggio alla **fase draft** il bot ricorda di fissarla con `/lottery_quando GG/MM HH:MM` (ora di Roma, almeno 10 minuti avanti; serve la classifica finale, che loucabot salva al blocco del tabellone dei playoff, quando pubblica anche le odds). Sul canale l'annuncio con il round drand, i seed, l'impronta del codice e il comando per rifarla. All'ora il bot legge il round (se non c'è ancora aspetta), estrae e svela una pick al minuto dalla 12ª alla 1ª, già con le discese; alla fine scrive l'ordine dei due giri del draft. `/lottery` dice a che punto è.
+- `/draft_ordine 1` (e `/draft_ordine 2`) con sotto 24 righe: **solo per correggere** l'ordine scritto dalla lottery (la squadra o il GM di chi era la pick, con `-1` se è scesa per le penalità, es. `13 SQUADRA -1`). Si rifà finché il draft non parte.
+- `/draft_avvia` (o ▶️ nel sottomenu): solo nella fase draft e con tutti e due i giri. Sul canale l'ordine; al GM che tocca un messaggio in privato.
+- Il GM scrive `/scelgo NOME`; nel gruppo admin arriva con ✅ **Approva** e ↩️ **Chiedi un altro nome**. Se il nome va solo sistemato: `/draft_nome NOME GIUSTO`, poi ✅. Se nell'anagrafica c'è già un giocatore con quel nome il bot lo dice: approvando si usa quello.
+- Dopo l'approvazione `/draft_da COLLEGE O CLUB` (solo per l'annuncio, non si salva): la scelta è fatta. La 1st si firma alla rookie scale della posizione (`rookie_scale` nelle impostazioni, colonna del I anno), anche sopra il cap; la 2nd diventa diritti. Poi l'annuncio, l'ordine aggiornato e il GM dopo; a fine giro l'immagine sul canale.
+- `/draft_scegli NOME`: scegli tu per la squadra che tocca (poi `/draft_da`). `/draft_correggi NUMERO NOME`: corregge il nome di una scelta già fatta. `/draft_pausa`, `/draft_riprendi`.
+- **Cap e slot**: al passaggio alla fase draft il bot manda al gruppo admin chi sforerebbe scegliendo con tutte le 1st che ha in mano (con l'ordine fatto la scala della posizione, se no la più bassa); lo stesso dopo ogni trade in quella fase. Non blocca niente. `/draft_controllo` (o 📊 nel sottomenu) quando vuoi.
+- Le **protezioni** («protetta 1-4», solo 1st, solo chi cede la propria pick la prima volta) le scrivono i GM nella trade; scattano da sole al draft.
+
 ## Decadimenti e spalmature
 
 Le richieste dei GM arrivano nel gruppo. Per farne uno direttamente: pannello → **🏁 Decadimento** → squadra → giocatore → motivo. Il motivo cambia cosa succede alle spalmature, cioè ai soldi che restano sul cap di chi l'aveva tagliato:

@@ -23,6 +23,8 @@ Regole di parsing:
 - Pick: "1st/2nd round pick ANNO [by] GMNOME" ("by" facoltativo)
 - Pick corrente: "16th pick" (anno corrente dal DB)
 - Diritti: "Diritti di NOME"
+- Protezione (v7.27.0, Luca 23/11): "1st round pick 2027 by GM_A protetta 1-4" (solo la propria 1st, ceduta la
+  prima volta)
 """
 import re
 import unicodedata
@@ -109,6 +111,7 @@ class ParsedItem:
     by_team_id: str = ""
     pick_id: int | None = None
     pick_proprietario_att: str = ""
+    protezione: dict | None = None
     # diritti
     diritti_detentore: str = ""
     # errori
@@ -161,8 +164,13 @@ def _parse_riga(riga: str, tutti_team: list, stagione: str) -> ParsedItem | None
         item.errori.append(f"Pick draft corrente ({pos}a scelta) — verifica manuale nel DB")
         return item
 
-    # Pick 1st/2nd
-    m = _RE_PICK.match(r)
+    # Pick 1st/2nd (v7.27.0: con «protetta 1-4» in fondo)
+    from shared import protezioni as P
+    try:
+        prot = P.leggi(r)
+    except P.Errore as er:
+        return ParsedItem(tipo="pick", raw=r, errori=[str(er)])
+    m = _RE_PICK.match(P.togli(r) if prot else r)
     if m:
         rnd    = 1 if m.group(1).lower() == "1st" else 2
         anno   = m.group(2)
@@ -179,6 +187,12 @@ def _parse_riga(riga: str, tutti_team: list, stagione: str) -> ParsedItem | None
         if match_pick:
             item.pick_id = match_pick["id"]
             item.pick_proprietario_att = match_pick["proprietario_att"]
+            if prot:
+                if P.proteggibile(match_pick, match_pick["proprietario_att"], _db.pick_scambiata_prima(match_pick["id"])) \
+                        and match_pick["proprietario_att"] == team_by["id"]:
+                    item.protezione = prot
+                else:
+                    item.errori.append(f"«{P.testo(prot)}»: la protezione la mette solo chi cede la propria 1st la prima volta")
         else:
             item.errori.append(
                 f"Pick non trovata nel DB: {rnd}° giro {anno} di {team_by['nome']}"
@@ -386,8 +400,10 @@ def crea_trade_da_parse(squadre: list[SezioneGM], stagione: str, proposta_da: st
                                         giocatore_id=item.giocatore_id)
             elif item.tipo == "pick" and item.pick_id:
                 team_a = team_a_map.get(("p", item.pick_id), "?")
-                _db.aggiungi_item_trade(trade_id, "pick", sq.team_id, team_a,
-                                        pick_id=item.pick_id)
+                iid = _db.aggiungi_item_trade(trade_id, "pick", sq.team_id, team_a,
+                                              pick_id=item.pick_id)
+                if item.protezione:
+                    _db.set_protezione_item(iid, item.protezione)
             elif item.tipo == "diritti" and item.giocatore_id:
                 team_a = team_a_map.get(("d", item.giocatore_id), "?")
                 _db.aggiungi_item_trade(trade_id, "diritti", sq.team_id, team_a,
@@ -408,7 +424,8 @@ def formatta_trade(squadre: list[SezioneGM]) -> str:
             return f"{nome} {item.importo}x{item.anni}"
         if item.tipo == "pick":
             rnd  = "1st" if item.round == 1 else "2nd"
-            return f"{rnd} round pick {item.anno} by {item.by_raw}"
+            from shared import protezioni as P
+            return f"{rnd} round pick {item.anno} by {item.by_raw}" + (f" {P.testo(item.protezione)}" if item.protezione else "")
         if item.tipo == "diritti":
             return f"Diritti di {item.nome_resolved or item.nome_raw}"
         return item.raw

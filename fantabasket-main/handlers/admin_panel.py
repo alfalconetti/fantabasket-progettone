@@ -57,6 +57,7 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
         ("⏱ 10-day",           "tdadm:list",  fase in settings.FASI_RUOLI_RS),
         ("🔁 Rinnovi rookie",   "sga:scegli:rr",  fase in FASI_ADMIN_RINNOVI),
         ("🔒 RFA squadre",      "sga:scegli:rfa", fase in FASI_ADMIN_RINNOVI),
+        ("🏀 Draft",            "drf:home",    fase == "offseason-draft"),   # v7.27.0: il sottomenu del draft
         ("⚠️ Penalità",         "pen:adm",     True),
         ("📊 Situazione cap",   "adm:cap",     True),
         ("✏️ Nomi squadre e GM", "myt:lista",  True),
@@ -1221,7 +1222,7 @@ async def _esegui_registra_firma(update_or_query, context, giocatore, team_id, t
 
 
 def get_handlers() -> list:
-    from handlers.trade_comune import cb_annulla_trade
+    from handlers.trade_comune import cb_annulla_trade, cb_protezioni
     from handlers.trade import (
         TRADE_ASSET_MENU, TRADE_ASSET_GIOCATORI, TRADE_ASSET_PICK, TRADE_ASSET_DIRITTI,
         TRADE_ASSEGNA_DEST, TRADE_NOTA, TRADE_RIEPILOGO,
@@ -1274,6 +1275,7 @@ def get_handlers() -> list:
                 CallbackQueryHandler(cb_nota_apri,             pattern=r"^trade_nota:\d+$"),
                 CallbackQueryHandler(cb_salva_bozza,           pattern=r"^trade_salva:\d+$"),
                 CallbackQueryHandler(cb_trade_del,             pattern=r"^trade_del:\d+$"),
+                CallbackQueryHandler(cb_protezioni,           pattern=r"^tprot:[lpsb]:\d+(:\d+)?$"),   # v7.27.0
                 CallbackQueryHandler(cb_modifica_da_riepilogo, pattern=r"^edit_back:\d+$"),
             ],
             EDIT_MENU: [

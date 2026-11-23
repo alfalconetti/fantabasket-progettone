@@ -129,7 +129,7 @@ async def cb_edit_tipo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             if p["id"] in items_pi:
                 continue
             orig = p["proprietario_orig"]
-            prot = f" ({p['protezioni']})" if p.get("protezioni") else ""
+            prot = f" (🛡 {__import__('shared.protezioni', fromlist=['x']).testo(p['protezioni'])})" if p.get("protezioni") else ""
             t_orig = tm.get_team_by_id(orig)
             rnd = "1st" if p["round"] == 1 else "2nd"
             label = f"{t_orig['nome'] if t_orig else orig} {rnd} {p['anno']}{prot}"

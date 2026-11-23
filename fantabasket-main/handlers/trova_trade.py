@@ -105,16 +105,8 @@ def _stagione_al(dt) -> int:
 
 
 def _protezioni(p) -> str:
-    if not p:
-        return ""
-    if isinstance(p, str):
-        try:
-            p = json.loads(p)
-        except ValueError:
-            return p
-    if isinstance(p, dict):
-        return ", ".join(f"{k} {v}" for k, v in p.items())
-    return str(p)
+    from shared import protezioni as P                 # v7.27.0: «protetta 1-4»
+    return P.testo(p)
 
 
 def _contratto(trade_id: int, gid: int, stagione: int) -> str:

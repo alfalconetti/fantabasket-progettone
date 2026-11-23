@@ -364,6 +364,12 @@ def main():
         app.add_handler(h)
     for h in rookie_handlers():
         app.add_handler(h)
+    from handlers.draft import get_handlers as draft_handlers   # v7.27.0: il draft
+    for h in draft_handlers():
+        app.add_handler(h)
+    from handlers.lottery import get_handlers as lottery_handlers   # v7.27.1: sanzioni e lottery
+    for h in lottery_handlers():
+        app.add_handler(h)
     for h in _solo_privato_viste(roster_handlers()):
         app.add_handler(h)
     for h in myteam_handlers():
@@ -437,6 +443,8 @@ def main():
     # Sync GAS: periodico ogni 2h + coda post-firma, sempre attivi
     app.job_queue.run_repeating(sync_sheets_periodico, interval=7200, first=600)
     app.job_queue.run_repeating(processa_coda_gas, interval=60, first=45)
+    from handlers.lottery import job_lottery                     # v7.27.1: l'estrazione e il reveal, a passi
+    app.job_queue.run_repeating(job_lottery, interval=20, first=60)
 
     # Backup giornaliero ogni 12 ore
     from datetime import time as dtime

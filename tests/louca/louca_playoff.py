@@ -146,6 +146,11 @@ try:
     ok(db.q("SELECT congelata FROM lega_congelamento WHERE stagione = %s AND giornata = 3", (S,), one=True)["congelata"],
        "blocco: anche l'ultima giornata di regular season congelata")
     ok(any("bloccato" in m[1] for m in bot.msg) and bot.mod and "definitivo" in bot.mod[-1][2], "agli admin e il tabellone definitivo sul canale")
+    # v7.27.1 (Luca, 23/11): al blocco la classifica finale per la lottery e il draft
+    _cf = db.q("SELECT team, posto, playoff FROM lega_classifica_finale WHERE stagione = %s ORDER BY posto", (S,), many=True) or []
+    _ai = {t for tt in PO.seed(S).values() for t in tt}
+    ok(len(_cf) == len(config.squadre()) and [r["posto"] for r in _cf] == list(range(1, len(_cf) + 1))
+       and {r["team"] for r in _cf if r["playoff"]} == _ai, f"classifica finale salvata per la lottery {_cf}")
     ok(CG.numero("P1", S) == 4 and PB.in_gioco(db.q, S, g4) == {x for p in pp for x in (p["casa"], p["trasferta"])}
        and PB.in_gioco(db.q, S, db.giornata(S, 3)) is None, "P1 = G4; nella P1 giocano solo le 8 squadre del primo turno")
     prima = [(r["team"], r["w"]) for r in C.calcola(S)[0]]
@@ -318,5 +323,5 @@ finally:
     except FileNotFoundError:
         pass
     for t in ("lega_giornate", "lega_giornate_playoff", "lega_risultati", "lega_partite", "lega_playoff", "lega_seed",
-              "lega_serie", "lega_avvisi_playoff", "lega_congelamento", "lega_calcoli"):
+              "lega_serie", "lega_avvisi_playoff", "lega_congelamento", "lega_calcoli", "lega_classifica_finale"):
         db.q(f"TRUNCATE {t}")

@@ -492,6 +492,23 @@ async def dopo_cambio_fase(bot, fase_vecchia: str, nuova_fase: str) -> str:
         await passo("rookie scale", rookie)
         await passo("pick nuove", pick)
         await passo("promemoria trade deadline", promemoria_deadline)
+    elif nuova_fase == "offseason-break":
+        async def sanzioni():                     # v7.27.1: le penalità della stagione diventano sanzioni
+            from handlers.lottery import passaggio_break
+            note.append(await passaggio_break(bot))
+        await passo("sanzioni delle penalità", sanzioni)
+    elif nuova_fase == "offseason-draft":
+        async def controllo_draft():              # v7.27.0 (Luca, 23/11): chi sforerebbe con tutte le sue 1st
+            from handlers.draft import testo_controllo
+            t = testo_controllo()
+            note.append("\n" + t)
+            if gruppo:
+                await bot.send_message(chat_id=gruppo, text=t, parse_mode="HTML")
+        await passo("controllo cap e slot del draft", controllo_draft)
+        async def promemoria_lottery():           # v7.27.1 (Luca, 23/11): l'estrazione si fa nella fase draft
+            from handlers.lottery import promemoria
+            note.append(await promemoria(bot))
+        await passo("promemoria della lottery", promemoria_lottery)
     elif nuova_fase == "offseason-fa":
         await passo("scadenza degli x0", scadenze)
     elif nuova_fase == "regular-season-fa":

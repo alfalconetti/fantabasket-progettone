@@ -693,3 +693,12 @@ Il calcolo dei fantapunti.
 ## v143 (2026-11-23, progettone v7.26.0)
 
 - `/rendimento_carriera`: le 9 categorie a partita di tutta la carriera sotto il grafico
+
+## v144 (2026-11-23, progettone v7.27.0)
+
+- `/draft [ANNO]`: il tabellone del draft, un'immagine per giro (shared/draft_vista)
+- `/giocatori`: filtro sulla fantamedia `media:30+`, `media:20-`, `media:20+ and media:30-`
+
+## v145 (2026-11-23, progettone v7.27.1)
+
+- Al blocco del tabellone dei playoff: classifica finale salvata (`lega_classifica_finale`, per lottery e draft del bot principale) e le odds della lottery sul canale

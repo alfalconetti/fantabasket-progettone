@@ -177,6 +177,15 @@ ok("dal 1979" in EG.risposta("anno:1900")["testo"], "anno fuori dai limiti")
 ok("costo:&lt;10" in EG.risposta("aiuto")["testo"], "aiuto")
 ok("Nessun giocatore" in EG.risposta("nome:^Nessunoconquestonome$")["testo"], "nessun risultato")
 ok(EG.leggi('squadra:"Alfa" nome:"^Elenco C"', int(S))["squadra"][0]["id"] == "team01", "valori tra virgolette")
+# v7.27.0 (Luca, 23/11): il filtro sulla fantamedia
+_fm = lambda t, v: all(fn(v) for fn, _ in EG.leggi(t, int(S))["media"])
+ok(_fm("media:30+", 30) and not _fm("media:30+", 29.9) and _fm("media:20-", 20) and not _fm("media:20-", 20.5)
+   and _fm("media:20+ and media:30-", 25) and not _fm("media:20+ and media:30-", 31) and _fm("media:>=10", 12) and _fm("media:20-30", 21),
+   "media:30+ (almeno), media:20- (al massimo), «and» per stare in mezzo, e le forme di costo")
+ok(EG.descrizione(EG.leggi("media:20+ and media:30-", int(S)), int(S)) == "media ≥ 20 e media ≤ 30", "intestazione del filtro sulla media")
+_x = {"id": 1, "nome": "X", "pos": [], "nba": "LAL", "contratto": None, "diritti": None, "g": 5, "inf": None, "anni": None, "media": 25.0}
+ok(EG._passa(_x, EG.leggi("media:20+ and media:30-", int(S)), set()) and not EG._passa({**_x, "media": None}, EG.leggi("media:20+", int(S)), set()),
+   "il filtro sui giocatori (senza media: fuori)")
 
 # l'immagine, la didascalia e il file .md con tutti
 r = risp("")

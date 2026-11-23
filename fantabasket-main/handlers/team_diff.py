@@ -240,7 +240,7 @@ async def cmd_team_diff(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if p:
                 rnd  = "1st" if p["round"] == 1 else "2nd"
                 orig = (tm.get_team_by_id(p["proprietario_orig"]) or {}).get("nome", p["proprietario_orig"])
-                prot = f" — {p['protezioni']}" if p.get("protezioni") else ""
+                prot = f" — {__import__('shared.protezioni', fromlist=['x']).testo(p['protezioni'])}" if p.get("protezioni") else ""
                 m = _motivo_asset("pick", pid, data_da, data_a, "Trade")
                 righe.append(f"  • {rnd} pick {p['anno']} by {orig}{prot} <i>({m})</i>")
         for did in d_in:

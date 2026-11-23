@@ -47,6 +47,8 @@ e = lambda x: html.escape(str(x), quote=False)
 
 
 def migra() -> None:
+    from shared.lottery_vista import TABELLA            # v7.27.1: la classifica finale per la lottery e il draft
+    db.q(TABELLA)
     db.q("""CREATE TABLE IF NOT EXISTS lega_playoff (
               stagione      TEXT PRIMARY KEY,
               stato         TEXT NOT NULL DEFAULT 'bozza',      -- bozza / confermato / bloccato
@@ -586,6 +588,34 @@ def crea_primo_turno(s: str) -> list[dict]:
     return serie
 
 
+def salva_classifica_finale(s: str) -> int:
+    """v7.27.1 (Luca, 23/11): al blocco del tabellone la classifica finale della regular season va in
+    lega_classifica_finale (posto generale, ai playoff sì o no, W-L): la legge il bot principale per la lottery e il
+    draft. Rifatta, sovrascrive."""
+    righe, _ = C.calcola(s)
+    ai_playoff = {t for tt in seed(s).values() for t in tt}
+    with db.get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM lega_classifica_finale WHERE stagione = %s", (s,))
+            for i, r in enumerate(righe, 1):
+                cur.execute("INSERT INTO lega_classifica_finale (stagione, team, posto, playoff, w, l) VALUES (%s, %s, %s, %s, %s, %s)",
+                            (s, r["team"], i, r["team"] in ai_playoff, int(r.get("w") or 0), int(r.get("l") or 0)))
+    return len(righe)
+
+
+async def pubblica_odds(bot, s: str) -> str:
+    """Le odds della lottery sul canale principale (immagine, mockup approvato il 18/11)."""
+    from shared import lottery_vista as LV
+    canale = config.globali().get("main_channel_id")
+    d = LV.dati_odds(s)
+    if not canale or not d:
+        return "odds non pubblicate (manca il canale o la classifica finale)"
+    png = await asyncio.to_thread(LV.immagine_odds, d)
+    await bot.send_photo(chat_id=canale, photo=png, caption=f"🎰 <b>Draft {d['anno']}</b>: le odds della lottery. "
+                         "L'estrazione nella fase draft, verificabile con drand.", parse_mode="HTML", **TEMPI)
+    return "odds della lottery sul canale"
+
+
 async def blocca(bot, s: str) -> str:
     """Alle 15: ultima giornata di regular season congelata, seed ricalcolati (le scelte a mano restano) e bloccati,
     primo turno e P1 in calendario."""
@@ -597,6 +627,12 @@ async def blocca(bot, s: str) -> str:
     serie = crea_primo_turno(s)
     _salva_stato(s, stato="bloccato", bloccato=datetime.now(timezone.utc))
     esito = await _pubblica_canale(bot, s, aggiornato=bool(cambi))
+    try:                                                 # v7.27.1: classifica finale e odds della lottery
+        salva_classifica_finale(s)
+        esito += "; " + await pubblica_odds(bot, s)
+    except Exception as err:
+        logger.exception("Classifica finale / odds della lottery")
+        esito += f"; classifica finale o odds non riuscite ({err})"
     gruppo = config.gruppo_admin()
     u = CG.ultima_rs(s)
     if gruppo:

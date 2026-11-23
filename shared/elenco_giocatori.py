@@ -13,6 +13,9 @@ Filtri, in qualsiasi ordine (`/giocatori aiuto` li elenca):
 - `nome:REGEX` (espressione regolare, maiuscole e accenti indifferenti); le parole scritte da sole cercano nel nome;
 - `anno:2024` (2024-25) la media di una stagione passata, da Basketball-Reference; senza, la stagione in corso dai
   tabellini ESPN (Basketball-Reference per chi non è abbinato a ESPN);
+- `media:30+` (almeno 30), `media:20-` (al massimo 20), anche insieme: `media:20+ and media:30-` (tra 20 e 30); vale
+  anche `media:>=30` o `media:20-30` (v7.27.0, Luca 23/11). «and» tra i filtri si può scrivere, ma non serve:
+  dentro un gruppo i filtri sono già tutti insieme.
 - `top:N`, `min_g:N`, `costo:<10` / `costo:5-10`, `anni:1` / `anni:>=2`, `infortunati:no|si`,
   `ordina:media|costo|partite|ultime5|nome`.
 Senza `anno:` ci sono i firmati e i diritti sempre e i FA con la regola della lista FA (v7.9.6: chi ha giocato
@@ -49,6 +52,7 @@ AIUTO = ("<b>/giocatori</b> [filtri] — cerca tra i giocatori; i filtri si comb
          "• <code>squadra:NOME</code> — squadra del fantabasket · <code>ruolo_squadra:C</code> — ruolo ufficiale dei firmati\n"
          "• <code>nome:REGEX</code> — nome con un'espressione regolare (<code>nome:^jal</code>); le parole da sole cercano nel nome\n"
          "• <code>anno:2024</code> — la media del 2024-25 (Basketball-Reference); senza, la stagione in corso\n"
+         "• <code>media:30+</code> (almeno 30) · <code>media:20-</code> (al massimo 20) · <code>media:20+ and media:30-</code> (tra 20 e 30)\n"
          "• <code>top:20</code> · <code>min_g:10</code> · <code>costo:&lt;10</code> · <code>costo:5-10</code> · <code>anni:1</code> · <code>infortunati:no</code>\n"
          "• <code>ordina:media</code> (o costo, partite, ultime5, nome)\n"
          "• <code>watch</code> — i giocatori della tua watchlist (solo in privato)\n"
@@ -90,6 +94,17 @@ def _confronto(chiave: str, v: str):
     op, n = m[1] or "=", float(m[2])
     return {"<": lambda x: x < n, "<=": lambda x: x <= n, ">": lambda x: x > n, ">=": lambda x: x >= n,
             "=": lambda x: x == n}[op]
+
+
+def _media(chiave: str, v: str):
+    """v7.27.0 (Luca, 23/11): «30+» almeno 30, «20-» al massimo 20; se no come costo (>=30, 20-30…).
+    (funzione, testo per l'intestazione)."""
+    w = v.replace(",", ".").strip()
+    m = re.fullmatch(r"(\d+(?:\.\d+)?)([+-])", w)
+    if m:
+        n = float(m[1])
+        return (lambda x: x >= n, f"media ≥ {m[1]}") if m[2] == "+" else (lambda x: x <= n, f"media ≤ {m[1]}")
+    return _confronto(chiave, w), f"media {v}"
 
 
 def _ruoli(chiave: str, v: str) -> set:
@@ -151,12 +166,13 @@ def _vuoto() -> dict:
     # dentro lo stesso filtro le condizioni sono in «o» (fa firmati, nba:LAL,BOS, squadra:A,B), tra filtri
     # diversi in «e» (v7.5.2, Luca 10/11); un insieme vuoto = nessun filtro
     return {"ruoli": set(), "stato": set(), "nba": set(), "squadra": [], "ruolo_squadra": set(), "regex": None,
-            "parole": [], "min_g": None, "costo": None, "anni": None, "infortunati": None, "watch": False, "rookie": False, "neg": []}
+            "parole": [], "min_g": None, "costo": None, "anni": None, "infortunati": None, "watch": False, "rookie": False, "neg": [],
+            "media": []}
 
 
 def _ha_condizioni(g: dict) -> bool:
     return any(g[k] for k in ("ruoli", "stato", "nba", "squadra", "ruolo_squadra", "regex", "parole", "min_g", "costo",
-                              "anni", "watch", "rookie")) or g["infortunati"] is not None
+                              "anni", "watch", "rookie", "media")) or g["infortunati"] is not None
 
 
 def _gruppo(parti: list[str], oggi: int, glob: dict) -> dict:
@@ -167,6 +183,8 @@ def _gruppo(parti: list[str], oggi: int, glob: dict) -> dict:
         k = k.lower()
         if not sep:
             up = p.upper()
+            if p.lower() in ("and", "&", "&&"):            # v7.27.0: «and» tra due filtri (sono già in «e»)
+                continue
             if p.lower() in ("aiuto", "help", "?"):
                 glob["aiuto"] = True
             elif p.lower() in ("watch", "watchlist", "seguiti"):
@@ -216,6 +234,8 @@ def _gruppo(parti: list[str], oggi: int, glob: dict) -> dict:
             f["min_g"] = _numero(k, v)
         elif k in ("costo", "importo"):
             f["costo"] = _confronto(k, v)
+        elif k in ("media", "fantamedia", "fm"):
+            f["media"].append(_media(k, v))
         elif k == "anni":
             f["anni"] = _confronto(k, v)
         elif k in ("infortunati", "infortunato"):
@@ -268,6 +288,8 @@ def _descr_gruppo(f: dict) -> str:
         d.append("nome «" + " ".join(f["parole"]) + "»")
     if f["min_g"]:
         d.append(f"almeno {f['min_g']} G")
+    if f.get("media"):
+        d.append(" e ".join(t for _, t in f["media"]))
     if f["costo"]:
         d.append("costo filtrato")
     if f["anni"]:
@@ -394,6 +416,8 @@ def _passa(x: dict, f: dict, seguiti: set) -> bool:
         if parole and not all(p in L.norm(x["nome"]) for p in parole):
             continue
         if f["min_g"] and x["g"] < f["min_g"]:
+            continue
+        if f.get("media") and not (x["media"] is not None and all(fn(float(x["media"])) for fn, _ in f["media"])):
             continue
         if f["costo"] and not (x["contratto"] and f["costo"](float(x["contratto"]["importo"]))):
             continue

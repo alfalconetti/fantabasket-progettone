@@ -33,6 +33,10 @@ def _fasi_comando() -> dict:
         "firma_10day_admin":   {"regular-season-fa"},
         "rinnovo_rookie":      {"offseason-rinnovi"},
         "dichiara_rfa":        {"offseason-rinnovi", "offseason-draft"},
+        # v7.27.0: il draft
+        "scelgo":              {"offseason-draft"},
+        **{c: {"offseason-draft"} for c in ("lottery_quando", "lottery", "draft_ordine", "draft_avvia", "draft_pausa", "draft_riprendi", "draft_scegli",
+                                            "draft_nome", "draft_da", "draft_correggi", "draft_controllo")},
     }
 
 
@@ -41,10 +45,10 @@ ORDINE_GM = [
     "roster", "assets", "my_team", "penalita", "registro",                                  # la tua squadra
     "build_trade", "bozze_trade", "my_trades", "edit_trade", "import_trade", "annulla_trade", "trova_trade",
     "taglia", "firma_10day", "dpe", "decadimento", "attiva_diritti",                         # trade e mercato
-    "dichiarazione_ruoli", "cambio_ruolo", "rinnovo_rookie", "dichiara_rfa",                 # ruoli e rinnovi (per fase)
+    "dichiarazione_ruoli", "cambio_ruolo", "rinnovo_rookie", "dichiara_rfa", "scelgo",       # ruoli, rinnovi, draft (per fase)
     "player", "giocatori", "status", "rendimento", "rendimento_carriera", "confronto", "confronto_carriera",
     "carriera", "calendario", "quasi_cup",                                                    # giocatori
-    "pick", "pick_lega", "team_diff", "pdf_roster", "pdf_assets",                             # lega
+    "pick", "pick_lega", "draft", "team_diff", "pdf_roster", "pdf_assets",                    # lega
     "watch", "unwatch", "watchlist", "watch_soglia",                                          # watchlist
     "palette", "annulla",
 ]
@@ -54,7 +58,7 @@ ORDINE_GM = [
 # privato, nei gruppi (gruppo admin compreso) risponde loucabot. È il codice legacy: le viste nuove (draft, rinnovi…)
 # si scrivono in shared/, non qui
 VISTE = {"roster", "assets", "pdf_roster", "pdf_assets", "pick", "pick_lega", "carriera", "team_diff", "trova_trade",
-         "penalita"}
+         "penalita", "draft"}
 
 
 def liste_comandi(fase: str) -> dict:
@@ -71,6 +75,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("pick_lega", "Tutte le pick della lega in un'immagine [ANNO] [1|2]: con l'anno tutto un draft"),
         BotCommand("pdf_roster", "I roster di tutte le squadre in un PDF [DATA]"),
         BotCommand("pdf_assets", "Gli asset di tutte le squadre in un PDF [DATA]"),
+        BotCommand("draft", "Il tabellone del draft, un'immagine per giro [ANNO]"),
     ]
     # v7.3.0: in comune con loucabot, solo in privato (nei gruppi sono di loucabot: lì non si suggeriscono)
     cmd_lega = [
@@ -107,6 +112,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("firma_10day",  "Chiedi un 10-day contract [nome]"),
         BotCommand("rinnovo_rookie", "Rinnova i rookie a fine II anno (fase rinnovi)"),
         BotCommand("dichiara_rfa",   "Dichiara o cambia il tuo RFA (fino alle aste RFA)"),
+        BotCommand("scelgo",         "Draft: il giocatore che scegli, quando tocca a te [nome]"),
         BotCommand("decadimento",    "Segnala contratto decaduto (ritiro, altra lega)"),
         BotCommand("my_team",        "Info e impostazioni del tuo team"),
         BotCommand("palette",        "Personalizza colori roster/assets"),
@@ -140,6 +146,17 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("data_erminio",                "Data aggiunta posizione su Yahoo [nome] [AAAA-MM-GG]"),
         BotCommand("set_nascita",                 "Data di nascita [nome] [GG-MM-AAAA], anche più righe"),
         BotCommand("nascite_mancanti",            "Giocatori sotto contratto senza data di nascita"),
+        BotCommand("lottery_quando", "Lottery: fissa l'estrazione [GG/MM] [HH:MM]"),
+        BotCommand("lottery",        "Lottery: a che punto è"),
+        BotCommand("draft_ordine",   "Draft: correggi l'ordine di un giro, 24 righe [GIRO]"),
+        BotCommand("draft_avvia",    "Draft: fallo partire"),
+        BotCommand("draft_scegli",   "Draft: scegli per la squadra che tocca [nome]"),
+        BotCommand("draft_nome",     "Draft: correggi il nome proposto [nome]"),
+        BotCommand("draft_da",       "Draft: da dove viene, e la scelta è fatta [college]"),
+        BotCommand("draft_correggi", "Draft: correggi una scelta fatta [numero] [nome]"),
+        BotCommand("draft_pausa",    "Draft: in pausa"),
+        BotCommand("draft_riprendi", "Draft: riprende"),
+        BotCommand("draft_controllo", "Draft: chi sforerebbe cap o slot con le sue 1st"),
     ]
     cmd_dev = cmd_admin + [
         BotCommand("dev",          "Lista comandi dev"),

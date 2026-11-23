@@ -36,7 +36,7 @@ from handlers.trade_modifica import (
     cmd_edit_trade,
 )
 from handlers.trade_liste import cb_my_trades, cmd_mie_trade, cmd_my_trades
-from handlers.trade_comune import cb_annulla_trade
+from handlers.trade_comune import cb_annulla_trade, cb_protezioni
 
 
 # ── /annulla_trade ─────────────────────────────────────────────────────────────
@@ -98,6 +98,7 @@ def get_handlers() -> list:
                 CallbackQueryHandler(cb_nota_apri,            pattern=r"^trade_nota:\d+$"),
                 CallbackQueryHandler(cb_salva_bozza,          pattern=r"^trade_salva:\d+$"),
                 CallbackQueryHandler(cb_trade_del,            pattern=r"^trade_del:\d+$"),
+                CallbackQueryHandler(cb_protezioni,           pattern=r"^tprot:[lpsb]:\d+(:\d+)?$"),   # v7.27.0
                 CallbackQueryHandler(cb_modifica_da_riepilogo,pattern=r"^edit_back:\d+$"),
             ],
             EDIT_MENU: [
@@ -135,6 +136,7 @@ def get_handlers() -> list:
                 MessageHandler(filters.TEXT & ~filters.COMMAND, import_ricevi_testo),
             ],
             TRADE_RIEPILOGO: [
+                CallbackQueryHandler(cb_protezioni,           pattern=r"^tprot:[lpsb]:\d+(:\d+)?$"),   # v7.27.0
                 CallbackQueryHandler(cb_send_trade,            pattern=r"^trade_send:.+$"),
                 CallbackQueryHandler(cb_nota_apri,             pattern=r"^trade_nota:\d+$"),
                 CallbackQueryHandler(cb_salva_bozza,           pattern=r"^trade_salva:\d+$"),
@@ -181,6 +183,7 @@ def get_handlers() -> list:
                 CallbackQueryHandler(cb_assegna_dest, pattern=r"^trade_dest:\d+:.+$"),
             ],
             TRADE_RIEPILOGO: [
+                CallbackQueryHandler(cb_protezioni,           pattern=r"^tprot:[lpsb]:\d+(:\d+)?$"),   # v7.27.0
                 CallbackQueryHandler(cb_send_trade,            pattern=r"^trade_send:.+$"),
                 CallbackQueryHandler(cb_nota_apri,             pattern=r"^trade_nota:\d+$"),
                 CallbackQueryHandler(cb_salva_bozza,           pattern=r"^trade_salva:\d+$"),

@@ -163,7 +163,7 @@ async def cb_asset_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             team_orig = tm.get_team_by_id(p["proprietario_orig"])
             nome_orig = team_orig["nome"] if team_orig else p["proprietario_orig"]
             rnd       = "1st" if p["round"] == 1 else "2nd"
-            prot      = f" ({p['protezioni']})" if p.get("protezioni") else ""
+            prot      = f" (🛡 {__import__('shared.protezioni', fromlist=['x']).testo(p['protezioni'])})" if p.get("protezioni") else ""
             label     = f"{check}{nome_orig} {rnd} {p['anno']}{prot}"
             bottoni.append([InlineKeyboardButton(label, callback_data=f"trade_pi:{trade_id}:{team_id}:{p['id']}")])
         bottoni.append([InlineKeyboardButton("← Indietro", callback_data=f"trade_am:back:{trade_id}:{team_id}")])
@@ -274,7 +274,7 @@ async def cb_toggle_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         team_orig = tm.get_team_by_id(p["proprietario_orig"])
         nome_orig = team_orig["nome"] if team_orig else p["proprietario_orig"]
         rnd   = "1st" if p["round"] == 1 else "2nd"
-        prot  = f" ({p['protezioni']})" if p.get("protezioni") else ""
+        prot  = f" (🛡 {__import__('shared.protezioni', fromlist=['x']).testo(p['protezioni'])})" if p.get("protezioni") else ""
         label = f"{check}{nome_orig} {rnd} {p['anno']}{prot}"
         bottoni.append([InlineKeyboardButton(label, callback_data=f"trade_pi:{trade_id}:{team_id}:{p['id']}")])
     bottoni.append([InlineKeyboardButton("← Indietro", callback_data=f"trade_am:back:{trade_id}:{team_id}")])

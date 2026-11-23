@@ -91,6 +91,13 @@ def _scrivi_trade(trade_id: int, trade_ref: str, approvata_da: str | None, inver
                                 (a, item["pick_id"], da))
                     if cur.rowcount != 1:
                         raise TradeNonEseguibile(f"pick #{item['pick_id']} non più della squadra che la cede")
+                    if item.get("protezione"):            # v7.27.0: la protezione messa da chi la cede la prima volta
+                        import json as _json            # (annullando la trade, via anche la protezione)
+                        if inverti:
+                            cur.execute("UPDATE pick SET protezioni = NULL WHERE id = %s", (item["pick_id"],))
+                        else:
+                            cur.execute("UPDATE pick SET protezioni = %s WHERE id = %s AND protezioni IS NULL",
+                                        (_json.dumps(item["protezione"]), item["pick_id"]))
                     if registra_asset:
                         cur.execute("INSERT INTO transazioni (oggetto, tipo, pick_id, team_id_da, team_id_a, stagione, "
                                     "trade_id, note) VALUES ('pick', 'traded', %s, %s, %s, %s, %s, %s)",
@@ -159,6 +166,11 @@ async def _esegui_trade(context, trade_id: int, trade_ref: str, approvata_da: st
 
     # Notifica tutti i GM coinvolti
     squadre = [s["team_id"] for s in db.get_squadre_trade(trade_id)]
+    try:                                   # v7.27.0 (Luca, 23/11): nella fase draft, chi ora sforerebbe al draft
+        from handlers.draft import avviso_trade
+        await avviso_trade(context.bot, squadre)
+    except Exception as e:
+        logger.warning("Controllo del draft dopo la trade: %s", e)
     for team_id in squadre:
         team = tm.get_team_by_id(team_id)
         if not team:

@@ -186,8 +186,9 @@ def _label_item(item: dict, contratti: dict | None = None) -> str:
         nome_orig = team_orig["nome"] if team_orig else orig_id
         anno = item.get("pick_anno", "?")
         rnd  = "1st" if item.get("pick_round") == 1 else "2nd" if item.get("pick_round") == 2 else "?"
-        prot = f" ({item.get('protezioni')})" if item.get("protezioni") else ""
-        return f"{nome_orig} {rnd} {anno}{prot}"
+        from shared import protezioni as P             # v7.27.0: «protetta 1-4», anche quella messa in questa trade
+        prot = P.testo(item.get("protezione") or item.get("protezioni"))
+        return f"{nome_orig} {rnd} {anno}" + (f" (🛡 {prot})" if prot else "")
     if item["tipo"] == "diritti":
         return f"Diritti {item.get('nome_common','?')} ({db.fp_testo([item.get('giocatore_id')]).get(item.get('giocatore_id'), 'FP —')})"
     return "?"
@@ -195,7 +196,11 @@ def _label_item(item: dict, contratti: dict | None = None) -> str:
 
 def _kb_riepilogo(trade_id: int, ha_nota: bool = False) -> InlineKeyboardMarkup:
     nota_label = "📝 Modifica nota" if ha_nota else "📝 Aggiungi nota"
-    return InlineKeyboardMarkup([
+    try:                                               # v7.27.0: le protezioni, se c'è una 1st da proteggere
+        prot = [[InlineKeyboardButton("🛡 Protezioni", callback_data=f"tprot:l:{trade_id}")]] if db.picks_proteggibili(trade_id) else []
+    except Exception:
+        prot = []
+    return InlineKeyboardMarkup(prot + [
         [InlineKeyboardButton("✅ Proponi ai GM",   callback_data=f"trade_send:gm:{trade_id}")],
         [InlineKeyboardButton("📨 Manda ad admin",  callback_data=f"trade_send:admin:{trade_id}")],
         [InlineKeyboardButton(nota_label,           callback_data=f"trade_nota:{trade_id}")],
@@ -426,3 +431,51 @@ def _kb_edit_menu(trade_id: int) -> InlineKeyboardMarkup:
     bottoni.append([InlineKeyboardButton("➕ Aggiungi asset", callback_data=f"edit_add:{trade_id}")])
     bottoni.append([InlineKeyboardButton("✅ Fatto",          callback_data=f"edit_done:{trade_id}")])
     return InlineKeyboardMarkup(bottoni)
+
+
+# ── v7.27.0 (Luca, 23/11): protezioni delle 1st nel builder ─────────────────────
+
+async def cb_protezioni(update, context) -> int:
+    """tprot:l:<trade> (le pick proteggibili) · tprot:p:<item> (le protezioni) · tprot:s:<item>:<a> (protetta 1-a,
+    0 = nessuna) · tprot:b:<trade> (torna al riepilogo)."""
+    from shared import protezioni as P
+    q = update.callback_query
+    parti = q.data.split(":")
+    azione = parti[1]
+    if azione in ("p", "s"):
+        item = db.get_item_trade(int(parti[2]))
+        trade_id = item["trade_id"] if item else None
+    else:
+        item, trade_id = None, int(parti[2])
+    trade = db.get_trade(trade_id) if trade_id else None
+    if not trade or trade["stato"] != "bozza" or not _puo_gestire_bozza(q.from_user.id, trade):
+        await q.answer("Bozza non più modificabile.", show_alert=True)
+        return TRADE_RIEPILOGO
+    await q.answer()
+    if azione == "s":
+        a = int(parti[3])
+        db.set_protezione_item(item["id"], {"da": 1, "a": a} if a else None)
+        azione = "l"
+    if azione == "l":
+        righe = []
+        for i in db.picks_proteggibili(trade_id):
+            t = tm.get_team_by_id(i["team_id_da"]) or {"nome": i["team_id_da"]}
+            prot = P.testo(i.get("protezione")) or "nessuna"
+            righe.append([InlineKeyboardButton(f"{t['nome']} 1st {i['pick_anno']} · {prot}", callback_data=f"tprot:p:{i['id']}")])
+        righe.append([InlineKeyboardButton("← Riepilogo", callback_data=f"tprot:b:{trade_id}")])
+        await q.edit_message_text("🛡 <b>Protezioni</b>\n\nLa mette solo chi cede la propria 1st la prima volta. "
+                                  "Se al draft (dopo le penalità) la pick cade nella protezione, resta a chi la cede "
+                                  "e la protezione finisce lì.", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(righe))
+        return TRADE_RIEPILOGO
+    if azione == "p":
+        bt = [InlineKeyboardButton(f"1-{a}", callback_data=f"tprot:s:{item['id']}:{a}") for a in range(1, 13)]
+        righe = [bt[k:k + 4] for k in range(0, 12, 4)]
+        righe.append([InlineKeyboardButton("Nessuna", callback_data=f"tprot:s:{item['id']}:0")])
+        righe.append([InlineKeyboardButton("← Indietro", callback_data=f"tprot:l:{trade_id}")])
+        pk = db._q("SELECT anno FROM pick WHERE id = %s", (item["pick_id"],), one=True) or {}
+        await q.edit_message_text(f"🛡 Protezione della 1st {pk.get('anno', '')}: «protetta 1-N», "
+                                  "le posizioni da 1 a N (dopo le penalità).", reply_markup=InlineKeyboardMarkup(righe))
+        return TRADE_RIEPILOGO
+    testo = _testo_riepilogo(trade_id) + "\n\n✅ <b>Validazione OK</b>"
+    await q.edit_message_text(testo, parse_mode="HTML", reply_markup=_kb_riepilogo(trade_id, bool(trade.get("nota"))))
+    return TRADE_RIEPILOGO

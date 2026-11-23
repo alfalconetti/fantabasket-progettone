@@ -9,7 +9,7 @@ from datetime import date, datetime, time as dtime, timedelta
 from zoneinfo import ZoneInfo
 
 from telegram import Update
-from telegram.ext import ApplicationBuilder
+from telegram.ext import ApplicationBuilder, CommandHandler
 
 import config
 from shared import regole
@@ -100,6 +100,8 @@ def main():
     import vista                                         # v7.21.0: roster, assets, pick… del bot principale
     for h in vista.get_handlers():
         app.add_handler(h)
+    from shared import draft_vista as DV                  # v7.27.0: /draft (shared/draft_vista; il draft lo fa il principale)
+    app.add_handler(CommandHandler("draft", DV.cmd_draft, block=False))
     from shared import pagine as PG                       # v7.25.0: i «Quale?» a pagine e di chi ha cercato
     for h, gr in PG.handlers():
         app.add_handler(h, group=gr)

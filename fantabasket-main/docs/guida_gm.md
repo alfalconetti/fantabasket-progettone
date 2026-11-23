@@ -257,6 +257,18 @@ Attenzione: i diritti delle seconde scelte al secondo anno **scadono 10 giorni p
 
 ---
 
+## Il draft
+
+Dalla v7.27.0 (Luca, 23/11) il draft si fa col bot, nella fase draft, a turno: prima tutto il primo giro (24 scelte), poi il secondo con la stessa procedura.
+
+**La lottery** (v7.27.1): a fine regular season sul canale le odds (le 12 fuori dai playoff, dall'ultima, con la probabilità di ogni pick). Nella fase draft gli admin fissano l'estrazione: prima sul canale il round di **drand** (un numero casuale pubblico che nessuno conosce prima), i seed e l'impronta del codice; all'ora le pick escono una al minuto dalla 12ª alla 1ª, già con le discese per le penalità. Chiunque può rifarla col repo: `python3 strumenti/lottery_verifica.py estrai --round N --squadre "…"`; `simula` mostra che su tante estrazioni le frequenze sono quelle della matrice. Dalla 13ª alla 24ª le squadre dei playoff in ordine inverso della classifica; il secondo giro è l'inverso della classifica di tutte.
+
+- Quando tocca a te il bot ti scrive in privato: rispondi con `/scelgo NOME COGNOME` (il nome del giocatore che scegli). Gli admin lo **approvano** (o lo correggono: il nome serve per l'anagrafica, va scritto giusto) e aggiungono da dove viene; poi esce l'annuncio sul canale («Con la prima scelta al draft 2027 SQUADRA seleziona …, da …»). Non c'è un tempo per scegliere e non si passa.
+- Sceglie chi ha la pick **in quel momento**: le pick si scambiano fino alla scelta.
+- Le **1st** si firmano subito, alla rookie scale della posizione; le **2nd** diventano diritti (`/attiva_diritti`).
+- Sul canale c'è l'ordine delle scelte, che si aggiorna a ogni pick («5 | SQUADRA (via SQUADRA1) - …», «(-1)» per una pick scesa per le penalità); a fine giro l'immagine del tabellone. `/draft` lo mostra quando vuoi (`/draft ANNO` quelli vecchi).
+- **Protezioni**: solo sulle 1st, e le mette solo chi cede la propria pick la prima volta («protetta 1-4»: nel builder delle trade il bottone 🛡 Protezioni nel riepilogo, nel testo `1st round pick 2028 by SQUADRA protetta 1-4`). Al draft conta la posizione dopo le penalità: se cade nella protezione la pick resta a chi la cedeva (anche se è passata di mano più volte) e la protezione finisce lì.
+
 ## Cambio di stagione: contratti finiti, rookie e RFA
 
 Quando inizia la fase dei rinnovi parte la stagione nuova e tutti i contratti scalano di un anno: un 10x3 diventa 10x2, un 10x1 diventa **10x0**.
