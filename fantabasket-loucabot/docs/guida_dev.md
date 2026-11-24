@@ -40,6 +40,7 @@ Stesso PostgreSQL degli altri bot. loucabot legge tutto e scrive solo le sue tab
 |---|---|---|
 | `lega_giornate` | stagione, numero | date (giorni ET), `tipo` regular/playoff, `media_file` (dal CSV), `prima_partita` e `media` (calcolate), `calcolato` |
 | `lega_partite` | id; unici stagione+giornata+casa/trasferta | calendario della lega (team_id) |
+| `lega_classifica_oggi` | stagione+team | v7.28.1: la classifica di adesso (posto, playoff, W-L, giornate convalidate), riscritta ogni 10 minuti da `playoff.job_classifica_oggi` (`salva_classifica_oggi`): la legge il bot principale per `/draft` se finisse oggi (`shared/draft_vista.righe_draft`, `lottery_vista.classifica_oggi`) |
 | `lega_calendario_csv` | stagione | il CSV importato tale e quale: la mappa delle righe del foglio Calendario |
 | `lega_risultati` | stagione, giornata, casa | punteggi regolamentari (bonus casa compreso) e dopo i supplementari, vincitore, convalida (si riempirà con la convalida delle giornate) |
 | `nba_partite` | `espn_id` | partite NBA: stagione della lega (ESPN 2027 = 2026), tipo (1 pre, 2 RS, 3 playoff, 5 play-in), `data_et`, `inizio`, sigle, `stato`, `tabellino` (quando scaricato) |

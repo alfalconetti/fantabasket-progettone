@@ -52,6 +52,11 @@ ok(q.kb and q.kb.inline_keyboard[0][0].callback_data == f"tprot:p:{i1}", f"build
 q = asyncio.run(go(f"tprot:s:{i1}:4"))
 ok(P.testo(db.get_item_trade(i1)["protezione"]) == "protetta 1-4" and "protetta 1-4" in q.kb.inline_keyboard[0][0].text, "builder: «protetta 1-4» sulla bozza")
 ok("🛡 protetta 1-4" in TCM._testo_riepilogo(tid), "riepilogo della trade con la protezione")
+# v7.28.1 (Luca, 24/11): chi non cede niente compare lo stesso, con «/»; la protezione anche sul canale
+_an = TCM._formatta_annuncio_canale(tid)
+_n2 = tm.get_team_by_id("team02")["nome"]
+ok(f"<b>{_n2} cede:</b>\n/" in _an and "protetta 1-4" in _an, f"annuncio sul canale: «cede: /» e la protezione\n{_an}")
+ok("<i>Cede:</i> /" in TCM._testo_riepilogo(tid), "riepilogo: «Cede: /» per chi riceve e basta")
 # esecuzione e annullamento
 import handlers.trade_esegui as TE
 TE._scrivi_trade(tid, "TRADE-PROVA-001", "admin")
@@ -73,3 +78,8 @@ sq, err = TP.parsa_trade(testo, "2026", tm.get_all_teams())
 _it = [i for s_ in sq for i in s_.cede]
 ok(_it[0].protezione == {"da": 1, "a": 5} and not _it[0].errori, f"import: «protetta 1-5» sulla propria 1st {_it[0].errori}")
 ok(_it[1].protezione is None and any("propria 1st" in e for e in _it[1].errori), "import: sulla 2nd la protezione è un errore")
+# v7.28.1: chi non cede niente, «/»: niente errori, e l'anteprima lo riscrive così
+_sq1, _err1 = TP.parsa_trade(f"TRADE\n\n{_t1['nome']} cede:\n1st round pick 2027 by {_t1['nome']}\n\n{_t2['nome']} cede:\n/\n", "2026", tm.get_all_teams())
+ok(not _err1 and len(_sq1) == 2 and not [i for i in _sq1[1].cede] and not any(i.errori for s_ in _sq1 for i in s_.cede),
+   f"import: «cede: /» vuol dire niente {_err1}")
+ok(f"<b>{_t2['nome']} cede:</b>\n  /" in TP.formatta_trade(_sq1), "anteprima dell'import: «cede: /»")

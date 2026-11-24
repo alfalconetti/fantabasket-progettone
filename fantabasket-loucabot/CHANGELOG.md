@@ -712,3 +712,9 @@ Il calcolo dei fantapunti.
 
 - **Sorteggio del calendario con drand** (Luca, 15/11 e 23/11), come la lottery: `/calendario_quando GG/MM HH:MM` lo annuncia sul canale (round, conference, impronta, link, codice e `LEGGIMI.txt` allegati); all'ora il bot sorteggia le 38 giornate con la struttura di Henry e **mai più di 2 partite di fila in casa o fuori** (prima arrivava a 13-16), le pubblica col CSV; `/importa_date` unisce le date al sorteggio e importa il calendario
 - `py_ecc` per la firma BLS del round (si ricostruisce l'immagine)
+
+## v148 (2026-11-24, progettone v7.28.1)
+
+- `/lottery` solo quando ha senso (Luca, 24/11): stima in regular season, classifica finale dai playoff al draft (ai rinnovi quella della stagione prima: prima cercava quella nuova), dopo il draft «non c'è una lottery da stimare»
+- La classifica di adesso salvata ogni 10 minuti (`lega_classifica_oggi`) per `/draft` del bot principale; `/draft` senza anno: il draft passato fino alla 10ª giornata convalidata
+- `/player`: il riquadro **Minuti** (media a partita, ultime 5 con ▲/▼)

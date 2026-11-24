@@ -583,7 +583,15 @@ def dati_scheda(gid: int, foto_di=None) -> dict | None:
         r5 = {"t": f"Ultime {ULTIME_MEDIA}", "v": _num(u5), "s": "▲ sopra la media" if ottavi(u5) >= ottavi(media) else "▼ sotto la media"}
     else:
         r5 = {"t": f"Ultime {ULTIME_MEDIA}", "v": "—", "s": f"servono più di {ULTIME_MEDIA} partite"}
-    d["riquadri"] = [{"t": "Fantamedia", "v": _num(media), "s": f"{n} {'partita' if n == 1 else 'partite'}{su_breve}"}, r5,
+    # v7.28.1 (Luca, 24/11, mockup approvato): il minutaggio in evidenza, secondo riquadro
+    mm = [int(r["minuti"]) for r in contano]
+    mmedia = sum(mm) / n
+    if n > ULTIME_MEDIA:
+        m5 = sum(mm[-ULTIME_MEDIA:]) / ULTIME_MEDIA
+        rmin = {"t": "Minuti", "v": _media(mmedia), "s": f"ultime {ULTIME_MEDIA}: {_media(m5)} " + ("▲" if round(m5, 1) >= round(mmedia, 1) else "▼")}
+    else:
+        rmin = {"t": "Minuti", "v": _media(mmedia), "s": "a partita"}
+    d["riquadri"] = [{"t": "Fantamedia", "v": _num(media), "s": f"{n} {'partita' if n == 1 else 'partite'}{su_breve}"}, rmin, r5,
                      {"t": "Migliore", "v": tp(fp[bi]), "s": quando(contano[bi])},
                      {"t": "Peggiore", "v": tp(fp[wi]), "s": quando(contano[wi])}]
     tot = {k: sum(int(r[k]) for r in contano) for k in ("minuti", "pts", "oreb", "dreb", "ast", "stl", "blk", "tov",

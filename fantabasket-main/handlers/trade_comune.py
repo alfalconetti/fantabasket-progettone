@@ -157,6 +157,8 @@ def _testo_riepilogo(trade_id: int) -> str:
             righe.append("  <i>Cede:</i>")
             for i in invia:
                 righe.append(f"    • {_label_item(i, contratti)}")
+        elif riceve:
+            righe.append("  <i>Cede:</i> /")
         if riceve:
             righe.append("  <i>Riceve:</i>")
             for i in riceve:
@@ -270,7 +272,9 @@ def _formatta_annuncio_canale(trade_id: int) -> str:
             anno = item.get("pick_anno", "?")
             orig = tm.get_team_by_id(item.get("pick_orig", ""))
             by   = orig["nome"] if orig else item.get("pick_orig", "?")
-            return f"{rnd} round pick {anno} by {by}"
+            from shared import protezioni as P         # v7.28.1: la protezione anche sul canale
+            prot = P.testo(item.get("protezione") or item.get("protezioni"))
+            return f"{rnd} round pick {anno} by {by}" + (f" {prot}" if prot else "")
         elif item["tipo"] == "diritti":
             return f"Diritti di {item['nome_common']}"   # v7.22.3 (Luca, 22/11): sul canale niente FP sui diritti
         return "?"
@@ -284,12 +288,12 @@ def _formatta_annuncio_canale(trade_id: int) -> str:
         team     = tm.get_team_by_id(sq["team_id"])
         nome     = team["nome"] if team else sq["team_id"]
         items_sq = _ordina([i for i in items if i["team_id_da"] == sq["team_id"]])
-        if not items_sq:
-            continue
         righe.append("")
         righe.append(f"<b>{nome} cede:</b>")
         for item in items_sq:
             righe.append(_label_item_canale(item))
+        if not items_sq:
+            righe.append("/")                 # v7.28.1 (Luca, 24/11): chi non cede niente compare lo stesso
 
     # Sezioni "riceve" solo per 3+ squadre
     if len(squadre) > 2:
@@ -298,12 +302,12 @@ def _formatta_annuncio_canale(trade_id: int) -> str:
             team     = tm.get_team_by_id(sq["team_id"])
             nome     = team["nome"] if team else sq["team_id"]
             items_sq = _ordina([i for i in items if i["team_id_a"] == sq["team_id"]])
-            if not items_sq:
-                continue
             righe.append("")
             righe.append(f"<b>{nome} riceve:</b>")
             for item in items_sq:
                 righe.append(_label_item_canale(item))
+            if not items_sq:
+                righe.append("/")
 
     return "\n".join(righe)
 

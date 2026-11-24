@@ -2211,3 +2211,9 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.28.0 (2026-11-23)
 
 - **Sorteggio del calendario con drand** (loucabot v147; Luca, 15/11 e 23/11): `shared/calendario_sorteggio.py` con uno schema a posti di 38 giornate (struttura di Henry: andata, interconference, ritorno, ultime 4; 19 in casa e 19 fuori; mai più di 2 di fila nello stesso campo, trovato con `strumenti/calendario_schema.py`) e i controlli del suo script; il caso sceglie solo chi va in quale posto, dal round drand annunciato. Verificabile come la lottery: codice e istruzioni allegati all'annuncio
+
+## v7.28.1 (2026-11-24)
+
+- **Trade, chi non cede niente** (Luca, 24/11: «altrimenti sembriamo pazzi»): nell'annuncio sul canale, nel riepilogo e nell'anteprima dell'import compare con «/»; nell'import `/` sotto «cede:» vuol dire niente. Sul canale anche la protezione delle pick («protetta 1-4»)
+- `/draft` anche qui «se finisse oggi» (dalla classifica salvata da loucabot); senza anno il draft passato fino alla 10ª giornata convalidata della stagione dopo
+- `/player`: il riquadro **Minuti** (mockup approvato); `/lottery` di loucabot solo dalla regular season al draft (loucabot v148)

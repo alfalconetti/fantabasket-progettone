@@ -138,6 +138,7 @@ def main():
     import playoff                                   # v7.10.0: passaggio ai playoff (fase, bozza, blocco alle 15)
     app.job_queue.run_repeating(playoff.job_passaggio, interval=timedelta(minutes=1), first=90)
     app.job_queue.run_repeating(sorteggio_calendario.job_sorteggio, interval=timedelta(seconds=30), first=100)
+    app.job_queue.run_repeating(playoff.job_classifica_oggi, interval=timedelta(minutes=10), first=45)   # v7.28.1
     # prima sera di una giornata: injury report ogni mezz'ora dalle 19 alla prima partita (IPanchinari avvisa i GM)
     app.job_queue.run_repeating(job_injury_fitti, interval=timedelta(minutes=5), first=150)
     # punteggi live: il job guarda ogni minuto, aggiorna ogni 5 minuti, dalle 2 ogni 10 (live.cosa_fare, live.frequenza)

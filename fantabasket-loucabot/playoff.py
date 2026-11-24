@@ -47,8 +47,9 @@ e = lambda x: html.escape(str(x), quote=False)
 
 
 def migra() -> None:
-    from shared.lottery_vista import TABELLA            # v7.27.1: la classifica finale per la lottery e il draft
+    from shared.lottery_vista import TABELLA, TABELLA_OGGI   # v7.27.1: la classifica finale per la lottery e il draft
     db.q(TABELLA)
+    db.q(TABELLA_OGGI)                                  # v7.28.1: quella di adesso, per /draft del bot principale
     db.q("""CREATE TABLE IF NOT EXISTS lega_playoff (
               stagione      TEXT PRIMARY KEY,
               stato         TEXT NOT NULL DEFAULT 'bozza',      -- bozza / confermato / bloccato
@@ -603,6 +604,30 @@ def salva_classifica_finale(s: str) -> int:
     return len(righe)
 
 
+def salva_classifica_oggi(s: str | None = None) -> int:
+    """v7.28.1 (Luca, 24/11): la classifica di adesso in lega_classifica_oggi (come la finale, più le giornate
+    convalidate), per /draft «se finisse oggi» del bot principale. Riscritta ogni volta."""
+    s = s or config.stagione()
+    righe, giocate = C.calcola(s)
+    ai = {t for tt in seed(s).values() for t in tt}
+    with db.get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM lega_classifica_oggi WHERE stagione = %s", (s,))
+            for i, r in enumerate(righe, 1):
+                cur.execute("INSERT INTO lega_classifica_oggi (stagione, team, posto, playoff, w, l, giornate) "
+                            "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                            (s, r["team"], i, r["team"] in ai, int(r.get("w") or 0), int(r.get("l") or 0), int(giocate or 0)))
+    return len(righe)
+
+
+async def job_classifica_oggi(context) -> None:
+    """Ogni 10 minuti (anche all'avvio): copre convalide, annullamenti e correzioni senza agganciarsi a ognuno."""
+    try:
+        await asyncio.to_thread(salva_classifica_oggi)
+    except Exception as e:
+        logger.warning("classifica di oggi non salvata: %s", e)
+
+
 async def pubblica_odds(bot, s: str) -> str:
     """Le odds della lottery sul canale principale (immagine, mockup approvato il 18/11)."""
     from shared import lottery_vista as LV
@@ -1021,30 +1046,39 @@ def righe_lottery(s: str) -> tuple[list[dict], str]:
              for i, r in enumerate(righe, 1)], f"se finisse oggi · {giocate} giornate")
 
 
-def righe_draft() -> tuple[str, list[dict], str]:
-    """Per /draft prima che il draft ci sia (v7.27.2): la classifica finale della stagione (o della passata, in
-    offseason), se no quella di adesso «se finisse oggi»."""
-    from shared import lottery_vista as LV
-    s = config.stagione()
-    if LV.classifica(s):
-        return s, LV.classifica(s), "classifica finale"
-    prima = str(int(s) - 1)
-    if str(config.globali().get("fase", "")).startswith("offseason") and LV.classifica(prima):
-        return prima, LV.classifica(prima), "classifica finale"
-    righe, quando = righe_lottery(s)
-    return s, righe, quando
-
-
 async def cmd_draft(update, context):
-    from shared import draft_vista as DV
-    await DV.cmd_draft(update, context, oggi=righe_draft)
+    from shared import draft_vista as DV                # v7.28.1: la previsione la fa shared (anche nel principale)
+    await DV.cmd_draft(update, context)
+
+
+FASI_STIMA = ("regular-season-fa", "regular-season-deadline")            # se finisse oggi
+FASI_CONFERMATA = ("playoff", "offseason-break")                         # classifica finale della stagione
+FASI_CONFERMATA_PRIMA = ("offseason-rinnovi", "offseason-draft")         # la stagione è già avanzata: quella prima
+
+
+def stagione_lottery(fase: str | None = None) -> str | None:
+    """v7.28.1 (Luca, 24/11): la lottery si vede solo quando ha senso. In regular season la stima, dai playoff al
+    draft quella confermata (ai rinnovi la stagione è già avanzata: vale la classifica di quella prima); dopo il draft
+    (RFA, FA, ruoli) niente: None."""
+    fase = fase if fase is not None else str(config.globali().get("fase", ""))
+    s = config.stagione()
+    if fase in FASI_STIMA + FASI_CONFERMATA:
+        return s
+    if fase in FASI_CONFERMATA_PRIMA:
+        return str(int(s) - 1)
+    return None
 
 
 async def cmd_lottery(update, context):
-    """/lottery (v7.27.2, Luca 23/11): le odds della lottery, come /playoff: se finisse oggi o con la classifica finale."""
+    """/lottery (v7.27.2, Luca 23/11): le odds della lottery, come /playoff: se finisse oggi o con la classifica finale.
+    v7.28.1: solo dalla regular season al draft (`stagione_lottery`)."""
     from shared import lottery_vista as LV
     msg = update.effective_message
-    s = config.stagione()
+    s = stagione_lottery()
+    if s is None:
+        await msg.reply_text("🎰 Non c'è una lottery da stimare: il draft di quest'anno è fatto (/draft). "
+                             "Le odds del prossimo si vedono dalla regular season.")
+        return
     righe, quando = await asyncio.to_thread(righe_lottery, s)
     d = await asyncio.to_thread(LV.dati_odds, s, righe, quando)
     if not d:

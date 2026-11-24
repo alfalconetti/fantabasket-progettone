@@ -272,6 +272,8 @@ def parsa_trade(testo: str, stagione: str, tutti_team: list) -> tuple[list[Sezio
 
         if sezione_corrente is None:
             continue
+        if r in ("/", "-", "—", "nulla", "niente"):       # v7.28.1 (Luca, 24/11): «cede: /» = non cede niente
+            continue
 
         item = _parse_riga(r, tutti_team, stagione)
         if item is None:
@@ -436,6 +438,8 @@ def formatta_trade(squadre: list[SezioneGM]) -> str:
             righe.append(f"<b>{sq.team_nome} cede:</b>")
             for item in sq.cede:
                 righe.append(f"  {_label(item)}")
+            if not sq.cede:
+                righe.append("  /")
             righe.append("")
     else:
         # Formato esteso: cede + riceve
@@ -443,11 +447,15 @@ def formatta_trade(squadre: list[SezioneGM]) -> str:
             righe.append(f"<b>{sq.team_nome} cede:</b>")
             for item in sq.cede:
                 righe.append(f"  {_label(item)}")
+            if not sq.cede:
+                righe.append("  /")
             righe.append("")
         for sq in squadre:
             righe.append(f"<b>{sq.team_nome} riceve:</b>")
             for item in sq.riceve:
                 righe.append(f"  {_label(item)}")
+            if not sq.riceve:
+                righe.append("  /")
             righe.append("")
 
     return "\n".join(righe).strip()

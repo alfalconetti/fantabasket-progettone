@@ -114,7 +114,7 @@ open("/tmp/draft_provvisorio.png", "wb").write(DV.immagine(_pv[0]))
 _fin = []
 async def _foto(p, **k): _fin.append("FOTO")
 _m = types.SimpleNamespace(reply_photo=_foto, reply_text=lambda *a, **k: None)
-asyncio.run(DV.cmd_draft(types.SimpleNamespace(effective_message=_m), types.SimpleNamespace(args=[]), oggi=lambda: ("2026", _oggi, "20 giornate")))
+asyncio.run(DV.cmd_draft(types.SimpleNamespace(effective_message=_m), types.SimpleNamespace(args=[]), oggi=lambda: ("2026", _oggi, "20 giornate", True)))
 ok(_fin == ["FOTO"], "/draft senza draft: il primo giro se finisse oggi")
 
 # ── la lottery nella fase draft ──
@@ -174,3 +174,30 @@ ok(any(c == -2 and "/set_cap_penalizzato team14 1" in tx for c, tx, _ in inviati
 ok(run(LO.passo(bot, t0 + timedelta(hours=1))) is None, "a lottery finita non succede più niente")
 p = LO.parziale("2027", estr, 1)
 ok(p[:11] == [None] * 11 or p.count(None) == 11, "a metà reveal: le pick non svelate restano ignote")
+
+# v7.28.1 (Luca, 24/11): /draft anche nel principale, dalla classifica di oggi salvata da loucabot; senza anno il
+# draft passato fino alla 10ª giornata della stagione dopo
+fase("regular-season-fa", "2027")
+db._q(LV.TABELLA_OGGI); db._q("DELETE FROM lega_classifica_oggi")
+def _oggi_salva(giornate):
+    db._q("DELETE FROM lega_classifica_oggi")
+    for r in _oggi:
+        db._q("INSERT INTO lega_classifica_oggi (stagione, team, posto, playoff, w, l, giornate) VALUES ('2027', %s, %s, %s, %s, %s, %s)",
+              (r["team"], r["posto"], r["playoff"], r.get("w", 0), r.get("l", 0), giornate))
+_visti = []
+_dati, _prov = DV.dati, DV.provvisorio
+DV.dati = lambda anno, giro: (_visti.append(f"draft {anno}"), _dati(anno, giro))[1]
+DV.provvisorio = lambda st, righe, quando: (_visti.append(f"previsione {int(st) + 1}"), _prov(st, righe, quando))[1]
+def _draft(*args):
+    asyncio.run(DV.cmd_draft(types.SimpleNamespace(effective_message=_m), types.SimpleNamespace(args=list(args))))
+    return _visti[-1] if _visti else None
+_oggi_salva(9)
+st, rr, q, mat = DV.righe_draft()
+ok(st == "2027" and len(rr) == 24 and q == "se finisse oggi · 9 giornate" and not mat, "righe_draft dalla classifica salvata da loucabot")
+ok(_draft() == "draft 2027", "con 9 giornate convalidate /draft è ancora il draft passato")
+ok(_draft("2028") == "previsione 2028", "/draft 2028: la previsione anche prima")
+_oggi_salva(10)
+ok(_draft() == "previsione 2028", "dalla 10ª giornata /draft è la previsione del prossimo")
+ok(_draft("2027") == "draft 2027", "/draft 2027: sempre il draft passato")
+DV.dati, DV.provvisorio = _dati, _prov
+db._q("DELETE FROM lega_classifica_oggi")

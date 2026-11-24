@@ -24,6 +24,29 @@ TABELLA = """CREATE TABLE IF NOT EXISTS lega_classifica_finale (
                  PRIMARY KEY (stagione, team))"""
 
 
+# v7.28.1 (Luca, 24/11): la classifica di adesso, copiata da loucabot (job ogni 10 minuti): il bot principale non sa
+# calcolarla e la legge da qui, per /draft «se finisse oggi».
+TABELLA_OGGI = """CREATE TABLE IF NOT EXISTS lega_classifica_oggi (
+                 stagione   TEXT NOT NULL,
+                 team       TEXT NOT NULL,
+                 posto      INT NOT NULL,
+                 playoff    BOOLEAN NOT NULL,
+                 w          INT NOT NULL DEFAULT 0,
+                 l          INT NOT NULL DEFAULT 0,
+                 giornate   INT NOT NULL DEFAULT 0,          -- giornate convalidate
+                 aggiornata TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                 PRIMARY KEY (stagione, team))"""
+
+
+def classifica_oggi(stagione: str) -> tuple[list[dict], int]:
+    """(righe come classifica(), giornate convalidate); ([], 0) se loucabot non l'ha ancora scritta."""
+    try:
+        rr = L.q("SELECT * FROM lega_classifica_oggi WHERE stagione = %s ORDER BY posto", (str(stagione),), many=True) or []
+    except Exception:
+        return [], 0
+    return rr, (int(rr[0]["giornate"]) if rr else 0)
+
+
 def classifica(stagione: str) -> list[dict]:
     try:
         return L.q("SELECT * FROM lega_classifica_finale WHERE stagione = %s ORDER BY posto", (str(stagione),), many=True) or []

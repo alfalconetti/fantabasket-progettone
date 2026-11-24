@@ -154,6 +154,19 @@ try:
     # v7.27.2 (Luca, 23/11): /lottery come /playoff: classifica finale, se no «se finisse oggi»
     _rl, _q = PO.righe_lottery(S)
     ok(_q == "classifica finale" and len(_rl) == len(_cf), "/lottery: con la classifica finale")
+    # v7.28.1 (Luca, 24/11): la lottery solo dalla regular season al draft
+    ok([PO.stagione_lottery(f) for f in ("regular-season-fa", "regular-season-deadline", "playoff", "offseason-break",
+                                         "offseason-rinnovi", "offseason-draft", "offseason-rfa", "offseason-fa", "offseason-ruoli")]
+       == [S] * 4 + [str(int(S) - 1)] * 2 + [None] * 3, "/lottery: stima in RS, confermata fino al draft, poi niente")
+    # v7.28.1: la classifica di adesso salvata per il bot principale (/draft se finisse oggi)
+    from shared import lottery_vista as _LV
+    _n = PO.salva_classifica_oggi(S)
+    _co, _gg = _LV.classifica_oggi(S)
+    _cc, _giocate = C.calcola(S)
+    ok(_n == len(_cc) and [r["team"] for r in _co] == [r["team"] for r in _cc] and _gg == _giocate
+       and {r["team"] for r in _co if r["playoff"]} == {t for tt in PO.seed(S).values() for t in tt},
+       f"classifica di oggi salvata: ordine, playoff, {_gg} giornate")
+    db.q("DELETE FROM lega_classifica_oggi")
     db.q("DELETE FROM lega_classifica_finale WHERE stagione = %s", (S,))
     _rl, _q = PO.righe_lottery(S)
     ok(_q.startswith("se finisse oggi") and [r["posto"] for r in _rl] == list(range(1, len(_rl) + 1))

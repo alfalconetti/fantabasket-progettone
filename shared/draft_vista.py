@@ -192,10 +192,30 @@ def leggi_args(args: list[str]) -> tuple[str | None, int]:
     return anno, giro
 
 
+GIORNATE_PREVISIONE = 10     # v7.28.1 (Luca, 24/11): fino alla 10ª giornata /draft mostra il draft passato
+
+
+def righe_draft() -> tuple[str | None, list[dict], str, bool]:
+    """Per /draft prima che il draft ci sia: (stagione, classifica, quando, matura). La classifica finale della
+    stagione (o della passata, in offseason), se no quella di adesso salvata da loucabot («se finisse oggi»).
+    `matura`: se senza anno la previsione va mostrata al posto del draft passato (classifica finale, o almeno
+    GIORNATE_PREVISIONE giornate convalidate)."""
+    from shared import lottery_vista as LV
+    s = L.stagione()
+    if LV.classifica(s):
+        return s, LV.classifica(s), "classifica finale", True
+    prima = str(int(s) - 1)
+    if str(L.globali().get("fase", "")).startswith("offseason") and LV.classifica(prima):
+        return prima, LV.classifica(prima), "classifica finale", True
+    righe, giornate = LV.classifica_oggi(s)
+    return s, righe, f"se finisse oggi · {giornate} giornate", giornate >= GIORNATE_PREVISIONE
+
+
 async def cmd_draft(update, context, oggi=None):
     """/draft [ANNO] [1|2]: il tabellone di un giro (senza giro il primo, senza anno l'ultimo draft, quello in corso).
-    v7.27.2: `oggi` (loucabot) dà (stagione, classifica, quando) per il draft che non c'è ancora: «se finisse oggi»,
-    le 12 soggette alla lottery."""
+    v7.27.2: per il draft che non c'è ancora «se finisse oggi», le 12 soggette alla lottery. v7.28.1 (Luca, 24/11):
+    anche nel bot principale (la classifica da lega_classifica_oggi), e senza anno il draft passato fino alla 10ª
+    giornata della stagione dopo. `oggi` (le prove) sostituisce righe_draft."""
     import asyncio
     msg = update.effective_message
     try:
@@ -203,13 +223,14 @@ async def cmd_draft(update, context, oggi=None):
     except Exception:
         tutti = []
     chiesto, giro = leggi_args(context.args or [])
-    if oggi and (not chiesto or chiesto not in tutti):
+    if not chiesto or chiesto not in tutti:
         try:
-            st, righe, quando = await asyncio.to_thread(oggi)
+            st, righe, quando, matura = await asyncio.to_thread(oggi or righe_draft)
         except Exception:
-            st, righe, quando = None, [], ""
+            st, righe, quando, matura = None, [], "", False
         prossimo = str(int(st) + 1) if st else None
-        if righe and len(righe) == 24 and prossimo not in tutti and (not chiesto or chiesto == prossimo):
+        vuole = chiesto == prossimo or (not chiesto and (matura or not tutti))
+        if righe and len(righe) == 24 and prossimo not in tutti and vuole:
             d = (await asyncio.to_thread(provvisorio, st, righe, quando))[giro - 1]
             await msg.reply_photo(await asyncio.to_thread(immagine, d))
             return

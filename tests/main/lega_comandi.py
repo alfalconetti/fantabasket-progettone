@@ -56,7 +56,7 @@ ok(out[-1] == "Quale?", "/player con più giocatori: i bottoni")
 d = LG.G.dati_scheda(g1)
 _rq = {r["t"]: r for r in d["riquadri"]}
 ok(d["nome"] == "Lega Uno" and d["nba"] == "LCA" and d["espn"] and d["prossima"].startswith("@ LCB")
-   and list(_rq)[:4] == ["Fantamedia", "Ultime 5", "Migliore", "Peggiore"] and _rq["Fantamedia"]["v"] == "31,50"
+   and list(_rq)[:5] == ["Fantamedia", "Minuti", "Ultime 5", "Migliore", "Peggiore"] and _rq["Minuti"]["v"] == "30,0" and _rq["Fantamedia"]["v"] == "31,50"
    and _rq["Migliore"]["s"] == f"vs LCB · {(ora - timedelta(days=2)).date():%d/%m}" and _rq["Ultime 5"]["v"] == "—",
    f"/player: testata e riquadri {d['riquadri']}")
 ok(d["fanta"]["tipo"] == "firmato" and d["fanta"]["squadra"] == "Alfa" and d["fanta"]["contratto"].startswith("5M × 2 anni rimasti")
@@ -66,8 +66,8 @@ ok([m["t"] for m in d["medie"]] == ["pts", "reb", "ast", "stl", "blk", "to", "3p
    f"/player: le 9 categorie, sotto le partite per intero {d['sotto_medie']}")
 ok(len(d["ultime"]) == 1 and d["ultime"][0]["fp"] == 31.5 and d["ultime"][0]["avv"] == "vs LCB" and "20 pts" in d["ultime"][0]["riga"] and "FG" not in d["ultime"][0]["riga"],
    f"/player: le ultime partite {d['ultime']}")
-ok(len(d["riquadri"]) == 4 and [r["t"] for r in d["storico"]][1] == "Carriera" and d["storico"][0]["t"].startswith("Stagione "),
-   f"/player: i quattro riquadri della stagione e lo storico (stagione passata, carriera) {d['storico']}")
+ok(len(d["riquadri"]) == 5 and [r["t"] for r in d["storico"]][1] == "Carriera" and d["storico"][0]["t"].startswith("Stagione "),
+   f"/player: i cinque riquadri della stagione (v7.28.1: Minuti) e lo storico (stagione passata, carriera) {d['storico']}")
 _rr = {"giocato": True, "partita": "x1", "data_et": ora.date(), "squadra": "LCA", "casa": "LCA", "trasferta": "LCB", "minuti": 36, "fp": 71.5,
        "pts": 38, "oreb": 5, "dreb": 10, "ast": 5, "stl": 0, "blk": 6, "tpm": 4, "tov": 3, "fgm": 13, "fga": 22, "ftm": 8, "fta": 9}
 _ud = LG.G.ultime_dati([_rr], [])
