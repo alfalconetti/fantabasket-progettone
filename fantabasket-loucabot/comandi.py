@@ -18,8 +18,8 @@ ORDINE_GM = [
     "calendario", "giornata", "live", "risultati", "live_results", "partita", "notte",          # la giornata
     "classifica", "classifica_conference", "classifica_full", "classifica_home_away", "rendimento_team",
     "playoff", "lottery", "quasi_cup", "calendario_full",                                                 # classifiche
-    "player", "giocatori",
-    "roster", "assets", "pick", "pick_lega", "draft", "team_diff", "carriera", "trova_trade", "penalita",  # squadre (v7.21.0, dal main)
+    "player", "prestazione", "giocatori",
+    "roster", "assets", "pick", "pick_lega", "draft", "prospetto_rinnovi", "team_diff", "carriera", "trova_trade", "penalita",  # squadre (v7.21.0, dal main)
     "top", "top_storica", "status", "rendimento", "rendimento_carriera", "rendimento_situazione",
     "confronto", "confronto_carriera",                                                         # giocatori
     "pdf_giornata", "pdf_partite", "pdf_roster", "pdf_assets",                                 # PDF in fondo
@@ -40,6 +40,7 @@ def liste_comandi() -> dict:
         BotCommand("live_results", "Il live della giornata in testo, completo [N]"),
         BotCommand("notte",      "I tuoi schierati in una notte NBA [SQUADRA] [DATA]"),
         BotCommand("player",     "Un giocatore: squadra NBA e fantabasket, media, statistiche"),
+        BotCommand("prestazione", "La notte di un giocatore: tabellino e fantapunti [nome] [data]"),
         BotCommand("giocatori",  "Cerca tra i giocatori: ruolo, squadra, FA, top per media… [filtri] (aiuto)"),
         BotCommand("status",     "Injury status dei giocatori di una squadra [SQUADRA]"),
         BotCommand("rendimento", "La stagione di un giocatore partita per partita [nome]"),
@@ -62,6 +63,7 @@ def liste_comandi() -> dict:
         BotCommand("pick", "Le pick in mano a una squadra [SQUADRA] [ANNO] [1|2]; con giro e anno la storia (aiuto)"),
         BotCommand("pick_lega", "Tutte le pick della lega in un'immagine [ANNO] [1|2]: con l'anno tutto un draft"),
         BotCommand("draft", "Il tabellone del draft: il primo giro, con 2 il secondo [ANNO] [1|2]"),
+        BotCommand("prospetto_rinnovi", "I rinnovi della prossima offseason, stimati [SQUADRA]"),
         BotCommand("team_diff", "Variazioni di roster [SQUADRA] [da] [a]"),
         BotCommand("carriera", "Carriera di un giocatore: fantabasket e NBA [nome]"),
         BotCommand("trova_trade", "Una trade ufficiale: per numero o per giocatore"),

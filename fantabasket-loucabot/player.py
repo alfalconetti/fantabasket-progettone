@@ -35,6 +35,13 @@ def extra(gid: int) -> str:
 cmd_player, manda, cb_player = G.handlers(lambda gid: scheda(gid), lambda gid: _foto(gid), extra_di=lambda gid: extra(gid))
 
 
+# v7.31.0 (Luca, 26/11): /prestazione, la singola notte (shared/prestazione.py)
+from shared import prestazione as PR  # noqa: E402
+cmd_prestazione, cb_prestazione = PR.handlers(lambda gid: _foto(gid))
+
+
 def get_handlers() -> list:
     return [CommandHandler("player", cmd_player), CallbackQueryHandler(cb_player, pattern=r"^pl:\d+$"),
-            CommandHandler("giocatori", cmd_giocatori)]                    # v7.5.0: shared/elenco_giocatori.py
+            CommandHandler("giocatori", cmd_giocatori),                    # v7.5.0: shared/elenco_giocatori.py
+            CommandHandler("prestazione", cmd_prestazione, block=False),
+            CallbackQueryHandler(cb_prestazione, pattern=r"^pre:\d+:\d+$", block=False)]

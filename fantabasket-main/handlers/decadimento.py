@@ -5,6 +5,7 @@ Il contratto viene annullato senza impatto sui tagli gratuiti.
 Flusso GM: richiesta → gruppo admin → approvazione → DB + canale
 Flusso admin: diretto da /admin_menu → 🏁 Decadimento (decadm:)
 """
+import html
 import logging
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -162,7 +163,8 @@ async def cb_dec_motivo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             f"⚠️ <b>Richiesta decadimento contratto</b>\n\n"
             f"👤 {user.first_name} ({gm_tag}) — <b>{team['nome']}</b>\n"
             f"🏀 Giocatore: <b>{nome}</b>\n"
-            f"📋 Motivo: {motivo_label}\n\n"
+            f"📋 Motivo: {motivo_label}\n"
+            + (f"✂️ {riga_cam_thomas(gid)}\n" if motivo_key == "cam_thomas" else "") + "\n"
             f"<i>Il contratto verrà annullato senza impatto sui tagli gratuiti. "
             f"Lo slot roster verrà liberato.</i>"
         )
@@ -359,7 +361,8 @@ async def cb_dec_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if azione == "m":
         await query.edit_message_text(
             f"🏁 Confermi il decadimento del contratto di <b>{nome}</b> ({team['nome']})?\n"
-            f"Motivo: {MOTIVI.get(motivo, motivo)}\n\n"
+            f"Motivo: {MOTIVI.get(motivo, motivo)}\n"
+            + (f"✂️ {riga_cam_thomas(gid)}\n" if motivo == "cam_thomas" else "") + "\n"
             f"<i>Contratto annullato senza impatto sui tagli gratuiti, slot roster liberato.</i>",
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup([[
@@ -552,6 +555,121 @@ async def cmd_ritiro_fa(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ── Registrazione handler ──────────────────────────────────────────────────────
 
+# ── Cam Thomas exception riconosciuta dal bot (v7.30.0, Luca 26/11) ──────────────────────────────────────
+# Ogni mattina (dopo i roster ESPN delle 8:30) i giocatori a contratto senza squadra NBA che possono decadere con la
+# Cam Thomas exception (shared/cam_thomas.py): un avviso per contratto nel gruppo admin, col bottone che apre la
+# conferma del decadimento con quel motivo. Solo agli admin; la decisione resta loro, caso per caso.
+
+def riga_cam_thomas(gid: int) -> str:
+    from shared import cam_thomas as CT
+    g = db.get_giocatore(gid) or {}
+    if not g.get("espn_id"):
+        return "senza id ESPN: da controllare a mano"
+    try:
+        return CT.testo(CT.valuta(g["espn_id"]))
+    except Exception as e:
+        logger.warning("Cam Thomas, %s: %s", gid, e)
+        return "non riesco a controllare da quando è senza squadra"
+
+
+def migra_cam_thomas() -> None:
+    db._q("""CREATE TABLE IF NOT EXISTS cam_thomas_avvisi (
+               contratto_id INT PRIMARY KEY,
+               giocatore_id INT NOT NULL,
+               team_id      TEXT NOT NULL,
+               quando       TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
+
+
+def candidati_cam_thomas(oggi=None) -> list[dict]:
+    """I contratti (non 10-day) di giocatori senza squadra NBA che possono decadere con la Cam Thomas exception."""
+    from shared import cam_thomas as CT
+    if not db._q("SELECT to_regclass('public.nba_atleti') IS NOT NULL AND to_regclass('public.nba_movimenti') IS NOT NULL AS c", one=True)["c"]:
+        return []
+    rr = db._q("""SELECT c.id AS contratto_id, c.giocatore_id, c.team_id, c.importo, g.nome_common, g.espn_id
+                  FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id
+                  JOIN nba_atleti a ON a.atleta = g.espn_id
+                  WHERE c.attivo AND c.tipo <> '10day' AND a.squadra IS NULL""", many=True) or []
+    out = []
+    for r in rr:
+        v = CT.valuta(r["espn_id"], oggi)
+        if v and v["idoneo"]:
+            out.append({**r, "valuta": v, "testo": CT.testo(v, oggi)})
+    return out
+
+
+def avviso_deadline_nba(oggi=None) -> str | None:
+    """Se la regular season NBA è iniziata e la trade deadline NBA della stagione non c'è: la richiesta agli admin."""
+    from datetime import date
+    from shared import cam_thomas as CT
+    oggi = oggi or date.today()
+    s = CT.stagione_di(oggi)
+    ini = CT.inizio_rs(s)
+    if not ini or oggi < ini or CT.deadline(s):
+        return None
+    return (f"📅 Manca la <b>trade deadline NBA</b> della stagione {s}-{str(s + 1)[-2:]}: serve a contare i giorni della "
+            "Cam Thomas exception. <code>/deadline_nba GG/MM/AAAA</code> (per esempio 01/02).")
+
+
+async def cmd_deadline_nba(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/deadline_nba [GG/MM/AAAA] (admin): la trade deadline NBA reale (globals.json `nba_trade_deadline`)."""
+    from datetime import date
+    from shared import cam_thomas as CT
+    from shared.date_comandi import leggi_data
+    if not _is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ Solo admin.")
+        return
+    g = settings.load_globals()
+    s = CT.stagione_di(date.today())
+    if not context.args:
+        d = CT.deadline(s)
+        await update.effective_message.reply_text(
+            f"📅 Trade deadline NBA {s}-{str(s + 1)[-2:]}: <b>{d.strftime('%d/%m/%Y') if d else 'non impostata'}</b>"
+            + "\nServe a contare i giorni della Cam Thomas exception (il mercato NBA è aperto dal 1° luglio alla deadline).\nPer cambiarla: <code>/deadline_nba GG/MM/AAAA</code>",
+            parse_mode="HTML")
+        return
+    d = leggi_data(context.args[0]) or leggi_data(f"{context.args[0]}/{s + 1}")
+    if not d or not date(s, 7, 1) <= d <= date(s + 1, 6, 30):
+        await update.effective_message.reply_text(f"❌ Data non valida o fuori dalla stagione {s}-{str(s + 1)[-2:]}. Es: /deadline_nba 01/02/{s + 1}")
+        return
+    vecchie = g.get("nba_trade_deadline")
+    vecchie = dict(vecchie) if isinstance(vecchie, dict) else {}
+    prima = vecchie.get(str(s))
+    vecchie[str(s)] = d.isoformat()                           # una per stagione: servono anche quelle passate
+    g["nba_trade_deadline"] = vecchie
+    settings.save_globals(g)
+    from handlers.registro import segna
+    await segna(context.bot, update.effective_user, "admin", "trade deadline NBA", oggetto="trade deadline NBA",
+                prima=str(prima or ""), dopo=d.isoformat())
+    await update.effective_message.reply_text(f"✅ Trade deadline NBA: <b>{d.strftime('%d/%m/%Y')}</b>.", parse_mode="HTML")
+
+
+async def job_cam_thomas(context) -> None:
+    gruppo = settings.admin_group_id()
+    if not gruppo:
+        return
+    try:
+        migra_cam_thomas()
+        from datetime import date
+        avviso = avviso_deadline_nba()
+        if avviso and date.today().weekday() == 0:            # il lunedì, finché manca
+            await context.bot.send_message(chat_id=gruppo, text=avviso, parse_mode="HTML")
+        for r in candidati_cam_thomas():
+            if not db._q("INSERT INTO cam_thomas_avvisi (contratto_id, giocatore_id, team_id) VALUES (%s, %s, %s) "
+                         "ON CONFLICT DO NOTHING RETURNING contratto_id", (r["contratto_id"], r["giocatore_id"], r["team_id"]), one=True):
+                continue
+            team = tm.get_team_by_id(r["team_id"]) or {"nome": r["team_id"]}
+            await context.bot.send_message(
+                chat_id=gruppo, parse_mode="HTML",
+                text=(f"✂️ <b>Cam Thomas exception possibile</b>: <b>{html.escape(r['nome_common'])}</b> "
+                      f"({html.escape(team['nome'])}, {r['importo']}M)\n{html.escape(r['testo'])}\n\n"
+                      "<i>Da valutare caso per caso: tagliato in NBA e non passato a un altro campionato (in quel caso il "
+                      "motivo è «altra lega»). Se la squadra lo riprende entro un anno, le costa almeno questo contratto.</i>"),
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(
+                    "🏁 Decadimento Cam Thomas", callback_data=f"decadm:m:{r['team_id']}:{r['giocatore_id']}:cam_thomas")]]))
+    except Exception:
+        logger.exception("Cam Thomas exception, avvisi")
+
+
 def get_handlers() -> list:
     conv = ConversationHandler(
         entry_points=[CommandHandler("decadimento", cmd_decadimento),
@@ -570,6 +688,7 @@ def get_handlers() -> list:
     return [
         conv,
         CommandHandler("ritiro_fa", cmd_ritiro_fa),
+        CommandHandler("deadline_nba", cmd_deadline_nba),
         CallbackQueryHandler(cb_dec_approva, pattern=r"^dec_approva:.+:\d+:\w+$"),
         CallbackQueryHandler(cb_dec_rifiuta, pattern=r"^dec_rifiuta:.+:\d+$"),
         CallbackQueryHandler(cb_dec_admin,   pattern=r"^decadm:(?:t:[\w-]+|g:[\w-]+:\d+|(?:m|ok):[\w-]+:\d+:\w+)$"),

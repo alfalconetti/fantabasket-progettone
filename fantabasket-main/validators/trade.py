@@ -23,7 +23,8 @@ def _cap_post_team(team_id: str, items: list, stagione: str) -> tuple[int, int]:
         # un x0 qualsiasi, non pesa (v3.13.1)
         if perde_rfa and db.rfa_dichiarato(giocatore_id, stagione):
             return 0
-        return _importo(giocatore_id)
+        # v7.29.3: Cam Thomas exception, per chi l'aveva fatto decadere pesa almeno il contratto di allora
+        return db.peso_cap_in(giocatore_id, stagione, team_id)
     cap_attuale = db.cap_occupato_team(team_id, stagione)
     cap_out = sum(_importo(i["giocatore_id"]) for i in items
                   if i["team_id_da"] == team_id and i["tipo"] == "giocatore")
@@ -39,16 +40,34 @@ def rfa_che_decadono(items: list, stagione: str) -> list[dict]:
     return [i for i in items if i["tipo"] == "giocatore" and db.rfa_dichiarato(i["giocatore_id"], stagione)]
 
 
+def avvisi_cam_thomas(items: list, stagione: str) -> list[str]:
+    """v7.29.3 (Luca, 26/11): chi riottiene via trade un giocatore che aveva fatto decadere con la Cam Thomas
+    exception nell'ultimo anno se lo ritrova al contratto di allora (il massimo tra i due); già nei conti del cap."""
+    out = []
+    for i in items:
+        if i["tipo"] != "giocatore" or not i.get("team_id_a"):
+            continue
+        ct = db.minimo_cam_thomas(i["giocatore_id"], i["team_id_a"])
+        from shared import cap as _cap
+        peso = _cap.peso_proprio(db._q, i["giocatore_id"], stagione)
+        if ct and peso and ct > peso:
+            a = tm.get_team_by_id(i["team_id_a"])
+            out.append(f"⚠️ Cam Thomas exception: {i.get('nome_common') or i['giocatore_id']} torna da "
+                       f"{a['nome'] if a else i['team_id_a']}, che l'aveva fatto decadere: lì vale {ct}M (non {peso}M), "
+                       "già nel cap post-trade")
+    return out
+
+
 def avvisi_trade(trade_id: int) -> list[str]:
     """Avvisi NON bloccanti. In offseason: squadre che dopo la trade superano i 150M
     (permesso fino a 165M, ma va riportato in regola entro l'inizio della regular season)."""
-    if not settings.fase().startswith("offseason"):
-        return []
     trade = db.get_trade(trade_id)
     if not trade:
         return []
     items = db.get_items_trade(trade_id)
-    avvisi = []
+    avvisi = avvisi_cam_thomas(items, trade["stagione"])        # v7.29.3: in ogni fase
+    if not settings.fase().startswith("offseason"):
+        return avvisi
     # prima delle aste RFA: chi perde la dichiarazione (v3.13.1)
     for i in rfa_che_decadono(items, trade["stagione"]):
         da = tm.get_team_by_id(i["team_id_da"])

@@ -73,7 +73,8 @@ fantabasket-progettone/
 | `stagione_corrente` | stringa, `"2026"` = stagione 2026-27 |
 | `mercato_aperto` | FA aperta; si aggiorna da sola a ogni cambio fase |
 | `admin_ids`, `dev_id` | permessi |
-| `admin_group_id` | gruppo admin: approvazioni, report |
+| `admin_group_id` | gruppo admin: approvazioni, trade, convalida in breve |
+| `audit_group_id`, `audit_group_link` | v7.29.0: gruppo di audit (anti-tanking, job periodici, dettaglio del calcolo) e il suo link d'invito; li scrive `/gruppo_audit` (`handlers/gruppo_audit.py`); `settings.audit_group_id()`, in loucabot e IPanchinari `config.gruppo_audit()`, ripiegano sul gruppo admin |
 | `main_channel_id` | canale principale: annunci |
 | `log_channel_id_main` | log del bot e backup |
 | `log_channel_id` | log del bot aste |
@@ -275,6 +276,8 @@ Se trova qualcosa scrive al dev. Di solito è una modifica fatta a mano sul DB: 
 
 Rinnovo rookie a fine II anno (`esegui_rinnovo_rookie`): `tipo = 'rookie'` x2, importo max(scala III, Doncic), movimento `renewed` con `rookie_scale = TRUE`. Doncic: `doncic(fm)` con X = ⌊max fantamedia delle due stagioni⌋ e risultato per eccesso in aritmetica intera; `fantamedia_max(gid, stagioni_lega)` legge bref alla stagione + 1.
 
+Rinnovi normali (v7.32.0, `handlers/rinnovi.py`): `candidati(team)` = contratti `normale`, non RFA, con `anni_residui = 1` e `stagione_firma < S` (appena diventati x1) oppure `anni_originali = 0` e `stagione_firma = S` (fine scala del cambio di stagione). Importo `max(⌈base·5/4⌉ o ⌈base·3/2⌉, minimo_contratto_per_media(fm S−1))`, anni `[2, 3]` o `[3]` da `soglia_anni_3`. `esegui` = `_nuovo_contratto(…, "renewed", nota, False)` + riga in `rinnovi_normali` (indice unico `(stagione, team_id, tipo) WHERE annullato IS NULL`) nella stessa transazione. Cap dopo = occupato − peso attuale + max(nuovo, Cam Thomas): sopra `cap_limite_team` (165 in offseason) bloccato, sopra `cap_regular` avviso. `db.annulla_rinnovo(id)` entro 24 ore: DELETE del movimento e del contratto nuovo, riattiva il vecchio, `annullato = NOW()`; rifiuta se il giocatore si è mosso dopo (`_dopo`). `minimo_contratto_per_media` dalla v7.32.0 prende la fascia più alta con `da ≤ fm` (una media tra due fasce, 14,995, non torna a 1).
+
 **La migrazione `rookie_pezzi_v3_11`** (una volta sola, tabella `migrazioni`): fino alla v3.10 i pezzi II, III e IV avevano `stagione_firma = anno_firma`; li ha portati alla stagione in corso.
 
 **Passaggi automatici** (`dopo_cambio_fase`, tutti rilanciabili, ognuno a sé: se uno fallisce gli altri vanno avanti):
@@ -362,6 +365,7 @@ ORDER BY t.timestamp, t.id;
 | `dpe.py` | `/dpe` e `_importo_dpe()` |
 | `rookie.py` | `/attiva_diritti`, scadenza diritti |
 | `stagione.py` | cambio di stagione (rookie scale, Doncic, x0), `/rinnovo_rookie`, `/dichiara_rfa`, passaggi di fase, `/dev_stagione`, `/trade_deadline` |
+| `rinnovi.py` | rinnovi normali da ¼ e ½ (`/rinnovo`, 📝 nel menu e nel pannello), annullamento entro 24 ore |
 
 | `decadimento.py` | `/decadimento`, motivi, `/ritiro_fa` |
 | `spalmature.py` | report mensile e `/report_spalmature` |
@@ -389,6 +393,7 @@ ORDER BY t.timestamp, t.id;
 | (shared) `lottery.py` | v7.27.1: matrice e scomposizione di Birkhoff dal `Lottery.py` di Henry, numero uniforme da SHA-256(randomness drand ‖ "lottery"), `estrai`, `scendi` (discese per penalità), drand quicknet (`info`, `round_al`, `randomness` con due relay concordi, SHA-256 della firma e, v7.27.3, firma BLS con `py_ecc` se installato: `verifica_firma`, `link_round`), `impronta`. Senza `py_ecc` solo libreria standard. Lo usa `shared/lottery_verifica.py` (v7.27.3, allegato dal bot all'annuncio insieme a `LEGGIMI.txt`; `strumenti/lottery_verifica.py` lo lancia dal repo) |
 | (shared) `lottery_vista.py`, `lottery_odds.typ` | v7.27.1: `lega_classifica_finale` (la scrive loucabot in `playoff.blocca`), seed, 13ª–24ª, secondo giro, chi ha le pick, immagine delle odds |
 | `handlers/lottery.py` | v7.27.1: sanzioni (offseason-break, tabella `sanzioni`), `/lottery_quando`, `/lottery`, `job_lottery` ogni 20 s (estrazione, reveal una pick al minuto, `scrivi_draft`), tabella `lottery` |
+| (shared) `prospetto_rinnovi.py`, `prospetto_rinnovi.typ` | v7.33.0: `/prospetto_rinnovi` (main in privato e `prr:mio` dal menu, loucabot ovunque). Tre modi per fase: `stima` (RS, playoff, break: offseason S+1, fantamedie di S, avviso sotto 10 giornate da `lega_classifica_oggi`), `reale` (rinnovi: le regole di `handlers/rinnovi.py`, rinnovi usati da `rinnovi_normali`, cap da `shared/cap`), `senza` (draft…ruoli: solo l'elenco). Doncic, minimo, rookie scale e ¼/½ riscritti qui sui dati di settings.json (`shared/regole`): `tests/main/prospetto_rinnovi.py` controlla che coincidano con il main |
 | `handlers/draft.py`, (shared) `draft_vista.py`, `draft.typ`, `protezioni.py` | v7.27.0: draft a turni (`draft`, `draft_scelte`), protezioni delle pick |
 | `bref.py` | job Basketball-Reference e conferma dei giocatori nuovi; dopo ogni abbinamento (`abbina_auto`, bottone 🔗) `aggiorna_foglio` risincronizza il foglio Roster se il giocatore è sotto contratto (v6.9.0) |
 | `nascite.py` | `/set_nascita`, `/nascite_mancanti` |
@@ -435,6 +440,7 @@ Utile per capire chi risponde a un bottone. In grassetto quelli citati più spes
 | `dev_player.py` | `dp:` |
 | `menu.py` | `menu:`, `roster_sq:`, `assets_sq:` |
 | `stagione.py` | **`sg:`** (GM: `rr`, `rrg`, `rrok`, `rfa`, `rfag`, `rfaok`, `rfano`), **`sga:<team>:`** (admin, stesse azioni), `sga:scegli:`, `sga:elenco` |
+| `rinnovi.py` | **`rn:`** (GM: `l` elenco, `g:<gid>` anteprima, `s:<gid>:<quarto\|mezzo>:<anni>` simulazione, `ok:…` conferma, `u:<id>` e `uok:<id>` annulla), **`rna:<team>:`** (admin, stesse azioni), `rna:scegli` |
 
 Tutti i bottoni delle trade sono registrati in `trade.py` (`get_handlers`), anche quelli dei moduli `trade_*`.
 
@@ -596,7 +602,7 @@ Gli errori dei job vanno a `log_job_error`: canale log e privato del dev. `/job_
 | come loucabot, solo in privato | `/player`, `/status`, `/calendario`, `/rendimento`, `/rendimento_carriera`, `/confronto`, `/confronto_carriera`, `/giocatori` |
 | trade | `/build_trade`, `/import_trade`, `/bozze_trade`, `/my_trades` (alias `/mie_trade`), `/edit_trade` |
 | roster | `/taglia`, `/dpe`, `/attiva_diritti`, `/decadimento` |
-| rinnovi (fase rinnovi) | `/rinnovo_rookie`, `/dichiara_rfa` |
+| rinnovi (fase rinnovi) | `/rinnovo`, `/rinnovo_rookie`, `/dichiara_rfa` |
 | ruoli | `/dichiarazione_ruoli`, `/cambio_ruolo` |
 | varie | `/guida`, `/annulla`, `/annulla_trade` (`/salta` dentro i flussi per saltare la nota) |
 

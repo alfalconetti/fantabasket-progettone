@@ -369,19 +369,19 @@ async def job_sync(context: ContextTypes.DEFAULT_TYPE):
             import foglio
             inf += "; " + await foglio.aggiorna(config.stagione())
         await log(context.bot, f"🔄 Sincronizzazione delle 8:30: {_esito_sync(r)}"
-                               + (f", {len(cambi)} cambi (avviso al gruppo admin)" if cambi else ", nessun cambio")
+                               + (f", {len(cambi)} cambi (avviso al gruppo di audit)" if cambi else ", nessun cambio")
                                + f"; {hc.testo_tabellini(tab)}; {roster_txt}; {inf}")
         mancanti = [x for x in db.giocatori_a_roster(config.stagione()) if not x["atleta"]]
-        if mancanti and config.gruppo_admin():             # senza id ESPN i suoi punti non contano
+        if mancanti and config.gruppo_audit():             # senza id ESPN i suoi punti non contano
             await context.bot.send_message(
-                chat_id=config.gruppo_admin(), parse_mode="HTML",
+                chat_id=config.gruppo_audit(), parse_mode="HTML",
                 text=f"⚠️ <b>{len(mancanti)} giocatori a roster senza id ESPN</b>: i loro punti non contano finché "
                      "non sono abbinati.\n" + "\n".join(f"• {e(x['nome_common'])} ({e(config.nome(x['team_id']))})"
                                                        for x in mancanti[:20])
                      + "\n\n/espn_mancanti per i candidati, /espn_abbina per abbinarli")
-        if cambi and config.gruppo_admin():
+        if cambi and config.gruppo_audit():
             await context.bot.send_message(
-                chat_id=config.gruppo_admin(), parse_mode="HTML",
+                chat_id=config.gruppo_audit(), parse_mode="HTML",
                 text="📅 <b>Calendario: cambi dalle partite NBA</b>\n\n" + "\n".join(f"• {e(c)}" for c in cambi))
     except Exception as err:
         logger.exception("job_sync")

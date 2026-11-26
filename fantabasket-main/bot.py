@@ -38,6 +38,7 @@ from handlers.ruoli_rs    import get_handlers as ruoli_rs_handlers
 from handlers.cambi_ruolo import get_handlers as cambi_ruolo_handlers
 from handlers.dieci_giorni import get_handlers as dieci_giorni_handlers
 from handlers.penalita    import get_handlers as penalita_handlers
+from handlers.gruppo_audit import get_handlers as gruppo_audit_handlers
 from handlers.impostazioni import get_handlers as impostazioni_handlers
 from handlers.report_ruoli import get_handlers as report_ruoli_handlers
 from handlers.report_dati import get_handlers as report_dati_handlers
@@ -47,6 +48,7 @@ from handlers.nascite     import get_handlers as nascite_handlers
 from handlers.spalmature  import get_handlers as spalmature_handlers
 from handlers.coerenza    import get_handlers as coerenza_handlers
 from handlers.stagione    import get_handlers as stagione_handlers
+from handlers.rinnovi     import get_handlers as rinnovi_handlers
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -407,6 +409,8 @@ def main():
         app.add_handler(h)
     for h in _solo_privato_viste(penalita_handlers()):
         app.add_handler(h)
+    for h in gruppo_audit_handlers():                 # v7.29.0
+        app.add_handler(h)
     for h in report_ruoli_handlers():
         app.add_handler(h)
     for h in report_dati_handlers():
@@ -424,6 +428,8 @@ def main():
     for h in coerenza_handlers():
         app.add_handler(h)
     for h in stagione_handlers():
+        app.add_handler(h)
+    for h in rinnovi_handlers():
         app.add_handler(h)
 
     for h in dev_handlers():
@@ -445,6 +451,11 @@ def main():
     app.job_queue.run_repeating(processa_coda_gas, interval=60, first=45)
     from handlers.lottery import job_lottery                     # v7.27.1: l'estrazione e il reveal, a passi
     app.job_queue.run_repeating(job_lottery, interval=20, first=60)
+    from handlers.penalita import job_panchine_mancanti         # v7.28.3: penalità per le panchine mancanti
+    app.job_queue.run_repeating(job_panchine_mancanti, interval=120, first=75)
+    from handlers.decadimento import job_cam_thomas              # v7.30.0: Cam Thomas exception riconosciuta
+    from datetime import time as _dtime
+    app.job_queue.run_daily(job_cam_thomas, time=_dtime(9, 10, tzinfo=ROME))
 
     # Backup giornaliero ogni 12 ore
     from datetime import time as dtime

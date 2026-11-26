@@ -220,7 +220,7 @@ async def job_tanking(context):
     import live
     s = config.stagione()
     g = giornata_di_oggi(s)
-    if not g or not config.gruppo_admin() or g.get("tipo") == "playoff":    # v7.11.0: nei playoff niente tanking
+    if not g or not config.gruppo_audit() or g.get("tipo") == "playoff":    # v7.11.0: nei playoff niente tanking
         return
     try:
         t = testo(s, g)
@@ -229,14 +229,14 @@ async def job_tanking(context):
         await log(context.bot, f"⚠️ Controllo tanking della giornata {g['numero']} non riuscito ({e(str(err))[:200]})")
         return
     for pezzo in live._pezzi(t):
-        await context.bot.send_message(chat_id=config.gruppo_admin(), text=pezzo, parse_mode="HTML")
+        await context.bot.send_message(chat_id=config.gruppo_audit(), text=pezzo, parse_mode="HTML")
 
 
 async def manda_fine(bot, s: str, g: dict) -> None:
     """Secondo giro a fine giornata (dopo il calcolo delle 7:45): i titolari Out alle 21 che non hanno giocato."""
     import live
     from handlers import log
-    if not config.gruppo_admin() or g.get("tipo") == "playoff":
+    if not config.gruppo_audit() or g.get("tipo") == "playoff":
         return
     try:
         t = testo(s, g, fine=True)
@@ -248,7 +248,7 @@ async def manda_fine(bot, s: str, g: dict) -> None:
         await log(bot, f"🕵️ Tanking a fine giornata {g['numero']}: nessun titolare Out alle 21 rimasto fuori")
         return
     for pezzo in live._pezzi(t):
-        await bot.send_message(chat_id=config.gruppo_admin(), text=pezzo, parse_mode="HTML")
+        await bot.send_message(chat_id=config.gruppo_audit(), text=pezzo, parse_mode="HTML")
 
 
 async def cmd_tanking(update, context):
@@ -432,6 +432,6 @@ async def manda_consuntivo(bot, s: str, n: int) -> None:
         logger.exception("Tanking a consuntivo G%s", n)
         await log(bot, f"⚠️ Tanking a consuntivo della giornata {n} non riuscito ({e(str(err))[:200]})")
         return
-    if config.gruppo_admin():
+    if config.gruppo_audit():
         for pezzo in live._pezzi(t):
-            await bot.send_message(chat_id=config.gruppo_admin(), text=pezzo, parse_mode="HTML")
+            await bot.send_message(chat_id=config.gruppo_audit(), text=pezzo, parse_mode="HTML")

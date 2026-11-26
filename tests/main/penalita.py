@@ -78,4 +78,55 @@ try:
     ok(next(t for t in pay["teams"] if t["team_id"] == T["id"])["penalita"] == 1, "payload del foglio Scelte: penalita")
 except FileNotFoundError:
     print("(divisions.json assente: payload Scelte non provato)")
+# v7.28.3 (Luca, 25/11): panchina mancante alla chiusura → bottone per la penalità «Mancata panchina giornata N»
+db._q("""CREATE TABLE IF NOT EXISTS ipa_stato_giornata (stagione TEXT NOT NULL, giornata INT NOT NULL, promemoria TIMESTAMPTZ,
+         riepilogo TIMESTAMPTZ, chiusa TIMESTAMPTZ, PRIMARY KEY (stagione, giornata))""")
+db._q("ALTER TABLE ipa_stato_giornata ADD COLUMN IF NOT EXISTS mancanti JSONB")
+P.migra_panchine(); db._q("TRUNCATE penalita, penalita_panchine")
+_S = settings.stagione_corrente()
+_T2 = tm.get_all_teams()[1]
+db._q("DELETE FROM ipa_stato_giornata WHERE stagione = %s AND giornata = 912", (_S,))
+db._q("INSERT INTO ipa_stato_giornata (stagione, giornata, chiusa, mancanti) VALUES (%s, 912, NOW(), %s)",
+      (_S, json.dumps([T["id"], _T2["id"]])))
+settings.admin_group_id = lambda: -200
+BOT.mandati.clear()
+asyncio.run(P.job_panchine_mancanti(CTX))
+_pm = [x for x in BOT.mandati if x["chat_id"] == -200]
+ok(len(_pm) == 1 and "Mancata panchina giornata 912" in _pm[0]["text"] and T["nome"] in _pm[0]["text"], f"proposta al gruppo admin {_pm}")
+asyncio.run(P.job_panchine_mancanti(CTX))
+ok(len([x for x in BOT.mandati if x["chat_id"] == -200]) == 1, "una volta sola")
+_r1, _r2 = db._q("SELECT id FROM penalita_panchine ORDER BY id", many=True)
+def premi_pm(data, uid=ADMIN):
+    q = Q(data, uid); asyncio.run(P.cb_panchina_mancante(upd(uid, q), CTX)); return q
+ok(premi_pm(f"pen:pm:{_r1['id']}", GM).risposte == ["⛔ Solo admin."], "solo admin")
+_q = premi_pm(f"pen:pm:{_r1['id']}")
+_p = db._q("SELECT * FROM penalita WHERE team_id = %s", (T["id"],), many=True)
+ok(len(_p) == 1 and _p[0]["motivo"] == "Mancata panchina giornata 912" and any(x["chat_id"] == CANALE for x in BOT.mandati)
+   and "⚠️ penalità data" in _q.testi[-1][0], "⚠️: penalità data, sul canale, messaggio aggiornato")
+ok(premi_pm(f"pen:pm:{_r1['id']}").risposte == ["Già deciso."], "doppio tocco: una sola")
+_q = premi_pm(f"pen:pn:{_r2['id']}")
+ok(not db._q("SELECT 1 FROM penalita WHERE team_id = %s", (_T2["id"],), one=True) and _q.testi[-1][1].get("reply_markup") is None
+   and "niente penalità" in _q.testi[-1][0], "✖️: niente penalità, bottoni finiti")
+db._q("DELETE FROM ipa_stato_giornata WHERE giornata = 912"); db._q("TRUNCATE penalita_panchine")
 db._q("TRUNCATE penalita")
+# v7.29.0 (Luca, 25/11): /gruppo_audit scritto nel gruppo nuovo salva id e link
+from handlers import gruppo_audit as GA
+_salvati = []
+_g0 = {**{k: v for k, v in glob.items() if not k.startswith("audit_")}, "admin_group_id": -2}
+settings.load_globals = lambda: dict(_salvati[-1] if _salvati else _g0)
+_sv = settings.save_globals; settings.save_globals = lambda g: _salvati.append(dict(g))
+import handlers.registro as _REG; _REG.segna_sync = lambda *a, **k: None
+def _ga(uid, chat_id, tipo, *args):
+    m = Msg(); u = types.SimpleNamespace(effective_message=m, effective_user=types.SimpleNamespace(id=uid),
+                                         effective_chat=types.SimpleNamespace(id=chat_id, type=tipo))
+    asyncio.run(GA.cmd_gruppo_audit(u, types.SimpleNamespace(args=list(args)))); return m.risposte[-1][0]
+ok(_ga(GM, -9, "supergroup").startswith("⛔"), "/gruppo_audit: solo admin")
+ok("non impostato" in _ga(ADMIN, ADMIN, "private"), "in privato: non impostato")
+ok("gruppo admin principale" in _ga(ADMIN, -2, "supergroup") and not _salvati, "nel gruppo admin principale: no")
+ok("link d'invito deve" in _ga(ADMIN, -9, "supergroup", "ciao") and not _salvati, "link sbagliato: no")
+ok(_ga(ADMIN, -9, "supergroup", "https://t.me/+abc").startswith("✅") and _salvati[-1]["audit_group_id"] == -9
+   and _salvati[-1]["audit_group_link"] == "https://t.me/+abc" and settings.audit_group_id() == -9, "salvati id e link")
+from handlers import admin_panel as _AP
+ok('href="https://t.me/+abc"' in _AP._testo_admin_home(), "nel pannello admin il link al gruppo di audit")
+settings.save_globals = _sv
+

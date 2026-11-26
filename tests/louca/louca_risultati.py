@@ -290,13 +290,25 @@ _cz = _cpz.deepcopy(c)
 _tz = _cz["risultati"][0]["sc"]["titolari"]
 _tz[1] = {**_tz[1], "fp": 0.0, "come": "zero", "nota": "non ha giocato", "nome": "Kawhi Prova", "fadd": False}
 _tzt = R.testo(_cz, 1)
-ok("Titolari a 0 senza FADD</b> (1): da controllare se hanno diritto alla FADD" in _tzt and "• Kawhi Prova (" in _tzt
+ok("Titolari a 0 senza FADD</b> (1): da controllare se DNP per scelta tecnica o infortunio" in _tzt and "• Kawhi Prova (" in _tzt
    and f"/set_valid_status GIOCATORE {N}" in _tzt and "Prova 10" not in _tzt.split("Titolari a 0")[1],
    "proposta: in fondo i titolari a 0 senza FADD (non chi è uscito con la FADD), con il comando per correggerli\n" + _tzt[-400:])
 ok(not R.titolari_a_zero({"risultati": [{**r, "sc": {**r["sc"], "titolari": [x for x in r["sc"]["titolari"] if x.get("come") != "zero"]},
                                          "st": {**r["st"], "titolari": [x for x in r["st"]["titolari"] if x.get("come") != "zero"]}}
                                         for r in c["risultati"]]}),
    "proposta: nessun titolare a 0, nessuna sezione")
+# v7.29.0 (Luca, 25/11): non chi avrebbe la FADD ma non ha un panchinaro del ruolo (già negli avvisi accanto al punteggio)
+_tz[1] = {**_tz[1], "fadd_senza_panchinaro": "Out"}
+ok(not R.titolari_a_zero(_cz) and "Titolari a 0" not in R.testo(_cz, 1), "0 da controllare: non chi è senza panchinaro del ruolo")
+_cl = _cpz.deepcopy(c)
+_cl["risultati"][0].update(punti_casa=100.0, punti_trasferta=90.0, supplementari=0)
+_cl["risultati"][1].update(punti_casa=100.0, punti_trasferta=89.875)
+_tcl = R.testo(_cl, 1)
+ok([r is _cl["risultati"][0] for r in R.close(_cl)] == [True] and "Partite close</b> (entro 10 punti" in _tcl
+   and "100,00–90,00" in _tcl.split("Partite close")[1], f"partite close: entro 10 punti compresi ({_tcl.split('Partite close')[1][:120]})")
+_tb = R.testo_breve(_cl, 2, "https://t.me/+audit")
+ok("da convalidare" in _tb and "(ricalcolo 1)" in _tb and "Partite close" in _tb and 'href="https://t.me/+audit"' in _tb
+   and "FADD: esce" not in _tb, "proposta breve: da convalidare, close, link al gruppo di audit, niente dettagli")
 
 # ── proposta al gruppo admin, convalida coi bottoni, controllo delle 10 ──
 import json as _json, handlers_risultati as HR
@@ -1645,6 +1657,19 @@ _t2 = TK.testo_consuntivo(S, 3, [_x])
 ok("schierato Panca" in _t2 and "migliore:" not in _t2, "nel report le scelte al posto della sola formazione migliore")
 ok("migliore:" in TK.testo_consuntivo(S, 3, _righe), "senza i titolari (storico vecchio) la formazione migliore com'era")
 db.q("DROP TABLE lega_tanking")
+
+# v7.29.0 (Luca, 25/11): col gruppo di audit il dettaglio va lì, nel principale la proposta breve coi bottoni
+_Ga = _json.load(open(config.GLOBALS_PATH)); _Ga["audit_group_id"] = -7; _Ga["audit_group_link"] = "https://t.me/+audit"
+_json.dump(_Ga, open(config.GLOBALS_PATH, "w"))
+BOT.mandati.clear()
+_n_au = db.q("SELECT MAX(giornata) AS n FROM lega_calcoli WHERE stagione = %s", (S,), one=True)["n"] or N
+asyncio.run(HR.esegui(BOT, S, _n_au, "prova"))
+_au = [x for x in BOT.mandati if x.get("chat_id") == -7]
+_pr = [x for x in BOT.mandati if x.get("chat_id") == -2 and "calcolata" in x.get("text", "")]
+ok(_au and "FADD: esce" in _au[0]["text"] and _pr and "da convalidare" in _pr[0]["text"] and "FADD: esce" not in _pr[0]["text"]
+   and 'href="https://t.me/+audit"' in _pr[0]["text"] and _pr[0].get("reply_markup") is not None,
+   "col gruppo di audit: dettaglio lì, nel principale la proposta breve coi bottoni")
+del _Ga["audit_group_id"], _Ga["audit_group_link"]; _json.dump(_Ga, open(config.GLOBALS_PATH, "w"))
 
 # pulizia
 db.q("DELETE FROM giocatori WHERE id = ANY(%s)", (list(gid.values()),))

@@ -92,7 +92,7 @@ async def cmd_report_spalmature(update: Update, context: ContextTypes.DEFAULT_TY
 async def job_report_spalmature(context: ContextTypes.DEFAULT_TYPE):
     """1° del mese, 9:45 — al gruppo admin, solo se c'è qualcuno."""
     try:
-        gruppo = settings.admin_group_id()
+        gruppo = settings.audit_group_id()                 # v7.29.0: job del mese, nel gruppo di audit
         if not gruppo:
             return
         from shared.messaggi import manda_lungo

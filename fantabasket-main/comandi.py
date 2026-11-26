@@ -31,6 +31,7 @@ def _fasi_comando() -> dict:
         "cambio_ruolo":        settings.FASI_RUOLI_RS,
         "firma_10day":         {"regular-season-fa"},
         "firma_10day_admin":   {"regular-season-fa"},
+        "rinnovo":             {"offseason-rinnovi"},
         "rinnovo_rookie":      {"offseason-rinnovi"},
         "dichiara_rfa":        {"offseason-rinnovi", "offseason-draft"},
         # v7.27.0: il draft
@@ -45,10 +46,10 @@ ORDINE_GM = [
     "roster", "assets", "my_team", "penalita", "registro",                                  # la tua squadra
     "build_trade", "bozze_trade", "my_trades", "edit_trade", "import_trade", "annulla_trade", "trova_trade",
     "taglia", "firma_10day", "dpe", "decadimento", "attiva_diritti",                         # trade e mercato
-    "dichiarazione_ruoli", "cambio_ruolo", "rinnovo_rookie", "dichiara_rfa", "scelgo",       # ruoli, rinnovi, draft (per fase)
-    "player", "giocatori", "status", "rendimento", "rendimento_carriera", "confronto", "confronto_carriera",
+    "dichiarazione_ruoli", "cambio_ruolo", "rinnovo", "rinnovo_rookie", "dichiara_rfa", "scelgo",       # ruoli, rinnovi, draft (per fase)
+    "player", "prestazione", "giocatori", "status", "rendimento", "rendimento_carriera", "confronto", "confronto_carriera",
     "carriera", "calendario", "quasi_cup",                                                    # giocatori
-    "pick", "pick_lega", "draft", "team_diff", "pdf_roster", "pdf_assets",                    # lega
+    "pick", "pick_lega", "draft", "prospetto_rinnovi", "team_diff", "pdf_roster", "pdf_assets",                    # lega
     "watch", "unwatch", "watchlist", "watch_soglia",                                          # watchlist
     "palette", "annulla",
 ]
@@ -76,10 +77,12 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("pdf_roster", "I roster di tutte le squadre in un PDF [DATA]"),
         BotCommand("pdf_assets", "Gli asset di tutte le squadre in un PDF [DATA]"),
         BotCommand("draft", "Il tabellone del draft: il primo giro, con 2 il secondo [ANNO] [1|2]"),
+        BotCommand("prospetto_rinnovi", "I rinnovi della prossima offseason, stimati [SQUADRA]"),
     ]
     # v7.3.0: in comune con loucabot, solo in privato (nei gruppi sono di loucabot: lì non si suggeriscono)
     cmd_lega = [
         BotCommand("player",     "Un giocatore: NBA, fantabasket, contratto, statistiche [nome]"),
+        BotCommand("prestazione", "La notte di un giocatore: tabellino e fantapunti [nome] [data]"),
         BotCommand("status",     "Injury status dei giocatori di una squadra [SQUADRA]"),
         BotCommand("calendario", "La giornata tua o di una squadra [N] [SQUADRA]"),
         BotCommand("rendimento", "La stagione di un giocatore partita per partita [nome]"),
@@ -110,6 +113,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("dichiarazione_ruoli", "Dichiara i ruoli (fase dichiarazione ruoli)"),
         BotCommand("cambio_ruolo", "Cambio ruolo (regular season e playoff)"),
         BotCommand("firma_10day",  "Chiedi un 10-day contract [nome]"),
+        BotCommand("rinnovo",        "Rinnovi da ¼ e da ½ (fase rinnovi)"),
         BotCommand("rinnovo_rookie", "Rinnova i rookie a fine II anno (fase rinnovi)"),
         BotCommand("dichiara_rfa",   "Dichiara o cambia il tuo RFA (fino alle aste RFA)"),
         BotCommand("scelgo",         "Draft: il giocatore che scegli, quando tocca a te [nome]"),
@@ -132,6 +136,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("ritiro_fa",           "Free agent ritirato: toglie le spalmature dei tagli passati"),
         BotCommand("report_spalmature",   "Free agent con spalmature attive (possibili ritirati)"),
         BotCommand("set_cap_penalizzato", "Penalità cap di una squadra [team_id] [valore]"),
+        BotCommand("gruppo_audit",   "Imposta il gruppo di audit (scritto lì) [LINK]; in privato com'è"),
         BotCommand("riassegna",           "Riassegna una squadra a un nuovo GM [team_id] [user_id] [nome]"),
         BotCommand("annulla_admin",       "Esci da operazione admin bloccata"),
         BotCommand("guida_admin",         "Guida completa per gli admin"),
@@ -143,6 +148,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("posizioni_mancanti",          "Giocatori sotto contratto senza posizioni eleggibili"),
         BotCommand("deadline_ruoli",              "Deadline dichiarazione ruoli [AAAA-MM-GG] [HH:MM]"),
         BotCommand("trade_deadline",              "Trade deadline della stagione [AAAA-MM-GG]"),
+        BotCommand("deadline_nba",                "Trade deadline NBA reale, per la Cam Thomas [GG/MM/AAAA]"),
         BotCommand("data_erminio",                "Data aggiunta posizione su Yahoo [nome] [AAAA-MM-GG]"),
         BotCommand("set_nascita",                 "Data di nascita [nome] [GG-MM-AAAA], anche più righe"),
         BotCommand("nascite_mancanti",            "Giocatori sotto contratto senza data di nascita"),

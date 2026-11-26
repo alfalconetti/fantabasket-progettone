@@ -201,3 +201,15 @@ Primo rilascio: panchine e quintetti.
 
 - `/solo_bot` senza argomenti: pulsantiera con le squadre (🤖 a chi lo è), tocco → conferma → cambio (`sbt:…`; un doppio tocco non fa niente)
 - Ogni cambio di «solo bot» (pulsantiera o `/solo_bot SQUADRA`) si annuncia sul canale principale, scritto dal bot principale (`shared/annuncio_principale.py`), e al GM in privato; l'admin vede se sono partiti
+
+## v44 (2026-11-24, progettone v7.28.2)
+
+- Squadre «solo bot» (Luca, 24/11): i titolari del quintetto nel bot non vanno in panchina. Il builder non li propone e dice quali sono; una panchina scritta con un titolare non si pubblica (per le altre squadre resta l'avviso, fa fede Yahoo)
+
+## v45 (2026-11-25, progettone v7.28.3)
+
+- Alla chiusura della giornata le squadre senza panchina si salvano (`ipa_stato_giornata.mancanti`): il bot principale propone agli admin la penalità «Mancata panchina giornata N»
+
+## v46 (2026-11-25, progettone v7.29.0)
+
+- Riepilogo prima della scadenza e chiusura della giornata nel gruppo di audit, se c'è

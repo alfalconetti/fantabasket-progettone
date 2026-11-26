@@ -85,6 +85,107 @@ def aggiungi(team_id: str, motivo: str, chi: str, chi_id: int | None) -> tuple[d
     return r, len(elenco(team_id))
 
 
+async def assegna(bot, user, team_id: str, motivo: str, chi: str, uid: int | None) -> tuple[dict, int]:
+    """Registra e pubblica: canale principale, GM della squadra, registro, foglio Scelte (v7.28.3: in comune tra il
+    pannello e il bottone della panchina mancante)."""
+    p, n = aggiungi(team_id, motivo, chi, uid)
+    m = await _manda(bot, settings.load_globals().get("main_channel_id"), testo_canale(p, n))
+    if m:
+        db._q("UPDATE penalita SET canale_msg = %s WHERE id = %s", (m.message_id, p["id"]))
+    await _ai_gm(bot, p["team_id"], f"⚠️ <b>La tua squadra ha ricevuto una penalità</b> — la {n}ª di questa stagione.\n\n"
+                                    f"<b>Motivazione:</b> {e(p['motivo'])}\n\nPer chiarimenti scrivi agli admin.")
+    from handlers.registro import segna
+    await segna(bot, user, "admin", "penalità assegnata", squadre=p["team_id"], oggetto="penalità",
+                prima=f"{n - 1} in stagione", dopo=f"{n} in stagione", nota=p["motivo"])
+    _sync_scelte()
+    return p, n
+
+
+# ── panchine mancanti (v7.28.3, Luca 25/11) ────────────────────────────────────
+# Alla chiusura della giornata IPanchinari scrive in ipa_stato_giornata.mancanti le squadre senza panchina; il job
+# qui (ogni 2 minuti) le propone al gruppo admin, un bottone per squadra: «⚠️ SQUADRA» dà la penalità con motivazione
+# «Mancata panchina giornata N» (revocabile dal pannello come le altre), «✖️» la lascia perdere.
+
+def migra_panchine() -> None:
+    db._q("""CREATE TABLE IF NOT EXISTS penalita_panchine (
+               id        SERIAL PRIMARY KEY,
+               stagione  TEXT NOT NULL,
+               giornata  INT NOT NULL,
+               team_id   TEXT NOT NULL,
+               stato     TEXT NOT NULL DEFAULT 'proposta',     -- proposta → data / no
+               messaggio BIGINT,
+               UNIQUE (stagione, giornata, team_id))""")
+
+
+def motivo_panchina(giornata: int, s: str | None = None) -> str:
+    from shared import codici_giornata as CG
+    c = CG.codice(giornata, s)
+    return f"Mancata panchina giornata {c[1:] if c.startswith('G') else c}"
+
+
+def testo_panchine(s: str, giornata: int) -> tuple[str, K | None]:
+    rr = db._q("SELECT * FROM penalita_panchine WHERE stagione = %s AND giornata = %s ORDER BY id", (s, giornata), many=True) or []
+    motivo = motivo_panchina(giornata, s)
+    righe = [f"📋 <b>Panchine mancanti</b>, {e(motivo[len('Mancata panchina '):])}: penalità «{e(motivo)}»?"]
+    tasti = []
+    for r in rr:
+        if r["stato"] == "proposta":
+            righe.append(f"• {e(_nome(r['team_id']))}")
+            tasti.append([B(f"⚠️ {_nome(r['team_id'])}", callback_data=f"pen:pm:{r['id']}"),
+                          B("✖️ niente", callback_data=f"pen:pn:{r['id']}")])
+        else:
+            righe.append(f"• {e(_nome(r['team_id']))}: " + ("⚠️ penalità data" if r["stato"] == "data" else "niente penalità"))
+    return "\n".join(righe), (K(tasti) if tasti else None)
+
+
+async def job_panchine_mancanti(context) -> None:
+    gruppo = settings.admin_group_id()
+    if not gruppo:
+        return
+    try:
+        migra_panchine()
+        if not db._q("SELECT 1 AS x FROM information_schema.columns WHERE table_name = 'ipa_stato_giornata' AND column_name = 'mancanti'", one=True):
+            return
+        rr = db._q("""SELECT stagione, giornata, mancanti FROM ipa_stato_giornata
+                      WHERE chiusa > NOW() - INTERVAL '3 days' AND jsonb_array_length(COALESCE(mancanti, '[]')) > 0""", many=True) or []
+        for r in rr:
+            nuove = [t for t in r["mancanti"]
+                     if db._q("""INSERT INTO penalita_panchine (stagione, giornata, team_id) VALUES (%s, %s, %s)
+                                 ON CONFLICT DO NOTHING RETURNING id""", (r["stagione"], r["giornata"], t), one=True)]
+            if not nuove:
+                continue
+            t, k = testo_panchine(r["stagione"], r["giornata"])
+            m = await context.bot.send_message(chat_id=gruppo, text=t, parse_mode="HTML", reply_markup=k)
+            db._q("UPDATE penalita_panchine SET messaggio = %s WHERE stagione = %s AND giornata = %s",
+                  (m.message_id, r["stagione"], r["giornata"]))
+    except Exception:
+        logger.exception("Panchine mancanti")
+
+
+async def cb_panchina_mancante(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    if not _is_admin(q.from_user.id):
+        await q.answer("⛔ Solo admin.", show_alert=True)
+        return
+    _, az, rid = q.data.split(":")
+    r = db._q("UPDATE penalita_panchine SET stato = %s WHERE id = %s AND stato = 'proposta' RETURNING *",
+              ("data" if az == "pm" else "no", int(rid)), one=True)
+    if not r:
+        await q.answer("Già deciso.", show_alert=True)
+    elif az == "pm":
+        chi = q.from_user.first_name or str(q.from_user.id)
+        p, n = await assegna(context.bot, q.from_user, r["team_id"], motivo_panchina(r["giornata"], r["stagione"]), chi, q.from_user.id)
+        await q.answer(f"Penalità data: {n}ª in stagione")
+    else:
+        await q.answer("Niente penalità")
+    if r:
+        t, k = testo_panchine(r["stagione"], r["giornata"])
+        try:
+            await q.edit_message_text(t, parse_mode="HTML", reply_markup=k)
+        except Exception:
+            pass
+
+
 def revoca(pid: int, chi: str) -> dict | None:
     return db._q("""UPDATE penalita SET revocata = NOW(), revocata_da = %s WHERE id = %s AND revocata IS NULL RETURNING *""",
                  (chi, pid), one=True)
@@ -272,16 +373,7 @@ async def cb_penalita(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await q.answer("Niente da confermare (già fatto o scaduto).", show_alert=True)
             return
         await q.answer("Registrata")
-        p, n = aggiungi(bozza["team"], bozza["motivo"], chi, uid)
-        m = await _manda(context.bot, settings.load_globals().get("main_channel_id"), testo_canale(p, n))
-        if m:
-            db._q("UPDATE penalita SET canale_msg = %s WHERE id = %s", (m.message_id, p["id"]))
-        await _ai_gm(context.bot, p["team_id"], f"⚠️ <b>La tua squadra ha ricevuto una penalità</b> — la {n}ª di questa stagione.\n\n"
-                                                f"<b>Motivazione:</b> {e(p['motivo'])}\n\nPer chiarimenti scrivi agli admin.")
-        from handlers.registro import segna
-        await segna(context.bot, q.from_user, "admin", "penalità assegnata", squadre=p["team_id"], oggetto="penalità",
-                    prima=f"{n - 1} in stagione", dopo=f"{n} in stagione", nota=p["motivo"])
-        _sync_scelte()
+        p, n = await assegna(context.bot, q.from_user, bozza["team"], bozza["motivo"], chi, uid)
         await q.edit_message_text(f"✅ Penalità registrata: <b>{e(_nome(p['team_id']))}</b> è a <b>{n}</b> in questa stagione.\n"
                                   "Pubblicata sul canale e mandata ai GM.", parse_mode="HTML",
                                   reply_markup=K([[B("← Penalità", callback_data="pen:adm")]]))
@@ -344,4 +436,5 @@ def get_handlers() -> list:
             conversation_timeout=900, name="penalita_motivo"),
         CommandHandler("penalita", cmd_penalita),
         CallbackQueryHandler(cb_penalita, pattern=r"^pen:(?:adm|new|ok|no|mie|t:[\w-]+|r:\d+|rok:\d+)$"),
+        CallbackQueryHandler(cb_panchina_mancante, pattern=r"^pen:p[mn]:\d+$"),
     ]

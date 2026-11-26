@@ -14,6 +14,9 @@ c4a=c(p4,"team01",5,1,False); tx("signed",p4,None,"team01",c4a,"2026-08-01")
 c4b=c(p4,"team01",7,2); tx("cut",p4,"team01",None,c4a,"2026-09-12"); tx("signed",p4,None,"team01",c4b,"2026-09-13")
 c5=c(p5,"team01",20,3); tx("signed",p5,None,"team01",c5,"2026-08-01")
 db._q("INSERT INTO dpe (giocatore_id,team_id,stagione,importo_originale,importo_dpe,timestamp) VALUES (%s,'team01','2026',10,8,'2026-09-15')",(p1,))
+db._q("DELETE FROM cambi_ruolo")
+db._q("INSERT INTO cambi_ruolo (giocatore_id,team_id,ruolo_a,stagione,tipo,timestamp) VALUES (%s,'team01','PG','2026','iniziale','2026-08-02'),"
+      "(%s,'team01','C','2026','post_trade','2026-09-11')", (p1, p3))
 import handlers.team_diff as TD
 out=[]
 class M:
@@ -24,6 +27,14 @@ async def main():
     await TD.cmd_team_diff(upd, types.SimpleNamespace(args=["team01","01-08-27","02-08-27"]))
     await TD.cmd_team_diff(upd, types.SimpleNamespace(args=["team01","15-09-26","01-08-27"]))
 asyncio.run(main()); print("\n=====\n".join(out))
+_ok = lambda c, m: print(("✅" if c else "❌ FAIL"), m)
+# v7.29.1 (Luca, 25/11): il computo complessivo prima → dopo
+_o = out[1] if out[0].startswith("⏳") else out[0]
+_o = next(x for x in out if "01/09/2026 → 01/10/2026" in x)
+_ok("COMPLESSIVO" in _o and "Cap: 47M → 50M (+3M)" in _o and "Slot: 4/15 → 3/15 (−1)" in _o and "(4 → 4 a roster)" in _o
+    and "Pick: 1st 0 → 0 · 2nd 0 → 0" in _o and "Diritti: 0 → 0" in _o and "Ruoli" not in _o, "/team_diff: computo di cap, slot (la DPE prima della deadline lo libera), pick e diritti")
+_o2 = next(x for x in out if "15/09/2026 → 01/08/2027" in x)
+_ok("Slot: 3/15 → 4/15 (+1)" in _o2, "la DPE prima della deadline libera lo slot solo nella sua stagione")
 
 # v7.1.0 (Luca, 05/11): trade di prova annullata e poi decadimento → «Decaduto», non «Trade»
 ok = lambda c, m: print(("✅" if c else "❌ FAIL"), m)

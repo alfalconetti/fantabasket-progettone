@@ -114,6 +114,11 @@ def dev_id() -> int | None:
 def admin_group_id() -> int | None:
     return load_globals().get("admin_group_id")
 
+def audit_group_id() -> int | None:
+    """v7.29.0: il gruppo di audit (anti-tanking, job periodici, dettagli); se non c'è, il gruppo admin."""
+    g = load_globals()
+    return g.get("audit_group_id") or g.get("admin_group_id")
+
 def log_channel_id() -> int | None:
     return load_globals().get("log_channel_id")
 
@@ -129,10 +134,12 @@ def anni_minimi_contratto(importo: int) -> int:
 
 def minimo_contratto_per_media(fantamedia: float) -> int:
     """Compenso minimo per rinnovi/firme in base alla fantamedia."""
-    for fascia in get()["tabella_minimo_contratto"]:
-        if fascia["da"] <= fantamedia <= fascia["a"]:
-            return fascia["minimo"]
-    return 1
+    # v7.32.0: la fascia più alta con «da» ≤ fantamedia, così una media tra due fasce (10,995) non torna a 1
+    minimo = 1
+    for fascia in sorted(get()["tabella_minimo_contratto"], key=lambda f: f["da"]):
+        if fascia["da"] <= fantamedia:
+            minimo = fascia["minimo"]
+    return minimo
 
 
 # ── decorators ─────────────────────────────────────────────────────────────────

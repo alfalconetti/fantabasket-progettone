@@ -204,7 +204,7 @@ async def backup_settimanale(context):
     """Backup completo settimanale al gruppo admin (sabato 00:30: in PTB days=(6,) è sabato)."""
     try:
         g = settings.load_globals()
-        admin_group_id = g.get("admin_group_id")
+        admin_group_id = settings.audit_group_id()         # v7.29.0: nel gruppo di audit
         if admin_group_id:
             await invia_backup(context, admin_group_id, "settimanale", includi_aste_db=True)
     except Exception as e:
@@ -269,7 +269,7 @@ async def check_scadenza_diritti(context):
         info = db.get_diritti_scadenza_imminente(giorni=3)
         if not info:
             return
-        admin_group_id = load_globals().get("admin_group_id")
+        admin_group_id = load_globals().get("audit_group_id") or load_globals().get("admin_group_id")   # v7.29.0
         if not admin_group_id:
             return
 

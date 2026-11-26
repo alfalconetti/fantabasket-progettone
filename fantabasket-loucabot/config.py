@@ -45,6 +45,15 @@ def gruppo_admin():
     return globali().get("admin_group_id")
 
 
+def gruppo_audit():
+    """v7.29.0: il gruppo di audit (anti-tanking, job periodici, dettagli); se non c'è, il gruppo admin."""
+    return globali().get("audit_group_id") or globali().get("admin_group_id")
+
+
+def link_audit() -> str | None:
+    return globali().get("audit_group_link")
+
+
 def canale_log():
     """Il canale log di loucabot; finché non c'è, quello del bot principale."""
     g = globali()

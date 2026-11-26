@@ -86,6 +86,39 @@ async def cam_thomas():
     ok(db.get_contratto_attivo(ct) is not None, "/registra_firma a 12M accettato")
 asyncio.run(cam_thomas())
 
+# v7.29.3 (Luca, 26/11): «rifirmato include anche riottenuto via trade»: da chi l'ha fatto decadere vale il contratto
+# di allora (il massimo tra i due) per un anno, per cap e trade; per gli altri il suo
+async def cam_thomas_trade():
+    from handlers.decadimento import applica_decadimento
+    from validators.trade import avvisi_cam_thomas, _cap_post_team
+    from datetime import datetime, timedelta
+    kp = g("Kevin Porter Jr."); firma(kp, "team06", 10, 2)
+    await applica_decadimento(Bot(), "team06", kp, "cam_thomas", "adm")
+    firma(kp, "team07", 4, 1)
+    c = db.get_contratto_attivo(kp)
+    cap7 = db.cap_occupato_team("team07", "2026")
+    ok(db.peso_cap_giocatore(kp, "2026") == 4 and db.peso_cap_in(kp, "2026", "team06") == 10
+       and db.peso_cap_in(kp, "2026", "team08") == 4, "KPJ da Derial vale 4; verso Leo 10, verso altri 4")
+    items = [{"tipo": "giocatore", "giocatore_id": kp, "team_id_da": "team07", "team_id_a": "team06", "nome_common": "Kevin Porter Jr."}]
+    prima6, dopo6 = _cap_post_team("team06", items, "2026")
+    prima7, dopo7 = _cap_post_team("team07", items, "2026")
+    ok(dopo6 - prima6 == 10 and prima7 - dopo7 == 4, f"trade: +10 a Leo, −4 a Derial ({dopo6 - prima6}, {prima7 - dopo7})")
+    av = avvisi_cam_thomas(items, "2026")
+    ok(len(av) == 1 and "vale 10M (non 4M)" in av[0], f"avviso nella trade {av}")
+    ok(not avvisi_cam_thomas([{**items[0], "team_id_da": "team06", "team_id_a": "team08"}], "2026"), "verso un altro: nessun avviso")
+    # eseguita: da Leo pesa 10, nel roster 10 (anche alla data), poi da un altro di nuovo 4
+    db._q("UPDATE contratti SET team_id = 'team06' WHERE id = %s", (c["id"],))
+    db._q("INSERT INTO transazioni (tipo,giocatore_id,team_id_da,team_id_a,stagione,contratto_id) VALUES ('traded',%s,'team07','team06','2026',%s)", (kp, c["id"]))
+    r6 = {r["giocatore_id"]: r for r in db.get_roster_team("team06")}
+    ra = {r["giocatore_id"]: r for r in db.get_roster_team_at("team06", (datetime.now() + timedelta(minutes=1)).isoformat())}
+    ok(db.peso_cap_giocatore(kp, "2026") == 10 and r6[kp]["importo"] == 10 and r6[kp]["importo_originale"] == 4
+       and ra[kp]["importo"] == 10, "da Leo: cap, roster e roster alla data a 10")
+    db._q("UPDATE contratti SET team_id = 'team08' WHERE id = %s", (c["id"],))
+    ok(db.peso_cap_giocatore(kp, "2026") == 4 and db.cap_occupato_team("team07", "2026") == cap7 - 4, "da un altro di nuovo 4")
+    db._q("UPDATE transazioni SET timestamp = NOW() - INTERVAL '13 months' WHERE giocatore_id = %s AND tipo = 'decadimento'", (kp,))
+    ok(db.peso_cap_in(kp, "2026", "team06") == 4, "dopo un anno dal decadimento vale il suo contratto anche da Leo")
+asyncio.run(cam_thomas_trade())
+
 
 # ── v7.19.0: correggere la causa di un decadimento (Luca, 20/11: Altro invece di Cam Thomas)
 async def correzione():

@@ -20,6 +20,9 @@ from shared.status_squadra import cmd_status
 from handlers import watchlist as WL
 # v7.8.0: in privato, per i GM, «👁 Segui» sotto l'immagine (la watchlist)
 cmd_player, manda, cb_player = G.handlers(G.scheda, bottoni_di=WL.bottoni_player)
+from shared import prestazione as PR   # noqa: E402  — v7.31.0: /prestazione, la singola notte
+cmd_prestazione, cb_prestazione = PR.handlers(G.foto)
+from shared import prospetto_rinnovi as PRR   # noqa: E402  — v7.33.0: il prospetto dei rinnovi
 
 PIEDE = "/calendario N [SQUADRA] per un'altra giornata o squadra · tutte le partite e la classifica su loucabot"
 
@@ -47,7 +50,7 @@ async def cmd_calendario(update, context):
 
 
 # fuori dal menu del gruppo admin, come i comandi @solo_privato (comandi.trova_solo_privato)
-for _f in (cmd_player, cmd_status, cmd_calendario, R.cmd_rendimento, R.cmd_rendimento_carriera, CF.cmd_confronto, CF.cmd_confronto_carriera,
+for _f in (cmd_player, cmd_prestazione, PRR.cmd_prospetto_rinnovi, cmd_status, cmd_calendario, R.cmd_rendimento, R.cmd_rendimento_carriera, CF.cmd_confronto, CF.cmd_confronto_carriera,
            EG.cmd_giocatori):
     try:
         _f._solo_privato = True
@@ -59,6 +62,10 @@ def get_handlers() -> list:
     privato = filters.ChatType.PRIVATE
     return [CommandHandler("player", cmd_player, filters=privato),
             CallbackQueryHandler(cb_player, pattern=r"^pl:\d+$"),
+            CommandHandler("prestazione", cmd_prestazione, filters=privato, block=False),   # v7.31.0
+            CallbackQueryHandler(cb_prestazione, pattern=r"^pre:\d+:\d+$", block=False),
+            CommandHandler("prospetto_rinnovi", PRR.cmd_prospetto_rinnovi, filters=privato, block=False),   # v7.33.0
+            CallbackQueryHandler(PRR.cb_prospetto_rinnovi, pattern=r"^prr:mio$", block=False),
             CommandHandler("status", cmd_status, filters=privato),
             CommandHandler("calendario", cmd_calendario, filters=privato),
             CommandHandler("rendimento", R.cmd_rendimento, filters=privato),             # v7.4.0

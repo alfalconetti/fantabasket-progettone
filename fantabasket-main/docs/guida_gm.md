@@ -76,7 +76,7 @@ Dalla v7.24.0 (Luca, 22/11) sotto ogni giocatore scambiato due righe di medie, p
 
 **`/pick_lega`** manda un'immagine con **tutte le pick della lega** (con un anno, **`/pick_lega 2028`**, tutto quel draft: una riga per squadra a cui spettavano, chi ce l'ha adesso con le protezioni e quante pick ha in mano ogni squadra; `/pick_lega 2028 1` solo il 1° giro): una riga per squadra (a cui spetta la pick), per ogni anno del draft due caselle, 1° e 2° giro, con logo e sigla di chi ce l'ha adesso: in grigio se ce l'ha ancora lei, in grassetto su fondo chiaro se è passata a un'altra squadra. `*` vuol dire protetta, una casella grigia col numero è una pick già usata. In fondo a ogni riga quante pick di ogni giro ha in mano la squadra, sue e di altri. Nei gruppi risponde loucabot (dalla v7.21.0).
 
-**`/player NOME`**, **`/status [SQUADRA]`**, **`/calendario [N] [SQUADRA]`**, **`/rendimento NOME`**, **`/rendimento_carriera NOME`** (la stagione partita per partita e la carriera stagione per stagione, anche dei giocatori storici), **`/confronto A vs B`** e **`/confronto_carriera A vs B`** (due giocatori a confronto), **`/giocatori [filtri]`** (cerca tra i giocatori per ruolo, FA o firmati, squadra, top per media…: `/giocatori aiuto`) sono gli stessi di loucabot (stesso codice, stesse risposte: la guida è quella di loucabot), qui **solo in privato**: nei gruppi risponde loucabot, così nessuno riceve due risposte. `/calendario` senza squadra vale per la tua; la giornata intera e la classifica sono su loucabot.
+**`/player NOME`**, **`/prestazione NOME [DATA]`** (la singola notte di un giocatore in immagine, dalla v7.31.0: guida di loucabot), **`/status [SQUADRA]`**, **`/calendario [N] [SQUADRA]`**, **`/rendimento NOME`**, **`/rendimento_carriera NOME`** (la stagione partita per partita e la carriera stagione per stagione, anche dei giocatori storici), **`/confronto A vs B`** e **`/confronto_carriera A vs B`** (due giocatori a confronto), **`/giocatori [filtri]`** (cerca tra i giocatori per ruolo, FA o firmati, squadra, top per media…: `/giocatori aiuto`) sono gli stessi di loucabot (stesso codice, stesse risposte: la guida è quella di loucabot), qui **solo in privato**: nei gruppi risponde loucabot, così nessuno riceve due risposte. `/calendario` senza squadra vale per la tua; la giornata intera e la classifica sono su loucabot.
 
 **`/team_diff`** ti dice cosa è cambiato nell'ultima settimana: chi è arrivato, chi è uscito e chi ha cambiato contratto (per esempio per una DPE, un rinnovo o un rookie che passa al II anno, 12x2 → 13x1). Esempio di risposta:
 
@@ -90,6 +90,8 @@ Dalla v7.24.0 (Luca, 22/11) sotto ogni giocatore scambiato due righe di medie, p
 ```
 
 Funziona anche per un'altra squadra (`/team_diff team07`) o tra due date a scelta (`/team_diff team07 01-10-26 15-10-26`).
+
+In fondo, dalla v7.29.1, il **computo complessivo** prima → dopo: il cap (i contratti che pesano alle due date, DPE compresa, senza tagli e spalmature), gli slot occupati sul massimo (niente 10-day, x0 e DPE che liberano lo slot; tra parentesi quanti sono a roster se il numero è diverso), le pick 1st e 2nd e i diritti, ognuno con la differenza.
 
 Dalla v7.21.0 (Luca, 21/11) **`/roster`, `/assets`, `/pdf_roster`, `/pdf_assets`, `/team_diff`, `/carriera`, `/trova_trade`, `/pick`, `/pick_lega` e `/penalita`** ci sono anche su **loucabot**, con lo stesso codice e le stesse immagini: qui funzionano **solo in privato**, nei gruppi della lega risponde loucabot, così nessuno riceve due risposte. Il bot principale resta quello per agire sulla squadra (trade, tagli, ruoli, palette…), loucabot quello per guardare.
 
@@ -108,7 +110,7 @@ Segui i giocatori che ti interessano (free agent, obiettivi di mercato, giocator
 - **`/watchlist`** i giocatori che segui, con la grafica di `/giocatori` (puoi aggiungere i suoi filtri: `/watchlist fa`); in `/giocatori` c'è il filtro `watch`, solo in privato.
 - **`/watch_soglia`** la soglia della grande prestazione: di default almeno **15 sopra la fantamedia** o **50 fantapunti**; `/watch_soglia +20`, `/watch_soglia 45`, tutte e due, o `/watch_soglia default`.
 
-**Gli avvisi arrivano subito**, una volta sola e solo per quello che succede dopo che hai iniziato a seguirlo: 🔨 un'**asta aperta** sul giocatore (non se l'hai aperta tu); 🔁 i **movimenti** (firmato, scambiato, tagliato, 10-day, fine contratto); 🩹 l'**injury report** solo per le cose serie (Out, Doubtful, sospeso) e ✅ quando ne esce; 🔥 una **grande prestazione** (sopra la tua soglia), col risultato e lo scarto dalla media.
+**Gli avvisi arrivano subito**, una volta sola e solo per quello che succede dopo che hai iniziato a seguirlo: 🔨 un'**asta aperta** sul giocatore (non se l'hai aperta tu); 🔁 i **movimenti** (firmato, scambiato, tagliato, 10-day, fine contratto); 🩹 l'**injury report** solo per le cose serie (Out, Doubtful, sospeso) e ✅ quando ne esce; 🔥 una **grande prestazione** (sopra la tua soglia), col risultato e lo scarto dalla media. Sotto l'avviso della **grande prestazione** c'è il bottone «🏀 La prestazione», che apre `/prestazione` di quella notte (v7.31.2).
 
 **Alle 9:30 il report della notte**: un'immagine coi giocatori seguiti che hanno giocato, dal migliore, coi fantapunti, la media e lo scarto (▲▼), in oro chi ha superato la soglia; sotto chi non ha giocato e perché. Se nessuno dei tuoi ha giocato, il report non arriva.
 
@@ -308,6 +310,35 @@ Esempio: fantamedia 24,95 → conta 24 → 12 + 2,4 = 14,4 → **15**. Se la sca
 
 I rinnovi dei rookie non hanno limite e non contano nei 2 rinnovi normali. Servono cap e uno slot liberi.
 
+### Rinnovare un giocatore (¼ e ½)
+
+`/rinnovo` (o 📝 Rinnovi nel menu), nella fase dei rinnovi. Ogni stagione hai **due rinnovi**: uno **da ¼** e uno **da ½**. Li usi in qualsiasi ordine, ognuno su un giocatore a tua scelta; quelli che non usi si perdono, non passano all'anno dopo e non si cedono.
+
+**Chi si può rinnovare:**
+
+- un giocatore con il contratto **appena diventato x1** con il cambio di stagione (anche se ti è arrivato con una trade);
+- un **ex rookie uscito dal IV anno** (x0): si parte dal contratto che gli ha dato il bot, già con la Doncic se spettava. Conta come uno dei due rinnovi.
+
+**Il nuovo contratto:**
+
+- da ¼: vecchio stipendio + ¼, arrotondato per eccesso; da ½: vecchio stipendio + ½, per eccesso;
+- **mai sotto il minimo della tabella** per la fantamedia della stagione appena finita;
+- durata **x2 o x3**, a tua scelta; da 35M solo x3.
+
+Esempio: 11x1 con fantamedia 27, minimo 15. Da ¼: 11 + ¼ = 13,75 → 14, sotto il minimo, quindi **15**. Da ½: 11 + ½ = 16,5 → **17**.
+
+Il bot ti mostra l'anteprima di tutti e due, con il cap dopo il rinnovo. Tocchi il rinnovo e la durata e il bot ti fa la **simulazione** (contratto prima e dopo, fino a quale stagione, cap prima e dopo): niente è ancora fatto finché non tocchi ✅ Conferma. Da lì il contratto nuovo **vale da subito**, al posto di quello di questa stagione, e sul canale principale esce l'annuncio.
+
+Non sei obbligato a usarli tutti e due, né a farli insieme: puoi farne uno solo, oppure uno oggi e l'altro un altro giorno, finché dura la fase dei rinnovi.
+
+- **Cap**: sopra 150M il bot ti avvisa (va rientrato entro l'inizio della regular season); sopra 165M non si può.
+- Un ex rookie x0 rinnovato torna a occupare uno slot: serve uno slot libero.
+- **Ripensamenti**: entro 24 ore da 📝 Rinnovi tocchi ↩️ Annulla: torna il contratto di prima e quel rinnovo è di nuovo libero (anche per un altro giocatore).
+
+**Prima dell'offseason**: `/prospetto_rinnovi` (o 🔮 Prospetto rinnovi nel menu, dalla regular season ai rinnovi) ti fa vedere in un'immagine chi potrai rinnovare e quanto verrebbe col ¼ e col ½, con la Doncic d'ufficio per i rookie che escono dal IV anno; `/prospetto_rinnovi SQUADRA` per un'altra squadra. In regular season è una stima con le fantamedie di oggi (nelle prime 10 giornate ancora poco affidabili); nelle fasi tra draft e ruoli escono solo i rinnovabili, senza importi. Anche su loucabot.
+
+Chi non rinnovi resta com'è: un x1 gioca l'ultimo anno, un x0 lo puoi dichiarare RFA o scade all'inizio della free agency.
+
 ### Dichiarare l'RFA
 
 `/dichiara_rfa` (o 🔒 Dichiara RFA nel menu), dalla fase dei rinnovi fino all'inizio delle aste RFA (quindi anche nel draft). Puoi scegliere **un solo** giocatore tra i tuoi contratti finiti (x0); fino a quel momento lo cambi o lo togli quante volte vuoi. Sul canale principale un messaggio unico, aggiornato dal bot, mostra gli RFA dichiarati di tutte le squadre.
@@ -340,7 +371,7 @@ Come si chiede: menu → ⏱ 10-day → ✍️ e scrivi il nome (oppure `/firma_
 
 **Si è ritirato, o è andato a giocare in un altro campionato.** Il contratto si chiude. In più smettono di pesare anche le vecchie spalmature: se l'avevi tagliato in passato, i soldi che ti restavano sul cap per lui spariscono. Questo vale per tutte le squadre che l'avevano tagliato.
 
-**Cam Thomas exception.** Il giocatore è stato tagliato in NBA ed è senza squadra da almeno un mese, con il mercato NBA aperto. Il contratto decade gratis, ma le spalmature che avevi già restano. Gli admin verificano le condizioni quando arriva la tua richiesta.
+**Cam Thomas exception.** Il giocatore è stato tagliato in NBA ed è senza squadra da almeno un mese, con il mercato NBA aperto. Il contratto decade gratis, ma le spalmature che avevi già restano. Gli admin verificano le condizioni quando arriva la tua richiesta. Per i giocatori rimasti senza squadra tra una stagione e l'altra, il contratto può decadere solo 10 giorni dopo l'inizio della stagione. **Se lo riprendi entro un anno dal decadimento**, che sia rifirmandolo in FA o **riottenendolo via trade**, ti costa almeno il contratto di allora: il massimo tra il vecchio e quello che ha. Per esempio, se l'avevi fatto decadere a 10M e un'altra squadra lo firma a 4M, da quella squadra vale 4M; se torna da te con una trade, da te vale 10M, e il bot lo conta così nel cap, nel roster e nei controlli della trade, che lo segnala (v7.29.3). Se poi va da un'altra squadra, torna a 4M.
 
 Se poi lo rifirmi entro un anno devi dargli **almeno il contratto che aveva prima**. Esempio: era un 15x2, lo fai decadere a novembre e a febbraio firma con un'altra squadra NBA. Se lo vuoi riprendere all'asta, non puoi offrire meno di 15.
 
@@ -417,6 +448,8 @@ Gli admin possono dare una penalità alla squadra (panchina in ritardo, formazio
 | tagliare | menu → Tagli (`/taglia`) |
 | chiedere una DPE | `/dpe` |
 | attivare un rookie | `/attiva_diritti` |
+| rinnovare un giocatore all'ultimo anno (¼ e ½) | `/rinnovo` |
+| vedere i rinnovi della prossima offseason | `/prospetto_rinnovi` |
 | rinnovare un rookie a fine II anno | `/rinnovo_rookie` |
 | dichiarare l'RFA | `/dichiara_rfa` |
 | chiudere un contratto (ritiro, altra lega, Cam Thomas) | `/decadimento` |

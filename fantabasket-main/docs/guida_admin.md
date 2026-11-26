@@ -67,6 +67,7 @@ Se la trade deadline è ancora quella della stagione prima, nello stesso passagg
 
 **Durante i rinnovi (e il draft)**, dal pannello:
 
+- **📝 Rinnovi** → squadra: i due rinnovi normali (¼ e ½) per conto del GM, con la stessa anteprima che vede lui (importi, minimo da tabella, cap dopo il rinnovo; sopra 165M il bottone non c'è). Da qui si annulla anche un rinnovo entro 24 ore. I GM li fanno da soli con `/rinnovo` solo nella fase dei rinnovi, gli admin anche nel draft;
 - **🔁 Rinnovi rookie** → squadra → giocatore: rinnovo rookie per conto del GM (scala III o Doncic, x2);
 - **🔒 RFA squadre** → squadra: dichiara, cambia o toglie l'RFA. Da **📋 RFA dichiarati** vedi quelli di tutte le squadre. I GM lo dichiarano e lo cambiano da soli fino all'inizio delle aste RFA (rinnovi e draft). Ogni dichiarazione, cambio, ritiro o trade di un RFA arriva come riga sul **canale log**; sul **canale principale** c'è un solo messaggio con gli RFA dichiarati di tutte le squadre, che il bot modifica a ogni cambio. Un RFA scambiato prima delle aste perde la dichiarazione e chi l'ha ceduto può dichiararne un altro.
 
@@ -178,7 +179,9 @@ Le richieste dei GM arrivano nel gruppo. Per farne uno direttamente: pannello �
 
 **Causa sbagliata? Si corregge** (v7.19.0). Pannello → **🏁 Decadimento** → **✏️ Correggi la causa di un decadimento** → il decadimento (ultimi 6 mesi) → la causa giusta → conferma, che dice gli effetti. Tra Altro e Cam Thomas cambia solo la causa (con Cam Thomas vale il minimo per rifirmarlo); passando a Ritiro o Altra lega si tolgono anche le spalmature delle altre squadre. Da Ritiro o Altra lega si può passare solo all'altra delle due: le spalmature tolte agli altri non si rimettono da sole (serve il dev). Resta la riga nel registro e sul canale esce un messaggio di correzione.
 
-**Cam Thomas exception.** Prima di approvare controllate che il giocatore sia stato tagliato in NBA e sia senza squadra da almeno un mese, con il mercato NBA aperto.
+**Cam Thomas exception.** Prima di approvare controllate che il giocatore sia stato tagliato in NBA e sia senza squadra da almeno un mese, con il mercato NBA aperto (per chi è rimasto senza squadra a cavallo di due stagioni, almeno 10 giorni dopo l'inizio della stagione). Per un anno dal decadimento la squadra che l'ha fatto decadere lo paga almeno al contratto di allora: in FA è il minimo dell'asta e di `/registra_firma`, e dalla v7.29.3 anche quando lo riottiene via trade (cap, roster e controlli della trade contano il massimo tra i due contratti; per le altre squadre vale il suo).
+
+**I casi li trova il bot** (v7.30.0, Luca 26/11). Ogni mattina alle 9:10, dopo i roster ESPN, guarda i giocatori a contratto (10-day esclusi) senza squadra NBA e conta, con le **date NBA** (non quelle della lega), **30 giorni senza squadra a mercato NBA aperto**: il mercato è aperto dall'inizio della free agency NBA (1° luglio) alla **trade deadline NBA**, e i giorni tra la deadline e il 1° luglio non contano. Si può decadere non prima di **10 giorni dopo l'inizio della regular season NBA**. Quindi: tagliato a novembre, dopo 30 giorni; tagliato a ottobre in preseason, dopo 30 giorni (non prima di 10 giorni di regular season); tagliato d'estate, 10 giorni dopo l'inizio della regular season; tagliato a metà gennaio senza arrivare a 30 entro la deadline, o a marzo, si riprende a contare dal 1° luglio e decade 10 giorni dopo l'inizio della regular season dopo. Quando un giocatore può decadere arriva nel gruppo admin «✂️ Cam Thomas exception possibile», una volta sola per contratto, col bottone **🏁 Decadimento Cam Thomas** che apre la conferma. Ai GM non arriva niente. La decisione resta vostra, caso per caso: il bot non sa se è passato a un altro campionato (allora il motivo è «altra lega»). Nella conferma del decadimento con questo motivo, anche quando la chiede un GM, c'è la riga «senza squadra NBA dal …; può decadere dal …». La trade deadline NBA si imposta ogni stagione con `/deadline_nba GG/MM/AAAA` (senza argomenti dice qual è; il lunedì il bot la chiede se manca). Chi era già senza squadra prima del 23/10/2026 conta da quel giorno («almeno dal»), quando il bot ha cominciato a registrare i cambi di squadra NBA.
 
 Se la stessa squadra lo rifirma entro un anno deve dargli almeno il contratto di prima. Questo lo controllano i bot da soli, sia `/registra_firma` sia il bot aste.
 
@@ -266,11 +269,22 @@ Se il nome non è esatto il bot propone i candidati coi bottoni, non indovina ma
 
 ---
 
+## Gruppo di audit
+
+Dalla v7.29.0 (Luca, 25/11) i messaggi lunghi e periodici vanno in un **gruppo di audit**, così nel gruppo admin resta quello su cui c'è da fare qualcosa.
+
+- **Come si imposta.** I bot escono da soli dai gruppi che non sono in `globals.json`, quindi prima va scritto l'id: aggiungi il bot principale al gruppo nuovo, lui esce e ti scrive in privato l'id del gruppo (`-100…`); mettilo in `globals.json` come `"audit_group_id"`, poi aggiungi al gruppo il bot principale, loucabot e IPanchinari, che ora restano. Il link d'invito: `/gruppo_audit@BOT_PRINCIPALE https://t.me/+…` scritto nel gruppo (oppure `"audit_group_link"` in `globals.json`). I bot rileggono `globals.json` quando cambia, senza riavvio. In privato `/gruppo_audit` dice com'è impostato. Il link compare nel pannello admin e nella proposta della giornata.
+- **Nel gruppo di audit:** l'anti-tanking, il dettaglio di tutti i punteggi del calcolo, i controlli dei tabellini (anche il controllo finale delle 20 coi bottoni ✅/❌), i cambi della sincronizzazione delle 8:30, il riepilogo e la chiusura delle giornate di IPanchinari, il backup settimanale, i diritti in scadenza, il report mensile delle spalmature.
+- **Nel gruppo admin:** trade, la proposta della giornata in breve (da convalidare, gli 0 da controllare, le partite close, il link al dettaglio), le richieste dei GM che aspettano una decisione (DPE, ruoli, nomi del draft, 10-day, sanzioni, playoff), le penalità per le panchine mancanti.
+- Finché il gruppo di audit non è impostato, tutto resta nel gruppo admin.
+
 ## Penalità
 
 Dal pannello admin **⚠️ Penalità** (o `/penalita`): ➕ Nuova penalità → squadra → scrivi la **motivazione** → anteprima → ✅ Conferma. Il bot la pubblica sul canale principale («Penalità a SQUADRA — la Nª della stagione» con la motivazione), la manda ai GM della squadra, scrive una riga sul canale log e aggiorna il foglio Scelte, dove sotto il GM compare «Penalità: N».
 
 Le penalità si sommano nella stagione e ripartono da zero con la stagione nuova (lo storico resta). Gli effetti del regolamento (posizioni in meno al draft, cap ridotto con `/set_cap_penalizzato`) si applicano a mano: il bot le registra soltanto.
+
+**Panchine mancanti** (v7.28.3, Luca 25/11): quando IPanchinari chiude una giornata, per le squadre senza panchina arriva nel gruppo admin «📋 Panchine mancanti» con un bottone per squadra: **⚠️ SQUADRA** dà subito la penalità con motivazione «Mancata panchina giornata N» (canale, GM, log, foglio come le altre; si revoca dal pannello), **✖️ niente** la lascia perdere. Il messaggio si aggiorna con cosa è stato deciso.
 
 Dal pannello, 📋 sulla squadra mostra l'elenco con 🗑 Revoca: dopo la conferma il messaggio sul canale diventa «revocata», i GM e il log vengono avvisati e il conteggio scende. `/penalita SQUADRA` mostra quelle di una squadra (all'admin anche le revocate, barrate).
 

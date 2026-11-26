@@ -54,6 +54,7 @@ def _snapshot_contratti(team_id: str, at: datetime) -> dict[int, dict]:
             "importo": dpe.get(r["giocatore_id"], importo),
             "importo_orig": importo,
             "anni": anni,
+            "tipo": r.get("tipo_contratto"), "x0": bool(r.get("x0")), "rfa": bool(r.get("rfa")),   # v7.29.1: cap e slot
         }
     return out
 
@@ -78,6 +79,45 @@ def _snapshot_diritti(team_id: str, at: datetime) -> set[int]:
     """IDs diritti rookie posseduti a una certa data."""
     rows = db.get_diritti_at(team_id, at.isoformat())
     return {r["id"] for r in rows}
+
+
+# ── computo complessivo (v7.29.1, Luca 25/11) ──────────────────────────────────
+
+def _dpe_libera_slot_at(team_id: str, at: datetime) -> set[int]:
+    """Giocatori con una DPE approvata prima della deadline a quella data: non occupano lo slot (shared/cap.py)."""
+    rr = db._q("SELECT giocatore_id FROM dpe WHERE team_id = %s AND stagione = %s AND pre_deadline AND timestamp <= %s",
+               (team_id, str(_stagione_at(at)), at.isoformat()), many=True) or []
+    return {r["giocatore_id"] for r in rr}
+
+
+def computo(team_id: str, at: datetime, contratti: dict[int, dict]) -> dict:
+    """Il complessivo a una data (stesse regole di shared/cap.py): cap dei contratti che pesano (x0 fuori tranne gli
+    RFA dichiarati, DPE compresa), slot occupati (niente 10-day, x0 e DPE che liberano lo slot), pick per giro, diritti."""
+    libera = _dpe_libera_slot_at(team_id, at)
+    pesa = [c for c in contratti.values() if not c["x0"] or c["rfa"]]
+    slot = [g for g, c in contratti.items() if c["tipo"] != "10day" and not c["x0"] and g not in libera]
+    pick = db.get_pick_at(team_id, at.isoformat())
+    return {"cap": sum(float(c["importo"] or 0) for c in pesa), "slot": len(slot), "giocatori": len(contratti),
+            "1st": sum(1 for p in pick if p["round"] == 1), "2nd": sum(1 for p in pick if p["round"] == 2),
+            "diritti": len(db.get_diritti_at(team_id, at.isoformat()))}
+
+
+def _n(x: float) -> str:
+    return f"{x:g}".replace(".", ",")
+
+
+def _delta(a: float, b: float, suff: str = "") -> str:
+    d = b - a
+    return f" ({'+' if d > 0 else '−'}{_n(abs(d))}{suff})" if d else ""
+
+
+def testo_computo(da: dict, a: dict) -> list[str]:
+    return ["🧮 <b>COMPLESSIVO</b> (prima → dopo)",
+            f"  • Cap: {_n(da['cap'])}M → {_n(a['cap'])}M{_delta(da['cap'], a['cap'], 'M')} <i>(contratti, senza tagli e spalmature)</i>",
+            f"  • Slot: {da['slot']}/{settings.slot_massimo()} → {a['slot']}/{settings.slot_massimo()}{_delta(da['slot'], a['slot'])}"
+            + (f" <i>({da['giocatori']} → {a['giocatori']} a roster)</i>" if (da['giocatori'], a['giocatori']) != (da['slot'], a['slot']) else ""),
+            f"  • Pick: 1st {da['1st']} → {a['1st']}{_delta(da['1st'], a['1st'])} · 2nd {da['2nd']} → {a['2nd']}{_delta(da['2nd'], a['2nd'])}",
+            f"  • Diritti: {da['diritti']} → {a['diritti']}{_delta(da['diritti'], a['diritti'])}"]
 
 
 # ── etichetta motivo movimento ────────────────────────────────────────────────
@@ -281,6 +321,13 @@ async def cmd_team_diff(update: Update, context: ContextTypes.DEFAULT_TYPE):
             g = db.get_giocatore(gid)
             nome = g["nome_common"] if g else f"#{gid}"
             righe.append(f"  • {html.escape(nome)} {_fmt_contratto(c_da[gid])} → {_fmt_contratto(c_a[gid])}")
+        righe.append("")
+
+    # v7.29.1 (Luca, 25/11): il computo complessivo prima → dopo
+    try:
+        righe += testo_computo(computo(team_id, data_da, c_da), computo(team_id, data_a, c_a))
+    except Exception as err:
+        logger.warning("team_diff, computo: %s", err)
 
     await update.effective_message.reply_text(
         "\n".join(righe).rstrip(), parse_mode="HTML"

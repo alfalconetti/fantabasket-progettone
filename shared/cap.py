@@ -15,7 +15,10 @@ Regole:
     una DPE approvata prima della deadline (regolamento: la DPE dopo la deadline non libera
     lo slot, dà un cambio ruolo);
   - cap occupato = contratti che pesano + impatto dei tagli (spalmature) della stagione;
-  - il 10-day (tipo '10day') non pesa sul cap e non occupa uno slot (v5.2.0).
+  - il 10-day (tipo '10day') non pesa sul cap e non occupa uno slot (v5.2.0);
+  - Cam Thomas exception (v7.29.3, Luca 26/11): se la squadra ha fatto decadere il giocatore con questa regola
+    nell'ultimo anno, finché lo ha di nuovo (rifirmato o «riottenuto via trade») pesa almeno il contratto di allora:
+    il massimo tra i due. Per le altre squadre vale il contratto suo.
 """
 
 # frammenti SQL sul contratto `c`; ognuno prende un parametro: la stagione
@@ -23,8 +26,13 @@ SQL_IN_CORSO = "(c.anni_originali - (%s::int - c.stagione_firma::int)) >= 1"
 SQL_NON_10DAY = "c.tipo <> '10day'"
 SQL_RFA = ("EXISTS (SELECT 1 FROM rfa_dichiarati rd WHERE rd.contratto_id = c.id "
            "AND rd.stagione = %s AND rd.stato = 'attiva')")
-SQL_IMPORTO = ("COALESCE((SELECT d.importo_dpe FROM dpe d WHERE d.giocatore_id = c.giocatore_id "
-               "AND d.team_id = c.team_id AND d.stagione = %s), c.importo)")
+# Cam Thomas (nessun parametro): il contratto che la squadra di `c` gli ha fatto decadere con la regola nell'ultimo anno
+SQL_CAM_THOMAS = ("(SELECT MAX(c2.importo) FROM movimenti_giocatori t JOIN contratti c2 ON c2.id = t.contratto_id "
+                  "WHERE t.tipo = 'decadimento' AND t.giocatore_id = c.giocatore_id AND t.team_id_da = c.team_id "
+                  "AND t.contratto_id <> c.id AND t.note LIKE '%%Cam Thomas%%' AND t.timestamp > NOW() - INTERVAL '1 year')")
+SQL_IMPORTO_PROPRIO = ("COALESCE((SELECT d.importo_dpe FROM dpe d WHERE d.giocatore_id = c.giocatore_id "
+                       "AND d.team_id = c.team_id AND d.stagione = %s), c.importo)")      # il contratto suo, DPE compresa
+SQL_IMPORTO = f"GREATEST({SQL_IMPORTO_PROPRIO}, COALESCE({SQL_CAM_THOMAS}, 0))"
 SQL_DPE_LIBERA_SLOT = ("EXISTS (SELECT 1 FROM dpe d WHERE d.giocatore_id = c.giocatore_id "
                        "AND d.team_id = c.team_id AND d.stagione = %s AND d.pre_deadline)")
 
@@ -95,6 +103,35 @@ def peso_cap(q, giocatore_id: int, stagione) -> int:
     """Quanto pesa sul cap il contratto attivo del giocatore (0 se non pesa o non c'è)."""
     s = str(stagione)
     r = q(f"""SELECT {SQL_IMPORTO} AS imp, {sql_pesa_cap(q)} AS pesa
+              FROM contratti c WHERE c.giocatore_id = %s AND c.attivo""",
+          (s, s, s, giocatore_id), one=True)
+    return int(r["imp"]) if r and r["pesa"] else 0
+
+
+def minimo_cam_thomas(q, giocatore_id: int, team_id: str, at=None) -> int | None:
+    """Cam Thomas exception: il contratto che `team_id` ha fatto decadere al giocatore con questa regola nell'anno
+    prima di `at` (adesso se None); None se non c'è."""
+    r = q("""SELECT c.importo FROM movimenti_giocatori t JOIN contratti c ON c.id = t.contratto_id
+             WHERE t.tipo = 'decadimento' AND t.giocatore_id = %s AND t.team_id_da = %s AND t.note LIKE '%%Cam Thomas%%'
+               AND t.timestamp <= COALESCE(%s::timestamptz, NOW())
+               AND t.timestamp > COALESCE(%s::timestamptz, NOW()) - INTERVAL '1 year'
+             ORDER BY t.timestamp DESC LIMIT 1""", (giocatore_id, team_id, at, at), one=True)
+    return int(r["importo"]) if r else None
+
+
+def peso_cap_in(q, giocatore_id: int, stagione, team_id: str) -> int:
+    """Quanto peserebbe il giocatore nella squadra `team_id` (per le trade): il suo peso, o il contratto della Cam
+    Thomas exception se `team_id` gliel'ha fatto decadere nell'ultimo anno (il massimo tra i due)."""
+    p = peso_proprio(q, giocatore_id, stagione)
+    if not p:
+        return 0
+    return max(p, minimo_cam_thomas(q, giocatore_id, team_id) or 0)
+
+
+def peso_proprio(q, giocatore_id: int, stagione) -> int:
+    """Come peso_cap ma col contratto suo (DPE compresa), senza la Cam Thomas della squadra dove sta."""
+    s = str(stagione)
+    r = q(f"""SELECT {SQL_IMPORTO_PROPRIO} AS imp, {sql_pesa_cap(q)} AS pesa
               FROM contratti c WHERE c.giocatore_id = %s AND c.attivo""",
           (s, s, s, giocatore_id), one=True)
     return int(r["imp"]) if r and r["pesa"] else 0

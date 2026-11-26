@@ -928,14 +928,15 @@ async def job_giornate(context: ContextTypes.DEFAULT_TYPE):
             db.segna_stato(s, g["numero"], "chiusa")
             panche = db.panchine(s, g["numero"])
             mancanti = [t["nome"] for t in in_gioco(s, g) if t["id"] not in panche]
+            db.segna_mancanti(s, g["numero"], [t["id"] for t in in_gioco(s, g) if t["id"] not in panche])   # v7.28.3
             try:
                 ced_p, ced_q = ceduti_alla_scadenza(s, g, panche)
             except Exception as err:
                 logger.warning("Ceduti alla scadenza: %s", err)
                 ced_p, ced_q = [], []
-            if config.gruppo_admin():
+            if config.gruppo_audit():
                 try:
-                    await bot.send_message(chat_id=config.gruppo_admin(), parse_mode="HTML", text=(
+                    await bot.send_message(chat_id=config.gruppo_audit(), parse_mode="HTML", text=(
                         f"⏰ <b>Giornata {g['numero']} chiusa</b>: quintetti congelati (si correggono anche a giornata "
                         f"in corso con /quintetto_admin)."
                         + (f"\n❌ Senza panchina ({len(mancanti)}): {e(', '.join(mancanti))}" if mancanti else "\n✅ Tutte le panchine arrivate.")
@@ -961,10 +962,10 @@ async def job_giornate(context: ContextTypes.DEFAULT_TYPE):
             await log(bot, f"📨 Promemoria G{g['numero']}: {n} messaggi ai GM")
         if not st["riepilogo"] and ora_ >= scad - RIEPILOGO_PRIMA:
             db.segna_stato(s, g["numero"], "riepilogo")
-            if config.gruppo_admin():
+            if config.gruppo_audit():
                 from shared.messaggi import manda_lungo
                 try:
-                    await manda_lungo(bot, config.gruppo_admin(), testo_stato(g), f"stato-G{g['numero']}")
+                    await manda_lungo(bot, config.gruppo_audit(), testo_stato(g), f"stato-G{g['numero']}")
                 except Exception as err:
                     logger.warning("Riepilogo al gruppo admin: %s", err)
 

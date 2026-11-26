@@ -6,7 +6,7 @@ Se un admin cambia il tuo quintetto, la formazione di una giornata o la tua panc
 
 In breve: **la panchina è obbligatoria** (sempre 5 giocatori, mai meno). **Il quintetto nel bot no**: per il regolamento fa fede Yahoo, e tenerlo aggiornato qui è un favore che fai agli admin.
 
-**Se hai scelto di usare solo i bot** (niente più Yahoo), chiedilo a un admin: la tua squadra diventa «solo bot» 🤖 e per te **fa fede il quintetto qui nel bot**, quindi tienilo sempre aggiornato. I messaggi del bot te lo ricordano. Si può tornare indietro quando vuoi.
+**Se hai scelto di usare solo i bot** (niente più Yahoo), chiedilo a un admin: la tua squadra diventa «solo bot» 🤖 e per te **fa fede il quintetto qui nel bot**, quindi tienilo sempre aggiornato. I messaggi del bot te lo ricordano. Per lo stesso motivo **i titolari del tuo quintetto non possono andare in panchina** (dalla v44): nel builder non compaiono (il bot ti dice quali sono), e se nel messaggio della panchina ne scrivi uno il bot non la pubblica finché non lo cambi o aggiorni il quintetto con /quintetto. Si può tornare indietro quando vuoi.
 
 ---
 

@@ -242,9 +242,61 @@ def titolari_a_zero(c: dict) -> list[dict]:
         for team, sq in ((r["casa"], r["sc"]), (r["trasferta"], r["st"])):
             for t in sq["titolari"]:
                 # posti vuoti e giocatori senza id ESPN sono già negli avvisi
-                if t.get("atleta") and t.get("come") == "zero" and not t.get("fadd") and float(t.get("fp") or 0) == 0:
+                # v7.29.0 (Luca, 25/11): non chi avrebbe la FADD ma non ha un panchinaro del ruolo (è già negli avvisi
+                # accanto al punteggio): restano DNP per scelta tecnica, Out arrivato tardi, snapshot mancante
+                if (t.get("atleta") and t.get("come") == "zero" and not t.get("fadd") and not t.get("fadd_senza_panchinaro")
+                        and float(t.get("fp") or 0) == 0):
                     out.append({"team": team, "nome": t.get("nome") or t.get("atleta") or "—", "nota": t.get("nota") or ""})
     return out
+
+
+SCARTO_CLOSE = 10    # v7.29.0 (Luca, 25/11): partite finite entro 10 punti (supplementari compresi): un ricalcolo può cambiarle
+
+
+def close(c: dict) -> list[dict]:
+    return [r for r in c["risultati"] if abs(float(r["punti_casa"]) - float(r["punti_trasferta"])) <= SCARTO_CLOSE]
+
+
+def testo_zeri(c: dict) -> list[str]:
+    import html
+    e = html.escape
+    zeri = titolari_a_zero(c)
+    if not zeri:
+        return []
+    return ([f"🩺 <b>Titolari a 0 senza FADD</b> ({len(zeri)}): da controllare se DNP per scelta tecnica o infortunio"]
+            + [f"• {e(z['nome'])} ({e(config.nome(z['team']))})" + (f": {e(z['nota'])}" if z.get("nota") else "") for z in zeri]
+            + [f"<i>Si correggono con /set_valid_status GIOCATORE {c['giornata']['numero']} (lo status vale per tutta la "
+               "giornata), poi 🔄 Ricalcola.</i>"])
+
+
+def testo_close(c: dict) -> list[str]:
+    import html
+    e = html.escape
+    cc = close(c)
+    if not cc:
+        return []
+    return ([f"⚖️ <b>Partite close</b> (entro {SCARTO_CLOSE} punti, supplementari compresi: un ricalcolo può cambiare l'esito)"]
+            + [f"• {e(config.nome(r['casa']))} {_n(r['punti_casa'])}–{_n(r['punti_trasferta'])} {e(config.nome(r['trasferta']))}"
+               + (f" · {r['supplementari']} suppl." if r["supplementari"] else "") for r in cc])
+
+
+def testo_breve(c: dict, versione: int = 1, link: str | None = None) -> str:
+    """v7.29.0 (Luca, 25/11): la proposta nel gruppo admin principale quando c'è il gruppo di audit: da convalidare,
+    gli 0 da controllare e le partite close; tutti i punteggi nel gruppo di audit."""
+    import html
+    g = c["giornata"]
+    righe = [f"📊 <b>Giornata {g['numero']} calcolata</b>" + (f" (ricalcolo {versione - 1})" if versione > 1 else "")
+             + f" · notti {g['dal']:%d/%m}–{g['al']:%d/%m}: <b>da convalidare</b>"]
+    for pezzo in (testo_zeri(c), testo_close(c)):
+        if pezzo:
+            righe += [""] + pezzo
+    if not testo_zeri(c) and not testo_close(c):
+        righe += ["", "Niente 0 da controllare, nessuna partita close."]
+    if c["avvisi"]:
+        righe += ["", f"⚠️ {len(c['avvisi'])} {'avviso' if len(c['avvisi']) == 1 else 'avvisi'} nel dettaglio."]
+    righe += ["", "Tutti i punteggi nel " + (f'<a href="{html.escape(link)}">gruppo di audit</a>' if link else "gruppo di audit")
+              + f" e nel tab «{nome_tab(g, c.get('stagione'))}» del foglio di calcolo."]
+    return "\n".join(righe)
 
 
 def testo(c: dict, versione: int = 1) -> str:
@@ -268,12 +320,9 @@ def testo(c: dict, versione: int = 1) -> str:
         righe.append(riga)
     if c["avvisi"]:
         righe += ["", "⚠️ " + "\n⚠️ ".join(e(a) for a in c["avvisi"])]
-    zeri = titolari_a_zero(c)
-    if zeri:
-        righe += ["", f"🩺 <b>Titolari a 0 senza FADD</b> ({len(zeri)}): da controllare se hanno diritto alla FADD"]
-        righe += [f"• {e(z['nome'])} ({e(config.nome(z['team']))})" + (f": {e(z['nota'])}" if z.get("nota") else "") for z in zeri]
-        righe.append(f"<i>Si correggono con /set_valid_status GIOCATORE {g['numero']} (lo status vale per tutta la giornata), "
-                     "poi 🔄 Ricalcola.</i>")
+    for pezzo in (testo_zeri(c), testo_close(c)):        # v7.29.0: + le partite close
+        if pezzo:
+            righe += [""] + pezzo
     righe += ["", f"Controlla il tab «{nome_tab(g, c.get('stagione'))}» del foglio di calcolo, poi convalida. "
                   "Per correggere: /set_valid_status, /quintetto_admin SQUADRA GN, /panchina_admin SQUADRA GN "
                   "(su IPanchinari), poi 🔄 Ricalcola."]

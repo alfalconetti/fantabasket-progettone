@@ -354,6 +354,22 @@ def avvisi_prestazioni(seg: dict, dal) -> list[tuple[int, str, str]]:
     return out
 
 
+def bottone_prestazione(chiave: str):
+    """v7.31.2 (Luca, 26/11): sotto la grande prestazione il bottone che apre /prestazione di quella notte."""
+    if not chiave.startswith("perf:"):
+        return None
+    try:
+        _, partita, atleta = chiave.split(":")
+        r = L.q("""SELECT g.id, p.data_et FROM nba_partite p, giocatori g WHERE p.espn_id = %s AND g.espn_id = %s""",
+                (partita, atleta), one=True)
+    except Exception:
+        return None
+    if not r:
+        return None
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    return InlineKeyboardMarkup([[InlineKeyboardButton("🏀 La prestazione", callback_data=f"pre:{r['id']}:{r['data_et']:%Y%m%d}")]])
+
+
 async def job_avvisi(context) -> None:
     """Ogni 5 minuti: gli avvisi nuovi dei giocatori seguiti, a chi li segue, una volta sola."""
     seg = await asyncio.to_thread(W.tutti)
@@ -371,7 +387,7 @@ async def job_avvisi(context) -> None:
         if not W.nuovo_avviso(uid, chiave):
             continue
         try:
-            await context.bot.send_message(chat_id=uid, text=testo, parse_mode="HTML")
+            await context.bot.send_message(chat_id=uid, text=testo, parse_mode="HTML", reply_markup=bottone_prestazione(chiave))
         except Exception as err:                            # bot bloccato, chat mai aperta: niente
             logger.info("Watchlist, avviso a %s: %s", uid, err)
 

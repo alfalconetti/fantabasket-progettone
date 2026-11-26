@@ -389,6 +389,22 @@ def _migra_stagioni() -> None:
             chat_id     BIGINT NOT NULL,
             message_id  BIGINT NOT NULL,
             aggiornato  TIMESTAMPTZ NOT NULL DEFAULT NOW())""")    # v3.13.1: "trade <id>" se decaduta con una trade
+    # v7.32.0 (Luca, 26/11): i rinnovi normali, uno da ¼ e uno da ½ per squadra e stagione. Annullabili entro 24
+    # ore (annullato = quando): la riga resta, il rinnovo torna libero
+    _q("""CREATE TABLE IF NOT EXISTS rinnovi_normali (
+            id                SERIAL PRIMARY KEY,
+            stagione          TEXT NOT NULL,
+            team_id           TEXT NOT NULL,
+            tipo              TEXT NOT NULL CHECK (tipo IN ('quarto', 'mezzo')),
+            giocatore_id      INT  NOT NULL REFERENCES giocatori(id),
+            contratto_vecchio INT  NOT NULL,
+            contratto_nuovo   INT  NOT NULL,
+            prima             TEXT NOT NULL,
+            dopo              TEXT NOT NULL,
+            da                TEXT,
+            creato            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            annullato         TIMESTAMPTZ)""")
+    _q("CREATE UNIQUE INDEX IF NOT EXISTS idx_rinnovi_normali ON rinnovi_normali (stagione, team_id, tipo) WHERE annullato IS NULL")
     _q("CREATE UNIQUE INDEX IF NOT EXISTS idx_rfa_squadra ON rfa_dichiarati (stagione, team_id) WHERE stato = 'attiva'")
     _q("CREATE UNIQUE INDEX IF NOT EXISTS idx_rfa_giocatore ON rfa_dichiarati (stagione, giocatore_id) WHERE stato = 'attiva'")
     # contratti rookie: fino alla v3.10 stagione_firma era l'anno di firma della scala per
@@ -791,8 +807,9 @@ def get_roster_team(team_id: str, senza_10day: bool = False) -> list:
     stagione = stagione_corrente()
     righe = _q(
         f"""SELECT g.id AS giocatore_id, g.nome_common, g.nome_norm, g.data_nascita,
-                  COALESCE(d.importo_dpe, c.importo) AS importo,
+                  GREATEST(COALESCE(d.importo_dpe, c.importo), COALESCE({_cap.SQL_CAM_THOMAS}, 0)) AS importo,
                   c.importo AS importo_originale, c.id AS contratto_id,
+                  {_cap.SQL_CAM_THOMAS} AS cam_thomas,
                   c.anni_originali, c.stagione_firma, c.tipo AS tipo_contratto,
                   CASE WHEN c.tipo = 'rookie' AND r.anno_firma IS NOT NULL
                        THEN %s::int - r.anno_firma::int ELSE 0 END AS anni_scala,
@@ -1490,6 +1507,10 @@ def get_roster_team_at(team_id: str, timestamp_iso: str) -> list:
             r["anni_residui"] = anni_residui(r, stagione_at)
             r["x0"] = r["anni_residui"] <= 0
             r["rfa"] = r.get("contratto_id") in rfa
+        # v7.29.3: Cam Thomas exception a quella data (riottenuto dalla squadra che l'aveva fatto decadere)
+        ct = minimo_cam_thomas(r["giocatore_id"], team_id, timestamp_iso) if r.get("importo") is not None else None
+        if ct and ct > int(r["importo"]):
+            r["importo_originale"], r["importo"], r["cam_thomas"] = r["importo"], ct, ct
     return righe
 
 
@@ -1770,13 +1791,16 @@ def fantamedie(gids: list[int], stagione_bref: str, as_of=None) -> dict[int, flo
     return {r["gid"]: float(r["fantamedia"]) for r in righe}
 
 
-def minimo_cam_thomas(giocatore_id: int, team_id: str) -> int | None:
+def minimo_cam_thomas(giocatore_id: int, team_id: str, at: str | None = None) -> int | None:
     """Cam Thomas exception: se `team_id` ha fatto decadere il giocatore con questa
-    regola nell'ultimo anno, l'importo del contratto di allora (minimo per rifirmarlo)."""
-    return _qval("""SELECT c.importo FROM movimenti_giocatori t JOIN contratti c ON c.id = t.contratto_id
-                    WHERE t.tipo = 'decadimento' AND t.giocatore_id = %s AND t.team_id_da = %s
-                      AND t.note LIKE '%%Cam Thomas%%' AND t.timestamp > NOW() - INTERVAL '1 year'
-                    ORDER BY t.timestamp DESC LIMIT 1""", (giocatore_id, team_id))
+    regola nell'ultimo anno, l'importo del contratto di allora (minimo per rifirmarlo; v7.29.3: anche quanto
+    pesa se lo riottiene via trade). `at`: a una data (ISO)."""
+    return _cap.minimo_cam_thomas(_q, giocatore_id, team_id, at)
+
+
+def peso_cap_in(giocatore_id: int, stagione: str, team_id: str) -> int:
+    """v7.29.3: quanto peserebbe il giocatore in `team_id` (Cam Thomas compresa), per le trade."""
+    return _cap.peso_cap_in(_q, giocatore_id, stagione, team_id)
 
 
 
@@ -1901,6 +1925,31 @@ def annulla_firma(tid: int) -> None:
             cur.execute("DELETE FROM cambi_ruolo WHERE giocatore_id = %s AND team_id = %s AND timestamp >= %s",
                         (f["giocatore_id"], f["team_id_a"], f["timestamp"]))
             cur.execute("DELETE FROM contratti WHERE id = %s AND attivo", (f["contratto_id"],))
+
+
+def annulla_rinnovo(rinnovo_id: int) -> dict:
+    """v7.32.0: via il contratto del rinnovo e il suo movimento, torna attivo quello di prima, il rinnovo torna libero.
+    Una transazione sola; ValueError se non si può (contratto non più attivo, il giocatore si è mosso dopo)."""
+    import psycopg2.extras
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM rinnovi_normali WHERE id = %s AND annullato IS NULL FOR UPDATE", (rinnovo_id,))
+            r = cur.fetchone()
+            if not r:
+                raise ValueError("rinnovo già annullato")
+            cur.execute("SELECT id FROM transazioni WHERE contratto_id = %s AND tipo = 'renewed' ORDER BY id DESC LIMIT 1",
+                        (r["contratto_nuovo"],))
+            t = cur.fetchone()
+            cur.execute("SELECT 1 FROM contratti WHERE id = %s AND attivo AND team_id = %s", (r["contratto_nuovo"], r["team_id"]))
+            if not t or not cur.fetchone():
+                raise ValueError("il contratto del rinnovo non è più attivo in questa squadra")
+            if _dopo(cur, r["giocatore_id"], t["id"]):
+                raise ValueError("dopo il rinnovo il giocatore ha avuto altri movimenti")
+            cur.execute("DELETE FROM transazioni WHERE id = %s", (t["id"],))
+            cur.execute("DELETE FROM contratti WHERE id = %s", (r["contratto_nuovo"],))
+            cur.execute("UPDATE contratti SET attivo = TRUE WHERE id = %s", (r["contratto_vecchio"],))
+            cur.execute("UPDATE rinnovi_normali SET annullato = NOW() WHERE id = %s", (rinnovo_id,))
+    return dict(r)
 
 
 def correggi_firma(tid: int, importo: int, anni: int) -> dict:

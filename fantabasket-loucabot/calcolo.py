@@ -190,6 +190,9 @@ def punteggio_squadra(g: dict, quintetto: list[dict], panchina: list[dict], punt
             break
     if candidati and not fadd:
         avvisi.append("titolare sostituibile (FADD) ma nessun panchinaro del suo ruolo")
+    for i, motivo in candidati:                          # v7.29.0: indisponibile ma senza panchinaro del ruolo
+        if not tit[i].get("fadd"):
+            tit[i] = {**tit[i], "fadd_senza_panchinaro": motivo}
     return {"totale": ottavi(sum(t["fp"] for t in tit)), "titolari": tit, "panchina": pan,
             "fadd": fadd, "avvisi": avvisi}
 

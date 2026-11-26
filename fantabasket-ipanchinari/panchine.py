@@ -41,11 +41,24 @@ def _nomi(roster: list[dict]) -> dict[int, str]:
     return {g["id"]: g["nome_common"] for g in roster}
 
 
+def solo_bot(b: dict) -> bool:
+    """v7.28.2 (Luca, 24/11): la squadra è «solo bot» nella giornata della bozza (fa fede il quintetto nel bot)."""
+    g = db.giornata(b["stagione"], b["giornata"])
+    return b["team_id"] in (db.solo_bot_in(g["dal"], g["al"]) if g else db.solo_bot_attivi())
+
+
 def problemi(b: dict, roster: list[dict]) -> list[str]:
-    """Cosa impedisce di pubblicare la bozza (vuoto = si può)."""
+    """Cosa impedisce di pubblicare la bozza (vuoto = si può). v7.28.2: per le squadre «solo bot» un titolare
+    del quintetto nel bot non può stare anche in panchina (per le altre fa fede Yahoo: solo un avviso)."""
     d = b["dati"]
     nomi = _nomi(roster)
     out = []
+    if solo_bot(b):
+        tit = {gid: ruolo for ruolo, gid in db.quintetto(b["team_id"]).items()}
+        for g in dict.fromkeys(r.get("scelto") for r in d["righe"]):
+            if g in tit:
+                out.append(f"{nomi.get(g, g)} è nel tuo quintetto ({tit[g]}): la squadra è «solo bot», fa fede il "
+                           "quintetto nel bot, quindi non può stare anche in panchina. Cambialo o aggiorna il quintetto con /quintetto")
     if len(d["righe"]) != regole.giocatori_panchina():
         out.append(f"la panchina è di {regole.giocatori_panchina()} giocatori, mai meno: qui ce ne sono {len(d['righe'])}")
     scelti = [r.get("scelto") for r in d["righe"]]
@@ -65,6 +78,8 @@ def problemi(b: dict, roster: list[dict]) -> list[str]:
 def avvisi(b: dict, roster: list[dict]) -> list[str]:
     """Cose da segnalare che non impediscono di pubblicare: un panchinaro che nel quintetto del
     bot è titolare (fa fede Yahoo: il quintetto lo può sistemare il GM o un admin)."""
+    if solo_bot(b):                                    # v7.28.2: per loro è un problema, non un avviso
+        return []
     nomi = _nomi(roster)
     tit = {gid: ruolo for ruolo, gid in db.quintetto(b["team_id"]).items()}
     return [f"{nomi.get(g, g)} risulta nel tuo quintetto ({tit[g]}): se vuoi aggiornalo con /quintetto "
@@ -616,8 +631,9 @@ def builder(b: dict, roster: list[dict]) -> tuple[str, K]:
     d = b["dati"]
     scelti = [r["scelto"] for r in d["righe"]]
     titolari = set(db.quintetto(b["team_id"]).values())
+    solo = solo_bot(b)                                 # v7.28.2: «solo bot», i titolari mai (fa fede il bot)
     liberi = [g for g in roster if g["id"] not in titolari and g["id"] not in scelti]
-    if len(liberi) < regole.giocatori_panchina() - len(scelti):    # rosa corta: si possono scegliere anche i titolari
+    if not solo and len(liberi) < regole.giocatori_panchina() - len(scelti):    # rosa corta: anche i titolari
         liberi += [g for g in roster if g["id"] in titolari and g["id"] not in scelti]
     g = db.giornata(b["stagione"], b["giornata"])
     righe = [f"🪑 <b>Panchina di {e(config.nome(b['team_id']))} per la giornata {b['giornata']}</b>"
@@ -625,6 +641,10 @@ def builder(b: dict, roster: list[dict]) -> tuple[str, K]:
              f"Scadenza: {ora(g['prima_partita']) if g else '?'}", ""]
     st, quando = stati([x["id"] for x in liberi] + scelti)
     righe += [f"{i}. {e(r['testo'])}{st.get(r['scelto'], '')}" for i, r in enumerate(d["righe"], 1)] or ["(ancora nessuno)"]
+    if solo and titolari:
+        nomi = _nomi(roster)
+        righe += ["", "🤖 Squadra «solo bot»: fa fede il quintetto nel bot, quindi i titolari non si possono scegliere ("
+                  + ", ".join(e(nomi.get(g, str(g))) for g in titolari) + "). Per cambiarli: /quintetto."]
     righe += ["", f"Scegli il panchinaro n. {len(scelti) + 1}:" if len(scelti) < regole.giocatori_panchina() else ""]
     if quando:
         righe.append(f"<i>{quando}</i>")

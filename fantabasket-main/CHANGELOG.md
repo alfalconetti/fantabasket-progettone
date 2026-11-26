@@ -2217,3 +2217,66 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - **Trade, chi non cede niente** (Luca, 24/11: «altrimenti sembriamo pazzi»): nell'annuncio sul canale, nel riepilogo e nell'anteprima dell'import compare con «/»; nell'import `/` sotto «cede:» vuol dire niente. Sul canale anche la protezione delle pick («protetta 1-4»)
 - `/draft` anche qui «se finisse oggi» (dalla classifica salvata da loucabot); senza anno il draft passato fino alla 10ª giornata convalidata della stagione dopo
 - `/player`: il riquadro **Minuti** (mockup approvato); `/lottery` di loucabot solo dalla regular season al draft (loucabot v148)
+
+## v7.28.2 (2026-11-24)
+
+- IPanchinari v44: per le squadre «solo bot» niente titolari in panchina (builder e messaggio), detto al GM
+
+## v7.28.3 (2026-11-25)
+
+- **Penalità per le panchine mancanti** (Luca, 25/11): alla chiusura della giornata (IPanchinari v45) il gruppo admin riceve un bottone per squadra senza panchina, «⚠️ SQUADRA» dà la penalità «Mancata panchina giornata N», «✖️» no
+- `/confronto` (loucabot v149): il riquadro Testa a testa
+
+## v7.29.0 (2026-11-25)
+
+- **Gruppo di audit** (Luca, 24-25/11: «escono dei papiri nei quali poi perdi ciò che conta»): `/gruppo_audit [LINK]` scritto nel gruppo nuovo lo imposta (id e link in globals.json, link nel pannello admin). Lì l'anti-tanking, i job periodici (controlli dei tabellini compreso il controllo finale, sincronizzazione, chiusura e riepilogo di IPanchinari, backup settimanale, diritti in scadenza, spalmature) e il dettaglio di tutti i punteggi; nel gruppo admin trade, convalida in breve e richieste dei GM. Senza gruppo di audit tutto come prima
+- **Proposta della giornata** (loucabot v150): gli 0 da controllare senza chi avrebbe la FADD ma non ha un panchinaro del ruolo (già negli avvisi); in più le **partite close**, finite entro 10 punti supplementari compresi
+
+## v7.29.1 (2026-11-25)
+
+- `/team_diff` (anche su loucabot): in fondo il **computo complessivo** prima → dopo (Luca, 25/11): cap dei contratti, slot occupati, pick 1st e 2nd, diritti
+
+## v7.29.2 (2026-11-25)
+
+- `/team_diff`, computo complessivo: gli **slot** occupati al posto dei ruoli (Luca, 25/11: «non i ruoli ma gli slot»); il cap conta solo i contratti che pesano (x0 fuori, tranne gli RFA dichiarati)
+
+## v7.29.3 (2026-11-26)
+
+- **Cam Thomas exception, riottenuto via trade** (Luca, 26/11: «rifirmato include anche riottenuto via trade»): per un anno dal decadimento, da chi l'ha fatto decadere il giocatore pesa il massimo tra il contratto di allora e il suo, in cap, roster (anche alla data), controlli e cap post-trade; la trade lo segnala. Per le altre squadre vale il suo. In `shared/cap.py`, quindi anche nel bot aste
+
+## v7.29.4 (2026-11-26)
+
+- **Deploy: i JSON di config/ controllati prima di tutto** (Luca, 26/11, dopo una virgola saltata in globals.json): se uno non è valido il deploy si ferma, dice file, riga e colonna, e i bot vecchi restano su
+- Gruppo di audit, istruzioni corrette (guida admin e `/gruppo_audit` in privato): i bot escono dai gruppi che non conoscono, quindi prima l'id in globals.json (lo dà il bot uscendo), poi si aggiungono i bot
+
+## v7.30.0 (2026-11-26)
+
+- **Cam Thomas exception riconosciuta dal bot** (Luca, 26/11): ogni mattina i giocatori a contratto senza squadra NBA da 30 giorni a mercato NBA aperto (dal 1° luglio alla trade deadline NBA; i giorni a mercato chiuso non contano), non prima di 10 giorni dopo l'inizio della regular season NBA, arrivano agli admin col bottone del decadimento Cam Thomas (decisione loro, caso per caso); nella conferma del decadimento con questo motivo da quando è senza squadra e da quando può decadere. `/deadline_nba` per la trade deadline NBA di ogni stagione (diversa da quella della lega; il lunedì la chiede se manca)
+
+## v7.31.0 (2026-11-26)
+
+- **`/prestazione GIOCATORE [DATA]`** (Luca, 26/11): la singola notte di un giocatore in immagine (shared/prestazione.py, loucabot v151), anche qui in privato
+
+## v7.31.1 (2026-11-26)
+
+- `/prestazione` (loucabot v152): il confronto con la media fino a quella notte e con quella della stagione (Luca, 26/11)
+
+## v7.31.2 (2026-11-26)
+
+- `/prestazione` (loucabot v153): due riquadri per le medie, la squadra del fantabasket in evidenza
+- Watchlist: sotto l'avviso della grande prestazione il bottone «🏀 La prestazione» che apre /prestazione di quella notte
+
+## v7.32.0 (2026-11-26)
+
+- **Rinnovi normali** (Luca, 26/11; `handlers/rinnovi.py`): `/rinnovo` (o 📝 Rinnovi nel /menu) nella fase dei rinnovi, 📝 Rinnovi nel pannello admin (rinnovi e draft). Uno da ¼ e uno da ½ per squadra e stagione, in qualsiasi ordine; rinnovabili gli x1 appena diventati (anche arrivati in trade) e gli ex rookie x0 usciti dal IV anno (dall'importo dopo la Doncic d'ufficio). Nuovo contratto = vecchio + ¼ o + ½ per eccesso, mai sotto il minimo da tabella per la fantamedia della stagione appena finita; x2 o x3 (x3 da 35M). Anteprima dei due rinnovi con il cap dopo: avviso sopra 150M, niente bottone sopra 165M (e slot libero per un ex rookie x0). Vale da subito (movimento `renewed`), annuncio sul canale, registro, sync dei fogli, GM avvisato se lo fa un admin
+- Annullamento entro 24 ore (↩️ da 📝 Rinnovi, GM o admin): torna il contratto di prima, via il movimento del rinnovo, il rinnovo torna libero
+- Tabella `rinnovi_normali` (migrazione all'avvio)
+- `minimo_contratto_per_media`: una fantamedia tra due fasce (14,995) resta nella fascia sotto invece di tornare a 1
+
+## v7.32.1 (2026-11-26)
+
+- Rinnovi (Luca, 26/11): toccando un rinnovo il bot fa prima la **simulazione** (contratto prima e dopo, fino a quale stagione, cap prima e dopo) e scrive solo con ✅ Conferma. I testi ricordano che i due rinnovi non sono obbligatori e si possono fare in momenti diversi
+
+## v7.33.0 (2026-11-26)
+
+- **`/prospetto_rinnovi [SQUADRA]`** (Luca, 26/11, mockup approvato; `shared/prospetto_rinnovi.py`, anche su loucabot v154): in un'immagine i rinnovabili della prossima offseason e quanto verrebbero col ¼ e col ½ (minimo da tabella, x2/x3), la Doncic d'ufficio prima per i rookie che escono dal IV anno, i rookie a fine II anno, il cap della stagione dopo e lo spazio sotto 150 e 165. Stima in regular season, playoff e break (avviso nelle prime 10 giornate), numeri veri nella fase dei rinnovi (gli stessi di /rinnovo, con i rinnovi usati), solo l'elenco tra draft e ruoli. 🔮 Prospetto rinnovi nel /menu dalla regular season ai rinnovi

@@ -182,6 +182,10 @@ ok(sorted(u for u, _, _ in pf) == [101, 102] and all("🔥 <b>Watch Uno</b> (FA)
    f"grande prestazione: col risultato e lo scarto, per tutti e due {pf}")
 W.imposta_soglia(102, 40, 60)
 ok(sorted(u for u, _, _ in WL.avvisi_prestazioni(seg, dal)) == [101], "la soglia di ognuno")
+_bt = WL.bottone_prestazione(pf[0][1])
+_gw = db._qval("SELECT id FROM giocatori WHERE espn_id = %s", (pf[0][1].split(":")[2],))
+ok(_bt is not None and _bt.inline_keyboard[0][0].callback_data.startswith(f"pre:{_gw}:") and WL.bottone_prestazione("inf:x:y") is None,
+   "v7.31.2: sotto la grande prestazione il bottone di /prestazione di quella notte")
 
 
 class BotF:

@@ -276,6 +276,13 @@ ok(rq["Fantamedia"]["a"] == "29,63" and rq["Fantamedia"]["m"] == "a" and tb["Par
    and tb["Play-in e playoff NBA"]["a"] == "39,00 (2)" and rq["Migliore"]["a"] == "45,00" and "Peggiore" in rq,
    f"v7.9.7: riquadri a due valori e tabella col resto, il migliore segnato {dcs['riquadri']} {dcs['tabella']}")
 ok(dcs["post_x"] is not None and dcs["fanta"] is None, "play-in e playoff NBA in fondo; senza calendario dei playoff niente fascia")
+# v7.28.3 (Luca, 24/11): testa a testa, sera per sera tra quelle in cui hanno giocato tutti e due
+_sa = {x["giorno"]: x["fp"] for x in R.dati_stagione(gid)["partite"] if x["fp"] is not None}
+_sb = {x["giorno"]: x["fp"] for x in R.dati_stagione(gid2)["partite"] if x["fp"] is not None}
+_ins = set(_sa) & set(_sb)
+_tt = rq["Testa a testa"]
+ok(_ins and _tt["a"] == str(sum(_sa[g] > _sb[g] for g in _ins)) and _tt["b"] == str(sum(_sb[g] > _sa[g] for g in _ins))
+   and f"{len(_ins)} insieme" in _tt["s"] and dcs["riquadri"][-1]["t"] == "Testa a testa", f"/confronto: testa a testa {_tt}")
 # i nostri playoff: fascia e riquadro, dal calendario dei playoff importato (v7.9.7, Luca 15/11)
 db.q("""CREATE TABLE IF NOT EXISTS lega_giornate_playoff (stagione TEXT NOT NULL, numero_p INT NOT NULL, giorni DATE[] NOT NULL,
         dal DATE NOT NULL, al DATE NOT NULL, media_file TEXT[] NOT NULL DEFAULT '{}', importato TIMESTAMPTZ NOT NULL DEFAULT NOW(),

@@ -133,6 +133,7 @@ def migra():
             riepilogo    TIMESTAMPTZ,                   -- riepilogo agli admin prima della scadenza
             chiusa       TIMESTAMPTZ,                   -- quintetti congelati in ipa_formazioni
             PRIMARY KEY (stagione, giornata))""")
+    q("ALTER TABLE ipa_stato_giornata ADD COLUMN IF NOT EXISTS mancanti JSONB")   # v7.28.3: senza panchina alla chiusura
     q("ALTER TABLE ipa_alias ADD COLUMN IF NOT EXISTS id SERIAL")          # per cancellarli coi bottoni
     # il canale del messaggio (per non modificare un messaggio di un altro canale se il canale
     # cambia), il nome di chi l'ha inserita e quante volte è stata mandata (per ripubblicarla)
@@ -470,6 +471,12 @@ def chiudi_bozza(id_: int) -> None:
 def stato_giornata(stagione: str, giornata_: int) -> dict:
     q("INSERT INTO ipa_stato_giornata (stagione, giornata) VALUES (%s, %s) ON CONFLICT DO NOTHING", (stagione, giornata_))
     return q("SELECT * FROM ipa_stato_giornata WHERE stagione = %s AND giornata = %s", (stagione, giornata_), one=True)
+
+
+def segna_mancanti(stagione: str, giornata_: int, team_ids: list[str]) -> None:
+    """v7.28.3 (Luca, 25/11): le squadre senza panchina alla chiusura; il bot principale propone la penalità."""
+    import json
+    q("UPDATE ipa_stato_giornata SET mancanti = %s WHERE stagione = %s AND giornata = %s", (json.dumps(team_ids), stagione, giornata_))
 
 
 def segna_stato(stagione: str, giornata_: int, campo: str) -> None:

@@ -107,6 +107,15 @@ async def esegui(bot, stagione: str, n: int, chi: str = "job delle 7:45", user=N
     testo = (R.testo(c, versione) + _cup.testo_admin(c["cup"]) + R.testo_differenze(R.differenze(stagione, n, c["risultati"]))
              + testo_correzioni(stagione, n) + f"\n\n<i>{e(foglio)}</i>")
     gruppo = config.gruppo_admin()
+    audit = config.gruppo_audit()
+    if gruppo and audit and audit != gruppo:
+        # v7.29.0 (Luca, 25/11): tutti i punteggi nel gruppo di audit, nel principale la proposta in breve coi bottoni
+        from shared.messaggi import manda_lungo
+        try:
+            await manda_lungo(bot, audit, testo, f"calcolo-G{n}")
+        except Exception as err:
+            logger.warning("Dettaglio del calcolo al gruppo di audit: %s", err)
+        testo = R.testo_breve(c, versione, config.link_audit()) + R.testo_differenze(R.differenze(stagione, n, c["risultati"]))
     if gruppo:
         if vecchio and vecchio["messaggio"]:
             try:
@@ -208,8 +217,8 @@ async def controllo_notte(bot, d, chi: str = "controllo delle 20", user=None) ->
         tasti = [[B("✅ Uguale su Yahoo", callback_data=f"cn:ok:{cid}"), B("❌ Non corrisponde", callback_data=f"cn:no:{cid}")]]
         if g and _calcolata(s, g["numero"]):
             tasti.append([B("🔄 Ricalcola", callback_data=f"rc:re:{g['numero']}")])
-        if config.gruppo_admin():
-            m = await bot.send_message(chat_id=config.gruppo_admin(), text=testo, parse_mode="HTML", reply_markup=K(tasti))
+        if config.gruppo_audit():
+            m = await bot.send_message(chat_id=config.gruppo_audit(), text=testo, parse_mode="HTML", reply_markup=K(tasti))
             db.q("UPDATE lega_controlli_notte SET messaggio = %s WHERE id = %s", (m.message_id, cid))
         await log(bot, f"🔎 Controllo finale, notte del {d:%d/%m}{gn}: {len(contano)} tabellini cambiati tra gli schierati, "
                        f"agli admin da verificare su Yahoo")
@@ -260,8 +269,8 @@ async def controllo_notte(bot, d, chi: str = "controllo delle 20", user=None) ->
                   + "\n\n✅ se su Yahoo è già così, salva i valori nuovi; ❌ lascia quelli di adesso.")
             await log(bot, f"ℹ️ Notte del {d2:%d/%m}{gn}: ESPN oggi la darebbe diversa per {len(diff)} schierati, "
                            f"agli admin da verificare su Yahoo")
-            if config.gruppo_admin():
-                m2 = await bot.send_message(chat_id=config.gruppo_admin(), text=t2, parse_mode="HTML",
+            if config.gruppo_audit():
+                m2 = await bot.send_message(chat_id=config.gruppo_audit(), text=t2, parse_mode="HTML",
                                             reply_markup=K([[B("✅ Su Yahoo è così: aggiorna", callback_data=f"cn:ag:{cid2}"),
                                                              B("❌ Lascia com'è", callback_data=f"cn:la:{cid2}")]]))
                 db.q("UPDATE lega_controlli_notte SET messaggio = %s WHERE id = %s", (m2.message_id, cid2))
@@ -296,8 +305,8 @@ async def primo_controllo(bot, d, titolo: str | None = None) -> str:
         return "nessun cambio"
     righe = "\n".join(CG.riga_cambio(a, b) for a, b in sorted(contano.values(), key=lambda x: (x[1] or x[0])["nome"]))
     await log(bot, f"{titolo}: ESPN ha cambiato {len(contano)} tabellini di giocatori schierati:\n{righe}")
-    if _calcolata(s, g["numero"]) and config.gruppo_admin():
-        await bot.send_message(chat_id=config.gruppo_admin(), parse_mode="HTML",
+    if _calcolata(s, g["numero"]) and config.gruppo_audit():
+        await bot.send_message(chat_id=config.gruppo_audit(), parse_mode="HTML",
                                text=f"<b>{titolo}</b>: ESPN ha cambiato {len(contano)} "
                                     f"{'tabellino' if len(contano) == 1 else 'tabellini'} di giocatori schierati:\n{righe}\n\n"
                                     f"I valori nuovi sono già nel database: ricalcola per aggiornare risultati e foglio. "

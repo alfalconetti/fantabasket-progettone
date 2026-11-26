@@ -718,3 +718,28 @@ Il calcolo dei fantapunti.
 - `/lottery` solo quando ha senso (Luca, 24/11): stima in regular season, classifica finale dai playoff al draft (ai rinnovi quella della stagione prima: prima cercava quella nuova), dopo il draft «non c'è una lottery da stimare»
 - La classifica di adesso salvata ogni 10 minuti (`lega_classifica_oggi`) per `/draft` del bot principale; `/draft` senza anno: il draft passato fino alla 10ª giornata convalidata
 - `/player`: il riquadro **Minuti** (media a partita, ultime 5 con ▲/▼)
+
+## v149 (2026-11-25, progettone v7.28.3)
+
+- `/confronto`: il riquadro **Testa a testa** (Luca, 24/11): tra le sere in cui hanno giocato tutti e due, quante ne ha vinte ognuno
+
+## v150 (2026-11-25, progettone v7.29.0)
+
+- Col gruppo di audit: lì anti-tanking, dettaglio del calcolo, controlli dei tabellini, sincronizzazione delle 8:30; nel gruppo admin la proposta breve (da convalidare, 0 da controllare, partite close, link)
+- 0 da controllare: non chi avrebbe la FADD ma non ha un panchinaro del ruolo; partite close entro 10 punti, supplementari compresi
+
+## v151 (2026-11-26, progettone v7.31.0)
+
+- **`/prestazione GIOCATORE [DATA]`** (Luca, 26/11, mockup approvato): la singola notte di un giocatore in immagine, con tabellino, media, posto nella stagione e nella notte, fantabasket, badge e come nascono i fantapunti; ◀ ▶ per le altre notti; se non ha giocato 0 col motivo e la partita prima e dopo; se la squadra non giocava si sceglie; offseason e prima dei tabellini lo dice
+
+## v152 (2026-11-26, progettone v7.31.1)
+
+- `/prestazione`: il confronto sia con la media fino a quella notte sia con quella di tutta la stagione (riquadro, tabellino, tiri)
+
+## v153 (2026-11-26, progettone v7.31.2)
+
+- `/prestazione` (Luca, 26/11): due riquadri, la media fino a quella notte e quella della stagione; la squadra del fantabasket in evidenza, in una fascia sua
+
+## v154 (2026-11-26, progettone v7.33.0)
+
+- **`/prospetto_rinnovi [SQUADRA]`** (Luca, 26/11): i rinnovi della prossima offseason in un'immagine, stima dalla regular season al break, numeri veri ai rinnovi (codice in shared/prospetto_rinnovi.py, lo stesso del bot principale)

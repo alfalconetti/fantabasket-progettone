@@ -583,6 +583,20 @@ ok(_canale_main and "da adesso è <b>«solo bot»</b>" in _canale_main[-1] and "
    and "Annunciato sul canale" in m.risposte[-1][0],
    "v42: ogni cambio annunciato sul canale principale (dal bot principale) e al GM in privato")
 ok("è «solo bot»" in m.risposte[-1][0] and "team03" in db.solo_bot_attivi(), "/solo_bot SQUADRA: accesa")
+# v7.28.2 (Luca, 24/11): per le squadre «solo bot» i titolari del quintetto nel bot non vanno in panchina, e il bot lo dice
+_r3 = db.roster("team01", S)
+_q3 = db.quintetto("team01")
+_sb = db.q("INSERT INTO ipa_solo_bot (team_id, dal) VALUES ('team01', NOW() - INTERVAL '60 days') RETURNING id", one=True)["id"]
+db.salva_quintetto("team01", {"PG": _r3[0]["id"]}, "prova")
+_b3 = {"id": 0, "team_id": "team01", "stagione": S, "giornata": NC, "dati": {"righe": []}}
+_t3, _k3 = P.builder(_b3, _r3)
+ok(f"pb:b:0:{_r3[0]['id']}" not in bottoni(_k3) and "Squadra «solo bot»" in _t3 and _r3[0]["nome_common"] in _t3,
+   "«solo bot»: nel builder niente titolari, e lo dice")
+_b3["dati"]["righe"] = [{"testo": x["nome_common"], "scelto": x["id"]} for x in _r3[:5]]
+ok(any("è nel tuo quintetto (PG)" in x and "«solo bot»" in x for x in P.problemi(_b3, _r3)) and not P.avvisi(_b3, _r3),
+   "«solo bot»: un titolare in panchina blocca la pubblicazione")
+db.salva_quintetto("team01", _q3, "prova")
+db.q("DELETE FROM ipa_solo_bot WHERE id = %s", (_sb,))
 gC = db.giornata(S, NC)
 t, k, _x = Q.testo_controlli(gC)
 ok("🤖" in t and "solo bot" in t and f"ck:{NC}:team03" not in bottoni(k), "/controlli: la squadra «solo bot» è già a posto, senza bottone")

@@ -55,6 +55,7 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
         ("⏳ Ruoli in sospeso", "rpadm:list",  fase in settings.FASI_RUOLI_RS),
         ("🔁 Cambi ruolo",      "cradm:teams", fase in settings.FASI_RUOLI_RS),
         ("⏱ 10-day",           "tdadm:list",  fase in settings.FASI_RUOLI_RS),
+        ("📝 Rinnovi",          "rna:scegli",     fase in FASI_ADMIN_RINNOVI),   # v7.32.0: ¼ e ½
         ("🔁 Rinnovi rookie",   "sga:scegli:rr",  fase in FASI_ADMIN_RINNOVI),
         ("🔒 RFA squadre",      "sga:scegli:rfa", fase in FASI_ADMIN_RINNOVI),
         ("🏀 Draft",            "drf:home",    fase == "offseason-draft"),   # v7.27.0: il sottomenu del draft
@@ -73,7 +74,9 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
 
 def _testo_admin_home() -> str:
     etichetta = FASI_LABEL.get(settings.fase(), settings.fase())
-    return f"🛠 <b>Pannello Admin</b>\nFase: {etichetta}"
+    from handlers.gruppo_audit import riga_link        # v7.29.0
+    audit = riga_link("🗂 Gruppo di audit")
+    return f"🛠 <b>Pannello Admin</b>\nFase: {etichetta}" + (f"\n{audit}" if audit else "")
 
 
 def _testo_cap() -> str:
@@ -623,7 +626,7 @@ FASI_INDICAZIONI = {
         "Rookie scale aggiornata dal bot: importo del II e del IV anno dalla tabella, Doncic d'ufficio alla fine del IV anno se spetta",
         "Rinnovo dei rookie a fine II anno con /rinnovo_rookie (o 🔁 nel /menu): scala del III anno o Doncic, x2",
         "RFA: al massimo uno tra i contratti finiti, con /dichiara_rfa (o 🔒 nel /menu). Pesa sul cap ma non sugli slot. Se lo scambiate prima delle aste RFA perde la dichiarazione e ne potete dichiarare un altro",
-        "Rinnovi: fino a 2 giocatori all'ultimo anno (+1/4 il primo, +1/2 il secondo, con i minimi da tabella)",
+        "Rinnovi con /rinnovo (o 📝 nel /menu): uno da ¼ e uno da ½, sui giocatori appena diventati x1 o sugli ex rookie usciti dal IV anno, mai sotto il minimo da tabella per la fantamedia della stagione appena finita. x2 o x3, vale da subito, si annulla entro 24 ore",
         "In offseason il cap può arrivare a 165M, ma va riportato in regola entro l'inizio della regular season",
     ],
     "offseason-draft": [

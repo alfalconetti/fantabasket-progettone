@@ -740,9 +740,9 @@ async def aggiorna(bot, g: dict, d: date | None, ora: datetime, controllo: bool 
             from handlers import log
             await log(bot, riga)
             # giornata già calcolata (la notte era l'ultima): anche agli admin, col bottone Ricalcola (v58)
-            if db.q("SELECT 1 AS x FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (s, n), one=True) and config.gruppo_admin():
+            if db.q("SELECT 1 AS x FROM lega_calcoli WHERE stagione = %s AND giornata = %s", (s, n), one=True) and config.gruppo_audit():
                 from telegram import InlineKeyboardButton as _B, InlineKeyboardMarkup as _K
-                await bot.send_message(chat_id=config.gruppo_admin(), text=riga.replace("🔎 Live", "🔎 <b>Live") .replace(":\n", "</b>:\n", 1)
+                await bot.send_message(chat_id=config.gruppo_audit(), text=riga.replace("🔎 Live", "🔎 <b>Live") .replace(":\n", "</b>:\n", 1)
                                        + "\n\nGiornata già calcolata: ricalcola per aggiornare risultati e foglio. "
                                          "Il controllo finale è alle 20.", parse_mode="HTML",
                                        reply_markup=_K([[_B("🔄 Ricalcola", callback_data=f"rc:re:{n}")]]))

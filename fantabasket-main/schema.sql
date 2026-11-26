@@ -254,6 +254,23 @@ CREATE TABLE rfa_dichiarati (
 CREATE UNIQUE INDEX idx_rfa_squadra   ON rfa_dichiarati (stagione, team_id)      WHERE stato = 'attiva';
 CREATE UNIQUE INDEX idx_rfa_giocatore ON rfa_dichiarati (stagione, giocatore_id) WHERE stato = 'attiva';
 
+-- v7.32.0: rinnovi normali, uno da ¼ e uno da ½ per squadra e stagione (annullato = annullato entro 24 ore)
+CREATE TABLE rinnovi_normali (
+    id                SERIAL PRIMARY KEY,
+    stagione          TEXT NOT NULL,
+    team_id           TEXT NOT NULL,
+    tipo              TEXT NOT NULL CHECK (tipo IN ('quarto', 'mezzo')),
+    giocatore_id      INT  NOT NULL REFERENCES giocatori(id),
+    contratto_vecchio INT  NOT NULL,
+    contratto_nuovo   INT  NOT NULL,
+    prima             TEXT NOT NULL,
+    dopo              TEXT NOT NULL,
+    da                TEXT,
+    creato            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    annullato         TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX idx_rinnovi_normali ON rinnovi_normali (stagione, team_id, tipo) WHERE annullato IS NULL;
+
 CREATE TABLE messaggi_fissi (            -- messaggi sul canale aggiornati dal bot (riepilogo RFA)
     chiave      TEXT PRIMARY KEY,
     chat_id     BIGINT NOT NULL,

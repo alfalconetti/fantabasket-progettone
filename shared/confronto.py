@@ -205,6 +205,16 @@ def dati_stagione(gid_a: int, gid_b: int, stagione: str | None = None, periodo=N
         riq.append(peggiore)
     riq.insert(2, {"t": "Migliore", "a": _cifra(a["best"]), "b": _cifra(b["best"]), "m": _meglio(a["best"], b["best"]),
                    "s": f"{_quando(da, a['bi'])} · {_quando(db_, b['bi'])}"})
+    # v7.28.3 (Luca, 24/11): sera per sera, tra quelle in cui hanno giocato tutti e due, chi ha fatto di più
+    sa = {x["giorno"]: x["fp"] for x in da["partite"] if x["fp"] is not None}
+    sb = {x["giorno"]: x["fp"] for x in db_["partite"] if x["fp"] is not None}
+    insieme = sorted(set(sa) & set(sb))
+    va, vb = sum(sa[g] > sb[g] for g in insieme), sum(sb[g] > sa[g] for g in insieme)
+    pari = len(insieme) - va - vb
+    riq.append({"t": "Testa a testa", "a": str(va) if insieme else "—", "b": str(vb) if insieme else "—",
+                "m": _meglio(va, vb) if insieme else "",
+                "s": (f"sere vinte · {len(insieme)} insieme" + (f", {pari} pari" if pari else "")) if insieme
+                     else "mai in campo la stessa sera"})
     if a["post"] or b["post"]:
         pa, pb = _media(a["post"]), _media(b["post"])
         tab.append({"t": "Play-in e playoff NBA", "a": f"{_cifra(pa)} ({len(a['post'])})", "b": f"{_cifra(pb)} ({len(b['post'])})",
