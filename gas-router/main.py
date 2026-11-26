@@ -55,6 +55,9 @@ class GASPayload(BaseModel):
     foglio:  Optional[str] = None
     stili:   Optional[list[Any]] = None
     larghezze: Optional[dict] = None
+    # v7.36.0: archivio di fine stagione del foglio di controllo del calcolo
+    archivio: Optional[str] = None
+    azzera:   Optional[bool] = None
 
 
 def _get_gas_scelte_url(): return _read_secret("GAS_SCELTE_URL_FILE")
@@ -129,6 +132,20 @@ async def calcolo(payload: GASPayload, authorization: str = Header(...)):
         "congela": payload.congela,
     }
     return await _forward(_get_gas_roster_url(), gas_payload, timeout=170.0)
+
+
+@app.post("/gas/calcolo_archivia")
+async def calcolo_archivia(payload: GASPayload, authorization: str = Header(...)):
+    """v7.36.0: fine stagione del foglio di controllo del calcolo: i tab «Calcolo GN/PN» copiati in un file nuovo
+    (l'archivio della stagione) e, con azzera, tolti dal foglio di controllo."""
+    _check_auth(authorization)
+    gas_payload = {
+        "token":    _get_gas_token(),
+        "action":   "calcolo_archivia",
+        "archivio": payload.archivio or "",
+        "azzera":   bool(payload.azzera),
+    }
+    return await _forward(_get_gas_roster_url(), gas_payload, timeout=300.0)
 
 
 def _check_auth(authorization: str):

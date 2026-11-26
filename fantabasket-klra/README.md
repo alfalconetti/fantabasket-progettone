@@ -59,6 +59,8 @@ a vittorie o a punti).
 
 **Tutto è segnato NON UFFICIALE** (Luca, 04/11): striscia rossa in cima e filigrana in diagonale su ogni immagine (campi `striscia` e `filigrana`, letti anche da `partita.typ` e `live.typ` di loucabot), etichetta rossa al posto dello stato, didascalie e testi che iniziano con «🧪 NON UFFICIALE», avviso in `/start` e `/sistemi`.
 
+**Calendari alternativi** (v7.36.0, Luca 06/11 e 26/11): dalla scheda di una conference (anche le Ufficiali) «📅 Calendario nuovo con queste» estrae a caso un calendario di regular season con lo **stesso schema del sorteggio vero** (`shared/calendario_sorteggio.py`: 38 giornate, 19 in casa e 19 fuori, mai più di 2 di fila, i controlli di Henry) e un seme suo (colonna `seme` di `klra_conference`); le giornate dei playoff restano quelle vere. Si sceglie e si usa come le conference alternative (stessa tabella, stessa attiva per utente), chi l'ha creato lo riestrae («🎲 Riestrai»), la cache ha la sua firma (mappa + seme). Così si vede come sarebbe andata la stagione con un altro calendario.
+
 **Conference alternative** (`klra/conference.py`, `motore.in_conference`): dentro, ogni lettura di `lega_partite` del codice di loucabot diventa il calendario permutato (chi ha preso il posto di X gioca le partite di X) e `classifica.conference` le nuove conference; le sfide si ricalcolano da zero (bonus casa e supplementari dipendono dall'avversario); in cache con firma a parte. `/confronta` confronta sempre con l'Ufficiale sul calendario vero.
 
 **Classifica cumulativa** (v2): terza modalità oltre a vittorie e punti, i punti fatti in tutte le giornate senza bonus casa né supplementari (immagine con PUNTI, media e giornate); Fantapanchine la usa.

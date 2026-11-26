@@ -40,7 +40,7 @@
 #block(width: 100%, fill: gradient.linear(inchiostro, petrolio, angle: 0deg), inset: (x: 16pt, y: 12pt))[
   #grid(columns: (1fr, auto), align: (left + horizon, right + horizon),
     [#text(17pt, weight: "bold", fill: white)[Pick della lega] \ #text(9pt, fill: white.transparentize(30%))[draft #anni.first()–#anni.last() · chi ha in mano la pick di ogni squadra]],
-    text(8.5pt, fill: white.transparentize(30%))[aggiornato al #dati.aggiornato])
+    text(8.5pt, fill: white.transparentize(30%))[#if dati.at("quando", default: "") != "" { text(weight: "bold", fill: white)[#dati.quando] } else [aggiornato al #dati.aggiornato]])
 ]
 
 #pad(x: 12pt, top: 10pt, bottom: 4pt, table(

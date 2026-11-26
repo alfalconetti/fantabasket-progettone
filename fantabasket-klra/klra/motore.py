@@ -705,7 +705,7 @@ def firma_cache(P: dict) -> str:
     if c:
         import hashlib
         m = c["mappa"] if isinstance(c["mappa"], dict) else json.loads(c["mappa"])
-        extra = ":c" + hashlib.sha256(json.dumps(m, sort_keys=True).encode()).hexdigest()[:12]
+        extra = ":c" + hashlib.sha256((json.dumps(m, sort_keys=True) + (c.get("seme") or "")).encode()).hexdigest()[:12]
     return KR.firma(P) + ":" + VERSIONE_MOTORE + extra
 
 

@@ -2289,3 +2289,39 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.35.0 (2026-11-26)
 
 - `/prestazione` (shared, anche loucabot v156; Luca, 26/11, mockup approvato): la **composizione dei fantapunti**, tra i tiri e «Come nascono i fantapunti». Una barra con le quote di punti (punti, tiri, triple e liberi, segnati e tentati), assist, rimbalzi, recuperi e stoppate, sotto la stessa barra per la media della stagione intera; per ogni voce fantapunti, media e differenza; le perse a parte; il conto della notte e della media
+
+## v7.35.1 (2026-11-26)
+
+- Cambio di fase: i controlli valgono anche alla conferma (un «✅ Confermo» rimasto da prima non scavalca il blocco dei playoff o del calendario); dalla regular season, dai playoff o dal break non si saltano i rinnovi (la stagione non avanzerebbe), e dall'offseason non si torna a playoff o break (avanzerebbe due volte)
+- Prova `transizioni`: una stagione intera di passaggi di fase, con rinnovi, RFA, trade nei rinnovi, scadenze, promemoria e blocchi
+
+## v7.35.2 (2026-11-26)
+
+- Annullare una trade non si può più se un giocatore scambiato ha nel frattempo un contratto nuovo (rinnovo, rinnovo rookie, cambio di stagione): l'annullamento avrebbe riportato indietro il contratto nuovo, e il rinnovo resta consumato da chi l'ha fatto. Il messaggio dice di annullare prima il rinnovo (entro 24 ore) o di fare a mano
+- Prova `transizioni` allargata: rinnovo consumato dopo la cessione, trade annullata dopo il rinnovo, rinnovato poi tagliato, ritorno ai rinnovi dopo i rinnovi fatti, secondo giro fino ai rinnovi 2028
+
+## v7.35.3 (2026-11-26)
+
+- **Sincronizzazione delle 8:30 di loucabot (v157) anche in estate**: dai rinnovi all'import del calendario nuovo la stagione non ha giornate e il job si fermava del tutto; ora scarica comunque i roster ESPN, così i movimenti NBA dell'estate (free agency, draft) finiscono in `nba_movimenti` col giorno giusto (Cam Thomas, /carriera, abbinamento dei rookie) invece che col giorno in cui riparte la sincronizzazione
+- Decadimento di un RFA dichiarato: la dichiarazione si chiude (prima restava «in vigore» e la squadra la contava come usata)
+- Entrando nel break i 10-day ancora aperti si chiudono (movimento di fine 10-day): prima restavano attivi, diventavano x0 nella stagione nuova e si potevano persino dichiarare RFA. Un 10-day non è mai candidato RFA
+- Prova `transizioni_contratti`: tagli, DPE, decadimenti, RFA e 10-day a cavallo della stagione
+
+## v7.35.4 (2026-11-26)
+
+- **Ai rinnovi solo con la stagione chiusa** (Luca, 26/11): dalla regular season, dai playoff o dal break si passa ai rinnovi solo con la finale dei playoff convalidata (la campione nel tabellone di loucabot), anche con un «Confermo» rimasto da prima
+- **Stagione di una data dal registro**: la tabella `inizi_stagione` segna quando il pannello entra nei rinnovi; roster, asset, `/team_diff` e `/trova_trade` a una data passata calcolano anni residui, x0 e cap sulla stagione di allora. Prima valeva la regola del 1° luglio: tra i rinnovi e il 1° luglio (o tra il 1° luglio e i rinnovi, se vengono dopo) gli anni dei contratti e il cap a una data risultavano sbagliati di una stagione
+- `/roster` e `/assets` a una data: il cap con le DPE, il minimo Cam Thomas e le rate dei soli tagli fatti fino ad allora, sulla stagione di quella data (prima contava anche i tagli fatti dopo); nella didascalia la stagione di quella data. Stesso calcolo (`db.cap_at`) in `/trova_trade`
+- Prova `event_sourcing`: dopo ogni tipo di operazione il registro ricostruisce lo stato, subito e a fine giro
+
+## v7.35.5 (2026-11-26)
+
+- **Prova generale dei playoff** (prova `louca_prova_playoff`, loucabot): 14 squadre dalla fine della regular season alla campione col calcolo vero e la convalida col bottone, una sorpresa al primo turno, un ricalcolo che ribalta la gara decisiva di una serie (la serie si riapre e la gara dopo torna in calendario), il via libera ai rinnovi a finale convalidata. Nessuna correzione al codice: tutto il giro funziona
+- Prova `ipa_playoff`: alla chiusura di una giornata P IPanchinari congela i quintetti e segna le panchine mancanti solo delle squadre che giocano (niente penalità alle eliminate)
+
+## v7.36.0 (2026-11-26)
+
+- **Event sourcing delle pick** (Luca, 22/11): `/pick [SQUADRA] [ANNO] [GIRO] DATA` e `/pick_lega [ANNO] DATA` com'erano quel giorno, dal registro (`db.pick_al`: proprietario, trade annullate, protezioni messe e non ancora annullate, usate solo dal giorno del draft); nell'immagine «com'era al …» al posto di «aggiornato al». Anche su loucabot
+- **`rookie.pick_id`**: il draft lega il rookie (1° e 2° giro) alla pick usata; i rookie di prima si legano alla migrazione per anno, giro e numero; `/pick` e la scheda del giocatore leggono il legame. Via la colonna `rookie.scadenza_diritti` (date vecchie e sbagliate, non la leggeva più nessuno)
+- **Passaggio di stagione** scritto in `docs/PASSAGGIO_STAGIONE.md`, bot per bot. Entrando nel break il bot principale ricorda di archiviare il foglio di controllo del calcolo (`/archivia_calcolo` di loucabot v158, gas `calcolo_archivia`, gas-router `/gas/calcolo_archivia`)
+- klra v15: **calendari alternativi** (stesso schema del sorteggio vero, altro seme)

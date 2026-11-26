@@ -117,6 +117,9 @@ def migra() -> None:
             modificato  TIMESTAMPTZ)""")
     q("CREATE UNIQUE INDEX IF NOT EXISTS klra_conference_nome ON klra_conference (lower(nome))")
     q("ALTER TABLE klra_scelte ADD COLUMN IF NOT EXISTS conference_id INT REFERENCES klra_conference(id) ON DELETE SET NULL")
+    # v7.36.0: calendari alternativi. Con `seme` il calendario di regular season è estratto di nuovo con lo schema della lega
+    # (shared/calendario_sorteggio, lo stesso del sorteggio vero) invece di permutare quello vero
+    q("ALTER TABLE klra_conference ADD COLUMN IF NOT EXISTS seme TEXT")
     # sistemi predefiniti (Luca, 04/11): seguono le regole della lega, nessuno li modifica, tutti li copiano
     q("ALTER TABLE klra_sistemi ADD COLUMN IF NOT EXISTS predefinito TEXT")
     from klra.regole import PREDEFINITI

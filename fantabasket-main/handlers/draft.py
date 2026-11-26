@@ -318,16 +318,16 @@ def esegui(scelta_id: int, user=None) -> dict:
                 sc = _scala(r["numero"])
                 if not sc:
                     raise ValueError(f"pick {r['numero']} fuori dalla rookie scale")
-                cur.execute("INSERT INTO rookie (giocatore_id, team_id, round, pick_numero, anno_draft, anno_firma, firmato) "
-                            "VALUES (%s, %s, 1, %s, %s, %s, TRUE)", (gid, chi, r["numero"], r["anno"], stagione))
+                cur.execute("INSERT INTO rookie (giocatore_id, team_id, round, pick_numero, anno_draft, anno_firma, firmato, pick_id) "
+                            "VALUES (%s, %s, 1, %s, %s, %s, TRUE, %s)", (gid, chi, r["numero"], r["anno"], stagione, r["pick_id"]))
                 cur.execute("INSERT INTO contratti (giocatore_id, team_id, importo, anni_originali, stagione_firma, tipo) "
                             "VALUES (%s, %s, %s, %s, %s, 'rookie') RETURNING id", (gid, chi, sc[0], sc[1], stagione))
                 cid = cur.fetchone()["id"]
                 cur.execute("INSERT INTO transazioni (tipo, giocatore_id, team_id_da, team_id_a, stagione, contratto_id, rookie_scale, note) "
                             "VALUES ('rookie_firma', %s, NULL, %s, %s, %s, TRUE, %s)", (gid, chi, stagione, cid, nota))
             else:
-                cur.execute("INSERT INTO rookie (giocatore_id, team_id, round, pick_numero, anno_draft, firmato) "
-                            "VALUES (%s, %s, 2, %s, %s, FALSE)", (gid, chi, r["numero"], r["anno"]))
+                cur.execute("INSERT INTO rookie (giocatore_id, team_id, round, pick_numero, anno_draft, firmato, pick_id) "
+                            "VALUES (%s, %s, 2, %s, %s, FALSE, %s)", (gid, chi, r["numero"], r["anno"], r["pick_id"]))
                 if db.storico_pick_diritti_presente(cur):
                     cur.execute("INSERT INTO transazioni (oggetto, tipo, giocatore_id, team_id_da, team_id_a, stagione, note) "
                                 "VALUES ('diritti', 'rookie', %s, NULL, %s, %s, %s)", (gid, chi, stagione, nota))

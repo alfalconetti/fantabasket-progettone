@@ -389,6 +389,21 @@ def _migra_stagioni() -> None:
             chat_id     BIGINT NOT NULL,
             message_id  BIGINT NOT NULL,
             aggiornato  TIMESTAMPTZ NOT NULL DEFAULT NOW())""")    # v3.13.1: "trade <id>" se decaduta con una trade
+    # v7.36.0: il rookie legato alla pick con cui è stato scelto (il draft consuma la pick e crea il rookie legato a lei);
+    # i rookie di prima si legano alla pick usata con lo stesso anno, giro e numero. Via scadenza_diritti, un campo vecchio
+    # con date sbagliate che nessuno legge più (la scadenza dei diritti si calcola dalla trade deadline)
+    _q("ALTER TABLE rookie ADD COLUMN IF NOT EXISTS pick_id INT REFERENCES pick(id)")
+    _q("""UPDATE rookie r SET pick_id = p.id FROM pick p
+          WHERE r.pick_id IS NULL AND p.scattata AND p.anno::text = r.anno_draft::text AND p.round = r.round
+            AND p.numero_scelta = r.pick_numero
+            AND NOT EXISTS (SELECT 1 FROM rookie r2 WHERE r2.pick_id = p.id)""")
+    _q("CREATE UNIQUE INDEX IF NOT EXISTS idx_rookie_pick ON rookie (pick_id) WHERE pick_id IS NOT NULL")
+    _q("ALTER TABLE rookie DROP COLUMN IF EXISTS scadenza_diritti")
+    # v7.35.4: quando è cominciata ogni stagione della lega (entrata nei rinnovi): la stagione di una data passata
+    # viene da qui e non dal 1° luglio, perché i rinnovi possono cadere prima o dopo
+    _q("""CREATE TABLE IF NOT EXISTS inizi_stagione (
+            stagione TEXT PRIMARY KEY,
+            inizio   TIMESTAMPTZ NOT NULL DEFAULT NOW())""")
     # v7.32.0 (Luca, 26/11): i rinnovi normali, uno da ¼ e uno da ½ per squadra e stagione. Annullabili entro 24
     # ore (annullato = quando): la riga resta, il rinnovo torna libero
     _q("""CREATE TABLE IF NOT EXISTS rinnovi_normali (
@@ -706,6 +721,52 @@ def _verifica_contratti_stagione(cur) -> list[str]:
     errori += [f"{r['nome_common']} ({r['team_id']}): contratto rookie oltre il IV anno (firma {r['anno_firma']}): "
                f"manca il passaggio di fine scala (/dev_stagione rifai)" for r in cur.fetchall()]
     return errori
+
+
+def segna_inizio_stagione(stagione) -> None:
+    """v7.35.4: la stagione `stagione` comincia adesso (entrando nei rinnovi). Solo la prima volta."""
+    _q("INSERT INTO inizi_stagione (stagione) VALUES (%s) ON CONFLICT (stagione) DO NOTHING", (str(stagione),))
+
+
+def stagione_al(ts) -> int:
+    """v7.35.4: la stagione della lega a una data. Dagli inizi registrati (l'ultima cominciata prima di quella data);
+    prima del primo registrato, la regola del 1° luglio ma mai oltre la stagione prima di quella registrata."""
+    if isinstance(ts, str):
+        from datetime import datetime as _dt
+        ts = _dt.fromisoformat(ts)
+    regola = ts.year if ts.month >= 7 else ts.year - 1
+    try:
+        r = _q("SELECT stagione FROM inizi_stagione WHERE inizio <= %s ORDER BY inizio DESC LIMIT 1", (ts,), one=True)
+        if r:
+            return int(r["stagione"])
+        r = _q("SELECT stagione FROM inizi_stagione WHERE inizio > %s ORDER BY inizio LIMIT 1", (ts,), one=True)
+    except Exception:
+        r = None
+    return min(regola, int(r["stagione"]) - 1) if r else regola
+
+
+def get_impatto_taglio_team_at(team_id: str, stagione: str, timestamp_iso: str) -> list:
+    """v7.35.4: le rate dei tagli che pesano sulla stagione, ma solo dei tagli fatti entro quella data (senza
+    movimento collegato: rate vecchie, contano sempre)."""
+    return _q("""SELECT cs.*, g.nome_common FROM impatto_taglio cs JOIN giocatori g ON g.id = cs.giocatore_id
+                 LEFT JOIN movimenti_giocatori t ON t.id = cs.transazione_id
+                 WHERE cs.team_id = %s AND cs.stagione = %s AND (t.id IS NULL OR t.timestamp <= %s)""",
+              (team_id, str(stagione), timestamp_iso), many=True) or []
+
+
+def cap_at(team_id: str, timestamp_iso: str) -> int:
+    """v7.35.4: il cap occupato a una data, dal registro: contratti di quel momento che pesano (x0 fuori tranne gli
+    RFA, 10-day fuori), con la DPE già approvata e il minimo Cam Thomas, più le rate dei tagli già fatti."""
+    s = str(stagione_al(timestamp_iso))
+    dpe = get_dpe_at(team_id, s, timestamp_iso)
+    tot = 0
+    for r in get_roster_team_at(team_id, timestamp_iso):
+        if r.get("tipo_contratto") == "10day" or (r.get("x0") and not r.get("rfa")):
+            continue
+        proprio = int(r.get("importo_originale") or r.get("importo") or 0)
+        proprio = int(dpe.get(r["giocatore_id"], proprio))
+        tot += max(proprio, int(r.get("cam_thomas") or 0))
+    return tot + sum(int(i["importo"]) for i in get_impatto_taglio_team_at(team_id, s, timestamp_iso))
 
 
 def _stagione_di(ts) -> str:
@@ -1416,6 +1477,9 @@ def registra_decadimento(giocatore_id: int, team_id: str, stagione: str,
             cur.execute(
                 "UPDATE contratti SET attivo = FALSE WHERE giocatore_id = %s AND team_id = %s AND attivo = TRUE",
                 (giocatore_id, team_id))
+            # v7.35.3: un RFA dichiarato che decade non resta «in vigore»: la squadra non lo perde come RFA usato
+            cur.execute("UPDATE rfa_dichiarati SET stato = 'revocata', chiuso = NOW(), nota = 'decaduto' "
+                        "WHERE giocatore_id = %s AND stato = 'attiva'", (giocatore_id,))
             cur.execute(
                 "DELETE FROM impatto_taglio WHERE giocatore_id = %s AND team_id = %s AND stagione >= %s",
                 (giocatore_id, team_id, stagione))
@@ -1494,9 +1558,7 @@ def get_roster_team_at(team_id: str, timestamp_iso: str) -> list:
         (timestamp_iso, team_id), many=True
     ) or []
     # anno di scala dei rookie calcolato sulla stagione di quella data (v3.11.0)
-    from datetime import datetime as _dt
-    t = _dt.fromisoformat(timestamp_iso)
-    stagione_at = t.year if t.month >= 7 else t.year - 1
+    stagione_at = stagione_al(timestamp_iso)              # v7.35.4: dagli inizi registrati, non dal 1° luglio
     rfa = {x["contratto_id"] for x in _q(
         """SELECT contratto_id FROM rfa_dichiarati WHERE stagione = %s AND creato <= %s
            AND (stato = 'attiva' OR chiuso > %s)""", (str(stagione_at), timestamp_iso, timestamp_iso), many=True) or []}
@@ -1556,6 +1618,33 @@ def get_pick_at(team_id: str, timestamp_iso: str) -> list:
            WHERE u.team_id_a = %s""",
         (timestamp_iso, team_id), many=True
     ) or []
+
+
+def pick_al(timestamp_iso: str) -> list[dict]:
+    """v7.36.0 (event sourcing delle pick): tutte le pick com'erano a quella data, dal registro. Solo quelle che c'erano
+    già (un movimento fino ad allora); proprietario dall'ultimo movimento, usata se il draft l'aveva già consumata (col
+    numero, se no None), protezione se la trade che l'ha messa era già fatta e non ancora annullata."""
+    righe = _q("""SELECT p.*, u.team_id_a AS proprietario_al,
+                         EXISTS (SELECT 1 FROM transazioni t2 WHERE t2.oggetto = 'pick' AND t2.pick_id = p.id
+                                 AND t2.tipo = 'rookie' AND t2.timestamp <= %s) AS usata_al,
+                         (SELECT ti.protezione FROM transazioni t3
+                            JOIN trade_items ti ON ti.trade_id = t3.trade_id AND ti.pick_id = t3.pick_id
+                           WHERE t3.oggetto = 'pick' AND t3.pick_id = p.id AND t3.tipo = 'traded' AND t3.timestamp <= %s
+                             AND ti.protezione IS NOT NULL
+                             AND (SELECT count(*) FROM transazioni t4 WHERE t4.oggetto = 'pick' AND t4.pick_id = p.id
+                                  AND t4.trade_id = t3.trade_id AND t4.timestamp <= %s) = 1
+                           ORDER BY t3.timestamp, t3.id LIMIT 1) AS protezione_al
+                  FROM pick p
+                  JOIN LATERAL (SELECT t.team_id_a FROM transazioni t WHERE t.oggetto = 'pick' AND t.pick_id = p.id
+                                AND t.timestamp <= %s ORDER BY t.timestamp DESC, t.id DESC LIMIT 1) u ON TRUE""",
+               (timestamp_iso,) * 4, many=True) or []
+    for r in righe:
+        r["proprietario_att"] = r.pop("proprietario_al")
+        r["scattata"] = bool(r.pop("usata_al"))
+        if not r["scattata"]:
+            r["numero_scelta"] = None
+        r["protezioni"] = r.pop("protezione_al")
+    return righe
 
 
 def get_diritti_at(team_id: str, timestamp_iso: str) -> list:

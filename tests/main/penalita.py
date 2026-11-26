@@ -92,7 +92,8 @@ settings.admin_group_id = lambda: -200
 BOT.mandati.clear()
 asyncio.run(P.job_panchine_mancanti(CTX))
 _pm = [x for x in BOT.mandati if x["chat_id"] == -200]
-ok(len(_pm) == 1 and "Mancata panchina giornata 912" in _pm[0]["text"] and T["nome"] in _pm[0]["text"], f"proposta al gruppo admin {_pm}")
+_MOT = P.motivo_panchina(912, _S)   # «912», o «P…» se un'altra prova ha lasciato un calendario della stagione
+ok(len(_pm) == 1 and _MOT.split("giornata ")[1] in _pm[0]["text"] and T["nome"] in _pm[0]["text"], f"proposta al gruppo admin {_pm}")
 asyncio.run(P.job_panchine_mancanti(CTX))
 ok(len([x for x in BOT.mandati if x["chat_id"] == -200]) == 1, "una volta sola")
 _r1, _r2 = db._q("SELECT id FROM penalita_panchine ORDER BY id", many=True)
@@ -101,7 +102,7 @@ def premi_pm(data, uid=ADMIN):
 ok(premi_pm(f"pen:pm:{_r1['id']}", GM).risposte == ["⛔ Solo admin."], "solo admin")
 _q = premi_pm(f"pen:pm:{_r1['id']}")
 _p = db._q("SELECT * FROM penalita WHERE team_id = %s", (T["id"],), many=True)
-ok(len(_p) == 1 and _p[0]["motivo"] == "Mancata panchina giornata 912" and any(x["chat_id"] == CANALE for x in BOT.mandati)
+ok(len(_p) == 1 and _p[0]["motivo"] == _MOT and any(x["chat_id"] == CANALE for x in BOT.mandati)
    and "⚠️ penalità data" in _q.testi[-1][0], "⚠️: penalità data, sul canale, messaggio aggiornato")
 ok(premi_pm(f"pen:pm:{_r1['id']}").risposte == ["Già deciso."], "doppio tocco: una sola")
 _q = premi_pm(f"pen:pn:{_r2['id']}")

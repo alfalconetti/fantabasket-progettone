@@ -749,6 +749,54 @@ def calendario_mancante(stagione: str) -> str | None:
     return f"• manca il calendario {anni} ({n} giornate su {GIORNATE_RS}): {passo}"
 
 
+def blocco_passaggio(fase_vecchia: str, nuova_fase: str) -> str | None:
+    """Perché non si può passare a `nuova_fase` (testo HTML per l'admin), o None. Controllato sia alla scelta sia
+    alla conferma (v7.35.1: un «✅ Confermo» rimasto da prima non scavalca i controlli)."""
+    # v7.35.1: la stagione avanza solo entrando nei rinnovi dalla stagione prima. Saltarli o tornare dall'offseason
+    # nuova a playoff o break lascerebbe la stagione indietro, o la farebbe avanzare due volte
+    from handlers.stagione import FASI_PRIMA_DEI_RINNOVI, FASE_RINNOVI
+    dopo_rinnovi = ("offseason-rinnovi", "offseason-draft", "offseason-rfa", "offseason-fa", "offseason-ruoli")
+    s = settings.stagione_corrente()
+    if fase_vecchia in FASI_PRIMA_DEI_RINNOVI and nuova_fase in dopo_rinnovi and nuova_fase != FASE_RINNOVI:
+        return (f"⛔ <b>Non si saltano i rinnovi</b>: è entrando lì che la stagione passa al {int(s) + 1} (rookie scale, "
+                f"Doncic d'ufficio, pick nuove). Prima «{FASI_LABEL[FASE_RINNOVI]}», poi avanti.")
+    if fase_vecchia in dopo_rinnovi and nuova_fase in ("playoff", "offseason-break"):
+        return (f"⛔ <b>Non si torna alla stagione prima</b>: i contratti sono già passati al {s}, e rientrando nei "
+                f"rinnovi la stagione avanzerebbe di nuovo. Per correggere una fase dell'offseason usa le fasi "
+                f"dai rinnovi in poi.")
+    # v7.35.4 (Luca, 26/11): ai rinnovi (stagione nuova) solo con la finale dei playoff convalidata
+    from handlers.stagione import nuova_stagione
+    if nuova_stagione(fase_vecchia, nuova_fase):
+        from shared import playoff_base
+        try:
+            mancano = playoff_base.problemi_fine_stagione(s)
+        except Exception as e:
+            logger.exception("Controllo della fine della stagione")
+            mancano = [f"controllo non riuscito: {e}"]
+        if mancano:
+            return ("⛔ <b>Non si può ancora passare ai rinnovi</b> (e alla stagione nuova):\n• "
+                    + "\n• ".join(html.escape(x) for x in mancano)
+                    + "\n\nDopo il passaggio il calcolo di loucabot guarda solo la stagione nuova: prima va chiusa questa.")
+    # v7.10.0 (Luca, 15/11): ai playoff solo con la regular season finita e il calendario dei playoff importato
+    if nuova_fase == "playoff" and fase_vecchia != "playoff":
+        from shared import playoff_base
+        try:
+            mancano = playoff_base.problemi_passaggio()
+        except Exception as e:
+            logger.exception("Controllo del passaggio ai playoff")
+            mancano = [f"controllo non riuscito: {e}"]
+        if mancano:
+            return ("⛔ <b>Non si può ancora passare ai playoff</b>:\n• " + "\n• ".join(html.escape(x) for x in mancano)
+                    + "\n\nQuando è tutto pronto, di nuovo /set_fase.")
+    # v7.34.0 (Luca, 26/11): dall'offseason alla regular season solo col calendario della stagione (sorteggio e date)
+    if nuova_fase.startswith("regular-season") and fase_vecchia.startswith("offseason"):
+        manca = calendario_mancante(settings.stagione_corrente())
+        if manca:
+            return ("⛔ <b>Non si può ancora passare alla regular season</b>:\n" + manca
+                    + "\n\nQuando è pronto, di nuovo /set_fase.")
+    return None
+
+
 async def cb_fase_set(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Callback: imposta la nuova fase."""
     query = update.callback_query
@@ -760,27 +808,10 @@ async def cb_fase_set(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _, nuova_fase, tipo = query.data.split(":")
     fase_vecchia = settings.fase()
 
-    # v7.10.0 (Luca, 15/11): ai playoff solo con la regular season finita e il calendario dei playoff importato
-    if nuova_fase == "playoff":
-        from shared import playoff_base
-        try:
-            mancano = playoff_base.problemi_passaggio()
-        except Exception as e:
-            logger.exception("Controllo del passaggio ai playoff")
-            mancano = [f"controllo non riuscito: {e}"]
-        if mancano:
-            await query.edit_message_text(
-                "⛔ <b>Non si può ancora passare ai playoff</b>:\n• " + "\n• ".join(html.escape(x) for x in mancano)
-                + "\n\nQuando è tutto pronto, di nuovo /set_fase.", parse_mode="HTML")
-            return
-
-    # v7.34.0 (Luca, 26/11): dall'offseason alla regular season solo col calendario della stagione (sorteggio e date)
-    if nuova_fase.startswith("regular-season") and fase_vecchia.startswith("offseason"):
-        manca = calendario_mancante(settings.stagione_corrente())
-        if manca:
-            await query.edit_message_text("⛔ <b>Non si può ancora passare alla regular season</b>:\n" + manca
-                                          + "\n\nQuando è pronto, di nuovo /set_fase.", parse_mode="HTML")
-            return
+    blocco = blocco_passaggio(fase_vecchia, nuova_fase)
+    if blocco:
+        await query.edit_message_text(blocco, parse_mode="HTML")
+        return
 
     # v3.11: i passaggi che cambiano i contratti (nuova stagione, scadenza degli x0)
     # mostrano prima cosa succederà e chiedono conferma, anche nell'avanzamento normale
@@ -823,6 +854,10 @@ async def cb_fase_conferma(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     nuova_fase = query.data.split(":")[1]
     fase_vecchia = settings.fase()
+    blocco = blocco_passaggio(fase_vecchia, nuova_fase)
+    if blocco:
+        await query.edit_message_text(blocco, parse_mode="HTML")
+        return
     await _esegui_cambio_fase(query, fase_vecchia, nuova_fase)
 
 
@@ -872,6 +907,7 @@ async def _esegui_cambio_fase(query, fase_vecchia: str, nuova_fase: str):
     if nuova_stagione(fase_vecchia, nuova_fase):
         stagione_nuova = int(g.get("stagione_corrente", 2026)) + 1
         g["stagione_corrente"] = str(stagione_nuova)
+        db.segna_inizio_stagione(stagione_nuova)          # v7.35.4: per la stagione di una data passata
         nota_stagione = f"\n📅 Stagione aggiornata: <b>{stagione_nuova}</b>"
 
     json.dump(g, open(globals_path, "w"), indent=2, ensure_ascii=False)

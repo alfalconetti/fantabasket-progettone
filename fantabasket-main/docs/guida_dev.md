@@ -179,7 +179,7 @@ Il bot aste vede la fase nuova entro 5 minuti.
 | `trade` | trade e bozze: `stato`, `trade_ref` `TRADE-AAAA-NNN`, `bozza_num`, `proposta_da`, `note`/`nota_gm` |
 | `trade_squadre`, `trade_items`, `trade_voti` | squadre, pezzi (`team_id_a = '?'` = destinatario da assegnare) e voti |
 | `pick` | `proprietario_orig`, `proprietario_att`, `anno`, `round`, `protezioni`, `scattata` |
-| `rookie` | diritti e rookie scale: `pick_numero`, `anno_draft`, `anno_firma` (inizio della scala: da qui l'anno di scala e il colore R0–R3), `anni_scala` (solo informativa, aggiornata al cambio di stagione), `firmato`, `diritti_scaduti` |
+| `rookie` | diritti e rookie scale: `pick_id` (v7.36.0: la pick con cui è stato scelto, scritta dal draft; i rookie di prima legati alla migrazione per anno, giro e numero; `scadenza_diritti` tolta), `pick_numero`, `anno_draft`, `anno_firma` (inizio della scala: da qui l'anno di scala e il colore R0–R3), `anni_scala` (solo informativa, aggiornata al cambio di stagione), `firmato`, `diritti_scaduti` |
 
 **Ruoli e posizioni**
 
@@ -261,7 +261,7 @@ Se trova qualcosa scrive al dev. Di solito è una modifica fatta a mano sul DB: 
 
 - **x0** (≤ 0) = contratto finito: resta attivo e in squadra fino all'inizio della FA, si può scambiare, ma **non pesa su cap né slot**. Unica eccezione l'RFA dichiarato: cap sì, slot no.
 - Cap e slot: **un'implementazione sola in `shared/cap.py`** (v3.12.0), usata dai due bot con la loro funzione di query. Qui `cap_occupato_team`, `peso_cap_giocatore`, `occupa_slot` la chiamano; `get_roster_team` ha per ogni riga `pesa_cap` e `occupa_slot` calcolati da lì, e `slot_occupati(roster)` / `cap_roster(roster)` li sommano. Nel bot aste `pg_client.get_cap_contratti`, `get_impatto_taglio`, `get_roster_count`. Una regola nuova su cosa pesa si cambia solo lì.
-- `get_roster_team` dà per ogni riga `anni_residui`, `x0`, `rfa`, `contratto_id`, `anni_scala` (= stagione − `rookie.anno_firma`: 0 = I anno … 3 = IV anno). `get_roster_team_at` li calcola sulla stagione di quella data.
+- `get_roster_team` dà per ogni riga `anni_residui`, `x0`, `rfa`, `contratto_id`, `anni_scala` (= stagione − `rookie.anno_firma`: 0 = I anno … 3 = IV anno). `get_roster_team_at` li calcola sulla stagione di quella data: dalla v7.35.4 `db.stagione_al(ts)`, che legge `inizi_stagione` (scritta da `segna_inizio_stagione` quando il pannello entra nei rinnovi dalla stagione prima: l'ultima cominciata prima della data) e solo senza inizi registrati usa la regola del 1° luglio (mai oltre la stagione prima della prima registrata). Le pick a una data (v7.36.0): `db.pick_al(iso)` (proprietario dall'ultimo movimento, usata solo dal giorno del draft, protezione dalla trade che l'ha messa se già fatta e non annullata), usata da `/pick … DATA` e `/pick_lega [ANNO] DATA` (`pick.estrai_data`, `_pick(anni, giri, al)`, «com'era al …» nell'immagine). Il cap a una data è `db.cap_at(team, iso)` (contratti di allora che pesano, DPE già approvate, Cam Thomas, rate dei tagli già fatti con `get_impatto_taglio_team_at`): lo usano `/roster` e `/assets` con la data e `/trova_trade`. La prova `event_sourcing` fotografa lo stato dopo ogni tipo di operazione e controlla che il registro lo ricostruisca uguale, subito e a fine giro.
 
 **Ogni cambio di importo è un contratto nuovo:** il vecchio va a `attivo = FALSE` e si scrive il movimento. I contratti non si cancellano mai.
 

@@ -10,7 +10,7 @@ AMMESSE = {
         "crea_storico_pick_diritti", "_verifica_storico_asset", "controlli_coerenza",
         "get_tagli_gratuiti_usati", "get_pick_at", "get_diritti_at", "movimento_asset_periodo",
         "movimenti_carriera", "storia_pick",
-        "annulla_taglio", "annulla_firma", "annulla_rinnovo"},   # v7.20.2: DELETE del movimento sbagliato, non letture
+        "annulla_taglio", "annulla_firma", "annulla_rinnovo", "pick_al"},   # v7.20.2: DELETE del movimento sbagliato, non letture
 }
 RE = re.compile(r"\b(FROM|JOIN)\s+transazioni\b", re.IGNORECASE)
 trovate = []

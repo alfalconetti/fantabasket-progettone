@@ -132,6 +132,16 @@ ok(r == {"round": 2, "firmato": False, "team_id": "team24", "pick_numero": 25}
    and not db._q("SELECT 1 FROM contratti c JOIN giocatori g ON g.id = c.giocatore_id WHERE g.nome_common = 'Secondo Giro'", one=True),
    f"2nd: diritti, nessun contratto {r}")
 ok(any(c == -1 and "Con la 25ª scelta al draft 2027" in tx for c, tx, *_ in inviati if c != "edit"), "dal secondo giro «la 25ª scelta»")
+# v7.36.0: il rookie è legato alla pick con cui è stato scelto (rookie.pick_id), anche al primo giro
+_pl = db._q("""SELECT r.pick_id, p.anno, p.round, p.numero_scelta, p.scattata FROM rookie r JOIN giocatori g ON g.id = r.giocatore_id
+               JOIN pick p ON p.id = r.pick_id WHERE g.nome_common IN ('Secondo Giro', 'Rookie 24') ORDER BY p.round""", many=True)
+ok([(x["round"], x["numero_scelta"], x["scattata"]) for x in _pl] == [(1, 24, True), (2, 25, True)],
+   f"rookie.pick_id: la pick usata, al primo e al secondo giro {_pl}")
+import handlers.pick as _PK
+ok(_PK._scelto(db._q("SELECT * FROM pick WHERE id = %s", (_pl[1]["pick_id"],), one=True))["nome_common"] == "Secondo Giro",
+   "/pick: chi è stato scelto con la pick, dal legame")
+ok(not db._q("SELECT 1 FROM information_schema.columns WHERE table_name = 'rookie' AND column_name = 'scadenza_diritti'", one=True),
+   "rookie.scadenza_diritti tolta")
 # pausa e ripresa, correzione
 run(D.cmd_draft_pausa(upd(900), ctx()))
 run(D.cmd_scelgo(upd(1023), ctx("Tizio")))
@@ -157,3 +167,10 @@ ok("Nessun draft 2019" in risposte[-1], "/draft di un anno che non c'è")
 ok(isinstance(D.controllo_cap("2027"), list) and D.testo_controllo("2027").startswith(("✅", "⚠️")), "controllo cap e slot")
 ok(DV.scelta_testo(1) == "la prima scelta" and DV.scelta_testo(24) == "la ventiquattresima scelta" and DV.scelta_testo(48) == "la 48ª scelta",
    "le scelte in parole")
+# v7.36.0: i rookie di prima si legano alla pick usata con lo stesso anno, giro e numero (migrazione all'avvio)
+_pv = db._qval("INSERT INTO pick (proprietario_orig, proprietario_att, anno, round, scattata, numero_scelta) "
+               "VALUES ('team01', 'team02', '2020', 1, TRUE, 7) RETURNING id")
+_gv = db._qval("INSERT INTO giocatori (nome_bref, nome_common, nome_norm) VALUES ('Vecchio Rookie', 'Vecchio Rookie', 'vecchio rookie') RETURNING id")
+db._q("INSERT INTO rookie (giocatore_id, team_id, round, pick_numero, anno_draft, firmato) VALUES (%s, 'team02', 1, 7, '2020', TRUE)", (_gv,))
+db.migrate_db()
+ok(db._qval("SELECT pick_id FROM rookie WHERE giocatore_id = %s", (_gv,)) == _pv, "rookie di prima legato alla sua pick alla migrazione")

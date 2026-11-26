@@ -69,3 +69,7 @@
 ## v14 (2026-11-23, progettone v7.26.0)
 
 - `/rendimento_carriera`: le 9 categorie a partita di tutta la carriera (non dipendono dal sistema)
+
+## v15 (2026-11-26, progettone v7.36.0)
+
+- **Calendari alternativi**: dalla scheda di una conference «📅 Calendario nuovo con queste» estrae un calendario di regular season con lo schema del sorteggio vero (38 giornate, mai più di 2 di fila) e un seme suo; si usa come le conference alternative, chi l'ha creato lo riestrae. Le giornate dei playoff restano quelle vere

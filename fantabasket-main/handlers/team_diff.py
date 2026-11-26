@@ -31,8 +31,8 @@ logger = logging.getLogger(__name__)
 # ── snapshot roster a una certa data ─────────────────────────────────────────
 
 def _stagione_at(at: datetime) -> int:
-    """Stagione della lega a una data: da luglio quella che inizia (2026 = 2026-27)."""
-    return at.year if at.month >= 7 else at.year - 1
+    """Stagione della lega a una data (2026 = 2026-27): dagli inizi registrati (v7.35.4), se no da luglio."""
+    return db.stagione_al(at)
 
 
 def _snapshot_contratti(team_id: str, at: datetime) -> dict[int, dict]:

@@ -479,6 +479,54 @@ q = cbc(907, "kc:n"); q = cbc(907, "kc:caso")
 ok(len(UD["klra_conf"]["a"]) == 2 and "Accoppia e salva (2/2)" in str([b.text for r in q.kb.inline_keyboard for b in r]), "squadre estratte a caso")
 q = cbc(905, "kc:u:0")
 ok(CO.attiva(905) is None, "si torna alle ufficiali")
+
+# ── v7.36.0: calendari alternativi (lo schema della lega estratto di nuovo, sulle giornate di regular season) ──
+from shared import calendario_sorteggio as _CS
+_d4 = open(_div, encoding="utf-8").read()
+_T24 = [f"k{i:02d}" for i in range(1, 25)]
+json.dump({"conference": {"Est": ["E"], "Ovest": ["O"]}, "team_div": {t: ("E" if i < 12 else "O") for i, t in enumerate(_T24)}},
+          open(_div, "w", encoding="utf-8"))
+db._pool, _k = pool_lega, db._pool                         # scrittura sui dati della lega (la prova, non klra)
+db.q("DELETE FROM lega_giornate WHERE stagione = '2098'"); db.q("DELETE FROM lega_partite WHERE stagione = '2098'")
+for _n in range(1, 39):
+    db.q("INSERT INTO lega_giornate (stagione, numero, tipo, dal, al) VALUES ('2098', %s, 'regular', '2098-11-01', '2098-11-02')", (_n,))
+db.q("INSERT INTO lega_giornate (stagione, numero, tipo, dal, al) VALUES ('2098', 39, 'playoff', '2099-03-01', '2099-03-02')")
+db.q("INSERT INTO lega_partite (stagione, giornata, casa, trasferta) VALUES ('2098', 39, 'k01', 'k13')")
+db._pool = _k
+_cal = CO.crea_calendario("Calendario Bis", 905, "Luca", _T24[:12])
+_pj = json.loads(CO.partite_json(_cal, "2098"))
+_reg = [r for r in _pj if r["giornata"] <= 38]
+_gg = [[(r["casa"], r["trasferta"]) for r in _reg if r["giornata"] == n] for n in range(1, 39)]
+_CS.valida(_gg, _T24[:12], _T24[12:])
+ok(len(_reg) == 38 * 12 and all(len(g) == 12 for g in _gg) and max(_CS.di_fila(_CS.campi(_gg, t)) for t in _T24) <= 2,
+   "calendario alternativo: 38 giornate da 12 partite, i controlli di Henry, mai più di 2 di fila")
+ok([(r["casa"], r["trasferta"]) for r in _pj if r["giornata"] == 39] == [("k01", "k13")], "le giornate dei playoff restano quelle vere")
+ok(json.loads(CO.partite_json(_cal, "2098")) == _pj, "stesso seme, stesso calendario")
+_vero = [(r["casa"], r["trasferta"]) for r in _reg]
+ok(CO.riestrai(_cal["id"], 905) and [(r["casa"], r["trasferta"]) for r in json.loads(CO.partite_json(CO.per_id(_cal["id"]), "2098"))
+                                     if r["giornata"] <= 38] != _vero, "riestrai: un altro calendario")
+ok(not CO.riestrai(_cal["id"], 906), "lo riestrae solo chi l'ha creato")
+with M.in_conference(CO.per_id(_cal["id"])):
+    _f1 = M.firma_cache({})
+CO.riestrai(_cal["id"], 905)
+with M.in_conference(CO.per_id(_cal["id"])):
+    _f2 = M.firma_cache({})
+ok(_f1 != _f2, "cache: ogni calendario estratto la sua firma")
+_sc = scheda_cal = CM.scheda_conference(_cal["id"], 905)
+ok("Calendario estratto di nuovo" in _sc[0] and "kc:re:" in str([b.callback_data for r in _sc[1].inline_keyboard for b in r]),
+   "scheda: lo dice, e chi l'ha creato può riestrarlo")
+q = cbc(908, "kc:cal:0")
+ok("Come lo chiami" in q.testo and UD["klra_conf"]["calendario"], "📅 calendario nuovo con le conference ufficiali: chiede il nome")
+m = Msg(); m.text = "Altro Giro"; asyncio.run(CM.testo_libero(upd(908, m), ctx()))
+_ag = CO.per_nome("Altro Giro")
+ok(_ag and _ag["seme"] and CO.attiva(908)["id"] == _ag["id"] and "calendario estratto" in m.testi[-1][0],
+   "creato col seme e attivo per chi l'ha fatto")
+basi.q("DELETE FROM klra_scelte WHERE conference_id IN (%s, %s)", (_cal["id"], _ag["id"]))
+basi.q("DELETE FROM klra_conference WHERE id IN (%s, %s)", (_cal["id"], _ag["id"]))
+db._pool, _k = pool_lega, db._pool
+db.q("DELETE FROM lega_giornate WHERE stagione = '2098'"); db.q("DELETE FROM lega_partite WHERE stagione = '2098'")
+db._pool = _k
+open(_div, "w", encoding="utf-8").write(_d4)
 os.unlink(_div)
 
 # /player col sistema (v2)

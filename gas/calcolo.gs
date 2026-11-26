@@ -96,3 +96,30 @@ function handleCalcolo(payload) {
   }
   return respond({ ok: true, righe: righe.length, tab: nome, formule: blocchi.length, sintassi: sintassi, errori: errori });
 }
+
+// v7.36.0: fine stagione. I tab "Calcolo GN" e "Calcolo PN" del foglio di controllo si copiano in un file nuovo
+// (payload.archivio, es. "Calcolo 2026-27 · archivio", nella radice del Drive) e, con
+// payload.azzera, si tolgono dal foglio di controllo, così la stagione nuova riparte da G1 senza sovrascrivere
+// niente. Prima si copia tutto, poi si toglie: se la copia non riesce, il foglio resta com'era.
+function handleCalcoloArchivia(payload) {
+  const nome = (payload.archivio || "").trim();
+  if (!nome) return respond({ error: "Manca il nome dell'archivio" });
+  const ss = getSpreadsheetCalcolo_();
+  const tab = ss.getSheets().filter(function (s) { return /^Calcolo [GP]\d+$/.test(s.getName()); });
+  if (!tab.length) return respond({ ok: true, copiati: 0, tolti: 0, url: "" });
+  const nuovo = SpreadsheetApp.create(nome);              // nel Drive di chi ha pubblicato la web app (niente permessi nuovi)
+  const vuoto = nuovo.getSheets()[0];
+  tab.forEach(function (s) { s.copyTo(nuovo).setName(s.getName()); });
+  nuovo.deleteSheet(vuoto);
+  SpreadsheetApp.flush();
+  if (nuovo.getSheets().length !== tab.length) {
+    return respond({ error: "Copiati " + nuovo.getSheets().length + " tab su " + tab.length + ": il foglio di controllo non si tocca",
+                     url: nuovo.getUrl() });
+  }
+  let tolti = 0;
+  if (payload.azzera) {
+    if (ss.getSheets().length === tab.length) ss.insertSheet("Calcolo");     // un foglio deve restare
+    tab.forEach(function (s) { ss.deleteSheet(s); tolti++; });
+  }
+  return respond({ ok: true, copiati: tab.length, tolti: tolti, url: nuovo.getUrl() });
+}

@@ -168,7 +168,7 @@ CREATE TABLE rookie (
     anno_draft          TEXT NOT NULL,
     anno_firma          TEXT,
     anni_scala          INT NOT NULL DEFAULT 0,
-    scadenza_diritti    TIMESTAMPTZ,
+    pick_id             INT REFERENCES pick(id),     -- v7.36.0: la pick con cui è stato scelto
     firmato             BOOLEAN NOT NULL DEFAULT FALSE,
     diritti_scaduti     BOOLEAN NOT NULL DEFAULT FALSE
 );

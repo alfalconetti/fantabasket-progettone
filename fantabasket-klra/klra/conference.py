@@ -67,9 +67,37 @@ def _mappa(conf: dict) -> dict:
     return conf["mappa"] if isinstance(conf["mappa"], dict) else json.loads(conf["mappa"])
 
 
+def squadre(conf: dict) -> tuple[list[str], list[str]]:
+    """(prima conference, seconda) delle conference alternative."""
+    a = sorted(conf["squadre_a"] if isinstance(conf["squadre_a"], list) else json.loads(conf["squadre_a"]))
+    return a, sorted(t for x in ufficiali().values() for t in x if t not in a)
+
+
+def calendario_estratto(conf: dict, stagione: str) -> list[dict]:
+    """v7.36.0: le partite di un calendario alternativo: lo schema a posti della lega (shared/calendario_sorteggio, 38
+    giornate, mai più di 2 di fila) con le squadre estratte dal seme, sulle giornate di regular season della stagione.
+    Le giornate dei playoff restano quelle vere."""
+    from shared import calendario_sorteggio as CS
+    a, b = squadre(conf)
+    giornate = CS.genera(a, b, conf["seme"])
+    numeri = [r["numero"] for r in db.q("SELECT numero FROM lega_giornate WHERE stagione = %s AND tipo = 'regular' ORDER BY numero",
+                                         (stagione,), many=True) or []]
+    out, i = [], 0
+    for numero, partite in zip(numeri, giornate):
+        for casa, tr in partite:
+            i += 1
+            out.append({"id": -i, "stagione": stagione, "giornata": numero, "casa": casa, "trasferta": tr})
+    return out
+
+
 def partite_json(conf: dict, stagione: str) -> str:
     """Le partite del calendario vero con le squadre al posto loro: chi ha preso il posto di X gioca le partite di X.
     Da chiamare FUORI da in_conference (legge lega_partite vera)."""
+    if conf.get("seme"):                                  # v7.36.0: calendario estratto di nuovo (le giornate P restano vere)
+        regolari = {r["numero"] for r in db.q("SELECT numero FROM lega_giornate WHERE stagione = %s AND tipo = 'regular'",
+                                              (stagione,), many=True) or []}
+        altre = db.q("SELECT id, stagione, giornata, casa, trasferta FROM lega_partite WHERE stagione = %s", (stagione,), many=True) or []
+        return json.dumps(calendario_estratto(conf, stagione) + [r for r in altre if r["giornata"] not in regolari], default=str)
     inv = {posto: t for t, posto in _mappa(conf).items()}
     righe = db.q("SELECT id, stagione, giornata, casa, trasferta FROM lega_partite WHERE stagione = %s", (stagione,), many=True) or []
     return json.dumps([{**r, "casa": inv.get(r["casa"], r["casa"]), "trasferta": inv.get(r["trasferta"], r["trasferta"])} for r in righe])
@@ -118,6 +146,27 @@ def nome_valido(nome: str) -> str | None:
 def crea(nome: str, uid: int, autore_nome: str, squadre_a: list[str]) -> dict:
     return basi.q("""INSERT INTO klra_conference (nome, autore, autore_nome, squadre_a, mappa) VALUES (%s, %s, %s, %s, %s) RETURNING *""",
                   (nome.strip(), uid, autore_nome, json.dumps(sorted(squadre_a)), json.dumps(mappa_nuova(squadre_a))), one=True)
+
+
+def crea_calendario(nome: str, uid: int, autore_nome: str, squadre_a: list[str]) -> dict:
+    """v7.36.0: un calendario alternativo con queste conference: nessun accoppiamento (mappa = ognuna al suo posto),
+    il seme da cui si estrae il calendario."""
+    import secrets
+    tutte = sorted(t for x in ufficiali().values() for t in x)
+    return basi.q("""INSERT INTO klra_conference (nome, autore, autore_nome, squadre_a, mappa, seme)
+                     VALUES (%s, %s, %s, %s, %s, %s) RETURNING *""",
+                  (nome.strip(), uid, autore_nome, json.dumps(sorted(squadre_a)), json.dumps({t: t for t in tutte}),
+                   secrets.token_hex(32)), one=True)
+
+
+def riestrai(cid: int, uid: int) -> bool:
+    """v7.36.0: un altro calendario dallo stesso schema (solo chi l'ha creato)."""
+    import secrets
+    c = per_id(cid)
+    if not puo_modificare(c, uid) or not c.get("seme"):
+        return False
+    basi.q("UPDATE klra_conference SET seme = %s, modificato = NOW() WHERE id = %s", (secrets.token_hex(32), cid))
+    return True
 
 
 def puo_modificare(c: dict, uid: int) -> bool:

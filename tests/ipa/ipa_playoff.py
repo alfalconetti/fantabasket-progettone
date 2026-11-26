@@ -1,7 +1,7 @@
 import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))); import guardia  # noqa: E402,F401  — blocca le prove sul server (TRUNCATE)
 """IPanchinari v39 (progettone v7.10.0): nelle giornate P dei playoff formazioni, promemoria, stato, report e
 congelamento dei quintetti solo per le squadre che giocano (comune.in_gioco, shared/playoff_base.in_gioco)."""
-import asyncio, importlib.util, os
+import asyncio, importlib.util, json, os
 from datetime import date, datetime, timedelta, timezone
 import config, db, comune, quintetti as QU
 
@@ -38,4 +38,25 @@ b = Bot()
 asyncio.run(QU.manda_promemoria(b, g2))
 gm = {int(x) for t in config.squadre() if t["id"] in ("team01", "team02") for x in t.get("gm_ids", [])}
 ok(set(b.a) == gm, f"promemoria della giornata P solo ai GM di chi gioca {b.a}")
+# v7.35.5 (prova generale dei playoff): alla chiusura della giornata P quintetti congelati e panchine mancanti solo
+# per chi gioca; le eliminate e le prime due al primo turno non risultano «senza panchina» (niente penalità)
+db.q("UPDATE lega_giornate SET prima_partita = %s WHERE stagione = %s AND numero = 2", (datetime.now(timezone.utc) - timedelta(minutes=5), S))
+db.q("DELETE FROM ipa_formazioni WHERE stagione = %s AND giornata = 2", (S,))
+db.q("DELETE FROM ipa_panchine WHERE stagione = %s AND giornata = 2", (S,))
+db.q("DELETE FROM ipa_stato_giornata WHERE stagione = %s AND giornata = 2", (S,))
+db.salva_panchina(S, 2, "team01", None, [{"giocatore_id": None, "testo": "P1", "ruolo": "PG"}])
+class Bot2:
+    def __init__(self): self.a = []
+    async def send_message(self, chat_id=None, text=None, **k): self.a.append((chat_id, text))
+b2 = Bot2()
+asyncio.run(QU.job_giornate(type("C", (), {"bot": b2})()))
+_form = {r["team_id"] for r in db.q("SELECT team_id FROM ipa_formazioni WHERE stagione = %s AND giornata = 2", (S,), many=True) or []}
+_st = db.stato_giornata(S, 2)
+_manc = _st.get("mancanti")
+_manc = json.loads(_manc) if isinstance(_manc, str) else _manc
+ok(_st["chiusa"] and _form == {"team01", "team02"}, f"chiusura della giornata P: quintetti congelati solo per chi gioca {_form}")
+ok(_manc == ["team02"], f"senza panchina solo chi gioca e non l'ha mandata, non le altre {_manc}")
+db.q("DELETE FROM ipa_formazioni WHERE stagione = %s AND giornata IN (1, 2)", (S,))
+db.q("DELETE FROM ipa_panchine WHERE stagione = %s AND giornata IN (1, 2)", (S,))
+db.q("DELETE FROM ipa_stato_giornata WHERE stagione = %s AND giornata IN (1, 2)", (S,))   # anche la 1, chiusa dal job
 db.q("TRUNCATE lega_giornate, lega_partite")

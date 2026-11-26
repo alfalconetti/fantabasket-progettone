@@ -50,7 +50,7 @@
   #grid(columns: (auto, 1fr, auto), column-gutter: 10pt, align: (horizon, left + horizon, right + horizon),
     logo(me, 40pt),
     [#text(17pt, weight: "bold", fill: rgb(c.t_header))[Le pick di #me.nome] \ #text(9pt, fill: rgb(c.t_header_m))[#dati.titolo]],
-    text(8.5pt, fill: rgb(c.t_header_m))[aggiornato al #dati.aggiornato])
+    text(8.5pt, fill: rgb(c.t_header_m))[#if dati.at("quando", default: "") != "" { text(weight: "bold")[#dati.quando] } else [aggiornato al #dati.aggiornato]])
 ]
 
 #show table.cell: it => {

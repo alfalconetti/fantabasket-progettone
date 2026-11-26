@@ -181,6 +181,19 @@ _ctx = types.SimpleNamespace(bot=_Bot())
 asyncio.run(_h.job_sync(_ctx))
 ok(any(x["chat_id"] == -77 and "8:30" in x["text"] for x in _ctx.bot.m),
    f"sincronizzazione delle 8:30 annotata sul canale log {_ctx.bot.m}")
+# v7.35.3: stagione senza calendario (dai rinnovi all'import): niente partite, ma i roster ESPN sì
+_chiamate = []
+async def _sync_vietato(*a, **k):
+    _chiamate.append("partite"); return {"giorni": 0, "partite": 0, "errori": []}
+async def _roster_uno(**k):
+    _chiamate.append("roster"); return [{"atleta": "999001", "nome": "Estivo", "squadra": "BOS"}]
+_h.nba.sincronizza, _h.nba.scarica_giocatori = _sync_vietato, _roster_uno
+_json.dump({**_g, "log_channel_id_louca": -77, "stagione_corrente": "2099"}, open(config.GLOBALS_PATH, "w"))
+_ctx = types.SimpleNamespace(bot=_Bot())
+asyncio.run(_h.job_sync(_ctx))
+ok(_chiamate == ["roster"] and db.q("SELECT squadra FROM nba_atleti WHERE atleta = '999001'", one=True)["squadra"] == "BOS"
+   and any("solo i roster" in x["text"] for x in _ctx.bot.m), f"senza calendario: solo i roster ESPN {_chiamate}")
+db.q("DELETE FROM nba_atleti WHERE atleta = '999001'")
 _json.dump(_g, open(config.GLOBALS_PATH, "w"))
 
 # menu "/" per scope, come gli altri bot

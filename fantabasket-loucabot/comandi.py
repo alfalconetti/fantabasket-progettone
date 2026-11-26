@@ -86,6 +86,7 @@ def liste_comandi() -> dict:
         BotCommand("calcola",            "Calcola subito la giornata [N], se le partite sono finite"),
         BotCommand("ricontrolla",        "Ricontrolla i tabellini di una notte aperta [GG/MM]"),
         BotCommand("storico_calcolo",    "Versioni calcolate della giornata N e cosa è cambiato"),
+        BotCommand("archivia_calcolo",   "Fine stagione: archivia e azzera il foglio di controllo del calcolo"),
         BotCommand("tanking",            "Controllo tanking della giornata [N]: indizi nelle formazioni"),
         BotCommand("congelamento",       "Quali giornate si ricontrollano e quali sono congelate"),
         BotCommand("congelamento_notti", "Le notti: aperte (fino alle 20 del giorno dopo) o congelate"),

@@ -455,6 +455,9 @@ async def _genera_roster_png(team: dict, stagione: str, as_of=None, formato: str
     # Salary cap
     cap_contratti = db.cap_roster(roster)          # x0 esclusi, RFA dichiarati inclusi (v3.11)
     impatti       = db.get_impatto_taglio_team(team_id, stagione)
+    if as_of:                                      # v7.35.4: a una data, dal registro (stagione, DPE e tagli di allora)
+        impatti       = db.get_impatto_taglio_team_at(team_id, str(db.stagione_al(as_of)), as_of.isoformat())
+        cap_contratti = db.cap_at(team_id, as_of.isoformat()) - sum(i.get("importo", 0) for i in impatti)
     cap_impatto   = sum(i.get("importo", 0) for i in impatti)
     cap_totale    = cap_contratti + cap_impatto
     salary        = str(cap_totale)
@@ -610,7 +613,7 @@ async def cmd_roster(update: Update, context: ContextTypes.DEFAULT_TYPE):
     png_path = None
     try:
         png_path = await _genera_roster_png(team, stagione, as_of=as_of)
-        caption = f"🏀 {team['nome']} — Stagione {stagione}"
+        caption = f"🏀 {team['nome']} — Stagione {db.stagione_al(as_of) if as_of else stagione}"
         if as_of:
             caption += f"\n📅 al {data_label}"
         with open(png_path, "rb") as f:
@@ -706,6 +709,9 @@ async def _genera_assets_png(team: dict, stagione: str, as_of=None, formato: str
 
     cap_contratti = db.cap_roster(roster)          # x0 esclusi, RFA dichiarati inclusi (v3.11)
     impatti       = db.get_impatto_taglio_team(team_id, stagione)
+    if as_of:                                      # v7.35.4: a una data, dal registro (stagione, DPE e tagli di allora)
+        impatti       = db.get_impatto_taglio_team_at(team_id, str(db.stagione_al(as_of)), as_of.isoformat())
+        cap_contratti = db.cap_at(team_id, as_of.isoformat()) - sum(i.get("importo", 0) for i in impatti)
     cap_impatto   = sum(i.get("importo", 0) for i in impatti)
     cap_totale    = cap_contratti + cap_impatto
     salary_detail = f"{cap_contratti}+{cap_impatto}" if cap_impatto > 0 else str(cap_contratti)

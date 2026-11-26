@@ -752,3 +752,12 @@ Il calcolo dei fantapunti.
 ## v156 (2026-11-26, progettone v7.35.0)
 
 - `/prestazione`: la composizione dei fantapunti (punti, assist, rimbalzi, recuperi, stoppate; perse a parte), la notte contro la media della stagione intera
+
+## v157 (2026-11-26, progettone v7.35.3)
+
+- Sincronizzazione delle 8:30: con la stagione senza calendario (dai rinnovi all'import delle date) scarica comunque i roster ESPN, così i movimenti NBA dell'estate hanno il giorno giusto
+
+## v158 (2026-11-26, progettone v7.36.0)
+
+- **`/archivia_calcolo`** (admin): a fine stagione, dopo la finale, i tab «Calcolo GN/PN» del foglio di controllo copiati in un file nuovo («Calcolo 2026-27 · archivio») e tolti; una volta per stagione. Finché la stagione vecchia non è archiviata, i tab della nuova non si scrivono (lo dice la proposta del calcolo)
+- `/pick` e `/pick_lega` con la data (dal bot principale)

@@ -100,8 +100,7 @@ def _ora(dt) -> str:
 
 
 def _stagione_al(dt) -> int:
-    d = dt.astimezone(ROME)
-    return d.year if d.month >= 7 else d.year - 1
+    return db.stagione_al(dt)          # v7.35.4: dagli inizi di stagione registrati, se no dal 1° luglio
 
 
 def _protezioni(p) -> str:
@@ -238,17 +237,9 @@ def medie_trade(gid: int, espn: str | None, da: str, a: str, quando) -> list[dic
 def _cap_roster(team_id: str, quando, stagione: int) -> tuple[int, int]:
     """(cap, giocatori in roster) della squadra in quel momento: contratti che pesano dal roster a quella data,
     con le DPE già approvate, più le spalmature della stagione dei tagli fatti fino ad allora."""
-    iso = quando.isoformat()
-    roster = db.get_roster_team_at(team_id, iso)
-    dpe = db.get_dpe_at(team_id, str(stagione), iso)
-    righe = [r for r in roster if r.get("tipo_contratto") != "10day"]
-    pesano = [r for r in righe if not r.get("x0") or r.get("rfa")]
-    cap = sum(int(dpe.get(r["giocatore_id"], r.get("importo") or 0)) for r in pesano)
-    sp = db._q("""SELECT COALESCE(SUM(i.importo), 0) AS tot FROM impatto_taglio i
-                  LEFT JOIN movimenti_giocatori t ON t.id = i.transazione_id
-                  WHERE i.team_id = %s AND i.stagione = %s AND (t.timestamp IS NULL OR t.timestamp <= %s)""",
-               (team_id, str(stagione), iso), one=True)
-    return cap + int((sp or {}).get("tot") or 0), len([r for r in righe if not r.get("x0")])
+    iso = quando.isoformat()                 # v7.35.4: il cap dal registro è db.cap_at, lo stesso di /roster a una data
+    righe = [r for r in db.get_roster_team_at(team_id, iso) if r.get("tipo_contratto") != "10day"]
+    return db.cap_at(team_id, iso), len([r for r in righe if not r.get("x0")])
 
 
 def _percorso(t: dict, squadre: list[str]) -> list[dict]:

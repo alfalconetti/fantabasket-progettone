@@ -350,6 +350,16 @@ async def job_sync(context: ContextTypes.DEFAULT_TYPE):
     (prima partita, squadre a media) avviso al gruppo admin."""
     try:
         if not db.giornate(config.stagione()):
+            # v7.35.3: dai rinnovi all'import del calendario nuovo niente partite, ma i roster ESPN sì: i movimenti
+            # NBA dell'estate (free agency, draft) servono a Cam Thomas, /carriera e agli abbinamenti dei rookie
+            try:
+                atleti = await nba.scarica_giocatori()
+                db.salva_atleti(atleti)
+                roster_txt = f"roster ESPN: {len(atleti)} giocatori"
+            except Exception as err:
+                roster_txt = f"roster ESPN non aggiornati ({e(str(err))[:100]})"
+            await log(context.bot, f"🔄 Sincronizzazione delle 8:30 (calendario {config.stagione()} non ancora "
+                                   f"importato: solo i roster): {roster_txt}")
             return
         r = await nba.sincronizza(nba.giorni_vicini())
         cambi = cal.ricalcola()

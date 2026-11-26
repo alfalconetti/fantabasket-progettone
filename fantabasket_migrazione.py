@@ -120,16 +120,11 @@ def migra(conn, stagione: str, path_giocatori: str, path_pick: str, path_impatto
                     continue
                 pick_num   = int(pick_s)
                 round_pick = 1 if pick_num <= 24 else 2
-                try:
-                    scadenza = date(int(anno_s) + 2, 6, 20).isoformat()
-                except Exception:
-                    scadenza = None
                 cur.execute("""
                     INSERT INTO rookie
-                        (giocatore_id, team_id, round, pick_numero, anno_draft,
-                         scadenza_diritti, firmato, diritti_scaduti)
-                    VALUES (%s, %s, %s, %s, %s, %s, FALSE, FALSE)
-                """, (gid, team_id, round_pick, pick_num, anno_s, scadenza))
+                        (giocatore_id, team_id, round, pick_numero, anno_draft, firmato, diritti_scaduti)
+                    VALUES (%s, %s, %s, %s, %s, FALSE, FALSE)
+                """, (gid, team_id, round_pick, pick_num, anno_s))
                 diritti_count += 1
                 print(f"  🔑 {nome_common} → diritti {team_id} (#{pick_num} {anno_s})")
             else:

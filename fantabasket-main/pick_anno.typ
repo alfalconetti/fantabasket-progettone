@@ -31,7 +31,7 @@
 #block(width: 100%, fill: gradient.linear(inchiostro, petrolio, angle: 0deg), inset: (x: 16pt, y: 12pt))[
   #grid(columns: (1fr, auto), align: (left + horizon, right + horizon),
     [#text(17pt, weight: "bold", fill: white)[Pick del draft #dati.anno] \ #text(9pt, fill: white.transparentize(30%))[chi ha in mano la pick di ogni squadra#if ng == 1 [, #dati.giri.first()° giro] else [, 1° e 2° giro]]],
-    text(8.5pt, fill: white.transparentize(30%))[aggiornato al #dati.aggiornato])
+    text(8.5pt, fill: white.transparentize(30%))[#if dati.at("quando", default: "") != "" { text(weight: "bold", fill: white)[#dati.quando] } else [aggiornato al #dati.aggiornato]])
 ]
 #pad(x: 12pt, top: 10pt, bottom: 4pt, table(
   columns: (auto,) + (1fr,) * ng + (auto,),

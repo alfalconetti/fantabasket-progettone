@@ -66,6 +66,16 @@ def _scrivi_trade(trade_id: int, trade_ref: str, approvata_da: str | None, inver
                         raise TradeNonEseguibile(f"{_nome_item(item)} non ha più un contratto attivo")
                     if c[1] != da:
                         raise TradeNonEseguibile(f"{_nome_item(item)} non è più nella squadra che lo cede")
+                    if inverti:
+                        # v7.35.2: il contratto dev'essere quello scambiato. Se dopo la trade è cambiato (rinnovo,
+                        # rinnovo rookie, cambio di stagione) l'annullamento riporterebbe indietro il contratto nuovo
+                        cur.execute("SELECT contratto_id FROM movimenti_giocatori WHERE trade_id = %s AND giocatore_id = %s "
+                                    "AND tipo = 'traded' ORDER BY id DESC LIMIT 1", (trade_id, gid))
+                        mov = cur.fetchone()
+                        if mov and mov[0] is not None and mov[0] != c[0]:
+                            raise TradeNonEseguibile(
+                                f"{_nome_item(item)} ha un contratto nuovo dopo la trade (rinnovo o cambio di stagione): "
+                                f"se è un rinnovo, prima va annullato quello (entro 24 ore), se no l'annullamento è da fare a mano")
                     cur.execute("UPDATE contratti SET team_id = %s WHERE id = %s", (a, c[0]))
                     # la DPE della stagione segue il giocatore (regolamento: chi lo riceve
                     # se lo porta dietro con l'importo ridotto e lo slot libero)

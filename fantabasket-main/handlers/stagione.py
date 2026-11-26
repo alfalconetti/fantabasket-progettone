@@ -497,6 +497,20 @@ async def dopo_cambio_fase(bot, fase_vecchia: str, nuova_fase: str) -> str:
             from handlers.lottery import passaggio_break
             note.append(await passaggio_break(bot))
         await passo("sanzioni delle penalità", sanzioni)
+        async def chiudi_10day():                 # v7.35.3: i 10-day sono della regular season, non passano l'estate
+            import handlers.dieci_giorni as DG
+            chiusi = [c for c in DG.attivi() if DG.chiudi(c["id"], "Fine della stagione")]
+            if chiusi:
+                note.append(f"\n⏱ 10-day chiusi a fine stagione: {', '.join(html.escape(c['nome_common']) for c in chiusi)}")
+        await passo("10-day ancora aperti", chiudi_10day)
+        async def promemoria_archivio():          # v7.36.0: il foglio di controllo va archiviato prima della stagione nuova
+            if gruppo:
+                await bot.send_message(chat_id=gruppo, parse_mode="HTML", text=(
+                    "🔚 <b>Stagione finita</b>: su loucabot <code>/archivia_calcolo</code> archivia e azzera il foglio di "
+                    "controllo del calcolo (senza, i tab della stagione nuova non si scrivono). Il passaggio di stagione "
+                    "passo per passo è in docs/PASSAGGIO_STAGIONE.md."))
+            note.append("\n📦 Promemoria dell'archivio del foglio di controllo agli admin")
+        await passo("promemoria dell'archivio del calcolo", promemoria_archivio)
     elif nuova_fase == "offseason-draft":
         async def controllo_draft():              # v7.27.0 (Luca, 23/11): chi sforerebbe con tutte le sue 1st
             from handlers.draft import testo_controllo
@@ -636,7 +650,7 @@ def esegui_rinnovo_rookie(team_id: str, giocatore_id: int) -> dict:
 
 def candidati_rfa(team_id: str) -> list[dict]:
     """x0 della squadra (contratti finiti): possono essere dichiarati RFA."""
-    return [r for r in db.get_roster_team(team_id) or [] if r.get("x0")]
+    return [r for r in db.get_roster_team(team_id) or [] if r.get("x0") and r.get("tipo_contratto") != "10day"]
 
 
 def dichiara_rfa(team_id: str, giocatore_id: int, da: str) -> dict:

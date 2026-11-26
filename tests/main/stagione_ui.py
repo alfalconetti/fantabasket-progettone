@@ -5,6 +5,7 @@ import asyncio, types
 import database as db
 import settings
 db.init_db(); db.migrate_db()
+db._q("DELETE FROM inizi_stagione")
 db._q("TRUNCATE giocatori, contratti, pick, rookie, transazioni, dpe, impatto_taglio, rfa_dichiarati, messaggi_fissi RESTART IDENTITY CASCADE")
 db._q("DELETE FROM bref_stats")
 ok = lambda c, m: print(("✅" if c else "❌ FAIL"), m)
@@ -126,6 +127,18 @@ ok("Altro X0" in q.t, "admin: elenco degli RFA dichiarati")
 # conferma del cambio di fase con anteprima
 import handlers.admin_panel as A
 fase("offseason-break", 2027)
+# v7.35.4: ai rinnovi solo con la finale convalidata (la campione nel tabellone di loucabot)
+db._q("""CREATE TABLE IF NOT EXISTS lega_playoff (stagione TEXT PRIMARY KEY, stato TEXT NOT NULL DEFAULT 'bozza',
+         bozza_chat BIGINT, bozza_msg BIGINT, canale_chat BIGINT, canale_msg BIGINT, confermato TIMESTAMPTZ,
+         confermato_da TEXT, bloccato TIMESTAMPTZ, creato TIMESTAMPTZ NOT NULL DEFAULT NOW(), campione TEXT)""")
+db._q("DELETE FROM lega_playoff WHERE stagione = '2027'")
+q = tap(A.cb_fase_set, "fase_set:offseason-rinnovi:normal", ADMIN)
+ok("Non si può ancora passare ai rinnovi" in q.t and "nessun tabellone" in q.t and settings.stagione_corrente() == "2027",
+   "ai rinnovi no senza playoff")
+db._q("INSERT INTO lega_playoff (stagione, stato) VALUES ('2027', 'bloccato')")
+q = tap(A.cb_fase_set, "fase_set:offseason-rinnovi:normal", ADMIN)
+ok("manca la campione" in q.t and settings.fase() == "offseason-break", "ai rinnovi no con la finale da convalidare")
+db._q("UPDATE lega_playoff SET campione = 'team01' WHERE stagione = '2027'")
 q = tap(A.cb_fase_set, "fase_set:offseason-rinnovi:normal", ADMIN)
 ok("stagione 2028" in q.t and "fase_conferma:offseason-rinnovi" in bottoni(q) and settings.fase() == "offseason-break",
    "avanzamento ai rinnovi: prima l'anteprima e la conferma")
@@ -186,3 +199,5 @@ t = comando(S.cmd_trade_deadline, ["2029-02-05"])
 ok(settings.load_globals()["trade_deadline"] == "2029-02-05" and "26/01/2029" in t and "draft 2027" in t,
    "impostata: diritti delle seconde del draft 2027 il 26/01/2029")
 ok(S.avviso_trade_deadline(2028) is None and S.avviso_trade_deadline(2029), "promemoria solo se la deadline è di un'altra stagione")
+db._q("DELETE FROM lega_playoff WHERE stagione = '2027'")
+db._q("DELETE FROM inizi_stagione")   # v7.35.4: gli inizi di stagione di prova non restano per le altre prove

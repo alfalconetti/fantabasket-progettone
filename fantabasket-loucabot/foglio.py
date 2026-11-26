@@ -17,6 +17,7 @@ import os
 import re
 
 import calendario as cal
+import config
 import db
 
 logger = logging.getLogger(__name__)
@@ -295,6 +296,11 @@ async def manda_gas(endpoint: str, payload: dict, manda=None) -> dict:
     """POST al gas-router (/gas/<endpoint>). `manda(payload)` si può sostituire nelle prove."""
     if manda:
         return await manda(payload)
+    if endpoint == "calcolo":                            # v7.36.0: niente tab della stagione nuova sopra quelli vecchi
+        import archivio_calcolo
+        blocco = archivio_calcolo.blocco_tab(config.stagione())
+        if blocco:
+            return {"error": blocco}
     import httpx
     tok_file = os.environ.get("GAS_ROUTER_TOKEN_FILE", "")
     token = open(tok_file).read().strip() if tok_file and os.path.exists(tok_file) else ""

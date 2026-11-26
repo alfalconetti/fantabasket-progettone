@@ -67,13 +67,15 @@ def draft(gid: int, stagione: str, firmato: bool) -> str:
     «Draft 2025 · 1° giro, pick 5 · scelto da Squadra A con la pick di Squadra B · scala: II anno su IV». Chi l'ha scelto dalla
     pick usata (tabella pick: chi l'aveva al draft, e di chi era in origine), se si trova: rookie.team_id cambia con le
     trade dei diritti. Il punto della scala solo per i firmati. "" se nella tabella rookie non c'è."""
-    r = L.q(f"""SELECT round, pick_numero, anno_draft, anno_firma FROM rookie WHERE giocatore_id = %s
+    r = L.q(f"""SELECT round, pick_numero, anno_draft, anno_firma, pick_id FROM rookie WHERE giocatore_id = %s
                 AND {'firmato' if firmato else 'NOT firmato AND NOT diritti_scaduti'} ORDER BY id DESC LIMIT 1""", (gid,), one=True)
     if not r or not r.get("anno_draft"):
         return ""
     t = f"Draft {r['anno_draft']} · {r['round']}° giro, pick {r['pick_numero']}"
-    pk = L.q("""SELECT proprietario_orig, proprietario_att FROM pick WHERE anno = %s AND round = %s AND numero_scelta = %s
-                ORDER BY id LIMIT 1""", (str(r["anno_draft"]), r["round"], r["pick_numero"]), one=True)
+    pk = (L.q("SELECT proprietario_orig, proprietario_att FROM pick WHERE id = %s", (r["pick_id"],), one=True)   # v7.36.0
+          if r.get("pick_id") else
+          L.q("""SELECT proprietario_orig, proprietario_att FROM pick WHERE anno = %s AND round = %s AND numero_scelta = %s
+                 ORDER BY id LIMIT 1""", (str(r["anno_draft"]), r["round"], r["pick_numero"]), one=True))
     if pk:
         t += f" · scelto da {L.nome(pk['proprietario_att'])}"
         if pk["proprietario_orig"] != pk["proprietario_att"]:

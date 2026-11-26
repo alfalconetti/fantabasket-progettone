@@ -34,6 +34,12 @@ A ogni cambio di fase il bot:
 - aggiorna i menu del bot principale e del bot aste (quello delle aste entro 5 minuti);
 - apre o chiude da solo il mercato FA del bot aste.
 
+**Ai rinnovi solo con la stagione chiusa** (v7.35.4): dalla regular season, dai playoff o dal break si passa ai rinnovi (e alla stagione nuova) solo con la finale dei playoff convalidata, cioè con la campione nel tabellone di loucabot; dopo il passaggio il calcolo di loucabot guarda solo la stagione nuova.
+
+**Entrando nel break** (v7.35.3) i 10-day ancora aperti si chiudono: sono della regular season.
+
+**Rinnovi obbligatori, niente ritorni alla stagione prima** (v7.35.1): dalla regular season, dai playoff o dal break non si può saltare oltre i rinnovi (è lì che la stagione avanza), e da rinnovi, draft, RFA, FA o ruoli non si torna a playoff o break (la stagione avanzerebbe di nuovo). Il bot lo dice e non cambia niente. Tutti i controlli valgono anche se si tocca un «✅ Confermo» rimasto da prima.
+
 **Alla regular season serve il calendario** (v7.34.0): dall'offseason (anche con "Salta a…") si passa a regular season solo se la stagione ha le 38 giornate con le date. Se mancano, il bot lo dice e dice a che punto è: sorteggio da fissare su loucabot (comando calendario_quando, si può solo in free agency e nella dichiarazione dei ruoli), sorteggio fissato ma non ancora fatto, o date da importare (comando importa_date di loucabot). Entrando in free agency e nella dichiarazione dei ruoli, se il calendario non è completo, il bot lo ricorda nel gruppo admin, con il punto a cui si è.
 
 Entrando in **offseason-rinnovi** la stagione avanza di uno, per il bot principale e il bot aste. Solo arrivando dalla stagione prima (regular season, playoff o break): se torni ai rinnovi da draft, RFA, FA o ruoli con "Salta a…", la stagione resta quella.
@@ -110,7 +116,7 @@ Il controllo automatico guarda cap, roster, Stepien Rule e, in regular season, i
 
 **Ufficializzare una trade già concordata:** pannello → **Trade → Import**, incolli il testo e la trade viene eseguita direttamente, senza voto.
 
-**Tornare indietro:** `/annulla_trade_admin TRADE-2026-014` rimette giocatori, pick e diritti dov'erano, se i roster di oggi lo permettono, e avvisa tutte le squadre.
+**Tornare indietro:** `/annulla_trade_admin TRADE-2026-014` rimette giocatori, pick e diritti dov'erano, se i roster di oggi lo permettono, e avvisa tutte le squadre. Non si può se nel frattempo un giocatore scambiato ha un contratto nuovo (rinnovo, rinnovo rookie, cambio di stagione, dalla v7.35.2): se è un rinnovo, prima si annulla quello (entro 24 ore).
 
 ---
 

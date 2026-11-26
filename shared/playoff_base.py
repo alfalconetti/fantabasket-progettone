@@ -21,6 +21,22 @@ def rs_finita(s: str | None = None) -> bool:
     return bool(r and r["n"])
 
 
+def problemi_fine_stagione(s: str | None = None) -> list[str]:
+    """v7.35.4 (Luca, 26/11): cosa manca per chiudere la stagione `s` e passare ai rinnovi (la stagione nuova): la
+    finale dei playoff convalidata, cioè la campione nel tabellone. Dopo, il calcolo di loucabot guarda solo la
+    stagione nuova e una giornata di playoff rimasta indietro non si chiuderebbe più."""
+    s = s or L.stagione()
+    try:
+        r = L.q("SELECT campione FROM lega_playoff WHERE stagione = %s", (s,), one=True)
+    except Exception:                                    # tabella non ancora creata
+        r = None
+    if not r:
+        return [f"i playoff {s} non risultano giocati (nessun tabellone in loucabot)"]
+    if not r["campione"]:
+        return [f"la finale dei playoff {s} non è ancora convalidata (manca la campione)"]
+    return []
+
+
 def giornate_importate(s: str | None = None) -> int:
     try:
         r = L.q("SELECT count(*) AS n FROM lega_giornate_playoff WHERE stagione = %s", (s or L.stagione(),), one=True)

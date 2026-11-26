@@ -52,6 +52,25 @@ db._q("INSERT INTO rookie (giocatore_id, team_id, anno_draft, round, pick_numero
 sc3 = PK.scheda(db._q("SELECT * FROM pick WHERE id = %s", (p3,), one=True))
 ok("Già usata" in sc3 and "#7" in sc3 and "Scelto Uno" in sc3, "pick già usata: numero e giocatore scelto\n" + sc3)
 
+# ── v7.36.0: event sourcing delle pick (com'erano a una data, dal registro) ──
+from datetime import datetime as _dt, timezone as _tz
+db._q("INSERT INTO trade_items (trade_id, tipo, pick_id, team_id_da, team_id_a, protezione) VALUES (%s, 'pick', %s, 'team01', 'team02', %s)",
+      (t1, p1, '{"top": 3}'))
+db._q("INSERT INTO trade_items (trade_id, tipo, pick_id, team_id_da, team_id_a) VALUES (%s, 'pick', %s, 'team02', 'team04')", (t2, p1))
+al = lambda iso: {p["id"]: p for p in db.pick_al(iso)}
+ok(p1 not in al("2026-07-01T00:00:00+00:00"), "prima del primo movimento la pick non c'è")
+ok(al("2026-08-01T00:00:00+00:00")[p1]["proprietario_att"] == "team01" and al("2026-08-01T00:00:00+00:00")[p1]["protezioni"] is None,
+   "1/8: ancora di team01, senza protezione")
+ok(al("2026-09-10T00:00:00+00:00")[p1]["proprietario_att"] == "team02" and al("2026-09-10T00:00:00+00:00")[p1]["protezioni"],
+   "10/9: di team02 con la protezione messa nella trade")
+ok(al("2026-09-20T20:00:00+00:00")[p1]["proprietario_att"] == "team04" and al("2026-09-22T00:00:00+00:00")[p1]["proprietario_att"] == "team02",
+   "la trade poi annullata: di team04 fino all'annullamento, poi di nuovo di team02")
+mov(p3, "iniziale", None, "team02", "2026-07-25 12:00+00")
+mov(p3, "rookie", "team02", "team05", "2026-08-15 12:00+00")
+ok(al("2026-08-01T00:00:00+00:00")[p3]["scattata"] is False and al("2026-08-01T00:00:00+00:00")[p3]["numero_scelta"] is None
+   and al("2026-08-20T00:00:00+00:00")[p3]["scattata"] and al("2026-08-20T00:00:00+00:00")[p3]["numero_scelta"] == 7,
+   "usata solo dal giorno del draft, col numero")
+
 # il comando (v7.22.0, Luca 22/11): squadra, giro e anno → il dettaglio; il resto sono le immagini
 out = []
 class M:
@@ -116,7 +135,7 @@ ok(PK.sigle([{"id": "a", "nome": "Montecelio Redskins"}, {"id": "b", "nome": "Mo
    "sigle: prime tre lettere, diverse tra loro, il campo sigla vale prima " + str(PK.sigle([{"id": "a", "nome": "Montecelio Redskins"}, {"id": "b", "nome": "Monterotondo Moose"}, {"id": "d", "nome": "Montecelio Bis"}])))
 _sq = tm.get_all_teams()
 ok(len(set(PK.sigle(_sq).values())) == len(_sq), f"sigle delle squadre di prova tutte diverse {PK.sigle(_sq)}")
-db._q("DELETE FROM transazioni WHERE oggetto = 'pick'"); db._q("DELETE FROM pick")
+db._q("DELETE FROM transazioni WHERE oggetto = 'pick'"); db._q("DELETE FROM trade_items WHERE pick_id IS NOT NULL"); db._q("DELETE FROM pick")
 _anni = [str(int(S) + i) for i in range(1, 4)]
 for t in _sq:
     for a in _anni:
@@ -138,3 +157,21 @@ class MF(M):
     async def reply_photo(s, p, **k): out.append(("foto", k.get("caption")))
 asyncio.run(PK.cmd_pick_lega(types.SimpleNamespace(effective_user=types.SimpleNamespace(id=1), effective_message=MF()), types.SimpleNamespace(args=[])))
 ok(out and out[0][0] == "foto" and "/pick SQUADRA" in out[0][1], "/pick_lega manda l'immagine")
+_al = _dt(2026, 9, 10, 23, 59, tzinfo=_tz.utc)
+_pz = db._qval("INSERT INTO pick (proprietario_orig, proprietario_att, anno, round) VALUES ('team01', 'team03', %s, 1) RETURNING id", (pross,))
+mov(_pz, "iniziale", None, "team01", "2026-07-25 12:00+00"); mov(_pz, "traded", "team01", "team02", "2026-09-01 18:00+00")
+mov(_pz, "traded", "team02", "team03", "2026-10-02 18:00+00")
+_ds = PK.dati_squadra(tm.get_team_by_id("team02"), pross, 1, None, _al)
+ok(any(c["orig"] == "team01" for r in _ds["righe"] for g in r["giri"] for c in g) and _ds["quando"] == "com'era al 10/09/2026",
+   "/pick SQUADRA ANNO DATA: le pick in mano allora (oggi di un'altra), e l'immagine lo dice")
+ok(PK.immagine(PK.TEMPLATE_SQUADRA, _ds)[:4] == b"\x89PNG", "immagine a una data")
+ok(PK.estrai_data(["Alfa", "2028", "10/09/2026"]) == (["Alfa", "2028"], _al) and PK.estrai_data(["28", "1"])[1] is None,
+   "la data si riconosce, l'anno no")
+out.clear()
+asyncio.run(PK.cmd_pick_lega(types.SimpleNamespace(effective_user=types.SimpleNamespace(id=1), effective_message=MF()),
+                             types.SimpleNamespace(args=[pross, "10/09/2026"])))
+ok(out and out[0][0] == "foto" and "com'erano al 10/09/2026" in out[0][1], "/pick_lega ANNO DATA: l'immagine di allora")
+out.clear()
+asyncio.run(PK.cmd_pick_lega(types.SimpleNamespace(effective_user=types.SimpleNamespace(id=1), effective_message=MF()),
+                             types.SimpleNamespace(args=["10/09/2099"])))
+ok(out and "futuro" in out[0], "data nel futuro: no")

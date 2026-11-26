@@ -741,11 +741,16 @@ def scheda_conference(cid: int, uid: int) -> tuple[str, K]:
         attive = att and att["id"] == c["id"]
         kb = [] if attive else [[B("✅ Usa queste", callback_data=f"kc:u:{cid}")]]
         if CO.puo_modificare(c, uid):
-            kb.append([B("✏️ Modifica", callback_data=f"kc:m:{cid}")])
+            kb.append([B("✏️ Modifica", callback_data=f"kc:m:{cid}")] if not c.get("seme")
+                      else [B("🎲 Riestrai il calendario", callback_data=f"kc:re:{cid}")])
+    kb.append([B("📅 Calendario nuovo con queste", callback_data=f"kc:cal:{cid}")])
     righe = [titolo, ""]
     for nome, sq in gruppi.items():
         righe.append(f"<b>{e(nome)}</b>: " + ", ".join(e(config.nome(t)) for t in sq))
-    if cid:
+    if cid and c.get("seme"):
+        righe += ["", f"📅 <b>Calendario estratto di nuovo</b> con lo schema della lega (38 giornate, mai più di 2 di fila in "
+                      f"casa o fuori), seme <code>{e(c['seme'][:12])}…</code>. Le giornate dei playoff restano quelle vere."]
+    elif cid:
         mappa = c["mappa"] if isinstance(c["mappa"], dict) else json.loads(c["mappa"])
         righe += ["", "<i>Nel calendario: " + ", ".join(f"{e(config.nome(t))} al posto di {e(config.nome(p))}"
                                                       for t, p in sorted(mappa.items()) if t != p)[:900] + "</i>"]
@@ -789,7 +794,7 @@ async def cb_conference(update, context):
     async def mostra(t, kb):
         await q.edit_message_text(t, parse_mode="HTML", reply_markup=kb)
 
-    if az in ("n", "m", "t", "ok", "caso") and not (q.message and q.message.chat.type == "private"):
+    if az in ("n", "m", "t", "ok", "caso", "cal", "re") and not (q.message and q.message.chat.type == "private"):
         await q.answer("Le conference si creano in privato: scrivimi /conference in chat.", show_alert=True)
         return
     if az == "l":
@@ -855,6 +860,22 @@ async def cb_conference(update, context):
         context.user_data["klra_attesa"] = ("conf_nome",)
         await q.answer()
         await mostra("💾 <b>Come le chiami?</b> Scrivi il nome (da 2 a 30 caratteri).", K([[B("❌ Annulla", callback_data="kc:l")]]))
+    elif az == "cal":                                      # v7.36.0: calendario alternativo con queste conference
+        cid = int(p[2]) or None
+        conf = CO.per_id(cid) if cid else None
+        a = (CO.squadre(conf)[0] if conf else sorted(CO.ufficiali()[CO.nomi()[0]]))
+        context.user_data["klra_conf"] = {"a": set(a), "modifica": None, "calendario": True}
+        context.user_data["klra_attesa"] = ("conf_nome",)
+        await q.answer()
+        await mostra("📅 <b>Calendario nuovo</b>: si estrae a caso con lo schema della lega, sulle conference "
+                     f"{e(conf['nome']) if conf else 'ufficiali'}.\n\n💾 <b>Come lo chiami?</b> Scrivi il nome (da 2 a 30 caratteri).",
+                     K([[B("❌ Annulla", callback_data="kc:l")]]))
+    elif az == "re":
+        if CO.riestrai(int(p[2]), uid):
+            await q.answer("Estratto un altro calendario")
+            await mostra(*scheda_conference(int(p[2]), uid))
+        else:
+            await q.answer("Lo riestrae solo chi l'ha creato.", show_alert=True)
     elif az in ("cl", "cf"):
         await q.answer()
         cid = int(p[2]) or None
@@ -1022,12 +1043,17 @@ async def testo_libero(update, context):
         if not st:
             context.user_data.pop("klra_attesa", None)
             return
-        c = CO.crea(nome, uid, update.effective_user.full_name or str(uid), sorted(st["a"]))
+        if st.get("calendario"):
+            c = CO.crea_calendario(nome, uid, update.effective_user.full_name or str(uid), sorted(st["a"]))
+        else:
+            c = CO.crea(nome, uid, update.effective_user.full_name or str(uid), sorted(st["a"]))
         CO.scegli(uid, c["id"])
         context.user_data.pop("klra_conf", None)
         context.user_data.pop("klra_attesa", None)
         t, kb = scheda_conference(c["id"], uid)
-        await msg.reply_text(f"✅ Create <b>{e(nome)}</b> (accoppiamento estratto), e sono le tue attive.\n\n" + t,
+        await msg.reply_text(f"✅ {'Creato' if st.get('calendario') else 'Create'} <b>{e(nome)}</b> "
+                             f"({'calendario estratto' if st.get('calendario') else 'accoppiamento estratto'}), e "
+                             f"{'è il tuo attivo' if st.get('calendario') else 'sono le tue attive'}.\n\n" + t,
                              parse_mode="HTML", reply_markup=kb)
         return
     if not bz:
