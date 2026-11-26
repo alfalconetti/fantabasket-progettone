@@ -69,6 +69,36 @@
       ..d.tiri.map(x => box(fill: lilla2, stroke: 0.6pt + bordo, radius: 5pt, inset: (x: 8pt, y: 6pt), width: 100%,
           stack(spacing: 3pt, etichetta(x.t), text(13pt, weight: "bold")[#x.v], text(7pt, fill: grigio)[#x.s]))))
   ]
+  // v7.35.0: la composizione dei fantapunti, la notte e (barra chiara) la media della stagione intera
+  #if d.at("composizione", default: none) != none {
+    let co = d.composizione
+    let colori = (rgb("#5B21B6"), rgb("#0E7490"), rgb("#047857"), rgb("#B45309"), rgb("#9D174D"))
+    let barra(chiave, h, chiara) = box(width: 100%, height: h, radius: 3pt, clip: true, stack(dir: ltr,
+      ..co.voci.enumerate().filter(((i, x)) => x.at(chiave) > 0).map(((i, x)) => box(width: x.at(chiave) * 100%, height: 100%,
+        fill: if chiara { colori.at(i).transparentize(55%) } else { colori.at(i) },
+        align(center + horizon, text(if chiara { 6.5pt } else { 7.5pt }, weight: "bold", fill: white)[#if x.at(chiave) > 0.08 [#calc.round(x.at(chiave) * 100)%]])))))
+    block(inset: (x: 16pt, top: 14pt, bottom: 4pt))[#etichetta("Composizione dei fantapunti")]
+    block(inset: (x: 16pt))[
+      #grid(columns: (52pt, 1fr), column-gutter: 6pt, row-gutter: 3pt, align: (right + horizon, left),
+        text(7pt, weight: "bold", fill: grigio)[Notte], barra("q", 20pt, false),
+        ..if co.barra_media { (text(7pt, weight: "bold", fill: grigio)[Media stag.], barra("qm", 11pt, true)) } else { () })
+      #v(7pt)
+      #grid(columns: (52pt, 1fr), column-gutter: 6pt, [],
+        grid(columns: (1fr,) * 6, column-gutter: 6pt,
+          ..co.voci.enumerate().map(((i, x)) => stack(spacing: 2.5pt,
+            box(width: 7pt, height: 7pt, fill: colori.at(i), radius: 1.5pt) + h(3pt) + text(7.5pt, weight: "bold")[#x.n],
+            text(10pt, weight: "bold", fill: if x.pos { colori.at(i) } else { rosso })[#x.v],
+            text(6.5pt, fill: grigio)[media #x.m #if x.d != "" [· #text(weight: "bold", fill: if x.meglio { verde } else { rosso })[#x.d]]],
+            text(6.3pt, fill: grigio)[#x.det])),
+          stack(spacing: 2.5pt,
+            box(width: 7pt, height: 7pt, fill: rosso.transparentize(30%), radius: 1.5pt) + h(3pt) + text(7.5pt, weight: "bold")[Perse],
+            text(10pt, weight: "bold", fill: rosso)[#co.perse.v],
+            text(6.5pt, fill: grigio)[media #co.perse.m #if co.perse.d != "" [· #text(weight: "bold", fill: if co.perse.meglio { verde } else { rosso })[#co.perse.d]]],
+            text(6.3pt, fill: grigio)[#co.perse.det])))
+      #v(8pt)
+      #align(right, text(7.5pt, fill: grigio)[#co.conto])
+    ]
+  }
   #block(inset: (x: 16pt, top: 14pt, bottom: 4pt))[#etichetta("Come nascono i fantapunti")]
   #block(inset: (x: 16pt))[
     #grid(columns: (92pt, 1fr, 44pt), row-gutter: 4pt, column-gutter: 6pt, align: (right + horizon, left + horizon, right + horizon),

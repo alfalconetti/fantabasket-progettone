@@ -1,7 +1,7 @@
 """
 Sorteggio del calendario di regular season con drand (v7.28.0, Luca 15/11 e 23/11), come la lottery del draft.
 
-1. /calendario_quando GG/MM HH:MM (admin): fissa il sorteggio. Sul canale principale l'annuncio: il round drand che
+1. /calendario_quando GG/MM HH:MM (admin, v7.34.0: solo in offseason-fa e offseason-ruoli): fissa il sorteggio. Sul canale principale l'annuncio: il round drand che
    esce a quell'ora, le due conference con le 12 squadre in ordine alfabetico (da divisions.json), l'impronta del
    codice (SHA-256 di shared/calendario_sorteggio.py), il link al round; allegati calendario_sorteggio.py, lottery.py
    (scarica il round) e LEGGIMI.txt. Si può rifissare finché il sorteggio non è fatto. Senza argomenti: lo stato.
@@ -35,6 +35,9 @@ TEMPI = {"read_timeout": 60, "write_timeout": 60, "connect_timeout": 30}
 e = lambda x: html.escape(str(x), quote=False)
 ESEMPIO = "giornata,giorno1,giorno2,giorno3\nG1,20/10/2027,21/10/2027,22/10/2027\nG2,23/10,24/10,OKC NOP\n…\nG38,02/02/2028,03/02/2028"
 MAX_GIORNI = 4
+# v7.34.0 (Luca, 26/11): il sorteggio si fissa tra l'apertura della free agency e la dichiarazione dei ruoli; senza
+# il calendario (sorteggio e date) il bot principale non passa alla regular season
+FASI_SORTEGGIO = ("offseason-fa", "offseason-ruoli")
 
 
 def migra() -> None:
@@ -206,6 +209,10 @@ async def cmd_calendario_quando(update, context):
     s = stagione()
     if not context.args:
         await msg.reply_text(testo_stato(s), parse_mode="HTML")
+        return
+    if config.fase() not in FASI_SORTEGGIO:
+        await msg.reply_text("❌ Il sorteggio del calendario si fissa dalla free agency alla dichiarazione dei ruoli "
+                             "(offseason-fa e offseason-ruoli). Senza argomenti /calendario_quando mostra lo stato.")
         return
     r = stato(s)
     if r and r["stato"] != "annunciato":

@@ -2280,3 +2280,12 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 ## v7.33.0 (2026-11-26)
 
 - **`/prospetto_rinnovi [SQUADRA]`** (Luca, 26/11, mockup approvato; `shared/prospetto_rinnovi.py`, anche su loucabot v154): in un'immagine i rinnovabili della prossima offseason e quanto verrebbero col ¼ e col ½ (minimo da tabella, x2/x3), la Doncic d'ufficio prima per i rookie che escono dal IV anno, i rookie a fine II anno, il cap della stagione dopo e lo spazio sotto 150 e 165. Stima in regular season, playoff e break (avviso nelle prime 10 giornate), numeri veri nella fase dei rinnovi (gli stessi di /rinnovo, con i rinnovi usati), solo l'elenco tra draft e ruoli. 🔮 Prospetto rinnovi nel /menu dalla regular season ai rinnovi
+
+## v7.34.0 (2026-11-26)
+
+- **Niente regular season senza calendario** (Luca, 26/11): da una fase di offseason a una di regular season (anche col «Salta a») solo se la stagione ha le 38 giornate con le date in loucabot; se no il bot dice cosa manca (sorteggio da fissare, sorteggio da fare, date da importare). Il sorteggio si fissa solo in offseason-fa e offseason-ruoli (loucabot v155); entrando in free agency e nei ruoli, se il calendario non è completo, promemoria nel gruppo admin con il punto a cui si è
+- `/rendimento` (shared, anche loucabot): il **percentile nel ruolo**, sotto il decile della lega: tra le guardie, le ali o i centri in cui è eleggibile, stessa soglia di partite
+
+## v7.35.0 (2026-11-26)
+
+- `/prestazione` (shared, anche loucabot v156; Luca, 26/11, mockup approvato): la **composizione dei fantapunti**, tra i tiri e «Come nascono i fantapunti». Una barra con le quote di punti (punti, tiri, triple e liberi, segnati e tentati), assist, rimbalzi, recuperi e stoppate, sotto la stessa barra per la media della stagione intera; per ogni voce fantapunti, media e differenza; le perse a parte; il conto della notte e della media

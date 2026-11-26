@@ -144,6 +144,29 @@ ok("stagione 2029" not in q.t, "salto indietro ai rinnovi: nessuna anteprima di 
 q = tap(A.cb_fase_conferma, "fase_conferma:offseason-rinnovi", ADMIN)
 ok(settings.stagione_corrente() == "2028" and settings.fase() == "offseason-rinnovi", "salto indietro ai rinnovi: la stagione non avanza")
 
+# v7.34.0: alla regular season solo col calendario della stagione (38 giornate con le date)
+db._q("""CREATE TABLE IF NOT EXISTS lega_giornate (stagione TEXT NOT NULL, numero INT NOT NULL, tipo TEXT NOT NULL DEFAULT 'regular',
+         dal DATE NOT NULL, al DATE NOT NULL, media_file TEXT[] NOT NULL DEFAULT '{}', prima_partita TIMESTAMPTZ, media TEXT[],
+         calcolato TIMESTAMPTZ, PRIMARY KEY (stagione, numero))""")
+db._q("DELETE FROM lega_giornate WHERE stagione = '2028'")
+fase("offseason-fa")
+msgs.clear(); q = tap(A.cb_fase_set, "fase_set:offseason-ruoli:normal", ADMIN)
+ok(settings.fase() == "offseason-ruoli" and any("Calendario 2028-29" in t and "/calendario_quando" in t for _, t in msgs),
+   "entrando nei ruoli senza calendario: il promemoria agli admin")
+q = tap(A.cb_fase_set, "fase_set:regular-season-fa:normal", ADMIN)
+ok("Non si può ancora passare alla regular season" in q.t and "0 giornate su 38" in q.t and "/calendario_quando" in q.t
+   and settings.fase() == "offseason-ruoli", "regular season senza calendario: bloccata, e dice cosa manca")
+q = tap(A.cb_fase_set, "fase_set:regular-season-deadline:skip", ADMIN)
+ok("Non si può ancora" in q.t and settings.fase() == "offseason-ruoli", "anche col «Salta a»")
+for n in range(1, 39):
+    db._q("INSERT INTO lega_giornate (stagione, numero, dal, al) VALUES ('2028', %s, '2028-10-20', '2028-10-21')", (n,))
+q = tap(A.cb_fase_set, "fase_set:regular-season-fa:normal", ADMIN)
+if settings.fase() != "regular-season-fa" and q.kb:
+    q = tap(A.cb_fase_conferma, "fase_conferma:regular-season-fa", ADMIN)
+ok(settings.fase() == "regular-season-fa", "col calendario si passa")
+db._q("DELETE FROM lega_giornate WHERE stagione = '2028'")
+fase("offseason-rinnovi")
+
 # /trade_deadline: mostra, imposta nella stagione giusta, rifiuta le date fuori stagione
 class Msg:
     def __init__(s): s.t = []

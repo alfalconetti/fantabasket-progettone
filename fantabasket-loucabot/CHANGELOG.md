@@ -743,3 +743,12 @@ Il calcolo dei fantapunti.
 ## v154 (2026-11-26, progettone v7.33.0)
 
 - **`/prospetto_rinnovi [SQUADRA]`** (Luca, 26/11): i rinnovi della prossima offseason in un'immagine, stima dalla regular season al break, numeri veri ai rinnovi (codice in shared/prospetto_rinnovi.py, lo stesso del bot principale)
+
+## v155 (2026-11-26, progettone v7.34.0)
+
+- `/calendario_quando`: il sorteggio si fissa solo in offseason-fa e offseason-ruoli (senza argomenti lo stato, sempre); senza calendario il bot principale non passa alla regular season
+- `/rendimento`: il percentile nel ruolo (guardie, ali, centri: i gruppi in cui è eleggibile) sotto il decile della lega
+
+## v156 (2026-11-26, progettone v7.35.0)
+
+- `/prestazione`: la composizione dei fantapunti (punti, assist, rimbalzi, recuperi, stoppate; perse a parte), la notte contro la media della stagione intera

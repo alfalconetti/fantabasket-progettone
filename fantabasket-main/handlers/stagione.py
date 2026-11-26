@@ -509,7 +509,22 @@ async def dopo_cambio_fase(bot, fase_vecchia: str, nuova_fase: str) -> str:
             from handlers.lottery import promemoria
             note.append(await promemoria(bot))
         await passo("promemoria della lottery", promemoria_lottery)
-    elif nuova_fase == "offseason-fa":
+    if nuova_fase in ("offseason-fa", "offseason-ruoli"):
+        async def promemoria_calendario():        # v7.34.0 (Luca, 26/11): il sorteggio del calendario si fissa qui
+            from handlers.admin_panel import calendario_mancante
+            s = settings.stagione_corrente()
+            manca = calendario_mancante(s)
+            if not manca:
+                return
+            if gruppo:
+                await bot.send_message(chat_id=gruppo, parse_mode="HTML", text=(
+                    f"📅 <b>Calendario {s}-{(int(s) + 1) % 100:02d}</b>: va sorteggiato con drand entro la fine della "
+                    f"dichiarazione dei ruoli. Su loucabot <code>/calendario_quando GG/MM HH:MM</code> (ora di Roma), "
+                    f"dopo il sorteggio <code>/importa_date</code> con le date delle 38 giornate. Senza calendario non si "
+                    f"passa alla regular season.\n{manca}"))
+            note.append("\n📅 Promemoria del calendario agli admin")
+        await passo("promemoria del calendario", promemoria_calendario)
+    if nuova_fase == "offseason-fa":
         await passo("scadenza degli x0", scadenze)
     elif nuova_fase == "regular-season-fa":
         await passo("report di inizio regular season", report_rs)

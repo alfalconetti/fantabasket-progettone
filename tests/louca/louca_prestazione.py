@@ -84,6 +84,16 @@ img = PR.immagine(PR.dati(gid, n["riga"], n["giorno"], n["rr"]))
 n2 = PR.notte(gid, D(10, 27))
 img2 = PR.immagine(PR.dati(gid, n2["riga"], n2["giorno"], n2["rr"], motivo=n2["motivo"]))
 ok(img[:4] == b"\x89PNG" and img2[:4] == b"\x89PNG", "l'immagine, giocata e non giocata")
+# v7.35.0: la composizione dei fantapunti (Punti = punti + tiri; perse a parte), la somma torna al totale
+_d = PR.dati(gid, n["riga"], n["giorno"], n["rr"])
+_co = _d["composizione"]
+_num = lambda t: float(t.replace("−", "-").replace("+", "").replace(",", "."))
+ok([v["n"] for v in _co["voci"]] == ["Punti", "Assist", "Rimbalzi", "Recuperi", "Stoppate"]
+   and abs(sum(_num(v["v"]) for v in _co["voci"]) + _num(_co["perse"]["v"]) - float(n["riga"]["fp"])) < 0.01,
+   "composizione: cinque gruppi più le perse, la somma è il totale della notte")
+ok(abs(sum(v["q"] for v in _co["voci"]) - 1) < 1e-6 and all(v["m"] != "—" for v in _co["voci"]) and "media stagione" in _co["conto"],
+   "composizione: le quote della barra fanno 100% e c'è la media della stagione")
+open(_os.environ.get("PRESTAZIONE_PNG", "/dev/null"), "wb").write(img)
 if os.environ.get("REND_PNG"):
     open(os.environ["REND_PNG"] + "_prestazione_31.png", "wb").write(PR.immagine(d31))
     open(os.environ["REND_PNG"] + "_prestazione.png", "wb").write(img); open(os.environ["REND_PNG"] + "_prestazione_dnp.png", "wb").write(img2)

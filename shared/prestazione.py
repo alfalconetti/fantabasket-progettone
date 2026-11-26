@@ -29,6 +29,10 @@ GIORNI_BREVI = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"]
 VOCI = [("ast", "Assist"), ("pts", "Punti"), ("fgm", "Tiri segnati"), ("dreb", "Rimb. difensivi"), ("tpm", "Triple"),
         ("ftm", "Liberi segnati"), ("oreb", "Rimb. offensivi"), ("stl", "Recuperi"), ("blk", "Stoppate"),
         ("fta", "Liberi tentati"), ("tov", "Perse"), ("fga", "Tiri tentati")]
+# v7.35.0 (Luca, 26/11): la composizione dei fantapunti per voce, la notte contro la media della stagione intera.
+# Punti = punti + tiri, triple e liberi (segnati e tentati); le perse a parte, fuori dalla barra
+GRUPPI = [("Punti", ("pts", "fgm", "fga", "tpm", "tpa", "ftm", "fta")), ("Assist", ("ast",)), ("Rimbalzi", ("dreb", "oreb")),
+          ("Recuperi", ("stl",)), ("Stoppate", ("blk",))]
 COLONNE = [("MIN", "minuti"), ("PTS", "pts"), ("REB", "reb"), ("OREB", "oreb"), ("DREB", "dreb"), ("AST", "ast"),
            ("STL", "stl"), ("BLK", "blk"), ("TO", "tov"), ("PF", "pf")]
 MENO_E_MEGLIO = {"tov", "pf"}
@@ -236,6 +240,7 @@ def dati(gid: int, r: dict | None, giorno: date, rr: list[dict], foto_di=None, m
     d["tiri"] = [{"t": t, "v": f"{r[m]}/{r[a]}", "s": f"{_pct(r[m], r[a])} · fino a lì {pc(pr, m, a)} · stagione {pc(st, m, a)}"}
                  for t, m, a in (("Tiri dal campo", "fgm", "fga"), ("Da tre", "tpm", "tpa"), ("Liberi", "ftm", "fta"))]
     pesi = regole.pesi_fantapunti()
+    d["composizione"] = composizione(r, st, pesi)
     voci = [{"n": n, "q": int(r[k] or 0), "p": round(float(pesi.get(k, 0)) * float(r[k] or 0), 2)} for k, n in VOCI if pesi.get(k)]
     voci = [v for v in voci if v["p"]]
     voci.sort(key=lambda v: (v["p"] < 0, -abs(v["p"])))
@@ -246,6 +251,39 @@ def dati(gid: int, r: dict | None, giorno: date, rr: list[dict], foto_di=None, m
     if abs(somma - fp) > 0.001:
         d["correzione"] = f"corretto a mano dagli admin: dal tabellino {_n(somma)}"
     return d
+
+
+def composizione(r: dict, st: list[dict], pesi: dict) -> dict:
+    """I fantapunti della notte per gruppo di voci, con la media della stagione intera (le partite giocate) e la
+    quota di ognuno sul prodotto (la barra: solo i gruppi in positivo)."""
+    def fp(x, chiavi):
+        return sum(float(pesi.get(k, 0)) * float(x.get(k) or 0) for k in chiavi)
+    def medio(chiavi):
+        return sum(fp(x, chiavi) for x in st) / len(st) if st else None
+    i = lambda k: int(r.get(k) or 0)
+    det = {"Punti": f"{i('pts')} pt, {i('fgm')}/{i('fga')}, {i('tpm')}/{i('tpa')} da 3, {i('ftm')}/{i('fta')} TL",
+           "Assist": f"{i('ast')} assist", "Rimbalzi": f"{i('dreb')} dif + {i('oreb')} off",
+           "Recuperi": f"{i('stl')} recuper{'o' if i('stl') == 1 else 'i'}",
+           "Stoppate": f"{i('blk')} stoppat{'a' if i('blk') == 1 else 'e'}"}
+    voci = [{"n": n, "v": round(fp(r, k), 2), "m": medio(k)} for n, k in GRUPPI]
+    prod = sum(max(v["v"], 0) for v in voci)
+    prod_m = sum(max(v["m"] or 0, 0) for v in voci)
+    out = []
+    for v in voci:
+        m = v["m"]
+        out.append({"n": v["n"], "v": ("+" if v["v"] >= 0 else "−") + _n(abs(v["v"])), "pos": v["v"] >= 0,
+                    "q": max(v["v"], 0) / prod if prod else 0, "qm": max(m or 0, 0) / prod_m if prod_m else 0,
+                    "m": _n(m, 1) if m is not None else "—", "d": _segno(v["v"] - m, 1) if m is not None else "",
+                    "meglio": m is None or v["v"] >= m, "det": det[v["n"]]})
+    perse, perse_m = fp(r, ("tov",)), medio(("tov",))
+    conto = f"Notte: {_n(prod)} prodotti − {_n(abs(perse))} perse = {_n(prod + perse)}"
+    if perse_m is not None and st:
+        conto += f" · media stagione: {_n(prod_m, 1)} − {_n(abs(perse_m), 1)} = {_n(prod_m + perse_m, 1)}"
+    return {"voci": out, "perse": {"v": "−" + _n(abs(perse)), "m": ("−" if perse_m < 0 else "") + _n(abs(perse_m), 1) if perse_m is not None else "—",
+                                   "d": _segno(perse - perse_m, 1) if perse_m is not None else "",
+                                   "meglio": perse_m is None or perse >= perse_m,
+                                   "det": f"{i('tov')} pers{'a' if i('tov') == 1 else 'e'}, fuori dalla barra"},
+            "conto": conto, "barra_media": bool(st and prod_m)}
 
 
 def _contro(r: dict) -> str:

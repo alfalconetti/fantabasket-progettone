@@ -177,7 +177,8 @@
           place(dx: xs(ds.min) - 2pt, dy: 8pt, circle(radius: 2pt, fill: grigio))
           place(dx: xs(ds.max) - 2pt, dy: 8pt, circle(radius: 2pt, fill: rgb("#C8962E")))
         }),
-        stack(spacing: 4pt, text(7.5pt)[#ds.testo], if ds.lega != "" { text(7pt, fill: grigio)[#ds.lega] }))
+        stack(spacing: 4pt, text(7.5pt)[#ds.testo], if ds.lega != "" { text(7pt, fill: grigio)[#ds.lega] },
+          if ds.at("ruolo", default: "") != "" { text(7pt, fill: grigio)[#ds.ruolo] }))
     }))
   }
   pad(x: 16pt, top: 6pt, bottom: 12pt, text(7pt, fill: grigio)[

@@ -265,6 +265,35 @@ def decile(media: float, altri: list[float]) -> tuple[int, int]:
     return min(10, int(pct // 10) + 1), int(pct)
 
 
+# v7.34.0 (Luca, 22/11 e 26/11): il percentile nel ruolo, tra i giocatori eleggibili nello stesso gruppo di posizioni
+GRUPPI_RUOLO = (("G", "guardie", {"PG", "SG"}), ("F", "ali", {"SF", "PF"}), ("C", "centri", {"C"}))
+
+
+def posizioni_atleti() -> dict[str, set]:
+    """{atleta ESPN: posizioni eleggibili} da posizioni_attuali del bot principale ({} se la tabella non c'è)."""
+    try:
+        rr = L.q("""SELECT g.espn_id, p.posizioni FROM posizioni_attuali p JOIN giocatori g ON g.id = p.giocatore_id
+                    WHERE g.espn_id IS NOT NULL""", many=True) or []
+    except Exception:
+        return {}
+    return {str(r["espn_id"]): set((r["posizioni"] or "").split(",")) - {""} for r in rr}
+
+
+def testo_ruolo(media: float, atleta: str, tutte: dict, posizioni: dict) -> str:
+    """«Tra le guardie: 8° decile, meglio del 74% (96 giocatori)», un pezzo per ogni gruppo in cui è eleggibile;
+    stessi giocatori del decile della lega (almeno MIN_LEGA partite, lui escluso)."""
+    sue = posizioni.get(str(atleta)) or set()
+    pezzi = []
+    for _, nome, pos in GRUPPI_RUOLO:
+        if not sue & pos:
+            continue
+        altri = [m for a, (m, n) in tutte.items() if n >= MIN_LEGA and a != atleta and (posizioni.get(str(a)) or set()) & pos]
+        if altri:
+            dec, pct = decile(media, altri)
+            pezzi.append(f"tra {'i' if nome == 'centri' else 'le'} {nome} {dec}° decile, meglio del {pct}% ({len(altri)})")
+    return ("Nel ruolo: " + " · ".join(pezzi)) if pezzi else ""
+
+
 def distribuzione(vals: list[float], media: float, atleta: str, stagione: str | None = None, dal=None, al=None,
                   tipi=None) -> dict | None:
     """Il box plot dei fantapunti (minimo, 10°, 25°, mediana, 75°, 90° percentile, massimo) e il decile della sua
@@ -289,8 +318,9 @@ def distribuzione(vals: list[float], media: float, atleta: str, stagione: str | 
                 f"({len(altri)} giocatori" + (f", dati dal {pd:%d/%m/%Y}" if pd else "") + ")")
         if len(vals) < MIN_LEGA:
             lega += f" · lui ne ha solo {len(vals)}: confronto indicativo"
+    ruolo = testo_ruolo(media, atleta, tutte, posizioni_atleti()) if altri else ""
     return {**{k: round(v, 3) for k, v in pc.items()}, "min": min(vals), "max": max(vals), "lo": lo, "scala": scala,
-            "testo": testo, "lega": lega}
+            "testo": testo, "lega": lega, "ruolo": ruolo}
 
 
 def dati_stagione(gid: int, stagione: str | None = None, periodo=None, distr: bool = True) -> dict | None:

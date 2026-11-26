@@ -66,6 +66,14 @@ _ml = R.medie_lega(S)
 ok(_ml.get("rd1") == (sum([20, 30, 25, 35, 40, 28]) / 6, 6), f"medie della lega: solo partite giocate davvero {_ml.get('rd1')}")
 ok(d["distr"]["lega"] == "" or "decile della lega" in d["distr"]["lega"], "decile solo se ci sono giocatori con almeno 10 partite")
 ok(R.distribuzione([10, 20], 15, "x", stagione=S) is None, "distribuzione: sotto le 5 partite niente")
+# v7.34.0: il percentile nel ruolo (gruppi G, F, C delle posizioni eleggibili, stessa soglia di partite)
+_tutte = {"me": (30, 20), "g1": (20, 20), "g2": (40, 20), "f1": (10, 20), "f2": (12, 20), "c1": (50, 20), "poche": (5, 3)}
+_pos = {"me": {"SG", "SF"}, "g1": {"PG"}, "g2": {"SG"}, "f1": {"PF"}, "f2": {"SF", "C"}, "c1": {"C"}, "poche": {"PG"}}
+_t = R.testo_ruolo(30, "me", _tutte, _pos)
+ok(_t == "Nel ruolo: tra le guardie 6° decile, meglio del 50% (2) · tra le ali 10° decile, meglio del 100% (2)",
+   "percentile nel ruolo: un pezzo per gruppo eleggibile, solo chi ha abbastanza partite")
+ok(R.testo_ruolo(30, "x", _tutte, _pos) == "" and R.testo_ruolo(30, "c1", _tutte, _pos).startswith("Nel ruolo: tra i centri"),
+   "percentile nel ruolo: niente senza posizioni, «i centri»")
 # v7.6.2 (Luca, 11/11): i riquadri, i mesi, la media tratteggiata, le barre da 0
 _rq = {r["t"]: r for r in d["riquadri"]}
 ok(list(_rq) == ["Fantamedia", "Ultime 5", "Migliore", "Peggiore"] and _rq["Fantamedia"]["v"] == "29,63"

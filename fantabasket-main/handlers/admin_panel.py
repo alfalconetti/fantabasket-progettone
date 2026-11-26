@@ -722,6 +722,33 @@ async def cmd_set_fase(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+GIORNATE_RS = 38
+
+
+def calendario_mancante(stagione: str) -> str | None:
+    """v7.34.0: cosa manca al calendario della regular season `stagione` (le 38 giornate con le date in lega_giornate,
+    scritte da /importa_date di loucabot o da un CSV), o None se c'è."""
+    try:
+        n = db._qval("SELECT count(*) FROM lega_giornate WHERE stagione = %s AND tipo = 'regular'", (str(stagione),)) or 0
+    except Exception:
+        n = 0
+    if n >= GIORNATE_RS:
+        return None
+    try:
+        s = db._q("SELECT stato, quando FROM lega_calendario_sorteggio WHERE stagione = %s", (str(stagione),), one=True)
+    except Exception:
+        s = None
+    anni = f"{stagione}-{(int(stagione) + 1) % 100:02d}"
+    if not s:
+        passo = ("il sorteggio non è ancora fissato: su loucabot /calendario_quando GG/MM HH:MM (in free agency o "
+                 "nella dichiarazione dei ruoli), poi /importa_date")
+    elif s["stato"] == "annunciato":
+        passo = f"il sorteggio è fissato per il {s['quando']:%d/%m alle %H:%M} ma non ancora fatto; poi su loucabot /importa_date"
+    else:
+        passo = "il sorteggio è fatto, mancano le date: su loucabot /importa_date"
+    return f"• manca il calendario {anni} ({n} giornate su {GIORNATE_RS}): {passo}"
+
+
 async def cb_fase_set(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Callback: imposta la nuova fase."""
     query = update.callback_query
@@ -745,6 +772,14 @@ async def cb_fase_set(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(
                 "⛔ <b>Non si può ancora passare ai playoff</b>:\n• " + "\n• ".join(html.escape(x) for x in mancano)
                 + "\n\nQuando è tutto pronto, di nuovo /set_fase.", parse_mode="HTML")
+            return
+
+    # v7.34.0 (Luca, 26/11): dall'offseason alla regular season solo col calendario della stagione (sorteggio e date)
+    if nuova_fase.startswith("regular-season") and fase_vecchia.startswith("offseason"):
+        manca = calendario_mancante(settings.stagione_corrente())
+        if manca:
+            await query.edit_message_text("⛔ <b>Non si può ancora passare alla regular season</b>:\n" + manca
+                                          + "\n\nQuando è pronto, di nuovo /set_fase.", parse_mode="HTML")
             return
 
     # v3.11: i passaggi che cambiano i contratti (nuova stagione, scadenza degli x0)
