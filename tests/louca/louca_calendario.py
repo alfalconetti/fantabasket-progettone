@@ -44,6 +44,17 @@ ok((r["giornate"], r["partite"]) == (3, 6) and r["dubbi"] == [] and len(db.parti
 ok(db.partita_squadra("2026", 2, "team01")["trasferta"] == "team01", "Alfa in trasferta alla giornata 2")
 cal.importa(CSV, "2026")
 ok(len(db.partite_giornata("2026", 1)) == 2, "reimport: sostituisce, niente doppioni")
+# v7.38.0: a stagione iniziata le giornate coi risultati non si toccano, le altre sì
+db.q("TRUNCATE lega_risultati")
+db.q("""INSERT INTO lega_risultati (stagione, giornata, casa, trasferta, punti_casa, punti_trasferta, vince, convalidato)
+        VALUES ('2026', 1, 'team01', 'team02', 100, 90, 'casa', NOW())""")
+_e = errore(CSV.replace("Alfa,,V,,Beta", "Beta,,V,,Alfa"))
+ok("G1: partite diverse" in _e and "già giocate" in _e, f"G1 giocata, partite cambiate: rifiutato ({_e[:80]})")
+ok("G1: date" in errore(CSV.replace("Week 1 20/10 - 22/10", "Week 1 19/10 - 22/10")), "G1 giocata, date cambiate: rifiutato")
+ok(errore(CSV.replace("Delta,,V,,Beta", "Beta,,V,,Delta")) == "" and db.partita_squadra("2026", 3, "team02")["casa"] == "team02",
+   "la G3 senza risultati si cambia")
+cal.importa(CSV, "2026")
+db.q("TRUNCATE lega_risultati")
 
 # ESPN: risposta vera del 22/10/2026 (ridotta)
 vero = json.load(open(os.path.join(QUI, "espn-20261022.json")))

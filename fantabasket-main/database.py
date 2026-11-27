@@ -420,6 +420,20 @@ def _migra_stagioni() -> None:
             creato            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             annullato         TIMESTAMPTZ)""")
     _q("CREATE UNIQUE INDEX IF NOT EXISTS idx_rinnovi_normali ON rinnovi_normali (stagione, team_id, tipo) WHERE annullato IS NULL")
+    # v7.38.0 (azioni annullabili): le spalmature tolte da un decadimento (ritiro, altra lega) o da /ritiro_fa, per
+    # poterle rimettere annullandoli. gruppo = «dec:<movimento>» o «rit:<giocatore>:<epoch>»
+    _q("""CREATE TABLE IF NOT EXISTS spalmature_tolte (
+            id              SERIAL PRIMARY KEY,
+            gruppo          TEXT NOT NULL,
+            team_id         TEXT NOT NULL,
+            giocatore_id    INT  NOT NULL,
+            stagione_taglio TEXT NOT NULL,
+            stagione        TEXT NOT NULL,
+            importo         INT  NOT NULL,
+            transazione_id  INT,
+            tolta           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            rimessa         TIMESTAMPTZ)""")
+    _q("CREATE INDEX IF NOT EXISTS idx_spalmature_tolte ON spalmature_tolte (gruppo)")
     _q("CREATE UNIQUE INDEX IF NOT EXISTS idx_rfa_squadra ON rfa_dichiarati (stagione, team_id) WHERE stato = 'attiva'")
     _q("CREATE UNIQUE INDEX IF NOT EXISTS idx_rfa_giocatore ON rfa_dichiarati (stagione, giocatore_id) WHERE stato = 'attiva'")
     # contratti rookie: fino alla v3.10 stagione_firma era l'anno di firma della scala per
@@ -1466,24 +1480,45 @@ def registra_decadimento(giocatore_id: int, team_id: str, stagione: str,
     altre = []
     with get_conn() as conn:
         with conn.cursor() as cur:
-            if tutte_le_squadre:
-                cur.execute("DELETE FROM impatto_taglio WHERE giocatore_id = %s AND team_id <> %s "
-                            "AND stagione >= %s RETURNING team_id", (giocatore_id, team_id, stagione))
-                altre = sorted({r[0] for r in cur.fetchall()})
             cur.execute(
                 "INSERT INTO transazioni (tipo, giocatore_id, team_id_da, team_id_a, stagione, contratto_id, note) "
-                "VALUES ('decadimento', %s, %s, NULL, %s, %s, %s)",
+                "VALUES ('decadimento', %s, %s, NULL, %s, %s, %s) RETURNING id",
                 (giocatore_id, team_id, stagione, contratto_id, note))
+            tid = cur.fetchone()[0]
+            if tutte_le_squadre:
+                altre = _togli_spalmature(cur, f"dec:{tid}", "giocatore_id = %s AND team_id <> %s AND stagione >= %s",
+                                          (giocatore_id, team_id, stagione))
             cur.execute(
                 "UPDATE contratti SET attivo = FALSE WHERE giocatore_id = %s AND team_id = %s AND attivo = TRUE",
                 (giocatore_id, team_id))
             # v7.35.3: un RFA dichiarato che decade non resta «in vigore»: la squadra non lo perde come RFA usato
             cur.execute("UPDATE rfa_dichiarati SET stato = 'revocata', chiuso = NOW(), nota = 'decaduto' "
                         "WHERE giocatore_id = %s AND stato = 'attiva'", (giocatore_id,))
-            cur.execute(
-                "DELETE FROM impatto_taglio WHERE giocatore_id = %s AND team_id = %s AND stagione >= %s",
-                (giocatore_id, team_id, stagione))
+            _togli_spalmature(cur, f"dec:{tid}", "giocatore_id = %s AND team_id = %s AND stagione >= %s",
+                              (giocatore_id, team_id, stagione))
     return altre
+
+
+def _togli_spalmature(cur, gruppo: str, dove: str, params: tuple) -> list[str]:
+    """v7.38.0: DELETE da impatto_taglio salvando le righe in spalmature_tolte (per rimetterle annullando).
+    Ritorna le squadre toccate."""
+    cur.execute(f"DELETE FROM impatto_taglio WHERE {dove} "
+                "RETURNING team_id, giocatore_id, stagione_taglio, stagione, importo, transazione_id", params)
+    righe = cur.fetchall()
+    for r in righe:
+        cur.execute("INSERT INTO spalmature_tolte (gruppo, team_id, giocatore_id, stagione_taglio, stagione, importo, "
+                    "transazione_id) VALUES (%s, %s, %s, %s, %s, %s, %s)", (gruppo, *r))
+    return sorted({r[0] for r in righe})
+
+
+def _rimetti_spalmature(cur, gruppo: str) -> list[str]:
+    cur.execute("""UPDATE spalmature_tolte SET rimessa = NOW() WHERE gruppo = %s AND rimessa IS NULL
+                   RETURNING team_id, giocatore_id, stagione_taglio, stagione, importo, transazione_id""", (gruppo,))
+    righe = cur.fetchall()
+    for r in righe:
+        cur.execute("INSERT INTO impatto_taglio (team_id, giocatore_id, stagione_taglio, stagione, importo, transazione_id) "
+                    "VALUES (%s, %s, %s, %s, %s, %s)", r)
+    return sorted({r[0] for r in righe})
 
 
 def decadimenti_recenti(giorni: int = 180, limite: int = 12) -> list[dict]:
@@ -1495,9 +1530,66 @@ def decadimenti_recenti(giorni: int = 180, limite: int = 12) -> list[dict]:
 
 
 def decadimento(tid: int) -> dict | None:
-    return _q("""SELECT t.id, t.timestamp, t.giocatore_id, t.team_id_da, t.stagione, t.note, g.nome_common
+    return _q("""SELECT t.id, t.timestamp, t.giocatore_id, t.team_id_da, t.stagione, t.note, t.contratto_id, g.nome_common,
+                        c.importo, c.anni_originali, c.attivo, c.team_id AS team_contratto
                  FROM movimenti_giocatori t JOIN giocatori g ON g.id = t.giocatore_id
+                 LEFT JOIN contratti c ON c.id = t.contratto_id
                  WHERE t.id = %s AND t.tipo = 'decadimento'""", (tid,), one=True)
+
+
+def spalmature_di(gruppo: str) -> list[dict]:
+    """Le spalmature tolte e non ancora rimesse di un gruppo (v7.38.0)."""
+    return _q("""SELECT team_id, stagione, importo FROM spalmature_tolte WHERE gruppo = %s AND rimessa IS NULL
+                 ORDER BY team_id, stagione""", (gruppo,), many=True) or []
+
+
+def perche_no_annulla_decadimento(d: dict) -> str | None:
+    """v7.38.0: perché il decadimento `d` (riga di decadimento()) non si può annullare, o None."""
+    if not d.get("contratto_id") or d.get("attivo") is None:
+        return "il decadimento non ha il contratto collegato"
+    if d["attivo"] or d["team_contratto"] != d["team_id_da"]:
+        return "il contratto non è più quello decaduto"
+    if get_contratto_attivo(d["giocatore_id"]):
+        return "il giocatore ha di nuovo un contratto"
+    if not spalmature_di(f"dec:{d['id']}") and _q(
+            """SELECT 1 FROM registro_azioni WHERE giocatore_id = %s AND nota LIKE '%%tolte le spalmature%%'
+               AND quando BETWEEN %s - INTERVAL '1 minute' AND %s + INTERVAL '10 minutes'""",
+            (d["giocatore_id"], d["timestamp"], d["timestamp"]), one=True):
+        return ("le spalmature tolte alle altre squadre prima della v7.38.0 non sono state salvate: "
+                "il bot non le può rimettere")
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            if _dopo(cur, d["giocatore_id"], d["id"]):
+                return "dopo il decadimento il giocatore ha avuto altri movimenti"
+    return None
+
+
+def annulla_decadimento(tid: int) -> list[str]:
+    """Il contratto torna attivo, tornano le spalmature tolte (anche agli altri), torna l'RFA dichiarato revocato dal
+    decadimento, sparisce il movimento (la Cam Thomas exception non vale più). Una transazione sola; ritorna le altre
+    squadre a cui si rimettono spalmature; ValueError se non si può."""
+    d = decadimento(tid)
+    if not d:
+        raise ValueError("decadimento non trovato")
+    perche = perche_no_annulla_decadimento(d)
+    if perche:
+        raise ValueError(perche)
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            if _dopo(cur, d["giocatore_id"], tid):
+                raise ValueError("dopo il decadimento il giocatore ha avuto altri movimenti")
+            cur.execute("UPDATE contratti SET attivo = TRUE WHERE id = %s AND attivo = FALSE RETURNING id", (d["contratto_id"],))
+            if not cur.fetchone():
+                raise ValueError("il contratto è già attivo")
+            squadre = _rimetti_spalmature(cur, f"dec:{tid}")
+            cur.execute("""UPDATE rfa_dichiarati r SET stato = 'attiva', chiuso = NULL, nota = NULL
+                           WHERE r.giocatore_id = %s AND r.stato = 'revocata' AND r.nota = 'decaduto'
+                             AND r.chiuso BETWEEN %s - INTERVAL '1 minute' AND %s + INTERVAL '1 minute'
+                             AND NOT EXISTS (SELECT 1 FROM rfa_dichiarati x WHERE x.stato = 'attiva' AND x.stagione = r.stagione
+                                             AND (x.team_id = r.team_id OR x.giocatore_id = r.giocatore_id))""",
+                        (d["giocatore_id"], d["timestamp"], d["timestamp"]))   # se nel frattempo ne ha dichiarato un altro, resta quello
+            cur.execute("DELETE FROM transazioni WHERE id = %s AND tipo = 'decadimento'", (tid,))
+    return [t for t in squadre if t != d["team_id_da"]]
 
 
 def correggi_causa_decadimento(tid: int, nota: str, togli_altre: bool) -> list[str]:
@@ -1513,9 +1605,8 @@ def correggi_causa_decadimento(tid: int, nota: str, togli_altre: bool) -> list[s
             if not r:
                 raise ValueError("decadimento non trovato")
             if togli_altre:
-                cur.execute("DELETE FROM impatto_taglio WHERE giocatore_id = %s AND team_id <> %s "
-                            "AND stagione >= %s RETURNING team_id", (r[0], r[1], r[2]))
-                altre = sorted({x[0] for x in cur.fetchall()})
+                altre = _togli_spalmature(cur, f"dec:{tid}", "giocatore_id = %s AND team_id <> %s AND stagione >= %s",
+                                          (r[0], r[1], r[2]))
             cur.execute("UPDATE transazioni SET note = %s WHERE id = %s", (nota, tid))
     return altre
 
@@ -1523,9 +1614,35 @@ def correggi_causa_decadimento(tid: int, nota: str, togli_altre: bool) -> list[s
 def cancella_spalmate_ritirato(giocatore_id: int, stagione: str) -> list[dict]:
     """Giocatore ritirato o andato in un'altra lega mentre era free agent: le spalmature
     dei tagli passati smettono di pesare (dalla stagione corrente). Restituisce
-    [{team_id, importo}] di quanto tolto."""
-    return _q("""DELETE FROM impatto_taglio WHERE giocatore_id = %s AND stagione >= %s
-                 RETURNING team_id, importo""", (giocatore_id, stagione), many=True) or []
+    [{team_id, importo}] di quanto tolto. v7.38.0: le righe tolte restano in spalmature_tolte (annulla_ritiro_fa)."""
+    import time
+    gruppo = f"rit:{giocatore_id}:{int(time.time())}"
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            _togli_spalmature(cur, gruppo, "giocatore_id = %s AND stagione >= %s", (giocatore_id, stagione))
+    return _q("SELECT team_id, importo FROM spalmature_tolte WHERE gruppo = %s ORDER BY id", (gruppo,), many=True) or []
+
+
+def ritiri_fa_recenti(giorni: int = 180) -> list[dict]:
+    """v7.38.0: i /ritiro_fa con delle spalmature tolte e non ancora rimesse, dal più recente."""
+    return _q("""SELECT s.gruppo, s.giocatore_id, g.nome_common, MIN(s.tolta) AS quando,
+                        array_agg(s.team_id || ' ' || s.stagione || ' ' || s.importo || 'M' ORDER BY s.team_id, s.stagione) AS righe,
+                        array_agg(DISTINCT s.team_id) AS squadre
+                 FROM spalmature_tolte s JOIN giocatori g ON g.id = s.giocatore_id
+                 WHERE s.gruppo LIKE 'rit:%%' AND s.rimessa IS NULL AND s.tolta > NOW() - make_interval(days => %s)
+                 GROUP BY s.gruppo, s.giocatore_id, g.nome_common ORDER BY MIN(s.tolta) DESC LIMIT 12""",
+              (giorni,), many=True) or []
+
+
+def annulla_ritiro_fa(gruppo: str) -> list[str]:
+    """Rimette le spalmature tolte da un /ritiro_fa. Ritorna le squadre; ValueError se non c'è niente o il giocatore
+    ha poi firmato (le spalmature di un giocatore di nuovo sotto contratto contano normalmente: si rimettono lo stesso)."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            squadre = _rimetti_spalmature(cur, gruppo)
+    if not squadre:
+        raise ValueError("niente da rimettere (già annullato?)")
+    return squadre
 
 
 def get_prima_transazione() -> str | None:
@@ -2077,3 +2194,189 @@ def picks_proteggibili(trade_id: int) -> list[dict]:
 def set_protezione_item(item_id: int, prot: dict | None) -> None:
     import json as _json
     _q("UPDATE trade_items SET protezione = %s WHERE id = %s", (_json.dumps(prot) if prot else None, item_id))
+
+
+# ── v7.38.0: annullare DPE, attivazione dei diritti 2nd, cambio ruolo (docs/AZIONI_ANNULLABILI.md) ─────────────
+
+def dpe_recenti(giorni: int = 180, limite: int = 12) -> list[dict]:
+    return _q("""SELECT d.*, g.nome_common FROM dpe d JOIN giocatori g ON g.id = d.giocatore_id
+                 WHERE d.timestamp > NOW() - make_interval(days => %s) ORDER BY d.timestamp DESC, d.id DESC LIMIT %s""",
+              (giorni, limite), many=True) or []
+
+
+def dpe_per_id(dpe_id: int) -> dict | None:
+    return _q("SELECT d.*, g.nome_common FROM dpe d JOIN giocatori g ON g.id = d.giocatore_id WHERE d.id = %s",
+              (dpe_id,), one=True)
+
+
+def perche_no_annulla_dpe(d: dict) -> str | None:
+    c = get_contratto_attivo(d["giocatore_id"])
+    if not c or c["team_id"] != d["team_id"]:
+        return "dopo la DPE il giocatore non è più sotto contratto con quella squadra"
+    if not d["pre_deadline"]:
+        post = _qval("SELECT count(*) FROM dpe WHERE team_id = %s AND stagione = %s AND NOT pre_deadline",
+                     (d["team_id"], d["stagione"])) or 0
+        usati = _qval("SELECT count(*) FROM cambi_ruolo WHERE team_id = %s AND stagione = %s AND tipo = 'dpe_extra'",
+                      (d["team_id"], d["stagione"])) or 0
+        if usati >= post:
+            return "il cambio ruolo extra della DPE è già stato usato: prima annulla quel cambio ruolo"
+    return None
+
+
+def annulla_dpe(dpe_id: int) -> None:
+    d = dpe_per_id(dpe_id)
+    if not d:
+        raise ValueError("DPE non trovata")
+    perche = perche_no_annulla_dpe(d)
+    if perche:
+        raise ValueError(perche)
+    _q("DELETE FROM dpe WHERE id = %s", (dpe_id,))
+
+
+def attivazioni_recenti(giorni: int = 180, limite: int = 12) -> list[dict]:
+    """Le attivazioni dei diritti 2nd (movimento rookie_firma della scala con la nota «Attivazione diritti 2nd»)."""
+    return _q("""SELECT t.id, t.timestamp, t.giocatore_id, t.team_id_a, t.stagione, t.contratto_id, t.note, g.nome_common,
+                        c.importo, c.anni_originali, c.attivo, c.team_id AS team_contratto
+                 FROM movimenti_giocatori t JOIN giocatori g ON g.id = t.giocatore_id
+                 LEFT JOIN contratti c ON c.id = t.contratto_id
+                 WHERE t.tipo = 'rookie_firma' AND t.note LIKE 'Attivazione diritti 2nd%%'
+                   AND t.timestamp > NOW() - make_interval(days => %s)
+                 ORDER BY t.timestamp DESC, t.id DESC LIMIT %s""", (giorni, limite), many=True) or []
+
+
+def attivazione(tid: int) -> dict | None:
+    return next((r for r in attivazioni_recenti(36500, 100000) if r["id"] == tid), None)
+
+
+def perche_no_annulla_attivazione(a: dict) -> str | None:
+    if not a.get("contratto_id") or not a.get("attivo") or a.get("team_contratto") != a["team_id_a"]:
+        return "il contratto non è più attivo con quella squadra"
+    if _q("SELECT 1 FROM rfa_dichiarati WHERE contratto_id = %s", (a["contratto_id"],), one=True):
+        return "il giocatore è stato dichiarato RFA"
+    if _q("SELECT 1 FROM dpe WHERE giocatore_id = %s AND timestamp >= %s", (a["giocatore_id"], a["timestamp"]), one=True):
+        return "dopo l'attivazione c'è stata una DPE: annulla prima quella"
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            if _dopo(cur, a["giocatore_id"], a["id"]):
+                return "dopo l'attivazione il giocatore ha avuto altri movimenti"
+    return None
+
+
+def annulla_attivazione(tid: int) -> None:
+    """Via contratto e movimento, il rookie torna coi diritti (non firmato), si riaprono i diritti nel registro unico,
+    chiuse le dichiarazioni di ruolo dell'attivazione e tolto il ruolo dichiarato dopo. Una transazione sola."""
+    a = attivazione(tid)
+    if not a:
+        raise ValueError("attivazione non trovata")
+    perche = perche_no_annulla_attivazione(a)
+    if perche:
+        raise ValueError(perche)
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            if _dopo(cur, a["giocatore_id"], tid):
+                raise ValueError("dopo l'attivazione il giocatore ha avuto altri movimenti")
+            cur.execute("DELETE FROM transazioni WHERE id = %s AND tipo = 'rookie_firma'", (tid,))
+            cur.execute("""DELETE FROM transazioni WHERE oggetto = 'diritti' AND tipo = 'rookie_firma' AND giocatore_id = %s
+                           AND team_id_da = %s AND timestamp BETWEEN %s - INTERVAL '1 minute' AND %s + INTERVAL '1 minute'""",
+                        (a["giocatore_id"], a["team_id_a"], a["timestamp"], a["timestamp"]))
+            cur.execute("UPDATE rookie SET firmato = FALSE, anno_firma = NULL WHERE giocatore_id = %s AND team_id = %s "
+                        "AND round = 2 AND firmato RETURNING id", (a["giocatore_id"], a["team_id_a"]))
+            if not cur.fetchone():
+                raise ValueError("riga del rookie non trovata")
+            cur.execute("UPDATE ruoli_pendenti SET stato = 'annullata', chiuso = NOW() WHERE giocatore_id = %s AND team_id = %s "
+                        "AND origine = 'rookie' AND creato >= %s - INTERVAL '1 minute' AND stato IN ('aperta', 'dichiarata', 'assegnata', 'estratta')",
+                        (a["giocatore_id"], a["team_id_a"], a["timestamp"]))
+            cur.execute("DELETE FROM cambi_ruolo WHERE giocatore_id = %s AND team_id = %s AND timestamp >= %s",
+                        (a["giocatore_id"], a["team_id_a"], a["timestamp"]))
+            cur.execute("DELETE FROM contratti WHERE id = %s AND attivo", (a["contratto_id"],))
+
+
+TIPI_CAMBIO_ANNULLABILI = ("ordinario", "erminio", "saedro", "forzato_admin", "dpe_extra", "cup")
+
+
+def cambi_ruolo_recenti(giorni: int = 60, limite: int = 15) -> list[dict]:
+    """I cambi ruolo di regular season (non le dichiarazioni), dal più recente, con se sono l'ultimo del giocatore."""
+    return _q("""SELECT c.*, g.nome_common,
+                        NOT EXISTS (SELECT 1 FROM cambi_ruolo x WHERE x.giocatore_id = c.giocatore_id AND x.stagione = c.stagione
+                                    AND (x.timestamp > c.timestamp OR (x.timestamp = c.timestamp AND x.id > c.id))) AS ultimo
+                 FROM cambi_ruolo c JOIN giocatori g ON g.id = c.giocatore_id
+                 WHERE c.tipo = ANY(%s) AND c.timestamp > NOW() - make_interval(days => %s)
+                   AND NOT (c.tipo = 'saedro' AND c.scadenza IS NULL)      -- il ritorno a fine Saedro lo fa il bot
+                 ORDER BY c.timestamp DESC, c.id DESC LIMIT %s""", (list(TIPI_CAMBIO_ANNULLABILI), giorni, limite), many=True) or []
+
+
+def cambio_ruolo(cid: int) -> dict | None:
+    return next((r for r in cambi_ruolo_recenti(36500, 100000) if r["id"] == cid), None)
+
+
+def perche_no_annulla_cambio(c: dict) -> str | None:
+    if not c["ultimo"]:
+        return ("dopo c'è stato un altro cambio del giocatore (o il ritorno a fine Saedro): annulla prima quello"
+                if c["tipo"] != "saedro" else "la Saedro è già finita (il giocatore è tornato al ruolo di prima)")
+    r = get_contratto_attivo(c["giocatore_id"])
+    if not r or r["team_id"] != c["team_id"]:
+        return "il giocatore non è più in quella squadra"
+    return None
+
+
+def annulla_cambio_ruolo(cid: int) -> None:
+    """Via la riga del cambio: il giocatore torna al ruolo di prima e il cambio torna disponibile (si contano le righe)."""
+    c = cambio_ruolo(cid)
+    if not c:
+        raise ValueError("cambio non trovato")
+    perche = perche_no_annulla_cambio(c)
+    if perche:
+        raise ValueError(perche)
+    _q("DELETE FROM cambi_ruolo WHERE id = %s", (cid,))
+
+
+def rinnovi_rookie_recenti(giorni: int = 180, limite: int = 12) -> list[dict]:
+    """I rinnovi rookie III-IV (movimento renewed con la nota «Rinnovo rookie III-IV»), dal più recente."""
+    return _q("""SELECT t.id, t.timestamp, t.giocatore_id, t.team_id_a, t.stagione, t.contratto_id, t.note, g.nome_common,
+                        c.importo, c.anni_originali, c.attivo, c.team_id AS team_contratto,
+                        (SELECT v.id FROM contratti v WHERE v.giocatore_id = t.giocatore_id AND v.team_id = t.team_id_a
+                           AND v.tipo = 'rookie' AND NOT v.attivo AND v.id < t.contratto_id ORDER BY v.id DESC LIMIT 1) AS vecchio
+                 FROM movimenti_giocatori t JOIN giocatori g ON g.id = t.giocatore_id
+                 LEFT JOIN contratti c ON c.id = t.contratto_id
+                 WHERE t.tipo = 'renewed' AND t.note LIKE 'Rinnovo rookie III-IV%%'
+                   AND t.timestamp > NOW() - make_interval(days => %s)
+                 ORDER BY t.timestamp DESC, t.id DESC LIMIT %s""", (giorni, limite), many=True) or []
+
+
+def rinnovo_rookie(tid: int) -> dict | None:
+    return next((r for r in rinnovi_rookie_recenti(36500, 100000) if r["id"] == tid), None)
+
+
+def perche_no_annulla_rinnovo_rookie(r: dict) -> str | None:
+    import settings as _st
+    if str(r["stagione"]) != str(_st.stagione_corrente()):
+        return "è di una stagione passata"
+    if not r.get("attivo") or r.get("team_contratto") != r["team_id_a"]:
+        return "il contratto del rinnovo non è più attivo con quella squadra"
+    if not r.get("vecchio"):
+        return "non trovo il contratto di prima"
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            if _dopo(cur, r["giocatore_id"], r["id"]):
+                return "dopo il rinnovo il giocatore ha avuto altri movimenti"
+    return None
+
+
+def annulla_rinnovo_rookie(tid: int) -> None:
+    """Via il contratto del rinnovo e il suo movimento, torna attivo il contratto rookie di prima (x0: di nuovo da
+    rinnovare o da dichiarare RFA). Una transazione sola."""
+    r = rinnovo_rookie(tid)
+    if not r:
+        raise ValueError("rinnovo non trovato")
+    perche = perche_no_annulla_rinnovo_rookie(r)
+    if perche:
+        raise ValueError(perche)
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            if _dopo(cur, r["giocatore_id"], tid):
+                raise ValueError("dopo il rinnovo il giocatore ha avuto altri movimenti")
+            cur.execute("DELETE FROM transazioni WHERE id = %s AND tipo = 'renewed'", (tid,))
+            cur.execute("DELETE FROM contratti WHERE id = %s AND attivo", (r["contratto_id"],))
+            cur.execute("UPDATE contratti SET attivo = TRUE WHERE id = %s AND NOT attivo RETURNING id", (r["vecchio"],))
+            if not cur.fetchone():
+                raise ValueError("il contratto di prima è già attivo")

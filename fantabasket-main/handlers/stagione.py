@@ -542,7 +542,27 @@ async def dopo_cambio_fase(bot, fase_vecchia: str, nuova_fase: str) -> str:
         await passo("scadenza degli x0", scadenze)
     elif nuova_fase == "regular-season-fa":
         await passo("report di inizio regular season", report_rs)
+    if fase_vecchia in settings.FASI_TRADE_APERTE and nuova_fase not in settings.FASI_TRADE_APERTE:
+        async def trade_ferme():                  # v7.38.0 (Luca, 27/11): le trade rimaste a metà agli admin
+            testo = testo_trade_ferme()
+            if testo:
+                note.append("\n🔄 Trade rimaste a metà: elenco agli admin")
+                if gruppo:
+                    await bot.send_message(chat_id=gruppo, text=testo, parse_mode="HTML")
+        await passo("trade rimaste a metà", trade_ferme)
     return "".join(note)
+
+
+def testo_trade_ferme() -> str:
+    """Le trade in voto o in attesa degli admin quando le trade si chiudono: non si eseguono più, si possono solo
+    forzare (admin) o rifiutare."""
+    rr = db._q("""SELECT id, stato FROM trade WHERE stato IN ('proposta', 'in_approvazione') ORDER BY id""", many=True) or []
+    if not rr:
+        return ""
+    from handlers.trade_comune import _STATI, _trade_label
+    righe = [f"• {html.escape(_trade_label(db.get_trade(r['id'])))} — {_STATI.get(r['stato'], r['stato'])}" for r in rr]
+    return ("🔄 <b>Trade chiuse: queste sono rimaste a metà</b>\nNon si eseguono più. Quelle in attesa degli admin si possono "
+            "solo <b>forzare</b> (⚠️ dal messaggio di approvazione) o rifiutare; quelle in voto sono ferme.\n\n" + "\n".join(righe))
 
 
 def riassunto_piano(piano: dict, stagione: int) -> str:

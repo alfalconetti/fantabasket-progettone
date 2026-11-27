@@ -2346,3 +2346,15 @@ Rifacimento dello zip della v7.37.0 (le lettere: correzioni allo stesso rilascio
 ## v7.37.0c (2026-11-27)
 
 - `strumenti/verifica_scenari.py`: nel container non c'era il pool del DB (`'NoneType' object has no attribute 'getconn'`). Ora lo apre da sé, in sola lettura (`default_transaction_read_only`) e senza migrare lo schema
+
+## v7.38.0 (2026-11-27)
+
+- **Controllo delle funzioni per fase** (Luca, 14/11 e 15/11; fatto il 27/11): `docs/FUNZIONI_PER_FASE.md`, per ogni azione dei GM e degli admin in quali fasi si fa e dove è controllata, e cosa fa il bot da solo ai cambi di fase; in fondo le decisioni di Luca
+- **↩️ Annulla azioni** nel pannello admin (Luca, 27/11; `docs/AZIONI_ANNULLABILI.md`): si annullano anche un **decadimento** (contratto, spalmature tolte alle altre squadre, RFA revocato; le spalmature tolte ora si salvano in `spalmature_tolte`), un **ritiro di un free agent** (`/ritiro_fa`), una **DPE**, un'**attivazione dei diritti 2nd**, un **cambio ruolo** (l'ultimo del giocatore) e un **rinnovo rookie**; ognuno con la scheda degli effetti, la conferma, il registro, il canale dove l'azione era annunciata, l'avviso al GM e i fogli. Anche dai pannelli di ognuna (🏁, 🏥, 🏀, 🔁)
+- loucabot v160: **reimportare il calendario** (`/importa_calendario`, `/importa_date`) a stagione iniziata non tocca più le giornate che hanno già dei risultati: se nel file nuovo hanno date o partite diverse l'import si rifiuta
+
+## v7.38.1 (2026-11-27)
+
+- **Trade dopo la deadline** (Luca, 27/11): a trade chiuse nessuna trade si esegue (`_esegui_trade` rifiuta) e i voti dei GM si fermano; gli admin la possono solo **forzare**, con l'avviso e il bottone ⚠️ Forza (approvazione nel gruppo admin e «Ufficializza ora»); l'annuncio dice «forzata a trade chiuse». Al cambio di fase che chiude le trade, l'elenco di quelle rimaste a metà agli admin
+- **🏁 Decadimento** nel `/menu` e nel menu `/` in ogni fase (come il comando)
+- Bot aste v86: **`/annulla_firma_asta ID [ore]`**, la firma di un'asta FA si annulla e l'asta si riapre con l'offerta in testa di prima

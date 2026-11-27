@@ -62,6 +62,7 @@ def liste_comandi(fase: str, mercato_fa: bool, offerte: bool) -> dict:
         BotCommand("annulla_asta", "Annulla un'asta"),
         BotCommand("annulla_offerta", "Annulla l'ultima offerta di un'asta"),
         BotCommand("riapri_asta", "Riapri un'asta chiusa o annullata"),
+        BotCommand("annulla_firma_asta", "Annulla la firma di un'asta FA e la riapre: ID [ore]"),
         BotCommand("estendi_asta", "Sposta in avanti la scadenza di N ore"),
         BotCommand("stato_asta", "Tutti i dati di un'asta"),
         BotCommand("ripubblica_asta", "Ripubblica il messaggio di un'asta"),

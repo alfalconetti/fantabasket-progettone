@@ -29,6 +29,7 @@ from handlers.admin_aste import (
     aste, chiudi_asta, force_esito, forza_aggiornamento, ripubblica_asta, stato_asta,
 )
 from handlers.admin_riapri import estendi_asta, riapri_annullata_callback, riapri_asta, sposta_asta
+from handlers.admin_annulla_firma import get_handlers as annulla_firma_handlers
 from handlers.admin_offerte import (
     annulla_off_cap_callback, annulla_offerta, apri_asta, crea_offerta, nuova_rfa,
 )
@@ -398,6 +399,7 @@ def get_handlers():
         CommandHandler("firme",                 cmd_firme),
         CommandHandler("all_aste",              all_aste),
         CommandHandler("riapri_asta",           riapri_asta),
+        *annulla_firma_handlers(),                                   # v7.38.0: /annulla_firma_asta
         CallbackQueryHandler(riapri_annullata_callback, pattern=r"^riapri_annullata:\d+:\d+$"),
         CallbackQueryHandler(riapri_annullata_callback, pattern=r"^riapri_cap:\d+:\d+$"),
         CallbackQueryHandler(annulla_off_cap_callback,  pattern=r"^annulla_off_cap:\d+:\d+$"),

@@ -40,7 +40,7 @@ Poi, come sempre, `/nba_sync` e `/calendario_check`.
 
 **A inizio stagione** (fino al 2026-27, o per correggere a mano):
 
-1. Manda il CSV del calendario come file, con didascalia `/importa_calendario`. Va bene anche rispondere con `/importa_calendario` al messaggio che contiene il file. Un nuovo import sostituisce il calendario di regular season della stagione, senza doppioni.
+1. Manda il CSV del calendario come file, con didascalia `/importa_calendario`. Va bene anche rispondere con `/importa_calendario` al messaggio che contiene il file. Un nuovo import sostituisce il calendario di regular season della stagione, senza doppioni. **Dalla v7.38.0 le giornate che hanno già dei risultati non si toccano**: se nel file nuovo hanno date o partite diverse l'import si rifiuta e dice quali; le altre giornate si possono cambiare. Vale anche per `/importa_date`.
 2. `/nba_sync`: scarica da ESPN tutte le partite NBA della stagione (qualche minuto).
 3. `/calendario_check`: scadenza di ogni giornata e squadre a media, con il confronto tra quelle scritte nel CSV e quelle calcolate dalle partite NBA.
 

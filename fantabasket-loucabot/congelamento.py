@@ -16,8 +16,8 @@ Ogni /congela, /scongela e /correggi_tabellino va nel registro, nel canale log e
 giornata, senza riscaricare; poi /ricalcola N e la convalida (che aggiorna il messaggio dei risultati ufficiali
 e, solo se cambia chi vince, manda l'avviso sul canale).
 
-Playoff (da fare col tabellone): nessun ricontrollo, punteggi congelati quando inizia la giornata dopo; dalla
-generazione del tabellone stop anche ai ricontrolli della regular season.
+Playoff (v7.10.0, playoff.congela_regular_season): al passaggio ai playoff tutte le giornate di regular season si
+congelano (l'ultima dopo il suo controllo finale), quindi niente più ricontrolli che rimescolino la classifica dei seed.
 """
 import html
 import logging

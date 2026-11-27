@@ -724,3 +724,7 @@ Niente cambia per chi usa il bot: codice spostato senza modifiche.
 
 - Se Telegram non risponde all'avvio il bot aspetta invece di andare in crash
 - Ordine dei comandi per i GM: col mercato aperto `/offri` per primo, poi `/nuova_fa`, `/lista_fa`, `/offerta`, la watchlist, poi `/me`, `/team`…
+
+## v86 (2026-11-27, progettone v7.38.1)
+
+- **`/annulla_firma_asta ID [ore]`** (admin; Luca, 27/11): la firma di un'asta FA conclusa si annulla e l'asta torna aperta con l'offerta in testa di prima e una nuova scadenza (18 ore). Anteprima e conferma; via contratto e movimento su PostgreSQL, ruolo della firma tolto, contratto del bot aste tolto; canale principale e delle aste, GM, chi segue l'asta, registro, foglio. Non dopo altri movimenti del giocatore né per le RFA

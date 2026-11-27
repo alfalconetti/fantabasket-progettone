@@ -286,7 +286,7 @@ Visibilità:
 |---|---|
 | guardare | `/list`, `/listteams`, `/team`, `/aste`, `/all_aste`, `/firme`, `/stato_asta` |
 | per conto di una squadra | `/apri_asta`, `/crea_offerta`, `/nuova_rfa` |
-| correggere | `/annulla_offerta`, `/chiudi_asta`, `/annulla_asta`, `/riapri_asta`, `/estendi_asta`, `/sposta_asta` |
+| correggere | `/annulla_offerta`, `/chiudi_asta`, `/annulla_asta`, `/riapri_asta`, `/annulla_firma_asta`, `/estendi_asta`, `/sposta_asta` |
 | recupero | `/force_esito`, `/forza_aggiornamento`, `/ripubblica_asta`, `/firma_per_conto` (v69: callback `pc_firma*`, stessi handler di `firma*` con `_squadra_che_firma` che per conto accetta solo admin; `_registra_firma_finale(per_conto=True)`) |
 | mercato | `/apri_mercato`, `/chiudi_mercato` (emergenza) |
 | aiuto | `/admin`, `/guida_admin` |
@@ -326,6 +326,7 @@ Visibilità:
 | `handlers/admin_squadre.py` | `/list`, `/listteams`, `/team`, `/firme`, `/autocap`, `/autoslot` (questi tre registrati in `user.py`) |
 | `handlers/admin_aste.py` | `/aste`, `/all_aste`, `/stato_asta`, `/chiudi_asta`, `/annulla_asta`, `/ripubblica_asta`, `/forza_aggiornamento`, `/force_esito` |
 | `handlers/admin_riapri.py` | `/riapri_asta`, `/estendi_asta`, `/sposta_asta` |
+| `handlers/admin_annulla_firma.py` | v7.38.0: `/annulla_firma_asta ID [ore]` (`annfa:<id>:<ore>`): `pg_client.firma_asta_pg` / `annulla_firma_asta_pg` (contratto, movimento, ruoli della firma), `database.annulla_firma` (contratto del bot aste, asta APERTA con l'offerta di prima), `_notifica_riapertura`, coda del foglio; solo FA |
 | `handlers/admin_offerte.py` | `/apri_asta`, `/crea_offerta`, `/nuova_rfa`, `/annulla_offerta` |
 | `handlers/rfa.py` | `pubblica_asta_rfa`, `job_rfa` (RFA dichiarati nel bot principale) |
 | `../shared/cap.py` | cap e slot, gli stessi del bot principale |

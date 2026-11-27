@@ -526,6 +526,15 @@ def get_aste_per_stato(stato: str) -> list:
         ).fetchall()
         return [dict(r) for r in rows]
 
+def annulla_firma(asta_id: int, nuova_scadenza: str):
+    """v7.38.0: la firma di un'asta conclusa si annulla e l'asta torna aperta (stessa offerta in testa, nuova scadenza)."""
+    with get_conn() as conn:
+        conn.execute("DELETE FROM contratti WHERE asta_id=?", (asta_id,))
+        conn.execute("""UPDATE aste SET stato='APERTA', scade_at=?, anni_offerti=NULL, notifica_15min=0, anni_contratto=NULL,
+                        firmato_at=NULL, team_firma=NULL, importo_firma=NULL, note_tempo=NULL WHERE id=?""",
+                     (nuova_scadenza, asta_id))
+
+
 def riapri_asta(asta_id: int, nuova_scadenza: str):
     """
     Riporta un'asta da CHIUSA/PAREGGIO ad APERTA con una nuova scadenza.

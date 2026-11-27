@@ -317,8 +317,9 @@ async def admin_lista_team(query) -> None:
         n = len(db.get_diritti_2nd_team(t["id"]))
         if n:
             righe.append([InlineKeyboardButton(f"{t['nome']} ({n})", callback_data=f"attadm:t:{t['id']}")])
+    righe.append([InlineKeyboardButton("↩️ Annulla un'attivazione", callback_data="attann:l")])   # v7.38.0
     righe.append([InlineKeyboardButton("← Menu admin", callback_data="adm:home")])
-    testo = "🏀 <b>Attiva diritti (admin)</b> — scegli la squadra:" if len(righe) > 1 \
+    testo = "🏀 <b>Attiva diritti (admin)</b> — scegli la squadra:" if len(righe) > 2 \
         else "🏀 Nessuna squadra ha diritti 2nd da attivare."
     if settings.fase() not in FASI_TRADE_APERTE:
         testo += "\n<i>⚠️ In questa fase i GM non possono attivarli: stai intervenendo come admin.</i>"

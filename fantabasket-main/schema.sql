@@ -271,6 +271,21 @@ CREATE TABLE rinnovi_normali (
 );
 CREATE UNIQUE INDEX idx_rinnovi_normali ON rinnovi_normali (stagione, team_id, tipo) WHERE annullato IS NULL;
 
+-- v7.38.0: spalmature tolte da un decadimento (ritiro, altra lega) o da /ritiro_fa, per rimetterle annullando
+CREATE TABLE spalmature_tolte (
+    id              SERIAL PRIMARY KEY,
+    gruppo          TEXT NOT NULL,          -- dec:<movimento> o rit:<giocatore>:<epoch>
+    team_id         TEXT NOT NULL,
+    giocatore_id    INT  NOT NULL,
+    stagione_taglio TEXT NOT NULL,
+    stagione        TEXT NOT NULL,
+    importo         INT  NOT NULL,
+    transazione_id  INT,
+    tolta           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    rimessa         TIMESTAMPTZ
+);
+CREATE INDEX idx_spalmature_tolte ON spalmature_tolte (gruppo);
+
 CREATE TABLE messaggi_fissi (            -- messaggi sul canale aggiornati dal bot (riepilogo RFA)
     chiave      TEXT PRIMARY KEY,
     chat_id     BIGINT NOT NULL,

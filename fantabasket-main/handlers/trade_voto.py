@@ -134,6 +134,9 @@ async def cb_voto_gm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not trade or trade["stato"] != "proposta":
         await query.edit_message_text("⚠️ Questa trade non è più in votazione.")
         return
+    if not settings.trade_aperte():                        # v7.38.0
+        await query.edit_message_text("❌ Le trade sono chiuse in questa fase: la votazione è ferma (solo gli admin possono forzarla).")
+        return
     if not any(v["team_id"] == team_id for v in db.get_voti_trade(trade_id) or []):
         await query.edit_message_text("⚠️ La tua squadra non deve votare questa trade.")
         return
@@ -329,6 +332,14 @@ async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(_gia_gestita(trade), parse_mode="HTML")
         return
 
+    forza = esito == "forza"
+    if not forza and not settings.trade_aperte():          # v7.38.0: trade chiuse, l'admin può solo forzare
+        await query.edit_message_text(
+            query.message.text_html + "\n\n⚠️ <b>Le trade sono chiuse</b> (fase: " + settings.fase() + "): dopo la deadline "
+            "nessuna trade si esegue. Si può solo <b>forzare</b>, come eccezione degli admin.", parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⚠️ Forza la trade", callback_data=f"trade_admin:forza:{trade_id}"),
+                                                InlineKeyboardButton("❌ Rifiuta", callback_data=f"trade_admin:no:{trade_id}")]]))
+        return
     # Genera trade_ref (MAX progressivo per evitare collisioni)
     stagione = trade["stagione"]
     n_trade  = db.get_trade_count_approvate(stagione)
@@ -336,7 +347,8 @@ async def cb_admin_trade(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Approvazione + esecuzione atomiche: se fallisce, la trade resta com'era
     try:
-        await _esegui_trade(context, trade_id, trade_ref, approvata_da=admin_nome, user=admin_user, annuncia=True)
+        await _esegui_trade(context, trade_id, trade_ref, approvata_da=admin_nome + (" (forzata a trade chiuse)" if forza else ""),
+                            user=admin_user, annuncia=True, forza=forza)
     except TradeNonEseguibile as e:
         t_ora = db.get_trade(trade_id)
         if (t_ora or {}).get("stato") != "in_approvazione":     # due Approva quasi insieme: l'altro è arrivato prima

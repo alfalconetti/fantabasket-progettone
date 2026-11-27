@@ -91,6 +91,8 @@ Tutte queste azioni avvisano chi è coinvolto (GM in testa, proprietario RFA, ch
 
 **`/annulla_asta 42`** annulla l'asta senza vincitore.
 
+**`/annulla_firma_asta 42`** (v7.38.0): la firma di un'asta FA conclusa si annulla e l'asta torna aperta con l'offerta in testa di prima, scadenza tra 18 ore (`/annulla_firma_asta 42 6` per darne 6). Prima l'anteprima, poi la conferma: via contratto e movimento della firma (il giocatore torna free agent, il ruolo dichiarato con la firma si toglie), messaggio sul canale principale e su quello delle aste, avviso al GM e a chi segue l'asta, foglio aggiornato, riga nel registro. Non si può se dopo la firma il giocatore ha avuto altri movimenti o è stato dichiarato RFA; le aste RFA si correggono a mano.
+
 **`/riapri_asta 42`** riporta ad aperta un'asta chiusa, in pareggio o annullata, con 18 ore di tempo (`/riapri_asta 42 6` per darne 6). Il bot:
 
 - ferma firme e pareggi in sospeso;

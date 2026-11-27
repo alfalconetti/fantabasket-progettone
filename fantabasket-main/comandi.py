@@ -25,7 +25,6 @@ def _fasi_comando() -> dict:
         "import_trade":        FASI_TRADE_APERTE,
         "taglia":              FASI_TRADE_APERTE,
         "attiva_diritti":      FASI_TRADE_APERTE,
-        "decadimento":         FASI_TRADE_APERTE,
         "dpe":                 set(FASI_DPE),
         "dichiarazione_ruoli": {"offseason-ruoli"},
         "cambio_ruolo":        settings.FASI_RUOLI_RS,

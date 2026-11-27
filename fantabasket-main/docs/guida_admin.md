@@ -145,6 +145,18 @@ Il bot rifiuta gli anni sbagliati (da 20M almeno 2 anni, da 35M obbligatori 3) e
 
 **Taglio sbagliato** (v7.20.2): pannello → **✂️ Taglia giocatore** → **↩️ Annulla un taglio** (quelli degli ultimi 90 giorni) → il taglio → conferma. Il contratto torna attivo, le rate della spalmatura spariscono (o, se era gratuito, il taglio gratuito torna disponibile), il taglio sparisce dai movimenti; messaggio sul canale, avviso al GM, foglio aggiornato. Non si può se dopo il giocatore ha avuto altri movimenti (per esempio firmato da un'altra squadra). Il bot ti avvisa se la squadra finisce oltre il tetto o oltre 15 giocatori.
 
+**Trade dopo la deadline** (v7.38.0, Luca 27/11): quando le trade sono chiuse (deadline, playoff, break) nessuna trade si esegue e i voti dei GM si fermano. Gli admin la possono solo **forzare**: «✅ Approva» nel gruppo o «Ufficializza ora» dal pannello mostrano l'avviso e il bottone **⚠️ Forza la trade**; l'annuncio dice «forzata a trade chiuse». Al cambio di fase che chiude le trade arriva agli admin l'elenco di quelle rimaste a metà.
+
+**↩️ Annulla azioni** (v7.38.0): nel pannello una voce sola con tutto quello che si può annullare. Ogni annullamento mostra prima cosa succede, chiede conferma, lascia la riga nel registro (prima → dopo) e aggiorna i fogli; dove l'azione era stata annunciata esce anche un messaggio sul canale, e il GM riceve un avviso. Non si può annullare se dopo il giocatore ha avuto altri movimenti (trade, firma, taglio…): il bot dice perché.
+- **🏁 Decadimento**: il contratto torna attivo, tornano le spalmature tolte (anche quelle delle altre squadre, per ritiro o altra lega), torna dichiarato l'RFA revocato dal decadimento (se la squadra non ne ha dichiarato un altro); la Cam Thomas exception non vale più. I decadimenti di prima della v7.38.0 che avevano tolto spalmature agli altri non si annullano (quelle righe non erano salvate). Anche da 🏁 Decadimento → ↩️.
+- **👋 Ritiro di un free agent** (`/ritiro_fa`): tornano le spalmature tolte.
+- **🏥 DPE**: torna l'importo pieno e, se era prima della deadline, il giocatore torna a occupare lo slot (il bot avvisa se ora la squadra sfora); una DPE dopo la deadline non si annulla se il suo cambio ruolo extra è già stato usato (prima si annulla quel cambio). Anche da 🏥 DPE → ↩️.
+- **🏀 Attivazione dei diritti 2nd**: via il contratto, la squadra ha di nuovo i diritti. Anche da 🏀 Attiva diritti → ↩️.
+- **🔁 Cambio ruolo**: il giocatore torna al ruolo di prima e il cambio torna disponibile; solo l'ultimo cambio del giocatore (per uno più vecchio si annullano prima quelli dopo), e una Saedro già finita no. Anche da 🔁 Cambi ruolo → ↩️.
+- **🔁 Rinnovo rookie** (III-IV): torna il contratto rookie di prima, finito, di nuovo da rinnovare o da dichiarare RFA; solo nella stagione.
+- **✂️ Taglio**, **✍️ Firma registrata** e **📝 Rinnovo** (¼ e ½, entro 24 ore) come prima.
+Restano fuori: le trade (`/annulla_trade_admin`), le penalità (⚠️ Penalità → revoca), i 10-day (⏱ 10-day) e le firme da asta (nel bot aste, col comando annulla_firma_asta, che riapre l'asta). Un ruolo assegnato o estratto dal bot si corregge con un cambio **forzato** (🔁 Cambi ruolo).
+
 **Rookie:** pannello → **🏀 Attiva diritti** → squadra → giocatore. Il contratto è quello della rookie scale, in qualsiasi fase.
 
 I diritti delle seconde al secondo anno scadono 10 giorni prima della trade deadline, che si imposta ogni stagione con `/trade_deadline 05/02/2027` (senza data ti mostra quella attuale e quando scadono i diritti). La data deve cadere nella stagione in corso:

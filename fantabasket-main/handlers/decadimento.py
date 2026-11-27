@@ -323,6 +323,8 @@ async def admin_lista_team(query) -> None:
     bottoni = [InlineKeyboardButton(t["nome"], callback_data=f"decadm:t:{t['id']}") for t in tutti]
     righe = [bottoni[i:i + 2] for i in range(0, len(bottoni), 2)]
     righe.append([InlineKeyboardButton("✏️ Correggi la causa di un decadimento", callback_data="decor:l")])
+    righe.append([InlineKeyboardButton("↩️ Annulla un decadimento", callback_data="decann:l"),        # v7.38.0
+                  InlineKeyboardButton("↩️ Annulla un ritiro FA", callback_data="ritann:l")])
     righe.append([InlineKeyboardButton("← Menu admin", callback_data="adm:home")])
     await query.edit_message_text("🏁 <b>Decadimento (admin)</b> — scegli la squadra:",
                                   parse_mode="HTML", reply_markup=InlineKeyboardMarkup(righe))

@@ -94,6 +94,6 @@ for bot, extra in [("fantabasket-main", set()), ("fantabasket-aste-beta", set())
 # v5.9.1: l'ultima voce di ogni changelog è la più recente (è la versione installata per i bot e deploy.sh)
 import re as _re
 for bot in ("fantabasket-main", "fantabasket-aste-beta", "fantabasket-loucabot", "fantabasket-ipanchinari"):
-    voci = _re.findall(r"^## v(\d+(?:\.\d+)*)", leggi(bot, "CHANGELOG.md"), _re.M)
-    num = [tuple(int(x) for x in v.split(".")) for v in voci]
+    voci = _re.findall(r"^## v(\d+(?:\.\d+)*[a-z]?)", leggi(bot, "CHANGELOG.md"), _re.M)   # v7.37.0a: la lettera dei rifacimenti
+    num = [(tuple(int(x) for x in v.rstrip("abcdefghijklmnopqrstuvwxyz").split(".")), v[-1] if v[-1].isalpha() else "") for v in voci]
     ok(num[-1] == max(num), f"{bot}: l'ultima voce del CHANGELOG è la più recente (v{voci[-1]}, la più alta v{voci[num.index(max(num))]})")

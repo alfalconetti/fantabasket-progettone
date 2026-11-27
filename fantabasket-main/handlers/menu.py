@@ -29,13 +29,15 @@ def _fasi_dpe() -> set:
 # non possono divergere. Per aggiungere un'azione di fase (rinnovi, RFA, cambi
 # ruolo...) basta una riga qui + il suo callback.
 #   (etichetta, callback_data, funzione che restituisce le fasi)
+_SEMPRE = type("Sempre", (), {"__contains__": lambda self, x: True})()
+
 AZIONI_FASE = [
     ("🎽 Dichiara ruoli", "rl:home",      lambda: {"offseason-ruoli"}),
     ("🔄 Trade",          "menu:trade",   lambda: FASI_TRADE_APERTE),
     ("✂️ Tagli",          "menu:tagli",   lambda: FASI_TRADE_APERTE),
     ("🏀 Rookie",         "menu:rookie",  lambda: FASI_TRADE_APERTE),
     ("🏥 DPE",            "menu:dpe",     _fasi_dpe),
-    ("🏁 Decadimento",    "dec_start",    lambda: FASI_TRADE_APERTE),
+    ("🏁 Decadimento",    "dec_start",    lambda: _SEMPRE),         # v7.38.0 (Luca, 27/11): un ritiro capita in ogni fase
     ("🔁 Cambio ruolo",   "cr:home",      lambda: settings.FASI_RUOLI_RS),
     ("⏱ 10-day",          "td:home",      lambda: {"regular-season-fa"}),
     ("📝 Rinnovi",        "rn:l",         lambda: {"offseason-rinnovi"}),

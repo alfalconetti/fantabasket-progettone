@@ -10,7 +10,9 @@ AMMESSE = {
         "crea_storico_pick_diritti", "_verifica_storico_asset", "controlli_coerenza",
         "get_tagli_gratuiti_usati", "get_pick_at", "get_diritti_at", "movimento_asset_periodo",
         "movimenti_carriera", "storia_pick",
-        "annulla_taglio", "annulla_firma", "annulla_rinnovo", "pick_al"},   # v7.20.2: DELETE del movimento sbagliato, non letture
+        "annulla_taglio", "annulla_firma", "annulla_rinnovo", "pick_al",   # v7.20.2: DELETE del movimento sbagliato, non letture
+        "annulla_decadimento", "annulla_attivazione", "annulla_rinnovo_rookie"},   # v7.38.0: idem
+    "fantabasket-aste-beta/pg_client.py": {"annulla_firma_asta_pg"},             # v7.38.1: DELETE del movimento
 }
 RE = re.compile(r"\b(FROM|JOIN)\s+transazioni\b", re.IGNORECASE)
 trovate = []

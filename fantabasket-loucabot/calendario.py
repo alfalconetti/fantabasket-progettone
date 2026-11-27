@@ -100,6 +100,34 @@ def controlla(giornate: list[dict], partite: list[tuple[int, str, str]], squadre
     return errori
 
 
+def giocate_cambiate(stagione: str, giornate: list[dict], partite: list[tuple]) -> list[str]:
+    """v7.38.0 (controllo delle funzioni per fase): reimportare il calendario a stagione iniziata cancellava e
+    riscriveva anche le giornate già giocate. Quelle con dei risultati devono restare identiche (date e partite);
+    le altre si possono cambiare."""
+    con_risultati = {r["giornata"] for r in db.q("SELECT DISTINCT giornata FROM lega_risultati WHERE stagione = %s",
+                                                 (stagione,), many=True) or []}
+    if not con_risultati:
+        return []
+    vecchie = {g["numero"]: g for g in db.giornate(stagione) if g.get("tipo", "regular") == "regular"}
+    vecchie_p = {}
+    for r in db.q("SELECT giornata, casa, trasferta FROM lega_partite WHERE stagione = %s", (stagione,), many=True) or []:
+        vecchie_p.setdefault(r["giornata"], set()).add((r["casa"], r["trasferta"]))
+    nuove = {g["numero"]: g for g in giornate}
+    nuove_p = {}
+    for g, c, t in partite:
+        nuove_p.setdefault(g, set()).add((c, t))
+    out = []
+    for n in sorted(con_risultati & set(vecchie)):
+        v, x = vecchie[n], nuove.get(n)
+        if not x:
+            out.append(f"• G{n}: manca nel file nuovo")
+        elif (v["dal"], v["al"]) != (x["dal"], x["al"]):
+            out.append(f"• G{n}: date {v['dal']:%d/%m}–{v['al']:%d/%m} → {x['dal']:%d/%m}–{x['al']:%d/%m}")
+        elif vecchie_p.get(n, set()) != nuove_p.get(n, set()):
+            out.append(f"• G{n}: partite diverse")
+    return out
+
+
 def importa(testo: str, stagione: str | None = None) -> dict:
     """Legge, controlla e salva il calendario. Solleva ErroreCalendario con l'elenco dei problemi."""
     stagione = stagione or config.stagione()
@@ -113,6 +141,10 @@ def importa(testo: str, stagione: str | None = None) -> dict:
     errori = controlla(giornate, partite, {t["id"] for t in config.squadre()})
     if errori:
         raise ErroreCalendario("\n".join(errori))
+    giocate = giocate_cambiate(stagione, giornate, partite)
+    if giocate:
+        raise ErroreCalendario("le giornate già giocate non si toccano (hanno i risultati):\n" + "\n".join(giocate)
+                               + "\nSi possono cambiare solo le giornate senza risultati.")
     db.sostituisci_calendario(stagione, giornate, partite)
     db.salva_csv_calendario(stagione, testo)
     return {"stagione": stagione, "giornate": len(giornate), "partite": len(partite), "dubbi": dubbi,

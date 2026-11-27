@@ -864,3 +864,50 @@ def accoda_sync_gas(motivo: str = "") -> None:
         logger.warning("accoda_sync_gas: %s", e)
     finally:
         _putconn(conn)
+
+
+# ── v7.38.0: annullare una firma da asta FA (handlers/admin_annulla_firma.py) ────────────────────────────
+
+def firma_asta_pg(giocatore_id: int, team_id: str) -> dict | None:
+    """L'ultima firma FA del bot aste del giocatore con la squadra, col contratto e se si può annullare."""
+    r = q("""SELECT t.id, t.timestamp, t.contratto_id, c.attivo, c.team_id AS team_contratto, c.importo, c.anni_originali
+             FROM movimenti_giocatori t LEFT JOIN contratti c ON c.id = t.contratto_id
+             WHERE t.tipo = 'signed' AND t.giocatore_id = %s AND t.team_id_a = %s AND t.note LIKE 'Firma FA bot aste%%'
+             ORDER BY t.id DESC LIMIT 1""", (giocatore_id, team_id), one=True)
+    if not r:
+        return None
+    dopo = q("""SELECT 1 FROM movimenti_giocatori m WHERE m.giocatore_id = %s AND m.id <> %s
+                AND (m.timestamp > %s OR (m.timestamp = %s AND m.id > %s)) LIMIT 1""",
+             (giocatore_id, r["id"], r["timestamp"], r["timestamp"], r["id"]), one=True)
+    rfa = q("SELECT 1 FROM rfa_dichiarati WHERE contratto_id = %s", (r["contratto_id"],), one=True)
+    r["perche_no"] = ("il contratto non è più attivo con quella squadra" if not r["attivo"] or r["team_contratto"] != team_id
+                      else "dopo la firma il giocatore ha avuto altri movimenti" if dopo
+                      else "il giocatore è stato dichiarato RFA" if rfa else None)
+    return r
+
+
+def annulla_firma_asta_pg(giocatore_id: int, team_id: str) -> dict:
+    """Via contratto e movimento della firma, le dichiarazioni di ruolo della firma chiuse e il ruolo dichiarato
+    dopo tolto (come l'annullamento di una firma registrata nel bot principale). Una transazione sola."""
+    f = firma_asta_pg(giocatore_id, team_id)
+    if not f:
+        raise ValueError("firma non trovata nel database")
+    if f["perche_no"]:
+        raise ValueError(f["perche_no"])
+    conn = _conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM transazioni WHERE id = %s AND tipo = 'signed'", (f["id"],))
+            cur.execute("UPDATE ruoli_pendenti SET stato = 'annullata', chiuso = NOW() WHERE giocatore_id = %s AND team_id = %s "
+                        "AND origine = 'firma' AND creato >= %s - INTERVAL '1 minute' AND stato IN ('aperta', 'dichiarata', 'assegnata', 'estratta')",
+                        (giocatore_id, team_id, f["timestamp"]))
+            cur.execute("DELETE FROM cambi_ruolo WHERE giocatore_id = %s AND team_id = %s AND timestamp >= %s - INTERVAL '1 minute'",
+                        (giocatore_id, team_id, f["timestamp"]))
+            cur.execute("DELETE FROM contratti WHERE id = %s AND attivo", (f["contratto_id"],))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        _putconn(conn)
+    return f

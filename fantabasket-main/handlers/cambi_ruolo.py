@@ -476,6 +476,7 @@ async def cb_admin_teams(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     kb = [[InlineKeyboardButton(f"{t['nome']} ({ordinari_usati(t['id'])}/{regole.max_cambi_ordinari()})",
                                 callback_data=f"ca:t:{t['id']}")] for t in tm.get_all_teams()]
+    kb.append([InlineKeyboardButton("↩️ Annulla un cambio ruolo", callback_data="crann:l")])   # v7.38.0
     kb.append([InlineKeyboardButton("← Menu admin", callback_data="adm:home")])
     await query.edit_message_text("🔁 <b>Cambi ruolo</b> — scegli la squadra\n<i>Tra parentesi i cambi ordinari usati.</i>",
                                   parse_mode="HTML", reply_markup=InlineKeyboardMarkup(kb))

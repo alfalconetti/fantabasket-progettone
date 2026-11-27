@@ -66,6 +66,7 @@ def _kb_admin_home() -> InlineKeyboardMarkup:
         ("⚙️ Impostazioni",     "set:home",    True),
         ("🩺 Controllo dati",   "rdati:md",    True),
         ("📜 Registro",         "reg:7",       True),
+        ("↩️ Annulla azioni",   "ann:home",    True),    # v7.38.0: tagli, firme, decadimenti, DPE, diritti, cambi ruolo…
     ]
     bottoni = [InlineKeyboardButton(l, callback_data=cb) for l, cb, ok in voci if ok]
     from handlers import nav
@@ -214,6 +215,7 @@ async def cb_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             for t in tutti
         ]
         righe = [bottoni[i:i+2] for i in range(0, len(bottoni), 2)]
+        righe.append([InlineKeyboardButton("↩️ Annulla una DPE", callback_data="dpeann:l")])   # v7.38.0
         righe.append([InlineKeyboardButton("← Menu", callback_data="adm:home")])
         await query.edit_message_text(
             "🏥 <b>DPE admin</b> — seleziona squadra:",
@@ -535,6 +537,15 @@ async def cb_ufficializza(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     trade_id = int(query.data.split(":")[1])
+    forza = query.data.endswith(":forza")
+    if not forza and not settings.trade_aperte():          # v7.38.0 (Luca, 27/11): solo forzata, con l'avviso
+        await query.edit_message_text(
+            "⚠️ <b>Le trade sono chiuse</b> (fase: " + settings.fase() + "): dopo la deadline nessuna trade si esegue.\n"
+            "Come admin la puoi <b>forzare</b>: resta nel registro e sul canale come forzata.", parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⚠️ Forza la trade", callback_data=f"adm_uff:{trade_id}:forza")],
+                                               [InlineKeyboardButton("✏️ Modifica", callback_data=f"edit_back:{trade_id}"),
+                                                InlineKeyboardButton("🗑️ Elimina", callback_data=f"trade_del:{trade_id}")]]))
+        return
     # Delega al callback admin già esistente in trade.py
     from handlers.trade_esegui import _esegui_trade, TradeNonEseguibile
     from handlers.trade_comune import _formatta_annuncio_canale, _label_bozza
@@ -548,7 +559,8 @@ async def cb_ufficializza(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     admin_nome = update.effective_user.first_name or str(update.effective_user.id)
     try:
-        await _esegui_trade(context, trade_id, trade_ref, approvata_da=admin_nome, user=update.effective_user, annuncia=True)
+        await _esegui_trade(context, trade_id, trade_ref, approvata_da=admin_nome + (" (forzata a trade chiuse)" if forza else ""),
+                            user=update.effective_user, annuncia=True, forza=forza)
     except TradeNonEseguibile as e:
         await query.edit_message_text(
             f"❌ <b>Trade non ufficializzata</b>: {e}.\nNessuna modifica è stata salvata.",
@@ -1392,7 +1404,7 @@ def get_handlers() -> list:
         CallbackQueryHandler(cb_registra_firma_sel, pattern=r"^rfirma:\d+:.+:\d+:\d+$"),
         CommandHandler("admin_menu", cmd_admin_menu),
         CommandHandler("set_fase",   cmd_set_fase),
-        CallbackQueryHandler(cb_ufficializza,        pattern=r"^adm_uff:\d+$"),
+        CallbackQueryHandler(cb_ufficializza,        pattern=r"^adm_uff:\d+(?::forza)?$"),
         CallbackQueryHandler(cb_adm_taglia_team,     pattern=r"^adm_taglia_team:.+$"),
         CallbackQueryHandler(cb_adm_taglia_conferma, pattern=r"^adm_taglia_ok:\d+:.+$"),
         CallbackQueryHandler(cb_adm_taglia_esegui,   pattern=r"^adm_taglia_si:\d+:.+$"),
