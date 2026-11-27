@@ -2338,3 +2338,7 @@ Rifacimento dello zip della v7.37.0 (le lettere: correzioni allo stesso rilascio
 - **Bref alla vigilia**: se la prima partita della giornata è prima delle 21, un'ora prima della partita invece che alle 20 (Luca, 27/11). Lo mette in coda `job_pianifica_vigilia`, mezz'ora dopo il giro delle 12 e all'avvio
 - **Scenari** (loucabot v159): nelle simulazioni le ultime 5 partite pesano il triplo e dalla 6ª alla 10ª il doppio; la forza di ogni squadra parte dalla media col suo errore e si muove di giornata in giornata (`DERIVA`, 1 punto), così quando manca tanto le probabilità sono meno estreme (Luca, 27/11)
 - `deploy.sh` legge le versioni con la lettera (`7.37.0a`): «già installata» e «più vecchia» le confrontano giuste
+
+## v7.37.0b (2026-11-27)
+
+- **`strumenti/verifica_scenari.py`** (Luca, 27/11: «ha senso usare una normale?»): sola lettura, nel container di loucabot. Forma dei punteggi della lega contro la normale (asimmetria, code, quantili), prova all'indietro delle giornate già giocate con 4 modelli (50/50, normale semplice, normale pesata = il motore, residui veri della lega) con Brier e log loss, calibrazione del motore
