@@ -11,7 +11,9 @@ Due cose diverse, tenute separate anche nelle immagini:
 - **Probabilità**: SIMULAZIONI giri Monte Carlo delle partite rimaste. In ogni giro ogni squadra fa un punteggio
   estratto da una normale con la media e la deviazione dei suoi punteggi della stagione, pesate (v7.37.0, Luca 27/11:
   le ultime 5 partite contano 3, dalla 6ª alla 10ª dall'ultima 2, le altre 1; senza bonus casa, che si riaggiunge a
-  chi gioca in casa); sotto lo scarto minimo vince una delle due a caso (i supplementari). Poi la
+  chi gioca in casa). Con più variabilità quando manca tanto (Luca, 27/11): in ogni giro la media della squadra è
+  estratta attorno a quella stimata (col suo errore standard) e poi si muove a ogni giornata di DERIVA punti (passeggiata
+  casuale: dopo 25 giornate ±5 punti, dopo 5 ±2,2); sotto lo scarto minimo vince una delle due a caso (i supplementari). Poi la
   classifica con gli spareggi veri (classifica.ordina: vittorie, Quasi Cup, avulsa, media, differenza), seed per
   conference (6, le prime 2 col bye) e posto in lottery (le 12 fuori, dall'ultima). Il seme dipende da stagione e
   giornate convalidate: /scenari e il canale danno gli stessi numeri.
@@ -68,6 +70,7 @@ def situazione(s: str | None = None) -> dict:
             "scarto": float(regole.scarto_minimo())}
 
 
+DERIVA = 1.0                                  # punti di media che una squadra può guadagnare o perdere a ogni giornata
 PESI_RECENTI = ((5, 3.0), (10, 2.0))           # le ultime 5 partite pesano 3, dalla 6ª alla 10ª dall'ultima 2, le altre 1
 
 
@@ -79,16 +82,18 @@ def peso(dalla_fine: int) -> float:
     return 1.0
 
 
-def _media_dev(v: list[float]) -> tuple[float, float]:
-    """Media e deviazione pesate; v in ordine di giornata."""
+def _media_dev(v: list[float]) -> tuple[float, float, float]:
+    """Media, deviazione e partite «efficaci» (Kish: (Σw)²/Σw²) pesate; v in ordine di giornata."""
     w = [peso(len(v) - 1 - i) for i in range(len(v))]
     tot = sum(w)
     mu = sum(x * p for x, p in zip(v, w)) / tot
-    return mu, math.sqrt(sum(p * (x - mu) ** 2 for x, p in zip(v, w)) / tot)
+    return mu, math.sqrt(sum(p * (x - mu) ** 2 for x, p in zip(v, w)) / tot), tot * tot / sum(p * p for p in w)
 
 
-def parametri(st: dict, bonus: float) -> dict[str, tuple[float, float]]:
-    """(media, deviazione) pesate dei punteggi di ogni squadra senza bonus casa: le ultime giornate contano di più."""
+def parametri(st: dict, bonus: float) -> dict[str, tuple[float, float, float]]:
+    """(media, deviazione, incertezza della media) pesate dei punteggi di ogni squadra senza bonus casa: le ultime
+    giornate contano di più. L'incertezza è l'errore standard della media pesata (deviazione / √partite efficaci):
+    la media vera di una squadra non la sappiamo, la stimiamo."""
     grezzi = {t: [x["fatti"] - (bonus if x["casa"] else 0) for x in sorted(s["partite"], key=lambda x: x["giornata"])]
               for t, s in st.items()}
     tutti = [p for v in grezzi.values() for p in v]
@@ -97,10 +102,11 @@ def parametri(st: dict, bonus: float) -> dict[str, tuple[float, float]]:
     out = {}
     for t, v in grezzi.items():
         if len(v) >= 5:
-            mu, sd = _media_dev(v)
+            mu, sd, n_eff = _media_dev(v)
         else:
-            mu, sd = (statistics.mean(v) if v else media_lega), dev_lega
-        out[t] = (mu, sd or dev_lega)
+            mu, sd, n_eff = (statistics.mean(v) if v else media_lega), dev_lega, max(len(v), 1)
+        sd = sd or dev_lega
+        out[t] = (mu, sd, sd / math.sqrt(n_eff))
     return out
 
 
@@ -232,13 +238,20 @@ def simula(sit: dict, n: int = SIMULAZIONI, seme: str | None = None) -> dict:
     chiave = {(c, tr): [[0, {t: 0 for t in squadre}, {t: 0.0 for t in squadre}] for _ in range(2)] for c, tr in partite_pross}
     base_st = sit["st"]
     nomi = {t: config.nome(t) for t in squadre}
+    rimaste = sorted(sit["rimaste"])
     for _ in range(n):
         nuove = {t: list(base_st[t]["partite"]) for t in squadre}
         esiti = {}
-        for g, c, tr in sit["rimaste"]:
-            mc, sc = par[c]
-            mt, stt = par[tr]
-            pc, pt = rng.gauss(mc, sc) + bonus, rng.gauss(mt, stt)
+        # la forza di ogni squadra in questo giro: la media stimata più il suo errore, poi a ogni giornata si muove
+        # (DERIVA: trade, infortuni, forma); più giornate mancano, più le squadre possono cambiare
+        forza = {t: rng.gauss(par[t][0], par[t][2]) for t in squadre}
+        g_prima = None
+        for g, c, tr in rimaste:
+            if g != g_prima:
+                g_prima = g
+                for t in squadre:
+                    forza[t] += rng.gauss(0, DERIVA)
+            pc, pt = rng.gauss(forza[c], par[c][1]) + bonus, rng.gauss(forza[tr], par[tr][1])
             vince_casa = pc > pt if abs(pc - pt) >= scarto else rng.random() < 0.5
             nuove[c].append({"giornata": g, "avv": tr, "fatti": pc, "subiti": pt, "vinta": vince_casa, "supp": False, "casa": True})
             nuove[tr].append({"giornata": g, "avv": c, "fatti": pt, "subiti": pc, "vinta": not vince_casa, "supp": False, "casa": False})

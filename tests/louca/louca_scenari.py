@@ -38,9 +38,9 @@ ok("fuori se le perde tutte" in c2["O8"]["serve"], f"senza la campione a 13: fuo
 # medie pesate: le ultime 5 contano il triplo, dalla 6ª alla 10ª il doppio
 ok([SC.peso(i) for i in (0, 4, 5, 9, 10, 30)] == [3, 3, 2, 2, 1, 1], "pesi: ultime 5 ×3, 6ª-10ª ×2, le altre ×1")
 _p = lambda punti: {"x": {"partite": [{"giornata": g, "fatti": f, "casa": False} for g, f in enumerate(punti, 1)]}}
-mu, _ = SC.parametri(_p([90] * 10 + [110] * 5), 3)["x"]
+mu, _, _ = SC.parametri(_p([90] * 10 + [110] * 5), 3)["x"]
 ok(abs(mu - (90 * 5 + 90 * 2 * 5 + 110 * 3 * 5) / 30) < 1e-9, f"10 partite da 90 e le ultime 5 da 110: media pesata {mu:.2f} (semplice 96,67)")
-mu_casa, _ = SC.parametri({"x": {"partite": [{"giornata": g, "fatti": 103, "casa": True} for g in range(1, 8)]}}, 3)["x"]
+mu_casa, _, _ = SC.parametri({"x": {"partite": [{"giornata": g, "fatti": 103, "casa": True} for g in range(1, 8)]}}, 3)["x"]
 ok(mu_casa == 100, "il bonus casa tolto prima della media")
 # ── dal DB ──
 CFG = _os.path.dirname(config.TEAMS_PATH)
@@ -83,6 +83,14 @@ try:
                 or (cert[t]["stato"] == "fuori" and sim["po"][t] > 0) or (cert[t]["stato"] == "bye" and sim["bye"][t] < 2000)]
     ok(not smentite, f"nessuna certezza smentita dalle simulazioni {smentite}")
     ok(SC.simula(sit, 300)["po"] == SC.simula(sit, 300)["po"], "stesso seme (stagione e giornata): stessi numeri")
+    _d = SC.DERIVA
+    SC.DERIVA = 0.0
+    fermo = SC.simula(sit, 2000)
+    SC.DERIVA = 4.0
+    mosso = SC.simula(sit, 2000)
+    SC.DERIVA = _d
+    estremi = lambda x: sum(1 for t in T if x["po"][t] in (0, 2000))
+    ok(estremi(mosso) <= estremi(fermo), f"con la forza che si muove meno squadre sempre dentro o sempre fuori ({estremi(mosso)} contro {estremi(fermo)})")
     ok(sim["prossima"] == 8 and len(sim["chiave"]) == 12, "partite chiave: le 12 della G8")
     imm, d = SC.calcola(S, 500)
     ok([n for n, _ in imm][:2] == ["Ovest", "Est"] and all(p[:4] == b"\x89PNG" for _, p in imm), f"immagini: le conference, poi la lottery {[n for n, _ in imm]}")

@@ -2328,5 +2328,13 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 
 ## v7.37.0 (2026-11-26)
 
-- loucabot v159: **`/scenari`**, gli scenari di fine regular season (mockup approvato da Luca il 26/11): per conference stato, seed possibili, playoff e bye in %, cosa serve, partite chiave; la corsa alla lottery con 1ª scelta e top 4 dalle odds del regolamento. Frasi certe, percentuali da 20.000 simulazioni con le medie (ultime 5 partite ×3, dalla 6ª alla 10ª ×2). Sul canale principale alla convalida di ognuna delle ultime 5 giornate. `classifica.ordina` accetta i nomi già letti (le simulazioni non rileggono teams.json)
-- **Bref alla vigilia** (Luca, 27/11): scatta la sera in cui la giornata con squadre a media inizia stanotte (giorno NBA di inizio = oggi), alle 20 o un'ora prima della prima partita se è prima delle 21, non più la sera prima della data di Roma della prima partita: con le partite del pomeriggio ET scattava con ancora da giocare l'ultima notte della giornata prima
+- loucabot v159: **`/scenari`**, gli scenari di fine regular season (mockup approvato da Luca il 26/11): per conference stato, seed possibili, playoff e bye in %, cosa serve, partite chiave; la corsa alla lottery con 1ª scelta e top 4 dalle odds del regolamento. Frasi certe, percentuali da 20.000 simulazioni con le medie. Sul canale principale alla convalida di ognuna delle ultime 5 giornate. `classifica.ordina` accetta i nomi già letti (le simulazioni non rileggono teams.json)
+- **Bref alla vigilia** (Luca, 27/11): scatta la sera in cui la giornata con squadre a media inizia stanotte (giorno NBA di inizio = oggi), alle 20, non più la sera prima della data di Roma della prima partita: con le partite del pomeriggio ET scattava con ancora da giocare l'ultima notte della giornata prima
+
+## v7.37.0a (2026-11-27)
+
+Rifacimento dello zip della v7.37.0 (le lettere: correzioni allo stesso rilascio prima di passare alla versione dopo).
+
+- **Bref alla vigilia**: se la prima partita della giornata è prima delle 21, un'ora prima della partita invece che alle 20 (Luca, 27/11). Lo mette in coda `job_pianifica_vigilia`, mezz'ora dopo il giro delle 12 e all'avvio
+- **Scenari** (loucabot v159): nelle simulazioni le ultime 5 partite pesano il triplo e dalla 6ª alla 10ª il doppio; la forza di ogni squadra parte dalla media col suo errore e si muove di giornata in giornata (`DERIVA`, 1 punto), così quando manca tanto le probabilità sono meno estreme (Luca, 27/11)
+- `deploy.sh` legge le versioni con la lettera (`7.37.0a`): «già installata» e «più vecchia» le confrontano giuste

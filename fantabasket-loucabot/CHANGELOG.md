@@ -764,4 +764,4 @@ Il calcolo dei fantapunti.
 
 ## v159 (2026-11-26, progettone v7.37.0)
 
-- **`/scenari`** (Luca, 26/11): gli scenari di fine regular season in tre immagini, una per conference (stato, seed possibili, playoff e bye in %, cosa serve, partite chiave) e la corsa alla lottery (posti 1–6, 1ª scelta e top 4 con le odds del regolamento). Le frasi sono certe, le percentuali vengono da 20.000 simulazioni con le medie, in cui le ultime 5 partite pesano il triplo e dalla 6ª alla 10ª il doppio. Sul canale principale dopo ogni convalida delle ultime 5 giornate
+- **`/scenari`** (Luca, 26/11): gli scenari di fine regular season in tre immagini, una per conference (stato, seed possibili, playoff e bye in %, cosa serve, partite chiave) e la corsa alla lottery (posti 1–6, 1ª scelta e top 4 con le odds del regolamento). Le frasi sono certe, le percentuali vengono da 20.000 simulazioni con le medie, in cui le ultime 5 partite pesano il triplo e dalla 6ª alla 10ª il doppio, e la forza di ogni squadra che si muove di giornata in giornata (più variabilità quando manca tanto). Sul canale principale dopo ogni convalida delle ultime 5 giornate

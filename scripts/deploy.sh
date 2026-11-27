@@ -66,7 +66,7 @@ print("\n".join(map(str, v)) if isinstance(v, list) else ("" if v is None else s
         exit 1
     fi
     local ATTUALE
-    ATTUALE="$(grep -oE '^## v[0-9]+\.[0-9]+\.[0-9]+' "$R/fantabasket-main/CHANGELOG.md" | tail -1 | sed 's/^## v//')" || true
+    ATTUALE="$(grep -oE '^## v[0-9]+\.[0-9]+\.[0-9]+[a-z]?' "$R/fantabasket-main/CHANGELOG.md" | tail -1 | sed 's/^## v//')" || true
     local AVVISO=""
     if [ -n "$ATTUALE" ]; then
         if [ "$VER" = "$ATTUALE" ]; then
