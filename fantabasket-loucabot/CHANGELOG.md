@@ -761,3 +761,7 @@ Il calcolo dei fantapunti.
 
 - **`/archivia_calcolo`** (admin): a fine stagione, dopo la finale, i tab «Calcolo GN/PN» del foglio di controllo copiati in un file nuovo («Calcolo 2026-27 · archivio») e tolti; una volta per stagione. Finché la stagione vecchia non è archiviata, i tab della nuova non si scrivono (lo dice la proposta del calcolo)
 - `/pick` e `/pick_lega` con la data (dal bot principale)
+
+## v159 (2026-11-26, progettone v7.37.0)
+
+- **`/scenari`** (Luca, 26/11): gli scenari di fine regular season in tre immagini, una per conference (stato, seed possibili, playoff e bye in %, cosa serve, partite chiave) e la corsa alla lottery (posti 1–6, 1ª scelta e top 4 con le odds del regolamento). Le frasi sono certe, le percentuali vengono da 20.000 simulazioni con le medie, in cui le ultime 5 partite pesano il triplo e dalla 6ª alla 10ª il doppio. Sul canale principale dopo ogni convalida delle ultime 5 giornate

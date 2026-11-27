@@ -158,39 +158,72 @@ def _testo_nuovi() -> tuple[str, InlineKeyboardMarkup | None]:
     return "\n".join(righe), InlineKeyboardMarkup(tasti)
 
 
-def giornate_vigilia(stagione: str, oggi) -> list[dict]:
-    """Le giornate con squadre NBA a media la cui prima partita è domani (ora di Roma): stasera si riscarica bref,
-    perché chi prende la media prende la fantamedia di Basketball-Reference (loucabot db.medie_assenti, v7.6.0)."""
-    from datetime import timedelta
+def giornate_vigilia(stagione: str, oggi, adesso=None) -> list[dict]:
+    """Le giornate con squadre NBA a media che iniziano stanotte: stasera si riscarica bref, perché chi prende la media
+    prende la fantamedia di Basketball-Reference (loucabot db.medie_assenti, v7.6.0).
+    v7.37.0 (Luca, 27/11): «stanotte» è il giorno NBA (ET) di inizio della giornata, `dal`, uguale a oggi. Prima si
+    guardava la prima partita «domani, ora di Roma»: una giornata che inizia il giorno ET dopo faceva scattare il
+    controllo la sera prima, con ancora da giocare stanotte le ultime partite della giornata precedente. Con `adesso`
+    solo quelle la cui prima partita non è ancora iniziata (ora_vigilia: alle 20 o un'ora prima della prima partita)."""
     from zoneinfo import ZoneInfo
     try:
-        righe = db._q("""SELECT numero, COALESCE(media, media_file) AS media,
+        righe = db._q("""SELECT numero, dal, COALESCE(media, media_file) AS media,
                                 COALESCE(prima_partita, (SELECT MIN(p.inizio) FROM nba_partite p
                                                          WHERE p.data_et BETWEEN g.dal AND g.al)) AS prima
                          FROM lega_giornate g WHERE stagione = %s""", (stagione,), many=True) or []
     except Exception as e:                                  # tabelle di loucabot che mancano
         logger.warning("Vigilia bref: %s", e)
         return []
-    domani = oggi + timedelta(days=1)
-    return [r for r in righe if r["prima"] and r["media"]
-            and r["prima"].astimezone(ZoneInfo("Europe/Rome")).date() == domani]
+    return [r for r in righe if r["media"] and r["dal"] == oggi and (adesso is None or not r["prima"] or r["prima"] > adesso)]
 
 
-async def job_bref_vigilia(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Alle 20 (orari.bref_vigilia): se domani inizia una giornata con squadre a media, riscarica bref (Luca, 11/11)."""
+def ora_vigilia(r: dict, oggi):
+    """Quando riscaricare bref per la giornata r che inizia stanotte: alle 20 (orari.bref_vigilia) o, se la prima
+    partita è prima delle 21, un'ora prima della prima partita (Luca, 27/11)."""
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    from shared.regole import orario
+    roma = ZoneInfo("Europe/Rome")
+    alle = datetime.combine(oggi, orario("bref_vigilia"), roma)
+    if r.get("prima"):
+        alle = min(alle, r["prima"].astimezone(roma) - timedelta(hours=1))
+    return alle
+
+
+async def job_pianifica_vigilia(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Ogni giorno dopo il giro delle 12, e all'avvio: se stanotte inizia una giornata con squadre a media, mette in
+    coda job_bref_vigilia all'ora_vigilia (subito se è già passata e la prima partita no: un riavvio nel mezzo)."""
     from datetime import datetime
     from zoneinfo import ZoneInfo
     g = settings.load_globals()
     if g.get("fase", "") not in FASI_RUOLI_RS:
         return
-    gg = giornate_vigilia(str(g.get("stagione_corrente", 2026)), datetime.now(ZoneInfo("Europe/Rome")).date())
+    adesso = datetime.now(ZoneInfo("Europe/Rome"))
+    for r in giornate_vigilia(str(g.get("stagione_corrente", 2026)), adesso.date(), adesso):
+        nome = f"bref_vigilia_G{r['numero']}_{adesso.date().isoformat()}"
+        if context.job_queue.get_jobs_by_name(nome):
+            continue
+        alle = ora_vigilia(r, adesso.date())
+        context.job_queue.run_once(job_bref_vigilia, when=alle if alle > adesso else 5, name=nome)
+        logger.info("Bref alla vigilia della G%s: %s", r["numero"], alle.strftime("%H:%M") if alle > adesso else "subito")
+
+
+async def job_bref_vigilia(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """All'ora_vigilia (job_pianifica_vigilia): se stanotte inizia una giornata con squadre a media, riscarica bref (Luca, 11/11)."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    g = settings.load_globals()
+    if g.get("fase", "") not in FASI_RUOLI_RS:
+        return
+    adesso = datetime.now(ZoneInfo("Europe/Rome"))
+    gg = giornate_vigilia(str(g.get("stagione_corrente", 2026)), adesso.date(), adesso)
     if not gg:
         return
     log_ch = g.get("log_channel_id_main")
     if log_ch:
         quali = "; ".join(f"G{x['numero']}: {', '.join(x['media'])}" for x in gg)
         await context.bot.send_message(chat_id=log_ch, parse_mode="HTML",
-                                       text=f"🌙 Bref alla vigilia: domani inizia una giornata con squadre a media ({html.escape(quali)})")
+                                       text=f"🌙 Bref alla vigilia: stanotte inizia una giornata con squadre a media ({html.escape(quali)})")
     await job_bref(context)
 
 

@@ -626,6 +626,14 @@ async def cb_risultati(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as err:
             logger.warning("Quasi Cup alla convalida G%s: %s", n, err)
             esito += f"; ⚠️ Quasi Cup non aggiornata sul canale ({str(err)[:120]})"
+        try:                                             # v7.37.0: scenari di fine regular season sul canale (ultime 5)
+            import scenari as _sc
+            _es = await _sc.dopo_convalida(context.bot, s, n)
+            if _es:
+                esito += "; " + _es
+        except Exception as err:
+            logger.warning("Scenari alla convalida G%s: %s", n, err)
+            esito += f"; ⚠️ scenari non pubblicati sul canale ({str(err)[:120]})"
         try:                                             # tanking parte 2, a consuntivo, al gruppo admin (v6.25.0)
             import tanking
             await tanking.manda_consuntivo(context.bot, s, n)

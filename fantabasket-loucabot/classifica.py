@@ -93,11 +93,13 @@ def _h2h(gruppo: list[str], per: dict[str, list[dict]]) -> dict[str, tuple[int, 
                 sum(1 for x in per.get(t, []) if x["avv"] in g)) for t in gruppo}
 
 
-def _ordina_pari(gruppo: list[str], st: dict[str, dict], per: dict[str, list[dict]]) -> list[str]:
-    """Squadre con le stesse vittorie: avulsa (ricorsiva), poi media punti fatti, poi differenza."""
+def _ordina_pari(gruppo: list[str], st: dict[str, dict], per: dict[str, list[dict]], nomi: dict | None = None) -> list[str]:
+    """Squadre con le stesse vittorie: avulsa (ricorsiva), poi media punti fatti, poi differenza.
+    nomi: {team: nome} già letti (v7.37.0: le simulazioni degli scenari non rileggono teams.json a ogni giro)."""
     if len(gruppo) <= 1:
         return list(gruppo)
-    resto = lambda ts: sorted(ts, key=lambda t: (-st[t]["media"], -st[t]["diff"], config.nome(t)))
+    nome = nomi.get if nomi is not None else config.nome
+    resto = lambda ts: sorted(ts, key=lambda t: (-st[t]["media"], -st[t]["diff"], nome(t)))
     h = _h2h(gruppo, per)
     if not any(gioc for _, gioc in h.values()):
         return resto(gruppo)
@@ -108,11 +110,11 @@ def _ordina_pari(gruppo: list[str], st: dict[str, dict], per: dict[str, list[dic
     out = []
     for lv in livelli:
         sotto = [t for t in gruppo if perc[t] == lv]
-        out += _ordina_pari(sotto, st, per) if len(sotto) < len(gruppo) else resto(sotto)
+        out += _ordina_pari(sotto, st, per, nomi) if len(sotto) < len(gruppo) else resto(sotto)
     return out
 
 
-def ordina(st: dict[str, dict], campione: str | None = None) -> list[str]:
+def ordina(st: dict[str, dict], campione: str | None = None, nomi: dict | None = None) -> list[str]:
     """v7.9.4 (Luca, 14/11): a pari record la vincitrice della Quasi NBA Cup (`campione`) passa davanti a tutte,
     prima degli scontri diretti; quando succede, st[campione]["cup_tb"] = True (il 🏆 accanto al nome)."""
     per = {t: s["partite"] for t, s in st.items()}
@@ -124,9 +126,9 @@ def ordina(st: dict[str, dict], campione: str | None = None) -> list[str]:
             pari = [t for t in gruppo if st[t]["l"] == l]
             if campione in pari and len(pari) > 1:
                 st[campione]["cup_tb"] = True
-                out += [campione] + _ordina_pari([t for t in pari if t != campione], st, per)
+                out += [campione] + _ordina_pari([t for t in pari if t != campione], st, per, nomi)
             else:
-                out += _ordina_pari(pari, st, per)
+                out += _ordina_pari(pari, st, per, nomi)
     return out
 
 

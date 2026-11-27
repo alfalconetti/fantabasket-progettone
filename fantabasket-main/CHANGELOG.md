@@ -2325,3 +2325,8 @@ Niente cambia per chi usa i bot, tranne un bottone rotto che ora funziona.
 - **`rookie.pick_id`**: il draft lega il rookie (1° e 2° giro) alla pick usata; i rookie di prima si legano alla migrazione per anno, giro e numero; `/pick` e la scheda del giocatore leggono il legame. Via la colonna `rookie.scadenza_diritti` (date vecchie e sbagliate, non la leggeva più nessuno)
 - **Passaggio di stagione** scritto in `docs/PASSAGGIO_STAGIONE.md`, bot per bot. Entrando nel break il bot principale ricorda di archiviare il foglio di controllo del calcolo (`/archivia_calcolo` di loucabot v158, gas `calcolo_archivia`, gas-router `/gas/calcolo_archivia`)
 - klra v15: **calendari alternativi** (stesso schema del sorteggio vero, altro seme)
+
+## v7.37.0 (2026-11-26)
+
+- loucabot v159: **`/scenari`**, gli scenari di fine regular season (mockup approvato da Luca il 26/11): per conference stato, seed possibili, playoff e bye in %, cosa serve, partite chiave; la corsa alla lottery con 1ª scelta e top 4 dalle odds del regolamento. Frasi certe, percentuali da 20.000 simulazioni con le medie (ultime 5 partite ×3, dalla 6ª alla 10ª ×2). Sul canale principale alla convalida di ognuna delle ultime 5 giornate. `classifica.ordina` accetta i nomi già letti (le simulazioni non rileggono teams.json)
+- **Bref alla vigilia** (Luca, 27/11): scatta la sera in cui la giornata con squadre a media inizia stanotte (giorno NBA di inizio = oggi), alle 20 o un'ora prima della prima partita se è prima delle 21, non più la sera prima della data di Roma della prima partita: con le partite del pomeriggio ET scattava con ancora da giocare l'ultima notte della giornata prima

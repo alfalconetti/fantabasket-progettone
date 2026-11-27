@@ -489,9 +489,12 @@ def main():
         _bref_scraper_job,
         time=_ora("bref"),
     )
-    # e di nuovo alle 20 della sera prima di una giornata con squadre a media: la media è quella di bref (v7.6.0)
-    from handlers.bref import job_bref_vigilia
-    app.job_queue.run_daily(job_bref_vigilia, time=_ora("bref_vigilia"))
+    # e di nuovo la sera in cui inizia una giornata con squadre a media (la media è quella di bref, v7.6.0): alle 20 o
+    # un'ora prima della prima partita (v7.37.0); la pianifica ogni giorno mezz'ora dopo il giro bref e all'avvio
+    from handlers.bref import job_pianifica_vigilia
+    _b = _ora("bref")
+    app.job_queue.run_daily(job_pianifica_vigilia, time=_b.replace(hour=(_b.hour + (_b.minute + 30) // 60) % 24, minute=(_b.minute + 30) % 60))
+    app.job_queue.run_once(job_pianifica_vigilia, when=60)
     # Watchlist (v7.8.0): gli avvisi ogni 5 minuti, il report della notte alle 9:30 (orari.watch_report)
     from handlers.watchlist import job_avvisi as _watch_avvisi, job_report as _watch_report
     app.job_queue.run_repeating(_watch_avvisi, interval=300, first=90)

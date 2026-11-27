@@ -17,7 +17,7 @@ ORDINE_GM = [
     "guida",
     "calendario", "giornata", "live", "risultati", "live_results", "partita", "notte",          # la giornata
     "classifica", "classifica_conference", "classifica_full", "classifica_home_away", "rendimento_team",
-    "playoff", "lottery", "quasi_cup", "calendario_full",                                                 # classifiche
+    "playoff", "scenari", "lottery", "quasi_cup", "calendario_full",                                                 # classifiche
     "player", "prestazione", "giocatori",
     "roster", "assets", "pick", "pick_lega", "draft", "prospetto_rinnovi", "team_diff", "carriera", "trova_trade", "penalita",  # squadre (v7.21.0, dal main)
     "top", "top_storica", "status", "rendimento", "rendimento_carriera", "rendimento_situazione",
@@ -56,6 +56,7 @@ def liste_comandi() -> dict:
         BotCommand("rendimento_team", "Il rendimento di una squadra giornata per giornata, panchina compresa"),
         BotCommand("quasi_cup", "La Quasi NBA Cup: qualificazione e tabellone (immagine)"),
         BotCommand("playoff", "Il tabellone dei playoff (prima dei playoff: se finisse oggi)"),
+        BotCommand("scenari", "Scenari di fine regular season: playoff, bye e lottery"),
         BotCommand("lottery", "Le odds della lottery del draft (prima della fine: se finisse oggi)"),
         # v7.21.0 (Luca, 21/11): le viste del bot principale (vista.py); nei gruppi risponde loucabot
         BotCommand("roster",  "Roster di una squadra [SQUADRA] [DD-MM-YY]"),
