@@ -22,8 +22,25 @@ import sys
 
 import classifica as C
 import config
+import db
 import scenari as SC
 from shared import regole
+
+
+def connetti():
+    """Il pool di loucabot, ma in sola lettura e senza migra() (db.init_db migra lo schema): v7.37.0c, prima nel
+    container il pool non c'era proprio."""
+    import os
+    import re
+    import psycopg2.pool
+    pw = os.environ.get("PG_PASSWORD_FILE", "/run/secrets/pg_password")
+    if os.path.exists(pw):
+        os.environ["PGPASSWORD"] = open(pw).read().strip()
+    dsn = re.sub(r"[?&]password_file=[^\s&]+", "", os.environ["DATABASE_URL"])
+    db._pool = psycopg2.pool.ThreadedConnectionPool(1, 2, dsn=dsn, options="-c default_transaction_read_only=on")
+
+
+connetti()
 
 S = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] != "-" else config.stagione()
 BONUS, SCARTO = float(regole.bonus_casa()), float(regole.scarto_minimo())

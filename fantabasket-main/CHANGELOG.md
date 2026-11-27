@@ -2342,3 +2342,7 @@ Rifacimento dello zip della v7.37.0 (le lettere: correzioni allo stesso rilascio
 ## v7.37.0b (2026-11-27)
 
 - **`strumenti/verifica_scenari.py`** (Luca, 27/11: «ha senso usare una normale?»): sola lettura, nel container di loucabot. Forma dei punteggi della lega contro la normale (asimmetria, code, quantili), prova all'indietro delle giornate già giocate con 4 modelli (50/50, normale semplice, normale pesata = il motore, residui veri della lega) con Brier e log loss, calibrazione del motore
+
+## v7.37.0c (2026-11-27)
+
+- `strumenti/verifica_scenari.py`: nel container non c'era il pool del DB (`'NoneType' object has no attribute 'getconn'`). Ora lo apre da sé, in sola lettura (`default_transaction_read_only`) e senza migrare lo schema

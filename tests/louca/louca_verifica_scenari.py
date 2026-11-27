@@ -38,6 +38,7 @@ try:
     sys.argv = ["verifica_scenari.py", S]
     with contextlib.redirect_stdout(out):
         runpy.run_path(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))), "strumenti", "verifica_scenari.py"), run_name="__main__")
+    db.init_db()                                     # lo script lascia il pool in sola lettura
     o = out.getvalue()
     print(o)
     ok("1. FORMA" in o and "2. PROVA" in o and "3. CALIBRAZIONE" in o, "le tre parti")
@@ -46,7 +47,17 @@ try:
     ok(float(riga("normale, media pesata")[-2]) < 0.25, "il motore fa meglio del 50/50")
     asim = float(o.split("asimmetria ")[1].split()[0])
     ok(asim > 0.3, f"punteggi con più exploit che crolli: asimmetria positiva ({asim})")
-    ok(db.q("SELECT COUNT(*) AS n FROM lega_risultati", one=True)["n"] == righe_prima, "sola lettura: non scrive niente")
+    ok(db.q("SELECT COUNT(*) AS n FROM lega_risultati", one=True)["n"] == righe_prima, "non ha scritto niente")
+    import psycopg2
+    _sys.argv = ["x"]
+    exec(open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))), "strumenti", "verifica_scenari.py")).read().split("\nconnetti()\n")[0] + "\nconnetti()\n", {"__name__": "x"})
+    try:
+        db.q("CREATE TEMP TABLE prova_scrittura (x int)")
+        scritto = True
+    except psycopg2.Error:
+        scritto = False
+    db.init_db()
+    ok(not scritto, "il pool dello script è in sola lettura (e non migra)")
 finally:
     open(config.TEAMS_PATH, "w").write(_teams)
     for t in ("lega_giornate", "lega_risultati", "lega_partite"):
