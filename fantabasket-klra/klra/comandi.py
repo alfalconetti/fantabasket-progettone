@@ -72,6 +72,7 @@ PUBBLICI = [("sistemi", "I sistemi di punteggio: scegli, copia, modifica"),
             ("player", "Un giocatore, coi fantapunti del tuo sistema [NOME SISTEMA]"),
             ("prestazione", "Una partita di un giocatore, col tuo sistema: GIOCATORE [DATA]"),
             ("giocatori", "Cerca tra i giocatori, con le fantamedie del tuo sistema [filtri]"),
+            ("giocatori_build", "La ricerca di /giocatori coi bottoni, passo passo, col tuo sistema"),
             ("notte", "I giocatori schierati da una squadra in una notte, col tuo sistema [SQUADRA] [DATA]"),
             ("rendimento", "Il rendimento di un giocatore in stagione col sistema GIOCATORE"),
             ("rendimento_carriera", "La carriera di un giocatore coi pesi del sistema GIOCATORE"),
@@ -515,6 +516,15 @@ async def cb_player(update, context):
 async def cmd_giocatori(update, context):
     from shared.elenco_giocatori import cmd_giocatori as f
     await _di_loucabot(update, context, f)
+
+
+async def _gb_esegui(update, context, testo):
+    """v18 (v7.42.0): il 🔎 Cerca di /giocatori_build, come /giocatori: nel contesto del sistema attivo."""
+    from shared import giocatori_build as GB
+
+    async def f(u, c):
+        await GB.esegui_base(u, c, testo)
+    await _di_loucabot_su(update.effective_message, update.effective_user, context, SI.attivo(update.effective_user.id), f, [])
 
 
 async def cmd_prestazione(update, context):
@@ -1120,6 +1130,8 @@ async def testo_libero(update, context):
 
 
 def handlers() -> list:
+    from shared import giocatori_build as GB
+    _gb = GB.gestori(_gb_esegui)
     return [CommandHandler(["start", "aiuto"], cmd_start), CommandHandler("sistemi", cmd_sistemi), CommandHandler("usa", cmd_usa),
             CommandHandler("classifica", cmd_classifica), CommandHandler("confronta", cmd_confronta),
             CommandHandler("risultati", cmd_risultati), CommandHandler("giornata", cmd_giornata),
@@ -1129,6 +1141,7 @@ def handlers() -> list:
             CommandHandler("pdf_giornata", cmd_pdf_giornata), CommandHandler("pdf_partite", cmd_pdf_partite),
             CommandHandler("conference", cmd_conference), CommandHandler("player", cmd_player),
             CommandHandler("giocatori", cmd_giocatori), CommandHandler("prestazione", cmd_prestazione),
+            CommandHandler("giocatori_build", _gb[0]), CallbackQueryHandler(_gb[1], pattern=GB.PATTERN),   # v18
             CallbackQueryHandler(cb_prestazione, pattern=r"^pre:\d+:\d+$"), CommandHandler("notte", cmd_notte),
             CallbackQueryHandler(cb_player, pattern=r"^pl:\d+$"),
             # v8: come loucabot (block=False: immagini e medie di stagioni intere)

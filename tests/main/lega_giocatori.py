@@ -271,8 +271,85 @@ if _os.environ.get("PLAYER_PNG"):
     open(_os.environ["PLAYER_PNG"], "wb").write(GG.immagine_scheda(_dj)); open(_os.environ["PLAYER_PNG"] + "2.png", "wb").write(GG.immagine_scheda(_da))
 db._q("DELETE FROM pick WHERE anno = %s AND numero_scelta = 7 AND proprietario_orig = 'team04'", (str(int(S) - 1),))
 
+# v7.42.0 (Luca, 28/11): ordina con + (crescente) e - (decrescente, il default); la ricerca da ricopiare
+_dec, _cre = nomi("ordina:media"), nomi("ordina:media+")
+ok(_dec == nomi("ordina:media-") == nomi("") and _cre == list(reversed(_dec)), f"ordina:media+ al contrario ({_cre})")
+_x = [{"nome": "A", "media": None}, {"nome": "B", "media": 10.0}, {"nome": "C", "media": 20.0}]
+ok([x["nome"] for x in EG._ordina(list(_x), EG.leggi("ordina:media+", int(S)))] == ["B", "C", "A"]
+   and [x["nome"] for x in EG._ordina(list(_x), EG.leggi("ordina:media", int(S)))] == ["C", "B", "A"], "chi non ha il valore resta in fondo, nei due versi")
+ok(nomi("ordina:costo+")[:2] == ["Elenco Jokić Accento", "Elenco Centro Firmato"] and nomi("ordina:nome") == sorted(nomi("ordina:nome"))
+   and nomi("ordina:nome-") == sorted(nomi("ordina:nome"), reverse=True), "ordina:costo+ dal più basso, nome A-Z, nome- Z-A")
+ok("ordina:costo+" in EG.risposta("aiuto")["testo"] and "con + (crescente)" in EG.risposta("ordina:media*")["testo"]
+   and EG.descrizione(EG.leggi("top:5 ordina:minuti+", int(S)), int(S)) == "top 5 per minuti crescente"
+   and EG.descrizione(EG.leggi("ordina:nome-", int(S)), int(S)) == "per nome Z-A", "aiuto, errore e intestazione dell'ordine")
+
+ok(EG.query('nome:^Elenco squadra:"Los Tizi"  fa|C') == '/giocatori nome:^Elenco squadra:"Los Tizi" fa|C'
+   and EG.riga_query("costo:<10") == "🔁 <code>/giocatori costo:&lt;10</code>"
+   and "🔁 <code>/giocatori nome:^Nessuno</code>" in EG.risposta("nome:^Nessuno")["testo"], "la ricerca riscritta, anche senza risultati")
+ok(EG.leggi(EG.query('nome:^Elenco squadra:"Alfa Beta" -C')[len("/giocatori "):], int(S))["neg"][0]["ruoli"] == {"C"},
+   "la ricerca riscritta si rilegge uguale")
+
+# v7.42.0: /giocatori_build, la ricerca coi bottoni (shared/giocatori_build.py), in tutti i bot di /giocatori
+from shared import giocatori_build as GB
+st = GB.nuovo(7)
+for d in ("gb:a:C", "gb:a:fa", "gb:neg", "gb:a:nba:LAL", "gb:n:media:20+", "gb:n:media:30-", "gb:n:media:25+", "gb:or", "gb:a:SF",
+          "gb:n:costo:10-", "gb:n:anni:2", "gb:n:anni:1", "gb:a:infortunati:si", "gb:a:infortunati:no", "gb:o:costo", "gb:v:costo:+",
+          "gb:t:10", "gb:y:2024"):
+    GB.premi(st, d)
+ok(GB.testo(st) == "C fa -nba:LAL media:30- media:25+ | SF costo:<=10 anni:1 infortunati:no ordina:costo+ top:10 anno:2024",
+   f"builder: i filtri, la negazione, i gruppi, le soglie (la stessa direzione si sostituisce), l'ordine {GB.testo(st)!r}")
+ok(EG.leggi(GB.testo(st), int(S))["gruppi"][1]["anni"] is not None, "builder: la ricerca si legge con /giocatori")
+GB.premi(st, "gb:v:costo:-"); GB.premi(st, "gb:t:0"); GB.premi(st, "gb:y:" + str(int(S)))
+ok(GB.testo(st).endswith("infortunati:no ordina:costo"), "builder: decrescente senza segno, «Tutti» e la stagione in corso tolgono l'opzione")
+GB.premi(st, "gb:v:media:-")
+ok("ordina" not in GB.testo(st), "builder: media decrescente è il default")
+for _ in range(4):
+    GB.premi(st, "gb:del")
+ok(GB.testo(st) == "C fa -nba:LAL media:30- media:25+", f"builder: togli l'ultimo, anche il gruppo vuoto {GB.testo(st)!r}")
+ok(GB.premi(GB.nuovo(1), "gb:or")[2] and GB.premi(st, "gb:x")[0] == "" and GB.premi(st, "gb:go")[0] == "go", "builder: oppure a vuoto no; le etichette; cerca")
+_t, _kb = GB.schermata(st)
+ok("<code>/giocatori C fa -nba:LAL media:30- media:25+</code>" in _t and _kb.inline_keyboard[-1][0].callback_data == "gb:go"
+   and all(len(b.callback_data) <= 64 for v, a in (("home", ""), ("pos", ""), ("sit", ""), ("nba", ""), ("sq", ""), ("num", "media"),
+           ("num", "anni"), ("inf", ""), ("ord", ""), ("verso", "nome"), ("top", ""), ("anno", ""))
+           for r in GB.schermata(st, v, a)[1].inline_keyboard for b in r), "builder: le schermate, i bottoni nei 64 byte")
+_sq = sorted(__import__("shared.lettura", fromlist=["x"]).squadre(), key=lambda t: t["nome"].lower())
+_s2 = GB.nuovo(1); GB.premi(_s2, "gb:sq:" + str([t["id"] for t in _sq].index("team01")))
+ok(GB.testo(_s2) == "squadra:Alfa" and GB.premi(_s2, "gb:sq:999")[2], "builder: la squadra del fantabasket")
+# i gestori: il comando apre il messaggio, i bottoni lo aggiornano, cerca manda la risposta di /giocatori
+fatti = []
+class MB:
+    message_id = 55
+    chat = types.SimpleNamespace(type="private")
+    async def reply_text(s, t, **k): fatti.append(("t", t, k.get("reply_markup"))); return s
+    async def reply_photo(s, photo=None, caption=None, **k): fatti.append(("f", caption, None))
+    async def reply_media_group(s, media, **k): fatti.append(("a", len(media), None))
+    async def reply_document(s, document=None, filename=None, caption=None, **k): fatti.append(("d", caption, None))
+_gh = [h for h in LG.get_handlers() if "giocatori_build" in getattr(h, "commands", ()) or getattr(getattr(h, "pattern", None), "pattern", "") == "^gb:"]
+_ctx = types.SimpleNamespace(user_data={}, args=[])
+_u = types.SimpleNamespace(effective_message=MB(), effective_user=types.SimpleNamespace(id=7), effective_chat=MB.chat)
+asyncio.run(_gh[0].callback(_u, _ctx))
+ok(fatti[-1][0] == "t" and "Costruisci la ricerca" in fatti[-1][1] and _ctx.user_data["gb"]["msg"] == 55
+   and "PRIVATE" in str(_gh[0].filters).upper() and getattr(_gh[0].callback, "_solo_privato", False), "builder: il comando (solo in privato nel principale)")
+class Q:
+    def __init__(s, data, mid=55): s.data, s.message, s.from_user, s.risposte = data, MB(), types.SimpleNamespace(id=7), []; s.message.message_id = mid
+    async def answer(s, t=None, **k): s.risposte.append(t)
+    async def edit_message_text(s, t, **k): fatti.append(("e", t, k.get("reply_markup")))
+for d in ("gb:a:nome:^Elenco", "gb:a:fa"):
+    asyncio.run(_gh[1].callback(types.SimpleNamespace(callback_query=Q(d)), _ctx))
+ok(fatti[-1][0] == "e" and "nome:^Elenco fa" in fatti[-1][1], "builder: i bottoni aggiornano il messaggio")
+_q = Q("gb:a:C", mid=99)
+asyncio.run(_gh[1].callback(types.SimpleNamespace(callback_query=_q), _ctx))
+ok("scaduta" in (_q.risposte[-1] or "") and "C" not in GB.testo(_ctx.user_data["gb"]).split(), "builder: un messaggio vecchio (o di un altro) non tocca la ricerca")
+fatti.clear()
+asyncio.run(_gh[1].callback(types.SimpleNamespace(callback_query=Q("gb:go")), _ctx))
+ok([k for k, *_ in fatti] == ["f", "d"] and fatti[1][1] == "🔁 <code>/giocatori nome:^Elenco fa</code>", f"builder: cerca, la risposta di /giocatori e la ricerca {fatti}")
+_hl = {c for h in LG.get_handlers() for c in getattr(h, "commands", ())}
+ok("giocatori_build" in _hl and any(getattr(h, "pattern", None) is not None and h.pattern.pattern == "^gb:" for h in LG.get_handlers()),
+   "bot principale: /giocatori_build e i suoi bottoni")
+
 li = comandi.liste_comandi(settings.fase())
-ok("giocatori" in {c.command for c in li["gm"]} and "giocatori" not in {c.command for c in li["group"]}, "menu: in privato sì, nei gruppi no")
+ok({"giocatori", "giocatori_build"} <= {c.command for c in li["gm"]} and not {"giocatori", "giocatori_build"} & {c.command for c in li["group"]},
+   "menu: in privato sì, nei gruppi no")
 
 pulizia()
 db._q("DELETE FROM nba_partite WHERE espn_id LIKE 'eg_%%'")

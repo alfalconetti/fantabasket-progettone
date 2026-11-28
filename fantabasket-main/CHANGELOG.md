@@ -2371,3 +2371,10 @@ Rifacimento dello zip della v7.37.0 (le lettere: correzioni allo stesso rilascio
 
 - klra v17: `/player`, `/giocatori`, `/prestazione` e `/notte` uguali a loucabot, coi fantapunti del sistema (Luca, 28/11: «klra è loucabot, cambia solo il punteggio»). Il codice comune di quelle viste prende i fantapunti da `shared/non_ufficiale`: per loucabot e il bot principale non cambia niente
 - `/giocatori` (bot principale e loucabot, codice comune): filtro **`minuti:`** sui minuti a partita (`minuti:25+`, `minuti:15-`, `minuti:20-30`) e `ordina:minuti` (Luca, 28/11)
+
+## v7.42.0 (2026-11-28)
+
+- `/giocatori` (bot principale, loucabot e klra, codice comune): **`ordina:CAMPO+`** dal più basso e `ordina:CAMPO-` dal più alto (il default, come senza segno); `ordina:nome-` dalla Z alla A. Chi non ha il valore resta in fondo (Luca, 28/11)
+- `/giocatori`: sotto il file la **ricerca riscritta** da copiare (🔁 `/giocatori …`), anche quando non trova nessuno (Luca, 28/11: per la riproducibilità)
+- Nuovo **`/giocatori_build`** (bot principale in privato, loucabot v162, klra v18): la ricerca costruita coi bottoni, passo passo (posizione, situazione, squadra NBA e del fantabasket, media, minuti, partite, costo, anni, infortunati, nega, oppure, ordine, quanti, stagione), con la ricerca fin qui sempre in cima; 🔎 Cerca dà la stessa risposta di `/giocatori` (Luca, 28/11)
+- klra v18: lettura di `ipa_controlli` e `ipa_solo_bot` (`setup_db.sql`), per chi ha confermato il quintetto in `/partita`

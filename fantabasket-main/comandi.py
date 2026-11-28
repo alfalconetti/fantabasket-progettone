@@ -46,7 +46,7 @@ ORDINE_GM = [
     "build_trade", "bozze_trade", "my_trades", "edit_trade", "import_trade", "annulla_trade", "trova_trade",
     "taglia", "firma_10day", "dpe", "decadimento", "attiva_diritti",                         # trade e mercato
     "dichiarazione_ruoli", "cambio_ruolo", "rinnovo", "rinnovo_rookie", "dichiara_rfa", "scelgo",       # ruoli, rinnovi, draft (per fase)
-    "player", "prestazione", "giocatori", "status", "rendimento", "rendimento_carriera", "confronto", "confronto_carriera",
+    "player", "prestazione", "giocatori", "giocatori_build", "status", "rendimento", "rendimento_carriera", "confronto", "confronto_carriera",
     "carriera", "calendario", "quasi_cup",                                                    # giocatori
     "pick", "pick_lega", "draft", "prospetto_rinnovi", "team_diff", "pdf_roster", "pdf_assets",                    # lega
     "watch", "unwatch", "watchlist", "watch_soglia",                                          # watchlist
@@ -89,6 +89,7 @@ def liste_comandi(fase: str) -> dict:
         BotCommand("confronto", "Due giocatori a confronto nella stagione: A vs B"),
         BotCommand("confronto_carriera", "Due carriere a confronto, anche storiche: A vs B"),
         BotCommand("giocatori",  "Cerca tra i giocatori: ruolo, squadra, FA, top per media… [filtri] (aiuto)"),
+        BotCommand("giocatori_build", "La ricerca di /giocatori costruita coi bottoni, passo passo"),
         BotCommand("quasi_cup",  "La Quasi NBA Cup: qualificazione e tabellone (immagine)"),
         BotCommand("watch",      "Segui un giocatore: avvisi e report della notte (watchlist)"),
         BotCommand("unwatch",    "Smetti di seguire un giocatore"),

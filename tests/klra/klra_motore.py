@@ -580,6 +580,17 @@ ok(_el[gid[4]]["media"] != _es[gid[4]]["media"], f"/giocatori: la fantamedia col
 m = Msg(); m.text = "/giocatori Stoppate"
 asyncio.run(CM.cmd_giocatori(upd(900, m), ctx(["Stoppate"])))
 ok((m.foto or m.testi) and "NON UFFICIALE" in str(m.foto[-1][1] if m.foto else m.testi[-1][0]), "/giocatori in klra: NON UFFICIALE")
+# v18 (v7.42.0): /giocatori_build, il 🔎 Cerca nel contesto del sistema attivo
+_gbh = [h for h in CM.handlers() if getattr(h, "pattern", None) is not None and h.pattern.pattern == "^gb:"]
+_gbc = [h for h in CM.handlers() if "giocatori_build" in getattr(h, "commands", ())]
+m = Msg(); _c = ctx()
+asyncio.run(_gbc[0].callback(upd(900, m), _c))
+ok(_gbh and "Costruisci la ricerca" in m.testi[-1][0], "/giocatori_build in klra: il messaggio coi bottoni")
+for _d in ("gb:a:Stoppate", "gb:go"):
+    _qq = Q(900, _d, Msg())
+    asyncio.run(_gbh[0].callback(types.SimpleNamespace(callback_query=_qq), _c))
+ok((_qq.message.foto or _qq.message.testi) and "NON UFFICIALE" in str(_qq.message.foto[-1][1] if _qq.message.foto else _qq.message.testi[-1][0])
+   and "🔁" in str(_qq.message.foto[-1][1] if _qq.message.foto else _qq.message.testi[-1][0]), "/giocatori_build in klra: cerca col sistema, NON UFFICIALE")
 m = Msg(); asyncio.run(CM.cmd_prestazione(upd(900, m), ctx(["Klra", "4", "Stoppate"])))
 ok(m.foto and "NON UFFICIALE" in str(m.foto[-1][1]), "/prestazione in klra: l'immagine, NON UFFICIALE " + str([t for t, _ in m.testi])[:200])
 m = Msg(); asyncio.run(CM.cmd_notte(upd(900, m), ctx(["Stoppate"])))
@@ -679,7 +690,7 @@ ok({c for c, _ in CM.PUBBLICI} >= {"rendimento", "rendimento_carriera", "confron
                                    "rendimento_team", "classifica_home_away", "quasi_cup", "top_storica", "playoff"},
    "i comandi nuovi nel menu di klra")
 _h = {c for h in CM.handlers() for c in getattr(h, "commands", ())}
-ok(not _h & {"status", "live"} and {"giocatori", "prestazione", "notte"} <= _h,
+ok(not _h & {"status", "live"} and {"giocatori", "giocatori_build", "prestazione", "notte"} <= _h,
    "niente /status e /live; /giocatori, /prestazione e /notte sì (v7.41.0)")
 
 # verifica: dati cambiati dopo la convalida (un tabellino corretto) → motore uguale, differenza nei dati

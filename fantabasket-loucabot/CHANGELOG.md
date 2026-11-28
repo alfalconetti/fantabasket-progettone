@@ -773,3 +773,8 @@ Il calcolo dei fantapunti.
 ## v161 (2026-11-28, progettone v7.39.0)
 
 - `/partita` (Luca, 28/11; mockup approvato): sotto i punti di ogni notte **contro chi** gioca («vs MIA», «@DEN»), in corso sotto il minuto e anche a partita finita; accanto al nome di ogni squadra chi ha **confermato il quintetto** (admin con nome e ora, «solo bot» in automatico, o non ancora confermato), solo nella giornata in corso da quando è iniziata e in quella prima
+
+## v162 (2026-11-28, progettone v7.42.0)
+
+- `/giocatori`: `ordina:CAMPO+` crescente, `ordina:CAMPO-` decrescente (il default); sotto il file la ricerca riscritta da copiare (Luca, 28/11)
+- Nuovo **`/giocatori_build`**: la ricerca di `/giocatori` costruita coi bottoni, un passo alla volta (`shared/giocatori_build.py`, lo stesso nel bot principale e in klra)

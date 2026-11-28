@@ -14,6 +14,7 @@ from shared import lettura as L
 from shared import rendimento as R
 from shared import confronto as CF
 from shared import elenco_giocatori as EG
+from shared import giocatori_build as GB
 from shared import quasi_cup as QC
 from shared.status_squadra import cmd_status
 
@@ -58,6 +59,9 @@ for _f in (cmd_player, cmd_prestazione, PRR.cmd_prospetto_rinnovi, cmd_status, c
         pass
 
 
+_gb_cmd, _gb_cb = GB.gestori(solo_privato=True)
+
+
 def get_handlers() -> list:
     privato = filters.ChatType.PRIVATE
     return [CommandHandler("player", cmd_player, filters=privato),
@@ -75,4 +79,6 @@ def get_handlers() -> list:
             CommandHandler("confronto_carriera", CF.cmd_confronto_carriera, filters=privato, block=False),
             CallbackQueryHandler(CF.cb_confronto, pattern=r"^cf:[01]:\d+$"),               # v7.25.0
             CommandHandler("giocatori", EG.cmd_giocatori, filters=privato),                  # v7.5.0
+            CommandHandler("giocatori_build", _gb_cmd, filters=privato),                    # v7.42.0: shared/giocatori_build.py
+            CallbackQueryHandler(_gb_cb, pattern=GB.PATTERN),
             CommandHandler("quasi_cup", QC.cmd_quasi_cup, filters=privato, block=False)]      # v7.9.0

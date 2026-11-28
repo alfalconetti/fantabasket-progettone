@@ -17,7 +17,7 @@ Filtri, in qualsiasi ordine (`/giocatori aiuto` li elenca):
   anche `media:>=30` o `media:20-30` (v7.27.0, Luca 23/11). «and» tra i filtri si può scrivere, ma non serve:
   dentro un gruppo i filtri sono già tutti insieme.
 - `top:N`, `min_g:N`, `costo:<10` / `costo:5-10`, `anni:1` / `anni:>=2`, `infortunati:no|si`,
-  `ordina:media|costo|partite|ultime5|nome`.
+  `ordina:media|costo|partite|ultime5|minuti|nome`, con `+` in fondo crescente e `-` decrescente (il default; v7.42.0).
 Senza `anno:` ci sono i firmati e i diritti sempre e i FA con la regola della lista FA (v7.9.6: chi ha giocato
 nella stagione in corso o, fino allo switch del 70% dei firmati, in quella prima; shared/lista_fa.py); con `anno:` solo chi ha giocato quella
 stagione (il contratto è sempre quello di oggi). La risposta (v7.5.0, Luca 10/11): un'immagine sul viola di Yahoo
@@ -56,7 +56,7 @@ AIUTO = ("<b>/giocatori</b> [filtri] — cerca tra i giocatori; i filtri si comb
          "• <code>media:30+</code> (almeno 30) · <code>media:20-</code> (al massimo 20) · <code>media:20+ and media:30-</code> (tra 20 e 30)\n"
          "• <code>minuti:25+</code> (almeno 25 minuti a partita) · <code>minuti:15-</code> · <code>minuti:20-30</code>\n"
          "• <code>top:20</code> · <code>min_g:10</code> · <code>costo:&lt;10</code> · <code>costo:5-10</code> · <code>anni:1</code> · <code>infortunati:no</code>\n"
-         "• <code>ordina:media</code> (o costo, partite, ultime5, minuti, nome)\n"
+         "• <code>ordina:media</code> (o costo, partite, ultime5, minuti, nome), dal più alto; <code>ordina:costo+</code> dal più basso\n"
          "• <code>watch</code> — i giocatori della tua watchlist (solo in privato)\n"
          "• <code>-</code> davanti nega un filtro: <code>-C</code>, <code>-nba:LAL</code>, <code>-firmati</code>\n"
          "• <code>|</code> (o <code>oppure</code>) separa gruppi alternativi: <code>C fa | PF diritti</code>\n"
@@ -140,7 +140,7 @@ def leggi(testo: str, oggi: int) -> dict:
         parti = shlex.split(testo or "")
     except ValueError:                                  # virgolette non chiuse
         parti = (testo or "").split()
-    glob = {"anno": oggi, "top": None, "ordina": "media", "aiuto": False}
+    glob = {"anno": oggi, "top": None, "ordina": "media", "verso": "", "aiuto": False}
     blocchi, cur = [], []
     for p in parti:
         if p in ("|", "||") or p.lower() == "oppure":
@@ -246,10 +246,13 @@ def _gruppo(parti: list[str], oggi: int, glob: dict) -> dict:
             if v.lower() not in ("no", "si", "sì"):
                 raise Errore(f"«{p}»: infortunati:no o infortunati:si.")
             f["infortunati"] = v.lower() != "no"
-        elif k == "ordina":
-            if v.lower() not in ORDINI:
-                raise Errore(f"«{p}»: si ordina per {', '.join(ORDINI)}.")
-            glob["ordina"] = v.lower()
+        elif k == "ordina":                              # v7.42.0 (Luca, 28/11): + crescente, - decrescente (il default)
+            w = v.lower().strip()
+            verso = w[-1] if w[-1:] in ("+", "-") else ""
+            w = w.rstrip("+-")
+            if w not in ORDINI:
+                raise Errore(f"«{p}»: si ordina per {', '.join(ORDINI)}, con + (crescente) o - (decrescente) in fondo.")
+            glob["ordina"], glob["verso"] = w, verso
         else:
             raise Errore(f"Filtro sconosciuto: «{k}:». /giocatori aiuto per l'elenco.")
     return f
@@ -263,11 +266,18 @@ def descrizione(f: dict, oggi: int) -> str:
         if t:
             pezzi.append(t)
     d = [" | ".join(pezzi)] if pezzi else []
+    o = f["ordina"] + (" crescente" if crescente(f) and f["ordina"] != "nome" else " Z-A" if not crescente(f) and f["ordina"] == "nome" else "")
     if f["top"]:
-        d.append(f"top {f['top']} per {f['ordina']}")
-    elif f["ordina"] != "media":
-        d.append(f"per {f['ordina']}")
+        d.append(f"top {f['top']} per {o}")
+    elif o != "media":
+        d.append(f"per {o}")
     return " · ".join(d)
+
+
+def crescente(f: dict) -> bool:
+    """v7.42.0: l'ordine. Senza segno decrescente (il nome dalla A alla Z), «+» crescente, «-» decrescente."""
+    v = f.get("verso") or ""
+    return v == "+" or (not v and f["ordina"] == "nome")
 
 
 def _descr_gruppo(f: dict) -> str:
@@ -441,13 +451,19 @@ def _passa(x: dict, f: dict, seguiti: set) -> bool:
 
 
 def _ordina(out: list[dict], f: dict) -> list[dict]:
-    chiave = {"media": lambda x: (x["media"] is None, -(x["media"] or 0), x["nome"]),
-              "costo": lambda x: (not x["contratto"], -float((x["contratto"] or {}).get("importo") or 0), x["nome"]),
-              "partite": lambda x: (-x["g"], -(x["media"] or 0), x["nome"]),
-              "ultime5": lambda x: (x["ult5"] is None and x["media"] is None, -(x["ult5"] if x["ult5"] is not None else (x["media"] or 0)), x["nome"]),
-              "minuti": lambda x: (x.get("minuti") is None, -(x.get("minuti") or 0), x["nome"]),
-              "nome": lambda x: x["nome"]}[f["ordina"]]
-    out.sort(key=chiave)
+    """v7.42.0: crescente o decrescente (crescente()); chi non ha il valore resta comunque in fondo, a pari il nome."""
+    valore = {"media": lambda x: x["media"],
+              "costo": lambda x: float((x["contratto"] or {}).get("importo") or 0) if x["contratto"] else None,
+              "partite": lambda x: x["g"],
+              "ultime5": lambda x: x["ult5"] if x["ult5"] is not None else x["media"],
+              "minuti": lambda x: x.get("minuti")}
+    if f["ordina"] == "nome":
+        out.sort(key=lambda x: x["nome"], reverse=not crescente(f))
+    else:
+        su = 1 if crescente(f) else -1
+        v = valore[f["ordina"]]
+        sec = (lambda x: su * (x["media"] or 0)) if f["ordina"] == "partite" else (lambda x: 0)
+        out.sort(key=lambda x: (v(x) is None, su * (v(x) or 0), sec(x), x["nome"]))
     return out[:f["top"]] if f["top"] else out
 
 
@@ -565,6 +581,27 @@ def usa_watch(f: dict) -> bool:
     return any(g.get("watch") or any(n.get("watch") for n in g["neg"]) for g in f.get("gruppi") or [f])
 
 
+def _quota(t: str) -> str:
+    if t and re.fullmatch(r"[^\s\"'\\]+", t):
+        return t
+    k, sep, v = t.partition(":")
+    q = lambda x: '"' + x.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return f"{k}:{q(v)}" if sep and k and re.fullmatch(r"[\w-]+", k) else q(t)
+
+
+def query(testo: str, comando: str = "giocatori") -> str:
+    """v7.42.0 (Luca, 28/11): la ricerca riscritta pulita, da ricopiare per rifarla uguale (anche quella del builder)."""
+    try:
+        parti = shlex.split(testo or "")
+    except ValueError:
+        parti = (testo or "").split()
+    return " ".join([f"/{comando}"] + [_quota(p) for p in parti])
+
+
+def riga_query(testo: str) -> str:
+    return f"🔁 <code>{e(query(testo))}</code>"
+
+
 def risposta(testo: str, uid: int | None = None, privato: bool = True) -> dict:
     """{"testo": messaggio HTML (aiuto, errori, nessuno)} oppure
     {"pagine": [dati delle immagini], "didascalia", "md", "nome"}. uid e privato servono per `watch`."""
@@ -586,12 +623,14 @@ def risposta(testo: str, uid: int | None = None, privato: bool = True) -> dict:
     righe = filtra(dati(f["anno"], oggi), f, oggi, seguiti)
     d = descrizione(f, oggi)
     if not righe:
-        return {"testo": f"🏀 <b>Giocatori</b> · {lbl(f['anno'])}" + (f" · {e(d)}" if d else "") + "\n\nNessun giocatore con questi filtri."}
+        return {"testo": f"🏀 <b>Giocatori</b> · {lbl(f['anno'])}" + (f" · {e(d)}" if d else "") + "\n\nNessun giocatore con questi filtri."
+                + "\n" + riga_query(testo)}
     pagine = pagine_immagini(righe, f, oggi)
     didascalia = f"🏀 Giocatori · {lbl(f['anno'])}" + (f" · {d}" if d else "") + f" · {len(righe)}"
     if len(righe) > PER_IMMAGINE * MAX_IMMAGINI:
         didascalia += f" (nelle immagini i primi {PER_IMMAGINE * MAX_IMMAGINI})"
-    return {"pagine": pagine, "didascalia": didascalia[:1000], "md": markdown(righe, f, oggi), "nome": nome_file(f, oggi)}
+    return {"pagine": pagine, "didascalia": didascalia[:1000], "md": markdown(righe, f, oggi), "nome": nome_file(f, oggi),
+            "query": riga_query(testo)}
 
 
 async def cmd_giocatori(update, context):
@@ -618,4 +657,6 @@ async def manda(msg, r: dict) -> None:
     else:
         await msg.reply_media_group([InputMediaPhoto(media=x, caption=r["didascalia"] if i == 0 else None)
                                      for i, x in enumerate(png)])
-    await msg.reply_document(document=io.BytesIO(r["md"].encode("utf-8")), filename=r["nome"])
+    # v7.42.0: sotto il file la ricerca da ricopiare (in un album la didascalia si perde, quella del file no)
+    await msg.reply_document(document=io.BytesIO(r["md"].encode("utf-8")), filename=r["nome"],
+                             caption=r.get("query"), parse_mode="HTML" if r.get("query") else None)

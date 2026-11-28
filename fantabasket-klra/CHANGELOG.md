@@ -81,3 +81,8 @@
 ## v17 (2026-11-28, progettone v7.41.0)
 
 - **klra è loucabot, cambia solo il punteggio** (Luca, 28/11): `/player` è la stessa immagine di loucabot coi fantapunti del sistema dentro (prima: l'immagine coi fantapunti della lega e sotto un testo col sistema); nuovi `/giocatori`, `/prestazione` (con le frecce) e `/notte`, uguali a loucabot col sistema. Nel codice comune (`shared/giocatore.py`, `shared/elenco_giocatori.py`, `shared/prestazione.py`) i fantapunti passano da `shared/non_ufficiale` (fuori da klra: quelli della lega, niente cambia); nuovo gancio `pesi()` per la composizione di /prestazione; striscia e filigrana NON UFFICIALE anche in quelle tre immagini
+
+## v18 (2026-11-28, progettone v7.42.0)
+
+- **`/giocatori_build`** come loucabot: la ricerca coi bottoni, 🔎 Cerca col sistema attivo (NON UFFICIALE); in `/giocatori` l'ordine crescente (`ordina:media+`) e la ricerca da copiare
+- `/partita`: chi ha confermato il quintetto, come loucabot (in `setup_db.sql` la lettura di `ipa_controlli` e `ipa_solo_bot`; prima in klra la riga non c'era)

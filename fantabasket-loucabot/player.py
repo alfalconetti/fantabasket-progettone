@@ -10,6 +10,7 @@ import calcolo  # noqa: F401  — usato da congelamento (player.calcolo.norm)
 import db  # noqa: F401  — le prove sostituiscono db.q
 from shared import giocatore as G
 from shared.elenco_giocatori import cmd_giocatori
+from shared import giocatori_build as GB
 from shared.giocatore import (ANNO_BOT, FONTE, GIORNI, NOTA_FIRMA, NOTA_FIRMA_FINO_AL, TIPI, ULTIME_MEDIA,  # noqa: F401
                               anno_prima, cerca, e, eta, immagine, partite_squadra, prossima_partita,
                               scadenza_diritti, testo_su, ultime)
@@ -40,8 +41,13 @@ from shared import prestazione as PR  # noqa: E402
 cmd_prestazione, cb_prestazione = PR.handlers(lambda gid: _foto(gid))
 
 
+_gb_cmd, _gb_cb = GB.gestori()
+
+
 def get_handlers() -> list:
     return [CommandHandler("player", cmd_player), CallbackQueryHandler(cb_player, pattern=r"^pl:\d+$"),
             CommandHandler("giocatori", cmd_giocatori),                    # v7.5.0: shared/elenco_giocatori.py
+            CommandHandler("giocatori_build", _gb_cmd),                    # v7.42.0: shared/giocatori_build.py
+            CallbackQueryHandler(_gb_cb, pattern=GB.PATTERN),
             CommandHandler("prestazione", cmd_prestazione, block=False),
             CallbackQueryHandler(cb_prestazione, pattern=r"^pre:\d+:\d+$", block=False)]
