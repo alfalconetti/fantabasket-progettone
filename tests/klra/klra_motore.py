@@ -118,6 +118,10 @@ ok(rifiutato("INSERT INTO lega_risultati (stagione, giornata, casa, trasferta) V
 ok(rifiutato("UPDATE giocatori SET nome_common = 'x' WHERE id = %d" % gid[1]), "UPDATE su giocatori: rifiutato")
 ok(rifiutato("DELETE FROM nba_tabellini"), "DELETE su nba_tabellini: rifiutato")
 ok(rifiutato("CREATE TABLE klra_furba (x int)"), "creare tabelle nel database della lega: rifiutato")
+# v7.42.1: le tabelle che leggono le viste comuni (/player: pick per il draft dei rookie; /partita: le conferme)
+_mancano = [t for t in ("pick", "ipa_controlli", "ipa_solo_bot", "rookie", "dpe")
+            if db.q("SELECT to_regclass(%s) IS NOT NULL AS c", (t,), one=True)["c"] and rifiutato(f"SELECT 1 FROM {t} LIMIT 1")]
+ok(not _mancano, f"klra legge le tabelle delle viste comuni {_mancano}")
 ok(rifiutato("SELECT * FROM lega_calcoli"), "tabella fuori elenco (lega_calcoli): non si legge nemmeno")
 ok(rifiutato("SET default_transaction_read_only = off; INSERT INTO lega_risultati (stagione, giornata, casa, trasferta) VALUES ('x', 99, 'a', 'b')"),
    "anche togliendo la sola lettura della sessione: rifiutato (permessi del ruolo)")

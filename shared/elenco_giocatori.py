@@ -98,6 +98,19 @@ def _confronto(chiave: str, v: str):
             "=": lambda x: x == n}[op]
 
 
+def _testo_confronto(v: str, nome: str, unita: str = "") -> str:
+    """v7.42.1a: costo e anni nell'intestazione («costo ≤ 10M», «4 anni di contratto»), prima «costo/anni filtrati»."""
+    v = v.replace(",", ".")
+    m = re.fullmatch(r"(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)", v)
+    if m:
+        return f"{nome} {m[1]}-{m[2]}{unita}"
+    m = re.fullmatch(r"(<=|>=|<|>|=)?(\d+(?:\.\d+)?)", v)
+    op = {"<=": "≤", ">=": "≥", "<": "<", ">": ">"}.get(m[1] or "", "")
+    if nome == "anni" and not op:
+        return f"{m[2]} {'anno' if m[2] == '1' else 'anni'} di contratto"
+    return f"{'anni di contratto' if nome == 'anni' else nome} {op + ' ' if op else ''}{m[2]}{unita}"
+
+
 def _media(chiave: str, v: str, nome: str = "media"):
     """v7.27.0 (Luca, 23/11): «30+» almeno 30, «20-» al massimo 20; se no come costo (>=30, 20-30…).
     (funzione, testo per l'intestazione). v7.41.0: anche per i minuti (nome «min»)."""
@@ -235,13 +248,13 @@ def _gruppo(parti: list[str], oggi: int, glob: dict) -> dict:
         elif k in ("min_g", "ming", "partite"):
             f["min_g"] = _numero(k, v)
         elif k in ("costo", "importo"):
-            f["costo"] = _confronto(k, v)
+            f["costo"], f["costo_t"] = _confronto(k, v), _testo_confronto(v, "costo", "M")
         elif k in ("media", "fantamedia", "fm"):
             f["media"].append(_media(k, v))
         elif k in ("minuti", "min", "minutaggio"):          # v7.41.0 (Luca, 28/11): i minuti a partita
             f["minuti"].append(_media(k, v, "min"))
         elif k == "anni":
-            f["anni"] = _confronto(k, v)
+            f["anni"], f["anni_t"] = _confronto(k, v), _testo_confronto(v, "anni")
         elif k in ("infortunati", "infortunato"):
             if v.lower() not in ("no", "si", "sì"):
                 raise Errore(f"«{p}»: infortunati:no o infortunati:si.")
@@ -307,9 +320,9 @@ def _descr_gruppo(f: dict) -> str:
     if f.get("minuti"):
         d.append(" e ".join(t for _, t in f["minuti"]))
     if f["costo"]:
-        d.append("costo filtrato")
+        d.append(f.get("costo_t") or "costo filtrato")
     if f["anni"]:
-        d.append("anni filtrati")
+        d.append(f.get("anni_t") or "anni filtrati")
     if f["infortunati"] is not None:
         d.append("solo infortunati" if f["infortunati"] else "senza infortunati")
     return " · ".join(d)

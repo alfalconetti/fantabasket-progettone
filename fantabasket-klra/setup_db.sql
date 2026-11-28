@@ -51,5 +51,7 @@ SELECT format('GRANT SELECT ON %I TO %I', c.relname, :'ruolo')
                      -- v8 (v7.20.1): /playoff col sistema (le date dei turni)
                      'lega_giornate_playoff',
                      -- v18 (v7.42.0): in /partita chi ha confermato il quintetto, come loucabot
-                     'ipa_controlli', 'ipa_solo_bot') \gexec
+                     'ipa_controlli', 'ipa_solo_bot',
+                     -- v18 (v7.42.1): /player, il draft dei rookie (chi aveva la pick: shared/giocatore.draft)
+                     'pick') \gexec
 SELECT format('ALTER ROLE %I IN DATABASE %I SET default_transaction_read_only = on', :'ruolo', current_database()) \gexec

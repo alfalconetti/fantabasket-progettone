@@ -86,3 +86,11 @@
 
 - **`/giocatori_build`** come loucabot: la ricerca coi bottoni, 🔎 Cerca col sistema attivo (NON UFFICIALE); in `/giocatori` l'ordine crescente (`ordina:media+`) e la ricerca da copiare
 - `/partita`: chi ha confermato il quintetto, come loucabot (in `setup_db.sql` la lettura di `ipa_controlli` e `ipa_solo_bot`; prima in klra la riga non c'era)
+
+## v19 (2026-11-28, progettone v7.42.1)
+
+- `/player` di un giocatore col draft (rookie e diritti) andava in errore: in `setup_db.sql` mancava la lettura di `pick` (chi aveva la scelta). La prova controlla ora che klra legga le tabelle delle viste comuni
+
+## v20 (2026-11-28, progettone v7.42.2)
+
+- `/giocatori_build` come loucabot v163: i numeri con le frecce, gli anni 1, 2, 3

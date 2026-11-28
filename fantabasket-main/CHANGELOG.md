@@ -2378,3 +2378,19 @@ Rifacimento dello zip della v7.37.0 (le lettere: correzioni allo stesso rilascio
 - `/giocatori`: sotto il file la **ricerca riscritta** da copiare (🔁 `/giocatori …`), anche quando non trova nessuno (Luca, 28/11: per la riproducibilità)
 - Nuovo **`/giocatori_build`** (bot principale in privato, loucabot v162, klra v18): la ricerca costruita coi bottoni, passo passo (posizione, situazione, squadra NBA e del fantabasket, media, minuti, partite, costo, anni, infortunati, nega, oppure, ordine, quanti, stagione), con la ricerca fin qui sempre in cima; 🔎 Cerca dà la stessa risposta di `/giocatori` (Luca, 28/11)
 - klra v18: lettura di `ipa_controlli` e `ipa_solo_bot` (`setup_db.sql`), per chi ha confermato il quintetto in `/partita`
+
+## v7.42.1 (2026-11-28)
+
+- klra v19: `/player` di un rookie andava in errore (mancava a klra la lettura della tabella `pick`, che serve per il draft; dalla v17)
+
+## v7.42.1a (2026-11-28)
+
+- `/giocatori`: nell'intestazione `costo:` e `anni:` si leggono («costo ≤ 10M», «4 anni di contratto», «anni di contratto ≥ 2»; prima «costo filtrato», «anni filtrati»); in `/giocatori_build` gli anni dicono che sono quelli rimasti, questa stagione compresa
+
+## v7.42.2 (2026-11-28)
+
+- `/giocatori_build` (Luca, 28/11): niente più soglie fisse per i numeri; media, minuti, partite e costo partono da 10 e si cambiano con le frecce (−5, −1, +1, +5), poi «almeno» o «al massimo» (per il costo i due insieme fanno `costo:A-B`). Gli anni di contratto sono 1, 2 o 3 (il massimo) o «almeno 2»
+
+## v7.42.2a (2026-11-28)
+
+- `/giocatori_build`: tornano le soglie già pronte e **accanto** c'è «🎚 Altro valore» con le frecce (Luca, 28/11: il valore a frecce era da aggiungere, non da sostituire)

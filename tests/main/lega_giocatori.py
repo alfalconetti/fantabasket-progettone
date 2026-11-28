@@ -128,6 +128,10 @@ ok(nomi("top:2") == ["Elenco Centro Firmato", "Elenco Guardia Fa"], "top:")
 ok(nomi("min_g:3") == ["Elenco Centro Firmato", "Elenco Guardia Fa", "Elenco Jokić Accento", "Elenco Senza Espn"], "min_g:")
 ok(nomi("costo:>10") == ["Elenco Centro Firmato"] and nomi("costo:1-5") == ["Elenco Jokić Accento"], "costo: confronto e fascia")
 ok(nomi("anni:1") == ["Elenco Jokić Accento"], "anni:")
+_dsc = lambda t: EG.descrizione(EG.leggi(t, int(S)), int(S))
+ok(_dsc("anni:4") == "4 anni di contratto" and _dsc("anni:1") == "1 anno di contratto" and _dsc("anni:>=2") == "anni di contratto ≥ 2"
+   and _dsc("costo:<=10") == "costo ≤ 10M" and _dsc("costo:5-10") == "costo 5-10M" and _dsc("costo:30") == "costo 30M",
+   "v7.42.1a: costo e anni detti nell'intestazione (prima «filtrati»)")
 ok(nomi("infortunati:no") == ["Elenco Centro Firmato", "Elenco Jokić Accento", "Elenco Senza Espn", "Elenco Ala Diritti", "Elenco Fa Panchina"],
    "infortunati:no")
 ok(nomi("ordina:costo")[:2] == ["Elenco Centro Firmato", "Elenco Jokić Accento"], "ordina:costo")
@@ -312,6 +316,26 @@ ok("<code>/giocatori C fa -nba:LAL media:30- media:25+</code>" in _t and _kb.inl
    and all(len(b.callback_data) <= 64 for v, a in (("home", ""), ("pos", ""), ("sit", ""), ("nba", ""), ("sq", ""), ("num", "media"),
            ("num", "anni"), ("inf", ""), ("ord", ""), ("verso", "nome"), ("top", ""), ("anno", ""))
            for r in GB.schermata(st, v, a)[1].inline_keyboard for b in r), "builder: le schermate, i bottoni nei 64 byte")
+# v7.42.2 (Luca, 28/11): «Altro valore» parte da 10 e si cambia con le frecce; gli anni sono 1, 2, 3
+_s3 = GB.nuovo(1)
+for d in ("gb:s:media:5", "gb:s:media:5", "gb:s:media:-1", "gb:n:media:19+", "gb:s:costo:-5", "gb:s:costo:-5", "gb:s:costo:-5",
+          "gb:n:costo:5+", "gb:n:costo:20-", "gb:n:partite:10+", "gb:n:anni:>=2"):
+    _v = GB.premi(_s3, d)
+ok(GB.testo(_s3) == "media:19+ costo:5-20 min_g:10 anni:>=2" and _s3["val"] == {"media": 19, "costo": 0},
+   f"builder: le frecce (mai sotto 0), almeno e al massimo del costo fanno un intervallo {GB.testo(_s3)!r} {_s3['val']}")
+ok(GB.premi(_s3, "gb:s:minuti:1")[:2] == ("numc", "minuti") and GB.premi(_s3, "gb:c:media")[:2] == ("numc", "media"),
+   "builder: «Altro valore» e le frecce restano sulla schermata del numero")
+# v7.42.3 (Luca, 28/11): le soglie già pronte e accanto «🎚 Altro valore» con le frecce
+_km = GB.schermata(GB.nuovo(1), "num", "media")[1]
+_bm = [b.callback_data for r in _km.inline_keyboard for b in r]
+_tc, _kc = GB.schermata(GB.nuovo(1), "numc", "media")
+_ta = [b.text for r in GB.schermata(GB.nuovo(1), "num", "anni")[1].inline_keyboard for b in r]
+_tp = [b.text for r in GB.schermata(GB.nuovo(1), "num", "partite")[1].inline_keyboard for b in r]
+ok("gb:n:media:20+" in _bm and "gb:n:media:30-" in _bm and "gb:c:media" in _bm
+   and "<b>10</b>" in _tc and [b.callback_data for b in _kc.inline_keyboard[0]] == ["gb:s:media:-5", "gb:s:media:-1", "gb:s:media:1", "gb:s:media:5"]
+   and [b.text for b in _kc.inline_keyboard[1]] == ["≥ almeno 10", "≤ al massimo 10"] and _kc.inline_keyboard[2][0].callback_data == "gb:num:media"
+   and _ta[:3] == ["1", "2", "3"] and "4" not in _ta and "🎚 Altro valore" not in _ta and not any(t.startswith("≤") for t in _tp),
+   "builder: soglie e «Altro valore» con le frecce; gli anni fino a 3; le partite solo «almeno»")
 _sq = sorted(__import__("shared.lettura", fromlist=["x"]).squadre(), key=lambda t: t["nome"].lower())
 _s2 = GB.nuovo(1); GB.premi(_s2, "gb:sq:" + str([t["id"] for t in _sq].index("team01")))
 ok(GB.testo(_s2) == "squadra:Alfa" and GB.premi(_s2, "gb:sq:999")[2], "builder: la squadra del fantabasket")

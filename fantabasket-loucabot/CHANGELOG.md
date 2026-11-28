@@ -778,3 +778,7 @@ Il calcolo dei fantapunti.
 
 - `/giocatori`: `ordina:CAMPO+` crescente, `ordina:CAMPO-` decrescente (il default); sotto il file la ricerca riscritta da copiare (Luca, 28/11)
 - Nuovo **`/giocatori_build`**: la ricerca di `/giocatori` costruita coi bottoni, un passo alla volta (`shared/giocatori_build.py`, lo stesso nel bot principale e in klra)
+
+## v163 (2026-11-28, progettone v7.42.2)
+
+- `/giocatori_build`: i numeri partono da 10 e si cambiano con le frecce; gli anni di contratto 1, 2, 3 (Luca, 28/11). Nell'intestazione di `/giocatori` costo e anni per esteso
