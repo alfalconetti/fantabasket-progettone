@@ -69,7 +69,10 @@ PUBBLICI = [("sistemi", "I sistemi di punteggio: scegli, copia, modifica"),
             ("pdf_partite", "Le partite di una squadra col sistema in PDF [SQUADRA] [NOME]"),
             ("usa", "Scegli il tuo sistema: /usa NOME"),
             ("conference", "Conference alternative: scegli, crea, confronta"),
-            ("player", "Un giocatore, con la fantamedia del tuo sistema [NOME SISTEMA]"),
+            ("player", "Un giocatore, coi fantapunti del tuo sistema [NOME SISTEMA]"),
+            ("prestazione", "Una partita di un giocatore, col tuo sistema: GIOCATORE [DATA]"),
+            ("giocatori", "Cerca tra i giocatori, con le fantamedie del tuo sistema [filtri]"),
+            ("notte", "I giocatori schierati da una squadra in una notte, col tuo sistema [SQUADRA] [DATA]"),
             ("rendimento", "Il rendimento di un giocatore in stagione col sistema GIOCATORE"),
             ("rendimento_carriera", "La carriera di un giocatore coi pesi del sistema GIOCATORE"),
             ("confronto", "Due giocatori a confronto col sistema G1, G2"),
@@ -504,6 +507,36 @@ async def cb_player(update, context):
     with M.contesto(s, righe=righe):
         await q.edit_message_text("🏀 ⬇️")                     # /player è un'immagine (v7.7.0): arriva sotto
         await player.manda(_NonUfficiale(q.message, s), gid)
+
+
+# v17 (v7.41.0, Luca 28/11: «klra è loucabot, cambia solo il punteggio»): /giocatori, /prestazione e /notte di loucabot,
+# uguali, coi fantapunti del sistema (shared/elenco_giocatori.py, shared/prestazione.py e notte.py li prendono da
+# non_ufficiale.fp e da db.tabellini_atleti, che dentro il contesto danno quelli del sistema)
+async def cmd_giocatori(update, context):
+    from shared.elenco_giocatori import cmd_giocatori as f
+    await _di_loucabot(update, context, f)
+
+
+async def cmd_prestazione(update, context):
+    import player
+    await _di_loucabot(update, context, player.cmd_prestazione)
+
+
+async def cb_prestazione(update, context):
+    """Le frecce e i «Quale?» di /prestazione (pre:<giocatore>:<giorno>), col sistema attivo."""
+    import types
+    import player
+    q = update.callback_query
+    s = SI.attivo(q.from_user.id)
+    righe = await asyncio.to_thread(M.righe_lega, s, config.stagione())
+    q2 = types.SimpleNamespace(data=q.data, answer=q.answer, message=_NonUfficiale(q.message, s), from_user=q.from_user)
+    with M.contesto(s, righe=righe):
+        await player.cb_prestazione(types.SimpleNamespace(callback_query=q2, effective_user=q.from_user), context)
+
+
+async def cmd_notte(update, context):
+    import handlers as LH
+    await _di_loucabot(update, context, LH._cmd_notte)
 
 
 # v8 (v7.20.1, Luca 21/11: «copia quasi speculare di loucabot»): rendimento, confronto, situazione, squadre, Cup, storiche
@@ -1095,6 +1128,8 @@ def handlers() -> list:
             CommandHandler("classifica_full", cmd_classifica_full), CommandHandler("classifica_conference", cmd_classifica_conference),
             CommandHandler("pdf_giornata", cmd_pdf_giornata), CommandHandler("pdf_partite", cmd_pdf_partite),
             CommandHandler("conference", cmd_conference), CommandHandler("player", cmd_player),
+            CommandHandler("giocatori", cmd_giocatori), CommandHandler("prestazione", cmd_prestazione),
+            CallbackQueryHandler(cb_prestazione, pattern=r"^pre:\d+:\d+$"), CommandHandler("notte", cmd_notte),
             CallbackQueryHandler(cb_player, pattern=r"^pl:\d+$"),
             # v8: come loucabot (block=False: immagini e medie di stagioni intere)
             CommandHandler("rendimento", cmd_rendimento, block=False),

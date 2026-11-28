@@ -19,6 +19,7 @@ import os
 from datetime import date, datetime, timedelta
 
 from shared import lettura as L
+from shared import non_ufficiale as NU          # v7.41.0: in klra i fantapunti e i pesi del sistema
 from shared import regole
 
 INIZIO = date(2026, 10, 22)
@@ -158,9 +159,9 @@ def badge(r: dict, stagione: list[dict], tutte: list[dict]) -> list[str]:
         out.append("🏀 TRIPLA DOPPIA")
     elif doppie == 2:
         out.append("🏀 DOPPIA DOPPIA")
-    if len(tutte) > 1 and float(r["fp"]) >= max(float(x["fp"]) for x in tutte):
+    if len(tutte) > 1 and NU.fp(r) >= max(NU.fp(x) for x in tutte):
         out.append("⭐ RECORD DI FANTAPUNTI DAL 22/10/2026")
-    elif len(stagione) > 1 and float(r["fp"]) >= max(float(x["fp"]) for x in stagione):
+    elif len(stagione) > 1 and NU.fp(r) >= max(NU.fp(x) for x in stagione):
         out.append("⭐ RECORD STAGIONALE DI FANTAPUNTI")
     for k, nome in (("pts", "PUNTI"), ("reb", "RIMBALZI"), ("ast", "ASSIST")):
         if len(stagione) > 1 and _val(r, k) > 0 and _val(r, k) >= max(_val(x, k) for x in stagione) \
@@ -201,21 +202,26 @@ def dati(gid: int, r: dict | None, giorno: date, rr: list[dict], foto_di=None, m
     d["fanta"] = {"squadra": fa["squadra"] or "svincolato", "giornata": fa["giornata"], "ruolo": fa["ruolo"]}
     prima, dopo = vicine(rr, giorno)
     if prima:
-        d["prima"] = f"Prima: {_breve(prima['data_et'])} {_contro(prima)} · {_n(prima['fp'])} fp"
+        d["prima"] = f"Prima: {_breve(prima['data_et'])} {_contro(prima)} · {_n(NU.fp(prima))} fp"
     if dopo:
-        d["dopo"] = f"Dopo: {_breve(dopo['data_et'])} {_contro(dopo)} · {_n(dopo['fp'])} fp"
+        d["dopo"] = f"Dopo: {_breve(dopo['data_et'])} {_contro(dopo)} · {_n(NU.fp(dopo))} fp"
     if not giocato:
         d["riquadri"] = [{"t": "Fantapunti", "v": "0", "s": motivo}]
         return d
-    fp = float(r["fp"])
-    pos = 1 + sum(1 for x in st if float(x["fp"]) > fp)
-    notte = L.q("""SELECT COUNT(*) FILTER (WHERE t.fp > %s) AS sopra, COUNT(*) AS tutti FROM nba_tabellini t
-                   JOIN nba_partite p ON p.espn_id = t.partita WHERE p.data_et = %s AND p.tipo = ANY(%s) AND t.giocato""",
-                (fp, giorno, list(TIPI)), one=True)
-    media = sum(float(x["fp"]) for x in st) / len(st) if st else fp
+    fp = NU.fp(r)
+    pos = 1 + sum(1 for x in st if NU.fp(x) > fp)
+    if NU.attivo():                                  # v7.41.0, klra: la notte coi fantapunti del sistema
+        tutti_n = L.q("""SELECT t.* FROM nba_tabellini t JOIN nba_partite p ON p.espn_id = t.partita
+                         WHERE p.data_et = %s AND p.tipo = ANY(%s) AND t.giocato""", (giorno, list(TIPI)), many=True) or []
+        notte = {"sopra": sum(1 for x in tutti_n if NU.fp(x) > fp), "tutti": len(tutti_n)}
+    else:
+        notte = L.q("""SELECT COUNT(*) FILTER (WHERE t.fp > %s) AS sopra, COUNT(*) AS tutti FROM nba_tabellini t
+                       JOIN nba_partite p ON p.espn_id = t.partita WHERE p.data_et = %s AND p.tipo = ANY(%s) AND t.giocato""",
+                    (fp, giorno, list(TIPI)), one=True)
+    media = sum(NU.fp(x) for x in st) / len(st) if st else fp
     # v7.31.1 (Luca, 26/11): il confronto sia con la media di tutta la stagione sia con quella fino a quella notte
     pr = [x for x in st if x["inizio"] < r["inizio"]]
-    media_p = sum(float(x["fp"]) for x in pr) / len(pr) if pr else None
+    media_p = sum(NU.fp(x) for x in pr) / len(pr) if pr else None
     # v7.31.2: due riquadri, la media fino a quella notte e quella di tutta la stagione
     pt = lambda k: f"{k} partit{'a' if k == 1 else 'e'}"
     rq_prima = ({"t": "Sulla media fino a lì", "v": _segno(fp - media_p, 1), "s": f"media {_n(media_p)} in {pt(len(pr))}"}
@@ -239,7 +245,7 @@ def dati(gid: int, r: dict | None, giorno: date, rr: list[dict], foto_di=None, m
         return _pct(sum(float(x[m] or 0) for x in gg), sum(float(x[a] or 0) for x in gg)) if gg else "—"
     d["tiri"] = [{"t": t, "v": f"{r[m]}/{r[a]}", "s": f"{_pct(r[m], r[a])} · fino a lì {pc(pr, m, a)} · stagione {pc(st, m, a)}"}
                  for t, m, a in (("Tiri dal campo", "fgm", "fga"), ("Da tre", "tpm", "tpa"), ("Liberi", "ftm", "fta"))]
-    pesi = regole.pesi_fantapunti()
+    pesi = NU.pesi()                                  # v7.41.0: in klra i pesi del sistema
     d["composizione"] = composizione(r, st, pesi)
     voci = [{"n": n, "q": int(r[k] or 0), "p": round(float(pesi.get(k, 0)) * float(r[k] or 0), 2)} for k, n in VOCI if pesi.get(k)]
     voci = [v for v in voci if v["p"]]
@@ -249,7 +255,8 @@ def dati(gid: int, r: dict | None, giorno: date, rr: list[dict], foto_di=None, m
     somma = round(sum(v["p"] for v in voci), 2)
     d["totale"] = _n(fp)
     if abs(somma - fp) > 0.001:
-        d["correzione"] = f"corretto a mano dagli admin: dal tabellino {_n(somma)}"
+        d["correzione"] = (f"col sistema: {_n(somma)} dalle statistiche, {_n(fp)} con bonus e regole del sistema" if NU.attivo()
+                           else f"corretto a mano dagli admin: dal tabellino {_n(somma)}")
     return d
 
 
@@ -293,7 +300,7 @@ def _contro(r: dict) -> str:
 def immagine(d: dict) -> bytes:
     import typst
     tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prestazione.typ")
-    return typst.compile(tpl, root="/", format="png", ppi=144, sys_inputs={"dati": json.dumps(d, ensure_ascii=False)})
+    return typst.compile(tpl, root="/", format="png", ppi=144, sys_inputs={"dati": json.dumps(NU.marca(d), ensure_ascii=False)})
 
 
 # ── la scelta della notte ──────────────────────────────────────────────────────

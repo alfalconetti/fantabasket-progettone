@@ -7,6 +7,7 @@ loucabot) sono vuote e tutto funziona come prima:
 - `fp(riga)`: i fantapunti di una partita (un tabellino con le statistiche); col sistema, rifatti coi suoi pesi e bonus;
 - `fm_bref(riga)`: la fantamedia di una stagione di Basketball-Reference (le medie a partita); col sistema, coi suoi
   pesi; i bonus per partita non si possono calcolare dalle medie → `nota_bref()` lo dice, solo se il sistema ne ha;
+- `pesi()`: i pesi delle statistiche (v7.41.0, per la composizione di /prestazione); col sistema i suoi;
 - `marca(d)`: i dati di un'immagine con striscia rossa e filigrana NON UFFICIALE (i template le leggono);
 - `chiave()`: da aggiungere alle cache che dipendono dal sistema.
 """
@@ -17,19 +18,20 @@ _FP = contextvars.ContextVar("nu_fp", default=None)                  # funzione(
 _FM = contextvars.ContextVar("nu_fm_bref", default=None)             # funzione(riga bref) -> fantamedia
 _NOTA_BREF = contextvars.ContextVar("nu_nota_bref", default="")
 _CHIAVE = contextvars.ContextVar("nu_chiave", default="")
+_PESI = contextvars.ContextVar("nu_pesi", default=None)              # v7.41.0: {statistica: peso}
 
 
 class sistema:
     """with non_ufficiale.sistema(etichetta, fp=…, fm_bref=…, nota_bref=…, chiave=…): dentro, il codice comune usa il sistema."""
-    def __init__(self, etichetta: str, fp=None, fm_bref=None, nota_bref: str = "", chiave: str = ""):
-        self.v = (etichetta, fp, fm_bref, nota_bref, chiave)
+    def __init__(self, etichetta: str, fp=None, fm_bref=None, nota_bref: str = "", chiave: str = "", pesi=None):
+        self.v = (etichetta, fp, fm_bref, nota_bref, chiave, pesi)
 
     def __enter__(self):
-        self.t = [c.set(x) for c, x in zip((_ETICHETTA, _FP, _FM, _NOTA_BREF, _CHIAVE), self.v)]
+        self.t = [c.set(x) for c, x in zip((_ETICHETTA, _FP, _FM, _NOTA_BREF, _CHIAVE, _PESI), self.v)]
         return self
 
     def __exit__(self, *a):
-        for c, t in zip((_ETICHETTA, _FP, _FM, _NOTA_BREF, _CHIAVE), self.t):
+        for c, t in zip((_ETICHETTA, _FP, _FM, _NOTA_BREF, _CHIAVE, _PESI), self.t):
             c.reset(t)
         return False
 
@@ -46,6 +48,15 @@ def fp(r: dict) -> float:
 def fm_bref(r: dict) -> float:
     f = _FM.get()
     return float(f(r)) if f else float(r.get("fantamedia") or 0)
+
+
+def pesi() -> dict:
+    """I pesi delle statistiche: col sistema i suoi, se no quelli della lega."""
+    p = _PESI.get()
+    if p is not None:
+        return dict(p)
+    from shared import regole
+    return regole.pesi_fantapunti()
 
 
 def nota_bref() -> str:

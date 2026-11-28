@@ -31,11 +31,12 @@ import shlex
 
 from shared import lettura as L
 from shared.numeri import ottavi, testo as tp
+from shared import non_ufficiale as NU          # v7.41.0: in klra i fantapunti del sistema
 
 RUOLI = ("PG", "SG", "SF", "PF", "C")
 GRUPPI = {"G": ("PG", "SG"), "F": ("SF", "PF")}
 STATI = ("fa", "firmati", "diritti", "tutti")
-ORDINI = ("media", "costo", "partite", "ultime5", "nome")
+ORDINI = ("media", "costo", "partite", "ultime5", "minuti", "nome")
 TIPI = (2, 5)                    # regular season e play-in, come /player
 ULTIME = 5
 PER_IMMAGINE = 25                # giocatori in un'immagine
@@ -53,8 +54,9 @@ AIUTO = ("<b>/giocatori</b> [filtri] — cerca tra i giocatori; i filtri si comb
          "• <code>nome:REGEX</code> — nome con un'espressione regolare (<code>nome:^jal</code>); le parole da sole cercano nel nome\n"
          "• <code>anno:2024</code> — la media del 2024-25 (Basketball-Reference); senza, la stagione in corso\n"
          "• <code>media:30+</code> (almeno 30) · <code>media:20-</code> (al massimo 20) · <code>media:20+ and media:30-</code> (tra 20 e 30)\n"
+         "• <code>minuti:25+</code> (almeno 25 minuti a partita) · <code>minuti:15-</code> · <code>minuti:20-30</code>\n"
          "• <code>top:20</code> · <code>min_g:10</code> · <code>costo:&lt;10</code> · <code>costo:5-10</code> · <code>anni:1</code> · <code>infortunati:no</code>\n"
-         "• <code>ordina:media</code> (o costo, partite, ultime5, nome)\n"
+         "• <code>ordina:media</code> (o costo, partite, ultime5, minuti, nome)\n"
          "• <code>watch</code> — i giocatori della tua watchlist (solo in privato)\n"
          "• <code>-</code> davanti nega un filtro: <code>-C</code>, <code>-nba:LAL</code>, <code>-firmati</code>\n"
          "• <code>|</code> (o <code>oppure</code>) separa gruppi alternativi: <code>C fa | PF diritti</code>\n"
@@ -96,15 +98,15 @@ def _confronto(chiave: str, v: str):
             "=": lambda x: x == n}[op]
 
 
-def _media(chiave: str, v: str):
+def _media(chiave: str, v: str, nome: str = "media"):
     """v7.27.0 (Luca, 23/11): «30+» almeno 30, «20-» al massimo 20; se no come costo (>=30, 20-30…).
-    (funzione, testo per l'intestazione)."""
+    (funzione, testo per l'intestazione). v7.41.0: anche per i minuti (nome «min»)."""
     w = v.replace(",", ".").strip()
     m = re.fullmatch(r"(\d+(?:\.\d+)?)([+-])", w)
     if m:
         n = float(m[1])
-        return (lambda x: x >= n, f"media ≥ {m[1]}") if m[2] == "+" else (lambda x: x <= n, f"media ≤ {m[1]}")
-    return _confronto(chiave, w), f"media {v}"
+        return (lambda x: x >= n, f"{nome} ≥ {m[1]}") if m[2] == "+" else (lambda x: x <= n, f"{nome} ≤ {m[1]}")
+    return _confronto(chiave, w), f"{nome} {v}"
 
 
 def _ruoli(chiave: str, v: str) -> set:
@@ -167,12 +169,12 @@ def _vuoto() -> dict:
     # diversi in «e» (v7.5.2, Luca 10/11); un insieme vuoto = nessun filtro
     return {"ruoli": set(), "stato": set(), "nba": set(), "squadra": [], "ruolo_squadra": set(), "regex": None,
             "parole": [], "min_g": None, "costo": None, "anni": None, "infortunati": None, "watch": False, "rookie": False, "neg": [],
-            "media": []}
+            "media": [], "minuti": []}
 
 
 def _ha_condizioni(g: dict) -> bool:
     return any(g[k] for k in ("ruoli", "stato", "nba", "squadra", "ruolo_squadra", "regex", "parole", "min_g", "costo",
-                              "anni", "watch", "rookie", "media")) or g["infortunati"] is not None
+                              "anni", "watch", "rookie", "media", "minuti")) or g["infortunati"] is not None
 
 
 def _gruppo(parti: list[str], oggi: int, glob: dict) -> dict:
@@ -236,6 +238,8 @@ def _gruppo(parti: list[str], oggi: int, glob: dict) -> dict:
             f["costo"] = _confronto(k, v)
         elif k in ("media", "fantamedia", "fm"):
             f["media"].append(_media(k, v))
+        elif k in ("minuti", "min", "minutaggio"):          # v7.41.0 (Luca, 28/11): i minuti a partita
+            f["minuti"].append(_media(k, v, "min"))
         elif k == "anni":
             f["anni"] = _confronto(k, v)
         elif k in ("infortunati", "infortunato"):
@@ -290,6 +294,8 @@ def _descr_gruppo(f: dict) -> str:
         d.append(f"almeno {f['min_g']} G")
     if f.get("media"):
         d.append(" e ".join(t for _, t in f["media"]))
+    if f.get("minuti"):
+        d.append(" e ".join(t for _, t in f["minuti"]))
     if f["costo"]:
         d.append("costo filtrato")
     if f["anni"]:
@@ -327,7 +333,7 @@ def dati(anno: int, oggi: int) -> list[dict]:
 
     # la stagione di Basketball-Reference (2024 → «2025»): la riga più recente di quella stagione
     bref = {r["n"]: r for r in _q(
-        """SELECT DISTINCT ON (lower(nome_bref)) lower(nome_bref) AS n, fantamedia, g FROM bref_stats
+        """SELECT DISTINCT ON (lower(nome_bref)) lower(nome_bref) AS n, * FROM bref_stats
            WHERE stagione = %s AND fantamedia IS NOT NULL ORDER BY lower(nome_bref), timestamp DESC, id DESC""",
         (str(anno + 1),))}
     # v7.9.6 (Luca, 15/11): i FA come nella lista FA (shared/lista_fa.py): chi ha giocato nella stagione in corso o,
@@ -337,30 +343,33 @@ def dati(anno: int, oggi: int) -> list[dict]:
         from shared import lista_fa as LF
         recenti = {r["n"] for r in _q("SELECT DISTINCT lower(nome_bref) AS n FROM bref_stats WHERE stagione = ANY(%s)",
                                       (list(LF.stagioni_valide(L.q, s)),))}
-    espn = {}
+    espn, minuti = {}, {}
     if anno == oggi:                        # la stagione in corso: i tabellini ESPN, come /player
-        for r in _q("""SELECT t.atleta, t.fp, t.giocato, t.minuti FROM nba_tabellini t
+        for r in _q("""SELECT t.* FROM nba_tabellini t
                        JOIN nba_partite p ON p.espn_id = t.partita
                        WHERE p.stagione = %s AND p.tipo = ANY(%s) ORDER BY p.inizio""", (s, list(TIPI))):
             if L.conta(r):
-                espn.setdefault(r["atleta"], []).append(float(r["fp"]))
+                espn.setdefault(r["atleta"], []).append(NU.fp(r))      # v7.41.0: in klra col sistema
+                minuti.setdefault(r["atleta"], []).append(float(r["minuti"] or 0))
 
     out = []
     for g in gioc:
         a, c = g["espn_id"], contr.get(g["id"])
         x = {"id": g["id"], "nome": g["nome_common"], "atleta": a, "nba": nba.get(a) if a else None, "pos": pos.get(g["id"], []),
              "inf": inf.get(a) if a else None, "contratto": c, "diritti": None if c else dir_.get(g["id"]),
-             "media": None, "g": 0, "ult5": None, "fonte": None,
+             "media": None, "g": 0, "ult5": None, "fonte": None, "minuti": None,
              "recente": bool(g.get("nome_bref") and g["nome_bref"].lower() in recenti)}
         if c:
             x["anni"] = int(c["anni_originali"]) - (oggi - int(c["stagione_firma"]))
         fp = espn.get(a) if a else None
         if fp:
             x.update(media=ottavi(sum(fp) / len(fp)), g=len(fp), fonte="espn",
-                     ult5=ottavi(sum(fp[-ULTIME:]) / ULTIME) if len(fp) > ULTIME else None)
+                     ult5=ottavi(sum(fp[-ULTIME:]) / ULTIME) if len(fp) > ULTIME else None,
+                     minuti=round(sum(minuti[a]) / len(minuti[a]), 1))
         elif (anno != oggi or not a) and g.get("nome_bref") and (g["nome_bref"].lower() in bref):
             b = bref[g["nome_bref"].lower()]
-            x.update(media=float(b["fantamedia"]), g=int(b["g"] or 0), fonte="bref")
+            x.update(media=NU.fm_bref(b), g=int(b["g"] or 0), fonte="bref",
+                     minuti=float(b["mp"]) if b.get("mp") is not None else None)
         out.append(x)
     return out
 
@@ -419,6 +428,8 @@ def _passa(x: dict, f: dict, seguiti: set) -> bool:
             continue
         if f.get("media") and not (x["media"] is not None and all(fn(float(x["media"])) for fn, _ in f["media"])):
             continue
+        if f.get("minuti") and not (x.get("minuti") is not None and all(fn(float(x["minuti"])) for fn, _ in f["minuti"])):
+            continue
         if f["costo"] and not (x["contratto"] and f["costo"](float(x["contratto"]["importo"]))):
             continue
         if f["anni"] and not (x["contratto"] and f["anni"](float(x["anni"]))):
@@ -434,6 +445,7 @@ def _ordina(out: list[dict], f: dict) -> list[dict]:
               "costo": lambda x: (not x["contratto"], -float((x["contratto"] or {}).get("importo") or 0), x["nome"]),
               "partite": lambda x: (-x["g"], -(x["media"] or 0), x["nome"]),
               "ultime5": lambda x: (x["ult5"] is None and x["media"] is None, -(x["ult5"] if x["ult5"] is not None else (x["media"] or 0)), x["nome"]),
+              "minuti": lambda x: (x.get("minuti") is None, -(x.get("minuti") or 0), x["nome"]),
               "nome": lambda x: x["nome"]}[f["ordina"]]
     out.sort(key=chiave)
     return out[:f["top"]] if f["top"] else out
@@ -527,7 +539,7 @@ def immagine(d: dict) -> bytes:
     tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "elenco_giocatori.typ")
     fonts = [x for x in ("/usr/share/fonts",) if os.path.isdir(x)]
     return typst.compile(tpl, root="/", format="png", ppi=170, font_paths=fonts,
-                         sys_inputs={"dati": json.dumps(d, ensure_ascii=False)})
+                         sys_inputs={"dati": json.dumps(NU.marca(d), ensure_ascii=False)})
 
 
 def markdown(righe: list[dict], f: dict, oggi: int) -> str:

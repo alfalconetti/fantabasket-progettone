@@ -16,6 +16,18 @@
 #set page(width: 520pt, height: auto, margin: 0pt, fill: white)
 #set block(spacing: 0pt)
 #set text(font: ("Liberation Sans", "Noto Color Emoji"), size: 9pt, fill: testo)
+// klra (v7.41.0): filigrana «NON UFFICIALE» e striscia rossa in cima, solo se nei dati (come confronto.typ)
+#let _filigrana = d.at("filigrana", default: "")
+#set page(foreground: if _filigrana != "" {
+  layout(sz => {
+    let n = calc.max(1, calc.floor(sz.height / 450pt))
+    for i in range(n) { place(center + horizon, dy: sz.height * ((i + 0.5) / n - 0.5),
+      rotate(-22deg, text(50pt, weight: "bold", fill: rgb("#C0392B").transparentize(84%))[#_filigrana])) }
+  })
+})
+#if d.at("striscia", default: "") != "" {
+  block(width: 100%, fill: rgb("#C0392B"), inset: (x: 14pt, y: 6pt), align(center, text(9pt, weight: "bold", fill: white)[#d.striscia]))
+}
 
 #let etichetta(t) = text(7pt, weight: "bold", fill: grigio, tracking: 0.7pt)[#upper(t)]
 

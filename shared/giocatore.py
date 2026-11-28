@@ -24,6 +24,7 @@ from telegram import InlineKeyboardButton as B, InlineKeyboardMarkup as K
 from shared import lettura as L
 from shared.parole_nome import senza_apici as PN_senza
 from shared.numeri import ottavi, testo as tp
+from shared import non_ufficiale as NU          # v7.41.0: in klra i fantapunti del sistema (fuori, quelli della lega)
 
 logger = logging.getLogger(__name__)
 
@@ -221,7 +222,7 @@ def ultime(tab: list[dict], partite: list[dict], quante: int = 5) -> list[str]:
             out.append(f"• {r['data_et']:%d/%m} {dove} {e(avv)}: non è entrato")
             continue
         out.append(f"• {r['data_et']:%d/%m} {dove} {e(avv)}: {r['minuti']}′ · {r['pts']} pt · {r['oreb'] + r['dreb']} rb · "
-                   f"{r['ast']} as → <b>{tp(float(r['fp']))}</b>")
+                   f"{r['ast']} as → <b>{tp(NU.fp(r))}</b>")
     return out
 
 
@@ -230,7 +231,7 @@ def anno_prima(gid: int, stagione: str) -> str | None:
     quella stagione (bref numera col secondo anno: la stagione 2026-27 della lega è la 2027, quella prima
     la 2026), dal nome di bref dell'anagrafica (o dal nome comune). Fantamedia coi pesi della lega."""
     try:
-        r = L.q("""SELECT b.g, b.fantamedia FROM giocatori g
+        r = L.q("""SELECT b.* FROM giocatori g
                     JOIN bref_stats b ON lower(b.nome_bref) IN (lower(g.nome_bref), lower(g.nome_common))
                     WHERE g.id = %s AND b.stagione = %s AND b.fantamedia IS NOT NULL
                     ORDER BY b.timestamp DESC LIMIT 1""", (gid, str(int(stagione))), one=True)
@@ -239,7 +240,7 @@ def anno_prima(gid: int, stagione: str) -> str | None:
     if not r:
         return None
     a = int(stagione)
-    return (f"🗓️ Stagione {a - 1}-{str(a)[-2:]}: media <b>{tp(ottavi(float(r['fantamedia'])))}</b> fantapunti"
+    return (f"🗓️ Stagione {a - 1}-{str(a)[-2:]}: media <b>{tp(ottavi(NU.fm_bref(r)))}</b> fantapunti"
             + (f" in {r['g']} partite" if r.get("g") else "") + " <i>(Basketball-Reference)</i>")
 
 
@@ -381,7 +382,7 @@ def scheda(gid: int) -> str:
     n = len(contano)
     tot = {k: sum(int(r[k]) for r in contano) for k in ("minuti", "pts", "oreb", "dreb", "ast", "stl", "blk", "tov",
                                                        "fgm", "fga", "tpm", "tpa", "ftm", "fta")}
-    media_fp = ottavi(sum(float(r["fp"]) for r in contano) / n)
+    media_fp = ottavi(sum(NU.fp(r) for r in contano) / n)
     righe += [f"📊 <b>Stagione {e(s)}</b>: {n} partite{su} · media <b>{tp(media_fp)}</b> fantapunti",
               f"{_media(tot['minuti'] / n)} min · {_media(tot['pts'] / n)} punti · {_media((tot['oreb'] + tot['dreb']) / n)} rimbalzi "
               f"· {_media(tot['ast'] / n)} assist · {_media(tot['stl'] / n)} recuperi · {_media(tot['blk'] / n)} stoppate "
@@ -390,7 +391,7 @@ def scheda(gid: int) -> str:
     # media delle ultime 5 giocate (Luca, 09/11): solo se ne ha giocate più di 5, se no è la media della stagione
     if n > ULTIME_MEDIA:
         recenti = contano[-ULTIME_MEDIA:]
-        righe.append(f"📈 Ultime {ULTIME_MEDIA} giocate: media <b>{tp(ottavi(sum(float(r['fp']) for r in recenti) / ULTIME_MEDIA))}</b> fantapunti"
+        righe.append(f"📈 Ultime {ULTIME_MEDIA} giocate: media <b>{tp(ottavi(sum(NU.fp(r) for r in recenti) / ULTIME_MEDIA))}</b> fantapunti"
                      f" · {_media(sum(int(r['minuti']) for r in recenti) / ULTIME_MEDIA)} min")
     if prima:
         righe.append(prima)
@@ -530,14 +531,14 @@ def dati_scheda(gid: int, foto_di=None) -> dict | None:
 
     # ── la stagione passata (Basketball-Reference) ──
     try:
-        bp = L.q("""SELECT b.g, b.fantamedia FROM giocatori g
+        bp = L.q("""SELECT b.* FROM giocatori g
                     JOIN bref_stats b ON lower(b.nome_bref) IN (lower(g.nome_bref), lower(g.nome_common))
                     WHERE g.id = %s AND b.stagione = %s AND b.fantamedia IS NOT NULL
                     ORDER BY b.timestamp DESC, b.id DESC LIMIT 1""", (gid, str(int(s))), one=True)
     except Exception:
         bp = None
     ap = int(s)
-    prima = {"t": f"Stagione {ap - 1}-{str(ap)[-2:]}", "v": _num(float(bp["fantamedia"])) if bp else "—",
+    prima = {"t": f"Stagione {ap - 1}-{str(ap)[-2:]}", "v": _num(NU.fm_bref(bp)) if bp else "—",
              "s": (f"{bp['g']} partite · bref" if bp and bp.get("g") else "bref") if bp else "nessun dato"}
 
     # v7.18.0 (Luca, 18/11; mockup approvato): sotto i riquadri della stagione lo «storico», stagione passata e
@@ -575,7 +576,7 @@ def dati_scheda(gid: int, foto_di=None) -> dict | None:
         d["nota_stagione"] = f"Nessuna partita giocata nel {d['stagione']}" + su + (f" ({len(tab)} a referto senza entrare)" if tab else "")
         return d
     n = len(contano)
-    fp = [float(r["fp"]) for r in contano]
+    fp = [NU.fp(r) for r in contano]
     media = sum(fp) / n
     quando = lambda r: f"{'vs' if r['squadra'] == r['casa'] else '@'} {r['trasferta'] if r['squadra'] == r['casa'] else r['casa']} · {r['data_et']:%d/%m}"
     bi = max(range(n), key=lambda i: fp[i])
@@ -654,7 +655,7 @@ def ultime_dati(tab: list[dict], partite: list[dict], quante: int = 5) -> list[d
         pezzi += [f"{t} {r[f]}/{r[a]} {round(100 * int(r[f]) / int(r[a]))}%" for t, f, a in (("FG", "fgm", "fga"), ("FT", "ftm", "fta"))
                   if int(r[a] or 0)]
         out.append({"data": f"{r['data_et']:%d/%m}", "avv": f"{dove} {avv}", "riga": " · ".join(pezzi) + f" · {r['minuti']}′",
-                    "fp": float(r["fp"]), "fpt": tp(float(r["fp"])), "partita": r["partita"]})
+                    "fp": NU.fp(r), "fpt": tp(NU.fp(r)), "partita": r["partita"]})
     return out
 
 
@@ -664,7 +665,7 @@ def immagine_scheda(d: dict) -> bytes:
     tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "giocatore.typ")
     fonts = [x for x in ("/usr/share/fonts",) if os.path.isdir(x)]
     return typst.compile(tpl, root="/", format="png", ppi=180, font_paths=fonts,
-                         sys_inputs={"dati": json.dumps(d, ensure_ascii=False, default=str)})
+                         sys_inputs={"dati": json.dumps(NU.marca(d), ensure_ascii=False, default=str)})
 
 
 def didascalia(d: dict) -> str:

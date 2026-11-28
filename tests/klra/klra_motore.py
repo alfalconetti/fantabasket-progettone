@@ -553,15 +553,37 @@ db._pool = _k
 open(_div, "w", encoding="utf-8").write(_d4)
 os.unlink(_div)
 
-# /player col sistema (v2)
+# /player col sistema: v7.41.0 (Luca, 28/11: «klra è loucabot, cambia solo il punteggio») la stessa immagine di loucabot,
+# coi fantapunti del sistema dentro, niente testo in più
+from shared import giocatore as _G, rendimento as _REx
+_RE_partite = lambda a: _REx.partite(a, S)
+_spP = KR.completa(SI.parametri(sp))
+_dl = _G.dati_scheda(gid[4])
+with M.contesto(sp):
+    _ds = _G.dati_scheda(gid[4])
+_fm = lambda d: next(x["v"] for x in d["riquadri"] if x["t"] == "Fantamedia")
+ok(_fm(_ds) != _fm(_dl) and all(u["fpt"] == __import__("shared.numeri", fromlist=["x"]).testo(M.fp_riga(r, _spP, {}))
+                               for u, r in zip([u for u in _ds["ultime"] if u.get("fp") is not None],
+                                               [r for r in _RE_partite("k4") if r["giocato"]][-len([u for u in _ds["ultime"] if u.get("fp") is not None]):])),
+   f"/player in klra: fantamedia e ultime partite col sistema ({_fm(_dl)} → {_fm(_ds)})")
 m = Msg(); asyncio.run(CM.cmd_player(upd(900, m), ctx(["Klra", "4", "Stoppate"])))
-_t = (m.testi[-1][0] if m.testi else "") + (m.foto[-1][1] if m.foto else "")
-ok("NON UFFICIALE" in _t and "Col sistema Stoppate" in _t and "Fantamedia" in _t and "(lega " in _t, "/player NOME SISTEMA: la scheda di loucabot con la stagione del sistema " + _t[-300:])
+_altri = [t for t, _ in m.testi if not t.startswith("⏳")]
+ok(m.foto and "NON UFFICIALE" in (m.foto[-1][1] or "") and not _altri, f"/player NOME SISTEMA: solo l'immagine, NON UFFICIALE, niente testo sotto {_altri}")
 import player as _PL
-ok("Col sistema" not in _PL.scheda(gid[4]), "/player di loucabot fuori da klra: com'era")
-ok(m.foto and m.testi and "Col sistema Stoppate" in m.testi[-1][0],
-   f"/player in klra (v7.7.0): l'immagine di loucabot, e sotto in testo la stagione col sistema {m.foto[-1][1] if m.foto else None!r}")
-ok(_PL.extra(gid[4]) == "", "fuori dal contesto di un sistema: niente testo in più")
+ok(_PL.extra(gid[4]) == "" and _fm(_G.dati_scheda(gid[4])) == _fm(_dl), "fuori da klra: /player com'era")
+# /giocatori, /prestazione, /notte di loucabot in klra (v7.41.0), coi fantapunti del sistema
+from shared import elenco_giocatori as _EG, prestazione as _PR
+_el = {x["id"]: x for x in _EG.dati(int(S), int(S))}
+with M.contesto(sp):
+    _es = {x["id"]: x for x in _EG.dati(int(S), int(S))}
+ok(_el[gid[4]]["media"] != _es[gid[4]]["media"], f"/giocatori: la fantamedia col sistema ({_el[gid[4]]['media']} → {_es[gid[4]]['media']})")
+m = Msg(); m.text = "/giocatori Stoppate"
+asyncio.run(CM.cmd_giocatori(upd(900, m), ctx(["Stoppate"])))
+ok((m.foto or m.testi) and "NON UFFICIALE" in str(m.foto[-1][1] if m.foto else m.testi[-1][0]), "/giocatori in klra: NON UFFICIALE")
+m = Msg(); asyncio.run(CM.cmd_prestazione(upd(900, m), ctx(["Klra", "4", "Stoppate"])))
+ok(m.foto and "NON UFFICIALE" in str(m.foto[-1][1]), "/prestazione in klra: l'immagine, NON UFFICIALE " + str([t for t, _ in m.testi])[:200])
+m = Msg(); asyncio.run(CM.cmd_notte(upd(900, m), ctx(["Stoppate"])))
+ok(m.testi and "NON UFFICIALE" in m.testi[-1][0], "/notte in klra: NON UFFICIALE " + (m.testi[-1][0][:150] if m.testi else ""))
 
 # ── v8 (v7.20.1): copia quasi speculare di loucabot: i comandi in comune col sistema, sempre NON UFFICIALE ──
 from shared import rendimento as _RE, non_ufficiale as _NU, quasi_cup as _QC
@@ -657,7 +679,8 @@ ok({c for c, _ in CM.PUBBLICI} >= {"rendimento", "rendimento_carriera", "confron
                                    "rendimento_team", "classifica_home_away", "quasi_cup", "top_storica", "playoff"},
    "i comandi nuovi nel menu di klra")
 _h = {c for h in CM.handlers() for c in getattr(h, "commands", ())}
-ok(not _h & {"giocatori", "status", "live"}, "niente /giocatori, /status, /live")
+ok(not _h & {"status", "live"} and {"giocatori", "prestazione", "notte"} <= _h,
+   "niente /status e /live; /giocatori, /prestazione e /notte sì (v7.41.0)")
 
 # verifica: dati cambiati dopo la convalida (un tabellino corretto) → motore uguale, differenza nei dati
 db._pool = pool_lega

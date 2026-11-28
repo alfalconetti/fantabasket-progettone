@@ -2366,3 +2366,8 @@ Rifacimento dello zip della v7.37.0 (le lettere: correzioni allo stesso rilascio
 ## v7.40.0 (2026-11-28)
 
 - klra v16: sistema predefinito **Fanta P36**, fantapunti riportati a 36 minuti (netti, senza minimo); l'opzione nell'editor per ogni sistema, col minimo di minuti facoltativo (Luca, 28/11)
+
+## v7.41.0 (2026-11-28)
+
+- klra v17: `/player`, `/giocatori`, `/prestazione` e `/notte` uguali a loucabot, coi fantapunti del sistema (Luca, 28/11: «klra è loucabot, cambia solo il punteggio»). Il codice comune di quelle viste prende i fantapunti da `shared/non_ufficiale`: per loucabot e il bot principale non cambia niente
+- `/giocatori` (bot principale e loucabot, codice comune): filtro **`minuti:`** sui minuti a partita (`minuti:25+`, `minuti:15-`, `minuti:20-30`) e `ordina:minuti` (Luca, 28/11)

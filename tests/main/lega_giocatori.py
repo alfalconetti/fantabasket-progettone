@@ -56,7 +56,7 @@ fp = {"eg1": [20, 20, 40, 40, 40, 40, 40], "eg2": [30, 31, 32], "eg3": [10, 12],
 for a, punti in fp.items():
     for i, p in enumerate(punti):
         db._q("INSERT INTO nba_tabellini (partita, atleta, nome, squadra, giocato, minuti, pts, fp) VALUES (%s, %s, %s, 'DEN', TRUE, %s, 10, %s)",
-              (f"eg_p{i}", a, a, 0 if (a == "eg4" and i == 1) else 20, p))
+              (f"eg_p{i}", a, a, 0 if (a == "eg4" and i == 1) else 32 if a == "eg2" else 20, p))
 db._q("INSERT INTO nba_infortuni (giorno, atleta, nome, squadra, stato, dettaglio, preso) VALUES (%s, 'eg2', 'x', 'LAL', 'Out', 'Caviglia', %s)",
       (ora.date(), ora + timedelta(days=3650)))
 # Basketball-Reference: chi non è su ESPN (stagione in corso) e una stagione passata
@@ -186,6 +186,11 @@ ok(EG.descrizione(EG.leggi("media:20+ and media:30-", int(S)), int(S)) == "media
 _x = {"id": 1, "nome": "X", "pos": [], "nba": "LAL", "contratto": None, "diritti": None, "g": 5, "inf": None, "anni": None, "media": 25.0}
 ok(EG._passa(_x, EG.leggi("media:20+ and media:30-", int(S)), set()) and not EG._passa({**_x, "media": None}, EG.leggi("media:20+", int(S)), set()),
    "il filtro sui giocatori (senza media: fuori)")
+# v7.41.0 (Luca, 28/11): il filtro sul minutaggio (minuti a partita), come la media; ordina:minuti
+ok(nomi("minuti:30+") == ["Elenco Guardia Fa"] and "Elenco Guardia Fa" not in nomi("minuti:25-")
+   and nomi("ordina:minuti")[0] == "Elenco Guardia Fa", f"minuti:30+, minuti:25-, ordina:minuti ({nomi('minuti:30+')})")
+ok(EG.descrizione(EG.leggi("minuti:20-30", int(S)), int(S)) == "min 20-30" and "minuti:25+" in EG.risposta("aiuto")["testo"],
+   "intestazione e aiuto del filtro sui minuti")
 
 # l'immagine, la didascalia e il file .md con tutti
 r = risp("")

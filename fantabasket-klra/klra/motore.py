@@ -387,46 +387,13 @@ def _conference_lega():
 
 
 def _scheda_player(gid: int) -> str:
-    """/player di loucabot: dentro contesto(), in testa NON UFFICIALE e in fondo la stagione col sistema (v2)."""
-    t = _orig["scheda"](gid)
-    P, nome = _ATTIVO.get(), _NOME.get()
-    if not P or not nome:
-        return t
-    return t + "\n\n" + sezione_player(gid, P, nome)
+    """/player di loucabot, identico (v7.41.0, Luca 28/11: «klra è loucabot, cambia solo il punteggio»): il codice comune
+    (shared/giocatore.py) prende già i fantapunti dal sistema (non_ufficiale.fp e fm_bref); niente testo in più."""
+    return _orig["scheda"](gid)
 
 
 def _extra_player(gid: int) -> str:
-    """/player di loucabot è un'immagine (v7.7.0): la stagione col sistema arriva sotto, in testo."""
-    P, nome = _ATTIVO.get(), _NOME.get()
-    return sezione_player(gid, P, nome) if P and nome else ""
-
-
-def sezione_player(gid: int, P: dict, nome: str) -> str:
-    """Fantamedia della stagione e ultime 5 partite coi fantapunti del sistema, accanto quelli della lega."""
-    import html
-    from numeri import testo as tp
-    g = db.q("SELECT espn_id FROM giocatori WHERE id = %s", (gid,), one=True)
-    a = (g or {}).get("espn_id")
-    righe = [f"🧪 <b>Col sistema {html.escape(nome)}</b> (NON UFFICIALE)"]
-    if not a:
-        return righe[0] + "\n<i>non abbinato a ESPN: niente statistiche</i>"
-    tab = db.q("""SELECT t.*, p.inizio, p.casa, p.trasferta FROM nba_tabellini t JOIN nba_partite p ON p.espn_id = t.partita
-                  WHERE t.atleta = %s AND p.stagione = %s AND p.tipo = ANY(%s) AND t.giocato ORDER BY p.inizio""",
-               (a, config.stagione(), [2, 5]), many=True) or []
-    es = _esiti_nba({r["partita"] for r in tab}) if P["giocatore"]["vittoria_nba"] else {}
-    conta = [r for r in tab if not (float(r["fp"] or 0) == 0 and int(r["minuti"] or 0) == 0)]
-    if not conta:
-        return righe[0] + "\n<i>nessuna partita in stagione</i>"
-    mia = [fp_riga(r, P, es) for r in conta]
-    lega = [float(r["fp"] or 0) for r in conta]
-    righe.append(f"Fantamedia <b>{tp(ottavi(sum(mia) / len(mia)))}</b> (lega {tp(ottavi(sum(lega) / len(lega)))}) su {len(mia)} partite")
-    from zoneinfo import ZoneInfo
-    for r, x in list(zip(conta, mia))[-5:]:
-        avv = r["trasferta"] if r["squadra"] == r["casa"] else r["casa"]
-        b = bonus_riga(r, P, es)
-        righe.append(f"• {r['inizio'].astimezone(ZoneInfo('Europe/Rome')):%d/%m} {'vs' if r['squadra'] == r['casa'] else '@'} {avv}: "
-                     f"<b>{tp(x)}</b> (lega {tp(float(r['fp'] or 0))})" + (" " + " ".join(f"{'+' if v > 0 else ''}{v:g} {l}" for l, v in b) if b else ""))
-    return "\n".join(righe)
+    return ""
 
 
 def nome_contesto(sist: dict) -> str:
@@ -471,7 +438,7 @@ class contesto:
                    _SIST.set({"sist": self.sist, "stagione": self.stagione, "cup": None}))
         from shared import non_ufficiale as NU            # v8: anche i comandi in comune (rendimento, confronto…)
         self._nu = NU.sistema(STRISCIA.format(nome_contesto(self.sist)), fp=fp_sistema(P), fm_bref=fm_bref_sistema(P),
-                              nota_bref=nota_bref(P), chiave=firma_cache(P))
+                              nota_bref=nota_bref(P), chiave=firma_cache(P), pesi=P["pesi"])
         self._nu.__enter__()
         return self
 

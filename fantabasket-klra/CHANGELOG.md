@@ -77,3 +77,7 @@
 ## v16 (2026-11-28, progettone v7.40.0)
 
 - **Fanta P36** (Luca, 28/11): sistema predefinito con i fantapunti di ogni partita riportati a 36 minuti, netti (× 36 / minuti), bonus e tetto dopo; le medie di Basketball-Reference allo stesso modo. Nell'editor l'opzione «Riportati a 36 minuti» per ogni sistema, con «Minuti minimi (P36)» spento di serie
+
+## v17 (2026-11-28, progettone v7.41.0)
+
+- **klra è loucabot, cambia solo il punteggio** (Luca, 28/11): `/player` è la stessa immagine di loucabot coi fantapunti del sistema dentro (prima: l'immagine coi fantapunti della lega e sotto un testo col sistema); nuovi `/giocatori`, `/prestazione` (con le frecce) e `/notte`, uguali a loucabot col sistema. Nel codice comune (`shared/giocatore.py`, `shared/elenco_giocatori.py`, `shared/prestazione.py`) i fantapunti passano da `shared/non_ufficiale` (fuori da klra: quelli della lega, niente cambia); nuovo gancio `pesi()` per la composizione di /prestazione; striscia e filigrana NON UFFICIALE anche in quelle tre immagini
