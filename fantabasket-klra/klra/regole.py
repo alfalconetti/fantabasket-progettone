@@ -65,7 +65,10 @@ def ufficiale() -> dict:
     pesi.update({k: v for k, v in R.pesi_fantapunti().items()})
     return {
         "pesi": pesi,
-        "giocatore": {**{k: 0 for k in BONUS_GIOCATORE}, "tetto": None},
+        "giocatore": {**{k: 0 for k in BONUS_GIOCATORE}, "tetto": None,
+                      # v16 (Luca, 28/11): fantapunti delle statistiche riportati a 36 minuti (× 36 / minuti giocati),
+                      # p36 netti; il minimo di minuti al denominatore è un'opzione, spenta (None)
+                      "per36": False, "per36_minimo": None},
         "squadra": {"quintetto_bonus": 0, "quintetto_soglia": 20, "mvp_bonus": 0, "negativo_malus": 0},
         "partita": {"bonus_casa": R.bonus_casa(), "bonus_casa_playoff": R.bonus_casa(playoff=True),
                     "scarto": R.scarto_minimo(), "supplementari": "panchina", "pari_finale": "trasferta",
@@ -90,8 +93,13 @@ def completa(p: dict | None) -> dict:
 
 
 def firma(p: dict) -> str:
-    """Impronta dei parametri: la cache dei risultati è per firma (l'Ufficiale cambia se cambia settings.json)."""
-    return hashlib.sha256(json.dumps(completa(p), sort_keys=True).encode()).hexdigest()[:16]
+    """Impronta dei parametri: la cache dei risultati è per firma (l'Ufficiale cambia se cambia settings.json).
+    Il P36 spento non entra nell'impronta: i sistemi di prima della v16 tengono la loro cache."""
+    c = completa(p)
+    if not c["giocatore"]["per36"]:
+        c["giocatore"].pop("per36")
+        c["giocatore"].pop("per36_minimo")
+    return hashlib.sha256(json.dumps(c, sort_keys=True).encode()).hexdigest()[:16]
 
 
 def _n(x) -> str:
@@ -119,6 +127,13 @@ def differenze(p: dict, rispetto: dict | None = None, breve: bool = False) -> li
     for k, (nome, cond) in BONUS_GIOCATORE.items():
         if a["giocatore"][k] != b["giocatore"][k]:
             out.append(bonus(nome, cond, b["giocatore"][k]))
+    if (a["giocatore"]["per36"], a["giocatore"]["per36_minimo"]) != (b["giocatore"]["per36"], b["giocatore"]["per36_minimo"]):
+        if b["giocatore"]["per36"]:
+            m = b["giocatore"]["per36_minimo"]
+            out.append("Fantapunti riportati a 36 minuti (× 36 / minuti giocati, i bonus dopo)"
+                       + (f", almeno {_n(m)} minuti al denominatore" if m else ""))
+        else:
+            out.append("Fantapunti non riportati a 36 minuti")
     if a["giocatore"]["tetto"] != b["giocatore"]["tetto"]:
         out.append(f"Tetto ai fantapunti di una partita: {_n(b['giocatore']['tetto'])}")
     for k, (nome, cond) in BONUS_SQUADRA.items():
@@ -167,6 +182,11 @@ PREDEFINITI = {
                                      "niente supplementari (i panchinari sono già tutti in campo); classifica cumulativa, "
                                      "coi punti fatti in totale. Il resto come la lega",
                       "breve": "contano solo i panchinari, sommati; classifica cumulativa"},
+    "p36": {"nome": "Fanta P36", "modifiche": {"giocatore": {"per36": True}},          # v16 (Luca, 28/11)
+            "descrizione": "i fantapunti di ogni partita riportati a 36 minuti: fantapunti × 36 / minuti giocati, senza "
+                           "minimo (chi gioca 4 minuti e fa 8 fantapunti ne prende 72); chi non entra resta a 0; anche le "
+                           "medie (chi non ha partite, fantamedie storiche) a 36 minuti. Il resto come la lega",
+            "breve": "fantapunti riportati a 36 minuti, il resto come la lega"},
 }
 
 

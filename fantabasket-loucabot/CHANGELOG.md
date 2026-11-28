@@ -769,3 +769,7 @@ Il calcolo dei fantapunti.
 ## v160 (2026-11-27, progettone v7.38.0)
 
 - `/importa_calendario` e `/importa_date` a stagione iniziata: le giornate con dei risultati devono restare identiche (date e partite), altrimenti l'import si rifiuta e dice quali; prima si cancellavano e riscrivevano anche quelle (controllo delle funzioni per fase)
+
+## v161 (2026-11-28, progettone v7.39.0)
+
+- `/partita` (Luca, 28/11; mockup approvato): sotto i punti di ogni notte **contro chi** gioca («vs MIA», «@DEN»), in corso sotto il minuto e anche a partita finita; accanto al nome di ogni squadra chi ha **confermato il quintetto** (admin con nome e ora, «solo bot» in automatico, o non ancora confermato), solo nella giornata in corso da quando è iniziata e in quella prima

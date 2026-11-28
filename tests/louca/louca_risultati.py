@@ -851,6 +851,31 @@ ok(_c1["k"] == "live" and _c1["q"] == "3° Q · 4:12" and _c2["k"] == "live" and
    f"/partita live: quarto e minuto sotto i punti (anche senza tabellino), non a partita finita ({_c1}, {_c2})")
 _s, _t = LV.stato_nba({**_p0, "stato": "STATUS_SCHEDULED"})
 ok(_s == "dopo" and _t == f"{_p0['inizio'].astimezone(LV.ROMA):%H:%M}", f"banda: non iniziata, l'ora italiana ({_t})")
+# v7.39.0 (Luca, 28/11): contro chi, sotto i punti (anche a partita finita); chi ha confermato il quintetto
+_vs = ("vs " + _p0["trasferta"])
+ok(_c1.get("vs") == _vs and _c3.get("vs") == _vs and _c3["k"] == "fp", f"/partita: l'avversario sotto i punti, in corso e finita ({_c1}, {_c3})")
+_g = db.giornata(S, N)
+_ora = (_g.get("prima_partita") or datetime.now(timezone.utc)) + timedelta(hours=1)
+db.q("UPDATE lega_giornate SET prima_partita = %s WHERE stagione = %s AND numero = %s", (_ora - timedelta(hours=1), S, N))
+_g = db.giornata(S, N)
+_esiste = db.q("SELECT to_regclass('ipa_controlli') AS c, to_regclass('ipa_solo_bot') AS b", one=True)
+if _esiste["c"] and _esiste["b"]:
+    db.q("DELETE FROM ipa_controlli WHERE stagione = %s AND giornata = %s", (S, N))
+    db.q("INSERT INTO ipa_controlli (stagione, giornata, team_id, da, da_nome) VALUES (%s, %s, 'team01', 900, 'Adm')", (S, N))
+    _sb = db.q("INSERT INTO ipa_solo_bot (team_id, dal) VALUES ('team02', NOW() - INTERVAL '400 days') RETURNING id", one=True)["id"]
+    _cf = PA.conferme(S, N, _g, _ora)
+    ok(_cf is not None and _cf["team01"]["k"] == "admin" and _cf["team01"]["chi"] == "Adm" and _cf.get("team02", {}).get("k") == "solo_bot"
+       and "team03" not in _cf, f"conferme: admin con nome e ora, «solo bot» in automatico, le altre da confermare ({_cf})")
+    ok(PA.conferme(S, N, _g, _ora - timedelta(hours=2)) is None, "prima che la giornata inizi: niente etichetta")
+    _dopo = db.q("SELECT MAX(numero) AS n FROM lega_giornate WHERE stagione = %s", (S,), one=True)["n"]
+    db.q("INSERT INTO lega_giornate (stagione, numero, tipo, dal, al, prima_partita) VALUES (%s, %s, 'regular', %s, %s, %s), (%s, %s, 'regular', %s, %s, %s)",
+         (S, _dopo + 1, _ora.date(), _ora.date(), _ora, S, _dopo + 2, _ora.date(), _ora.date(), _ora))
+    ok(PA.conferme(S, N, _g, _ora) is None if N < _dopo + 1 else True, "due giornate dopo: niente etichetta (solo in corso e quella prima)")
+    db.q("DELETE FROM lega_giornate WHERE stagione = %s AND numero IN (%s, %s)", (S, _dopo + 1, _dopo + 2))
+    db.q("DELETE FROM ipa_solo_bot WHERE id = %s", (_sb,))
+    db.q("DELETE FROM ipa_controlli WHERE stagione = %s AND giornata = %s", (S, N))
+else:
+    ok(PA.conferme(S, N, _g, _ora) is None, "senza le tabelle di IPanchinari: niente etichetta")
 ok([LV.colonne_banda(n) for n in (1, 5, 8, 10, 15)] == [5, 5, 8, 5, 8], "banda: al massimo due righe da 8, mai meno di 5 colonne")
 db.q("UPDATE nba_partite SET punti_casa = 101, punti_trasferta = 99, periodo = 4 WHERE espn_id = %s", (_np[0]["espn_id"],))
 _b = LV.banda_nba(DAL)

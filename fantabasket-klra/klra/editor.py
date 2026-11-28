@@ -20,6 +20,8 @@ SEZIONI = {
 VOCI = {
     "pesi": {k: (v, "num", (-50, 50)) for k, v in KR.NOMI_STAT.items()},
     "giocatore": {**{k: (v[0], "num", (-50, 50)) for k, v in KR.BONUS_GIOCATORE.items()},
+                  "per36": ("Riportati a 36 minuti", "bool", None),                    # v16
+                  "per36_minimo": ("Minuti minimi (P36)", "num_o_niente", (0, 48)),
                   "tetto": ("Tetto a partita", "num_o_niente", (0, 500))},
     "squadra": {"quintetto_bonus": ("Quintetto completo", "num", (-100, 100)),
                 "quintetto_soglia": ("Soglia del quintetto", "num", (-100, 200)),
@@ -67,6 +69,8 @@ def visibile(P: dict, sez: str, voce: str) -> bool:
         return P["classifica"]["modo"] == "punti"
     if sez == "squadra" and voce == "quintetto_soglia":
         return bool(P["squadra"]["quintetto_bonus"])
+    if sez == "giocatore" and voce == "per36_minimo":
+        return bool(P["giocatore"]["per36"])
     return True
 
 

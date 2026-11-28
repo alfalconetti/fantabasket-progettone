@@ -73,3 +73,7 @@
 ## v15 (2026-11-26, progettone v7.36.0)
 
 - **Calendari alternativi**: dalla scheda di una conference «📅 Calendario nuovo con queste» estrae un calendario di regular season con lo schema del sorteggio vero (38 giornate, mai più di 2 di fila) e un seme suo; si usa come le conference alternative, chi l'ha creato lo riestrae. Le giornate dei playoff restano quelle vere
+
+## v16 (2026-11-28, progettone v7.40.0)
+
+- **Fanta P36** (Luca, 28/11): sistema predefinito con i fantapunti di ogni partita riportati a 36 minuti, netti (× 36 / minuti), bonus e tetto dopo; le medie di Basketball-Reference allo stesso modo. Nell'editor l'opzione «Riportati a 36 minuti» per ogni sistema, con «Minuti minimi (P36)» spento di serie

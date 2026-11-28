@@ -222,6 +222,30 @@ gt_ = M.calcola_giornata(pt_, S, 1)["risultati"][0]
 _gu1 = M.risultati_giornata(uff, S, 1)
 ok(gt_["sc"]["totale"] == round((_gu1["risultati"][0]["sc"]["totale"] + _pan) * 8) / 8, "«tutti»: titolari più panchinari")
 ok(any("solo i panchinari, sommati" in x for x in KR.differenze(KR.predefinito("fantapanchine"))), "differenze a parole")
+# v16 (Luca, 28/11): Fanta P36, fantapunti riportati a 36 minuti netti; il minimo come opzione, spento nel predefinito
+_p36 = KR.predefinito("p36")
+_r18 = {"pts": 10, "ast": 2, "giocato": True, "minuti": 18}
+_base = M.fp_riga(_r18, KR.ufficiale())
+ok(_p36["giocatore"]["per36"] and _p36["giocatore"]["per36_minimo"] is None and M.fp_riga(_r18, _p36) == round(_base * 2, 2),
+   f"P36: 18 minuti, fantapunti raddoppiati ({_base} → {M.fp_riga(_r18, _p36)})")
+_r4 = {**_r18, "minuti": 4}
+ok(M.fp_riga(_r4, _p36) == round(_base * 9, 2), "P36 netti: 4 minuti × 9, nessun limite")
+_pm = KR.completa({"giocatore": {"per36": True, "per36_minimo": 12}})
+ok(M.fp_riga(_r4, _pm) == round(_base * 3, 2) and M.fp_riga(_r18, _pm) == round(_base * 2, 2), "col minimo di 12: sotto si divide per 12")
+ok(M.fp_riga({**_r18, "minuti": 0}, _p36) == _base and M.fp_riga({"giocato": False, "minuti": 0}, _p36) == 0,
+   "senza minuti non si riporta (chi non entra resta a 0)")
+_pb = KR.completa({"giocatore": {"per36": True, "doppia_doppia": 5}})
+_dd = {"pts": 10, "dreb": 10, "giocato": True, "minuti": 18}
+ok(M.fp_riga(_dd, _pb) == round(M.fp_riga(_dd, KR.ufficiale()) * 2 + 5, 2), "i bonus dopo il riporto, non riportati")
+ok(M.fm_bref_sistema(_p36)({"pts": 20, "mp": 24}) == round(M.fm_bref_sistema(KR.ufficiale())({"pts": 20, "mp": 24}) * 1.5, 2),
+   "media di Basketball-Reference: × 36 / minuti a partita")
+ok(KR.firma(KR.ufficiale()) == KR.firma({}) and KR.firma(_p36) != KR.firma(KR.ufficiale()), "firma: il P36 spento non cambia le cache di prima")
+ok(any("riportati a 36 minuti" in x for x in KR.differenze(_p36)) and any("almeno 12 minuti" in x for x in KR.differenze(_pm)),
+   "differenze a parole, col minimo se c'è")
+import klra.editor as ED
+ok(not ED.visibile(KR.ufficiale(), "giocatore", "per36_minimo") and ED.visibile(_p36, "giocatore", "per36_minimo")
+   and ED.leggi_valore("giocatore", "per36_minimo", "12") == (12, None) and ED.leggi_valore("giocatore", "per36_minimo", "nessuno") == (None, None),
+   "editor: il minimo si vede col P36 acceso, si scrive o si toglie")
 
 # ── squadra: quintetto completo, MVP, sotto zero ──
 psq = KR.ufficiale(); psq["squadra"].update(mvp_bonus=7, quintetto_bonus=4, quintetto_soglia=-100, negativo_malus=-1)

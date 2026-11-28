@@ -2358,3 +2358,11 @@ Rifacimento dello zip della v7.37.0 (le lettere: correzioni allo stesso rilascio
 - **Trade dopo la deadline** (Luca, 27/11): a trade chiuse nessuna trade si esegue (`_esegui_trade` rifiuta) e i voti dei GM si fermano; gli admin la possono solo **forzare**, con l'avviso e il bottone ⚠️ Forza (approvazione nel gruppo admin e «Ufficializza ora»); l'annuncio dice «forzata a trade chiuse». Al cambio di fase che chiude le trade, l'elenco di quelle rimaste a metà agli admin
 - **🏁 Decadimento** nel `/menu` e nel menu `/` in ogni fase (come il comando)
 - Bot aste v86: **`/annulla_firma_asta ID [ore]`**, la firma di un'asta FA si annulla e l'asta si riapre con l'offerta in testa di prima
+
+## v7.39.0 (2026-11-28)
+
+- loucabot v161: in `/partita` l'avversario NBA sotto i punti di ogni notte e chi ha confermato il quintetto di ogni squadra (admin, «solo bot», da confermare) nella giornata in corso e in quella prima (Luca, 28/11; mockup approvato)
+
+## v7.40.0 (2026-11-28)
+
+- klra v16: sistema predefinito **Fanta P36**, fantapunti riportati a 36 minuti (netti, senza minimo); l'opzione nell'editor per ogni sistema, col minimo di minuti facoltativo (Luca, 28/11)

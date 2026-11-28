@@ -2,7 +2,7 @@
 
 > Progetto hobbistico: i bot che gestiscono una lega fantasy NBA tra amici (vedi `README.md`). Questo file è il quaderno di lavoro: stato, regole, decisioni e cose da fare.
 
-**Stato: v7.38.1 · bot aste v86 · loucabot v160 · IPanchinari v46 · klra v15** (27/11/2026)
+**Stato: v7.40.0 · bot aste v86 · loucabot v161 · IPanchinari v46 · klra v16** (28/11/2026)
 
 Il punto da cui ripartire in una sessione nuova: com'è fatto il progettone oggi, come si lavora, cosa è stato deciso e cosa resta da fare. Solo cose valide adesso; la storia versione per versione è nei CHANGELOG (`fantabasket-main/CHANGELOG.md`, `fantabasket-aste-beta/CHANGELOG.md`, `fantabasket-loucabot/CHANGELOG.md`, `fantabasket-ipanchinari/CHANGELOG.md`, `fantabasket-klra/CHANGELOG.md`). Le guide dei bot (`docs/guida_gm.md`, `guida_admin.md`, `guida_dev.md` di ognuno) e `docs/RECOVERY.md` sono il riferimento di dettaglio.
 
@@ -180,7 +180,7 @@ README e CHANGELOG in `fantabasket-klra/`. Il frontend è quello di loucabot (st
 - **Sistemi**: Ufficiale, Fantamedie e Fantapanchine predefiniti; quelli dei GM si copiano da qualsiasi sistema e li modifica solo chi li ha creati. Conference alternative salvate da chiunque, anche estratte a caso.
 - `/klra_verifica`: con l'Ufficiale klra deve dare esattamente i risultati convalidati di loucabot.
 - **Copia quasi speculare di loucabot** (Luca, 21/11; v8 nella v7.20.1): anche rendimento, carriera, confronti, situazione, squadre, casa/trasferta, Quasi Cup, storiche e playoff col sistema; le medie storiche solo coi pesi (nota se il sistema ha bonus o tetto); `/playoff` solo seed e primo turno dalla classifica del sistema. **Niente live** e niente `/giocatori` e `/status` (Luca, 21/11). Il codice comune lo sa da `shared/non_ufficiale.py`: ogni comando in comune nuovo che usa fantapunti o fa immagini deve passare da lì (`NU.fp`, `NU.fm_bref`, `NU.marca`).
-- **Da fare: il sistema «Fanta sui 36 minuti»** (Luca, 16/11): un sistema di klra in cui i fantapunti di ogni partita si riportano a 36 minuti (fantapunti ÷ minuti giocati × 36), stesse formazioni e stesso calendario, per vedere come andrebbe la lega se contasse il rendimento al minuto e non il minutaggio. Da decidere con Luca: un minimo di minuti per contare (chi gioca 2 minuti e fa 6 fantapunti varrebbe 108), come trattare DNP e media (il valore per 36 della media o la media dei valori per 36), se riportare anche i supplementari.
+- ~~**Il sistema «Fanta sui 36 minuti»**~~ **fatto nella v7.40.0** (klra v16, Luca 16/11 e 28/11): predefinito **Fanta P36**, fantapunti × 36 / minuti netti, bonus dopo; l'opzione nell'editor per ogni sistema col minimo di minuti facoltativo (spento di serie).
 
 ## 9. Fonti esterne
 

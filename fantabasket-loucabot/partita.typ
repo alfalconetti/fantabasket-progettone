@@ -101,10 +101,15 @@
 
 // ── una squadra ──
 #let cella(c) = {
-  if c.k == "fp" { text(weight: "bold")[#c.t] }
+  if c.k == "fp" {                   // v7.39.0 (Luca, 28/11): sotto, contro chi
+    let vs = c.at("vs", default: "")
+    if vs != "" { [#text(weight: "bold")[#c.t] \ #text(fill: grigio, size: 6.5pt)[#vs.replace(" ", "\u{a0}")]] } else { text(weight: "bold")[#c.t] }
+  }
   else if c.k == "live" {            // v7.16.0 (Luca, 16/11; mockup approvato): sotto, il quarto e il minuto della partita NBA
     let q = c.at("q", default: "")
-    if q != "" { [#text(weight: "bold", fill: rosso)[#c.t] \ #text(fill: rosso.lighten(25%), size: 6.5pt)[#q]] } else { text(weight: "bold", fill: rosso)[#c.t] }
+    let vs = c.at("vs", default: "")  // v7.39.0: e sotto ancora contro chi
+    let sotto = if vs != "" and q != "" [#q \ #vs.replace(" ", "\u{a0}")] else if vs != "" [#vs.replace(" ", "\u{a0}")] else [#q]
+    if q != "" or vs != "" { [#text(weight: "bold", fill: rosso)[#c.t] \ #text(fill: rosso.lighten(25%), size: 6.5pt)[#sotto]] } else { text(weight: "bold", fill: rosso)[#c.t] }
   }
   else if c.k == "dnp" { text(fill: grigio)[DNP] }
   else if c.k == "prossima" {        // con l'orario di Roma sotto (Luca, 11/11)
@@ -138,7 +143,16 @@
   block(width: 100%, inset: (x: 14pt, top: 12pt, bottom: 6pt))[
     #grid(columns: (auto, 1fr), column-gutter: 8pt, align: horizon,
       box(width: 5pt, height: 16pt, fill: viola, radius: 2pt),
-      [#text(12pt, weight: "bold")[#s.nome] #h(4pt) #text(8.5pt, fill: grigio)[#if s.lato == "casa" [casa] else [trasferta]]])
+      [#text(12pt, weight: "bold")[#s.nome] #h(4pt) #text(8.5pt, fill: grigio)[#if s.lato == "casa" [casa] else [trasferta]]
+       #h(1fr) #{ // v7.39.0 (Luca, 28/11; mockup approvato): chi ha confermato il quintetto, giornata in corso e quella prima
+         let c = s.at("conferma", default: none)
+         if c != none {
+           let (col, t) = if c.k == "admin" { (verde, [✅ Quintetto confermato da *#c.chi* alle #c.ora]) }
+             else if c.k == "solo_bot" { (viola, [🤖 Quintetto confermato in automatico · squadra «solo bot»]) }
+             else { (arancio, [⏳ Quintetto non ancora confermato]) }
+           box(fill: col.transparentize(90%), stroke: 0.5pt + col.transparentize(50%), radius: 3pt, inset: (x: 5pt, y: 2.5pt), text(7.5pt, fill: col)[#t])
+         }
+       }])
   ]
   pad(x: 14pt, table(
     columns: (24pt, 1fr, 30pt, 38pt) + (50pt,) * nn + (64pt,),

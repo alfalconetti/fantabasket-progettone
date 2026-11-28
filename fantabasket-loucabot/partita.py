@@ -149,7 +149,7 @@ def _cella(x: dict | None, a: str | None, sq: str | None, d, partite_giorno: dic
         return {"t": "rinv.", "k": "rinviata"}
     if p["stato"] == FINITA:
         if r and r.get("giocato") and not (float(r["fp"] or 0) == 0 and not r.get("minuti")):
-            return {"t": tp(r["fp"]), "k": "fp"}
+            return {"t": tp(r["fp"]), "k": "fp", "vs": vs}          # v7.39.0 (Luca, 28/11): contro chi, sotto
         return {"t": "DNP", "k": "dnp"}
     if p["stato"] == "STATUS_SCHEDULED":                          # con l'orario di Roma (Luca, 11/11)
         ora = p["inizio"].astimezone(__import__("zoneinfo").ZoneInfo("Europe/Rome")).strftime("%H:%M") if p.get("inizio") else ""
@@ -157,8 +157,35 @@ def _cella(x: dict | None, a: str | None, sq: str | None, d, partite_giorno: dic
     import live                                                   # v7.16.0 (Luca, 16/11): quarto e minuto sotto
     q = live.stato_nba(p)[1] if p.get("stato") else ""
     if r and r.get("giocato"):                                    # in corso, tabellino parziale
-        return {"t": tp(r["fp"]), "k": "live", "q": q}
+        return {"t": tp(r["fp"]), "k": "live", "q": q, "vs": vs}  # v7.39.0: e contro chi, sotto il minuto
     return {"t": vs, "k": "live", "q": q}
+
+
+def conferme(s: str, n: int, g: dict, ora: datetime) -> dict[str, dict] | None:
+    """v7.39.0 (Luca, 28/11; mockup approvato): chi ha confermato il quintetto (IPanchinari, /controlli) o «solo bot».
+    Solo a giornata iniziata e solo per la giornata in corso e quella prima (della stessa stagione); None = niente
+    etichetta. {team: {k: admin|solo_bot, chi, ora}}; le squadre assenti non sono ancora confermate."""
+    if not (g.get("prima_partita") and g["prima_partita"] <= ora):
+        return None
+    ultima = db.q("""SELECT MAX(numero) AS n FROM lega_giornate WHERE stagione = %s
+                     AND (prima_partita <= %s OR (prima_partita IS NULL AND dal <= %s))""",
+                  (s, ora, ora.date()), one=True)
+    if not ultima or ultima["n"] is None or n not in (ultima["n"], ultima["n"] - 1):
+        return None
+    out = {}
+    try:
+        roma = __import__("zoneinfo").ZoneInfo("Europe/Rome")
+        for r in db.q("SELECT team_id, da_nome, quando FROM ipa_controlli WHERE stagione = %s AND giornata = %s",
+                      (s, n), many=True) or []:
+            out[r["team_id"]] = {"k": "admin", "chi": r["da_nome"] or "un admin",
+                                 "ora": f"{r['quando'].astimezone(roma):%H:%M del %d/%m}"}
+        for r in db.q("""SELECT team_id FROM ipa_solo_bot WHERE dal::date <= %s AND (al IS NULL OR al::date >= %s)""",
+                      (g["al"], g["dal"]), many=True) or []:
+            out[r["team_id"]] = {"k": "solo_bot"}
+    except Exception as e:                                   # tabelle di IPanchinari che mancano
+        logger.warning("Conferme dei quintetti G%s: %s", n, e)
+        return None
+    return out
 
 
 def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None, turno: int | None = None) -> dict:
@@ -264,6 +291,10 @@ def dati(s: str, n: int, casa: str, trasferta: str, ora: datetime | None = None,
             "tribuna": tribuna(t, g, ora, iniziata, {x.get("gid") for x in orig["quintetto"] + orig["panchina"] if x.get("gid")},
                                giorni, partite_giorno),
             "panchina_mandata": orig["panchina"] != [] or bool(sq_calc["panchina"])})
+    conf = conferme(s, n, g, ora)
+    if conf is not None:
+        for sq in squadre_out:
+            sq["conferma"] = conf.get(sq["id"], {"k": "manca"})
     import classifica                                  # i convalidati della stagione (come la classifica)
     convalidati = classifica.risultati(s)
     for sq in squadre_out:

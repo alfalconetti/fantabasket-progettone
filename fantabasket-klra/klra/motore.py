@@ -97,10 +97,21 @@ def bonus_riga(r: dict, P: dict, esito_nba: dict | None = None) -> list[tuple[st
     return out
 
 
+def per36(fp: float, minuti, P: dict) -> float:
+    """v16 (Luca, 28/11): fantapunti riportati a 36 minuti, netti (× 36 / minuti); col minimo acceso, sotto quei minuti
+    si divide per il minimo. Senza minuti resta com'è (0 di chi non entra)."""
+    g = P["giocatore"]
+    m = float(minuti or 0)
+    if not g.get("per36") or m <= 0:
+        return fp
+    return fp * 36 / max(m, float(g.get("per36_minimo") or 0))
+
+
 def fp_riga(r: dict, P: dict, esito_nba: dict | None = None) -> float:
-    """I fantapunti di una partita col sistema: pesi (come nba.fantapunti, a due decimali), bonus, tetto."""
+    """I fantapunti di una partita col sistema: pesi (come nba.fantapunti, a due decimali), riporto a 36 minuti se
+    acceso, bonus, tetto."""
     pesi = P["pesi"]
-    fp = round(sum(float(p) * float(r.get(k) or 0) for k, p in pesi.items() if p), 2)
+    fp = round(per36(sum(float(p) * float(r.get(k) or 0) for k, p in pesi.items() if p), r.get("minuti"), P), 2)
     fp += sum(x for _, x in bonus_riga(r, P, esito_nba))
     tetto = P["giocatore"]["tetto"]
     if tetto is not None and fp > float(tetto):
@@ -324,7 +335,8 @@ def fm_bref_sistema(P: dict):
     """Per shared.non_ufficiale: la fantamedia di una stagione di Basketball-Reference coi pesi del sistema (le medie a
     partita × i pesi; i bonus per partita e il tetto non si possono calcolare dalle medie)."""
     def f(r: dict) -> float:
-        return round(sum(float(p) * float(r.get(PESI_BREF[k]) or 0) for k, p in P["pesi"].items() if p and k in PESI_BREF), 2)
+        fm = sum(float(p) * float(r.get(PESI_BREF[k]) or 0) for k, p in P["pesi"].items() if p and k in PESI_BREF)
+        return round(per36(fm, r.get("mp"), P), 2)                 # v16: le medie a partita, minuti a partita
     return f
 
 
